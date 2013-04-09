@@ -1,0 +1,5 @@
+H2写到硬盘或内存的每个文件都从org.h2.store.FileStore开始，
+每个FileStore对应一个文件，这样的文件在文件头有固定的格式
+
+FileStore提供了read和write方法
+
