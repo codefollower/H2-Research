@@ -1,0 +1,152 @@
+/*
+ * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
+ * Version 1.0, and under the Eclipse Public License, Version 1.0
+ * (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
+ */
+package org.h2.expression;
+
+import java.util.ArrayList;
+import org.h2.command.dml.Query;
+import org.h2.constant.ErrorCode;
+import org.h2.engine.Session;
+import org.h2.message.DbException;
+import org.h2.result.ResultInterface;
+import org.h2.table.ColumnResolver;
+import org.h2.table.TableFilter;
+import org.h2.value.Value;
+import org.h2.value.ValueArray;
+import org.h2.value.ValueNull;
+
+/**
+ * A query returning a single value.
+ * Subqueries are used inside other statements.
+ */
+public class Subquery extends Expression {
+
+    private final Query query;
+    private Expression expression; //query的select字段列表，如果有多列，那么是一个ExpressionList
+
+    public Subquery(Query query) {
+        this.query = query;
+    }
+    
+    //子查询不能多于1个列
+	//sql = "delete from ConditionInSelectTest where id in(select id,name from ConditionInSelectTest where id=3)";
+	//sql = "delete from ConditionInSelectTest where id in(select id from ConditionInSelectTest where id>2)";
+
+	//sql = "delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)";
+	//ANY和SOME一样
+	//sql = "delete from ConditionInSelectTest where id > ANY(select id from ConditionInSelectTest where id>1)";
+	//sql = "delete from ConditionInSelectTest where id > SOME(select id from ConditionInSelectTest where id>10)";
+	
+	//严格来说这种sql才算Subquery，上面的in，ALL，ANY，SOME都只是普通的select
+	//Subquery包含的行数不能大于1，而in，ALL，ANY，SOME没限制，
+	//想一下也理解，比如id> (select id from ConditionInSelectTest where id>1)如果这个Subquery大于1行，那么id就不知道和谁比较
+	//sql = "delete from ConditionInSelectTest where id > (select id from ConditionInSelectTest where id>1)";
+    //但是Subquery可以有多例
+	//sql = "delete from ConditionInSelectTest where id > (select id, name from ConditionInSelectTest where id=1 and name='a1')";
+    public Value getValue(Session session) {
+        query.setSession(session);
+        //getValue虽然在主查询有多条记录的情况下都会被调用，但是query内部是有缓存的，只是一个浅拷贝，所以对性能影响不大
+        ResultInterface result = query.query(2);
+        try {
+            int rowcount = result.getRowCount();
+            if (rowcount > 1) {
+                throw DbException.get(ErrorCode.SCALAR_SUBQUERY_CONTAINS_MORE_THAN_ONE_ROW);
+            }
+            Value v;
+            if (rowcount <= 0) {
+                v = ValueNull.INSTANCE;
+            } else {
+                result.next();
+                Value[] values = result.currentRow();
+                if (result.getVisibleColumnCount() == 1) {
+                    v = values[0];
+                } else {
+                	//对于id > (select id, name from ConditionInSelectTest where id=1 and name='a1')
+                	//此时由id, name得到一个ValueArray
+                	//但进行比较时，左边的id也会转换成一个String数组，最后与ValueArray比较
+                	//所以如果子查询只需要一个列时，就不应该多写一个列，这样性能更高。
+                    v = ValueArray.get(values);
+                }
+            }
+            return v;
+        } finally {
+            //对于org.h2.result.LocalResult只有external不为null时才把closed设为true
+        	//当在org.h2.command.dml.Query.query(int)判断org.h2.result.LocalResult.isClosed()时因为closed为false
+        	//所以这个close方法并没效果。
+            result.close();
+        }
+    }
+
+    public int getType() {
+        return getExpression().getType();
+    }
+
+    public void mapColumns(ColumnResolver resolver, int level) {
+        query.mapColumns(resolver, level + 1);
+    }
+
+    public Expression optimize(Session session) {
+        query.prepare();
+        return this;
+    }
+
+    public void setEvaluatable(TableFilter tableFilter, boolean b) {
+        query.setEvaluatable(tableFilter, b);
+    }
+
+    public int getScale() {
+        return getExpression().getScale();
+    }
+
+    public long getPrecision() {
+        return getExpression().getPrecision();
+    }
+
+    public int getDisplaySize() {
+        return getExpression().getDisplaySize();
+    }
+
+    public String getSQL() {
+        return "(" + query.getPlanSQL() + ")";
+    }
+
+    public void updateAggregate(Session session) {
+        query.updateAggregate(session);
+    }
+
+    private Expression getExpression() {
+        if (expression == null) {
+            ArrayList<Expression> expressions = query.getExpressions();
+            int columnCount = query.getColumnCount();
+            if (columnCount == 1) {
+                expression = expressions.get(0);
+            } else {
+                Expression[] list = new Expression[columnCount];
+                for (int i = 0; i < columnCount; i++) {
+                    list[i] = expressions.get(i);
+                }
+                expression = new ExpressionList(list);
+            }
+        }
+        return expression;
+    }
+
+    public boolean isEverything(ExpressionVisitor visitor) {
+        return query.isEverything(visitor);
+    }
+
+    public Query getQuery() {
+        return query;
+    }
+
+    public int getCost() {
+        return query.getCostAsExpression();
+    }
+
+    public Expression[] getExpressionColumns(Session session) {
+        return getExpression().getExpressionColumns(session);
+    }
+}
