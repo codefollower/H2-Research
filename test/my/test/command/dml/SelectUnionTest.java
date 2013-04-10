@@ -10,11 +10,11 @@ public class SelectUnionTest extends TestBase {
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("DROP TABLE IF EXISTS SelectUnionTest1");
-		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS SelectUnionTest1(id int, name varchar(500), b boolean)");
+		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS SelectUnionTest1(id int, name varchar(500), b boolean, id1 int)");
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS SelectUnionTestIndex1 ON SelectUnionTest1(name)");
 
 		stmt.executeUpdate("DROP TABLE IF EXISTS SelectUnionTest2");
-		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS SelectUnionTest2(id int, name varchar(500), b boolean)");
+		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS SelectUnionTest2(id int, name varchar(500), b boolean, id2 int)");
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS SelectUnionTestIndex2 ON SelectUnionTest2(name)");
 
 		stmt.executeUpdate("insert into SelectUnionTest1(id, name, b) values(1, 'a1', true)");
@@ -54,6 +54,14 @@ public class SelectUnionTest extends TestBase {
 		sql = "select * from SelectUnionTest1 MINUS select * from SelectUnionTest2 order by id";
 		
 		sql = "select * from SelectUnionTest1 INTERSECT select * from SelectUnionTest2 order by id";
+		
+		//sql = "select id, name from SelectUnionTest1 INTERSECT select id, name from SelectUnionTest2 order by id";
+		
+		//排序列必须是左边的select字段列表中的
+		//这两条sql都不对
+		//sql = "select id, name from SelectUnionTest1 INTERSECT select id2, name from SelectUnionTest2 order by id2";
+		//sql = "select id, name from SelectUnionTest1 INTERSECT select id, name from SelectUnionTest2 order by id2";
+		
 		executeQuery();
 	}
 }
