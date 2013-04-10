@@ -31,11 +31,11 @@ public abstract class DefineCommand extends Prepared {
         super(session);
     }
 
-    public boolean isReadOnly() { //ÎŞ×ÓÀà¸²¸Ç
+    public boolean isReadOnly() { //æ— å­ç±»è¦†ç›–
         return false;
     }
 
-    public ResultInterface queryMeta() { //ÎŞ×ÓÀà¸²¸Ç
+    public ResultInterface queryMeta() { //æ— å­ç±»è¦†ç›–
         return null;
     }
 

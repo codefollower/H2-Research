@@ -27,8 +27,8 @@ class Optimizer {
     private long start;
     private BitField switched;
     
-    //ºóÃæµÄplan¸öÊıµÈÓÚÇ°ÃæµÄplan¸öÊı³ËÒÔºóÃæµÄfilterÊı
-    //±ÈÈçºÍÈıĞĞÊÇ6£¬µÈÓÚµÚÈıĞĞµÄfilter 3 * 2 = 6
+    //åé¢çš„planä¸ªæ•°ç­‰äºå‰é¢çš„planä¸ªæ•°ä¹˜ä»¥åé¢çš„filteræ•°
+    //æ¯”å¦‚å’Œä¸‰è¡Œæ˜¯6ï¼Œç­‰äºç¬¬ä¸‰è¡Œçš„filter 3 * 2 = 6
     //  possible plans for filters, if using brute force:
     //  1 filter 1 plan
     //  2 filters 2 plans
@@ -51,7 +51,7 @@ class Optimizer {
     private Random random;
 
     Optimizer(TableFilter[] filters, Expression condition, Session session) {
-        this.filters = filters; //joinÊ±²ÅÓĞ¶à¸öTableFilter£¬Õı³£Ö»ÓĞÒ»¸öTableFilter
+        this.filters = filters; //joinæ—¶æ‰æœ‰å¤šä¸ªTableFilterï¼Œæ­£å¸¸åªæœ‰ä¸€ä¸ªTableFilter
         this.condition = condition;
         this.session = session;
     }
@@ -185,7 +185,7 @@ class Optimizer {
         return false;
     }
 
-    private void shuffleAll(TableFilter[] f) { //Ëæ»ú°ÑÊı×éÖĞµÄÁ½¸öÔªËØ¶Ò»»f.length-1´Î
+    private void shuffleAll(TableFilter[] f) { //éšæœºæŠŠæ•°ç»„ä¸­çš„ä¸¤ä¸ªå…ƒç´ å…‘æ¢f.length-1æ¬¡
         for (int i = 0; i < f.length - 1; i++) {
             int j = i + random.nextInt(f.length - i);
             if (j != i) {
@@ -196,7 +196,7 @@ class Optimizer {
         }
     }
 
-    private boolean shuffleTwo(TableFilter[] f) { //Ëæ»ú°ÑÊı×éÖĞµÄÁ½¸öÔªËØ¶Ò»»1½»
+    private boolean shuffleTwo(TableFilter[] f) { //éšæœºæŠŠæ•°ç»„ä¸­çš„ä¸¤ä¸ªå…ƒç´ å…‘æ¢1äº¤
         int a = 0, b = 0, i = 0;
         for (; i < 20; i++) {
             a = random.nextInt(f.length);
@@ -234,7 +234,7 @@ class Optimizer {
         TableFilter[] f2 = bestPlan.getFilters();
         topFilter = f2[0];
         for (int i = 0; i < f2.length - 1; i++) {
-        	//¼ûorg.h2.command.Parser.parseJoinTableFilter(TableFilter, Select)ÖĞµÄ×¢ÊÍ
+        	//è§org.h2.command.Parser.parseJoinTableFilter(TableFilter, Select)ä¸­çš„æ³¨é‡Š
             f2[i].addJoin(f2[i + 1], false, false, null);
         }
         for (TableFilter f : f2) {

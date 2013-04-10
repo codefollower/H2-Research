@@ -21,7 +21,7 @@
         if (readIf("SORTED")) {
             command.setSortedInsertMode(true);
         }
-        if (readIf("DEFAULT")) { //±ÈÈç: INSERT INTO tableName DEFAULT VALUES£¬²åÈëÒ»ĞĞÄ¬ÈÏÖµ
+        if (readIf("DEFAULT")) { //æ¯”å¦‚: INSERT INTO tableName DEFAULT VALUESï¼Œæ’å…¥ä¸€è¡Œé»˜è®¤å€¼
             read("VALUES");
             Expression[] expr = { };
             command.addRow(expr);
@@ -29,7 +29,7 @@
             read("(");
             do {
                 ArrayList<Expression> values = New.arrayList();
-				//±ÈÈç: "INSERT INTO t VALUES(DEFAULT),('abc'),('123')"£¬¿ÉÒÔÍ¬Ê±insert¶àĞĞ
+				//æ¯”å¦‚: "INSERT INTO t VALUES(DEFAULT),('abc'),('123')"ï¼Œå¯ä»¥åŒæ—¶insertå¤šè¡Œ
                 if (!readIf(")")) {
                     do {
                         if (readIf("DEFAULT")) {
@@ -43,13 +43,13 @@
                 // the following condition will allow (..),; and (..);
             } while (readIf(",") && readIf("("));
         } else if (readIf("SET")) {
-            if (columns != null) { //±ÈÈçINSERT INTO t(name) set name='xyz'£¬²»ÄÜÍ¬Ê±Ö¸¶¨×Ö¶ÎÁĞ±í
+            if (columns != null) { //æ¯”å¦‚INSERT INTO t(name) set name='xyz'ï¼Œä¸èƒ½åŒæ—¶æŒ‡å®šå­—æ®µåˆ—è¡¨
                 throw getSyntaxError();
             }
             ArrayList<Column> columnList = New.arrayList();
             ArrayList<Expression> values = New.arrayList();
             do {
-				//Ö§³ÖINSERT INTO t set name='xyz', f2=DEFAULT£¬...ÕâÑùµÄÓï·¨£¬
+				//æ”¯æŒINSERT INTO t set name='xyz', f2=DEFAULTï¼Œ...è¿™æ ·çš„è¯­æ³•ï¼Œ
                 columnList.add(parseColumn(table));
                 read("=");
                 Expression expression;

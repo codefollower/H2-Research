@@ -48,7 +48,7 @@ public abstract class PageBtree extends Page {
     /**
      * The number of entries.
      */
-    protected int entryCount; //¶ÔÓÚPageBtreeNode¾ÍÊÇ·Ö¸ôµã(rows)µÄ¸öÊı(Ò²µÈÓÚ×Ó½Úµã¸öÊı-1)£¬¶ÔÓÚPageBtreeLeaf¾Í´ú±íĞĞÊı
+    protected int entryCount; //å¯¹äºPageBtreeNodeå°±æ˜¯åˆ†éš”ç‚¹(rows)çš„ä¸ªæ•°(ä¹Ÿç­‰äºå­èŠ‚ç‚¹ä¸ªæ•°-1)ï¼Œå¯¹äºPageBtreeLeafå°±ä»£è¡¨è¡Œæ•°
 
     /**
      * The index data
@@ -79,7 +79,7 @@ public abstract class PageBtree extends Page {
         this.index = index;
         this.data = data;
         setPos(pageId);
-        memoryEstimated = index.getMemoryPerPage(); //×î¿ªÊ¼Ê±Îª0
+        memoryEstimated = index.getMemoryPerPage(); //æœ€å¼€å§‹æ—¶ä¸º0
     }
 
     /**
@@ -105,30 +105,30 @@ public abstract class PageBtree extends Page {
      * @param compareKeys compare the row keys as well
      * @return the index of the found row
      */
-    //ÕÛ°ë²éÕÒ
-    //·µ»ØµÄÏÂ±ê»áÓÃÓÚorg.h2.store.PageµÄinsert·½·¨ÖĞ£¬Ê¹µÃinsertµ½rowsÊ±¾Í°´ÕÕ½¨Á¢Ë÷ÒıÊ±Ö¸¶¨µÄÅÅĞò·½Ê½ÅÅºÃÁË£¬
-    //±ÈÈçCREATE index IF NOT EXISTS idx_name ON IndexTestTable(name desc)£¬ÒòÎªÎªnameÖ¸¶¨ÁËdesc£¬ËùÒÔrowsÊı×éÊÇ½µĞòµÄ
+    //æŠ˜åŠæŸ¥æ‰¾
+    //è¿”å›çš„ä¸‹æ ‡ä¼šç”¨äºorg.h2.store.Pageçš„insertæ–¹æ³•ä¸­ï¼Œä½¿å¾—insertåˆ°rowsæ—¶å°±æŒ‰ç…§å»ºç«‹ç´¢å¼•æ—¶æŒ‡å®šçš„æ’åºæ–¹å¼æ’å¥½äº†ï¼Œ
+    //æ¯”å¦‚CREATE index IF NOT EXISTS idx_name ON IndexTestTable(name desc)ï¼Œå› ä¸ºä¸ºnameæŒ‡å®šäº†descï¼Œæ‰€ä»¥rowsæ•°ç»„æ˜¯é™åºçš„
     
-    //´Ë·½·¨µÄ·µ»ØÖµÊÇ: 0<=x<=entryCount
-    int find(SearchRow compare, boolean bigger, boolean add, boolean compareKeys) { //Ö»ÓĞaddRowºÍremoveÊ±compareKeysÎªtrue£¬findÊ±compareKeysÎªfalse
+    //æ­¤æ–¹æ³•çš„è¿”å›å€¼æ˜¯: 0<=x<=entryCount
+    int find(SearchRow compare, boolean bigger, boolean add, boolean compareKeys) { //åªæœ‰addRowå’Œremoveæ—¶compareKeysä¸ºtrueï¼Œfindæ—¶compareKeysä¸ºfalse
         if (compare == null) {
             return 0;
         }
         int l = 0, r = entryCount;
         int comp = 1;
         while (l < r) {
-            int i = (l + r) >>> 1; //³ıÒÔ2£¬´ÓÖĞ¼äÔªËØ¿ªÊ¼
+            int i = (l + r) >>> 1; //é™¤ä»¥2ï¼Œä»ä¸­é—´å…ƒç´ å¼€å§‹
             SearchRow row = getRow(i);
-            //Èç¹ûË÷Òı×Ö¶ÎÊÇ½µĞòµÄ£¬±ÈÈçCREATE index IF NOT EXISTS idx_name ON IndexTestTable(name desc)
-            //ÄÇÃ´´ËÊ±»á°´½µĞò±È½Ï£¬Èç¹ûrow<compare£¬ÄÇÃ´µÃµ½µÄ½á¹ûÊÇrow>compare£¬´ËÊ±rowsÊı×éÖĞµÄÔªËØÊÇ½µĞòÅÅÁĞµÄ¡£
+            //å¦‚æœç´¢å¼•å­—æ®µæ˜¯é™åºçš„ï¼Œæ¯”å¦‚CREATE index IF NOT EXISTS idx_name ON IndexTestTable(name desc)
+            //é‚£ä¹ˆæ­¤æ—¶ä¼šæŒ‰é™åºæ¯”è¾ƒï¼Œå¦‚æœrow<compareï¼Œé‚£ä¹ˆå¾—åˆ°çš„ç»“æœæ˜¯row>compareï¼Œæ­¤æ—¶rowsæ•°ç»„ä¸­çš„å…ƒç´ æ˜¯é™åºæ’åˆ—çš„ã€‚
             comp = index.compareRows(row, compare);
             if (comp == 0) {
-            	//Ôö¼ÓĞÂ¼ÇÂ¼Ê±£¬Èç¹ûÊÇÎ¨Ò»Ë÷Òı£¬µ±Á½Ìõ¼ÇÂ¼ÏàµÈÊ±£¬
-            	//ÔÙ¸ù¾İ²»Í¬Êı¾İ¿âµÄ¼æÈİÄ£Ê½À´ÅĞ¶Ï¼ÇÂ¼ÖĞµÄnull×Ö¶ÎÇé¿ö
-            	//1. uniqueIndexSingleNull ·µ»Øfalse, Å×³öDuplicateKeyException
+            	//å¢åŠ æ–°è®°å½•æ—¶ï¼Œå¦‚æœæ˜¯å”¯ä¸€ç´¢å¼•ï¼Œå½“ä¸¤æ¡è®°å½•ç›¸ç­‰æ—¶ï¼Œ
+            	//å†æ ¹æ®ä¸åŒæ•°æ®åº“çš„å…¼å®¹æ¨¡å¼æ¥åˆ¤æ–­è®°å½•ä¸­çš„nullå­—æ®µæƒ…å†µ
+            	//1. uniqueIndexSingleNull è¿”å›false, æŠ›å‡ºDuplicateKeyException
             	//2. uniqueIndexSingleNullExceptAllColumnsAreNull
-            	//   Èç¹ûÒª±È½ÏµÄ¼ÇÂ¼°üº¬·Çnull×Ö¶Î£¬·µ»Øfalse, Å×³öDuplicateKeyException£¬·ñÔòÔÊĞíÍ¨¹ı
-            	//3. ÆäËûÇé¿ö: Èç¹ûÒª±È½ÏµÄ¼ÇÂ¼º¬null×Ö¶Î£¬·µ»Øtrue£¬·ñÔò·µ»Øfalse, Å×³öDuplicateKeyException
+            	//   å¦‚æœè¦æ¯”è¾ƒçš„è®°å½•åŒ…å«énullå­—æ®µï¼Œè¿”å›false, æŠ›å‡ºDuplicateKeyExceptionï¼Œå¦åˆ™å…è®¸é€šè¿‡
+            	//3. å…¶ä»–æƒ…å†µ: å¦‚æœè¦æ¯”è¾ƒçš„è®°å½•å«nullå­—æ®µï¼Œè¿”å›trueï¼Œå¦åˆ™è¿”å›false, æŠ›å‡ºDuplicateKeyException
                 if (add && index.indexType.isUnique()) {
                     if (!index.containsNullAndAllowMultipleNull(compare)) {
                         throw index.getDuplicateKeyException();
@@ -141,8 +141,8 @@ public abstract class PageBtree extends Page {
                     }
                 }
             }
-            //µÚi¸öÔªËØ´óÓÚÒª±È½ÏµÄÔªËØÊ±£¬Íù×óÒÆ¶¯£¬
-            //»òÕßÏàµÈÊ±£¬Èç¹ûbiggerÎªfalse£¬ËµÃ÷ÒªÕÒ¸üĞ¡µÄ£¬Íù×óÒÆ¶¯
+            //ç¬¬iä¸ªå…ƒç´ å¤§äºè¦æ¯”è¾ƒçš„å…ƒç´ æ—¶ï¼Œå¾€å·¦ç§»åŠ¨ï¼Œ
+            //æˆ–è€…ç›¸ç­‰æ—¶ï¼Œå¦‚æœbiggerä¸ºfalseï¼Œè¯´æ˜è¦æ‰¾æ›´å°çš„ï¼Œå¾€å·¦ç§»åŠ¨
             if (comp > 0 || (!bigger && comp == 0)) {
                 r = i;
             } else {
@@ -306,11 +306,11 @@ public abstract class PageBtree extends Page {
         return true;
     }
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public String tree() {
 		return tree("");
 	}
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public abstract String tree(String p);
 }

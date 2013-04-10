@@ -20,7 +20,7 @@ import org.h2.constant.SysProperties;
  */
 public abstract class FilePathWrapper extends FilePath {
 
-    private FilePath base; //实际上就是FilePathDisk
+    private FilePath base; //瀹為檯涓婂氨鏄疐ilePathDisk
 
     public FilePathWrapper getPath(String path) {
         return create(path, unwrap(path));
@@ -43,7 +43,7 @@ public abstract class FilePathWrapper extends FilePath {
     private FilePathWrapper create(String path, FilePath base) {
         try {
             FilePathWrapper p = getClass().newInstance();
-            //我加上的
+            //鎴戝姞涓婄殑
             p.name = translateFileName(path); //p.name = path;
             p.base = base;
             return p;
@@ -52,7 +52,7 @@ public abstract class FilePathWrapper extends FilePath {
         }
     }
 
-	private String translateFileName(String fileName) {  //我加上的
+	private String translateFileName(String fileName) {  //鎴戝姞涓婄殑
 		fileName = fileName.replace('\\', '/');
 		if (fileName.startsWith(getPrefix())) {
 			fileName = fileName.substring(getPrefix().length());
@@ -60,7 +60,7 @@ public abstract class FilePathWrapper extends FilePath {
 		return getPrefix() + expandUserHomeDirectory(fileName);
 	}
 
-	private String expandUserHomeDirectory(String fileName) {  //我加上的
+	private String expandUserHomeDirectory(String fileName) {  //鎴戝姞涓婄殑
 		if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
 			String userDir = SysProperties.USER_HOME;
 			fileName = userDir + fileName.substring(1);
@@ -79,7 +79,7 @@ public abstract class FilePathWrapper extends FilePath {
      * @return the base file path
      */
     protected FilePath unwrap(String path) {
-        return FilePath.get(path.substring(getScheme().length() + 1)); //去掉模式前缀，当成FilePathDisk
+        return FilePath.get(path.substring(getScheme().length() + 1)); //鍘绘帀妯″紡鍓嶇紑锛屽綋鎴怓ilePathDisk
     }
 
     protected FilePath getBase() {

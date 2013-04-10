@@ -109,14 +109,14 @@ public class ViewIndex extends BaseIndex {
         double cost;
     }
     
-    //ÔÚview¶ÔÓ¦µÄselectÓï¾äÖĞ¼ÓÉÏviewÖĞµÄ×Ö¶ÎÌõ¼ş
-    //ÀıÈç:sql = "select * from my_view where f2 > 'b1'";
-    //Êµ¼ÊÊÇSELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
-    //masksµÄÊı×éÔªËØÊÇÒ»¸öviewÖĞ°üº¬µÄËùÓĞÁĞ£¬Èç¹ûÄ³Ò»ÁĞ²»ÊÇ²éÑ¯Ìõ¼ş£¬ÄÇÃ´¶ÔÓ¦µÄmasks[ÁĞid]Õâ¸öÊı×éÔªËØ¾ÍÊÇ0
+    //åœ¨viewå¯¹åº”çš„selectè¯­å¥ä¸­åŠ ä¸Šviewä¸­çš„å­—æ®µæ¡ä»¶
+    //ä¾‹å¦‚:sql = "select * from my_view where f2 > 'b1'";
+    //å®é™…æ˜¯SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
+    //masksçš„æ•°ç»„å…ƒç´ æ˜¯ä¸€ä¸ªviewä¸­åŒ…å«çš„æ‰€æœ‰åˆ—ï¼Œå¦‚æœæŸä¸€åˆ—ä¸æ˜¯æŸ¥è¯¢æ¡ä»¶ï¼Œé‚£ä¹ˆå¯¹åº”çš„masks[åˆ—id]è¿™ä¸ªæ•°ç»„å…ƒç´ å°±æ˜¯0
     
-    //´Ë·½·¨²»Ó°ÏìĞ©ÀàµÄÈÎºÎ×Ö¶Î£¬Ö»ÊÇÎªÁË¼ÆËãcost
+    //æ­¤æ–¹æ³•ä¸å½±å“äº›ç±»çš„ä»»ä½•å­—æ®µï¼Œåªæ˜¯ä¸ºäº†è®¡ç®—cost
     public synchronized double getCost(Session session, int[] masks, SortOrder sortOrder) {
-        if (recursive) { //¶ÔÓ¦WITH RECURSIVE¿ªÍ·Ö®ÀàµÄÓï¾ä£¬¼ûmy.test.command.ddl.CreateViewTest
+        if (recursive) { //å¯¹åº”WITH RECURSIVEå¼€å¤´ä¹‹ç±»çš„è¯­å¥ï¼Œè§my.test.command.ddl.CreateViewTest
             return 1000;
         }
         IntArray masksArray = new IntArray(masks == null ? Utils.EMPTY_INT_ARRAY : masks);
@@ -128,12 +128,12 @@ public class ViewIndex extends BaseIndex {
                 return cachedCost.cost;
             }
         }
-        //ÀıÈç:sql = "select * from my_view where f2 > 'b1'";
+        //ä¾‹å¦‚:sql = "select * from my_view where f2 > 'b1'";
         //CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1,f2)AS SELECT id,name FROM CreateViewTest
-        //ÕâÀïmasks¾Í¶ÔÓ¦f2 > 'b1'
-        //Ïàµ±ÓÚ°Ñf2 > 'b1'Õâ¸öÌõ¼ş¼Óµ½SELECT id,name FROM CreateViewTestÖĞ£¬
-        //±ä³ÉSELECT id,name FROM CreateViewTest where name > 'b1'";
-        //Êµ¼ÊÊÇSELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
+        //è¿™é‡Œmaskså°±å¯¹åº”f2 > 'b1'
+        //ç›¸å½“äºæŠŠf2 > 'b1'è¿™ä¸ªæ¡ä»¶åŠ åˆ°SELECT id,name FROM CreateViewTestä¸­ï¼Œ
+        //å˜æˆSELECT id,name FROM CreateViewTest where name > 'b1'";
+        //å®é™…æ˜¯SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
         Query q = (Query) session.prepare(querySQL, true);
         if (masks != null) {
             IntArray paramIndex = new IntArray();
@@ -154,10 +154,10 @@ public class ViewIndex extends BaseIndex {
                     q.addGlobalCondition(param, idx, Comparison.EQUAL_NULL_SAFE);
                 } else {
                     if ((mask & IndexCondition.START) != 0) {
-                    	//ÀıÈç:sql = "select * from my_view where f2 > 'b1'";
-                    	//Êµ¼ÊÊÇSELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
-                    	//ÔÚorg.h2.index.IndexCondition.getMask(ArrayList<IndexCondition>)ÄÇÀï°Ñ
-                    	//BIGGER_EQUAL¡¢BIGGER¶¼µ±³ÉÁËSTART£¬¶øÕâÀïÍ³Ò»×ª³ÉBIGGER_EQUAL£¬µ±viewÒª¹ıÂË¼ÇÂ¼Ê±ÔÙ°´´óÓÚ¹ıÂË
+                    	//ä¾‹å¦‚:sql = "select * from my_view where f2 > 'b1'";
+                    	//å®é™…æ˜¯SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
+                    	//åœ¨org.h2.index.IndexCondition.getMask(ArrayList<IndexCondition>)é‚£é‡ŒæŠŠ
+                    	//BIGGER_EQUALã€BIGGERéƒ½å½“æˆäº†STARTï¼Œè€Œè¿™é‡Œç»Ÿä¸€è½¬æˆBIGGER_EQUALï¼Œå½“viewè¦è¿‡æ»¤è®°å½•æ—¶å†æŒ‰å¤§äºè¿‡æ»¤
                         Parameter param = new Parameter(nextParamIndex);
                         q.addGlobalCondition(param, idx, Comparison.BIGGER_EQUAL);
                     }
@@ -167,7 +167,7 @@ public class ViewIndex extends BaseIndex {
                     }
                 }
             }
-            //Êµ¼ÊÊÇSELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
+            //å®é™…æ˜¯SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
             String sql = q.getPlanSQL();
             q = (Query) session.prepare(sql, true);
         }
@@ -181,9 +181,9 @@ public class ViewIndex extends BaseIndex {
 
     public Cursor find(Session session, SearchRow first, SearchRow last) {
         if (recursive) {
-        	//Èç WITH RECURSIVE my_tmp_table(f1,f2) 
+        	//å¦‚ WITH RECURSIVE my_tmp_table(f1,f2) 
         	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
-        	//²»¹ıÓĞbug
+        	//ä¸è¿‡æœ‰bug
             ResultInterface recResult = view.getRecursiveResult();
             if (recResult != null) {
                 recResult.reset();
@@ -215,10 +215,10 @@ public class ViewIndex extends BaseIndex {
             right.disableCache();
             /*
             while (true) {
-            	//Èç WITH RECURSIVE my_tmp_table(f1,f2) 
+            	//å¦‚ WITH RECURSIVE my_tmp_table(f1,f2) 
             	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
-            	//²»¹ıÓĞbug
-            	//ÕâÀï»áÒ»Ö±ÊÇËÀÑ­»·£¬ÒòÎªright.query(0)²»»á·µ»ØÒ»¸ö¿Õ½á¹û¼¯
+            	//ä¸è¿‡æœ‰bug
+            	//è¿™é‡Œä¼šä¸€ç›´æ˜¯æ­»å¾ªç¯ï¼Œå› ä¸ºright.query(0)ä¸ä¼šè¿”å›ä¸€ä¸ªç©ºç»“æœé›†
                 r = right.query(0);
                 if (r.getRowCount() == 0) {
                     break;
@@ -230,7 +230,7 @@ public class ViewIndex extends BaseIndex {
                 view.setRecursiveResult(r);
             }*/
 
-			// ÎÒ¼ÓÉÏµÄ
+			// æˆ‘åŠ ä¸Šçš„
 			r = right.query(0);
 			if (r.getRowCount() != 0) {
 				while (r.next()) {
@@ -260,7 +260,7 @@ public class ViewIndex extends BaseIndex {
         } else {
             len = 0;
         }
-        //viewÖĞÒÑ¸øselect¼ÓÁËÍâ²¿Ìõ¼ş£¬ËùÒÔ¶àÁËParameter£¬ÕâÀï¾ÍÊÇ¸øÕâĞ©Parameter¸³Öµ
+        //viewä¸­å·²ç»™selectåŠ äº†å¤–éƒ¨æ¡ä»¶ï¼Œæ‰€ä»¥å¤šäº†Parameterï¼Œè¿™é‡Œå°±æ˜¯ç»™è¿™äº›Parameterèµ‹å€¼
         int idx = originalParameters == null ? 0 : originalParameters.size();
         idx += view.getParameterOffset();
         for (int i = 0; i < len; i++) {
@@ -294,15 +294,15 @@ public class ViewIndex extends BaseIndex {
         param.setValue(v);
     }
     
-    //Ä¿µÄÊÇÎªÁË¶ÔindexColumns¸³Öµ£¬indexColumnsÁíÓĞËüÓÃ
-    //±ÈÈçÔÚorg.h2.command.dml.Select.prepare()ÖĞ¾ÍÓĞÓ¦ÓÃ(cost = preparePlanÄÇĞĞ´úÂëÖ®ºó)
+    //ç›®çš„æ˜¯ä¸ºäº†å¯¹indexColumnsèµ‹å€¼ï¼ŒindexColumnså¦æœ‰å®ƒç”¨
+    //æ¯”å¦‚åœ¨org.h2.command.dml.Select.prepare()ä¸­å°±æœ‰åº”ç”¨(cost = preparePlané‚£è¡Œä»£ç ä¹‹å)
     private Query getQuery(Session session, int[] masks) {
         Query q = (Query) session.prepare(querySQL, true);
         if (masks == null) {
             return q;
         }
-        //±ÈÈçAS SELECT top 2 id,name FROM CreateViewTest order by id
-        //limitExprºÍsort¶¼²»Îª¿Õ£¬´ËÊ±²»ÔÊĞí¼ÓÈ«¾ÖÌõ¼şµ½selectÖĞ
+        //æ¯”å¦‚AS SELECT top 2 id,name FROM CreateViewTest order by id
+        //limitExprå’Œsortéƒ½ä¸ä¸ºç©ºï¼Œæ­¤æ—¶ä¸å…è®¸åŠ å…¨å±€æ¡ä»¶åˆ°selectä¸­
         if (!q.allowGlobalConditions()) {
             return q;
         }
@@ -317,15 +317,15 @@ public class ViewIndex extends BaseIndex {
             }
             indexColumnCount++;
             paramIndex.add(i);
-            //Îª1µÄbit¸öÊı£¬±ÈÈçmask=3Ê±£¬¾ÍÊÇ0011£¬ËùÒÔbitCount=2
-            //mask=6Ê±£¬¾ÍÊÇ0110£¬Ò²¾ÍÊÇRANGE = START | END
-            //Èçselect * from my_view where f2 between 'b1' and 'b2'
+            //ä¸º1çš„bitä¸ªæ•°ï¼Œæ¯”å¦‚mask=3æ—¶ï¼Œå°±æ˜¯0011ï¼Œæ‰€ä»¥bitCount=2
+            //mask=6æ—¶ï¼Œå°±æ˜¯0110ï¼Œä¹Ÿå°±æ˜¯RANGE = START | END
+            //å¦‚select * from my_view where f2 between 'b1' and 'b2'
             if (Integer.bitCount(mask) > 1) {
                 // two parameters for range queries: >= x AND <= y
                 paramIndex.add(i);
             }
         }
-        int len = paramIndex.size(); //paramIndexÖĞ·ÅµÄÊÇÁĞid
+        int len = paramIndex.size(); //paramIndexä¸­æ”¾çš„æ˜¯åˆ—id
         ArrayList<Column> columnList = New.arrayList();
         for (int i = 0; i < len;) {
             int idx = paramIndex.get(i);
@@ -353,12 +353,12 @@ public class ViewIndex extends BaseIndex {
         // reconstruct the index columns from the masks
         this.indexColumns = new IndexColumn[indexColumnCount];
         this.columnIds = new int[indexColumnCount];
-        //type´Ó0µ½1£¬Ò²¾ÍÊÇÑ­»·Á½´ÎÔËĞĞ×ÓÑ­»·
-        //µ±typeÎª0Ê±£¬Ö»È¡whereÌõ¼şÖĞµÄ"µÈÓÚ"¹ØÏµ±í´ïÊ½
-        //µ±typeÎª1Ê±£¬Ö»È¡whereÌõ¼şÖĞµÄ³ı"µÈÓÚ"¹ØÏµ±í´ïÊ½Ö®ÉÏµÄ±í´ïÊ½
-        //Èçselect * from my_view where f1=2 and f2 between 'b1' and 'b2'
-        //µ±typeÎª0Ê±£¬Ö»È¡f1=2
-        //µ±typeÎª1Ê±£¬Ö»È¡f2 between 'b1' and 'b2'
+        //typeä»0åˆ°1ï¼Œä¹Ÿå°±æ˜¯å¾ªç¯ä¸¤æ¬¡è¿è¡Œå­å¾ªç¯
+        //å½“typeä¸º0æ—¶ï¼Œåªå–whereæ¡ä»¶ä¸­çš„"ç­‰äº"å…³ç³»è¡¨è¾¾å¼
+        //å½“typeä¸º1æ—¶ï¼Œåªå–whereæ¡ä»¶ä¸­çš„é™¤"ç­‰äº"å…³ç³»è¡¨è¾¾å¼ä¹‹ä¸Šçš„è¡¨è¾¾å¼
+        //å¦‚select * from my_view where f1=2 and f2 between 'b1' and 'b2'
+        //å½“typeä¸º0æ—¶ï¼Œåªå–f1=2
+        //å½“typeä¸º1æ—¶ï¼Œåªå–f2 between 'b1' and 'b2'
         for (int type = 0, indexColumnId = 0; type < 2; type++) {
             for (int i = 0; i < masks.length; i++) {
                 int mask = masks[i];

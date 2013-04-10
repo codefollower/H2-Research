@@ -1,10 +1,10 @@
-ÓĞÒÔÏÂ¼¸ÖÖ²»Í¬ÀàĞÍ:
+æœ‰ä»¥ä¸‹å‡ ç§ä¸åŒç±»å‹:
 
-Ö»ÓĞFunctionAliasÒ²¾ÍÊÇJavaFunction²ÅÓĞschema
+åªæœ‰FunctionAliasä¹Ÿå°±æ˜¯JavaFunctionæ‰æœ‰schema
 
 1. Aggregate Function
 
-¶ÔÓ¦org.h2.expression.Aggregate£¬Ö»ÄÜÓÃÔÚselectÓï¾äÖĞ
+å¯¹åº”org.h2.expression.Aggregateï¼Œåªèƒ½ç”¨åœ¨selectè¯­å¥ä¸­
 
 		addAggregate("COUNT", COUNT);
         addAggregate("SUM", SUM);
@@ -29,23 +29,23 @@
         addAggregate("EVERY", BOOL_AND);
         addAggregate("SELECTIVITY", SELECTIVITY);
         addAggregate("HISTOGRAM", HISTOGRAM);
-´ËÀàº¯ÊıÃûÔÚÊ¹ÓÃÊ±²»´øÓĞschemaÃû³Æ
+æ­¤ç±»å‡½æ•°ååœ¨ä½¿ç”¨æ—¶ä¸å¸¦æœ‰schemaåç§°
 
 
 
-2. ÓÃ»§¶¨ÒåµÄAggregate Function
+2. ç”¨æˆ·å®šä¹‰çš„Aggregate Function
 
-Ê¹ÓÃCREATE AGGREGATEÓï¾ä´´½¨£¬
-ÈçCREATE AGGREGATE MEDIAN FOR "com.acme.db.Median" £¬
-"com.acme.db.Median" Àà±ØĞëÊµÏÖorg.h2.api.AggregateFunction½Ó¿Ú
-´ËÀàº¯ÊıÃûÔÚÊ¹ÓÃÊ±²»´øÓĞschemaÃû³Æ
+ä½¿ç”¨CREATE AGGREGATEè¯­å¥åˆ›å»ºï¼Œ
+å¦‚CREATE AGGREGATE MEDIAN FOR "com.acme.db.Median" ï¼Œ
+"com.acme.db.Median" ç±»å¿…é¡»å®ç°org.h2.api.AggregateFunctionæ¥å£
+æ­¤ç±»å‡½æ•°ååœ¨ä½¿ç”¨æ—¶ä¸å¸¦æœ‰schemaåç§°
 
 
 3. FunctionAlias
-Ê¹ÓÃCREATE ALIASÓï¾ä´´½¨£¬
+ä½¿ç”¨CREATE ALIASè¯­å¥åˆ›å»ºï¼Œ
 
-´ËÀàº¯ÊıÊÇÖ±½Ó¶ÔJavaÖĞµÄstatic·½·¨µÄÖ±½Óµ÷ÓÃ
-Èç:
+æ­¤ç±»å‡½æ•°æ˜¯ç›´æ¥å¯¹Javaä¸­çš„staticæ–¹æ³•çš„ç›´æ¥è°ƒç”¨
+å¦‚:
 		stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS myschema AUTHORIZATION sa");
 		stmt.executeUpdate("create table IF NOT EXISTS mytable(id int primary key, name varchar(500))");
 		stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS myschema.MY_SQRT FOR \"java.lang.Math.sqrt\"");
@@ -54,53 +54,53 @@
 		cs.execute();
 		
 		System.out.println(cs.getDouble(1));
-´ËÀàº¯ÊıÃûÔÚÊ¹ÓÃÊ±¿ÉÒÔ´øÓĞschemaÃû³Æ(Ò²¿ÉÒÔ²»´ø£¬´ËÊ±Ê¹ÓÃµ±Ç°Ä¬ÈÏschema)
+æ­¤ç±»å‡½æ•°ååœ¨ä½¿ç”¨æ—¶å¯ä»¥å¸¦æœ‰schemaåç§°(ä¹Ÿå¯ä»¥ä¸å¸¦ï¼Œæ­¤æ—¶ä½¿ç”¨å½“å‰é»˜è®¤schema)
 
 
 
 
 4. built-in function
-¶ÔÓ¦org.h2.expression.Function
+å¯¹åº”org.h2.expression.Function
 
-H2Ìá¹©µÄÄÚÖÃº¯Êı£¬²»´øschemaÃû³Æ
+H2æä¾›çš„å†…ç½®å‡½æ•°ï¼Œä¸å¸¦schemaåç§°
 
-H2ÄÚÖÃÁË4ÖÖÀà±ğµÄº¯Êı:
+H2å†…ç½®äº†4ç§ç±»åˆ«çš„å‡½æ•°:
 ----------------------------
-Numeric Functions: ÊıÖµº¯Êı
-String Functions: ×Ö·û´®º¯Êı
-Time and Date Functions: Ê±¼äÓëÈÕÆÚº¯Êı
-System Functions: ÏµÍ³º¯Êı
+Numeric Functions: æ•°å€¼å‡½æ•°
+String Functions: å­—ç¬¦ä¸²å‡½æ•°
+Time and Date Functions: æ—¶é—´ä¸æ—¥æœŸå‡½æ•°
+System Functions: ç³»ç»Ÿå‡½æ•°
 
 
-ÓÃFunctionInfoÀàÀ´ÃèÊöÒ»¸öº¯ÊıµÄÏà¹ØĞÅÏ¢£¬´ËÀà¹²7¸ö×Ö¶Î:
+ç”¨FunctionInfoç±»æ¥æè¿°ä¸€ä¸ªå‡½æ•°çš„ç›¸å…³ä¿¡æ¯ï¼Œæ­¤ç±»å…±7ä¸ªå­—æ®µ:
 
-class FunctionInfo { //7¸ö×Ö¶Î
-    String name;   //º¯ÊıÃû
-    int type;      //º¯ÊıÖÖÀà(¾ÍÊÇº¯ÊıµÄÊı×ÖÃû³Æ, ±ÈÈçÓÃ0±íÊ¾ABSº¯Êı)
-    int dataType;  //º¯Êı·µ»ØÖµµÄÀàĞÍ
-    int parameterCount; //º¯Êı²ÎÊı¸öÊı
-    boolean nullIfParameterIsNull; //Ö»Òª´«¸øº¯ÊıµÄ²ÎÊıÓĞÒ»¸öÊÇnull£¬ÄÇÃ´º¯Êı·µ»ØÖµ¾ÍÊÇnull
+class FunctionInfo { //7ä¸ªå­—æ®µ
+    String name;   //å‡½æ•°å
+    int type;      //å‡½æ•°ç§ç±»(å°±æ˜¯å‡½æ•°çš„æ•°å­—åç§°, æ¯”å¦‚ç”¨0è¡¨ç¤ºABSå‡½æ•°)
+    int dataType;  //å‡½æ•°è¿”å›å€¼çš„ç±»å‹
+    int parameterCount; //å‡½æ•°å‚æ•°ä¸ªæ•°
+    boolean nullIfParameterIsNull; //åªè¦ä¼ ç»™å‡½æ•°çš„å‚æ•°æœ‰ä¸€ä¸ªæ˜¯nullï¼Œé‚£ä¹ˆå‡½æ•°è¿”å›å€¼å°±æ˜¯null
 	
-	//¶ÔÓÚÏàÍ¬µÄ²ÎÊı(0¸ö»ò¶à¸ö)£¬ÊÇ·ñÃ¿´Î¶¼·µ»ØÏàÍ¬µÄÖµ£¬Ã¿´Îµ÷ÓÃ¿ÉÄÜ·µ»Ø²»Í¬Öµ£¬±ÈÈç:CURRENT_TIME¡¢RANDÖ®ÀàµÄº¯Êı
+	//å¯¹äºç›¸åŒçš„å‚æ•°(0ä¸ªæˆ–å¤šä¸ª)ï¼Œæ˜¯å¦æ¯æ¬¡éƒ½è¿”å›ç›¸åŒçš„å€¼ï¼Œæ¯æ¬¡è°ƒç”¨å¯èƒ½è¿”å›ä¸åŒå€¼ï¼Œæ¯”å¦‚:CURRENT_TIMEã€RANDä¹‹ç±»çš„å‡½æ•°
     boolean deterministic; 
 
     /**
      * Whether the function is fast, meaning the result shouldn't be cached.
      */
-    boolean fast; //Ö»ÓĞCSVREADÕâ¸öÏµÍ³º¯ÊıÊÇtrue
+    boolean fast; //åªæœ‰CSVREADè¿™ä¸ªç³»ç»Ÿå‡½æ•°æ˜¯true
 
 }
 
-×Ü¹²150¸öº¯Êı
-ÊıÖµº¯Êı40¸ö
-×Ö·û´®º¯Êı43¸ö
-Ê±¼äÓëÈÕÆÚº¯Êı26¸ö
-ÏµÍ³º¯Êı41¸ö
+æ€»å…±150ä¸ªå‡½æ•°
+æ•°å€¼å‡½æ•°40ä¸ª
+å­—ç¬¦ä¸²å‡½æ•°43ä¸ª
+æ—¶é—´ä¸æ—¥æœŸå‡½æ•°26ä¸ª
+ç³»ç»Ÿå‡½æ•°41ä¸ª
 
-TIMESTAMPADDÓëDATEADDµÄº¯ÊıÖÖÀàÒ»Ñù£¬µ«ÊÇ·µ»ØÖµ²»Ò»Ñù£¬ÆäËûµ±º¯ÊıÖÖÀàÏàÍ¬µÄÁ½¸öº¯ÊıÆäËû×Ö¶Î¶¼Ò»Ñù
-fast×Ö¶ÎÎªtrueµÄÖ»ÓĞCSVREAD
+TIMESTAMPADDä¸DATEADDçš„å‡½æ•°ç§ç±»ä¸€æ ·ï¼Œä½†æ˜¯è¿”å›å€¼ä¸ä¸€æ ·ï¼Œå…¶ä»–å½“å‡½æ•°ç§ç±»ç›¸åŒçš„ä¸¤ä¸ªå‡½æ•°å…¶ä»–å­—æ®µéƒ½ä¸€æ ·
+fastå­—æ®µä¸ºtrueçš„åªæœ‰CSVREAD
 
-º¯ÊıÃû            º¯ÊıÖÖÀà    ·µ»ØÖµµÄÀàĞÍ  ²ÎÊı¸öÊı(-1±íÊ¾¿É±ä²ÎÊı)   nullIfParameterIsNull   deterministic    fast  
+å‡½æ•°å            å‡½æ•°ç§ç±»    è¿”å›å€¼çš„ç±»å‹  å‚æ•°ä¸ªæ•°(-1è¡¨ç¤ºå¯å˜å‚æ•°)   nullIfParameterIsNull   deterministic    fast  
 ------------------------------------------------------------------------------------
 ABS                 0         NULL           1     true    true    false   
 ACOS                1         DOUBLE         1     true    true    false   
@@ -110,7 +110,7 @@ ATAN2               4         DOUBLE         2     true    true    false
 BITAND              5         BIGINT         2     true    true    false   
 BITOR               6         BIGINT         2     true    true    false   
 BITXOR              7         BIGINT         2     true    true    false   
-CEILING             8         DOUBLE         1     true    true    false   CEIL                8         DOUBLE         1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+CEILING             8         DOUBLE         1     true    true    false   CEIL                8         DOUBLE         1     true    true    false    ä¸å‰é¢ç›¸åŒ  
 COS                 9         DOUBLE         1     true    true    false   
 COSH                36        DOUBLE         1     true    true    false   
 COT                 10        DOUBLE         1     true    true    false   
@@ -124,7 +124,7 @@ MOD                 16        BIGINT         2     true    true    false
 PI                  17        DOUBLE         0     true    true    false   
 POWER               18        DOUBLE         2     true    true    false   
 RADIANS             19        DOUBLE         1     true    true    false   
-RAND                20        DOUBLE         -1    true    false   false   RANDOM              20        DOUBLE         -1    true    false   false    ÓëÇ°ÃæÏàÍ¬  
+RAND                20        DOUBLE         -1    true    false   false   RANDOM              20        DOUBLE         -1    true    false   false    ä¸å‰é¢ç›¸åŒ  
 ROUND               21        DOUBLE         -1    true    true    false   
 ROUNDMAGIC          22        DOUBLE         1     true    true    false   
 SIGN                23        INTEGER        1     true    true    false   
@@ -133,7 +133,7 @@ SINH                37        DOUBLE         1     true    true    false
 SQRT                25        DOUBLE         1     true    true    false   
 TAN                 26        DOUBLE         1     true    true    false   
 TANH                38        DOUBLE         1     true    true    false   
-TRUNCATE            27        DOUBLE         2     true    true    false   TRUNC               27        DOUBLE         2     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+TRUNCATE            27        DOUBLE         2     true    true    false   TRUNC               27        DOUBLE         2     true    true    false    ä¸å‰é¢ç›¸åŒ  
 HASH                29        VARBINARY      3     true    true    false   
 ENCRYPT             30        VARBINARY      3     true    true    false   
 DECRYPT             31        VARBINARY      3     true    true    false   
@@ -141,12 +141,12 @@ SECURE_RAND         28        VARBINARY      1     true    false   false
 COMPRESS            32        VARBINARY      -1    true    true    false   
 EXPAND              33        VARBINARY      1     true    true    false   
 ZERO                34        INTEGER        0     true    true    false   
-RANDOM_UUID         35        UUID           0     true    false   false   SYS_GUID            35        UUID           0     true    false   false    ÓëÇ°ÃæÏàÍ¬  
+RANDOM_UUID         35        UUID           0     true    false   false   SYS_GUID            35        UUID           0     true    false   false    ä¸å‰é¢ç›¸åŒ  
 
 ASCII               50        INTEGER        1     true    true    false   
 BIT_LENGTH          51        BIGINT         1     true    true    false   
-CHAR                52        VARCHAR        1     true    true    false   CHR                 52        VARCHAR        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
-CHAR_LENGTH         53        INTEGER        1     true    true    false   CHARACTER_LENGTH    53        INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+CHAR                52        VARCHAR        1     true    true    false   CHR                 52        VARCHAR        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
+CHAR_LENGTH         53        INTEGER        1     true    true    false   CHARACTER_LENGTH    53        INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
 CONCAT              54        VARCHAR        -1    false   true    false   
 CONCAT_WS           92        VARCHAR        -1    false   true    false   
 DIFFERENCE          55        INTEGER        2     true    true    false   
@@ -193,12 +193,12 @@ CURRENT_TIME        118       TIME           0     true    false   false
 CURTIME             101       TIME           0     true    false   false   
 CURRENT_TIMESTAMP   119       TIMESTAMP      -1    true    false   false   
 NOW                 112       TIMESTAMP      -1    true    false   false   
-DATEADD             102       TIMESTAMP      3     true    true    false   TIMESTAMPADD        102       BIGINT         3     true    true    false    ÓëÇ°Ãæ²»Í¬  
-DATEDIFF            103       BIGINT         3     true    true    false   TIMESTAMPDIFF       103       BIGINT         3     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+DATEADD             102       TIMESTAMP      3     true    true    false   TIMESTAMPADD        102       BIGINT         3     true    true    false    ä¸å‰é¢ä¸åŒ  
+DATEDIFF            103       BIGINT         3     true    true    false   TIMESTAMPDIFF       103       BIGINT         3     true    true    false    ä¸å‰é¢ç›¸åŒ  
 DAYNAME             104       VARCHAR        1     true    true    false   
-DAY                 105       INTEGER        1     true    true    false   DAY_OF_MONTH        105       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  DAYOFMONTH          105       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
-DAY_OF_WEEK         106       INTEGER        1     true    true    false   DAYOFWEEK           106       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
-DAY_OF_YEAR         107       INTEGER        1     true    true    false   DAYOFYEAR           107       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+DAY                 105       INTEGER        1     true    true    false   DAY_OF_MONTH        105       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  DAYOFMONTH          105       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
+DAY_OF_WEEK         106       INTEGER        1     true    true    false   DAYOFWEEK           106       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
+DAY_OF_YEAR         107       INTEGER        1     true    true    false   DAYOFYEAR           107       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
 HOUR                108       INTEGER        1     true    true    false   
 MINUTE              109       INTEGER        1     true    true    false   
 MONTH               110       INTEGER        1     true    true    false   
@@ -217,18 +217,18 @@ ISO_DAY_OF_WEEK     125       INTEGER        1     true    true    false
 DATABASE            150       VARCHAR        0     true    false   false   
 USER                151       VARCHAR        0     true    false   false   
 CURRENT_USER        152       VARCHAR        0     true    false   false   
-IDENTITY            153       BIGINT         0     true    false   false   IDENTITY_VAL_LOCAL  153       BIGINT         0     true    false   false    ÓëÇ°ÃæÏàÍ¬  LAST_INSERT_ID      153       BIGINT         0     true    false   false    ÓëÇ°ÃæÏàÍ¬  LASTVAL             153       BIGINT         0     true    false   false    ÓëÇ°ÃæÏàÍ¬  
+IDENTITY            153       BIGINT         0     true    false   false   IDENTITY_VAL_LOCAL  153       BIGINT         0     true    false   false    ä¸å‰é¢ç›¸åŒ  LAST_INSERT_ID      153       BIGINT         0     true    false   false    ä¸å‰é¢ç›¸åŒ  LASTVAL             153       BIGINT         0     true    false   false    ä¸å‰é¢ç›¸åŒ  
 SCOPE_IDENTITY      154       BIGINT         0     true    false   false   
 AUTOCOMMIT          155       BOOLEAN        0     true    false   false   
 READONLY            156       BOOLEAN        0     true    false   false   
 DATABASE_PATH       157       VARCHAR        0     true    true    false   
 LOCK_TIMEOUT        158       INTEGER        0     true    false   false   
-IFNULL              200       NULL           2     false   true    false   ISNULL              200       NULL           2     false   true    false    ÓëÇ°ÃæÏàÍ¬  
+IFNULL              200       NULL           2     false   true    false   ISNULL              200       NULL           2     false   true    false    ä¸å‰é¢ç›¸åŒ  
 CASEWHEN            201       NULL           3     false   true    false   
 CONVERT             202       NULL           1     false   true    false   
 CAST                203       NULL           1     false   true    false   
 TRUNCATE_VALUE      227       NULL           3     false   true    false   
-COALESCE            204       NULL           -1    false   true    false   NVL                 204       NULL           -1    false   true    false    ÓëÇ°ÃæÏàÍ¬  
+COALESCE            204       NULL           -1    false   true    false   NVL                 204       NULL           -1    false   true    false    ä¸å‰é¢ç›¸åŒ  
 NVL2                228       NULL           3     false   true    false   
 NULLIF              205       NULL           2     false   true    false   
 CASE                206       NULL           -1    false   true    false   
@@ -257,7 +257,7 @@ TABLE_DISTINCT      224       RESULT_SET     -1    false   true    false
 ROW_NUMBER          300       BIGINT         0     false   true    false   
 
 
-4.1 Numeric Functions: ÊıÖµº¯Êı39¸ö(LOGºÍLNµÈ¼Û£¬ËùÒÔËãÒ»¸ö)
+4.1 Numeric Functions: æ•°å€¼å‡½æ•°39ä¸ª(LOGå’ŒLNç­‰ä»·ï¼Œæ‰€ä»¥ç®—ä¸€ä¸ª)
 ABS
 ACOS
 ASIN

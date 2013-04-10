@@ -1,11 +1,11 @@
-´ËÀàµÄpublic·½·¨Ö»ÓĞÏÂÃæÕâĞ©:
+æ­¤ç±»çš„publicæ–¹æ³•åªæœ‰ä¸‹é¢è¿™äº›:
 
-staticÀà:
+staticç±»:
 
 org.h2.command.Parser.isKeyword(String, boolean)
 org.h2.command.Parser.quoteIdentifier(String)
 
-·ÇstaticÀà:
+éstaticç±»:
 org.h2.command.Parser.Parser(Session)
 org.h2.command.Parser.getSession()
 org.h2.command.Parser.parseExpression(String)
@@ -13,32 +13,32 @@ org.h2.command.Parser.prepare(String)
 org.h2.command.Parser.prepareCommand(String)
 org.h2.command.Parser.setRightsChecked(boolean)
 
-°ü¼¶±ğµÄ·½·¨Ö»ÓĞÒ»¸ö:
-org.h2.command.Parser.parse(String) //³ı´ËÀàÍâ£¬Ö»¿´µ½ÔÚorg.h2.command.CommandContainer.recompileIfRequired()ÖĞÊ¹ÓÃ
+åŒ…çº§åˆ«çš„æ–¹æ³•åªæœ‰ä¸€ä¸ª:
+org.h2.command.Parser.parse(String) //é™¤æ­¤ç±»å¤–ï¼Œåªçœ‹åˆ°åœ¨org.h2.command.CommandContainer.recompileIfRequired()ä¸­ä½¿ç”¨
 
 
-org.h2.command.Parser.parse(String) ÊÇÆğµã
+org.h2.command.Parser.parse(String) æ˜¯èµ·ç‚¹
 
-ÓÉÏÂÃæÁ½Õß´¥·¢
+ç”±ä¸‹é¢ä¸¤è€…è§¦å‘
 
 org.h2.command.Parser.parse(String)
 
-	<= org.h2.command.Parser.prepare(String) (µÃµ½Ò»¸öPrepared)
-		<= org.h2.engine.Session.prepare(String, boolean) ÔÚÆğ¶¯Ê±µ÷ÓÃ£¬ÓÃÓÚ·ÇÔ¶³Ì¿Í»§¶Ë·¢ÆğµÄµ÷ÓÃ£¬org.h2.engine.MetaRecord.execute(Database, Session, DatabaseEventListener)
+	<= org.h2.command.Parser.prepare(String) (å¾—åˆ°ä¸€ä¸ªPrepared)
+		<= org.h2.engine.Session.prepare(String, boolean) åœ¨èµ·åŠ¨æ—¶è°ƒç”¨ï¼Œç”¨äºéè¿œç¨‹å®¢æˆ·ç«¯å‘èµ·çš„è°ƒç”¨ï¼Œorg.h2.engine.MetaRecord.execute(Database, Session, DatabaseEventListener)
 
-	(µÃµ½Ò»¸öCommandContainer£¬CommandContainerÓĞPrepared£¬PreparedÒ²ÓĞ¶ÔCommandContainerµÄÒıÓÃ)
+	(å¾—åˆ°ä¸€ä¸ªCommandContainerï¼ŒCommandContaineræœ‰Preparedï¼ŒPreparedä¹Ÿæœ‰å¯¹CommandContainerçš„å¼•ç”¨)
 	<= org.h2.command.Parser.prepareCommand(String)
-		<= org.h2.engine.Session.prepareLocal(String) Ô¶³Ì¿Í»§¶Ë·¢ÆğµÄµ÷ÓÃ£¬¼ûorg.h2.server.TcpServerThread.process()
+		<= org.h2.engine.Session.prepareLocal(String) è¿œç¨‹å®¢æˆ·ç«¯å‘èµ·çš„è°ƒç”¨ï¼Œè§org.h2.server.TcpServerThread.process()
 
-ÉÏÃæÁ½Õß¶¼»áµ÷ÓÃPrepared.prepare()
+ä¸Šé¢ä¸¤è€…éƒ½ä¼šè°ƒç”¨Prepared.prepare()
 
 
-Á÷³Ì·ÖÎö:
+æµç¨‹åˆ†æ:
 org.h2.command.Parser.parse(String)
-	=> org.h2.command.Parser.parse(String, boolean) Ö»ÔÚparse(String)ÖĞµ÷ÓÃ
+	=> org.h2.command.Parser.parse(String, boolean) åªåœ¨parse(String)ä¸­è°ƒç”¨
 		=> org.h2.command.Parser.initialize(String)
 		=> org.h2.command.Parser.read()
-		=> org.h2.command.Parser.parsePrepared() ºËĞÄÔÚÕâÀï
+		=> org.h2.command.Parser.parsePrepared() æ ¸å¿ƒåœ¨è¿™é‡Œ
 
     /**
      * Parse the statement, but don't prepare it for execution.
@@ -50,10 +50,10 @@ org.h2.command.Parser.parse(String)
         Prepared p;
         try {
             // first, try the fast variant
-        	//´ó¶àÊıÇé¿öÏÂSQL¶¼ÊÇÕıÈ·µÄ£¬ËùÒÔÕâÀï×öÁËĞ©ÓÅ»¯: Ä¬ÈÏ²»Ê¹ÓÃexpectedList£¬µ±³öÏÖ´íÎóÊ±²¶»ñDbException£¬
-			//Èç¹ûÊÇÓï·¨´íÎóÄÇÃ´ÔÙ½âÎöÒ»´Î£¬²¢ÓÃexpectedList¼ÇÂ¼SQLÔÚÓï·¨²ãÃæÈ±ÁËÄÄĞ©¶«Î÷£¬
-			//Èç¹ûÊÇ·ÇÓï·¨´íÎó£¬Ôò°ÑSQL¹ØÁªµ½Òì³££¬Ö±½ÓÅ×³öÒì³£¡£
-        	//Èç¹û²»ÆğÓÃÕâ¸öÓÅ»¯£¬ÄÇÃ´ÒòÎªÆµ·±µ÷ÓÃreadIf->addExpected»áµ¼ÖÂexpectedList±äµÃºÜ´ó
+        	//å¤§å¤šæ•°æƒ…å†µä¸‹SQLéƒ½æ˜¯æ­£ç¡®çš„ï¼Œæ‰€ä»¥è¿™é‡Œåšäº†äº›ä¼˜åŒ–: é»˜è®¤ä¸ä½¿ç”¨expectedListï¼Œå½“å‡ºç°é”™è¯¯æ—¶æ•è·DbExceptionï¼Œ
+			//å¦‚æœæ˜¯è¯­æ³•é”™è¯¯é‚£ä¹ˆå†è§£æä¸€æ¬¡ï¼Œå¹¶ç”¨expectedListè®°å½•SQLåœ¨è¯­æ³•å±‚é¢ç¼ºäº†å“ªäº›ä¸œè¥¿ï¼Œ
+			//å¦‚æœæ˜¯éè¯­æ³•é”™è¯¯ï¼Œåˆ™æŠŠSQLå…³è”åˆ°å¼‚å¸¸ï¼Œç›´æ¥æŠ›å‡ºå¼‚å¸¸ã€‚
+        	//å¦‚æœä¸èµ·ç”¨è¿™ä¸ªä¼˜åŒ–ï¼Œé‚£ä¹ˆå› ä¸ºé¢‘ç¹è°ƒç”¨readIf->addExpectedä¼šå¯¼è‡´expectedListå˜å¾—å¾ˆå¤§
             p = parse(sql, false);
         } catch (DbException e) {
             if (e.getErrorCode() == ErrorCode.SYNTAX_ERROR_1) {
@@ -87,7 +87,7 @@ org.h2.command.Parser.parse(String)
 
 
 org.h2.command.Parser.initialize(String)
-ÌáÇ°·ÖÎösqlÓï¾äÖĞµÄÃ¿¸ö×Ö·û£¬±ÈÈç°Ñ×¢ÊÍÌæ»»³É¿Õ¸ñ
+æå‰åˆ†æsqlè¯­å¥ä¸­çš„æ¯ä¸ªå­—ç¬¦ï¼Œæ¯”å¦‚æŠŠæ³¨é‡Šæ›¿æ¢æˆç©ºæ ¼
 
 
 

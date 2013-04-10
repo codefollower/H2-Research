@@ -1,4 +1,4 @@
-Éæ¼°µÄÀà:
+æ¶‰åŠçš„ç±»:
 
 org.h2.engine.Right
 
@@ -13,41 +13,41 @@ org.h2.command.ddl.GrantRevoke
 org.h2.command.ddl.DropRole
 org.h2.command.ddl.DropUser
 
-Á½ÖÖÈ¨ÏŞÊÚÓè·½Ê½:
-1. ½«È¨ÏŞÊÚÓèRightOwner
-2. ½«½ÇÉ«ÊÚÓèRightOwner
+ä¸¤ç§æƒé™æˆäºˆæ–¹å¼:
+1. å°†æƒé™æˆäºˆRightOwner
+2. å°†è§’è‰²æˆäºˆRightOwner
 
-RightOwner¿ÉÒÔÊÇÏµÍ³Ô¤¶¨ÒåµÄpublic½ÇÉ«£¬Ò²¿ÉÒÔÊÇ×Ô¶¨ÒåµÄ½ÇÉ«£¬»¹¿ÉÒÔÊÇÓÃ»§
+RightOwnerå¯ä»¥æ˜¯ç³»ç»Ÿé¢„å®šä¹‰çš„publicè§’è‰²ï¼Œä¹Ÿå¯ä»¥æ˜¯è‡ªå®šä¹‰çš„è§’è‰²ï¼Œè¿˜å¯ä»¥æ˜¯ç”¨æˆ·
 
-Ö»Ö§³ÖSELECT¡¢DELETE¡¢INSERT¡¢UPDATE×Ü¹²4ÖÖÈ¨ÏŞ(ALL±íÊ¾ËùÓĞÈ¨ÏŞ¶¼Ö§³Ö)
-
-
-
-Í¨¹ıorg.h2.engine.User.checkRight(Table, int)À´×öÎªÈ¨ÏŞ¼ì²éµÄÈë¿Ú
+åªæ”¯æŒSELECTã€DELETEã€INSERTã€UPDATEæ€»å…±4ç§æƒé™(ALLè¡¨ç¤ºæ‰€æœ‰æƒé™éƒ½æ”¯æŒ)
 
 
 
-DDLÓï¾ä¶¼ĞèÒªadminÈ¨ÏŞ
+é€šè¿‡org.h2.engine.User.checkRight(Table, int)æ¥åšä¸ºæƒé™æ£€æŸ¥çš„å…¥å£
+
+
+
+DDLè¯­å¥éƒ½éœ€è¦adminæƒé™
 
 
 
 
-¼ÙÉèÓĞÈçÏÂÈıÌõÓï¾ä:
+å‡è®¾æœ‰å¦‚ä¸‹ä¸‰æ¡è¯­å¥:
 GRANT myrole1 TO myrole3
 GRANT myrole3 TO PUBLIC
 GRANT myrole1 TO PUBLIC
 
 
 
-µ±GRANT myrole1 TO myrole3Ê±,grantedRole = myrole1, grantee = myrole3
-»áÔÚmyrole3.grantedRolesÖĞ±£´æmyrole1
+å½“GRANT myrole1 TO myrole3æ—¶,grantedRole = myrole1, grantee = myrole3
+ä¼šåœ¨myrole3.grantedRolesä¸­ä¿å­˜myrole1
 
-µ±GRANT myrole3 TO PUBLICÊ±,grantedRole = myrole3, grantee = PUBLIC
-»áÔÚPUBLIC.grantedRolesÖĞ±£´æmyrole3
+å½“GRANT myrole3 TO PUBLICæ—¶,grantedRole = myrole3, grantee = PUBLIC
+ä¼šåœ¨PUBLIC.grantedRolesä¸­ä¿å­˜myrole3
 
-µ±GRANT myrole1 TO PUBLICÊ±,grantedRole = myrole1, grantee = PUBLIC
-ÒòÎªPUBLIC.grantedRolesÖĞÒÑÓĞmyrole3£¬¶ømyrole3.grantedRolesÖĞÓÖÓĞmyrole1£¬
-ËùÒÔ´ËÊ±¡°if (grantedRole != grantee && grantee.isRoleGranted(grantedRole))¡±Îªtrue£¬Ö±½Ó·µ»Ø
+å½“GRANT myrole1 TO PUBLICæ—¶,grantedRole = myrole1, grantee = PUBLIC
+å› ä¸ºPUBLIC.grantedRolesä¸­å·²æœ‰myrole3ï¼Œè€Œmyrole3.grantedRolesä¸­åˆæœ‰myrole1ï¼Œ
+æ‰€ä»¥æ­¤æ—¶â€œif (grantedRole != grantee && grantee.isRoleGranted(grantedRole))â€ä¸ºtrueï¼Œç›´æ¥è¿”å›
     
 org.h2.command.ddl.GrantRevoke.grantRole(Role)
 ==================================================
@@ -81,7 +81,7 @@ org.h2.engine.RightOwner.isRoleGranted(Role)
                     return true;
                 }
 
-				//±ÈÈç¶ÔÓ¦ÉÏÃæµÚÈıÌõGRANTÓï¾ä£¬µİ¹é²é¿´grantedRolesÖĞµÄÃ¿¸öRolesÊÇ·ñ±»ÊÚÓèÁËgrantedRole
+				//æ¯”å¦‚å¯¹åº”ä¸Šé¢ç¬¬ä¸‰æ¡GRANTè¯­å¥ï¼Œé€’å½’æŸ¥çœ‹grantedRolesä¸­çš„æ¯ä¸ªRolesæ˜¯å¦è¢«æˆäºˆäº†grantedRole
                 if (role.isRoleGranted(grantedRole)) {
                     return true;
                 }

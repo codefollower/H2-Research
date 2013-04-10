@@ -38,7 +38,7 @@ public class PageBtreeLeaf extends PageBtree {
 
     private PageBtreeLeaf(PageBtreeIndex index, int pageId, Data data) {
         super(index, pageId, data);
-        this.optimizeUpdate = index.getDatabase().getSettings().optimizeUpdate; //Ä¬ÈÏÎªtrue
+        this.optimizeUpdate = index.getDatabase().getSettings().optimizeUpdate; //é»˜è®¤ä¸ºtrue
     }
 
     /**
@@ -69,7 +69,7 @@ public class PageBtreeLeaf extends PageBtree {
         p.rows = SearchRow.EMPTY_ARRAY;
         p.parentPageId = parentPageId;
         p.writeHead();
-        p.start = p.data.length(); //PageBtreeLeafÒ³Í·²¿½áÊøµÄÎ»ÖÃ£¬¼´Ğ´ÍêentryCountÏîºóµÄÎ»ÖÃ
+        p.start = p.data.length(); //PageBtreeLeafé¡µå¤´éƒ¨ç»“æŸçš„ä½ç½®ï¼Œå³å†™å®ŒentryCounté¡¹åçš„ä½ç½®
         return p;
     }
 
@@ -102,12 +102,12 @@ public class PageBtreeLeaf extends PageBtree {
         return x;
     }
 
-    //¼ÙÉèÒ»¸ö¿é128×Ö½Ú£¬Ğ´Ë÷Òı¼ÇÂ¼µÄË³ĞòÊÇ´Ó¿éÎ²¿ªÊ¼£¬offset´Ó¿éÎ²¿ªÊ¼
+    //å‡è®¾ä¸€ä¸ªå—128å­—èŠ‚ï¼Œå†™ç´¢å¼•è®°å½•çš„é¡ºåºæ˜¯ä»å—å°¾å¼€å§‹ï¼Œoffsetä»å—å°¾å¼€å§‹
     private int addRow(SearchRow row, boolean tryOnly) {
         int rowLength = index.getRowSize(data, row, onlyPosition);
         int pageSize = index.getPageStore().getPageSize();
         int last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
-        //È·±£pageÊ£Óà¿Õ¼äÄÜ¹»±£´æoffset
+        //ç¡®ä¿pageå‰©ä½™ç©ºé—´èƒ½å¤Ÿä¿å­˜offset
         if (last - rowLength < start + OFFSET_LENGTH) {
             if (tryOnly && entryCount > 1) {
                 int x = find(row, false, true, true);
@@ -121,7 +121,7 @@ public class PageBtreeLeaf extends PageBtree {
                 int third = entryCount / 3;
                 return x < third ? third : x >= 2 * third ? 2 * third : x;
             }
-            //µ±Ë÷Òı×Ö¶ÎÖµµÄ´óĞ¡³¬¹ıpageSizeÊ±Ö»´æÎ»ÖÃ²»´æ×Ö¶ÎÖµ
+            //å½“ç´¢å¼•å­—æ®µå€¼çš„å¤§å°è¶…è¿‡pageSizeæ—¶åªå­˜ä½ç½®ä¸å­˜å­—æ®µå€¼
             readAllRows();
             writtenData = false;
             onlyPosition = true;
@@ -150,25 +150,25 @@ public class PageBtreeLeaf extends PageBtree {
             x = find(row, false, true, true);
         }
         start += OFFSET_LENGTH;
-        //xËùÔÚÔªËØµÄÖµ£¬ÊÇËüÇ°ÃæµÄÔªËØÖµ-rowLength
+        //xæ‰€åœ¨å…ƒç´ çš„å€¼ï¼Œæ˜¯å®ƒå‰é¢çš„å…ƒç´ å€¼-rowLength
         int offset = (x == 0 ? pageSize : offsets[x - 1]) - rowLength;
-        //Ë÷Òı»òÄÚ´æÖĞÒÑÓĞ¼ÇÂ¼µÄÇé¿ö(µÚÒ»´ÎÔËĞĞÍêJDBC¿Í»§¶Ë³ÌĞòºó²»É¾±íºÍË÷Òı£¬µÚ2´ÎÔËĞĞJDBC¿Í»§¶Ë³ÌĞòÌí¼Ó¼ÇÂ¼¾ÍÄÜ²âÊÔ)´ËÖÖÇé¿ö
+        //ç´¢å¼•æˆ–å†…å­˜ä¸­å·²æœ‰è®°å½•çš„æƒ…å†µ(ç¬¬ä¸€æ¬¡è¿è¡Œå®ŒJDBCå®¢æˆ·ç«¯ç¨‹åºåä¸åˆ è¡¨å’Œç´¢å¼•ï¼Œç¬¬2æ¬¡è¿è¡ŒJDBCå®¢æˆ·ç«¯ç¨‹åºæ·»åŠ è®°å½•å°±èƒ½æµ‹è¯•)æ­¤ç§æƒ…å†µ
         if (optimizeUpdate && writtenData) {
             if (entryCount > 0) {
                 byte[] d = data.getBytes();
-                int dataStart = offsets[entryCount - 1]; //offsets×ÜÊÇ½µĞòµÄ£¬ËùÒÔoffsets[entryCount - 1]ÊÇdataµÄ×îĞ¡ÏÂ±ê
+                int dataStart = offsets[entryCount - 1]; //offsetsæ€»æ˜¯é™åºçš„ï¼Œæ‰€ä»¥offsets[entryCount - 1]æ˜¯dataçš„æœ€å°ä¸‹æ ‡
                 int dataEnd = offset;
-                //½«dataÊı×éÖĞdataStartÏÂ±ê¿ªÊ¼µÄdataEnd - dataStart + rowLength¸öÔªËØÍù×óÒÆµ½dataStart - rowLength¿ªÊ¼´¦
-                //(¼´: °ÑÊı¾İÒÆµ½dataStartÎ»ÖÃµÄ×ó±ß£¬ÒòÎªdataStartÇ°µÄÎ»ÖÃ»¹Ã»Ğ´Êı¾İ£¬ËùÒÔÕûÌåÍùÇ°Å²rowLength, ÓÒ±ßÅ²³öµÄ¿ÕÎ»ÖÃ
-                //ÓÃÀ´·ÅĞÂµÄrow£¬Õâ¸örowµÄÎ»ÖÃ¾ÍÊÇoffset)
+                //å°†dataæ•°ç»„ä¸­dataStartä¸‹æ ‡å¼€å§‹çš„dataEnd - dataStart + rowLengthä¸ªå…ƒç´ å¾€å·¦ç§»åˆ°dataStart - rowLengthå¼€å§‹å¤„
+                //(å³: æŠŠæ•°æ®ç§»åˆ°dataStartä½ç½®çš„å·¦è¾¹ï¼Œå› ä¸ºdataStartå‰çš„ä½ç½®è¿˜æ²¡å†™æ•°æ®ï¼Œæ‰€ä»¥æ•´ä½“å¾€å‰æŒªrowLength, å³è¾¹æŒªå‡ºçš„ç©ºä½ç½®
+                //ç”¨æ¥æ”¾æ–°çš„rowï¼Œè¿™ä¸ªrowçš„ä½ç½®å°±æ˜¯offset)
                 System.arraycopy(d, dataStart, d, dataStart - rowLength, dataEnd - dataStart + rowLength);
             }
             index.writeRow(data, offset, row, onlyPosition);
         }
-        //offsetsÕâ¸öÊı×éÄÚµÄÔªËØÊÇÓÉ´óµ½Ğ¡µÄ£¬ËùÒÔÔÚrowsÖĞµÄ¼ÇÂ¼×îÏÈµÄ·´¶øĞ´ÔÚÎÄ¼şµÄºóÃæ
+        //offsetsè¿™ä¸ªæ•°ç»„å†…çš„å…ƒç´ æ˜¯ç”±å¤§åˆ°å°çš„ï¼Œæ‰€ä»¥åœ¨rowsä¸­çš„è®°å½•æœ€å…ˆçš„åè€Œå†™åœ¨æ–‡ä»¶çš„åé¢
         offsets = insert(offsets, entryCount, x, offset);
-        //ÎªÊ²Ã´ÒªentryCount + 1ÄØ£¬ÒòÇ°¾­¹ıÇ°ÃæÒ»ĞĞ´úÂëºó£¬offsetsµÄÊµ¼Ê³¤¶ÈÒÑ¾­Ôö¼Ó1ÁË£¬µ«ÊÇentryCountÔÚºóÃæ²Å¼Ó1
-        add(offsets, x + 1, entryCount + 1, -rowLength); //xÊÇÖĞ¼äÎ»ÖÃÊ±£¬´ÓxÖ®ºóµÄoffsetÒª¼õÈ¥rowLength
+        //ä¸ºä»€ä¹ˆè¦entryCount + 1å‘¢ï¼Œå› å‰ç»è¿‡å‰é¢ä¸€è¡Œä»£ç åï¼Œoffsetsçš„å®é™…é•¿åº¦å·²ç»å¢åŠ 1äº†ï¼Œä½†æ˜¯entryCountåœ¨åé¢æ‰åŠ 1
+        add(offsets, x + 1, entryCount + 1, -rowLength); //xæ˜¯ä¸­é—´ä½ç½®æ—¶ï¼Œä»xä¹‹åçš„offsetè¦å‡å»rowLength
         rows = insert(rows, entryCount, x, row);
         entryCount++;
         index.getPageStore().update(this);
@@ -274,7 +274,7 @@ public class PageBtreeLeaf extends PageBtree {
         data.writeShortInt(0);
         data.writeInt(parentPageId);
         data.writeVarInt(index.getId());
-        data.writeShortInt(entryCount); //×î¿ªÊ¼Îª0
+        data.writeShortInt(entryCount); //æœ€å¼€å§‹ä¸º0
     }
 
     private void writeData() {
@@ -299,8 +299,8 @@ public class PageBtreeLeaf extends PageBtree {
     }
 
     void find(PageBtreeCursor cursor, SearchRow first, boolean bigger) {
-        int i = find(first, bigger, false, false); //ÕâÀï·µ»ØµÄiÔõÃ´»á>entryCount
-        if (i > entryCount) { //Ê²Ã´Çé¿öÏÂ²Å»áÊ¹µÃi > entryCount? 
+        int i = find(first, bigger, false, false); //è¿™é‡Œè¿”å›çš„iæ€ä¹ˆä¼š>entryCount
+        if (i > entryCount) { //ä»€ä¹ˆæƒ…å†µä¸‹æ‰ä¼šä½¿å¾—i > entryCount? 
             if (parentPageId == PageBtree.ROOT) {
                 return;
             }
@@ -365,10 +365,10 @@ public class PageBtreeLeaf extends PageBtree {
         p2.parentPageId = parentPageId;
         p2.start = start;
         store.update(p2);
-        if (parentPageId == ROOT) { //×î¶¥²ãµÄleaf£¬ÖØĞÂ°ÑrootPageIdÖ¸ÏònewPos
+        if (parentPageId == ROOT) { //æœ€é¡¶å±‚çš„leafï¼Œé‡æ–°æŠŠrootPageIdæŒ‡å‘newPos
             index.setRootPageId(session, newPos);
         } else {
-        	//´ËleafÓĞ¸¸PageBtreeNode
+        	//æ­¤leafæœ‰çˆ¶PageBtreeNode
             PageBtreeNode p = (PageBtreeNode) store.getPage(parentPageId);
             p.moveChild(getPos(), newPos);
         }
@@ -392,7 +392,7 @@ public class PageBtreeLeaf extends PageBtree {
         index.memoryChange(memory >> 2);
     }
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	@Override
 	public String tree(String p) {
 		StringBuilder s = new StringBuilder(200);

@@ -50,7 +50,7 @@ public class TcpServerThread implements Runnable {
     private boolean stop;
     private Thread thread;
     private Command commit;
-    private final SmallMap cache = new SmallMap(SysProperties.SERVER_CACHED_OBJECTS); //Ä¬ÈÏ»º´æ64¸ö¶ÔÏó
+    private final SmallMap cache = new SmallMap(SysProperties.SERVER_CACHED_OBJECTS); //é»˜è®¤ç¼“å­˜64ä¸ªå¯¹è±¡
     private final SmallLRUCache<Long, CachedInputStream> lobs =
         SmallLRUCache.newInstance(Math.max(
                 SysProperties.SERVER_CACHED_OBJECTS,
@@ -77,7 +77,7 @@ public class TcpServerThread implements Runnable {
             // TODO server: should support a list of allowed databases
             // and a list of allowed clients
             try {
-            	//Èç¹ûÃ»ÓĞ¼Ó-tcpAllowOthers²ÎÊı£¬ÄÇÃ´Ö»½ÓÊÜ±¾µØÁ¬½Ó
+            	//å¦‚æœæ²¡æœ‰åŠ -tcpAllowOtherså‚æ•°ï¼Œé‚£ä¹ˆåªæ¥å—æœ¬åœ°è¿æ¥
                 if (!server.allow(transfer.getSocket())) {
                     throw DbException.get(ErrorCode.REMOTE_CONNECTION_NOT_ALLOWED);
                 }
@@ -114,21 +114,21 @@ public class TcpServerThread implements Runnable {
                         }
                     }
                 }
-                //Æô¶¯TcpServerÊ±¼Ó"-baseDir"»òÕßÏñÕâÑùSystem.setProperty("h2.baseDir", "E:\\H2\\baseDir")
+                //å¯åŠ¨TcpServeræ—¶åŠ "-baseDir"æˆ–è€…åƒè¿™æ ·System.setProperty("h2.baseDir", "E:\\H2\\baseDir")
                 String baseDir = server.getBaseDir();
                 if (baseDir == null) {
                     baseDir = SysProperties.getBaseDir();
                 }
-                //ÀıÈçÆô¶¯TcpServerÊ±£¬Ö¸¶¨ÁË"-key mydb mydatabase"£¬
-                //Èç¹ûdb±äÁ¿ÊÇmydb£¬ÄÇÃ´Êµ¼ÊÉÏ¾ÍÊÇmydatabase£¬Ïàµ±ÓÚ×öÒ»´ÎÓ³Éä
-                //Èç¹ûdb±äÁ¿²»ÊÇmydb£¬ÄÇÃ´Å×´í: org.h2.jdbc.JdbcSQLException: Wrong user name or password [28000-170]
+                //ä¾‹å¦‚å¯åŠ¨TcpServeræ—¶ï¼ŒæŒ‡å®šäº†"-key mydb mydatabase"ï¼Œ
+                //å¦‚æœdbå˜é‡æ˜¯mydbï¼Œé‚£ä¹ˆå®é™…ä¸Šå°±æ˜¯mydatabaseï¼Œç›¸å½“äºåšä¸€æ¬¡æ˜ å°„
+                //å¦‚æœdbå˜é‡ä¸æ˜¯mydbï¼Œé‚£ä¹ˆæŠ›é”™: org.h2.jdbc.JdbcSQLException: Wrong user name or password [28000-170]
                 db = server.checkKeyAndGetDatabaseName(db);
                 ConnectionInfo ci = new ConnectionInfo(db);
 
                 ci.setOriginalURL(originalURL);
                 ci.setUserName(transfer.readString());
-                //password²ÎÊıµÄÖµÒÑ¾­×ª»»³ÉuserPasswordHashºÍfilePasswordHashÁË£¬
-                //²»ÄÜÓÉuserPasswordHashºÍfilePasswordHashµÃµ½Ô­Ê¼µÄpassword
+                //passwordå‚æ•°çš„å€¼å·²ç»è½¬æ¢æˆuserPasswordHashå’ŒfilePasswordHashäº†ï¼Œ
+                //ä¸èƒ½ç”±userPasswordHashå’ŒfilePasswordHashå¾—åˆ°åŸå§‹çš„password
                 ci.setUserPasswordHash(transfer.readBytes());
                 ci.setFilePasswordHash(transfer.readBytes());
                 int len = transfer.readInt();
@@ -140,7 +140,7 @@ public class TcpServerThread implements Runnable {
                     ci.setBaseDir(baseDir);
                 }
                 if (server.getIfExists()) {
-                	//Æô¶¯TcpServerÊ±¼Ó"-ifExists"£¬ÏŞÖÆÖ»ÓĞÊı¾İ¿â´æÔÚÊ±¿Í»§¶Ë²ÅÄÜÁ¬½Ó£¬Ò²¾ÍÊÇ²»ÔÊĞíÔÚ¿Í»§¶Ë´´½¨Êı¾İ¿â
+                	//å¯åŠ¨TcpServeræ—¶åŠ "-ifExists"ï¼Œé™åˆ¶åªæœ‰æ•°æ®åº“å­˜åœ¨æ—¶å®¢æˆ·ç«¯æ‰èƒ½è¿æ¥ï¼Œä¹Ÿå°±æ˜¯ä¸å…è®¸åœ¨å®¢æˆ·ç«¯åˆ›å»ºæ•°æ®åº“
                     ci.setProperty("IFEXISTS", "TRUE");
                 }
                 session = Engine.getInstance().createSession(ci);
@@ -148,7 +148,7 @@ public class TcpServerThread implements Runnable {
                 transfer.writeInt(SessionRemote.STATUS_OK);
                 transfer.writeInt(clientVersion);
                 transfer.flush();
-                //Ã¿½¨Á¢Ò»¸öĞÂµÄSession¶ÔÏóÊ±£¬°ÑËü±£´æµ½ÄÚ´æÊı¾İ¿âmanagement_db_9092µÄSESSIONS±í
+                //æ¯å»ºç«‹ä¸€ä¸ªæ–°çš„Sessionå¯¹è±¡æ—¶ï¼ŒæŠŠå®ƒä¿å­˜åˆ°å†…å­˜æ•°æ®åº“management_db_9092çš„SESSIONSè¡¨
                 server.addConnection(threadId, originalURL, ci.getUserName());
                 trace("Connected");
             } catch (Throwable e) {
@@ -253,11 +253,11 @@ public class TcpServerThread implements Runnable {
         }
     }
     
-    //×Ü¹²18ÌõÃüÁî£¬ÕâÀï°üº¬16Ìõ
-    //ÏÂÃæÕâÁ½ÌõÔÚrun·½·¨ÖĞÌØÊâ´¦Àí
+    //æ€»å…±18æ¡å‘½ä»¤ï¼Œè¿™é‡ŒåŒ…å«16æ¡
+    //ä¸‹é¢è¿™ä¸¤æ¡åœ¨runæ–¹æ³•ä¸­ç‰¹æ®Šå¤„ç†
     //SESSION_CANCEL_STATEMENT
     //SESSION_CHECK_KEY
-    //·ÖÈıÖÖ¼¶±ğ£¬´Ó´óµ½Ğ¡: SESSION¼¶¡¢COMMAND¼¶¡¢RESULT¼¶
+    //åˆ†ä¸‰ç§çº§åˆ«ï¼Œä»å¤§åˆ°å°: SESSIONçº§ã€COMMANDçº§ã€RESULTçº§
     private void process() throws IOException {
         int operation = transfer.readInt();
         switch (operation) {
@@ -289,8 +289,8 @@ public class TcpServerThread implements Runnable {
             break;
         }
         case SessionRemote.COMMAND_COMMIT: {
-        	//²¢²»ÊÇÍ¨¹ıorg.h2.jdbc.JdbcConnection.commit()´¥·¢£¬´Ë·½·¨ÊÇÍ¨¹ı·¢ËÍCOMMIT SQL´¥·¢
-        	//´¥·¢SessionRemote.COMMAND_COMMITµÄÊÇÔÚ¼¯Èº»·¾³ÏÂ£¬Í¨¹ıorg.h2.engine.SessionRemote.autoCommitIfCluster()´¥·¢
+        	//å¹¶ä¸æ˜¯é€šè¿‡org.h2.jdbc.JdbcConnection.commit()è§¦å‘ï¼Œæ­¤æ–¹æ³•æ˜¯é€šè¿‡å‘é€COMMIT SQLè§¦å‘
+        	//è§¦å‘SessionRemote.COMMAND_COMMITçš„æ˜¯åœ¨é›†ç¾¤ç¯å¢ƒä¸‹ï¼Œé€šè¿‡org.h2.engine.SessionRemote.autoCommitIfCluster()è§¦å‘
             if (commit == null) {
                 commit = session.prepareLocal("COMMIT");
             }

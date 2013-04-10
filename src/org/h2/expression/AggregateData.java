@@ -52,10 +52,10 @@ class AggregateData {
      */
     void add(Database database, boolean distinct, Value v) {
         if (aggregateType == Aggregate.SELECTIVITY) {
-        	//�ǻ���ĳ������ʽ(�����ǵ����ֶ�)�㲻�ظ��ļ�¼����ռ�ܼ�¼���İٷֱ�
-        	//org.h2.engine.Constants.SELECTIVITY_DISTINCT_COUNTĬ����1�����ֵ���ܸģ�
-        	//��ͳ��ֵӰ��ܴ�ͨ�����ֵԽ��ͳ��Խ��ȷ�����ǻ�ʹ�ø����ڴ档
-        	//SELECTIVITYԽ��˵���ظ��ļ�¼Խ�٣���ѡ������ʱ��������
+        	//是基于某个表达式(多数是单个字段)算不重复的记录数所占总记录数的百分比
+        	//org.h2.engine.Constants.SELECTIVITY_DISTINCT_COUNT默认是1万，这个值不能改，
+        	//对统计值影响很大。通常这个值越大，统计越精确，但是会使用更多内存。
+        	//SELECTIVITY越大，说明重复的记录越少，在选择索引时更有利。
             count++;
             if (distinctHashes == null) {
                 distinctHashes = new IntIntHashMap();

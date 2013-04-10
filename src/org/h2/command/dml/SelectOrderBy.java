@@ -23,7 +23,7 @@ public class SelectOrderBy {
      * the first column of the select list) or a parameter (the parameter is a
      * number representing the column index number).
      */
-    public Expression columnIndexExpr; //order by×Ö¶ÎÔÚselect×Ö¶ÎÁĞ±íÖĞµÄÎ»ÖÃË÷Òı(´Ó1¿ªÊ¼¼ÆÊı)
+    public Expression columnIndexExpr; //order byå­—æ®µåœ¨selectå­—æ®µåˆ—è¡¨ä¸­çš„ä½ç½®ç´¢å¼•(ä»1å¼€å§‹è®¡æ•°)
 
     /**
      * If the column should be sorted descending.

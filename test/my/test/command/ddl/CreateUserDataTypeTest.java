@@ -7,24 +7,24 @@ public class CreateUserDataTypeTest extends TestBase {
 		new CreateUserDataTypeTest().start();
 	}
 
-	//²âÊÔorg.h2.command.Parser.parseCreateUserDataType()
-	//ºÍorg.h2.command.ddl.CreateUserDataType¡¢org.h2.engine.UserDataType
+	//æµ‹è¯•org.h2.command.Parser.parseCreateUserDataType()
+	//å’Œorg.h2.command.ddl.CreateUserDataTypeã€org.h2.engine.UserDataType
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("DROP DOMAIN IF EXISTS EMAIL");
-		//VALUEÊÇCREATE DOMAINÓï¾äµÄÄ¬ÈÏÁÙÊ±ÁÐÃû
+		//VALUEæ˜¯CREATE DOMAINè¯­å¥çš„é»˜è®¤ä¸´æ—¶åˆ—å
 		stmt.executeUpdate("CREATE DOMAIN IF NOT EXISTS EMAIL AS VARCHAR(255) CHECK (POSITION('@', VALUE) > 1)");
 		stmt.executeUpdate("CREATE TYPE IF NOT EXISTS EMAIL AS VARCHAR(255) CHECK (POSITION('@', VALUE) > 1)");
 		stmt.executeUpdate("CREATE DATATYPE IF NOT EXISTS EMAIL AS VARCHAR(255) CHECK (POSITION('@', VALUE) > 1)");
 		
 		//stmt.executeUpdate("CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255) CHECK (POSITION('@', VALUE) > 1)");
 		
-		//´ÓµÚ¶þ¸öÃû³Æ¿ªÊ¼µÄ¶¼ÊÇÒþ²ØÀàÐÍµÄ£¬ÈçÏÂÃæµÄint
+		//ä»Žç¬¬äºŒä¸ªåç§°å¼€å§‹çš„éƒ½æ˜¯éšè—ç±»åž‹çš„ï¼Œå¦‚ä¸‹é¢çš„int
         //new String[]{"INTEGER", "INT", "MEDIUMINT", "INT4", "SIGNED"}
-        //Òþ²ØÀàÐÍÔÚÓÃ»§ÔÚÊý¾Ý¿âÖÐÃ»ÓÐ½¨±íÊ±¿ÉÒÔ¸²¸Ç
-        //ÈçCREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
-        //µ«ÊÇ·ÇÒþ²ØÀàÐÍ¾Í²»ÄÜ¸²¸Ç
-        //ÈçCREATE DATATYPE IF NOT EXISTS integer AS VARCHAR(255)
+        //éšè—ç±»åž‹åœ¨ç”¨æˆ·åœ¨æ•°æ®åº“ä¸­æ²¡æœ‰å»ºè¡¨æ—¶å¯ä»¥è¦†ç›–
+        //å¦‚CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+        //ä½†æ˜¯éžéšè—ç±»åž‹å°±ä¸èƒ½è¦†ç›–
+        //å¦‚CREATE DATATYPE IF NOT EXISTS integer AS VARCHAR(255)
 		//stmt.executeUpdate("CREATE DATATYPE IF NOT EXISTS integer AS VARCHAR(255) CHECK (POSITION('@', VALUE) > 1)");
 	}
 }

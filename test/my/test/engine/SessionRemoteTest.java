@@ -15,41 +15,41 @@ public class SessionRemoteTest extends TestBase {
 		//prop.setProperty("password", "22");
 		
 		//url = "jdbc:h2:mem:memdb";
-		//×¢Òâ: localhost:9092,localhost:9093£¬ËµÃ÷ÊÇ¼¯Èº»·¾³£¬µ«ÊÇ²¢²»ÊÇXA£¬
-		//Ò²¾ÍÊÇËµ¿ÉÄÜÓĞÒ»Ì¨server¸üĞÂ³É¹¦ÁË£¬¿ÉÒÔÔÊĞíÁíÒ»Ì¨¸üĞÂ²»³É¹¦
+		//æ³¨æ„: localhost:9092,localhost:9093ï¼Œè¯´æ˜æ˜¯é›†ç¾¤ç¯å¢ƒï¼Œä½†æ˜¯å¹¶ä¸æ˜¯XAï¼Œ
+		//ä¹Ÿå°±æ˜¯è¯´å¯èƒ½æœ‰ä¸€å°serveræ›´æ–°æˆåŠŸäº†ï¼Œå¯ä»¥å…è®¸å¦ä¸€å°æ›´æ–°ä¸æˆåŠŸ
 		//url = "jdbc:h2:tcp://localhost:9092,localhost:9093/mydb_SessionRemoteTest";
 		//url = "jdbc:h2:tcp://localhost:9092/mydb_SessionRemoteTest";
 		url = "jdbc:h2:tcp://localhost:9092/mydb_SessionRemoteTest5";
-		//prop.setProperty("AUTO_SERVER", "true"); //AUTO_SERVERÎªtrueÊ±urlÖĞ²»ÄÜÖ¸¶¨¶à¸öserver
+		//prop.setProperty("AUTO_SERVER", "true"); //AUTO_SERVERä¸ºtrueæ—¶urlä¸­ä¸èƒ½æŒ‡å®šå¤šä¸ªserver
 		prop.setProperty("AUTO_RECONNECT", "true");
 		
 		
 
-		//TRACE_LEVEL_FILE²ÎÊı·ÅSystemÖĞÎŞĞ§£¬·ÅÔÚurlÖĞ·Ç·¨£¬Ö»ÄÜ·ÅÔÚpropÖĞ
+		//TRACE_LEVEL_FILEå‚æ•°æ”¾Systemä¸­æ— æ•ˆï¼Œæ”¾åœ¨urlä¸­éæ³•ï¼Œåªèƒ½æ”¾åœ¨propä¸­
 		//System.setProperty("TRACE_LEVEL_FILE", "E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE");
 		//url +="; TRACE_LEVEL_FILE=E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE";
 
-		//prop.setProperty("TRACE_LEVEL_FILE", "E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE.txt"); //Ö»ÄÜÊÇÊı×Ö
+		//prop.setProperty("TRACE_LEVEL_FILE", "E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE.txt"); //åªèƒ½æ˜¯æ•°å­—
 
 		//prop.setProperty("TRACE_LEVEL_FILE", "10");
 		//prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
 
 		prop.setProperty("DATABASE_EVENT_LISTENER", "my.test.MyDatabaseEventListener");
 
-		//Í¬Ò»¸öÊı¾İ¿âµÚÒ»´Î´ò¿ªÊ±Èç¹ûÃ»Ê¹ÓÃCIPHER£¬ÄÇÃ´½ÓÏÂÀ´´ò¿ªÒ²²»ÄÜÓÃCIPHERÁË£¬
-		//Èç¹ûµÚÒ»´ÎÓÃÁËCIPHER£¬ÄÇÃ´¾ÍÒ»Ö±ÒªÓÃCIPHERÁ¬Ëü
-		//prop.setProperty("CIPHER", "my_cipher"); //Ö»Ö§³ÖXTEA¡¢AES¡¢FOG
+		//åŒä¸€ä¸ªæ•°æ®åº“ç¬¬ä¸€æ¬¡æ‰“å¼€æ—¶å¦‚æœæ²¡ä½¿ç”¨CIPHERï¼Œé‚£ä¹ˆæ¥ä¸‹æ¥æ‰“å¼€ä¹Ÿä¸èƒ½ç”¨CIPHERäº†ï¼Œ
+		//å¦‚æœç¬¬ä¸€æ¬¡ç”¨äº†CIPHERï¼Œé‚£ä¹ˆå°±ä¸€ç›´è¦ç”¨CIPHERè¿å®ƒ
+		//prop.setProperty("CIPHER", "my_cipher"); //åªæ”¯æŒXTEAã€AESã€FOG
 		prop.setProperty("CIPHER", "AES");
-		//Èç¹ûÅäÖÃÁËCIPHER£¬ÔòÃÜÂë°üº¬Á½²¿·İ£¬ÓÃ¿Õ¸ñ·Ö¿ª£¬µÚÒ»²¿·İÊÇfilePassword£¬µÚ¶ş²¿·İÊÇÓÃ»§ÃÜÂë
+		//å¦‚æœé…ç½®äº†CIPHERï¼Œåˆ™å¯†ç åŒ…å«ä¸¤éƒ¨ä»½ï¼Œç”¨ç©ºæ ¼åˆ†å¼€ï¼Œç¬¬ä¸€éƒ¨ä»½æ˜¯filePasswordï¼Œç¬¬äºŒéƒ¨ä»½æ˜¯ç”¨æˆ·å¯†ç 
 		//prop.setProperty("password", "myFilePassword myUserPassword");
 		prop.setProperty("password", "123456 654321");
-		//prop.setProperty("PASSWORD_HASH", "true"); //Èç¹ûÎªtrueÄÇÃ´²»ĞèÒªÔÙ¶ÔfilePasswordºÍuserPassword½øĞĞhashÁË
+		//prop.setProperty("PASSWORD_HASH", "true"); //å¦‚æœä¸ºtrueé‚£ä¹ˆä¸éœ€è¦å†å¯¹filePasswordå’ŒuserPasswordè¿›è¡Œhashäº†
 	}
 
-	//²âÊÔorg.h2.engine.SessionRemote.connectEmbeddedOrServer(boolean)
+	//æµ‹è¯•org.h2.engine.SessionRemote.connectEmbeddedOrServer(boolean)
 	@Override
 	public void startInternal() throws Exception {
-		conn.setAutoCommit(true); //Èç¹ûÊÇ¼¯Èº»·¾³£¬ÉèÖÃÕâ¸ö²ÎÊıÆäÊµÃ»ÓÃ
+		conn.setAutoCommit(true); //å¦‚æœæ˜¯é›†ç¾¤ç¯å¢ƒï¼Œè®¾ç½®è¿™ä¸ªå‚æ•°å…¶å®æ²¡ç”¨
 						stmt.executeUpdate("drop table IF EXISTS SessionRemoteTest CASCADE");
 						stmt.executeUpdate("create table IF NOT EXISTS SessionRemoteTest(id int, name varchar(500), b boolean)");
 						stmt.executeUpdate("CREATE INDEX IF NOT EXISTS SessionRemoteTestIndex ON SessionRemoteTest(name)");
@@ -63,10 +63,10 @@ public class SessionRemoteTest extends TestBase {
 						stmt.executeUpdate("insert into SessionRemoteTest(id, name, b) values(70, 'b3', true)");
 
 		new StatementCancelThread().start();
-		//stmt.executeUpdate("CREATE USER IF NOT EXISTS SA3 IDENTIFIED BY abc"); // ÃÜÂë²»¼ÓÒıºÅ
+		//stmt.executeUpdate("CREATE USER IF NOT EXISTS SA3 IDENTIFIED BY abc"); // å¯†ç ä¸åŠ å¼•å·
 
 		stmt.executeUpdate("drop table IF EXISTS tempSessionRemoteTest");
-		//ÏÂÃæÕâÌõSQL¿ÉÒÔ²âÊÔorg.h2.engine.SessionWithState.readSessionState()
+		//ä¸‹é¢è¿™æ¡SQLå¯ä»¥æµ‹è¯•org.h2.engine.SessionWithState.readSessionState()
 		stmt.executeUpdate("create LOCAL TEMPORARY table IF NOT EXISTS tempSessionRemoteTest(i int)");
 		sql = "select * from SessionRemoteTest where id>? and b=?";
 		sql = "select * from SessionRemoteTest where id>? and b=? for update";
@@ -78,8 +78,8 @@ public class SessionRemoteTest extends TestBase {
 		ps.setBoolean(2, true);
 
 		rs = ps.executeQuery();
-		//µÈ¼ÛÓÚResultSet.getMetaData()£¬Ö»²»¹ıPreparedStatement.getMetaData()²»ĞèÒªÊÂÏÈÖ´ĞĞ²éÑ¯
-		ResultSetMetaData rsmd = ps.getMetaData(); //Èç¹û²»ÊÇ²éÑ¯sql£¬´Ë·½·¨»á·µ»Ønull
+		//ç­‰ä»·äºResultSet.getMetaData()ï¼Œåªä¸è¿‡PreparedStatement.getMetaData()ä¸éœ€è¦äº‹å…ˆæ‰§è¡ŒæŸ¥è¯¢
+		ResultSetMetaData rsmd = ps.getMetaData(); //å¦‚æœä¸æ˜¯æŸ¥è¯¢sqlï¼Œæ­¤æ–¹æ³•ä¼šè¿”å›null
 		int n = rsmd.getColumnCount();
 		while (rs.next()) {
 			for (int i = 1; i <= n; i++) {
@@ -92,7 +92,7 @@ public class SessionRemoteTest extends TestBase {
 	private class StatementCancelThread extends Thread {
 		public void run() {
 			try {
-				//ÔÚeclipse debugÄ£Ê½ÏÂµ÷ÊÔµ½ÕâÀïÔİÍ££¬È»ºóÖ´ĞĞstmt.executeUpdate£¬ÔÚstmt.executeUpdateÖĞÓÖÔİÍ££¬ÔÚ×ªµ½ÕâÀï¼ÌĞø
+				//åœ¨eclipse debugæ¨¡å¼ä¸‹è°ƒè¯•åˆ°è¿™é‡Œæš‚åœï¼Œç„¶åæ‰§è¡Œstmt.executeUpdateï¼Œåœ¨stmt.executeUpdateä¸­åˆæš‚åœï¼Œåœ¨è½¬åˆ°è¿™é‡Œç»§ç»­
 				//stmt.cancel();
 			} catch (Exception e) {
 				e.printStackTrace();

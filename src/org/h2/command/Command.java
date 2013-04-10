@@ -87,7 +87,7 @@ public abstract class Command implements CommandInterface {
      *
      * @return an empty result set
      */
-    public abstract ResultInterface queryMeta(); //¾ÍÊÇ½á¹û¼¯ÔªÊı¾İ£¬¶ÔÓ¦ÓÚjava.sql.ResultSetMetaData
+    public abstract ResultInterface queryMeta(); //å°±æ˜¯ç»“æœé›†å…ƒæ•°æ®ï¼Œå¯¹åº”äºjava.sql.ResultSetMetaData
 
     /**
      * Execute an updating statement, if this is possible.
@@ -95,7 +95,7 @@ public abstract class Command implements CommandInterface {
      * @return the update count
      * @throws DbException if the command is not an updating statement
      */
-    public int update() { //×ÓÀàÒªÊµÏÖÕâ¸ö·½·¨
+    public int update() { //å­ç±»è¦å®ç°è¿™ä¸ªæ–¹æ³•
         throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_QUERY);
     }
 
@@ -106,7 +106,7 @@ public abstract class Command implements CommandInterface {
      * @return the local result set
      * @throws DbException if the command is not a query
      */
-    public ResultInterface query(int maxrows) { //×ÓÀàÒªÊµÏÖÕâ¸ö·½·¨
+    public ResultInterface query(int maxrows) { //å­ç±»è¦å®ç°è¿™ä¸ªæ–¹æ³•
         throw DbException.get(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY);
     }
 
@@ -142,10 +142,10 @@ public abstract class Command implements CommandInterface {
     private void stop() {
         session.closeTemporaryResults();
         session.setCurrentCommand(null);
-        //DDLµÄisTransactionalÄ¬ÈÏ¶¼ÊÇfalse£¬Ïàµ±ÓÚÃ¿Ö´ĞĞÍêÒ»ÌõDDL¶¼Ä¬ÈÏÌá½»ÊÂÎñ
+        //DDLçš„isTransactionalé»˜è®¤éƒ½æ˜¯falseï¼Œç›¸å½“äºæ¯æ‰§è¡Œå®Œä¸€æ¡DDLéƒ½é»˜è®¤æäº¤äº‹åŠ¡
         if (!isTransactional()) {
             session.commit(true);
-        } else if (session.getAutoCommit()) { //Èç¹ûÊÇ×Ô¶¯Ìá½»Ä£Ê½£¬ÄÇÃ´Ö´ĞĞÍêÒ»ÌõSQLÊ±ÓÉÏµÍ³×Ô¶¯Ìá½»£¬·Ç×Ô¶¯Ìá½»Ä£Ê½ÓÉÓ¦ÓÃ¸ºÔğÌá½»
+        } else if (session.getAutoCommit()) { //å¦‚æœæ˜¯è‡ªåŠ¨æäº¤æ¨¡å¼ï¼Œé‚£ä¹ˆæ‰§è¡Œå®Œä¸€æ¡SQLæ—¶ç”±ç³»ç»Ÿè‡ªåŠ¨æäº¤ï¼Œéè‡ªåŠ¨æäº¤æ¨¡å¼ç”±åº”ç”¨è´Ÿè´£æäº¤
             session.commit(false);
         } else if (session.getDatabase().isMultiThreaded()) {
             Database db = session.getDatabase();
@@ -157,9 +157,9 @@ public abstract class Command implements CommandInterface {
         }
         if (trace.isInfoEnabled() && startTime > 0) {
             long time = System.currentTimeMillis() - startTime;
-            if (time > Constants.SLOW_QUERY_LIMIT_MS) { //Èç¹ûÒ»ÌõsqlµÄÖ´ĞĞÊ±¼äĞ¡ÓÚ100ºÁÃë£¬¼ÇÏÂËü
+            if (time > Constants.SLOW_QUERY_LIMIT_MS) { //å¦‚æœä¸€æ¡sqlçš„æ‰§è¡Œæ—¶é—´å°äº100æ¯«ç§’ï¼Œè®°ä¸‹å®ƒ
                 //trace.info("slow query: {0} ms", time);
-            	trace.info("slow query: {0} ms, sql: {1}", time, sql); //ÎÒ¼ÓÉÏµÄ
+            	trace.info("slow query: {0} ms, sql: {1}", time, sql); //æˆ‘åŠ ä¸Šçš„
             }
         }
     }
@@ -176,7 +176,7 @@ public abstract class Command implements CommandInterface {
         startTime = 0;
         long start = 0;
         Database database = session.getDatabase();
-        //Ò²¸úexecuteUpdate()µÄÇéĞÍÒ»Ñù£¬¾ÍËãÊÇ²éÑ¯Ò²²»ÀıÍâ
+        //ä¹Ÿè·ŸexecuteUpdate()çš„æƒ…å‹ä¸€æ ·ï¼Œå°±ç®—æ˜¯æŸ¥è¯¢ä¹Ÿä¸ä¾‹å¤–
         Object sync = database.isMultiThreaded() ? (Object) session : (Object) database;
         session.waitIfExclusiveModeEnabled();
         boolean writing = !isReadOnly();
@@ -214,9 +214,9 @@ public abstract class Command implements CommandInterface {
     public int executeUpdate() {
         long start = 0;
         Database database = session.getDatabase();
-        //Ä¬ÈÏÒ»¸öÊı¾İ¿âÖ»ÔÊĞíÒ»¸öÏß³Ì¸üĞÂ£¬Í¨¹ıSET MULTI_THREADED 1¿É±ä³É¶àÏß³ÌµÄ£¬
-        //ÕâÑùÍ¬²½¶ÔÏóÊÇsession£¬¼´²»Í¬µÄsessionÖ®¼ä¿ÉÒÔ²¢·¢Ê¹ÓÃÊı¾İ¿â£¬µ«ÊÇÍ¬Ò»¸ösessionÄÚ²¿ÊÇÖ»ÔÊĞíÒ»¸öÏß³Ì¡£
-        //Í¨¹ıÊ¹ÓÃdatabase×÷ÎªÍ¬²½¶ÔÏó¾ÍÏàµ±ÓÚÊı¾İ¿âÊÇµ¥Ïß³ÌµÄ
+        //é»˜è®¤ä¸€ä¸ªæ•°æ®åº“åªå…è®¸ä¸€ä¸ªçº¿ç¨‹æ›´æ–°ï¼Œé€šè¿‡SET MULTI_THREADED 1å¯å˜æˆå¤šçº¿ç¨‹çš„ï¼Œ
+        //è¿™æ ·åŒæ­¥å¯¹è±¡æ˜¯sessionï¼Œå³ä¸åŒçš„sessionä¹‹é—´å¯ä»¥å¹¶å‘ä½¿ç”¨æ•°æ®åº“ï¼Œä½†æ˜¯åŒä¸€ä¸ªsessionå†…éƒ¨æ˜¯åªå…è®¸ä¸€ä¸ªçº¿ç¨‹ã€‚
+        //é€šè¿‡ä½¿ç”¨databaseä½œä¸ºåŒæ­¥å¯¹è±¡å°±ç›¸å½“äºæ•°æ®åº“æ˜¯å•çº¿ç¨‹çš„
         Object sync = database.isMultiThreaded() ? (Object) session : (Object) database;
         session.waitIfExclusiveModeEnabled();
         boolean callStop = true;
@@ -227,7 +227,7 @@ public abstract class Command implements CommandInterface {
             }
         }
         synchronized (sync) {
-            int rollback = session.getUndoLogPos(); //¼ÇÏÂÈÕÖ¾Î»ÖÃ£¬ÒÔ±äÊ§°ÜÊ±»ØÍË
+            int rollback = session.getUndoLogPos(); //è®°ä¸‹æ—¥å¿—ä½ç½®ï¼Œä»¥å˜å¤±è´¥æ—¶å›é€€
             session.setCurrentCommand(this);
             try {
                 while (true) {
@@ -301,7 +301,7 @@ public abstract class Command implements CommandInterface {
         return start == 0 ? now : start;
     }
 
-    public void close() { //ÃüÁî¹Ø±Õºó²Å¿ÉÖØÓÃ
+    public void close() { //å‘½ä»¤å…³é—­åæ‰å¯é‡ç”¨
         canReuse = true;
     }
 
@@ -313,7 +313,7 @@ public abstract class Command implements CommandInterface {
         return sql + Trace.formatParams(getParameters());
     }
 
-    public boolean isCacheable() { //×ÓÀàCommandContainer¸²¸ÇÁË
+    public boolean isCacheable() { //å­ç±»CommandContainerè¦†ç›–äº†
         return false;
     }
 
@@ -335,7 +335,7 @@ public abstract class Command implements CommandInterface {
         ArrayList<? extends ParameterInterface> parameters = getParameters();
         for (int i = 0, size = parameters.size(); i < size; i++) {
             ParameterInterface param = parameters.get(i);
-            param.setValue(null, true); //ÖÃnull²¢¹Ø±ÕÖ®Ç°µÄÖµ£¬¹Ø±ÕÕâ¸ö²Ù×÷Ö»ÊÇÕë¶ÔlobÖµµÄÇé¿ö£¬¼ûorg.h2.value.Value.close()
+            param.setValue(null, true); //ç½®nullå¹¶å…³é—­ä¹‹å‰çš„å€¼ï¼Œå…³é—­è¿™ä¸ªæ“ä½œåªæ˜¯é’ˆå¯¹lobå€¼çš„æƒ…å†µï¼Œè§org.h2.value.Value.close()
         }
     }
 

@@ -1,14 +1,14 @@
-ÓÅÏÈ¼¶: ×îµÍµ½×î¸ß
+ä¼˜å…ˆçº§: æœ€ä½åˆ°æœ€é«˜
 or
 and
-|| (×Ö·û´®Á¬½Ó)
+|| (å­—ç¬¦ä¸²è¿æ¥)
 
 + -
 * / %
 Term
 
 
-ÒÔÏÂ×ÓÀàµÄoptimize·½·¨¿ÉÒÔºöÊÓ
+ä»¥ä¸‹å­ç±»çš„optimizeæ–¹æ³•å¯ä»¥å¿½è§†
 
 org.h2.expression.Parameter
 org.h2.expression.Rownum
@@ -17,26 +17,26 @@ org.h2.expression.ValueExpression
 org.h2.expression.Variable
 org.h2.expression.Wildcard
 
-ExpressionÀàµÄÖ÷Òª·½·¨µ÷ÓÃË³Ğò£º
+Expressionç±»çš„ä¸»è¦æ–¹æ³•è°ƒç”¨é¡ºåºï¼š
 
 mapColumns => optimize => updateAggregate => getValue
 
-Ö»ÓĞupdateAggregateÊÇ¿ÉÑ¡µÄ
-ÓÃÓÚ¾ÛºÏ¡¢·Ö×éÖĞ
-ÔÚorg.h2.command.dml.Select.queryGroup(int, LocalResult)
-ºÍorg.h2.command.dml.Select.queryGroupSorted(int, ResultTarget)ÓĞÓÃµ½
-ÔÚ±éÀú¼ÇÂ¼µÄ¹ı³ÌÖĞÖ´ĞĞ£¬ÔÚgetValueÖ®Ç°µ÷ÓÃ
+åªæœ‰updateAggregateæ˜¯å¯é€‰çš„
+ç”¨äºèšåˆã€åˆ†ç»„ä¸­
+åœ¨org.h2.command.dml.Select.queryGroup(int, LocalResult)
+å’Œorg.h2.command.dml.Select.queryGroupSorted(int, ResultTarget)æœ‰ç”¨åˆ°
+åœ¨éå†è®°å½•çš„è¿‡ç¨‹ä¸­æ‰§è¡Œï¼Œåœ¨getValueä¹‹å‰è°ƒç”¨
 
 
 
-mapColumns·½·¨Ö÷ÒªÊÇÕë¶Ôorg.h2.expression.ExpressionColumnµÄ£¬
-Ö÷ÒªÄ¿µÄÊÇ°Ñ±íµÄÁĞ¹ØÁªµ½ËüµÄColumn column×Ö¶Î£¬²¢¼Ç×¡Õâ¸öExpressionColumnµÄColumnResolver£¬
-´ÓColumnResolver¿É»ñµÃÁĞÖµ£¬¼ûorg.h2.table.TableFilter.getValue(Column)
-TableFilterÀàÊµÏÖÁËColumnResolver½Ó¿Ú
+mapColumnsæ–¹æ³•ä¸»è¦æ˜¯é’ˆå¯¹org.h2.expression.ExpressionColumnçš„ï¼Œ
+ä¸»è¦ç›®çš„æ˜¯æŠŠè¡¨çš„åˆ—å…³è”åˆ°å®ƒçš„Column columnå­—æ®µï¼Œå¹¶è®°ä½è¿™ä¸ªExpressionColumnçš„ColumnResolverï¼Œ
+ä»ColumnResolverå¯è·å¾—åˆ—å€¼ï¼Œè§org.h2.table.TableFilter.getValue(Column)
+TableFilterç±»å®ç°äº†ColumnResolveræ¥å£
 
-optimize·½·¨Ö÷ÒªÊÇ×öÒ»Ğ©ÓÅ»¯£¬±ÈÈç¿´¿´ÊÇ·ñÊÇ³£Á¿µÈµÈºÜ¶àĞ¡µÄÏ¸½ÚÓÅ»¯µã£¬¾ßÌå¼ûÃ¿¸öExpression×ÓÀàµÄ²»Í¬ÊµÏÖ
+optimizeæ–¹æ³•ä¸»è¦æ˜¯åšä¸€äº›ä¼˜åŒ–ï¼Œæ¯”å¦‚çœ‹çœ‹æ˜¯å¦æ˜¯å¸¸é‡ç­‰ç­‰å¾ˆå¤šå°çš„ç»†èŠ‚ä¼˜åŒ–ç‚¹ï¼Œå…·ä½“è§æ¯ä¸ªExpressionå­ç±»çš„ä¸åŒå®ç°
 
-getValueµÃµ½±í´ïÊ½µÄÖµ
+getValueå¾—åˆ°è¡¨è¾¾å¼çš„å€¼
 
 
 

@@ -64,7 +64,7 @@ public class ValueLobTest {
 		System.setProperty("h2.lobClientMaxSizeMemory", "1024");
 		System.setProperty("java.io.tmpdir", "E:\\H2\\tmp");
 
-		// ÒªÔÚ³õÊ¼SysPropertiesÖ®Ç°ÉèÖÃ£¬ÒòÎªLOB_FILES_PER_DIRECTORYÊÇÒ»¸östatic final×Ö¶Î
+		// è¦åœ¨åˆå§‹SysPropertiesä¹‹å‰è®¾ç½®ï¼Œå› ä¸ºLOB_FILES_PER_DIRECTORYæ˜¯ä¸€ä¸ªstatic finalå­—æ®µ
 		System.setProperty("h2.lobFilesPerDirectory", "5");
 
 		MyDataHandler handler = new MyDataHandler();
@@ -74,7 +74,7 @@ public class ValueLobTest {
 			path = new File(Utils.getProperty("java.io.tmpdir", "."),
 					SysProperties.PREFIX_TEMP_FILE).getAbsolutePath();
 		}
-		//System.setProperty("h2.lobFilesPerDirectory", "5"); //ÔÚÕâÀïÉèÖÃ²»Æğ×÷ÓÃÁË£¬SysPropertiesÀàÖĞÒÑÉè³É256
+		//System.setProperty("h2.lobFilesPerDirectory", "5"); //åœ¨è¿™é‡Œè®¾ç½®ä¸èµ·ä½œç”¨äº†ï¼ŒSysPropertiesç±»ä¸­å·²è®¾æˆ256
 
 		//FileUtils.deleteRecursive("E:\\H2\\tmp\\h2.temp.lobs.db",false);
 		for (int i = 0; i < 1; i++) {

@@ -1,15 +1,15 @@
-	//¿ÉÒÔÓÃCreate½¨Á¢13ÖÖÊı¾İ¿â¶ÔÏó
+	//å¯ä»¥ç”¨Createå»ºç«‹13ç§æ•°æ®åº“å¯¹è±¡
 	//USER ROLE SCHEMA
 	//AGGREGATE ALIAS CONSTANT
-	//SEQUENCE TRIGGER DOMAIN(»òTYPE»òDATATYPE)
+	//SEQUENCE TRIGGER DOMAIN(æˆ–TYPEæˆ–DATATYPE)
 	//TABLE LINKED_TABLE VIEW INDEX
     private Prepared parseCreate() {
-        boolean orReplace = false; //Ö»¶ÔVIEWÕæÕıÆğ×÷ÓÃ
+        boolean orReplace = false; //åªå¯¹VIEWçœŸæ­£èµ·ä½œç”¨
         if (readIf("OR")) {
             read("REPLACE");
             orReplace = true;
         }
-        boolean force = readIf("FORCE"); //Ö»¶ÔVIEW¡¢AGGREGATE¡¢ALIAS¡¢TRIGGER¡¢LINKED_TABLEÕæÕıÆğ×÷ÓÃ
+        boolean force = readIf("FORCE"); //åªå¯¹VIEWã€AGGREGATEã€ALIASã€TRIGGERã€LINKED_TABLEçœŸæ­£èµ·ä½œç”¨
         if (readIf("VIEW")) {
             return parseCreateView(force, orReplace);
         } else if (readIf("ALIAS")) {
@@ -37,7 +37,7 @@
         } else if (readIf("LINKED")) {
             return parseCreateLinkedTable(false, false, force);
         }
-        // tables or linked tables or Ë÷Òı(×îºóÒ»¸öelse²¿·İµÄ´úÂë)
+        // tables or linked tables or ç´¢å¼•(æœ€åä¸€ä¸ªelseéƒ¨ä»½çš„ä»£ç )
         boolean memory = false, cached = false;
         if (readIf("MEMORY")) {
             memory = true;

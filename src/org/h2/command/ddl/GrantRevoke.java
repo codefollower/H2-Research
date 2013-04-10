@@ -124,14 +124,14 @@ public class GrantRevoke extends DefineCommand {
         }
         if (grantee instanceof Role) {
             Role granteeRole = (Role) grantee;
-            //ÀıÈç: GRANT myrole1 TO myrole2
-            //ÕâÀïµÄÒâË¼ÊÇÅĞ¶Ïmyrole1ÊÇ·ñÔøÊÚÓë¸ømyrole2£¬Ö÷ÒªÊÇÎªÁË¼à²âÑ­»·ÊÚÓèµÄÇé¿ö
-            //±ÈÈç£¬Èç¹ûÏÈÊÇGRANT myrole2 TO myrole1£¬
-            //ÄÇÃ´myrole1µÄgrantedRolesÖĞ¾ÍÓĞmyrole2ÁË
-            //µ±GRANT myrole1 TO myrole2Ê±£¬ÒòÎªgrantedRole=myrole1£¬grantee=myrole2
-            //ËùÒÔµ÷ÓÃmyrole1.isRoleGrantedÔÚgrantedRolesÖĞ¿Ï¶¨ÓĞmyrole2ÁË
-            //´ËÊ±¾Í·µ»Øtrue
-            //µ±×Ô¼ºÊÚÓè×Ô¼ºÊ±£¬grantedRole.isRoleGrantedÒ²»á·µ»Øtrue
+            //ä¾‹å¦‚: GRANT myrole1 TO myrole2
+            //è¿™é‡Œçš„æ„æ€æ˜¯åˆ¤æ–­myrole1æ˜¯å¦æ›¾æˆä¸ç»™myrole2ï¼Œä¸»è¦æ˜¯ä¸ºäº†ç›‘æµ‹å¾ªç¯æˆäºˆçš„æƒ…å†µ
+            //æ¯”å¦‚ï¼Œå¦‚æœå…ˆæ˜¯GRANT myrole2 TO myrole1ï¼Œ
+            //é‚£ä¹ˆmyrole1çš„grantedRolesä¸­å°±æœ‰myrole2äº†
+            //å½“GRANT myrole1 TO myrole2æ—¶ï¼Œå› ä¸ºgrantedRole=myrole1ï¼Œgrantee=myrole2
+            //æ‰€ä»¥è°ƒç”¨myrole1.isRoleGrantedåœ¨grantedRolesä¸­è‚¯å®šæœ‰myrole2äº†
+            //æ­¤æ—¶å°±è¿”å›true
+            //å½“è‡ªå·±æˆäºˆè‡ªå·±æ—¶ï¼ŒgrantedRole.isRoleGrantedä¹Ÿä¼šè¿”å›true
             if (grantedRole.isRoleGranted(granteeRole)) {
                 // cyclic role grants are not allowed
                 throw DbException.get(ErrorCode.ROLE_ALREADY_GRANTED_1, grantedRole.getSQL());

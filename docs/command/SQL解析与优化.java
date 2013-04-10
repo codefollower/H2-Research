@@ -1,34 +1,34 @@
-1. SQL½âÎö
+1. SQLè§£æž
 
-´Ê·¨·ÖÎö¡¢Óï·¨·ÖÎö¡¢ÓïÒå·ÖÎö»ìºÏ
+è¯æ³•åˆ†æžã€è¯­æ³•åˆ†æžã€è¯­ä¹‰åˆ†æžæ··åˆ
 
 
-Ê¹ÓÃÁ½±éÉ¨Ãè
+ä½¿ç”¨ä¸¤éæ‰«æ
 
-1.1 µÚÒ»±éÉ¨Ãè: ³õÊ¼»¯½×¶Î
+1.1 ç¬¬ä¸€éæ‰«æ: åˆå§‹åŒ–é˜¶æ®µ
 
-a. È·¶¨Ã¿¸ö×Ö·ûµÄÀàÐÍ
-   SQL¶ÔÓ¦Ò»¸ö×Ö·ûÀàÐÍÊý×é£¬´ËÊý×éµÄÃ¿¸öÔªËØ±íÊ¾×Ö·ûµÄ´Ê·¨ÀàÐÍ
+a. ç¡®å®šæ¯ä¸ªå­—ç¬¦çš„ç±»åž‹
+   SQLå¯¹åº”ä¸€ä¸ªå­—ç¬¦ç±»åž‹æ•°ç»„ï¼Œæ­¤æ•°ç»„çš„æ¯ä¸ªå…ƒç´ è¡¨ç¤ºå­—ç¬¦çš„è¯æ³•ç±»åž‹
     // used during the tokenizer phase
     private static final int CHAR_END = 1, CHAR_VALUE = 2, CHAR_QUOTED = 3;
     private static final int CHAR_NAME = 4, CHAR_SPECIAL_1 = 5, CHAR_SPECIAL_2 = 6;
     private static final int CHAR_STRING = 7, CHAR_DOT = 8, CHAR_DOLLAR_QUOTED_STRING = 9;
 
-	»¹ÓÐÒ»¸ö0Öµ£¬³ýÉÏÃæ9ÖÖÒÔÍâµÄÀàÐÍ(ÓÃÀ´±íÊ¾×¢ÊÍ¡¢¿Õ°×µÈ)
+	è¿˜æœ‰ä¸€ä¸ª0å€¼ï¼Œé™¤ä¸Šé¢9ç§ä»¥å¤–çš„ç±»åž‹(ç”¨æ¥è¡¨ç¤ºæ³¨é‡Šã€ç©ºç™½ç­‰)
 
-b. sqlÔ¤´¦Àí
+b. sqlé¢„å¤„ç†
 
-×öÁËÈçÏÂÊÂÇé:
+åšäº†å¦‚ä¸‹äº‹æƒ…:
 
 1)
-°ÑÒÔ"//"»ò"--"¿ªÍ·µÄµ¥ÐÐ×¢ÊÍÈ«»»³É¿Õ¸ñ
-°Ñ"/* ... */"¿é×¢ÊÍÈ«»»³É¿Õ¸ñ
+æŠŠä»¥"//"æˆ–"--"å¼€å¤´çš„å•è¡Œæ³¨é‡Šå…¨æ¢æˆç©ºæ ¼
+æŠŠ"/* ... */"å—æ³¨é‡Šå…¨æ¢æˆç©ºæ ¼
 
-×¢ÊÍÔÚ×Ö·ûÀàÐÍÊý×éÖÐ¶ÔÓ¦µÄÀàÐÍ¶¼ÊÇ0,°üÀ¨"//"¡¢"--"¡¢"/*"¡¢"*/"
+æ³¨é‡Šåœ¨å­—ç¬¦ç±»åž‹æ•°ç»„ä¸­å¯¹åº”çš„ç±»åž‹éƒ½æ˜¯0,åŒ…æ‹¬"//"ã€"--"ã€"/*"ã€"*/"
 
 2)
-$$...$$(ÓÃÓÚ×Ô¶¨Òåº¯Êý»ò´æ´¢¹ý³Ì)
-Èç:
+$$...$$(ç”¨äºŽè‡ªå®šä¹‰å‡½æ•°æˆ–å­˜å‚¨è¿‡ç¨‹)
+å¦‚:
 CREATE ALIAS IP_ADDRESS AS $$
 import java.net.*;
 @CODE
@@ -36,43 +36,43 @@ String ipAddress(String host) throws Exception {
     return InetAddress.getByName(host).getHostAddress();
 }
 $$;
-ÄÇÃ´»áÔ¤ÏÈ°Ñ$$Ìæ»»³É¿Õ¸ñ£¬ÀàÐÍÊÇ0,¡¡¶ø$$ÖÐ°üº¬µÄ×Ö·û²»±ä£¬ÀàÐÍÊÇCHAR_DOLLAR_QUOTED_STRING¡£
-$$ÖÐÈç¹û°üº¬¿Õ¸ñ¡¢»Ø³µ»»ÐÐÀàµÄ×Ö·ûÒ²²»×öÌØÊâ´¦Àí¡£
+é‚£ä¹ˆä¼šé¢„å…ˆæŠŠ$$æ›¿æ¢æˆç©ºæ ¼ï¼Œç±»åž‹æ˜¯0,ã€€è€Œ$$ä¸­åŒ…å«çš„å­—ç¬¦ä¸å˜ï¼Œç±»åž‹æ˜¯CHAR_DOLLAR_QUOTED_STRINGã€‚
+$$ä¸­å¦‚æžœåŒ…å«ç©ºæ ¼ã€å›žè½¦æ¢è¡Œç±»çš„å­—ç¬¦ä¹Ÿä¸åšç‰¹æ®Šå¤„ç†ã€‚
 
-3) ×Ö·û´®
-ÔÚsqlÀï×Ö·û´®ÊÇÓÃµ¥ÒýºÅÀ¨ÆðÀ´£¬²»ÏñjavaÊÇÓÃË«ÒýºÅ£¬
-×Ö·û´®±£³Ö²»±ä£¬µ«ÊÇ¶ÔÓÚ×Ö·ûÀàÐÍÊý×éÖ»¶ÔµÚÒ»¸öµ¥ÒýºÅÓÃCHAR_STRING±íÊ¾£¬ÆäËû»¹ÊÇ0£¬
-ÔÚµ÷ÓÃread¶ÁÈ¡tokenÊ±£¬Ö»ÒªÅÐ¶ÏµÚÒ»¸ö×Ö·ûÀàÐÍÊÇCHAR_STRING£¬ÄÇÃ´¾ÍÒ»Ö±ÕÒµ½³öÏÖÏÂÒ»¸öµ¥ÒýºÅÎªÖ¹
+3) å­—ç¬¦ä¸²
+åœ¨sqlé‡Œå­—ç¬¦ä¸²æ˜¯ç”¨å•å¼•å·æ‹¬èµ·æ¥ï¼Œä¸åƒjavaæ˜¯ç”¨åŒå¼•å·ï¼Œ
+å­—ç¬¦ä¸²ä¿æŒä¸å˜ï¼Œä½†æ˜¯å¯¹äºŽå­—ç¬¦ç±»åž‹æ•°ç»„åªå¯¹ç¬¬ä¸€ä¸ªå•å¼•å·ç”¨CHAR_STRINGè¡¨ç¤ºï¼Œå…¶ä»–è¿˜æ˜¯0ï¼Œ
+åœ¨è°ƒç”¨readè¯»å–tokenæ—¶ï¼Œåªè¦åˆ¤æ–­ç¬¬ä¸€ä¸ªå­—ç¬¦ç±»åž‹æ˜¯CHAR_STRINGï¼Œé‚£ä¹ˆå°±ä¸€ç›´æ‰¾åˆ°å‡ºçŽ°ä¸‹ä¸€ä¸ªå•å¼•å·ä¸ºæ­¢
 
 
-4) ±ðÃû
-a. SQL ServerÖ§³Ö[..]¸ñÊ½£¬ÐèÒªÉèÖÃMODE = MSSQLServer
-°Ñ[ºÍ]Ìæ»»³ÉË«ÒýºÅ£¬¶ÔÓ¦[µÄÀàÐÍÊÇCHAR_QUOTED£¬ÆäËûµÄÀàÐÍÊÇ0£¬
-ÔÚµ÷ÓÃread¶ÁÈ¡tokenÊ±£¬Ö»ÒªÅÐ¶ÏµÚÒ»¸ö×Ö·ûÀàÐÍÊÇCHAR_QUOTED£¬ÄÇÃ´¾ÍÒ»Ö±ÕÒµ½³öÏÖÏÂÒ»¸öË«ÒýºÅÎªÖ¹
+4) åˆ«å
+a. SQL Serveræ”¯æŒ[..]æ ¼å¼ï¼Œéœ€è¦è®¾ç½®MODE = MSSQLServer
+æŠŠ[å’Œ]æ›¿æ¢æˆåŒå¼•å·ï¼Œå¯¹åº”[çš„ç±»åž‹æ˜¯CHAR_QUOTEDï¼Œå…¶ä»–çš„ç±»åž‹æ˜¯0ï¼Œ
+åœ¨è°ƒç”¨readè¯»å–tokenæ—¶ï¼Œåªè¦åˆ¤æ–­ç¬¬ä¸€ä¸ªå­—ç¬¦ç±»åž‹æ˜¯CHAR_QUOTEDï¼Œé‚£ä¹ˆå°±ä¸€ç›´æ‰¾åˆ°å‡ºçŽ°ä¸‹ä¸€ä¸ªåŒå¼•å·ä¸ºæ­¢
 
-b. MySQLÖ§³Ö"`"ºÅ¸ñÊ½
-°Ñ"`"ºÅÌæ»»³ÉË«ÒýºÅ£¬¶ÔÓ¦µÚÒ»¸ö"`"ºÅµÄÀàÐÍÊÇCHAR_QUOTED£¬ÆäËûµÄÀàÐÍÊÇ0£¬
-"`"ºÅÀ¨ÆðÀ´µÄ×Ö·ûÈ«×ª³É´óÐ´,
-ÔÚµ÷ÓÃread¶ÁÈ¡tokenÊ±£¬Ö»ÒªÅÐ¶ÏµÚÒ»¸ö×Ö·ûÀàÐÍÊÇCHAR_QUOTED£¬ÄÇÃ´¾ÍÒ»Ö±ÕÒµ½³öÏÖÏÂÒ»¸öË«ÒýºÅÎªÖ¹
+b. MySQLæ”¯æŒ"`"å·æ ¼å¼
+æŠŠ"`"å·æ›¿æ¢æˆåŒå¼•å·ï¼Œå¯¹åº”ç¬¬ä¸€ä¸ª"`"å·çš„ç±»åž‹æ˜¯CHAR_QUOTEDï¼Œå…¶ä»–çš„ç±»åž‹æ˜¯0ï¼Œ
+"`"å·æ‹¬èµ·æ¥çš„å­—ç¬¦å…¨è½¬æˆå¤§å†™,
+åœ¨è°ƒç”¨readè¯»å–tokenæ—¶ï¼Œåªè¦åˆ¤æ–­ç¬¬ä¸€ä¸ªå­—ç¬¦ç±»åž‹æ˜¯CHAR_QUOTEDï¼Œé‚£ä¹ˆå°±ä¸€ç›´æ‰¾åˆ°å‡ºçŽ°ä¸‹ä¸€ä¸ªåŒå¼•å·ä¸ºæ­¢
 
-c. Ë«ÒýºÅ¸ñÊ½
-¶ÔÓ¦µÚÒ»¸öË«ÒýºÅµÄÀàÐÍÊÇCHAR_QUOTED£¬ÆäËûµÄÀàÐÍÊÇ0£¬
-ÔÚµ÷ÓÃread¶ÁÈ¡tokenÊ±£¬Ö»ÒªÅÐ¶ÏµÚÒ»¸ö×Ö·ûÀàÐÍÊÇCHAR_QUOTED£¬ÄÇÃ´¾ÍÒ»Ö±ÕÒµ½³öÏÖÏÂÒ»¸öË«ÒýºÅÎªÖ¹
+c. åŒå¼•å·æ ¼å¼
+å¯¹åº”ç¬¬ä¸€ä¸ªåŒå¼•å·çš„ç±»åž‹æ˜¯CHAR_QUOTEDï¼Œå…¶ä»–çš„ç±»åž‹æ˜¯0ï¼Œ
+åœ¨è°ƒç”¨readè¯»å–tokenæ—¶ï¼Œåªè¦åˆ¤æ–­ç¬¬ä¸€ä¸ªå­—ç¬¦ç±»åž‹æ˜¯CHAR_QUOTEDï¼Œé‚£ä¹ˆå°±ä¸€ç›´æ‰¾åˆ°å‡ºçŽ°ä¸‹ä¸€ä¸ªåŒå¼•å·ä¸ºæ­¢
 
 
 
 
 5)
-ÏÂ»®Ïß¡¢a-z¡¢A-Zµ±³ÉCHAR_NAME£¬Èç¹ûDATABASE_TO_UPPER²ÎÊýÎªtrue£¬ÄÇÃ´a-zÒª×ª³É´óÐ´
-0-9±»µ±³ÉCHAR_VALUE
+ä¸‹åˆ’çº¿ã€a-zã€A-Zå½“æˆCHAR_NAMEï¼Œå¦‚æžœDATABASE_TO_UPPERå‚æ•°ä¸ºtrueï¼Œé‚£ä¹ˆa-zè¦è½¬æˆå¤§å†™
+0-9è¢«å½“æˆCHAR_VALUE
 
-ÉÏÃæÒÔÍâµÄ×Ö·ûµ÷ÓÃjava.lang.Character.isJavaIdentifierPart(char)£¬
-Èç¹ûÎªtrueÄÇÃ´µ±³ÉCHAR_NAME,Èç¹ûDATABASE_TO_UPPER²ÎÊýÎªtrueÄÇÃ´×ª»¯³É´óÐ´
+ä¸Šé¢ä»¥å¤–çš„å­—ç¬¦è°ƒç”¨java.lang.Character.isJavaIdentifierPart(char)ï¼Œ
+å¦‚æžœä¸ºtrueé‚£ä¹ˆå½“æˆCHAR_NAME,å¦‚æžœDATABASE_TO_UPPERå‚æ•°ä¸ºtrueé‚£ä¹ˆè½¬åŒ–æˆå¤§å†™
 
 
-1.2 read ·½·¨£¬¶ÁÏÂÒ»¸ötoken
+1.2 read æ–¹æ³•ï¼Œè¯»ä¸‹ä¸€ä¸ªtoken
 
-TokenÀàÐÍ:
+Tokenç±»åž‹:
     // this are token types
     private static final int KEYWORD = 1, IDENTIFIER = 2, PARAMETER = 3, END = 4, VALUE = 5;
     private static final int EQUAL = 6, BIGGER_EQUAL = 7, BIGGER = 8;
@@ -83,24 +83,24 @@ TokenÀàÐÍ:
 
 
 
-×Ü¹²38¸öÌØÊâtoken£¬²»ÄÜ³äµ±±êÊ¶·ûÓÃ
+æ€»å…±38ä¸ªç‰¹æ®Štokenï¼Œä¸èƒ½å……å½“æ ‡è¯†ç¬¦ç”¨
 
-7¸öÌØÊâµÄÈÕÆÚÊ±¼äÀàÐÍ:
+7ä¸ªç‰¹æ®Šçš„æ—¥æœŸæ—¶é—´ç±»åž‹:
 ---------------------------------------------------
-CURRENT_TIMESTAMP¡¢CURRENT_TIME¡¢CURRENT_DATEÊÇÈý¸öÌØÊâµÄtoken£¬ËûÃÇ¼´²»ÊÇ¹Ø¼ü×Ö£¬Ò²²»ÊÇ±êÊ¶·û£¬
-µ«ÊÇ²»ÄÜÓÃËüÃÇ³äµ±±êÊ¶·ûÈ¥£¬±ÈÈç²»ÄÜÓÃCURRENT_DATEµ±±íÃû:
-CREATE TABLE current_date ÕâÑùµÄÓï·¨ÊÇ´íÎóµÄ¡£
+CURRENT_TIMESTAMPã€CURRENT_TIMEã€CURRENT_DATEæ˜¯ä¸‰ä¸ªç‰¹æ®Šçš„tokenï¼Œä»–ä»¬å³ä¸æ˜¯å…³é”®å­—ï¼Œä¹Ÿä¸æ˜¯æ ‡è¯†ç¬¦ï¼Œ
+ä½†æ˜¯ä¸èƒ½ç”¨å®ƒä»¬å……å½“æ ‡è¯†ç¬¦åŽ»ï¼Œæ¯”å¦‚ä¸èƒ½ç”¨CURRENT_DATEå½“è¡¨å:
+CREATE TABLE current_date è¿™æ ·çš„è¯­æ³•æ˜¯é”™è¯¯çš„ã€‚
 
-SYSTIMESTAMP¡¢SYSTIME¡¢SYSDATEÓëCURRENT_TIMESTAMP¡¢CURRENT_TIME¡¢CURRENT_DATEµÈ¼Û
-TODAYÒ²ÓëCURRENT_DATEµÈ¼Û
+SYSTIMESTAMPã€SYSTIMEã€SYSDATEä¸ŽCURRENT_TIMESTAMPã€CURRENT_TIMEã€CURRENT_DATEç­‰ä»·
+TODAYä¹Ÿä¸ŽCURRENT_DATEç­‰ä»·
 
-3¸ö³£Á¿tokenÀàÐÍ:
+3ä¸ªå¸¸é‡tokenç±»åž‹:
 ---------------------------------------------------
 FALSE
 TRUE
 NULL
 
-28¸öKEYWORD(¹Ø¼ü×Ö)
+28ä¸ªKEYWORD(å…³é”®å­—)
 ---------------------------------------------------
 CROSS
 DISTINCT
@@ -110,7 +110,7 @@ EXISTS
 FROM
 FOR
 FULL
-FETCH Èç¹ûÊý¾Ý¿âÖ§³ÖsupportOffsetFetch(DB2¡¢Derby¡¢PostgreSQL¶¼Ö§³Ö)
+FETCH å¦‚æžœæ•°æ®åº“æ”¯æŒsupportOffsetFetch(DB2ã€Derbyã€PostgreSQLéƒ½æ”¯æŒ)
 
 GROUP
 HAVING
@@ -126,7 +126,7 @@ NOT
 NATURAL
 
 ON
-OFFSET  Èç¹ûÊý¾Ý¿âÖ§³ÖsupportOffsetFetch(DB2¡¢Derby¡¢PostgreSQL¶¼Ö§³Ö)
+OFFSET  å¦‚æžœæ•°æ®åº“æ”¯æŒsupportOffsetFetch(DB2ã€Derbyã€PostgreSQLéƒ½æ”¯æŒ)
 ORDER
 ORDER
 PRIMARY
@@ -142,8 +142,8 @@ WHERE
 
 
 
-2. SQLÓÅ»¯
+2. SQLä¼˜åŒ–
 
-2.1 ±í´ïÊ½ÓÅ»¯
+2.1 è¡¨è¾¾å¼ä¼˜åŒ–
 
-2.1 Ë÷ÒýÑ¡Ôñ(Ö´ÐÐ¼Æ»®)
+2.1 ç´¢å¼•é€‰æ‹©(æ‰§è¡Œè®¡åˆ’)

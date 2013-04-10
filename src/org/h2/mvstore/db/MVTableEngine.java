@@ -64,7 +64,7 @@ public class MVTableEngine implements TableEngine {
             synchronized (STORES) {
                 store = STORES.get(storeName);
                 if (store == null) {
-                    builder.fileName(storeName + Constants.SUFFIX_MV_FILE); //Èç"E:/H2/baseDir/mydb.mv.db"
+                    builder.fileName(storeName + Constants.SUFFIX_MV_FILE); //å¦‚"E:/H2/baseDir/mydb.mv.db"
                     if (db.isReadOnly()) {
                         builder.readOnly();
                     }

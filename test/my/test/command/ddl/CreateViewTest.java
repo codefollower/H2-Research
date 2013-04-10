@@ -12,7 +12,7 @@ public class CreateViewTest extends TestBase {
 		System.out.println(Integer.bitCount(7));
 	}
 
-	//≤‚ ‘org.h2.command.Parser.parseCreateView(boolean, boolean)
+	//ÊµãËØïorg.h2.command.Parser.parseCreateView(boolean, boolean)
 	//org.h2.command.ddl.CreateView
 	@Override
 	public void startInternal() throws Exception {
@@ -34,17 +34,17 @@ public class CreateViewTest extends TestBase {
 		sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1,f2) " //
 				+ "AS SELECT id,name FROM CreateViewTest";
 
-		//select◊÷∂Œ∏ˆ ˝±»view◊÷∂Œ∂‡µƒ«Èøˆ£¨∂‡≥ˆ¿¥µƒ∞¥select◊÷∂Œ‘≠¿¥µƒÀ„
-		//’‚¿Ô µº  «f1°¢name
+		//selectÂ≠óÊÆµ‰∏™Êï∞ÊØîviewÂ≠óÊÆµÂ§öÁöÑÊÉÖÂÜµÔºåÂ§öÂá∫Êù•ÁöÑÊåâselectÂ≠óÊÆµÂéüÊù•ÁöÑÁÆó
+		//ËøôÈáåÂÆûÈôÖÊòØf1„ÄÅname
 		sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1) " //
 				+ "AS SELECT id,name FROM CreateViewTest";
 
-		//select◊÷∂Œ∏ˆ ˝±»view◊÷∂Œ…Ÿµƒ«Èøˆ£¨view÷–…Ÿµƒ◊÷∂Œ±ª∫ˆ¬‘
-		//’‚¿Ô µº  «f1£¨∂¯f2±ª∫ˆ¬‘¡À£¨“≤≤ªÃ· æ¥ÌŒÛ
+		//selectÂ≠óÊÆµ‰∏™Êï∞ÊØîviewÂ≠óÊÆµÂ∞ëÁöÑÊÉÖÂÜµÔºåview‰∏≠Â∞ëÁöÑÂ≠óÊÆµË¢´ÂøΩÁï•
+		//ËøôÈáåÂÆûÈôÖÊòØf1ÔºåËÄåf2Ë¢´ÂøΩÁï•‰∫ÜÔºå‰πü‰∏çÊèêÁ§∫ÈîôËØØ
 		sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
 				+ "AS SELECT id FROM CreateViewTest";
 
-		//≤ªπ‹º”≤ªº”FORCE£¨∏˙…œ√Ê“≤“ª—˘
+		//‰∏çÁÆ°Âä†‰∏çÂä†FORCEÔºåË∑ü‰∏äÈù¢‰πü‰∏ÄÊ†∑
 		sql = "CREATE OR REPLACE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
 				+ "AS SELECT id FROM CreateViewTest";
 
@@ -57,11 +57,11 @@ public class CreateViewTest extends TestBase {
 		//		sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1,f2) " //
 		//			+ "AS SELECT top 2 id,name FROM CreateViewTest order by id";
 		//		
-		//»Áπ˚ «’‚÷÷«Èøˆ£¨Ω”œ¬¿¥“™≤È ”Õº ±“≤“™∞¥CreateViewTestµƒ◊÷∂Œ√˚¿¥≤È
+		//Â¶ÇÊûúÊòØËøôÁßçÊÉÖÂÜµÔºåÊé•‰∏ãÊù•Ë¶ÅÊü•ËßÜÂõæÊó∂‰πüË¶ÅÊåâCreateViewTestÁöÑÂ≠óÊÆµÂêçÊù•Êü•
 		//sql = "CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view " //
 		//		+ "AS SELECT id,name FROM CreateViewTest";
 
-		//ƒø«∞≤ª÷ß≥÷≤Œ ˝:
+		//ÁõÆÂâç‰∏çÊîØÊåÅÂèÇÊï∞:
 		//org.h2.jdbc.JdbcSQLException: Feature not supported: "parameters in views"; SQL statement:
 		//sql = "CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view (f1,f2) AS SELECT id,name FROM CreateViewTest where id=?";
 		//		ps = conn.prepareStatement(sql);
@@ -83,29 +83,29 @@ public class CreateViewTest extends TestBase {
 
 		//sql = "select * from CreateViewTest";
 
-		//≤‚ ‘org.h2.command.Parser.parserWith()
+		//ÊµãËØïorg.h2.command.Parser.parserWith()
 		//stmt.executeUpdate("CREATE LOCAL TEMPORARY TABLE IF NOT EXISTS my_tmp_table(f1 int)");
 		//stmt.executeUpdate("DROP VIEW IF EXISTS my_tmp_table");
 		//stmt.executeUpdate("CREATE OR REPLACE FORCE VIEW my_tmp_table AS SELECT f2 FROM my_view");
 		//sql = "WITH RECURSIVE my_tmp_table(f1,f2) AS(select id,name from CreateViewTest) select f1, f2 from my_tmp_table";
 		//sql = "WITH my_tmp_table(f1,f2) AS(select id,name from CreateViewTest) select f1, f2 from my_tmp_table";
 
-		//AS¿Ô√Ê±ÿ–Î «UNION ALL
+		//ASÈáåÈù¢ÂøÖÈ°ªÊòØUNION ALL
 		sql = "WITH RECURSIVE my_tmp_table(f1,f2) AS(select id,name from CreateViewTest UNION ALL select 1, 2)"
 				+ "select f1, f2 from my_tmp_table";
 
 		sql = "WITH RECURSIVE my_tmp_table(f1,f2) AS(select id,name from CreateViewTest UNION ALL select id,name from CreateViewTest)"
 				+ "select f1, f2 from my_tmp_table";
 
-		//±ÿ–Î‘⁄from∫Û√Êº”¿®∫≈£¨¥À ±from∫Û√Êµƒ±ª»œŒ™ «“ª∏ˆ¡Ÿ ± ”Õº
-		sql = "select f1, f2 from (select id,name from CreateViewTest)"; //f1,f2’“≤ªµΩ
+		//ÂøÖÈ°ªÂú®fromÂêéÈù¢Âä†Êã¨Âè∑ÔºåÊ≠§Êó∂fromÂêéÈù¢ÁöÑË¢´ËÆ§‰∏∫ÊòØ‰∏Ä‰∏™‰∏¥Êó∂ËßÜÂõæ
+		sql = "select f1, f2 from (select id,name from CreateViewTest)"; //f1,f2Êâæ‰∏çÂà∞
 		sql = "select id,name from (select id,name from CreateViewTest)";
 		
-		//’‚Ãı≤ªª· πµ√parameters.size>0
+		//ËøôÊù°‰∏ç‰ºö‰ΩøÂæóparameters.size>0
 		sql = "CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view2(f1,f2) " //
 				+ "AS select id,name from (select id,name from CreateViewTest) where id=? and name=?";
 		
-		//’‚Ãıø…“‘
+		//ËøôÊù°ÂèØ‰ª•
 //		sql = "CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view2(f1,f2) " //
 //			+ "AS select id,name from (select id,name from CreateViewTest where id=? and name=?)";
 //

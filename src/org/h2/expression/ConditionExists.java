@@ -26,7 +26,7 @@ public class ConditionExists extends Condition {
         this.query = query;
     }
     
-    //只要query有记录就返回true
+    //鍙query鏈夎褰曞氨杩斿洖true
     public Value getValue(Session session) {
         query.setSession(session);
         ResultInterface result = query.query(1);

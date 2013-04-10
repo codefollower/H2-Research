@@ -23,7 +23,7 @@ import org.h2.value.ValueArray;
 /**
  * An expression is a operation, a value, or a function in a query.
  */
-//12¸ö³éÏó·½·¨
+//12ä¸ªæŠ½è±¡æ–¹æ³•
 public abstract class Expression {
 
     private boolean addedToFilter;
@@ -50,7 +50,7 @@ public abstract class Expression {
      * @param resolver the column resolver
      * @param level the subquery nesting level
      */
-    //Ö»ÓĞConditionExists¡¢ConditionInSelect¡¢SubqueryÕâÈı¸ö×ÓÀàÖĞ¶Ôlevel¼Ó1
+    //åªæœ‰ConditionExistsã€ConditionInSelectã€Subqueryè¿™ä¸‰ä¸ªå­ç±»ä¸­å¯¹levelåŠ 1
     public abstract void mapColumns(ColumnResolver resolver, int level);
 
     /**
@@ -68,7 +68,7 @@ public abstract class Expression {
      * @param tableFilter the table filter
      * @param value true if the table filter can return value
      */
-    //Õâ¸ö·½·¨µÄÄ¿µÄ¾ÍÊÇ¸øorg.h2.expression.ExpressionColumnÖĞµÄevaluatable×Ö¶Î¸³Öµ
+    //è¿™ä¸ªæ–¹æ³•çš„ç›®çš„å°±æ˜¯ç»™org.h2.expression.ExpressionColumnä¸­çš„evaluatableå­—æ®µèµ‹å€¼
     public abstract void setEvaluatable(TableFilter tableFilter, boolean value);
 
     /**
@@ -111,11 +111,11 @@ public abstract class Expression {
      *
      * @param session the session
      */
-    //ÓÃÓÚ¾ÛºÏ¡¢·Ö×éÖĞ
-    //ÔÚorg.h2.command.dml.Select.queryGroup(int, LocalResult)
-    //ºÍorg.h2.command.dml.Select.queryGroupSorted(int, ResultTarget)ÓĞÓÃµ½
-    //ÔÚ±éÀú¼ÇÂ¼µÄ¹ı³ÌÖĞÖ´ĞĞ£¬ÔÚgetValueÖ®Ç°µ÷ÓÃ
-    public abstract void updateAggregate(Session session); //¶ÔAggregate¡¢JavaAggregate¡¢ExpressionColumn±È½ÏÓĞÓÃ
+    //ç”¨äºèšåˆã€åˆ†ç»„ä¸­
+    //åœ¨org.h2.command.dml.Select.queryGroup(int, LocalResult)
+    //å’Œorg.h2.command.dml.Select.queryGroupSorted(int, ResultTarget)æœ‰ç”¨åˆ°
+    //åœ¨éå†è®°å½•çš„è¿‡ç¨‹ä¸­æ‰§è¡Œï¼Œåœ¨getValueä¹‹å‰è°ƒç”¨
+    public abstract void updateAggregate(Session session); //å¯¹Aggregateã€JavaAggregateã€ExpressionColumnæ¯”è¾ƒæœ‰ç”¨
 
     /**
      * Check if this expression and all sub-expressions can fulfill a criteria.
@@ -153,7 +153,7 @@ public abstract class Expression {
      *
      * @return if the expression is constant
      */
-    public boolean isConstant() { //Ö»ÓĞValueExpression¡¢Parameter¸²¸ÇÁË´Ë·½·¨
+    public boolean isConstant() { //åªæœ‰ValueExpressionã€Parameterè¦†ç›–äº†æ­¤æ–¹æ³•
         return false;
     }
 
@@ -162,7 +162,7 @@ public abstract class Expression {
      *
      * @return true if set
      */
-    public boolean isValueSet() { //Ö»ÓĞValueExpression¡¢Parameter¸²¸ÇÁË´Ë·½·¨
+    public boolean isValueSet() { //åªæœ‰ValueExpressionã€Parameterè¦†ç›–äº†æ­¤æ–¹æ³•
         return false;
     }
 
@@ -193,9 +193,9 @@ public abstract class Expression {
      * @param session the session
      * @param filter the table filter
      */
-    //Õâ8ÖÖÀàĞÍµÄ±í´ïÊ½ÄÜ½¨Á¢Ë÷ÒıÌõ¼ş
-    //Comparison¡¢CompareLike¡¢ConditionIn¡¢ConditionInSelect¡¢ConditionInConstantSet¡¢
-    //ConditionAndOr¡¢ExpressionColumn¡¢ValueExpression
+    //è¿™8ç§ç±»å‹çš„è¡¨è¾¾å¼èƒ½å»ºç«‹ç´¢å¼•æ¡ä»¶
+    //Comparisonã€CompareLikeã€ConditionInã€ConditionInSelectã€ConditionInConstantSetã€
+    //ConditionAndOrã€ExpressionColumnã€ValueExpression
     public void createIndexConditions(Session session, TableFilter filter) {
         // default is do nothing
     }
@@ -261,7 +261,7 @@ public abstract class Expression {
      *
      * @return if this expression is a wildcard
      */
-    public boolean isWildcard() { //Ö»ÓĞ×ÓÀàorg.h2.expression.Wildcard¸²¸ÇÁË´Ë·½·¨²¢ÇÒ·µ»ØÎªtrue
+    public boolean isWildcard() { //åªæœ‰å­ç±»org.h2.expression.Wildcardè¦†ç›–äº†æ­¤æ–¹æ³•å¹¶ä¸”è¿”å›ä¸ºtrue
         return false;
     }
 
@@ -270,7 +270,7 @@ public abstract class Expression {
      *
      * @return the expression
      */
-    public Expression getNonAliasExpression() { //Ö»ÓĞ×ÓÀàorg.h2.expression.Alias¸²¸ÇÁË´Ë·½·¨
+    public Expression getNonAliasExpression() { //åªæœ‰å­ç±»org.h2.expression.Aliasè¦†ç›–äº†æ­¤æ–¹æ³•
         return this;
     }
 

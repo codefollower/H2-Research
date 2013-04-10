@@ -7,7 +7,7 @@ public class AggregateTest extends TestBase {
 		new AggregateTest().start();
 	}
 
-	//≤‚ ‘org.h2.command.Parser.readAggregate(int)
+	//ÊµãËØïorg.h2.command.Parser.readAggregate(int)
 	//org.h2.expression.Aggregate
 	@Override
 	public void startInternal() throws Exception {
@@ -43,18 +43,18 @@ public class AggregateTest extends TestBase {
 
 		sql = "select distinct name from AggregateTest";
 		sql = "select count(*) from AggregateTest";
-		//≤ª‘ –Ì’‚—˘
+		//‰∏çÂÖÅËÆ∏ËøôÊ†∑
 		sql = "select count(DISTINCT *) from AggregateTest";
-		//÷ªƒ‹’‚—˘
-		//µ´ «h2À∆∫ı”–bug(◊¢:”¶∏√≤ª «bug£¨AggregateTest.* «À˘”–◊÷∂Œ£¨º”DISTINCTÀ¸≤¢≤ª÷™µ¿“™”¶”√”⁄ƒƒ∏ˆ◊÷∂Œ
+		//Âè™ËÉΩËøôÊ†∑
+		//‰ΩÜÊòØh2‰ºº‰πéÊúâbug(Ê≥®:Â∫îËØ•‰∏çÊòØbugÔºåAggregateTest.*ÊòØÊâÄÊúâÂ≠óÊÆµÔºåÂä†DISTINCTÂÆÉÂπ∂‰∏çÁü•ÈÅìË¶ÅÂ∫îÁî®‰∫éÂì™‰∏™Â≠óÊÆµ
 		sql = "select count(DISTINCT AggregateTest.*) from AggregateTest";
 
-		sql = "select count(AggregateTest.*) from AggregateTest"; //’‚—˘æÕ√ªŒ Ã‚
+		sql = "select count(AggregateTest.*) from AggregateTest"; //ËøôÊ†∑Â∞±Ê≤°ÈóÆÈ¢ò
 
-		sql = "select count(DISTINCT AggregateTest.name) from AggregateTest"; //’‚—˘“≤√ªŒ Ã‚
-		sql = "select GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest"; //’‚—˘“≤√ªŒ Ã‚
+		sql = "select count(DISTINCT AggregateTest.name) from AggregateTest"; //ËøôÊ†∑‰πüÊ≤°ÈóÆÈ¢ò
+		sql = "select GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest"; //ËøôÊ†∑‰πüÊ≤°ÈóÆÈ¢ò
 
-		//sql = "select sum(DISTINCT id) from AggregateTest"; //’‚—˘“≤√ªŒ Ã‚
+		//sql = "select sum(DISTINCT id) from AggregateTest"; //ËøôÊ†∑‰πüÊ≤°ÈóÆÈ¢ò
 
 		//sql = "select HISTOGRAM(id) from AggregateTest";
 
@@ -62,9 +62,9 @@ public class AggregateTest extends TestBase {
 
 		sql = "select ABS(id) from AggregateTest";
 		sql = "select ABS(SELECTIVITY(id)) from AggregateTest";
-		//sql = "select ABS(SELECTIVITY(id)) from AggregateTest where max(id)>9"; //æ€∫œ∫Ø ˝≤ªƒ‹”√”⁄Where÷–
+		//sql = "select ABS(SELECTIVITY(id)) from AggregateTest where max(id)>9"; //ËÅöÂêàÂáΩÊï∞‰∏çËÉΩÁî®‰∫éWhere‰∏≠
 		
-		sql = "select id,count(id) from AggregateTest group by id having max(id)>9"; //µ´ «ø…“‘”√”⁄having÷–
+		sql = "select id,count(id) from AggregateTest group by id having max(id)>9"; //‰ΩÜÊòØÂèØ‰ª•Áî®‰∫éhaving‰∏≠
 		sql = "select STDDEV_POP(id),STDDEV_SAMP(id),VAR_POP(id),VAR_SAMP(id) from AggregateTest where id=11";
 		sql = "select STDDEV_POP(id),STDDEV_SAMP(id),VAR_POP(id),VAR_SAMP(id) from AggregateTest where id>=7";
 		executeQuery();
@@ -104,7 +104,7 @@ public class AggregateTest extends TestBase {
 		//STDDEV_POP 3.415650255319866
 		System.out.println(Math.sqrt(sum2 / count - (sum / count) * (sum / count)));
 		//STDDEV_SAMP 3.7416573867739413
-		//º˚:http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+		//ËßÅ:http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 		System.out.println(Math.sqrt((sum2 - (sum * sum / count)) / (count - 1)));
 
 		//VAR_POP 11.666666666666664

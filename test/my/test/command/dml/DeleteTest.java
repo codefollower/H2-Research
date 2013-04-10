@@ -8,12 +8,12 @@ public class DeleteTest extends TestBase {
 	}
 	@Override
 	public void init() throws Exception {
-		//¼ûorg.h2.message.TraceSystem
-		//0: OFF£¬ 1: ERROR£¬2: INFO£¬3: DEBUG£¬4: ADAPTER
-		//ÖµÔ½´ó£¬ÄÇÃ´ÄÜ¸ú×ÙµÄĞÅÏ¢¾ÍÔ½ÏêÏ¸
+		//è§org.h2.message.TraceSystem
+		//0: OFFï¼Œ 1: ERRORï¼Œ2: INFOï¼Œ3: DEBUGï¼Œ4: ADAPTER
+		//å€¼è¶Šå¤§ï¼Œé‚£ä¹ˆèƒ½è·Ÿè¸ªçš„ä¿¡æ¯å°±è¶Šè¯¦ç»†
 		//prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "2");
 	}
-	//²âÊÔorg.h2.command.Parser.parseDelete()
+	//æµ‹è¯•org.h2.command.Parser.parseDelete()
 	//org.h2.command.dml.Delete
 	@Override
 	public void startInternal() throws Exception {
@@ -40,7 +40,7 @@ public class DeleteTest extends TestBase {
 		sql = "delete from DeleteTest where 3<2";
 		sql = "delete from DeleteTest where b";
 		sql = "delete from DeleteTest where 3>2";
-		sql = "delete from DeleteTest limit 0"; //limit 0²»É¾³ıÈÎºÎĞĞ
+		sql = "delete from DeleteTest limit 0"; //limit 0ä¸åˆ é™¤ä»»ä½•è¡Œ
 		stmt.executeUpdate(sql);
 
 //		sql = "delete top 3 from DeleteTest where name > ?";

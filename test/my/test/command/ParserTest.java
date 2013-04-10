@@ -59,11 +59,11 @@ public class ParserTest extends TestBase {
 	}
 
 	void read() throws Exception {
-		//Èç¹ûDATABASE_TO_UPPERÊÇfalse£¬ÄÇÃ´0xÊÇ´íµÄ
-    	//Èçsql = "select id,name from ParserTest where id > 0x2";
-    	//Ö»ÄÜÓÃ´óĞ´0X£¬²¢ÇÒÒ²Ö»ÄÜÓÃA-F£¬
-    	//·ñÔòÏñwhere id > 0X2ab£¬Êµ¼ÊÊÇwhere id > 0X2£¬µ«ÊÇabÃ»ÓĞ¶Áµ½£¬
-    	//µ±ÅĞ¶Ïorg.h2.command.Parser.prepareCommand(String)Ê±£¬(currentTokenType != END)Îªfalse¾Í³ö´í
+		//å¦‚æœDATABASE_TO_UPPERæ˜¯falseï¼Œé‚£ä¹ˆ0xæ˜¯é”™çš„
+    	//å¦‚sql = "select id,name from ParserTest where id > 0x2";
+    	//åªèƒ½ç”¨å¤§å†™0Xï¼Œå¹¶ä¸”ä¹Ÿåªèƒ½ç”¨A-Fï¼Œ
+    	//å¦åˆ™åƒwhere id > 0X2abï¼Œå®é™…æ˜¯where id > 0X2ï¼Œä½†æ˜¯abæ²¡æœ‰è¯»åˆ°ï¼Œ
+    	//å½“åˆ¤æ–­org.h2.command.Parser.prepareCommand(String)æ—¶ï¼Œ(currentTokenType != END)ä¸ºfalseå°±å‡ºé”™
 		sql = "select id,name from ParserTest where id > 0x2";
 		
 		sql = "select id,name from ParserTest where id > 0X2ab";
@@ -76,11 +76,11 @@ public class ParserTest extends TestBase {
 		
 		
 		sql = "select id,name from ParserTest where id > .123";
-		//ALLOW_LITERALS_ALL=2 ¶¼ÔÊĞí
-    	//ALLOW_LITERALS_NONE=0 ËµÃ÷²»ÔÊĞí³öÏÖ×ÖÃæÖµ
-    	//ALLOW_LITERALS_NUMBERS=1 Ö»ÔÊĞíÊı×Ö×ÖÃæÖµ
-		stmt.executeUpdate("SET ALLOW_LITERALS 1"); //Ö»ÔÊĞíÊı×Ö×ÖÃæÖµ
-		sql = "select id,name from ParserTest where name = 'abc'"; //ÕâÊ±¾Í²»ÔÊĞí³öÏÖ×Ö·û´®×ÖÃæÖµÁË
+		//ALLOW_LITERALS_ALL=2 éƒ½å…è®¸
+    	//ALLOW_LITERALS_NONE=0 è¯´æ˜ä¸å…è®¸å‡ºç°å­—é¢å€¼
+    	//ALLOW_LITERALS_NUMBERS=1 åªå…è®¸æ•°å­—å­—é¢å€¼
+		stmt.executeUpdate("SET ALLOW_LITERALS 1"); //åªå…è®¸æ•°å­—å­—é¢å€¼
+		sql = "select id,name from ParserTest where name = 'abc'"; //è¿™æ—¶å°±ä¸å…è®¸å‡ºç°å­—ç¬¦ä¸²å­—é¢å€¼äº†
 	}
 
 	public static void testPG_GET_OID(String str) {
@@ -93,20 +93,20 @@ public class ParserTest extends TestBase {
 		sql = "SELECT @topVariableName";
 
 		sql = "SELECT @topVariableName:=4";
-		sql = "SELECT ('Hello', 'World')[2]"; //null, ÏÂ±êÒª´Ó0¿ªÊ¼£¬ÄÚ²¿»á¼Ó1
+		sql = "SELECT ('Hello', 'World')[2]"; //null, ä¸‹æ ‡è¦ä»0å¼€å§‹ï¼Œå†…éƒ¨ä¼šåŠ 1
 		sql = "SELECT ('Hello', 'World')[1]"; //World
 
 		stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS PG_GET_OID FOR \"my.test.ParserTest.testPG_GET_OID\"");
 
 		sql = "SELECT 'ddd'::REGCLASS";
 
-		//Èçsql = "SELECT 12::varchar";£¬±íÊ¾CAST(12 AS varchar)£¬°Ñ12×ª³ÉvarcharÀàĞÍ
-		//ÕâÀïµÄrÏÈÊÇ12£¬È»ºó±ä³ÉCASTº¯Êı
-		sql = "SELECT 'ddd'::varchar f"; //fÊÇÁíÃûÁË£¬ÊÇ('ddd'::varchar)ÕâÒ»ÏîµÄ±ğÃû
+		//å¦‚sql = "SELECT 12::varchar";ï¼Œè¡¨ç¤ºCAST(12 AS varchar)ï¼ŒæŠŠ12è½¬æˆvarcharç±»å‹
+		//è¿™é‡Œçš„rå…ˆæ˜¯12ï¼Œç„¶åå˜æˆCASTå‡½æ•°
+		sql = "SELECT 'ddd'::varchar f"; //fæ˜¯å¦åäº†ï¼Œæ˜¯('ddd'::varchar)è¿™ä¸€é¡¹çš„åˆ«å
 		sql = "SELECT 'ddd'::varchar";
 		sql = "SELECT 12::varchar";
 
-		sql = "SELECT CASE WHEN END CASE"; //´í
+		sql = "SELECT CASE WHEN END CASE"; //é”™
 		sql = "SELECT SET(@v, 11), CASE WHEN @v<10 THEN 'Low' END CASE";
 		sql = "SELECT SET(@v, 11), CASE WHEN @v<10 THEN 'Low' ELSE 'High' END";
 		sql = "SELECT SET(@v, 1), CASE @v WHEN 0 THEN 'No' WHEN 1 THEN 'One' ELSE 'Some' END";

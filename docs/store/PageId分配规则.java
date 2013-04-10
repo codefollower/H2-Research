@@ -1,19 +1,19 @@
 pageId: 0
 ========================
-ÎÄ¼şÍ·
+æ–‡ä»¶å¤´
 ---------------------
 16      magic
-16      salt  (Èç¹û²»Ê¹ÓÃ¼ÓÃÜ£¬Õâ16×Ö½Ú¾ÍÊÇmagic£¬Èç¹ûÊ¹ÓÃÁË¼ÓÃÜ£¬ÄÇÃ´ÊÇËæ»úÉú³ÉµÄ)
-16      magic (Èç¹ûÊ¹ÓÃÁË¼ÓÃÜ£¬ÄÇÃ´Õâ16×Ö½ÚÊÇ¶Ômagic¼ÓÃÜºóµÄÖµ)
+16      salt  (å¦‚æœä¸ä½¿ç”¨åŠ å¯†ï¼Œè¿™16å­—èŠ‚å°±æ˜¯magicï¼Œå¦‚æœä½¿ç”¨äº†åŠ å¯†ï¼Œé‚£ä¹ˆæ˜¯éšæœºç”Ÿæˆçš„)
+16      magic (å¦‚æœä½¿ç”¨äº†åŠ å¯†ï¼Œé‚£ä¹ˆè¿™16å­—èŠ‚æ˜¯å¯¹magicåŠ å¯†åçš„å€¼)
 
 StaticHeader
 ---------------------
-4       pageSize Ä¬ÈÏÊÇ2048(2K)
-1       WRITE_VERSION ³£Á¿3
-1       READ_VERSION ³£Á¿3
-1994    ±£Áô
-(Õâ4ÏîµÄĞ´ÈëÔÚorg.h2.store.PageStore.writeStaticHeader())
-(ÒÔÉÏ7Ïî¸ÕºÃÊÇ2k)
+4       pageSize é»˜è®¤æ˜¯2048(2K)
+1       WRITE_VERSION å¸¸é‡3
+1       READ_VERSION å¸¸é‡3
+1994    ä¿ç•™
+(è¿™4é¡¹çš„å†™å…¥åœ¨org.h2.store.PageStore.writeStaticHeader())
+(ä»¥ä¸Š7é¡¹åˆšå¥½æ˜¯2k)
 
 
 pageId: 1
@@ -25,9 +25,9 @@ VariableHeader
 4       logKey
 4       logFirstTrunkPage
 4       logFirstDataPage
-2024    ±£Áô(²¹¹»2k)
+2024    ä¿ç•™(è¡¥å¤Ÿ2k)
 
-pageId: 2 (ÊÇpageId 1µÄÈßÓà£¬µ±1·¢Éú´íÎóÊ±»áÊ¹ÓÃ2)
+pageId: 2 (æ˜¯pageId 1çš„å†—ä½™ï¼Œå½“1å‘ç”Ÿé”™è¯¯æ—¶ä¼šä½¿ç”¨2)
 ========================
 VariableHeader
 ---------------------
@@ -36,9 +36,9 @@ VariableHeader
 4       logKey
 4       logFirstTrunkPage
 4       logFirstDataPage
-2024    ±£Áô(²¹¹»2k)
+2024    ä¿ç•™(è¡¥å¤Ÿ2k)
 
-page 1ºÍ2ÊÇ¿É±äµÄ£¬Ëæ×ÅÊı¾İµÄ²»¶ÏĞ´Èë£¬Ç°5¸ö×Ö¶Î»á²»¶ÏµÄ¸üĞÂ
+page 1å’Œ2æ˜¯å¯å˜çš„ï¼Œéšç€æ•°æ®çš„ä¸æ–­å†™å…¥ï¼Œå‰5ä¸ªå­—æ®µä¼šä¸æ–­çš„æ›´æ–°
 
 
 pageId: 3
@@ -57,11 +57,11 @@ PageStreamTrunk
 
 
 
-Ã¿¸öPageFreeListÓĞ×Ô¼ºµÄpageId£¬
+æ¯ä¸ªPageFreeListæœ‰è‡ªå·±çš„pageIdï¼Œ
 
-PageFreeListÒ²ÊÇÒ»ÖÖpage£¬
+PageFreeListä¹Ÿæ˜¯ä¸€ç§pageï¼Œ
 
-PageFreeListµÄpageIdÓÉ´Ë¹«Ê½¼ÆËã: 
+PageFreeListçš„pageIdç”±æ­¤å…¬å¼è®¡ç®—: 
 pageId = PAGE_ID_FREE_LIST_ROOT + i * freeListPagesPerList
        = 3 + i * freeListPagesPerList
        = 3 + i * ((pageSize - DATA_START) * 8)
@@ -71,16 +71,16 @@ i>=0
 
 
 
-¼ÙÉèÒ»¸öpageµÄsizeÊÇ128×Ö½Ú£¬ÄÇÃ´¼õÈ¥Í·Èı¸ö×Ö½Úºó¾ÍÊÇÊ£ÏÂµÄ×Ö½ÚÊı£¬ÔÙ³ËÒÔ8ÒÔ±íÊ¾bitÎ»Êı
-Ò»¸öbit¾ÍÄÜ´ú±íÒ»¸öpageId£¬
-ÄÇÃ´Ò»¸öPageFreeListÄÜ±íÊ¾µÄpage¸öÊıÊÇ:
+å‡è®¾ä¸€ä¸ªpageçš„sizeæ˜¯128å­—èŠ‚ï¼Œé‚£ä¹ˆå‡å»å¤´ä¸‰ä¸ªå­—èŠ‚åå°±æ˜¯å‰©ä¸‹çš„å­—èŠ‚æ•°ï¼Œå†ä¹˜ä»¥8ä»¥è¡¨ç¤ºbitä½æ•°
+ä¸€ä¸ªbitå°±èƒ½ä»£è¡¨ä¸€ä¸ªpageIdï¼Œ
+é‚£ä¹ˆä¸€ä¸ªPageFreeListèƒ½è¡¨ç¤ºçš„pageä¸ªæ•°æ˜¯:
 (128 - 3) * 8 = 1000
 
 
-¼ÙÉèPageFreeList×Ô¼ºµÄpageIdÊÇ3£¬ÄÇÃ´´ÓËü·ÖÅä³öÀ´µÄpageId·¶Î§ÊÇ
-3+1 µ½ 3+1000-1
+å‡è®¾PageFreeListè‡ªå·±çš„pageIdæ˜¯3ï¼Œé‚£ä¹ˆä»å®ƒåˆ†é…å‡ºæ¥çš„pageIdèŒƒå›´æ˜¯
+3+1 åˆ° 3+1000-1
 
-ÏÂÒ»¸öPageFreeListµÄpageId´Ó1003¿ªÊ¼
+ä¸‹ä¸€ä¸ªPageFreeListçš„pageIdä»1003å¼€å§‹
 PageFreeList: pageId = 3
 PageFreeList: pageId = 1003
 PageFreeList: pageId = 2003
@@ -101,7 +101,7 @@ PageFreeList: pageId = 16003
 
 
 
-µÚÒ»¸öPageFreeListµÄpageIdÊÇ4£¬·ÖÅä¸ømetaIndex
+ç¬¬ä¸€ä¸ªPageFreeListçš„pageIdæ˜¯4ï¼Œåˆ†é…ç»™metaIndex
 java.lang.Error
 	at org.h2.store.PageFreeList.allocate(PageFreeList.java:138)
 	at org.h2.store.PageStore.allocatePage(PageStore.java:1125)

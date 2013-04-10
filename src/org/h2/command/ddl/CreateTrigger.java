@@ -103,14 +103,14 @@ public class CreateTrigger extends SchemaCommand {
         trigger.setTypeMask(typeMask);
         trigger.setOnRollback(onRollback);
         trigger.setTriggerClassName(triggerClassName, force);
-        //TriggerµÄĞÅÏ¢·Åµ½Èı´¦:DatabaseµÄMeta±í¡¢Schema¶ÔÏó¡¢Table¶ÔÏó
+        //Triggerçš„ä¿¡æ¯æ”¾åˆ°ä¸‰å¤„:Databaseçš„Metaè¡¨ã€Schemaå¯¹è±¡ã€Tableå¯¹è±¡
         db.addSchemaObject(session, trigger);
         table.addTrigger(trigger);
         return 0;
     }
     
-    //Èç¹ûÊÇCREATE FORCE TRIGGER£¬ÄÇÃ´ÔÚ¼ÓÔØ´¥·¢Æ÷Àà³ö´íÊ±²»Å×Òì³££¬
-    //¼ûorg.h2.schema.TriggerObject.setTriggerClassName(Session, String, boolean)
+    //å¦‚æœæ˜¯CREATE FORCE TRIGGERï¼Œé‚£ä¹ˆåœ¨åŠ è½½è§¦å‘å™¨ç±»å‡ºé”™æ—¶ä¸æŠ›å¼‚å¸¸ï¼Œ
+    //è§org.h2.schema.TriggerObject.setTriggerClassName(Session, String, boolean)
     public void setForce(boolean force) {
         this.force = force;
     }

@@ -7,8 +7,8 @@ public class CreateRoleTest extends TestBase {
 		new CreateRoleTest().start();
 	}
 
-	//²âÊÔorg.h2.command.Parser.parseCreateRole()
-	//ºÍorg.h2.command.ddl.CreateRole¡¢org.h2.engine.Role
+	//æµ‹è¯•org.h2.command.Parser.parseCreateRole()
+	//å’Œorg.h2.command.ddl.CreateRoleã€org.h2.engine.Role
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("DROP TABLE IF EXISTS CreateRoleTest");

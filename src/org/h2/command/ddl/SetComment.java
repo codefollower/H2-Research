@@ -98,9 +98,9 @@ public class SetComment extends DefineCommand {
             object.setComment(text);
         }
         
-        //¶ÔÓÚ±í¡¢ÊÓÍ¼¡¢Ë÷Òı¡¢ÁĞ¡¢ÓÃ»§¡¢Ô¼ÊøµÄ×¢ÊÍÖ±½Ó¸üĞÂµ½ËûÃÇµÄ¶ÔÏó×ÔÉí£¬
-        //ÆäËûµÄĞÂ½¨CommentÊµÀı
-        //Èç: COMMENT ON ROLE myrole IS 'role comment'
+        //å¯¹äºè¡¨ã€è§†å›¾ã€ç´¢å¼•ã€åˆ—ã€ç”¨æˆ·ã€çº¦æŸçš„æ³¨é‡Šç›´æ¥æ›´æ–°åˆ°ä»–ä»¬çš„å¯¹è±¡è‡ªèº«ï¼Œ
+        //å…¶ä»–çš„æ–°å»ºCommentå®ä¾‹
+        //å¦‚: COMMENT ON ROLE myrole IS 'role comment'
         if (column || objectType == DbObject.TABLE_OR_VIEW || objectType == DbObject.USER
                 || objectType == DbObject.INDEX || objectType == DbObject.CONSTRAINT) {
             db.update(session, object);

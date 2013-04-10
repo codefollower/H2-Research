@@ -29,7 +29,7 @@ import org.h2.util.New;
  * the file will be opened and closed again (which is slower).
  */
 public class TraceSystem implements TraceWriter {
-	//¸ú×Ù¼¶±ğÊı×ÖÔ½´ó£¬±íÊ¾ÊäÈëµÄĞÅÏ¢¾Í¿ÉÄÜÔ½¶à£¬±ÈÈçÉèÎªDEBUG(3)Ê±£¬Èç¹ûµ÷ÓÃinfo·½·¨Êä³ö£¬ÏÔÈ»INFOÎª2<=3£¬ËùÒÔÊä³öinofĞÅÏ¢
+	//è·Ÿè¸ªçº§åˆ«æ•°å­—è¶Šå¤§ï¼Œè¡¨ç¤ºè¾“å…¥çš„ä¿¡æ¯å°±å¯èƒ½è¶Šå¤šï¼Œæ¯”å¦‚è®¾ä¸ºDEBUG(3)æ—¶ï¼Œå¦‚æœè°ƒç”¨infoæ–¹æ³•è¾“å‡ºï¼Œæ˜¾ç„¶INFOä¸º2<=3ï¼Œæ‰€ä»¥è¾“å‡ºinofä¿¡æ¯
     /**
      * The parent trace level should be used.
      */
@@ -80,9 +80,9 @@ public class TraceSystem implements TraceWriter {
 
     private static final int CHECK_SIZE_EACH_WRITES = 128;
     
-    //ÓÃÓÚSystemOutµÄ¼¶±ğ£¬Ä¬ÈÏ¹Ø±Õ
+    //ç”¨äºSystemOutçš„çº§åˆ«ï¼Œé»˜è®¤å…³é—­
     private int levelSystemOut = DEFAULT_TRACE_LEVEL_SYSTEM_OUT;
-    //ÓÃÓÚĞ´ÈëÎÄ¼şµÄ¼¶±ğ£¬Ä¬ÈÏERROR
+    //ç”¨äºå†™å…¥æ–‡ä»¶çš„çº§åˆ«ï¼Œé»˜è®¤ERROR
     private int levelFile = DEFAULT_TRACE_LEVEL_FILE;
     private int levelMax;
     private int maxFileSize = DEFAULT_MAX_FILE_SIZE;

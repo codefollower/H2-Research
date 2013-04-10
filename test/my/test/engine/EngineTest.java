@@ -20,7 +20,7 @@ public class EngineTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-        stmt.executeUpdate("SET DB_CLOSE_DELAY -1"); //不马上关闭数据库
+        stmt.executeUpdate("SET DB_CLOSE_DELAY -1"); //涓嶉┈涓婂叧闂暟鎹簱
         sql = "select sql from SYS";
         executeQuery();
     }

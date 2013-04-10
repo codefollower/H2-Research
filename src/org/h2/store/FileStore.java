@@ -175,13 +175,13 @@ public class FileStore {
      * required.
      */
     public void init() {
-        int len = Constants.FILE_BLOCK_SIZE; //16×Ö½Ú
+        int len = Constants.FILE_BLOCK_SIZE; //16å­—èŠ‚
         byte[] salt;
         byte[] magic = HEADER.getBytes();
-        if (length() < HEADER_LENGTH) { //HEADER_LENGTH = 48, µÚÒ»´Î½¨Á¢*.h2.dbÎÄ¼þÊ±lengthÎª0
+        if (length() < HEADER_LENGTH) { //HEADER_LENGTH = 48, ç¬¬ä¸€æ¬¡å»ºç«‹*.h2.dbæ–‡ä»¶æ—¶lengthä¸º0
             // write unencrypted
             checkedWriting = false;
-            //Ð´ÈëÈý¸ö"-- H2 0.5/B -- \n"£¬Ã¿¸ö16×Ö½Ú
+            //å†™å…¥ä¸‰ä¸ª"-- H2 0.5/B -- \n"ï¼Œæ¯ä¸ª16å­—èŠ‚
             writeDirect(magic, 0, len);
             salt = generateSalt();
             writeDirect(salt, 0, len);

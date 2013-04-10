@@ -7,7 +7,7 @@ public class ConditionInTest extends TestBase {
 		new ConditionInTest().start();
 	}
 
-	//²âÊÔorg.h2.expression.ConditionIn
+	//æµ‹è¯•org.h2.expression.ConditionIn
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("drop table IF EXISTS ConditionInTest");
@@ -24,10 +24,10 @@ public class ConditionInTest extends TestBase {
 		sql = "select count(*) from ConditionInTest where id in()";
 		sql = "select count(*) from ConditionInTest where not id in()";
 
-		//Èçid in(+(select id from SubqueryTest where id=1 and name='a1'))
-		//SubqueryµÄ¼ÇÂ¼²»ÄÜ¶àÓÚ1Ìõ£¬ËùÒÔÔÚÇ°Ãæ·Å+ºÅ¾Í¿ÉÒÔÈÆ¹ýisSelect()£¬´ËÊ±·µ»ØµÄ¾ÍÊÇÒ»¸öSubquery
-		//µ«ÊÇ·Å¼õºÅÊÇ²»ÐÐµÄ£¬»áµÃµ½Ò»¸öOperation
-		//+ºÅ»á×ª³ÉConditionInSelect£¬¶ø²»ÔÙÊ¹ÓÃConditionIn
+		//å¦‚id in(+(select id from SubqueryTest where id=1 and name='a1'))
+		//Subqueryçš„è®°å½•ä¸èƒ½å¤šäºŽ1æ¡ï¼Œæ‰€ä»¥åœ¨å‰é¢æ”¾+å·å°±å¯ä»¥ç»•è¿‡isSelect()ï¼Œæ­¤æ—¶è¿”å›žçš„å°±æ˜¯ä¸€ä¸ªSubquery
+		//ä½†æ˜¯æ”¾å‡å·æ˜¯ä¸è¡Œçš„ï¼Œä¼šå¾—åˆ°ä¸€ä¸ªOperation
+		//+å·ä¼šè½¬æˆConditionInSelectï¼Œè€Œä¸å†ä½¿ç”¨ConditionIn
 		sql = "select count(*) from ConditionInTest where id in(+(select id from SubqueryTest where id=1 and name='a1'))";
 		sql = "select count(*) from ConditionInTest where id in(-(select id from SubqueryTest where id=1 and name='a1'))";
 		sql = "select count(*) from ConditionInTest where id in(3, (select id from SubqueryTest where id=1 and name='a1'))";
@@ -36,11 +36,11 @@ public class ConditionInTest extends TestBase {
 		//		sql = "select count(*) from ConditionInTest where 2 in(1,2)";
 		//		sql = "select count(*) from ConditionInTest where id in(2)";
 		//		sql = "select count(*) from ConditionInTest where id in(30,40,null)";
-		sql = "select count(*) from ConditionInTest where id in(1,2,2)"; //ÖµÁÐ±íÔÊÐíÖØ¸´
+		sql = "select count(*) from ConditionInTest where id in(1,2,2)"; //å€¼åˆ—è¡¨å…è®¸é‡å¤
 
-		//¸úConditionInSelect²»Ò»Ñù£¬ÕâÀïÃ»ÓÐALL¡¢ANY
+		//è·ŸConditionInSelectä¸ä¸€æ ·ï¼Œè¿™é‡Œæ²¡æœ‰ALLã€ANY
 		//sql = "select count(*) from ConditionInTest where id > ALL(1,2)";
-		//ANYºÍSOMEÒ»Ñù
+		//ANYå’ŒSOMEä¸€æ ·
 		//sql = "select count(*) from ConditionInTest where id > ANY(1,2)";
 		//sql = "select count(*) from ConditionInTest where id > SOME(1,2)";
 

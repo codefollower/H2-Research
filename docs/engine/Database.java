@@ -1,30 +1,30 @@
-Ò»¿ªÊ¼»áÔÚorg.h2.server.TcpServer.initManagementDb()´¥·¢Ò»¸öÄÚ´æÊı¾İ¿âµÄ³õÊ¼»¯
-urlÊÇ: "jdbc:h2:mem:management_db_" + port (ÀıÈç: jdbc:h2:mem:management_db_9092)
+ä¸€å¼€å§‹ä¼šåœ¨org.h2.server.TcpServer.initManagementDb()è§¦å‘ä¸€ä¸ªå†…å­˜æ•°æ®åº“çš„åˆå§‹åŒ–
+urlæ˜¯: "jdbc:h2:mem:management_db_" + port (ä¾‹å¦‚: jdbc:h2:mem:management_db_9092)
 
 
-Ä¬ÈÏ½¨ÁË6¸öÊı¾İ¿â¶ÔÏó
-User: DBA (ÓĞAdminÈ¨ÏŞ)
+é»˜è®¤å»ºäº†6ä¸ªæ•°æ®åº“å¯¹è±¡
+User: DBA (æœ‰Adminæƒé™)
 Schema: PUBLIC
 Schema: INFORMATION_SCHEMA
 Role: PUBLIC
 
 RegularTable: SYS
-Index: SYS_ID  ÊÇorg.h2.index.TreeIndex
+Index: SYS_ID  æ˜¯org.h2.index.TreeIndex
 
 
 
-DBAÕâ¸öUserÊÇPUBLIC¡¢INFORMATION_SCHEMAÕâÁ½¸öSchemaµÄowner
+DBAè¿™ä¸ªUseræ˜¯PUBLICã€INFORMATION_SCHEMAè¿™ä¸¤ä¸ªSchemaçš„owner
 
-²»Ã÷È·Ö¸¶¨SchemaÊ±£¬Ä¬ÈÏ¾ÍÊÇPUBLIC Schema
-PUBLICÕâ¸öRoleÄ¬ÈÏÃ»ÓĞÊÚÓèÈ¨ÏŞ
+ä¸æ˜ç¡®æŒ‡å®šSchemaæ—¶ï¼Œé»˜è®¤å°±æ˜¯PUBLIC Schema
+PUBLICè¿™ä¸ªRoleé»˜è®¤æ²¡æœ‰æˆäºˆæƒé™
 
-SYS±í´æ·ÅËùÓĞµÄddlÓï¾ä£¬´Ë±íÓĞ4¸ö×Ö¶Î£ºID¡¢HEAD¡¢TYPE¡¢SQL£¬HEAD×Ö¶Î±£ÁôÃ»ÓÃ£¬¶¼ÊÇ0
-SYS_IDÊÇSYS±íÔÚID×Ö¶ÎÉÏµÄË÷Òı
+SYSè¡¨å­˜æ”¾æ‰€æœ‰çš„ddlè¯­å¥ï¼Œæ­¤è¡¨æœ‰4ä¸ªå­—æ®µï¼šIDã€HEADã€TYPEã€SQLï¼ŒHEADå­—æ®µä¿ç•™æ²¡ç”¨ï¼Œéƒ½æ˜¯0
+SYS_IDæ˜¯SYSè¡¨åœ¨IDå­—æ®µä¸Šçš„ç´¢å¼•
 
-SYS±í²»ÄÜÍ¨¹ıJDBC·ÃÎÊ£¬ÒòÎªËüÃ»±»¼Óµ½PUBLIC SchemaÖĞ
+SYSè¡¨ä¸èƒ½é€šè¿‡JDBCè®¿é—®ï¼Œå› ä¸ºå®ƒæ²¡è¢«åŠ åˆ°PUBLIC Schemaä¸­
 
 
-SchemaÕÆ¹Ü7¸öÄÜ´øSchemaÇ°×ºµÄÄ£Ê½Êı¾İ¿â¶ÔÏó
+SchemaæŒç®¡7ä¸ªèƒ½å¸¦Schemaå‰ç¼€çš„æ¨¡å¼æ•°æ®åº“å¯¹è±¡
     private final HashMap<String, Table> tablesAndViews;
     private final HashMap<String, Index> indexes;
     private final HashMap<String, Constraint> constraints;
@@ -33,117 +33,117 @@ SchemaÕÆ¹Ü7¸öÄÜ´øSchemaÇ°×ºµÄÄ£Ê½Êı¾İ¿â¶ÔÏó
     private final HashMap<String, Constant> constants;
     private final HashMap<String, FunctionAlias> functions;
 
-¶øDatabaseÀà×ÔÉíÕÆ¹ÜÁËÆäËû8¸öÊı¾İ¿â¶ÔÏó£¬ÕâĞ©¶ÔÏóÒòÎª²»ÊÇÄ£Ê½Êı¾İ¿â¶ÔÏó£¬ËùÒÔ²»ÄÜ´øSchemaÇ°×º
+è€ŒDatabaseç±»è‡ªèº«æŒç®¡äº†å…¶ä»–8ä¸ªæ•°æ®åº“å¯¹è±¡ï¼Œè¿™äº›å¯¹è±¡å› ä¸ºä¸æ˜¯æ¨¡å¼æ•°æ®åº“å¯¹è±¡ï¼Œæ‰€ä»¥ä¸èƒ½å¸¦Schemaå‰ç¼€
 
     private final HashMap<String, User> users = New.hashMap();
     private final HashMap<String, Role> roles = New.hashMap();
     private final HashMap<String, Right> rights = New.hashMap();
     private final HashMap<String, Schema> schemas = New.hashMap();
-    private final HashMap<String, UserDataType> userDataTypes = New.hashMap(); //×Ô¶¨ÒåµÄ×Ö¶ÎÀàĞÍ
-    private final HashMap<String, UserAggregate> aggregates = New.hashMap(); //×Ô¶¨Òå¾ÛºÏº¯Êı
-	private final HashMap<String, Comment> comments = New.hashMap(); //×¢ÊÍ
-    private final HashMap<String, Setting> settings = New.hashMap(); //Êı¾İ¡¢Session¼¶±ğµÄ¶¯Ì¬²ÎÊı
+    private final HashMap<String, UserDataType> userDataTypes = New.hashMap(); //è‡ªå®šä¹‰çš„å­—æ®µç±»å‹
+    private final HashMap<String, UserAggregate> aggregates = New.hashMap(); //è‡ªå®šä¹‰èšåˆå‡½æ•°
+	private final HashMap<String, Comment> comments = New.hashMap(); //æ³¨é‡Š
+    private final HashMap<String, Setting> settings = New.hashMap(); //æ•°æ®ã€Sessionçº§åˆ«çš„åŠ¨æ€å‚æ•°
 
 
-1. Database¶ÔÏó
+1. Databaseå¯¹è±¡
 
 	User
 	=======
 
-	ÓĞcreate¡¢drop¡¢alterÓï¾ä
+	æœ‰createã€dropã€alterè¯­å¥
 
 
 	Role
 	=======
 
-	ÓĞcreate¡¢dropÓï¾ä
+	æœ‰createã€dropè¯­å¥
 
 
 	Right
 	=======
-	ÎŞcreate¡¢drop¡¢alterÓï¾ä
-	Ò»¸öRightÊµÀı¶ÔÓ¦Ò»ÌõGRANT ROLE»òGRANT RIGHTÓï¾ä
+	æ— createã€dropã€alterè¯­å¥
+	ä¸€ä¸ªRightå®ä¾‹å¯¹åº”ä¸€æ¡GRANT ROLEæˆ–GRANT RIGHTè¯­å¥
 
 
 	Schema
 	=======
 
-	ÓĞcreate¡¢drop¡¢alterÓï¾ä
+	æœ‰createã€dropã€alterè¯­å¥
 
 
 	UserDataType
 	=======
 
-	ÓĞcreate¡¢dropÓï¾ä
-	CREATE DOMAIN¡¢CREATE TYPE¡¢CREATE DATATYPE¶¼ÊÇÒ»ÑùµÄ
+	æœ‰createã€dropè¯­å¥
+	CREATE DOMAINã€CREATE TYPEã€CREATE DATATYPEéƒ½æ˜¯ä¸€æ ·çš„
 
 
 	UserAggregate
 	=======
-	ÓĞcreate¡¢dropÓï¾ä
+	æœ‰createã€dropè¯­å¥
 
 
 	Comment
 	=======
-	ÎŞcreate¡¢drop¡¢alterÓï¾ä
-	Ö»ÓĞCOMMENT ON£¬
-	¶ÔÓÚ±í¡¢ÊÓÍ¼¡¢Ë÷Òı¡¢ÁĞ¡¢ÓÃ»§¡¢Ô¼ÊøµÄ×¢ÊÍÖ±½Ó¸üĞÂµ½ËûÃÇµÄ¶ÔÏó×ÔÉí£¬
-	ÆäËûµÄĞÂ½¨CommentÊµÀı
-	Èç: COMMENT ON ROLE myrole IS 'role comment'
+	æ— createã€dropã€alterè¯­å¥
+	åªæœ‰COMMENT ONï¼Œ
+	å¯¹äºè¡¨ã€è§†å›¾ã€ç´¢å¼•ã€åˆ—ã€ç”¨æˆ·ã€çº¦æŸçš„æ³¨é‡Šç›´æ¥æ›´æ–°åˆ°ä»–ä»¬çš„å¯¹è±¡è‡ªèº«ï¼Œ
+	å…¶ä»–çš„æ–°å»ºCommentå®ä¾‹
+	å¦‚: COMMENT ON ROLE myrole IS 'role comment'
 
 
 	Setting
 	=======
-	ÎŞcreate¡¢drop¡¢alterÓï¾ä
-	Í¨¹ıSETÃüÁîÉú³É£¬SETÃüÁî²»ÊÇDDL£¬Ò²²»ÊÇ´¿DML
+	æ— createã€dropã€alterè¯­å¥
+	é€šè¿‡SETå‘½ä»¤ç”Ÿæˆï¼ŒSETå‘½ä»¤ä¸æ˜¯DDLï¼Œä¹Ÿä¸æ˜¯çº¯DML
 
 
-2. Schema¶ÔÏó
+2. Schemaå¯¹è±¡
 
 
 	Table
 	=======
 
-	ÓĞcreate¡¢drop¡¢alterÓï¾ä
+	æœ‰createã€dropã€alterè¯­å¥
 
 	
 	Index
 	=======
 
-	ÓĞcreate¡¢drop¡¢alterÓï¾ä
+	æœ‰createã€dropã€alterè¯­å¥
 
 
 	
 	Constraint
 	=======
 
-	ÓĞcreate¡¢drop¡¢alterÓï¾ä
+	æœ‰createã€dropã€alterè¯­å¥
 
 
 
 	Sequence
 	=======
 
-	ÓĞcreate¡¢dropÓï¾ä
+	æœ‰createã€dropè¯­å¥
 
 	
 
 	TriggerObject
 	=======
 
-	ÓĞcreate¡¢dropÓï¾ä
+	æœ‰createã€dropè¯­å¥
 
 	
 	Constant
 	=======
 
-	ÓĞcreate¡¢dropÓï¾ä
+	æœ‰createã€dropè¯­å¥
 
 
 	FunctionAlias
 	=======
 
-	ÓĞcreate¡¢dropÓï¾ä
+	æœ‰createã€dropè¯­å¥
 
 
 

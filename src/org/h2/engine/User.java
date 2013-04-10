@@ -32,7 +32,7 @@ public class User extends RightOwner {
     private byte[] passwordHash;
     private boolean admin;
 
-    //ÔÚorg.h2.engine.Database.open(int, int)Àï½¨ÁËÒ»¸öÏµÍ³ÓÃ»§ systemUser = new User(this, 0, SYSTEM_USER_NAME, true);
+    //åœ¨org.h2.engine.Database.open(int, int)é‡Œå»ºäº†ä¸€ä¸ªç³»ç»Ÿç”¨æˆ· systemUser = new User(this, 0, SYSTEM_USER_NAME, true);
     //SYSTEM_USER_NAME = DBA
     public User(Database database, int id, String userName, boolean systemUser) {
         super(database, id, userName, Trace.USER);
@@ -115,12 +115,12 @@ public class User extends RightOwner {
         if (admin) {
             return true;
         }
-        Role publicRole = database.getPublicRole(); //ÏÈ¼ì²épublic½ÇÉ«ÊÇ·ñÓĞ´ËÈ¨ÏŞ
+        Role publicRole = database.getPublicRole(); //å…ˆæ£€æŸ¥publicè§’è‰²æ˜¯å¦æœ‰æ­¤æƒé™
         if (publicRole.isRightGrantedRecursive(table, rightMask)) {
             return true;
         }
         
-        //MetaTableºÍRangeTable¶¼ÓĞÈ¨ÏŞ
+        //MetaTableå’ŒRangeTableéƒ½æœ‰æƒé™
         if (table instanceof MetaTable || table instanceof RangeTable) {
             // everybody has access to the metadata information
             return true;
@@ -137,7 +137,7 @@ public class User extends RightOwner {
             // function table
             return true;
         }
-        //±¾µØÁÙÊ±±í
+        //æœ¬åœ°ä¸´æ—¶è¡¨
         if (table.isTemporary() && !table.isGlobalTemporary()) {
             // the owner has all rights on local temporary tables
             return true;
@@ -182,7 +182,7 @@ public class User extends RightOwner {
      * @param userPasswordHash the password data (the user password hash)
      * @return true if the user password hash is correct
      */
-    //ÓÃÓÚ´ò¿ªsessionÊ±£¬ÑéÖ¤ÓÃ»§Ìá¹©µÄÃÜÂëÊÇ·ñÕıÈ·
+    //ç”¨äºæ‰“å¼€sessionæ—¶ï¼ŒéªŒè¯ç”¨æˆ·æä¾›çš„å¯†ç æ˜¯å¦æ­£ç¡®
     boolean validateUserPasswordHash(byte[] userPasswordHash) {
         if (userPasswordHash.length == 0 && passwordHash.length == 0) {
             return true;
@@ -225,12 +225,12 @@ public class User extends RightOwner {
         return children;
     }
 
-    //¸úRoleÀàµÄ²»Ò»Ñù£¬userÖ»ÓĞ±»ÊÚÓè£¬¶ø²»´æÔÚ°Ñuser×Ô¼ºÊÚÓè¸ø±ğÈË
-    //dorp tableÊ±»áµ÷ÓÃ
-    //²»¹ÜÊÇÖ±½Ó°ÑÈ¨ÏŞÊÚÓè¸ø´Ëuser»¹ÊÇ°Ñ½ÇÉ«ÊÚÓè¸øĞ©user¶¼»áµÃµ½Ò»¸öRight£¬
-    //ËùÒÔÖ»ÒªÈ¡³öËùÓĞÈ¨ÏŞ£¬ÅĞ¶ÏÒ»ÏÂGranteeÊÇ²»ÊÇuser×Ô¼º¾Í¿ÉÒÔÁË
+    //è·ŸRoleç±»çš„ä¸ä¸€æ ·ï¼Œuseråªæœ‰è¢«æˆäºˆï¼Œè€Œä¸å­˜åœ¨æŠŠuserè‡ªå·±æˆäºˆç»™åˆ«äºº
+    //dorp tableæ—¶ä¼šè°ƒç”¨
+    //ä¸ç®¡æ˜¯ç›´æ¥æŠŠæƒé™æˆäºˆç»™æ­¤userè¿˜æ˜¯æŠŠè§’è‰²æˆäºˆç»™äº›useréƒ½ä¼šå¾—åˆ°ä¸€ä¸ªRightï¼Œ
+    //æ‰€ä»¥åªè¦å–å‡ºæ‰€æœ‰æƒé™ï¼Œåˆ¤æ–­ä¸€ä¸‹Granteeæ˜¯ä¸æ˜¯userè‡ªå·±å°±å¯ä»¥äº†
     public void removeChildrenAndResources(Session session) {
-    	//ÊÚÓè¸ø´Ëuser×Ô¼ºµÄÈ¨ÏŞÒªÉ¾³ı
+    	//æˆäºˆç»™æ­¤userè‡ªå·±çš„æƒé™è¦åˆ é™¤
         for (Right right : database.getAllRights()) {
             if (right.getGrantee() == this) {
                 database.removeDatabaseObject(session, right);
@@ -253,7 +253,7 @@ public class User extends RightOwner {
      *
      * @throws DbException if this user owns a schema
      */
-    public void checkOwnsNoSchemas() { //´ËÓÃ»§Ã»ÓĞSchema¶ÔÏó
+    public void checkOwnsNoSchemas() { //æ­¤ç”¨æˆ·æ²¡æœ‰Schemaå¯¹è±¡
         for (Schema s : database.getAllSchemas()) {
             if (this == s.getOwner()) {
                 throw DbException.get(ErrorCode.CANNOT_DROP_2, getName(), s.getName());

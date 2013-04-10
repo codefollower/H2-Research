@@ -43,7 +43,7 @@ import org.h2.value.ValueNull;
  * This is the base class for most tables.
  * A table contains a list of columns and a list of rows.
  */
-//Ä¿Ç°ÔÚ7¸ö×ÓÀà
+//ç›®å‰åœ¨7ä¸ªå­ç±»
 //FunctionTable
 //MetaTable
 //RangeTable
@@ -212,7 +212,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @throws DbException if it is not supported
      */
-    public abstract void checkSupportAlter(); //Ö»ÓĞMVTableºÍRegularTableÖ§³Ö
+    public abstract void checkSupportAlter(); //åªæœ‰MVTableå’ŒRegularTableæ”¯æŒ
 
     /**
      * Get the table type name
@@ -313,7 +313,7 @@ public abstract class Table extends SchemaObjectBase {
         return null;
     }
 
-    public String getCreateSQLForCopy(Table table, String quotedName) { //Ö»ÓĞTableView¸²¸ÇÁË
+    public String getCreateSQLForCopy(Table table, String quotedName) { //åªæœ‰TableViewè¦†ç›–äº†
         throw DbException.throwInternalError();
     }
 
@@ -344,7 +344,7 @@ public abstract class Table extends SchemaObjectBase {
         dependencies.add(this);
     }
     
-    //TableµÄchildrenÓĞ6ÖÖ: index¡¢constraint¡¢trigger¡¢sequence¡¢view¡¢right
+    //Tableçš„childrenæœ‰6ç§: indexã€constraintã€triggerã€sequenceã€viewã€right
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = New.arrayList();
         ArrayList<Index> indexes = getIndexes();
@@ -418,7 +418,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param session the session
      * @return true if it is
      */
-    public boolean isLockedExclusivelyBy(Session session) { //Ö»ÓĞRegularTable¸²¸Ç´Ë·½·¨
+    public boolean isLockedExclusivelyBy(Session session) { //åªæœ‰RegularTableè¦†ç›–æ­¤æ–¹æ³•
         return false;
     }
 
@@ -441,11 +441,11 @@ public abstract class Table extends SchemaObjectBase {
             }
             Row o = rows.next();
             rows.next();
-            //ÎªÊ²Ã´²»ÊÇÏÈ¼Ç³·ÏûÈÕÖ¾ÔÙÉ¾³ıĞĞÄØ£¿ÒòÎªÈç¹ûÕâÑùµÄ»°¼ÙÉèÉ¾³ıĞĞ²»³É¹¦£¬µ«ÊÇÈÕÖ¾¼Ç³É¹¦ÁË£¬µ±rollbackÊ±ÓÖ°´ÈÕÖ¾×öinsert²Ù×÷
-            //´ËÊ±¾Í¶àÁËÒ»Ìõ¼ÇÂ¼ÁË£¬
-            //ÄÇ¼ÙÉè¼Ç³·ÏûÈÕÖ¾Ê§°ÜÁËÄØ? Õâ¸ö²»»á³öÏÖµÄ£¬ÒòÎªsession.logÖĞ½øÒ»²½µ÷ÓÃÁËorg.h2.engine.UndoLog.add(UndoLogRecord)
-            //Õâ¸öUndoLog.add·½·¨µÄµÚÒ»ĞĞ¾Í°ÑUndoLogRecordÔö¼Óµ½recordsÖĞ£¬Ö»ÒªÑÏ¸ñÈ·±£ÔÚ³öÏÖÈÎºÎÒì³£Ç°ÏÈ¼ÓÈërecords£¬
-            //ÄÇÃ´ÔÚrollbackÖĞ¾ÍÄÜÕÒµ½Ö®Ç°±»É¾³ıµÄĞĞ¡£
+            //ä¸ºä»€ä¹ˆä¸æ˜¯å…ˆè®°æ’¤æ¶ˆæ—¥å¿—å†åˆ é™¤è¡Œå‘¢ï¼Ÿå› ä¸ºå¦‚æœè¿™æ ·çš„è¯å‡è®¾åˆ é™¤è¡Œä¸æˆåŠŸï¼Œä½†æ˜¯æ—¥å¿—è®°æˆåŠŸäº†ï¼Œå½“rollbackæ—¶åˆæŒ‰æ—¥å¿—åšinsertæ“ä½œ
+            //æ­¤æ—¶å°±å¤šäº†ä¸€æ¡è®°å½•äº†ï¼Œ
+            //é‚£å‡è®¾è®°æ’¤æ¶ˆæ—¥å¿—å¤±è´¥äº†å‘¢? è¿™ä¸ªä¸ä¼šå‡ºç°çš„ï¼Œå› ä¸ºsession.logä¸­è¿›ä¸€æ­¥è°ƒç”¨äº†org.h2.engine.UndoLog.add(UndoLogRecord)
+            //è¿™ä¸ªUndoLog.addæ–¹æ³•çš„ç¬¬ä¸€è¡Œå°±æŠŠUndoLogRecordå¢åŠ åˆ°recordsä¸­ï¼Œåªè¦ä¸¥æ ¼ç¡®ä¿åœ¨å‡ºç°ä»»ä½•å¼‚å¸¸å‰å…ˆåŠ å…¥recordsï¼Œ
+            //é‚£ä¹ˆåœ¨rollbackä¸­å°±èƒ½æ‰¾åˆ°ä¹‹å‰è¢«åˆ é™¤çš„è¡Œã€‚
             removeRow(session, o);
             session.log(this, UndoLogRecord.DELETE, o);
         }

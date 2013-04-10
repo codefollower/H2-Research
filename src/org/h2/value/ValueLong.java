@@ -36,7 +36,7 @@ public class ValueLong extends Value {
 
     /**
      * The maximum display size of a long.
-     * Example: 9223372036854775808 //ÊÇ -9223372036854775808£¬"-9223372036854775808"Õâ¸öËã¸ººÅÔÚÄÚ×Ü³¤¶ÈÊÇ20
+     * Example: 9223372036854775808 //æ˜¯ -9223372036854775808ï¼Œ"-9223372036854775808"è¿™ä¸ªç®—è´Ÿå·åœ¨å†…æ€»é•¿åº¦æ˜¯20
      */
     public static final int DISPLAY_SIZE = 20;
 

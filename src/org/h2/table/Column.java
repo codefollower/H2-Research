@@ -61,7 +61,7 @@ public class Column {
      */
     public static final int NULLABLE_UNKNOWN = ResultSetMetaData.columnNullableUnknown;
     
-    //×Ü¹²23¸ö×Ö¶Î
+    //æ€»å…±23ä¸ªå­—æ®µ
     private final int type;
     private long precision;
     private int scale;
@@ -271,7 +271,7 @@ public class Column {
         }
         Mode mode = session.getDatabase().getMode();
         if (value == ValueNull.INSTANCE) {
-            //if (convertNullToDefault) { //ÓĞbug£¬¼ûE:\H2\my-h2\my-h2-docs\00 H2´úÂëBugµÄµÚ2µã
+            //if (convertNullToDefault) { //æœ‰bugï¼Œè§E:\H2\my-h2\my-h2-docs\00 H2ä»£ç Bugçš„ç¬¬2ç‚¹
             if (convertNullToDefault && defaultExpression != null) {
                 synchronized (this) {
                     value = defaultExpression.getValue(session).convertTo(type);
@@ -365,7 +365,7 @@ public class Column {
             ValueUuid uuid = ValueUuid.getNewRandom();
             String s = uuid.getString();
             s = s.replace('-', '_').toUpperCase();
-            sequenceName = "SYSTEM_SEQUENCE_" + s; //ÀıÈç: SYSTEM_SEQUENCE_D48A68C3_5C35_4228_9587_910712BB727A
+            sequenceName = "SYSTEM_SEQUENCE_" + s; //ä¾‹å¦‚: SYSTEM_SEQUENCE_D48A68C3_5C35_4228_9587_910712BB727A
             if (schema.findSequence(sequenceName) == null) {
                 break;
             }
@@ -387,7 +387,7 @@ public class Column {
      *
      * @param session the session
      */
-    public void prepareExpression(Session session) { //ÔÚ½¨±íÊ±´¥·¢
+    public void prepareExpression(Session session) { //åœ¨å»ºè¡¨æ—¶è§¦å‘
         if (defaultExpression != null) {
             computeTableFilter = new TableFilter(session, table, null, false, null);
             defaultExpression.mapColumns(computeTableFilter, 0);
@@ -524,7 +524,7 @@ public class Column {
      *
      * @param selectivity the new value
      */
-    public void setSelectivity(int selectivity) { //Ğ¡ÓÚ0Ê±»¹ÊÇ0£¬´óÓÚ100Ê±»¹ÊÇ100
+    public void setSelectivity(int selectivity) { //å°äº0æ—¶è¿˜æ˜¯0ï¼Œå¤§äº100æ—¶è¿˜æ˜¯100
         selectivity = selectivity < 0 ? 0 : (selectivity > 100 ? 100 : selectivity);
         this.selectivity = selectivity;
     }
@@ -700,7 +700,7 @@ public class Column {
      * @param source the source column
      */
     public void copy(Column source) {
-    	//16¸ö×Ö¶Î£¬»¹ÓĞ7¸ö×Ö¶ÎÎ´copy£¬·Ö±ğÊÇ: type¡¢table¡¢columnId¡¢autoIncrement¡¢start¡¢increment¡¢resolver
+    	//16ä¸ªå­—æ®µï¼Œè¿˜æœ‰7ä¸ªå­—æ®µæœªcopyï¼Œåˆ†åˆ«æ˜¯: typeã€tableã€columnIdã€autoIncrementã€startã€incrementã€resolver
         checkConstraint = source.checkConstraint;
         checkConstraintSQL = source.checkConstraintSQL;
         displaySize = source.displaySize;

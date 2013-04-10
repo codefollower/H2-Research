@@ -1,14 +1,14 @@
-Ïà¹ØµÄÀà:
-org.h2.command.dml.SetTypes   //¶¯Ì¬²ÎÊı£¬ÔËĞĞÊ±¿ÉĞŞ¸Ä
-org.h2.engine.ConnectionInfo  //connectionÏà¹ØµÄ²ÎÊı£¬¶¯Ì¬²ÎÊı£¬ÔÚÁ¬½ÓÊ±Ö¸¶¨
-org.h2.constant.DbSettings    //Êı¾İ¿â¼¶±ğµÄ²ÎÊı£¬¾²Ì¬²ÎÊı
-org.h2.constant.SysProperties //ÏµÍ³²ÎÊı£¬¾²Ì¬²ÎÊı
+ç›¸å…³çš„ç±»:
+org.h2.command.dml.SetTypes   //åŠ¨æ€å‚æ•°ï¼Œè¿è¡Œæ—¶å¯ä¿®æ”¹
+org.h2.engine.ConnectionInfo  //connectionç›¸å…³çš„å‚æ•°ï¼ŒåŠ¨æ€å‚æ•°ï¼Œåœ¨è¿æ¥æ—¶æŒ‡å®š
+org.h2.constant.DbSettings    //æ•°æ®åº“çº§åˆ«çš„å‚æ•°ï¼Œé™æ€å‚æ•°
+org.h2.constant.SysProperties //ç³»ç»Ÿå‚æ•°ï¼Œé™æ€å‚æ•°
 
 1.SetTypes
 
-SetTypesÖĞµÄ²ÎÊı¿ÉÒÔÈÏÎªÊÇ¶¯Ì¬µÄ£¬¿ÉÒÔÍ¨¹ıSETÃüÁîĞŞ¸Ä£¬
-SetTypesÀïÓĞÏÂÃæÕâĞ©²ÎÊı(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ´)
-×Ü¹²37¸ö£¬µÚÒ»¸ö²»Ëã£¬ÊÇnull£¬·½±ã³ÌĞòÊµÏÖ
+SetTypesä¸­çš„å‚æ•°å¯ä»¥è®¤ä¸ºæ˜¯åŠ¨æ€çš„ï¼Œå¯ä»¥é€šè¿‡SETå‘½ä»¤ä¿®æ”¹ï¼Œ
+SetTypesé‡Œæœ‰ä¸‹é¢è¿™äº›å‚æ•°(éƒ½æ˜¯å¤§å†™çš„ï¼Œè¿™é‡Œä¸ºäº†æ–¹ä¾¿é˜…è¯»æ”¹æˆå°å†™)
+æ€»å…±37ä¸ªï¼Œç¬¬ä¸€ä¸ªä¸ç®—ï¼Œæ˜¯nullï¼Œæ–¹ä¾¿ç¨‹åºå®ç°
 	null
 	ignorecase
 	max_log_size
@@ -48,7 +48,7 @@ SetTypesÀïÓĞÏÂÃæÕâĞ©²ÎÊı(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ´)
 	query_timeout
 	redo_log_binary
 
-//ÅÅĞòºóµÄ
+//æ’åºåçš„
 	@
 	allow_literals
 	cache_size
@@ -90,8 +90,8 @@ SetTypesÀïÓĞÏÂÃæÕâĞ©²ÎÊı(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ´)
 
 2.ConnectionInfo
 
-ConnectionInfo¶à×·¼ÓÁËconnectionÏà¹ØµÄ²ÎÊı£¬(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ´)
-×Ü¹²21¸ö
+ConnectionInfoå¤šè¿½åŠ äº†connectionç›¸å…³çš„å‚æ•°ï¼Œ(éƒ½æ˜¯å¤§å†™çš„ï¼Œè¿™é‡Œä¸ºäº†æ–¹ä¾¿é˜…è¯»æ”¹æˆå°å†™)
+æ€»å…±21ä¸ª
 	access_mode_data
 	autocommit
 	cipher
@@ -113,7 +113,7 @@ ConnectionInfo¶à×·¼ÓÁËconnectionÏà¹ØµÄ²ÎÊı£¬(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ
 	page_size
 	password_hash
 	jmx
-//ÅÅĞòºóµÄ
+//æ’åºåçš„
 	access_mode_data
 	auto_reconnect
 	auto_server
@@ -138,9 +138,9 @@ ConnectionInfo¶à×·¼ÓÁËconnectionÏà¹ØµÄ²ÎÊı£¬(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ
 
 3.DbSettings
 
-DbSettings×Ü¹²37¸ö:(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ´)
-¿ÉÍ¨¹ı-D»òÕßjava.lang.System.setProperty(String, String)ĞŞ¸Ä£¬²ÎÊıÒ»µ©ÉèÁË¾Í²»ÄÜ±äÁË
-Èç-Dmax_compact_time=200»òSystem.setProperty("max_compact_time", "200")
+DbSettingsæ€»å…±37ä¸ª:(éƒ½æ˜¯å¤§å†™çš„ï¼Œè¿™é‡Œä¸ºäº†æ–¹ä¾¿é˜…è¯»æ”¹æˆå°å†™)
+å¯é€šè¿‡-Dæˆ–è€…java.lang.System.setProperty(String, String)ä¿®æ”¹ï¼Œå‚æ•°ä¸€æ—¦è®¾äº†å°±ä¸èƒ½å˜äº†
+å¦‚-Dmax_compact_time=200æˆ–System.setProperty("max_compact_time", "200")
 
 	optimize_insert_from_select			true
 	max_compact_time			200
@@ -180,7 +180,7 @@ DbSettings×Ü¹²37¸ö:(¶¼ÊÇ´óĞ´µÄ£¬ÕâÀïÎªÁË·½±ãÔÄ¶Á¸Ä³ÉĞ¡Ğ´)
 	page_store_internal_count			false
 	page_store_max_growth			131072
 
-//ÅÅĞòºóµÄ
+//æ’åºåçš„
 	alias_column_name			false
 	analyze_auto			2000
 	analyze_sample			10000

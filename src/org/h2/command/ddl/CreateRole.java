@@ -38,7 +38,7 @@ public class CreateRole extends DefineCommand {
         session.getUser().checkAdmin();
         session.commit(true);
         Database db = session.getDatabase();
-        if (db.findUser(roleName) != null) { //½ÇÉ«ÃûºÍÓÃ»§Ãû²»ÄÜÒ»Ñù
+        if (db.findUser(roleName) != null) { //è§’è‰²åå’Œç”¨æˆ·åä¸èƒ½ä¸€æ ·
             throw DbException.get(ErrorCode.USER_ALREADY_EXISTS_1, roleName);
         }
         if (db.findRole(roleName) != null) {

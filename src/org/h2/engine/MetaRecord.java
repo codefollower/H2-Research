@@ -37,7 +37,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
         sql = obj.getCreateSQL();
     }
     
-    //·Ö±ğ¶ÔÓ¦ID¡¢HEAD¡¢TYPE¡¢SQLÕâ4¸ö×Ö¶Î
+    //åˆ†åˆ«å¯¹åº”IDã€HEADã€TYPEã€SQLè¿™4ä¸ªå­—æ®µ
     void setRecord(SearchRow r) {
         r.setValue(0, ValueInt.get(id));
         r.setValue(1, ValueInt.get(0));
@@ -89,7 +89,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
      * @param other the other record
      * @return -1, 0, or 1
      */
-    public int compareTo(MetaRecord other) { //createOrderÔ½Ğ¡±íÊ¾ÓÅÏÈ¼¶Ô½¸ß£¬Í¬µÈÓÅÏÈ¼¶µÄ°´idÏÈºóË³Ğò
+    public int compareTo(MetaRecord other) { //createOrderè¶Šå°è¡¨ç¤ºä¼˜å…ˆçº§è¶Šé«˜ï¼ŒåŒç­‰ä¼˜å…ˆçº§çš„æŒ‰idå…ˆåé¡ºåº
         int c1 = getCreateOrder();
         int c2 = other.getCreateOrder();
         if (c1 != c2) {

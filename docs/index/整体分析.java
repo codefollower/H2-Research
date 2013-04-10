@@ -1,44 +1,44 @@
 
-1.×ÛÊö
+1.ç»¼è¿°
 
-ËùÓĞµÄË÷Òı¶¼ÊµÏÖÁËorg.h2.index.Index½Ó¿Ú
+æ‰€æœ‰çš„ç´¢å¼•éƒ½å®ç°äº†org.h2.index.Indexæ¥å£
 
-Index½Ó¿ÚÓĞadd¡¢remove¡¢find·½·¨£¬µ«ÊÇÃ»ÓĞupdate·½·¨
+Indexæ¥å£æœ‰addã€removeã€findæ–¹æ³•ï¼Œä½†æ˜¯æ²¡æœ‰updateæ–¹æ³•
 
-ÊµÏÖIndex½Ó¿ÚµÄÁ½¸öÖ±½Ó×ÓÀàÊÇ:
+å®ç°Indexæ¥å£çš„ä¸¤ä¸ªç›´æ¥å­ç±»æ˜¯:
 org.h2.index.MultiVersionIndex
 org.h2.index.BaseIndex
 
-BaseIndexÊÇÒ»¸ö³éÏóÀà£¬Èç¹ûÒªÊµÏÖĞÂµÄË÷ÒıÀàĞÍ£¬¿ÉÒÔ´Ó´ËÀàÀ©Õ¹¡£
+BaseIndexæ˜¯ä¸€ä¸ªæŠ½è±¡ç±»ï¼Œå¦‚æœè¦å®ç°æ–°çš„ç´¢å¼•ç±»å‹ï¼Œå¯ä»¥ä»æ­¤ç±»æ‰©å±•ã€‚
 
-H2Ä¿Ç°ÊµÏÖÁË13ÖÖË÷ÒıÀàĞÍ(Çë¿´"IndexÀàÍ¼"ÎÄ¼ş)
+H2ç›®å‰å®ç°äº†13ç§ç´¢å¼•ç±»å‹(è¯·çœ‹"Indexç±»å›¾"æ–‡ä»¶)
 
 
-2. ¸÷ÀàË÷ÒıÀàĞÍËµÃ÷
+2. å„ç±»ç´¢å¼•ç±»å‹è¯´æ˜
 
 org.h2.index.MetaIndex
 
-MetaIndexÊÇÖ»¶ÁµÄ£¬²»Ö§³Öadd¡¢remove·½·¨£¬
-ÓÃÓÚ²éÕÒÊı¾İ¿âÔªÊı¾İ£¬±ÈÈçÍ¨¹ıjava.sql.DatabaseMetaDataÌá¹©µÄ·½·¨²éÕÒ
+MetaIndexæ˜¯åªè¯»çš„ï¼Œä¸æ”¯æŒaddã€removeæ–¹æ³•ï¼Œ
+ç”¨äºæŸ¥æ‰¾æ•°æ®åº“å…ƒæ•°æ®ï¼Œæ¯”å¦‚é€šè¿‡java.sql.DatabaseMetaDataæä¾›çš„æ–¹æ³•æŸ¥æ‰¾
 
 
 org.h2.index.FunctionIndex
 
-FunctionIndexÊÇÖ»¶ÁµÄ£¬²»Ö§³Öadd¡¢remove·½·¨£¬
-ÓÃÓÚ"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')" £¬±éÀúVALUES
+FunctionIndexæ˜¯åªè¯»çš„ï¼Œä¸æ”¯æŒaddã€removeæ–¹æ³•ï¼Œ
+ç”¨äº"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')" ï¼Œéå†VALUES
 
 
-3. ²éÑ¯¼ÇÂ¼Ê±£¬ÈçºÎÍ¨¹ıË÷ÒıÖĞµÄkeyÓëPageDataIndexÖĞµÄÊı¾İ¹ØÁªÆğÀ´
+3. æŸ¥è¯¢è®°å½•æ—¶ï¼Œå¦‚ä½•é€šè¿‡ç´¢å¼•ä¸­çš„keyä¸PageDataIndexä¸­çš„æ•°æ®å…³è”èµ·æ¥
 
-ÔÚorg.h2.command.dml.Select.queryFlat(int, ResultTarget, long)ÖĞµ÷ÓÃ
+åœ¨org.h2.command.dml.Select.queryFlat(int, ResultTarget, long)ä¸­è°ƒç”¨
 				for (int i = 0; i < columnCount; i++) {
                     Expression expr = expressions.get(i);
-                    //´¥·¢:
+                    //è§¦å‘:
                     //org.h2.expression.ExpressionColumn.getValue(Session)
                     //org.h2.table.TableFilter.getValue(Column)
                     row[i] = expr.getValue(session);
                 }
-»áÈ¡µÃµ±Ç°ĞĞµÄËùÓĞ×Ö¶Î£¬expr.getValue(session)»á´¥·¢org.h2.table.TableFilter.getValue(Column)
+ä¼šå–å¾—å½“å‰è¡Œçš„æ‰€æœ‰å­—æ®µï¼Œexpr.getValue(session)ä¼šè§¦å‘org.h2.table.TableFilter.getValue(Column)
     public Value getValue(Column column) {
         if (currentSearchRow == null) {
             return null;
@@ -59,11 +59,11 @@ FunctionIndexÊÇÖ»¶ÁµÄ£¬²»Ö§³Öadd¡¢remove·½·¨£¬
         }
         return current.getValue(columnId);
     }
-currentSearchRowÊÇË÷Òı×Ö¶Î×é³ÉµÄĞĞ£¬Èç¹ûÒªÈ¡µÄÁĞ°üº¬ÔÚcurrentSearchRowÖĞ£¬ÄÇÃ´Ö±½Ó·µ»ØcurrentSearchRowÖĞµÄÁĞ£¬
-·ñÔòµ÷ÓÃorg.h2.index.IndexCursor.get() => org.h2.index.PageBtreeCursor.get()
+currentSearchRowæ˜¯ç´¢å¼•å­—æ®µç»„æˆçš„è¡Œï¼Œå¦‚æœè¦å–çš„åˆ—åŒ…å«åœ¨currentSearchRowä¸­ï¼Œé‚£ä¹ˆç›´æ¥è¿”å›currentSearchRowä¸­çš„åˆ—ï¼Œ
+å¦åˆ™è°ƒç”¨org.h2.index.IndexCursor.get() => org.h2.index.PageBtreeCursor.get()
 	public Row get() {
         if (currentRow == null && currentSearchRow != null) {
-			//currentSearchRow.getKey()µÃµ½µÄ¾ÍÊÇPageDataIndexÖĞµÄkey
+			//currentSearchRow.getKey()å¾—åˆ°çš„å°±æ˜¯PageDataIndexä¸­çš„key
             currentRow = index.getRow(session, currentSearchRow.getKey());
         }
         return currentRow;

@@ -1,18 +1,18 @@
-1. ¸ÅÊö
+1. æ¦‚è¿°
 
-selectµÄÓï·¨½âÎö×ÜÈë¿ÚÊÇ:
+selectçš„è¯­æ³•è§£ææ€»å…¥å£æ˜¯:
 org.h2.command.Parser.parseSelect()
 
-¿ÉÒÔÍ¨¹ıºÜ¶àµØ·½´¥·¢Ëü£¬
-×î³£¼ûµÄÊÇ´Óorg.h2.command.Parser.parsePrepared()´¥·¢Ëü
+å¯ä»¥é€šè¿‡å¾ˆå¤šåœ°æ–¹è§¦å‘å®ƒï¼Œ
+æœ€å¸¸è§çš„æ˜¯ä»org.h2.command.Parser.parsePrepared()è§¦å‘å®ƒ
 
-´¥·¢µ÷ÓÃparseSelect()µÄsqlÓï·¨ÓĞÈıÖÖÇé¿ö:
-·Ö±ğÊÇÒÔ"("¡¢"select"¡¢"from"¿ªÍ·µÄsqlÓï·¨(²»·Ö´óĞ¡Ğ´µÄ)
+è§¦å‘è°ƒç”¨parseSelect()çš„sqlè¯­æ³•æœ‰ä¸‰ç§æƒ…å†µ:
+åˆ†åˆ«æ˜¯ä»¥"("ã€"select"ã€"from"å¼€å¤´çš„sqlè¯­æ³•(ä¸åˆ†å¤§å°å†™çš„)
 
 
-2. ´úÂëÁ÷³Ì·ÖÎö
+2. ä»£ç æµç¨‹åˆ†æ
 
-Èç¹ûsqlÊÇselect name1 from mytable1 union select name2 from mytable2
+å¦‚æœsqlæ˜¯select name1 from mytable1 union select name2 from mytable2
 
 parseSelect()
 	=>parseSelectUnion()
@@ -20,44 +20,44 @@ parseSelect()
 			=>parseSelectSimple()
 		=>parseSelectUnionExtension(Query, int, boolean)
 
-¶ÔÓÚ¼òµ¥µÄsql£¬Èçselect name1 from mytable1 order by name1
-parseSelectSub()¸ºÔğ½âÎöselect name1 from mytable1
-parseSelectUnionExtension¸ºÔğ½âÎö order by name1
+å¯¹äºç®€å•çš„sqlï¼Œå¦‚select name1 from mytable1 order by name1
+parseSelectSub()è´Ÿè´£è§£æselect name1 from mytable1
+parseSelectUnionExtensionè´Ÿè´£è§£æ order by name1
 
-Èç¹ûunion sqlÊÇselect name1 from mytable1 union select name2 from mytable2 order by name1
-parseSelectSub()¸ºÔğ½âÎöselect name1 from mytable1
-parseSelectUnionExtension¸ºÔğ½âÎö union select name2 from mytable2 order by name1
+å¦‚æœunion sqlæ˜¯select name1 from mytable1 union select name2 from mytable2 order by name1
+parseSelectSub()è´Ÿè´£è§£æselect name1 from mytable1
+parseSelectUnionExtensionè´Ÿè´£è§£æ union select name2 from mytable2 order by name1
 
 
-3. join·ÖÎö
+3. joinåˆ†æ
 
-ÓĞ6ÖÖjoinÀàĞÍ
+æœ‰6ç§joinç±»å‹
 RIGHT OUTER JOIN
 LEFT OUTER JOIN
-FULL //ÔİÊ±²»Ö§³Ö
+FULL //æš‚æ—¶ä¸æ”¯æŒ
 INNER JOIN
 JOIN
 CROSS JOIN
 NATURAL JOIN
 
-4.ÀàÍ¼
+4.ç±»å›¾
 org.h2.command.Prepared
 	=>org.h2.command.dml.Query
 		=>org.h2.command.dml.Select
 		=>org.h2.command.dml.SelectUnion
 
-µ÷ÓÃË³Ğò
-	=>org.h2.command.dml.Query.init()(org.h2.command.dml.Select.init()»òorg.h2.command.dml.SelectUnion.init())
+è°ƒç”¨é¡ºåº
+	=>org.h2.command.dml.Query.init()(org.h2.command.dml.Select.init()æˆ–org.h2.command.dml.SelectUnion.init())
 	=>org.h2.command.dml.Select.prepare()
 	=>org.h2.command.dml.Query.query(int)
 
-initÔÚµ÷ÓÃÍêorg.h2.command.Parser.parseSelect()Àïµ÷ÓÃ(ÔÚµÃµ½Ò»¸öQueryºó)
-»òÕßÔÚ½âÎöÍêÒ»¸ö×Ó²éÑ¯Ê±org.h2.command.Parser.readTableFilter(boolean)
-´ËÊ±Ò²µÃµ½Ò»¸öQuery£¬
-»¹ÓĞÒ»ÖÖÌØÊâÇé¿öÊÇorg.h2.command.Parser.parseValues()
-¼´ÀàËÆVALUES(1, 'Hello'), (2, 'World')ÕâÑùµÄÓï·¨
+initåœ¨è°ƒç”¨å®Œorg.h2.command.Parser.parseSelect()é‡Œè°ƒç”¨(åœ¨å¾—åˆ°ä¸€ä¸ªQueryå)
+æˆ–è€…åœ¨è§£æå®Œä¸€ä¸ªå­æŸ¥è¯¢æ—¶org.h2.command.Parser.readTableFilter(boolean)
+æ­¤æ—¶ä¹Ÿå¾—åˆ°ä¸€ä¸ªQueryï¼Œ
+è¿˜æœ‰ä¸€ç§ç‰¹æ®Šæƒ…å†µæ˜¯org.h2.command.Parser.parseValues()
+å³ç±»ä¼¼VALUES(1, 'Hello'), (2, 'World')è¿™æ ·çš„è¯­æ³•
 
-org.h2.command.dml.Select.init()´úÂë·ÖÎö
+org.h2.command.dml.Select.init()ä»£ç åˆ†æ
 
 
 DROP TABLE IF EXISTS JoinTest1 CASCADE;

@@ -89,24 +89,24 @@ public class CreateView extends SchemaCommand {
         if (select == null) {
             querySQL = selectSQL;
         } else {
-        	//Ä¿Ç°²»Ö§³Ö²ÎÊı:
+        	//ç›®å‰ä¸æ”¯æŒå‚æ•°:
     		//org.h2.jdbc.JdbcSQLException: Feature not supported: "parameters in views"; SQL statement:
-    		//Èç:CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view (f1,f2) AS SELECT id,name FROM CreateViewTest where id=?"
+    		//å¦‚:CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view (f1,f2) AS SELECT id,name FROM CreateViewTest where id=?"
             ArrayList<Parameter> params = select.getParameters();
             if (params != null && params.size() > 0) {
                 throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, "parameters in views");
             }
             querySQL = select.getPlanSQL();
         }
-        Session sysSession = db.getSystemSession(); //TODO ÎªÊ²Ã´Ò»¶¨ÒªÓÃsystem session£¿»»³É×Ô¼ºµÄsessionÔËĞĞÒ²Ã»³öÎÊÌâ?
+        Session sysSession = db.getSystemSession(); //TODO ä¸ºä»€ä¹ˆä¸€å®šè¦ç”¨system sessionï¼Ÿæ¢æˆè‡ªå·±çš„sessionè¿è¡Œä¹Ÿæ²¡å‡ºé—®é¢˜?
         try {
             if (view == null) {
                 Schema schema = session.getDatabase().getSchema(session.getCurrentSchemaName());
                 sysSession.setCurrentSchema(schema);
-                //sysSession = session; //ÎÒ¼ÓÉÏµÄ
+                //sysSession = session; //æˆ‘åŠ ä¸Šçš„
                 view = new TableView(getSchema(), id, viewName, querySQL, null, columnNames, sysSession, false);
             } else {
-            	//sysSession = session; //ÎÒ¼ÓÉÏµÄ
+            	//sysSession = session; //æˆ‘åŠ ä¸Šçš„
                 view.replace(querySQL, columnNames, sysSession, false, force);
             }
         } finally {

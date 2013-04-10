@@ -67,26 +67,26 @@ public class TableFilter implements ColumnResolver {
     /**
      * The index conditions used for direct index lookup (start or end).
      */
-    //ÓÉwhereÌõ¼şÉú³É£¬¼ûorg.h2.command.dml.Select.prepare()µÄcondition.createIndexConditions(session, f);
-    //Ë÷ÒıÌõ¼şÊÇÓÃÀ´¿ìËÙ¶¨Î»Ë÷ÒıµÄ¿ªÊ¼ºÍ½áÊøÎ»ÖÃµÄ£¬±ÈÈçÓĞÒ»¸öidµÄË÷Òı×Ö¶Î£¬Öµ´Ó1µ½10£¬
-    //ÏÖÔÚÓĞÒ»¸öwhere id>3 and id<7µÄÌõ¼ş£¬ÄÇÃ´ÔÚ²éÕÒÇ°£¬Ë÷Òı¾ÍÊÂÏÈ¶¨Î»µ½3ºÍ7µÄÎ»ÖÃÁË
-    //¼ûorg.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)
-    //Õâ8ÖÖÀàĞÍµÄ±í´ïÊ¾ÄÜ½¨Á¢Ë÷ÒıÌõ¼ş
-    //Comparison¡¢CompareLike¡¢ConditionIn¡¢ConditionInSelect¡¢ConditionInConstantSet¡¢
-    //ConditionAndOr¡¢ExpressionColumn¡¢ValueExpression
+    //ç”±whereæ¡ä»¶ç”Ÿæˆï¼Œè§org.h2.command.dml.Select.prepare()çš„condition.createIndexConditions(session, f);
+    //ç´¢å¼•æ¡ä»¶æ˜¯ç”¨æ¥å¿«é€Ÿå®šä½ç´¢å¼•çš„å¼€å§‹å’Œç»“æŸä½ç½®çš„ï¼Œæ¯”å¦‚æœ‰ä¸€ä¸ªidçš„ç´¢å¼•å­—æ®µï¼Œå€¼ä»1åˆ°10ï¼Œ
+    //ç°åœ¨æœ‰ä¸€ä¸ªwhere id>3 and id<7çš„æ¡ä»¶ï¼Œé‚£ä¹ˆåœ¨æŸ¥æ‰¾å‰ï¼Œç´¢å¼•å°±äº‹å…ˆå®šä½åˆ°3å’Œ7çš„ä½ç½®äº†
+    //è§org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)
+    //è¿™8ç§ç±»å‹çš„è¡¨è¾¾ç¤ºèƒ½å»ºç«‹ç´¢å¼•æ¡ä»¶
+    //Comparisonã€CompareLikeã€ConditionInã€ConditionInSelectã€ConditionInConstantSetã€
+    //ConditionAndOrã€ExpressionColumnã€ValueExpression
     private final ArrayList<IndexCondition> indexConditions = New.arrayList();
     /**
      * Additional conditions that can't be used for index lookup, but for row
      * filter for this table (ID=ID, NAME LIKE '%X%')
      */
-    //Èç¹ûÊÇµ¥±í£¬ÄÇÃ´¸úfullConditionÒ»ÑùÊÇÕû¸öwhereÌõ¼ş
-    //joinµÄÇé¿öÏÂÖ»°üº¬ÊôÓÚ±¾±íµÄ±í´ïÊ½
+    //å¦‚æœæ˜¯å•è¡¨ï¼Œé‚£ä¹ˆè·ŸfullConditionä¸€æ ·æ˜¯æ•´ä¸ªwhereæ¡ä»¶
+    //joinçš„æƒ…å†µä¸‹åªåŒ…å«å±äºæœ¬è¡¨çš„è¡¨è¾¾å¼
     private Expression filterCondition;
 
     /**
      * The complete join condition.
      */
-    private Expression joinCondition; //on Ìõ¼ş
+    private Expression joinCondition; //on æ¡ä»¶
 
     private SearchRow currentSearchRow;
     private Row current;
@@ -100,7 +100,7 @@ public class TableFilter implements ColumnResolver {
     /**
      * Whether this is an outer join.
      */
-    //Ò²¾ÍÊÇ´Ë±íµÄ×ó±ßÊÇ²»ÊÇouter join£¬±ÈÈçt1 left outer join t2£¬ÄÇÃ´t2µÄjoinOuterÊÇtrue£¬µ«ÊÇt1µÄjoinOuterÊÇfalse
+    //ä¹Ÿå°±æ˜¯æ­¤è¡¨çš„å·¦è¾¹æ˜¯ä¸æ˜¯outer joinï¼Œæ¯”å¦‚t1 left outer join t2ï¼Œé‚£ä¹ˆt2çš„joinOuteræ˜¯trueï¼Œä½†æ˜¯t1çš„joinOuteræ˜¯false
     private boolean joinOuter;
 
     /**
@@ -110,11 +110,11 @@ public class TableFilter implements ColumnResolver {
 
     private ArrayList<Column> naturalJoinColumns;
     private boolean foundOne;
-    //ÔÚorg.h2.command.dml.Select.preparePlan()ÖĞÉè£¬ÍêÕûµÄwhereÌõ¼ş
-    //Õâ¸ö×Ö¶ÎÖ»ÊÇÔÚÑ¡ÔñË÷ÒıµÄ¹ı³ÌÖĞÓĞÓÃ£¬filterConditionµÄÖµÍ¨¹ıËü´«µİ
-    //µ¥±íÊ±fullConditionËäÈ»²»Îªnull£¬µ«ÊÇÃ»ÓĞÓÃ´¦£¬µ¥±íÊ±filterConditionÎªnull£¬
-    //³ı·Ç°ÑEARLY_FILTER²ÎÊıÉèÎªtrue£¬ÕâÑùfilterCondition¾Í²»ÎªnullÁË£¬ÔÚnextÖĞ¾Í¹ıÂËµôĞĞ£¬
-    //Èç¹ûfilterCondition¼ÆËãÊÇtrueµÄ»°£¬ÔÚSelectÀàµÄqueryXXX·½·¨ÖĞÓÖ¼ÆËãÒ»´Îcondition
+    //åœ¨org.h2.command.dml.Select.preparePlan()ä¸­è®¾ï¼Œå®Œæ•´çš„whereæ¡ä»¶
+    //è¿™ä¸ªå­—æ®µåªæ˜¯åœ¨é€‰æ‹©ç´¢å¼•çš„è¿‡ç¨‹ä¸­æœ‰ç”¨ï¼ŒfilterConditionçš„å€¼é€šè¿‡å®ƒä¼ é€’
+    //å•è¡¨æ—¶fullConditionè™½ç„¶ä¸ä¸ºnullï¼Œä½†æ˜¯æ²¡æœ‰ç”¨å¤„ï¼Œå•è¡¨æ—¶filterConditionä¸ºnullï¼Œ
+    //é™¤éæŠŠEARLY_FILTERå‚æ•°è®¾ä¸ºtrueï¼Œè¿™æ ·filterConditionå°±ä¸ä¸ºnulläº†ï¼Œåœ¨nextä¸­å°±è¿‡æ»¤æ‰è¡Œï¼Œ
+    //å¦‚æœfilterConditionè®¡ç®—æ˜¯trueçš„è¯ï¼Œåœ¨Selectç±»çš„queryXXXæ–¹æ³•ä¸­åˆè®¡ç®—ä¸€æ¬¡condition
     private Expression fullCondition;
     private final int hashCode;
 
@@ -169,11 +169,11 @@ public class TableFilter implements ColumnResolver {
      * @param level 1 for the first table in a join, 2 for the second, and so on
      * @return the best plan item
      */
-    //¶ÔÓÚDelete¡¢UpdateÊÇÔÚprepare()Ê±Ö±½Ó½øÀ´£¬
-    //¶øSelectÒªprepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
+    //å¯¹äºDeleteã€Updateæ˜¯åœ¨prepare()æ—¶ç›´æ¥è¿›æ¥ï¼Œ
+    //è€ŒSelectè¦prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
     public PlanItem getBestPlanItem(Session s, int level) {
         PlanItem item;
-        if (indexConditions.size() == 0) { //Ã»ÓĞË÷ÒıÌõ¼şÊ±Ö±½Ó×ßÉ¨ÃèË÷Òı
+        if (indexConditions.size() == 0) { //æ²¡æœ‰ç´¢å¼•æ¡ä»¶æ—¶ç›´æ¥èµ°æ‰«æç´¢å¼•
             item = new PlanItem();
             item.setIndex(table.getScanIndex(s));
             item.cost = item.getIndex().getCost(s, null, null);
@@ -186,12 +186,12 @@ public class TableFilter implements ColumnResolver {
                         masks = null;
                         break;
                     }
-                    //condition.getColumn()²»¿ÉÄÜÎªnull£¬ÒòÎªÄ¿µÄÊÇÒªÑ¡ºÏÊÊµÄË÷Òı£¬¶øË÷Òı½¨Á¢ÔÚ×Ö¶ÎÖ®ÉÏ
-                    //ËùÒÔIndexConditionÖĞµÄcolumn±äÁ¿²»¿ÉÄÜÊÇnull
+                    //condition.getColumn()ä¸å¯èƒ½ä¸ºnullï¼Œå› ä¸ºç›®çš„æ˜¯è¦é€‰åˆé€‚çš„ç´¢å¼•ï¼Œè€Œç´¢å¼•å»ºç«‹åœ¨å­—æ®µä¹‹ä¸Š
+                    //æ‰€ä»¥IndexConditionä¸­çš„columnå˜é‡ä¸å¯èƒ½æ˜¯null
                     int id = condition.getColumn().getColumnId();
                     if (id >= 0) {
-                    	//¶à¸öIndexCondition¿ÉÄÜÊÇÍ¬Ò»¸ö×Ö¶Î
-                    	//Èçid>1 and id <10£¬ÕâÑùmasks[id]×îºó¾Í±ä³ÉIndexCondition.RANGEÁË
+                    	//å¤šä¸ªIndexConditionå¯èƒ½æ˜¯åŒä¸€ä¸ªå­—æ®µ
+                    	//å¦‚id>1 and id <10ï¼Œè¿™æ ·masks[id]æœ€åå°±å˜æˆIndexCondition.RANGEäº†
                         masks[id] |= condition.getMask(indexConditions);
                     }
                 }
@@ -204,7 +204,7 @@ public class TableFilter implements ColumnResolver {
             // The more index conditions, the earlier the table.
             // This is to ensure joins without indexes run quickly:
             // x (x.a=10); y (x.b=y.b) - see issue 113
-            //levelÔ½´ó£¬item.cost¾Í¼õÈ¥Ò»¸öÔ½Ğ¡µÄÖµ£¬ËùÒÔjoinµÄcostÔ½´ó
+            //levelè¶Šå¤§ï¼Œitem.costå°±å‡å»ä¸€ä¸ªè¶Šå°çš„å€¼ï¼Œæ‰€ä»¥joinçš„costè¶Šå¤§
             item.cost -= item.cost * indexConditions.size() / 100 / level;
         }
         if (nestedJoin != null) {
@@ -274,11 +274,11 @@ public class TableFilter implements ColumnResolver {
     public void prepare() {
         // forget all unused index conditions
         // the indexConditions list may be modified here
-    	//Èç
+    	//å¦‚
     	//create table IF NOT EXISTS DeleteTest(id int, name varchar(500), b boolean)
     	//delete from DeleteTest where b
-    	//°´×Ö¶ÎbÉ¾³ı£¬Êµ¼ÊÉÏ¾ÍÊÇÉ¾³ıb=trueµÄ¼ÇÂ¼
-    	//Èç¹ûÃ»ÓĞÎª×Ö¶Îb½¨Á¢Ë÷Òı£¬¾ÍÔÚÕâÀïÉ¾³ıÕâ¸öÎŞÓÃÌõ¼ş
+    	//æŒ‰å­—æ®µbåˆ é™¤ï¼Œå®é™…ä¸Šå°±æ˜¯åˆ é™¤b=trueçš„è®°å½•
+    	//å¦‚æœæ²¡æœ‰ä¸ºå­—æ®µbå»ºç«‹ç´¢å¼•ï¼Œå°±åœ¨è¿™é‡Œåˆ é™¤è¿™ä¸ªæ— ç”¨æ¡ä»¶
         for (int i = 0; i < indexConditions.size(); i++) {
             IndexCondition condition = indexConditions.get(i);
             if (!condition.isAlwaysFalse()) {
@@ -346,8 +346,8 @@ public class TableFilter implements ColumnResolver {
      *
      * @return true if there are
      */
-    //ÔÚfrom»òjoinºóÃæ¼ÓÀ¨ºÅµÄ¶¼ÊÇnestedJoin
-    //ÈçSELECT * FROM (JoinTest1 LEFT OUTER JOIN (JoinTest2))
+    //åœ¨fromæˆ–joinåé¢åŠ æ‹¬å·çš„éƒ½æ˜¯nestedJoin
+    //å¦‚SELECT * FROM (JoinTest1 LEFT OUTER JOIN (JoinTest2))
 
     //TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest1)
     //TableFilter(SYSTEM_JOIN_xxx).join => null
@@ -361,7 +361,7 @@ public class TableFilter implements ColumnResolver {
     //TableFilter(JoinTest2).nestedJoin => null
     //TableFilter(JoinTest2).join => null
 
-    //Í¬Ò»¸öTableFilterµÄjoinºÍnestedJoinÓĞ¿ÉÄÜ»áÍ¬Ê±²»Îªnull£¬ÈçÏÂ
+    //åŒä¸€ä¸ªTableFilterçš„joinå’ŒnestedJoinæœ‰å¯èƒ½ä¼šåŒæ—¶ä¸ä¸ºnullï¼Œå¦‚ä¸‹
     //SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30
     //TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest1)
     //TableFilter(SYSTEM_JOIN_xxx).join => TableFilter(JoinTest2)
@@ -381,7 +381,7 @@ public class TableFilter implements ColumnResolver {
         } else {
             // state == FOUND || NULL_ROW
             // the last row was ok - try next row of the join
-            if (join != null && join.next()) { //join±íÒÆ¶¯£¬Ö÷±í²»¶¯£¬Èç¹ûjoinÉÏ´ÎÊÇNULL_ROW,ÄÇÃ´Ö÷±íÒªÍùÏÂÒÆ
+            if (join != null && join.next()) { //joinè¡¨ç§»åŠ¨ï¼Œä¸»è¡¨ä¸åŠ¨ï¼Œå¦‚æœjoinä¸Šæ¬¡æ˜¯NULL_ROW,é‚£ä¹ˆä¸»è¡¨è¦å¾€ä¸‹ç§»
                 return true;
             }
         }
@@ -391,9 +391,9 @@ public class TableFilter implements ColumnResolver {
                 break;
             }
             if (cursor.isAlwaysFalse()) {
-            	//µ±OPTIMIZE_IS_NULLÉèÎªfalseÊ±£¬cursor.isAlwaysFalse()ÊÇtrue
-                //¶ÔÓÚÕâÑùµÄSELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
-                //»¹ÊÇ»á·µ»ØJoinTest1µÄËùÓĞ¼ÇÂ¼£¬JoinTest2ÖĞµÄÈ«Îªnull
+            	//å½“OPTIMIZE_IS_NULLè®¾ä¸ºfalseæ—¶ï¼Œcursor.isAlwaysFalse()æ˜¯true
+                //å¯¹äºè¿™æ ·çš„SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
+                //è¿˜æ˜¯ä¼šè¿”å›JoinTest1çš„æ‰€æœ‰è®°å½•ï¼ŒJoinTest2ä¸­çš„å…¨ä¸ºnull
                 state = AFTER_LAST;
             } else if (nestedJoin != null) {
                 if (state == BEFORE_FIRST) {
@@ -411,33 +411,33 @@ public class TableFilter implements ColumnResolver {
                     state = AFTER_LAST;
                 }
             }
-            //nestedJoin¾ÍÊÇÔÚ±íÃûÇ°ºó¼ÓÀ¨ºÅ
-            //Èçsql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
-        	//nestedJoinÊÇ(JoinTest2)
-            //Èçsql = "SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30";
-        	//nestedJoinÊÇ(JoinTest1)
+            //nestedJoinå°±æ˜¯åœ¨è¡¨åå‰ååŠ æ‹¬å·
+            //å¦‚sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
+        	//nestedJoinæ˜¯(JoinTest2)
+            //å¦‚sql = "SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30";
+        	//nestedJoinæ˜¯(JoinTest1)
             if (nestedJoin != null && state == FOUND) {
                 if (!nestedJoin.next()) {
                     state = AFTER_LAST;
                     if (joinOuter && !foundOne) {
                         // possibly null row
-                    	//Èçsql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
-                    	//nestedJoinÊÇ(JoinTest2)£¬joinOuterÊÇtrue
+                    	//å¦‚sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
+                    	//nestedJoinæ˜¯(JoinTest2)ï¼ŒjoinOuteræ˜¯true
                     } else {
-                    	//Èçsql = "SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30";
-                    	//nestedJoinÊÇ(JoinTest1)£¬joinOuterÊÇfalse
+                    	//å¦‚sql = "SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30";
+                    	//nestedJoinæ˜¯(JoinTest1)ï¼ŒjoinOuteræ˜¯false
                         continue;
                     }
                 }
             }
             // if no more rows found, try the null row (for outer joins only)
             if (state == AFTER_LAST) {
-            	//·ÖÁ½ÖÖÇé¿ö:
-            	//1. Õı³£Çé¿ö½áÊø£¬ ÉÏ´ÎÃ»ÓĞÕÒµ½£¬ÇÒÊÇÍâ²¿Á¬½Ó£¬´ËÊ±ÊÇÒ»¸öĞü¸¡¼ÇÂ¼£¬°ÑÓÒ±ßµÄ×Ö¶Î¶¼ÓÃnull±íÊ¾
-            	//2. onÌõ¼ş×ÜÊÇfalse£¬Ê¹µÃ»¹Ã»ÓĞ±éÀú±ístate¾Í±ä³ÉÁËAFTER_LAST
-            	//µ±OPTIMIZE_IS_NULLÉèÎªfalseÊ±£¬cursor.isAlwaysFalse()ÊÇtrue
-                //¶ÔÓÚÕâÑùµÄSELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
-                //»¹ÊÇ»á·µ»ØJoinTest1µÄËùÓĞ¼ÇÂ¼£¬JoinTest2ÖĞµÄÈ«Îªnull
+            	//åˆ†ä¸¤ç§æƒ…å†µ:
+            	//1. æ­£å¸¸æƒ…å†µç»“æŸï¼Œ ä¸Šæ¬¡æ²¡æœ‰æ‰¾åˆ°ï¼Œä¸”æ˜¯å¤–éƒ¨è¿æ¥ï¼Œæ­¤æ—¶æ˜¯ä¸€ä¸ªæ‚¬æµ®è®°å½•ï¼ŒæŠŠå³è¾¹çš„å­—æ®µéƒ½ç”¨nullè¡¨ç¤º
+            	//2. onæ¡ä»¶æ€»æ˜¯falseï¼Œä½¿å¾—è¿˜æ²¡æœ‰éå†è¡¨stateå°±å˜æˆäº†AFTER_LAST
+            	//å½“OPTIMIZE_IS_NULLè®¾ä¸ºfalseæ—¶ï¼Œcursor.isAlwaysFalse()æ˜¯true
+                //å¯¹äºè¿™æ ·çš„SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
+                //è¿˜æ˜¯ä¼šè¿”å›JoinTest1çš„æ‰€æœ‰è®°å½•ï¼ŒJoinTest2ä¸­çš„å…¨ä¸ºnull
                 if (joinOuter && !foundOne) {
                     setNullRow();
                 } else {
@@ -447,10 +447,10 @@ public class TableFilter implements ColumnResolver {
             if (!isOk(filterCondition)) {
                 continue;
             }
-            //¶ÔÓÚSELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON id>30
-            //id>30ÖĞµÄidËäÈ»ÊÇJoinTest1µÄ£¬µ«ÊÇÕâ¸öjoinConditionÊÇ¼Óµ½JoinTest2¶ÔÓ¦µÄTableFilterÖĞ
-            //ËùÒÔ¿ÉÒÔ×öÒ»¸öÓÅ»¯£¬µ±ÅĞ¶ÏjoinConditionÖĞ²»°üº¬JoinTest2µÄ×Ö¶ÎÊ±£¬joinConditionOk¿Ï¶¨ÊÇfalse£¬
-            //ÕâÑù¾Í²»ÓÃÒ»ĞĞĞĞÔÙÈ¥±éÀúJoinTest2±íÁË£¬Ö±½Óµ÷ÓÃsetNullRow()£¬È»ºóÍË³öÑ­»·
+            //å¯¹äºSELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON id>30
+            //id>30ä¸­çš„idè™½ç„¶æ˜¯JoinTest1çš„ï¼Œä½†æ˜¯è¿™ä¸ªjoinConditionæ˜¯åŠ åˆ°JoinTest2å¯¹åº”çš„TableFilterä¸­
+            //æ‰€ä»¥å¯ä»¥åšä¸€ä¸ªä¼˜åŒ–ï¼Œå½“åˆ¤æ–­joinConditionä¸­ä¸åŒ…å«JoinTest2çš„å­—æ®µæ—¶ï¼ŒjoinConditionOkè‚¯å®šæ˜¯falseï¼Œ
+            //è¿™æ ·å°±ä¸ç”¨ä¸€è¡Œè¡Œå†å»éå†JoinTest2è¡¨äº†ï¼Œç›´æ¥è°ƒç”¨setNullRow()ï¼Œç„¶åé€€å‡ºå¾ªç¯
             boolean joinConditionOk = isOk(joinCondition);
             if (state == FOUND) {
                 if (joinConditionOk) {
@@ -579,12 +579,12 @@ public class TableFilter implements ColumnResolver {
      * @param nested if this is a nested join
      * @param on the join condition
      */
-    //Ã»ÓĞ·¢ÏÖouter¡¢nestedÍ¬Ê±ÎªtrueµÄ
-    //onÕâ¸öjoinConditionÊÇ¼Óµ½filter²ÎÊı¶ÔÓ¦µÄTableFilterÖĞ£¬Ò²¾ÍÊÇÓÒ±í£¬¶ø²»ÊÇ×ó±í
+    //æ²¡æœ‰å‘ç°outerã€nestedåŒæ—¶ä¸ºtrueçš„
+    //onè¿™ä¸ªjoinConditionæ˜¯åŠ åˆ°filterå‚æ•°å¯¹åº”çš„TableFilterä¸­ï¼Œä¹Ÿå°±æ˜¯å³è¡¨ï¼Œè€Œä¸æ˜¯å·¦è¡¨
     public void addJoin(TableFilter filter, boolean outer, boolean nested, final Expression on) {
-    	//¸øonÖĞµÄExpressionColumnÉèÖÃcolumnResolver£¬
-    	//TableFilterÊµÏÖÁËColumnResolver½Ó¿Ú£¬ËùÒÔExpressionColumnµÄcolumnResolverÊµ¼ÊÉÏ¾ÍÊÇTableFilter¶ÔÏó
-    	//ÁíÍâ£¬ÏÂÃæµÄÁ½¸övisitÄÜ²é³ö¶à¸öTableÖ®¼äµÄÁĞÊÇ·ñÍ¬Ãû
+    	//ç»™onä¸­çš„ExpressionColumnè®¾ç½®columnResolverï¼Œ
+    	//TableFilterå®ç°äº†ColumnResolveræ¥å£ï¼Œæ‰€ä»¥ExpressionColumnçš„columnResolverå®é™…ä¸Šå°±æ˜¯TableFilterå¯¹è±¡
+    	//å¦å¤–ï¼Œä¸‹é¢çš„ä¸¤ä¸ªvisitèƒ½æŸ¥å‡ºå¤šä¸ªTableä¹‹é—´çš„åˆ—æ˜¯å¦åŒå
         if (on != null) {
             on.mapColumns(this, 0);
             if (session.getDatabase().getSettings().nestedJoins) {
@@ -604,10 +604,10 @@ public class TableFilter implements ColumnResolver {
             if (nestedJoin != null) {
                 throw DbException.throwInternalError();
             }
-            //ºÜÉÙÓĞÇ¶Ì×join£¬Ö»ÔÚorg.h2.command.Parser.getNested(TableFilter)¿´µ½ÓĞ
-            //±»Ò»¸öDualTable(Ò»¸öminºÍmax¶¼Îª1µÄRangeTable)Ç¶Ì×
-            //»¹ÓĞÒ»ÖÖÇé¿öÊÇÏÈLEFT OUTER JOINÔÙNATURAL JOIN
-            //Èçfrom JoinTest1 LEFT OUTER JOIN JoinTest3 NATURAL JOIN JoinTest2
+            //å¾ˆå°‘æœ‰åµŒå¥—joinï¼Œåªåœ¨org.h2.command.Parser.getNested(TableFilter)çœ‹åˆ°æœ‰
+            //è¢«ä¸€ä¸ªDualTable(ä¸€ä¸ªminå’Œmaxéƒ½ä¸º1çš„RangeTable)åµŒå¥—
+            //è¿˜æœ‰ä¸€ç§æƒ…å†µæ˜¯å…ˆLEFT OUTER JOINå†NATURAL JOIN
+            //å¦‚from JoinTest1 LEFT OUTER JOIN JoinTest3 NATURAL JOIN JoinTest2
             nestedJoin = filter;
             filter.joinOuter = outer;
             if (outer) {
@@ -626,8 +626,8 @@ public class TableFilter implements ColumnResolver {
                 filter.joinOuter = outer;
                 if (session.getDatabase().getSettings().nestedJoins) {
                     if (outer) {
-                    	//filter×ÔÉíºÍfilterµÄnestedJoinºÍjoin×Ö¶Î¶ÔÓ¦µÄfilterµÄjoinOuterIndirect¶¼Îªtrue
-                    	//nestedJoinºÍjoin×Ö¶Î¶ÔÓ¦µÄfilter¼ÌĞøµİ¹éËùÓĞµÄnestedJoinºÍjoin×Ö¶Î
+                    	//filterè‡ªèº«å’Œfilterçš„nestedJoinå’Œjoinå­—æ®µå¯¹åº”çš„filterçš„joinOuterIndirectéƒ½ä¸ºtrue
+                    	//nestedJoinå’Œjoinå­—æ®µå¯¹åº”çš„filterç»§ç»­é€’å½’æ‰€æœ‰çš„nestedJoinå’Œjoinå­—æ®µ
                         filter.visit(new TableFilterVisitor() {
                             public void accept(TableFilter f) {
                                 f.joinOuterIndirect = true;
@@ -636,7 +636,7 @@ public class TableFilter implements ColumnResolver {
                     }
                 } else {
                     if (outer) {
-                        //µ±nestedJoinsÎªfalseÊ±£¬nestedJoin×Ö¶Î²»»áÓĞÖµ£¬¶¼ÊÇjoin×Ö¶ÎÓĞÖµ£¬
+                        //å½“nestedJoinsä¸ºfalseæ—¶ï¼ŒnestedJoinå­—æ®µä¸ä¼šæœ‰å€¼ï¼Œéƒ½æ˜¯joinå­—æ®µæœ‰å€¼ï¼Œ
                         // convert all inner joins on the right hand side to outer joins
                         TableFilter f = filter.join;
                         while (f != null) {

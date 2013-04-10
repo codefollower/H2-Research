@@ -46,7 +46,7 @@ public class JdbcStatement extends TraceObject implements Statement {
         setTrace(session.getTrace(), TraceObject.STATEMENT, id);
         this.resultSetType = resultSetType;
         this.resultSetConcurrency = resultSetConcurrency;
-        //Ö»ÔÚorg.h2.jdbc.JdbcConnection.prepareAutoCloseStatement(String)ÖĞÉèÎªtrue£¬ÒâË¼ÊÇÓÉResultSet×Ô¼º¹Ø±Õ
+        //åªåœ¨org.h2.jdbc.JdbcConnection.prepareAutoCloseStatement(String)ä¸­è®¾ä¸ºtrueï¼Œæ„æ€æ˜¯ç”±ResultSetè‡ªå·±å…³é—­
         this.closedByResultSet = closeWithResultSet;
     }
 
@@ -60,11 +60,11 @@ public class JdbcStatement extends TraceObject implements Statement {
      */
     public ResultSet executeQuery(String sql) throws SQLException {
         try {
-        	//Õâ¸öidÓÃ´¦²»´ó£¬½öÓÃÓÚ¸ú×Ù
-        	//org.h2.command.CommandRemote.executeQuery(int, boolean)ÖĞÉú³ÉµÄobjectIdÓÃÓÚ¹ØÁª½á¹û¼¯£¬
-        	//objectIdÔÚ²éÑ¯Ê±ÏÈ·¢¸øserver¶Ë£¬serverÓÃobjectId¶ÔÓ¦server¶ËµÄ½á¹û¼¯£¬
-        	//Í¬Ê±objectId±»·Åµ½ResultRemoteÖĞ£¬È»ºóÕâ¸öResultRemoteÓÖ·Åµ½JdbcResultSetÖĞ£¬
-        	//µ±JdbcResultSetÏÂÒ»´ÎÒª»ñÈ¡¸ü¶à¼ÇÂ¼Ê±£¬»á°Ñ´ËobjectIdÔÙ·¢µ½server¶Ë£¬ÕâÑù¾Í¿ÉÒÔ¼ÌĞø»ñÈ¡ºóĞø¼ÇÂ¼ÁË¡£
+        	//è¿™ä¸ªidç”¨å¤„ä¸å¤§ï¼Œä»…ç”¨äºè·Ÿè¸ª
+        	//org.h2.command.CommandRemote.executeQuery(int, boolean)ä¸­ç”Ÿæˆçš„objectIdç”¨äºå…³è”ç»“æœé›†ï¼Œ
+        	//objectIdåœ¨æŸ¥è¯¢æ—¶å…ˆå‘ç»™serverç«¯ï¼Œserverç”¨objectIdå¯¹åº”serverç«¯çš„ç»“æœé›†ï¼Œ
+        	//åŒæ—¶objectIdè¢«æ”¾åˆ°ResultRemoteä¸­ï¼Œç„¶åè¿™ä¸ªResultRemoteåˆæ”¾åˆ°JdbcResultSetä¸­ï¼Œ
+        	//å½“JdbcResultSetä¸‹ä¸€æ¬¡è¦è·å–æ›´å¤šè®°å½•æ—¶ï¼Œä¼šæŠŠæ­¤objectIdå†å‘åˆ°serverç«¯ï¼Œè¿™æ ·å°±å¯ä»¥ç»§ç»­è·å–åç»­è®°å½•äº†ã€‚
             int id = getNextId(TraceObject.RESULT_SET);
             if (isDebugEnabled()) {
                 debugCodeAssign("ResultSet", TraceObject.RESULT_SET, id, "executeQuery(" + quote(sql) + ")");
@@ -136,7 +136,7 @@ public class JdbcStatement extends TraceObject implements Statement {
             command.close();
             return updateCount;
         } finally {
-            afterWriting(); //ÒòÎªÔÚcheckClosedForWriteÖĞÓĞ¿ÉÄÜ´¥·¢org.h2.engine.Database.beforeWriting()
+            afterWriting(); //å› ä¸ºåœ¨checkClosedForWriteä¸­æœ‰å¯èƒ½è§¦å‘org.h2.engine.Database.beforeWriting()
         }
     }
 

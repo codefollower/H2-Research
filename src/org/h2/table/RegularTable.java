@@ -125,11 +125,11 @@ public class RegularTable extends TableBase {
             rowCount++;
         } catch (Throwable e) {
             try {
-            	//ÒòÎªµÚi¸öindexÅ×Òì³£ÁË£¬ËùÒÔ¾ÍÃ»±ØÒª´Ói¿ªÊ¼ÁË£¬Ö±½Ó--i
+            	//å› ä¸ºç¬¬iä¸ªindexæŠ›å¼‚å¸¸äº†ï¼Œæ‰€ä»¥å°±æ²¡å¿…è¦ä»iå¼€å§‹äº†ï¼Œç›´æ¥--i
                 while (--i >= 0) {
                     Index index = indexes.get(i);
                     index.remove(session, row);
-                    checkRowCount(session, index, 0); //rowCount+0µÈÓÚindex.getRowCount
+                    checkRowCount(session, index, 0); //rowCount+0ç­‰äºindex.getRowCount
                 }
             } catch (DbException e2) {
                 // this could happen, for example on failure in the storage
@@ -177,7 +177,7 @@ public class RegularTable extends TableBase {
     }
 
     public Index getScanIndex(Session session) {
-        return indexes.get(0); //ScanIndex×ÜÊÇÔÚ×îÇ°Ãæ
+        return indexes.get(0); //ScanIndexæ€»æ˜¯åœ¨æœ€å‰é¢
     }
 
     public Index getUniqueIndex() {
@@ -204,14 +204,14 @@ public class RegularTable extends TableBase {
                 column.setPrimaryKey(true);
             }
         }
-        //Èç¹ûÊÇLOCAL TEMPORARY±í£¬ÔòÖ»·Åµ½sessionµÄLocalTempTableIndexÖĞ£¬·ñÔò¼Óµ½databaseµÄmeta±í
+        //å¦‚æœæ˜¯LOCAL TEMPORARYè¡¨ï¼Œåˆ™åªæ”¾åˆ°sessionçš„LocalTempTableIndexä¸­ï¼Œå¦åˆ™åŠ åˆ°databaseçš„metaè¡¨
         boolean isSessionTemporary = isTemporary() && !isGlobalTemporary();
         if (!isSessionTemporary) {
             database.lockMeta(session);
         }
         Index index;
-        //PrimaryKeyË÷Òı£¬²¢ÇÒÖ»ÓĞÒ»¸ö×Ö¶Î£¬²¢ÇÒ´Ë×Ö¶ÎÊÇbyte¡¢short¡¢int¡¢longÀàĞÍ²ÅÄÜ×÷ÎªmainIndexColumn
-        //ÇÒ×î³õµÄmainIndex»¹Ã»ÓĞ¼ÓÈë¼ÇÂ¼
+        //PrimaryKeyç´¢å¼•ï¼Œå¹¶ä¸”åªæœ‰ä¸€ä¸ªå­—æ®µï¼Œå¹¶ä¸”æ­¤å­—æ®µæ˜¯byteã€shortã€intã€longç±»å‹æ‰èƒ½ä½œä¸ºmainIndexColumn
+        //ä¸”æœ€åˆçš„mainIndexè¿˜æ²¡æœ‰åŠ å…¥è®°å½•
         if (isPersistIndexes() && indexType.isPersistent()) {
             int mainIndexColumn;
             if (database.isStarting() && database.getPageStore().getRootPageId(indexId) != 0) {
@@ -223,16 +223,16 @@ public class RegularTable extends TableBase {
             }
             if (mainIndexColumn != -1) {
                 mainIndex.setMainIndexColumn(mainIndexColumn);
-                //PageDelegateIndexÔÚÔö¼ÓĞĞÊ±Ê²Ã´¶¼²»×ö£¬
-                //Âú×ãÕâ¸öÌõ¼şµÄË÷Òı: "PrimaryKeyË÷Òı£¬²¢ÇÒÖ»ÓĞÒ»¸ö×Ö¶Î£¬²¢ÇÒ´Ë×Ö¶ÎÊÇbyte¡¢short¡¢int¡¢longÀàĞÍ"
-                //Êµ¼ÊÉÏÔÚÔö¼ÓĞĞÊ±Ö»ÓĞ×î³õµÄPageDataIndexÆğ×÷ÓÃ£¬
-                //PageDelegateIndexÖ»ÔÚ²éÑ¯Ê±ÓĞ×÷ÓÃ
+                //PageDelegateIndexåœ¨å¢åŠ è¡Œæ—¶ä»€ä¹ˆéƒ½ä¸åšï¼Œ
+                //æ»¡è¶³è¿™ä¸ªæ¡ä»¶çš„ç´¢å¼•: "PrimaryKeyç´¢å¼•ï¼Œå¹¶ä¸”åªæœ‰ä¸€ä¸ªå­—æ®µï¼Œå¹¶ä¸”æ­¤å­—æ®µæ˜¯byteã€shortã€intã€longç±»å‹"
+                //å®é™…ä¸Šåœ¨å¢åŠ è¡Œæ—¶åªæœ‰æœ€åˆçš„PageDataIndexèµ·ä½œç”¨ï¼Œ
+                //PageDelegateIndexåªåœ¨æŸ¥è¯¢æ—¶æœ‰ä½œç”¨
                 index = new PageDelegateIndex(this, indexId, indexName, indexType, mainIndex, create, session);
             } else {
                 index = new PageBtreeIndex(this, indexId, indexName, cols, indexType, create, session);
             }
         } else {
-        	//hashË÷Òı×î¶àÖ»ÓĞÒ»ÁĞ
+        	//hashç´¢å¼•æœ€å¤šåªæœ‰ä¸€åˆ—
             if (indexType.isHash() && cols.length <= 1) {
                 if (indexType.isUnique()) {
                     index = new HashIndex(this, indexId, indexName, cols, indexType);
@@ -246,7 +246,7 @@ public class RegularTable extends TableBase {
         if (database.isMultiVersion()) {
             index = new MultiVersionIndex(index, this);
         }
-        //´ÓScanIndexÖĞ¶Á³öÔ­Ê¼¼ÇÂ¼£¬ĞÂ½¨»òÖØ½¨Ë÷Òı
+        //ä»ScanIndexä¸­è¯»å‡ºåŸå§‹è®°å½•ï¼Œæ–°å»ºæˆ–é‡å»ºç´¢å¼•
         if (index.needRebuild() && rowCount > 0) {
             try {
                 Index scan = getScanIndex(session);
@@ -402,17 +402,17 @@ public class RegularTable extends TableBase {
         changesSinceAnalyze = 0;
     }
     
-    //Ä¬ÈÏ²åÈë2000ĞĞÊ±£¬ÎªÃ¿Ò»×Ö¶Îµ÷ÓÃSELECTIVITY¾ÛºÏº¯Êı£¬È»ºóĞŞ¸Ä×Ö¶ÎµÄSELECTIVITYÖµ£¬ÖØĞÂ¸üĞÂÒ»ÏÂ´Ë±íµÄmetaĞÅÏ¢
+    //é»˜è®¤æ’å…¥2000è¡Œæ—¶ï¼Œä¸ºæ¯ä¸€å­—æ®µè°ƒç”¨SELECTIVITYèšåˆå‡½æ•°ï¼Œç„¶åä¿®æ”¹å­—æ®µçš„SELECTIVITYå€¼ï¼Œé‡æ–°æ›´æ–°ä¸€ä¸‹æ­¤è¡¨çš„metaä¿¡æ¯
     private void analyzeIfRequired(Session session) {
         if (nextAnalyze == 0 || nextAnalyze > changesSinceAnalyze++) {
             return;
         }
         changesSinceAnalyze = 0;
-        int n = 2 * nextAnalyze; //Ã¿ËãÍêÒ»´Î¾Í·­±¶£¬±ÈÈçµÚÒ»´ÎÊÇ2000ĞĞËãÒ»´Î£¬ÏÂ´ÎÊÇ4000£¬ÔÙÏÂ´ÎÊÇ8000...
+        int n = 2 * nextAnalyze; //æ¯ç®—å®Œä¸€æ¬¡å°±ç¿»å€ï¼Œæ¯”å¦‚ç¬¬ä¸€æ¬¡æ˜¯2000è¡Œç®—ä¸€æ¬¡ï¼Œä¸‹æ¬¡æ˜¯4000ï¼Œå†ä¸‹æ¬¡æ˜¯8000...
         if (n > 0) {
             nextAnalyze = n;
         }
-        int rows = session.getDatabase().getSettings().analyzeSample; //³éÑùÊÇ1ÍòĞĞ
+        int rows = session.getDatabase().getSettings().analyzeSample; //æŠ½æ ·æ˜¯1ä¸‡è¡Œ
         Analyze.analyzeTable(session, this, rows, false);
     }
 
@@ -420,14 +420,14 @@ public class RegularTable extends TableBase {
         return lockExclusive == session;
     }
     
-    //Ö±µ½ÊÂÎñcommit»òrollbackÊ±²Å½âËö£¬¼ûorg.h2.engine.Session.unlockAll()
-    //SelectÃ»ÓĞËø±í
-    //±ÈÈçDDLÏà¹ØµÄSQLÍ¨³£°ÑforceÉèÎªtrue£¬´ËÊ±²»¹ÜMVCC£¬META±í¶¼ÊÇ°ÑforceÉèÎªtrue£¬
-    //SelectµÄisForUpdate±äÖÖÔÚ·ÇMVCCÏÂÒ²°ÑforceÉèÎªtrue£¬
-    //Insert¡¢UpdateÖ®ÀàµÄ²ÅÉèÎªfalse
+    //ç›´åˆ°äº‹åŠ¡commitæˆ–rollbackæ—¶æ‰è§£çï¼Œè§org.h2.engine.Session.unlockAll()
+    //Selectæ²¡æœ‰é”è¡¨
+    //æ¯”å¦‚DDLç›¸å…³çš„SQLé€šå¸¸æŠŠforceè®¾ä¸ºtrueï¼Œæ­¤æ—¶ä¸ç®¡MVCCï¼ŒMETAè¡¨éƒ½æ˜¯æŠŠforceè®¾ä¸ºtrueï¼Œ
+    //Selectçš„isForUpdateå˜ç§åœ¨éMVCCä¸‹ä¹ŸæŠŠforceè®¾ä¸ºtrueï¼Œ
+    //Insertã€Updateä¹‹ç±»çš„æ‰è®¾ä¸ºfalse
     public void lock(Session session, boolean exclusive, boolean force) {
         int lockMode = database.getLockMode();
-        if (lockMode == Constants.LOCK_MODE_OFF) { //½ûÓÃËø
+        if (lockMode == Constants.LOCK_MODE_OFF) { //ç¦ç”¨é”
             return;
         }
         if (!force && database.isMultiVersion()) {
@@ -471,7 +471,7 @@ public class RegularTable extends TableBase {
                         session.addLock(this);
                         lockExclusive = session;
                         return;
-                    //Èç¹ûÇ°ÃæÓĞÒ»¸ö¶ÁËø£¬´ËÊ±²¢ÊÇÏàÍ¬µÄsession£¬ÄÇÃ´insertÖ®ÀàµÄ²Ù×÷Ò²±ØĞëµÈ´ı
+                    //å¦‚æœå‰é¢æœ‰ä¸€ä¸ªè¯»é”ï¼Œæ­¤æ—¶å¹¶æ˜¯ç›¸åŒçš„sessionï¼Œé‚£ä¹ˆinsertä¹‹ç±»çš„æ“ä½œä¹Ÿå¿…é¡»ç­‰å¾…
                     } else if (lockShared.size() == 1 && lockShared.contains(session)) {
                         traceLock(session, exclusive, "add (upgraded) for ");
                         lockExclusive = session;
@@ -479,8 +479,8 @@ public class RegularTable extends TableBase {
                     }
                 }
             } else {
-            	//Èç¹ûlockExclusive²»Îªnull£¬ËµÃ÷Ç°ÃæÓĞÒ»¸öÅÅËüËø£¬²»¹Üµ±Ç°²Ù×÷ÊÇ²éÑ¯»¹ÊÇ¸üĞÂ£¬¶¼±ØĞëµÈ´ı£¬
-            	//Èç¹ûlockExclusiveÎªnull£¬ÄÇÃæµ±Ç°²Ù×÷¿ÉË³Àû½øĞĞ
+            	//å¦‚æœlockExclusiveä¸ä¸ºnullï¼Œè¯´æ˜å‰é¢æœ‰ä¸€ä¸ªæ’å®ƒé”ï¼Œä¸ç®¡å½“å‰æ“ä½œæ˜¯æŸ¥è¯¢è¿˜æ˜¯æ›´æ–°ï¼Œéƒ½å¿…é¡»ç­‰å¾…ï¼Œ
+            	//å¦‚æœlockExclusiveä¸ºnullï¼Œé‚£é¢å½“å‰æ“ä½œå¯é¡ºåˆ©è¿›è¡Œ
                 if (lockExclusive == null) {
                     if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
                         if (!database.isMultiThreaded() && !database.isMultiVersion()) {
@@ -673,8 +673,8 @@ public class RegularTable extends TableBase {
             database.getLobStorage().removeAllForTable(getId());
             database.lockMeta(session);
         }
-        //ÀïÃæÉ¾³ıÔ¼ÊøÊ±»á°ÑÊôÓÚÔ¼ÊøµÄË÷ÒıÒ²É¾ÁË£¬´ËÊ±indexes»á±ä»¯
-        //ÔÚorg.h2.index.BaseIndex.removeChildrenAndResources(Session)ÖĞÉ¾³ı
+        //é‡Œé¢åˆ é™¤çº¦æŸæ—¶ä¼šæŠŠå±äºçº¦æŸçš„ç´¢å¼•ä¹Ÿåˆ äº†ï¼Œæ­¤æ—¶indexesä¼šå˜åŒ–
+        //åœ¨org.h2.index.BaseIndex.removeChildrenAndResources(Session)ä¸­åˆ é™¤
         super.removeChildrenAndResources(session);
         // go backwards because database.removeIndex will call table.removeIndex
         while (indexes.size() > 1) {
@@ -703,23 +703,23 @@ public class RegularTable extends TableBase {
         return getSQL();
     }
 
-    public void checkRename() { //ÔÊĞíÖØÃüÃû
+    public void checkRename() { //å…è®¸é‡å‘½å
         // ok
     }
 
-    public void checkSupportAlter() { //ÔÊĞíÊ¹ÓÃalterÃüÁî
+    public void checkSupportAlter() { //å…è®¸ä½¿ç”¨alterå‘½ä»¤
         // ok
     }
 
     public boolean canTruncate() {
-		// ÀıÈçÕâÑùÊÇ²»ĞĞµÄ:
+		// ä¾‹å¦‚è¿™æ ·æ˜¯ä¸è¡Œçš„:
 		// stmt.executeUpdate("create table IF NOT EXISTS RegularTableTest1(id int,  primary key(id))");
 		// stmt.executeUpdate("create table IF NOT EXISTS RegularTableTest2(id int,"
 		// +
 		// " FOREIGN KEY(id) REFERENCES RegularTableTest1(id))");
 		//
 		// stmt.executeUpdate("TRUNCATE TABLE RegularTableTest1");
-    	//ÒòÎªRegularTableTest2±íÒıÓÃÁËRegularTableTest1
+    	//å› ä¸ºRegularTableTest2è¡¨å¼•ç”¨äº†RegularTableTest1
         if (getCheckForeignKeyConstraints() && database.getReferentialIntegrity()) {
             ArrayList<Constraint> constraints = getConstraints();
             if (constraints != null) {
@@ -729,7 +729,7 @@ public class RegularTable extends TableBase {
                         continue;
                     }
                     ConstraintReferential ref = (ConstraintReferential) c;
-                    //thisÊÇRegularTableTest1
+                    //thisæ˜¯RegularTableTest1
                     if (ref.getRefTable() == this) {
                         return false;
                     }

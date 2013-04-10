@@ -19,11 +19,11 @@ public class SubqueryTest extends TestBase {
 		stmt.executeUpdate("insert into SubqueryTest(id, name) values(3, 'a3')");
 		stmt.executeUpdate("insert into SubqueryTest(id, name) values(3, 'b3')");
 
-		//ÑÏ¸ñÀ´ËµÕâÖÖsql²ÅËãSubquery£¬ÉÏÃæµÄin£¬ALL£¬ANY£¬SOME¶¼Ö»ÊÇÆÕÍ¨µÄselect
-		//Subquery°üº¬µÄÐÐÊý²»ÄÜ´óÓÚ1£¬¶øin£¬ALL£¬ANY£¬SOMEÃ»ÏÞÖÆ£¬
-		//ÏëÒ»ÏÂÒ²Àí½â£¬±ÈÈçid> (select id from SubqueryTest where id>1)Èç¹ûÕâ¸öSubquery´óÓÚ1ÐÐ£¬ÄÇÃ´id¾Í²»ÖªµÀºÍË­±È½Ï
+		//ä¸¥æ ¼æ¥è¯´è¿™ç§sqlæ‰ç®—Subqueryï¼Œä¸Šé¢çš„inï¼ŒALLï¼ŒANYï¼ŒSOMEéƒ½åªæ˜¯æ™®é€šçš„select
+		//SubqueryåŒ…å«çš„è¡Œæ•°ä¸èƒ½å¤§äºŽ1ï¼Œè€Œinï¼ŒALLï¼ŒANYï¼ŒSOMEæ²¡é™åˆ¶ï¼Œ
+		//æƒ³ä¸€ä¸‹ä¹Ÿç†è§£ï¼Œæ¯”å¦‚id> (select id from SubqueryTest where id>1)å¦‚æžœè¿™ä¸ªSubqueryå¤§äºŽ1è¡Œï¼Œé‚£ä¹ˆidå°±ä¸çŸ¥é“å’Œè°æ¯”è¾ƒ
 		//sql = "select * from SubqueryTest where id > (select id from SubqueryTest where id>1)";
-		//µ«ÊÇSubquery¿ÉÒÔÓÐ¶àÀý
+		//ä½†æ˜¯Subqueryå¯ä»¥æœ‰å¤šä¾‹
 		sql = "select * from SubqueryTest where id > (select id, name from SubqueryTest where id=1 and name='a1')";
 
 		executeQuery();

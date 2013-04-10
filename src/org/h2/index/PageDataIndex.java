@@ -56,7 +56,7 @@ public class PageDataIndex extends PageIndex {
 
     private final boolean multiVersion;
 
-    //PageDataIndexµÄid¾ÍÊÇ±íµÄid£¬ÆäËûË÷ÒıÈçPageBtreeIndexµÄidÊÇ×Ô¶¯·ÖÅäµÄ²¢²»ÊÇ±íµÄid
+    //PageDataIndexçš„idå°±æ˜¯è¡¨çš„idï¼Œå…¶ä»–ç´¢å¼•å¦‚PageBtreeIndexçš„idæ˜¯è‡ªåŠ¨åˆ†é…çš„å¹¶ä¸æ˜¯è¡¨çš„id
     public PageDataIndex(RegularTable table, int id, IndexColumn[] columns,
             IndexType indexType, boolean create, Session session) {
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
@@ -82,8 +82,8 @@ public class PageDataIndex extends PageIndex {
             PageDataLeaf root = PageDataLeaf.create(this, rootPageId, PageData.ROOT);
             store.update(root);
         } else {
-        	//µÚÒ»´Î´Óorg.h2.store.PageStore.openMetaIndex()ÄÇ×ª¹ıÀ´Ê±£¬idÊÇ-1£¬´ËÊ±È¡³öÀ´µÄrootPageIdÊÇ4
-        	//ÊÇÔÚorg.h2.store.PageStore.open()ÄÇÊÂÏÈ·ÅÈëµÄ£¬pageId=4µÄÒ³¹Ì¶¨ÊÇmetaIndexµÄrootPageId
+        	//ç¬¬ä¸€æ¬¡ä»org.h2.store.PageStore.openMetaIndex()é‚£è½¬è¿‡æ¥æ—¶ï¼Œidæ˜¯-1ï¼Œæ­¤æ—¶å–å‡ºæ¥çš„rootPageIdæ˜¯4
+        	//æ˜¯åœ¨org.h2.store.PageStore.open()é‚£äº‹å…ˆæ”¾å…¥çš„ï¼ŒpageId=4çš„é¡µå›ºå®šæ˜¯metaIndexçš„rootPageId
             rootPageId = store.getRootPageId(id);
             PageData root = getPage(rootPageId, 0);
             lastKey = root.getLastKey();
@@ -233,8 +233,8 @@ public class PageDataIndex extends PageIndex {
         if (pd == null) {
             PageDataLeaf empty = PageDataLeaf.create(this, id, parent);
             // could have been created before, but never committed
-            //´Óorg.h2.store.PageStore.openNew()×ªµ½ÕâÊ±£¬ÒòÎªrecoveryRunningÊÇtrue£¬ËùÒÔlogUndoÊ²Ã´¶¼Ã»×ö
-            //ÔÚstore.updateÖĞ²ÅÕæÕı·ÖÅäid
+            //ä»org.h2.store.PageStore.openNew()è½¬åˆ°è¿™æ—¶ï¼Œå› ä¸ºrecoveryRunningæ˜¯trueï¼Œæ‰€ä»¥logUndoä»€ä¹ˆéƒ½æ²¡åš
+            //åœ¨store.updateä¸­æ‰çœŸæ­£åˆ†é…id
             store.logUndo(empty, null);
             store.update(empty);
             return empty;

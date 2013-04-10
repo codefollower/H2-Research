@@ -2,7 +2,7 @@ package my.test.store;
 
 import my.test.TestBase;
 
-//找断点条件indexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
+//鎵炬柇鐐规潯浠秈ndexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
 //index.getName().equalsIgnoreCase("idx_name");
 //tableFilter.getTable().getName().equalsIgnoreCase("PageLogTest");
 public class PageLogTest extends TestBase {

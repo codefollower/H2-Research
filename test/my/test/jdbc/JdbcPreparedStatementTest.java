@@ -14,7 +14,7 @@ public class JdbcPreparedStatementTest extends TestBase {
 		//prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
 	}
 
-	//²âÊÔorg.h2.result.LocalResult
+	//æµ‹è¯•org.h2.result.LocalResult
 	//org.h2.result.ResultRemote
 	@Override
 	public void startInternal() throws Exception {
@@ -80,8 +80,8 @@ public class JdbcPreparedStatementTest extends TestBase {
 		sql = "select * from JdbcPreparedStatementTest";
 		executeQuery();
 
-		//µÈ¼ÛÓÚResultSet.getMetaData()£¬Ö»²»¹ıPreparedStatement.getMetaData()²»ĞèÒªÊÂÏÈÖ´ĞĞ²éÑ¯
-		ResultSetMetaData rsmd = ps.getMetaData(); //Èç¹û²»ÊÇ²éÑ¯sql£¬´Ë·½·¨»á·µ»Ønull
+		//ç­‰ä»·äºResultSet.getMetaData()ï¼Œåªä¸è¿‡PreparedStatement.getMetaData()ä¸éœ€è¦äº‹å…ˆæ‰§è¡ŒæŸ¥è¯¢
+		ResultSetMetaData rsmd = ps.getMetaData(); //å¦‚æœä¸æ˜¯æŸ¥è¯¢sqlï¼Œæ­¤æ–¹æ³•ä¼šè¿”å›null
 		int n = rsmd.getColumnCount();
 		while (rs.next()) {
 			for (int i = 1; i <= n; i++) {

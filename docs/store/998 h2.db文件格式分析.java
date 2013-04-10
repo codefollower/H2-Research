@@ -1,30 +1,30 @@
 
-ÔÚH2ÖĞ£¬Ã¿¸öÊı¾İ¿âµÄ±í¼ÇÂ¼ºÍ±íÔªÊı¾İ·ÅÔÚÒ»¸öÒÔ"h2.db"½áÎ²µÄÎÄ¼şÖĞ£¬
-±ÈÈç"test.h2.db"¾ÍÊÇ´æ·Å"test"Õâ¸öÊı¾İ¿âµÄÎÄ¼ş
+åœ¨H2ä¸­ï¼Œæ¯ä¸ªæ•°æ®åº“çš„è¡¨è®°å½•å’Œè¡¨å…ƒæ•°æ®æ”¾åœ¨ä¸€ä¸ªä»¥"h2.db"ç»“å°¾çš„æ–‡ä»¶ä¸­ï¼Œ
+æ¯”å¦‚"test.h2.db"å°±æ˜¯å­˜æ”¾"test"è¿™ä¸ªæ•°æ®åº“çš„æ–‡ä»¶
 
 
-"h2.db"ÎÄ¼şµÄ¸ñÊ½:
+"h2.db"æ–‡ä»¶çš„æ ¼å¼:
 
-Èç¹û"h2.db"ÎÄ¼ş²»ĞèÒª¼ÓÃÜ£¬ÏÂÁĞÈı¸ö×Ö¶Î¶¼ÏàÍ¬£¬¶¼ÊÇ"-- H2 0.5/B -- \n"(16¸ö×Ö½Ú)
-´ËÎÄÎªÁË¼òµ¥Æğ¼û£¬²»¿¼ÂÇ¼ÓÃÜµÄÇé¿ö
+å¦‚æœ"h2.db"æ–‡ä»¶ä¸éœ€è¦åŠ å¯†ï¼Œä¸‹åˆ—ä¸‰ä¸ªå­—æ®µéƒ½ç›¸åŒï¼Œéƒ½æ˜¯"-- H2 0.5/B -- \n"(16ä¸ªå­—èŠ‚)
+æ­¤æ–‡ä¸ºäº†ç®€å•èµ·è§ï¼Œä¸è€ƒè™‘åŠ å¯†çš„æƒ…å†µ
 
-×Ö½ÚÊı  ÓÃÒâ
+å­—èŠ‚æ•°  ç”¨æ„
 ========================
 16      magic
 16      salt
 16      magic
-(ÕâÈıÏîµÄĞ´ÈëºÍ¶ÁÈ¡ÔÚorg.h2.store.FileStore.init())
+(è¿™ä¸‰é¡¹çš„å†™å…¥å’Œè¯»å–åœ¨org.h2.store.FileStore.init())
 
-½ÓÏÂÀ´ÊÇÃ¿¸öPage
+æ¥ä¸‹æ¥æ˜¯æ¯ä¸ªPage
 
 StaticHeader
 =================
-4       pageSize Ä¬ÈÏÊÇ2048(2K)
-1       WRITE_VERSION ³£Á¿3
-1       READ_VERSION ³£Á¿3
-1994    ±£Áô
-(Õâ4ÏîµÄĞ´ÈëÔÚorg.h2.store.PageStore.writeStaticHeader())
-(ÒÔÉÏ7Ïî¸ÕºÃÊÇ2k)
+4       pageSize é»˜è®¤æ˜¯2048(2K)
+1       WRITE_VERSION å¸¸é‡3
+1       READ_VERSION å¸¸é‡3
+1994    ä¿ç•™
+(è¿™4é¡¹çš„å†™å…¥åœ¨org.h2.store.PageStore.writeStaticHeader())
+(ä»¥ä¸Š7é¡¹åˆšå¥½æ˜¯2k)
 
 VariableHeader
 =================
@@ -33,20 +33,20 @@ VariableHeader
 4       logKey
 4       logFirstTrunkPage
 4       logFirstDataPage
-2024    ±£Áô(²¹¹»2k)
+2024    ä¿ç•™(è¡¥å¤Ÿ2k)
 
 4       CRC
 8       writeCount
 4       logKey
 4       logFirstTrunkPage
 4       logFirstDataPage
-2024    ±£Áô(²¹¹»2k)
-(ÉÏÃæÁ½ÕßÏàÍ¬£¬ºóÕßÖ»ÓĞÔÚÇ°ÕßÎŞĞ§Ê±(±ÈÈçCRC´íÁË)²ÅÓĞÓÃ)
-(Õâ12ÏîµÄĞ´ÈëÔÚorg.h2.store.PageStore.writeVariableHeader())
+2024    ä¿ç•™(è¡¥å¤Ÿ2k)
+(ä¸Šé¢ä¸¤è€…ç›¸åŒï¼Œåè€…åªæœ‰åœ¨å‰è€…æ— æ•ˆæ—¶(æ¯”å¦‚CRCé”™äº†)æ‰æœ‰ç”¨)
+(è¿™12é¡¹çš„å†™å…¥åœ¨org.h2.store.PageStore.writeVariableHeader())
 
-µÚÒ»¸öPageFreeListµÄpageIdÊÇ3
+ç¬¬ä¸€ä¸ªPageFreeListçš„pageIdæ˜¯3
 
-µÚ4¸öpageÒ²¾ÍÊÇpageId=4µÄÒ³·ÅmetaIndex
+ç¬¬4ä¸ªpageä¹Ÿå°±æ˜¯pageId=4çš„é¡µæ”¾metaIndex
 
 java.lang.Error
 	at org.h2.store.PageStore.allocatePage(PageStore.java:1113)
@@ -69,11 +69,11 @@ java.lang.Error
 	at java.lang.Thread.run(Thread.java:662)
 
 
-µÚ5¸öpageÒ²¾ÍÊÇpageId=5µÄÒ³·ÅPageStreamTrunk
+ç¬¬5ä¸ªpageä¹Ÿå°±æ˜¯pageId=5çš„é¡µæ”¾PageStreamTrunk
 
-È»ºóÔÙÔ¤·ÖÅäPageStreamTrunk.getPagesAddressed(pageSize)¸öÒ³¸øPageStreamData
+ç„¶åå†é¢„åˆ†é…PageStreamTrunk.getPagesAddressed(pageSize)ä¸ªé¡µç»™PageStreamData
 
-ÏÈĞ´PageStreamTrunk
+å…ˆå†™PageStreamTrunk
 java.lang.Error
 	at org.h2.store.PageStore.writePage(PageStore.java:1337)
 	at org.h2.store.PageStreamTrunk.write(PageStreamTrunk.java:140)

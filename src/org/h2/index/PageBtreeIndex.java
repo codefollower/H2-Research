@@ -39,32 +39,32 @@ public class PageBtreeIndex extends PageIndex {
     private int memoryPerPage;
     private int memoryCount;
 
-    //PageDataIndexµÄid¾ÍÊÇ±íµÄid£¬ÆäËûË÷ÒıÈçPageBtreeIndexµÄidÊÇ×Ô¶¯·ÖÅäµÄ²¢²»ÊÇ±íµÄid
+    //PageDataIndexçš„idå°±æ˜¯è¡¨çš„idï¼Œå…¶ä»–ç´¢å¼•å¦‚PageBtreeIndexçš„idæ˜¯è‡ªåŠ¨åˆ†é…çš„å¹¶ä¸æ˜¯è¡¨çš„id
     public PageBtreeIndex(RegularTable table, int id, String indexName, IndexColumn[] columns,
             IndexType indexType, boolean create, Session session) {
         initBaseIndex(table, id, indexName, columns, indexType);
         if (!database.isStarting() && create) {
-            checkIndexColumnTypes(columns); //Ë÷Òı×Ö¶Î²»ÄÜÊÇ BLOB or CLOBÀàĞÍ
+            checkIndexColumnTypes(columns); //ç´¢å¼•å­—æ®µä¸èƒ½æ˜¯ BLOB or CLOBç±»å‹
         }
         // int test;
         // trace.setLevel(TraceSystem.DEBUG);
         tableData = table;
-        //ÄÚ´æÊı¾İ¿âÏÔÈ»²»ÄÜ½¨Á¢BtreeË÷Òı£¬ÒòÎªBtreeË÷ÒıÒª´æÓ²ÅÌ
+        //å†…å­˜æ•°æ®åº“æ˜¾ç„¶ä¸èƒ½å»ºç«‹Btreeç´¢å¼•ï¼Œå› ä¸ºBtreeç´¢å¼•è¦å­˜ç¡¬ç›˜
         if (!database.isPersistent() || id < 0) {
             throw DbException.throwInternalError("" + indexName);
         }
         this.store = database.getPageStore();
-        store.addIndex(this); //¼Óµ½PageStoreµÄmetaObjects
+        store.addIndex(this); //åŠ åˆ°PageStoreçš„metaObjects
         if (create) {
             // new index
             rootPageId = store.allocatePage();
             // TODO currently the head position is stored in the log
             // it should not for new tables, otherwise redo of other operations
             // must ensure this page is not used for other things
-            store.addMeta(this, session); //°Ñ´ËË÷ÒıµÄÔªÊı¾İ·Åµ½metaIndexÖĞ£¬metaIndexÊÇÒ»¸öPageDataIndex
+            store.addMeta(this, session); //æŠŠæ­¤ç´¢å¼•çš„å…ƒæ•°æ®æ”¾åˆ°metaIndexä¸­ï¼ŒmetaIndexæ˜¯ä¸€ä¸ªPageDataIndex
             PageBtreeLeaf root = PageBtreeLeaf.create(this, rootPageId, PageBtree.ROOT);
             store.logUndo(root, null);
-            store.update(root); //·Åµ½»º´æÖĞ
+            store.update(root); //æ”¾åˆ°ç¼“å­˜ä¸­
         } else {
             rootPageId = store.getRootPageId(id);
             PageBtree root = getPage(rootPageId);
@@ -88,12 +88,12 @@ public class PageBtreeIndex extends PageIndex {
         }
     }
 
-    public void add(Session session, Row row) { //rowÊÇÍêÕûµÄ¼ÇÂ¼
+    public void add(Session session, Row row) { //rowæ˜¯å®Œæ•´çš„è®°å½•
         if (trace.isDebugEnabled()) {
             trace.debug("{0} add {1}", getName(), row);
         }
         // safe memory
-        SearchRow newRow = getSearchRow(row); //°´Ë÷Òı×Ö¶Î¹¹½¨SearchRow£¬Ö»È¡Ë÷Òı×Ö¶ÎµÄÖµ
+        SearchRow newRow = getSearchRow(row); //æŒ‰ç´¢å¼•å­—æ®µæ„å»ºSearchRowï¼Œåªå–ç´¢å¼•å­—æ®µçš„å€¼
         try {
             addRow(newRow);
         } finally {
@@ -109,14 +109,14 @@ public class PageBtreeIndex extends PageIndex {
                 break;
             }
            
-//            System.out.println("-----------ÇĞ¸îÇ°----------");
+//            System.out.println("-----------åˆ‡å‰²å‰----------");
 //            System.out.println(root);
 //            
-            //ÏÂÃæµÄ´úÂëÊÇ´¦ÀíÇĞ¸îµÄÇé¿ö
-            //Ò»¿ªÊ¼ÒòÎªrootÊÇÒ»¸öPageBtreeLeaf£¬ËùÒÔÊÇ¶ÔPageBtreeLeafµÄÇĞ¸î
-            //´ÓµÚ¶ş´Î¿ªÊ¼£¬¶¼ÊÇ¶ÔPageBtreeNodeµÄÇĞ¸î
-            //¶ÔÓÚPageBtreeLeaf£¬Èç¹ûË÷ÒıÊÇÉıĞòµÄ£¬ÄÇÃ´ÇĞ¸îºóµÄÁ½¸ö½Úµã£¬Ğ¡ÓÚµÈÓÚÇĞ¸îµãµÄÔÚ×ó±ß½áµã£¬´óÓÚÇĞ¸îµãµÄÔÚÓÒ±ß½áµã£¬
-            //Èç¹ûË÷ÒıÊÇ½µĞòµÄ£¬ÄÇÃ´ÇĞ¸îºóµÄÁ½¸ö½Úµã£¬´óÓÚµÈÓÚÇĞ¸îµãµÄÔÚ×ó±ß½áµã£¬Ğ¡ÓÚÇĞ¸îµãµÄÔÚÓÒ±ß½áµã£¬
+            //ä¸‹é¢çš„ä»£ç æ˜¯å¤„ç†åˆ‡å‰²çš„æƒ…å†µ
+            //ä¸€å¼€å§‹å› ä¸ºrootæ˜¯ä¸€ä¸ªPageBtreeLeafï¼Œæ‰€ä»¥æ˜¯å¯¹PageBtreeLeafçš„åˆ‡å‰²
+            //ä»ç¬¬äºŒæ¬¡å¼€å§‹ï¼Œéƒ½æ˜¯å¯¹PageBtreeNodeçš„åˆ‡å‰²
+            //å¯¹äºPageBtreeLeafï¼Œå¦‚æœç´¢å¼•æ˜¯å‡åºçš„ï¼Œé‚£ä¹ˆåˆ‡å‰²åçš„ä¸¤ä¸ªèŠ‚ç‚¹ï¼Œå°äºç­‰äºåˆ‡å‰²ç‚¹çš„åœ¨å·¦è¾¹ç»“ç‚¹ï¼Œå¤§äºåˆ‡å‰²ç‚¹çš„åœ¨å³è¾¹ç»“ç‚¹ï¼Œ
+            //å¦‚æœç´¢å¼•æ˜¯é™åºçš„ï¼Œé‚£ä¹ˆåˆ‡å‰²åçš„ä¸¤ä¸ªèŠ‚ç‚¹ï¼Œå¤§äºç­‰äºåˆ‡å‰²ç‚¹çš„åœ¨å·¦è¾¹ç»“ç‚¹ï¼Œå°äºåˆ‡å‰²ç‚¹çš„åœ¨å³è¾¹ç»“ç‚¹ï¼Œ
             if (trace.isDebugEnabled()) {
                 trace.debug("split {0}", splitPoint);
             }
@@ -126,12 +126,12 @@ public class PageBtreeIndex extends PageIndex {
             PageBtree page2 = root.split(splitPoint);
             store.logUndo(page2, null);
             int id = store.allocatePage();
-            page1.setPageId(id); //×ó½áµãÒª¸Ä±äpageId£¬ÓÒ½áµãÔÚroot.split(splitPoint)ÄÚ²¿ÒÑ¾­ÓĞĞÂpageIdÁË¡£
+            page1.setPageId(id); //å·¦ç»“ç‚¹è¦æ”¹å˜pageIdï¼Œå³ç»“ç‚¹åœ¨root.split(splitPoint)å†…éƒ¨å·²ç»æœ‰æ–°pageIdäº†ã€‚
             
-            //ÔÚÕâÀï½øĞĞÇĞ¸î²Ù×÷µÄÒòÎªÊÇ¶¥²ã½áµã£¬ËùÒÔ×óÓÒ×Ó½áµãµÄparentPageId±ØÈ»ÊÇrootPageId, ÕâÁ½¸ö×óÓÒ×Ó½áµãÔÚB-treeµÄµÚ¶ş²ã£¬
-            //µ±¶¥²ã½áµã¼ÌĞøÇĞ¸îÊ±£¬ÄÇÃ´ÕâÁ½Ğ©µÄÁ½¸ö×óÓÒ×Ó½áµã»á¼ÌĞøÍùÏÂ³Á£¬ËùÒÔËûÃÇµÄparentPageId¾Í²»ÊÇrootPageIdÁË£¬
-            //¶øÊÇĞÂµÄÔÚB-treeµÄµÚ¶ş²ãµÄ½áµã£¬ËùÒÔÔÚroot.split(splitPoint)ÄÚ²¿»áÖØĞÂremapChildrenÓÒ½ÚµãÖĞ¶ÔÓ¦µÄÔ­Ê¼×Ó½ÚµãµÄ
-            //¶ø page1.setPageId(id)»áÖØĞÂremapChildren×ó½ÚµãÖĞ¶ÔÓ¦µÄÔ­Ê¼×Ó½Úµã
+            //åœ¨è¿™é‡Œè¿›è¡Œåˆ‡å‰²æ“ä½œçš„å› ä¸ºæ˜¯é¡¶å±‚ç»“ç‚¹ï¼Œæ‰€ä»¥å·¦å³å­ç»“ç‚¹çš„parentPageIdå¿…ç„¶æ˜¯rootPageId, è¿™ä¸¤ä¸ªå·¦å³å­ç»“ç‚¹åœ¨B-treeçš„ç¬¬äºŒå±‚ï¼Œ
+            //å½“é¡¶å±‚ç»“ç‚¹ç»§ç»­åˆ‡å‰²æ—¶ï¼Œé‚£ä¹ˆè¿™ä¸¤äº›çš„ä¸¤ä¸ªå·¦å³å­ç»“ç‚¹ä¼šç»§ç»­å¾€ä¸‹æ²‰ï¼Œæ‰€ä»¥ä»–ä»¬çš„parentPageIdå°±ä¸æ˜¯rootPageIdäº†ï¼Œ
+            //è€Œæ˜¯æ–°çš„åœ¨B-treeçš„ç¬¬äºŒå±‚çš„ç»“ç‚¹ï¼Œæ‰€ä»¥åœ¨root.split(splitPoint)å†…éƒ¨ä¼šé‡æ–°remapChildrenå³èŠ‚ç‚¹ä¸­å¯¹åº”çš„åŸå§‹å­èŠ‚ç‚¹çš„
+            //è€Œ page1.setPageId(id)ä¼šé‡æ–°remapChildrenå·¦èŠ‚ç‚¹ä¸­å¯¹åº”çš„åŸå§‹å­èŠ‚ç‚¹
             page1.setParentPageId(rootPageId);
             page2.setParentPageId(rootPageId);
             PageBtreeNode newRoot = PageBtreeNode.create(this, rootPageId, PageBtree.ROOT);
@@ -140,14 +140,14 @@ public class PageBtreeIndex extends PageIndex {
             store.update(page1);
             store.update(page2);
 			store.update(newRoot);
-			root = newRoot; //ÕâĞĞ´úÂëÃ»ÓÃ
+			root = newRoot; //è¿™è¡Œä»£ç æ²¡ç”¨
 
-			//			System.out.println("-----------°´" + pivot + "ÇĞ¸î----------");
-			//			System.out.println("-----------RootÇĞ¸î³ÉÁ½¸ö×ÓÒ³Ãæ----------");
+			//			System.out.println("-----------æŒ‰" + pivot + "åˆ‡å‰²----------");
+			//			System.out.println("-----------Rootåˆ‡å‰²æˆä¸¤ä¸ªå­é¡µé¢----------");
 			//			System.out.println(page1);
 			//			System.out.println(page2);
 			//
-			//			System.out.println("-----------ÇĞ¸îºó----------");
+			//			System.out.println("-----------åˆ‡å‰²å----------");
 			//			System.out.println(root);
 		}
 		invalidateRowCount();
@@ -277,7 +277,7 @@ public class PageBtreeIndex extends PageIndex {
         }
     }
 
-    public void remove(Session session) { //É¾µôË÷ÒıÊ±»áµ÷ÓÃ(É¾±íÊ±Ò²»á´¥·¢É¾Ë÷Òı)
+    public void remove(Session session) { //åˆ æ‰ç´¢å¼•æ—¶ä¼šè°ƒç”¨(åˆ è¡¨æ—¶ä¹Ÿä¼šè§¦å‘åˆ ç´¢å¼•)
         if (trace.isDebugEnabled()) {
             trace.debug("remove");
         }
@@ -286,7 +286,7 @@ public class PageBtreeIndex extends PageIndex {
         store.removeMeta(this, session);
     }
 
-    public void truncate(Session session) { //TRUNCATE±íÊ±´¥·¢
+    public void truncate(Session session) { //TRUNCATEè¡¨æ—¶è§¦å‘
         if (trace.isDebugEnabled()) {
             trace.debug("truncate");
         }
@@ -300,9 +300,9 @@ public class PageBtreeIndex extends PageIndex {
     private void removeAllRows() {
         try {
             PageBtree root = getPage(rootPageId);
-            root.freeRecursive(); //ÔÚ´æ´¢ÖĞÉ¾³ıËùÓĞpage
+            root.freeRecursive(); //åœ¨å­˜å‚¨ä¸­åˆ é™¤æ‰€æœ‰page
             root = PageBtreeLeaf.create(this, rootPageId, PageBtree.ROOT);
-            store.removeRecord(rootPageId); //ÔÚ»º´æÖĞÇå³ırootPageId¶ÔÓ¦µÄpage
+            store.removeRecord(rootPageId); //åœ¨ç¼“å­˜ä¸­æ¸…é™¤rootPageIdå¯¹åº”çš„page
             store.update(root);
             rowCount = 0;
         } finally {
@@ -461,7 +461,7 @@ public class PageBtreeIndex extends PageIndex {
             return;
         }
         PageBtree root = getPage(rootPageId);
-        //PageBtreeLeafÊ²Ã´¶¼²»×ö£¬PageBtreeNodeÔÚÍ·ÖĞ¸üĞÂrowCountStored×Ö¶ÎÖµ
+        //PageBtreeLeafä»€ä¹ˆéƒ½ä¸åšï¼ŒPageBtreeNodeåœ¨å¤´ä¸­æ›´æ–°rowCountStoredå­—æ®µå€¼
         root.setRowCountStored(MathUtils.convertLongToInt(rowCount));
     }
 

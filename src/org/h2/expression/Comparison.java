@@ -160,8 +160,8 @@ public class Comparison extends Condition {
         if (right != null) {
             right = right.optimize(session);
             if (right instanceof ExpressionColumn) {
-            	//例如delete top 3 from DeleteTest where 'a1'> name
-            	//转成delete top 3 from DeleteTest where name < 'a1'
+            	//渚嬪delete top 3 from DeleteTest where 'a1'> name
+            	//杞垚delete top 3 from DeleteTest where name < 'a1'
                 if (left.isConstant() || left instanceof Parameter) {
                     Expression temp = left;
                     left = right;
@@ -173,7 +173,7 @@ public class Comparison extends Condition {
                 if (right.isConstant()) {
                     Value r = right.getValue(session);
                     if (r == ValueNull.INSTANCE) {
-                    	//例如: "delete top 3 from DeleteTest where name = null
+                    	//渚嬪: "delete top 3 from DeleteTest where name = null
                         if ((compareType & NULL_SAFE) == 0) {
                             return ValueExpression.getNull();
                         }

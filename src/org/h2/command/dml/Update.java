@@ -84,9 +84,9 @@ public class Update extends Prepared {
         try {
             Table table = tableFilter.getTable();
             session.getUser().checkRight(table, Right.UPDATE);
-            //µ÷ÓÃÕë¶ÔÕû¸öupdate¶¯×÷µÄ´¥·¢Æ÷
+            //è°ƒç”¨é’ˆå¯¹æ•´ä¸ªupdateåŠ¨ä½œçš„è§¦å‘å™¨
             table.fire(session, Trigger.UPDATE, true);
-            //Ö±µ½ÊÂÎñcommit»òrollbackÊ±²Å½âËö£¬¼ûorg.h2.engine.Session.unlockAll()
+            //ç›´åˆ°äº‹åŠ¡commitæˆ–rollbackæ—¶æ‰è§£çï¼Œè§org.h2.engine.Session.unlockAll()
             table.lock(session, true, false);
             int columnCount = table.getColumns().length;
             // get the old rows, compute the new rows
@@ -100,7 +100,7 @@ public class Update extends Prepared {
                     limitRows = v.getInt();
                 }
             }
-            //µÚÒ»²½ÏÈ°´whereÌõ¼ş(Èç¹ûÓĞµÄ»°)È¡³öËùÓĞÂú×ãÌõ¼şµÄËùÓĞ¼ÇÂ¼£¬Èç¹ûÃ»ÓĞwhereÌõ¼ş¾ÍÊÇÈ¡È«²¿¼ÇÂ¼£¬ÕâĞ©¼ÇÂ¼²»³¬¹ılimitRows
+            //ç¬¬ä¸€æ­¥å…ˆæŒ‰whereæ¡ä»¶(å¦‚æœæœ‰çš„è¯)å–å‡ºæ‰€æœ‰æ»¡è¶³æ¡ä»¶çš„æ‰€æœ‰è®°å½•ï¼Œå¦‚æœæ²¡æœ‰whereæ¡ä»¶å°±æ˜¯å–å…¨éƒ¨è®°å½•ï¼Œè¿™äº›è®°å½•ä¸è¶…è¿‡limitRows
             while (tableFilter.next()) {
                 setCurrentRowNumber(count+1);
                 if (limitRows >= 0 && count >= limitRows) {
@@ -109,25 +109,25 @@ public class Update extends Prepared {
                 if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
                     Row oldRow = tableFilter.get();
                     Row newRow = table.getTemplateRow();
-                    //ÒÔÔ­±íÖĞµÄËùÓĞ×Ö¶ÎÀ´±éÀú£¬¶ø²»ÊÇÒÔupdateÖĞµÄ×Ö¶Î
+                    //ä»¥åŸè¡¨ä¸­çš„æ‰€æœ‰å­—æ®µæ¥éå†ï¼Œè€Œä¸æ˜¯ä»¥updateä¸­çš„å­—æ®µ
                     for (int i = 0; i < columnCount; i++) {
                         Expression newExpr = expressionMap.get(columns[i]);
                         Value newValue;
-                        if (newExpr == null) { //ËµÃ÷²»ÊÇ¸üĞÂ×Ö¶Î£¬Ö±½ÓÓÃÔ­À´µÄÖµ
+                        if (newExpr == null) { //è¯´æ˜ä¸æ˜¯æ›´æ–°å­—æ®µï¼Œç›´æ¥ç”¨åŸæ¥çš„å€¼
                             newValue = oldRow.getValue(i);
-                        } else if (newExpr == ValueExpression.getDefault()) { //ÊÇ¸üĞÂ×Ö¶Î£¬µ«ÊÇÈ¡Ä¬ÈÏÖµ
+                        } else if (newExpr == ValueExpression.getDefault()) { //æ˜¯æ›´æ–°å­—æ®µï¼Œä½†æ˜¯å–é»˜è®¤å€¼
                             Column column = table.getColumn(i);
                             newValue = table.getDefaultValue(session, column);
-                        } else { //ÊÇ¸üĞÂ×Ö¶Î£¬²¢ÇÒÈ¡¸üĞÂÖµ
+                        } else { //æ˜¯æ›´æ–°å­—æ®µï¼Œå¹¶ä¸”å–æ›´æ–°å€¼
                             Column column = table.getColumn(i);
                             newValue = column.convert(newExpr.getValue(session));
                         }
                         newRow.setValue(i, newValue);
                     }
-                    //ÑéÖ¤ĞÂ¼ÇÂ¼(°üÀ¨×Ö¶ÎÔ¼Êø¼ì²é)
+                    //éªŒè¯æ–°è®°å½•(åŒ…æ‹¬å­—æ®µçº¦æŸæ£€æŸ¥)
                     table.validateConvertUpdateSequence(session, newRow);
                     boolean done = false;
-                    //µ÷ÓÃÕë¶ÔĞĞ¼¶±ğµÄ´¥·¢Æ÷
+                    //è°ƒç”¨é’ˆå¯¹è¡Œçº§åˆ«çš„è§¦å‘å™¨
                     if (table.fireRow()) {
                         done = table.fireBeforeRow(session, oldRow, newRow);
                     }
@@ -146,7 +146,7 @@ public class Update extends Prepared {
             // we need to update all indexes) before row triggers
 
             // the cached row is already updated - we need the old values
-            //µÚ¶ş²½¸üĞÂ¼ÇÂ¼(ÏÈÉ¾³ı¼ÇÂ¼£¬ÔÙÔö¼Ó¼ÇÂ¼)
+            //ç¬¬äºŒæ­¥æ›´æ–°è®°å½•(å…ˆåˆ é™¤è®°å½•ï¼Œå†å¢åŠ è®°å½•)
             table.updateRows(this, session, rows);
             if (table.fireRow()) {
                 rows.invalidateCache();
@@ -176,19 +176,19 @@ public class Update extends Prepared {
             buff.append("\nWHERE ").append(StringUtils.unEnclose(condition.getSQL()));
         }
 
-        //×÷ÕßÍüÁËLIMIT£¬ÎÒ¼ÓÉÏµÄ
+        //ä½œè€…å¿˜äº†LIMITï¼Œæˆ‘åŠ ä¸Šçš„
         if (limitExpr != null) {
             buff.append("\nLIMIT (").append(StringUtils.unEnclose(limitExpr.getSQL())).append(')');
         }
         return buff.toString();
     }
 
-    public void prepare() { //¸úorg.h2.command.dml.Delete.prepare()Ò»Ñù£¬Ö»ÊÇ¶àÁËÖĞ¼äµÄfor
+    public void prepare() { //è·Ÿorg.h2.command.dml.Delete.prepare()ä¸€æ ·ï¼Œåªæ˜¯å¤šäº†ä¸­é—´çš„for
         if (condition != null) {
             condition.mapColumns(tableFilter, 0);
             condition = condition.optimize(session);
-            //¸ù¾İwhereÌõ¼ş½¨Á¢Ïà¹ØµÄË÷ÒıÌõ¼ş£¬ÕâÑù¿ÉÒÔÓÉwhereÌõ¼şÖĞµÄ×Ö¶ÎÑ¡ÔñºÏÊÊµÄË÷Òı
-            //ÈçÎª×Ö¶Îname½¨Á¢ÁËË÷Òı£¬Èç¹ûÊÇwhere name>'124'£¬ÄÇÃ´´ËÊ±¾ÍÓÃnameµÄË÷Òı¡£
+            //æ ¹æ®whereæ¡ä»¶å»ºç«‹ç›¸å…³çš„ç´¢å¼•æ¡ä»¶ï¼Œè¿™æ ·å¯ä»¥ç”±whereæ¡ä»¶ä¸­çš„å­—æ®µé€‰æ‹©åˆé€‚çš„ç´¢å¼•
+            //å¦‚ä¸ºå­—æ®µnameå»ºç«‹äº†ç´¢å¼•ï¼Œå¦‚æœæ˜¯where name>'124'ï¼Œé‚£ä¹ˆæ­¤æ—¶å°±ç”¨nameçš„ç´¢å¼•ã€‚
             condition.createIndexConditions(session, tableFilter);
         }
         for (int i = 0, size = columns.size(); i < size; i++) {

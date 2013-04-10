@@ -364,8 +364,8 @@ public class Session extends SessionWithState {
         this.lockTimeout = lockTimeout;
     }
 
-    //4¸öprepare·½·¨ÒªÃ´Éú³ÉCommandInterface(Command)ÒªÃ´Éú³ÉPrepared
-    //²¢ÇÒ¶¼µ÷ÓÃorg.h2.command.Prepared.prepare()·½·¨
+    //4ä¸ªprepareæ–¹æ³•è¦ä¹ˆç”ŸæˆCommandInterface(Command)è¦ä¹ˆç”ŸæˆPrepared
+    //å¹¶ä¸”éƒ½è°ƒç”¨org.h2.command.Prepared.prepare()æ–¹æ³•
     public synchronized CommandInterface prepareCommand(String sql, int fetchSize) {
         return prepareLocal(sql);
     }
@@ -389,8 +389,8 @@ public class Session extends SessionWithState {
      * @param rightsChecked true if the rights have already been checked
      * @return the prepared statement
      */
-    //rightsChecked²ÎÊıÓÃÀ´´«µ½org.h2.table.TableFilterµÄ¹¹Ôìº¯ÊıÖĞ£¬ÓÃÓÚ¼ì²é·ñÓĞRight.SELECTÈ¨ÏŞ
-    //Èç¹ûÊÇtrue£¬ÄÇÃ´¾Í²»¼ì²éÁË
+    //rightsCheckedå‚æ•°ç”¨æ¥ä¼ åˆ°org.h2.table.TableFilterçš„æ„é€ å‡½æ•°ä¸­ï¼Œç”¨äºæ£€æŸ¥å¦æœ‰Right.SELECTæƒé™
+    //å¦‚æœæ˜¯trueï¼Œé‚£ä¹ˆå°±ä¸æ£€æŸ¥äº†
     public Prepared prepare(String sql, boolean rightsChecked) {
         Parser parser = new Parser(this);
         parser.setRightsChecked(rightsChecked);
@@ -409,13 +409,13 @@ public class Session extends SessionWithState {
             throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "session closed");
         }
         Command command;
-        //Èç¹ûÔÊĞíÖØÓÃÄÇÃ´²»ÔÙ×öSQL½âÎö
+        //å¦‚æœå…è®¸é‡ç”¨é‚£ä¹ˆä¸å†åšSQLè§£æ
         if (queryCacheSize > 0) {
             if (queryCache == null) {
                 queryCache = SmallLRUCache.newInstance(queryCacheSize);
             } else {
                 command = queryCache.get(sql);
-                //ÃüÁî¹Ø±Õºó²Å¿ÉÖØÓÃ
+                //å‘½ä»¤å…³é—­åæ‰å¯é‡ç”¨
                 if (command != null && command.canReuse()) {
                     command.reuse();
                     return command;
@@ -425,10 +425,10 @@ public class Session extends SessionWithState {
         Parser parser = new Parser(this);
         command = parser.prepareCommand(sql);
         if (queryCache != null) {
-            //Ö»ÓĞDML²¢ÇÒÊÇÏÂÃæµÄÕâ¼¸Àà¿É»º´æ:
-            //Insert¡¢Delete¡¢Update¡¢Merge¡¢TransactionCommandÕâ5¸öÎŞÌõ¼ş¿É»º´æ
-            //CallÕâ¸öµ±²úÉúµÄ½á¹û²»ÊÇ½á¹û¼¯Ê±¿É»º´æ£¬·ñÔò²»¿É»º´æ
-            //SelectÕâ¸öµ±²»ÊÇisForUpdateÊ±¿É»º´æ£¬·ñÔò²»¿É»º´æ
+            //åªæœ‰DMLå¹¶ä¸”æ˜¯ä¸‹é¢çš„è¿™å‡ ç±»å¯ç¼“å­˜:
+            //Insertã€Deleteã€Updateã€Mergeã€TransactionCommandè¿™5ä¸ªæ— æ¡ä»¶å¯ç¼“å­˜
+            //Callè¿™ä¸ªå½“äº§ç”Ÿçš„ç»“æœä¸æ˜¯ç»“æœé›†æ—¶å¯ç¼“å­˜ï¼Œå¦åˆ™ä¸å¯ç¼“å­˜
+            //Selectè¿™ä¸ªå½“ä¸æ˜¯isForUpdateæ—¶å¯ç¼“å­˜ï¼Œå¦åˆ™ä¸å¯ç¼“å­˜
             if (command.isCacheable()) {
                 queryCache.put(sql, command);
             }
@@ -616,15 +616,15 @@ public class Session extends SessionWithState {
         if (table.isMVStore()) {
             return;
         }
-        if (undoLogEnabled) { //undoLogEnabledÄ¬ÈÏÊÇtrue
+        if (undoLogEnabled) { //undoLogEnabledé»˜è®¤æ˜¯true
             UndoLogRecord log = new UndoLogRecord(table, operation, row);
             // called _after_ the row was inserted successfully into the table,
             // otherwise rollback will try to rollback a not-inserted row
             if (SysProperties.CHECK) {
                 int lockMode = database.getLockMode();
                 if (lockMode != Constants.LOCK_MODE_OFF && !database.isMultiVersion()) {
-                	//µ±Òª¼Ç³·ÏûÈÕÖ¾Ê±£¬³ıÁËTABLE_LINK¡¢EXTERNAL_TABLE_ENGINEÕâÁ½ÖÖÀàĞÍµÄ±íÍâ£¬ÆäËû±íÀàĞÍ±ØĞëÏÈËø±í
-                	//ÀıÈçµ÷ÓÃorg.h2.table.Table.lock(Session, boolean, boolean)
+                	//å½“è¦è®°æ’¤æ¶ˆæ—¥å¿—æ—¶ï¼Œé™¤äº†TABLE_LINKã€EXTERNAL_TABLE_ENGINEè¿™ä¸¤ç§ç±»å‹çš„è¡¨å¤–ï¼Œå…¶ä»–è¡¨ç±»å‹å¿…é¡»å…ˆé”è¡¨
+                	//ä¾‹å¦‚è°ƒç”¨org.h2.table.Table.lock(Session, boolean, boolean)
                     String tableType = log.getTable().getTableType();
                     if (locks.indexOf(log.getTable()) < 0
                             && !Table.TABLE_LINK.equals(tableType)
@@ -636,7 +636,7 @@ public class Session extends SessionWithState {
             undoLog.add(log);
         } else {
             if (database.isMultiVersion()) {
-            	//µ÷ÓÃSET UNDO_LOG 0¿É½ûÓÃ³·ÏûÈÕÖ¾
+            	//è°ƒç”¨SET UNDO_LOG 0å¯ç¦ç”¨æ’¤æ¶ˆæ—¥å¿—
                 // see also UndoLogRecord.commit
                 ArrayList<Index> indexes = table.getIndexes();
                 for (int i = 0, size = indexes.size(); i < size; i++) {
@@ -764,7 +764,7 @@ public class Session extends SessionWithState {
      * @param logId the transaction log id
      * @param pos the position of the log entry in the transaction log
      */
-    //ÔÚorg.h2.store.PageLog.logAddOrRemoveRow(Session, int, Row, boolean)ºÍlogTruncateÊ±µ÷ÓÃ
+    //åœ¨org.h2.store.PageLog.logAddOrRemoveRow(Session, int, Row, boolean)å’ŒlogTruncateæ—¶è°ƒç”¨
     public void addLogPos(int logId, int pos) {
         if (firstUncommittedLog == Session.LOG_WRITTEN) {
             firstUncommittedLog = logId;

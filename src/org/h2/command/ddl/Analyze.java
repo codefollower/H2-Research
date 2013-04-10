@@ -95,7 +95,7 @@ public class Analyze extends DefineCommand {
         if (sample > 0) {
             buff.append(" LIMIT 1 SAMPLE_SIZE ").append(sample);
         }
-        String sql = buff.toString(); //Èç: SELECT SELECTIVITY(ID), SELECTIVITY(NAME), SELECTIVITY(B) FROM PUBLIC.REGULARTABLETEST LIMIT 1 SAMPLE_SIZE 10000
+        String sql = buff.toString(); //å¦‚: SELECT SELECTIVITY(ID), SELECTIVITY(NAME), SELECTIVITY(B) FROM PUBLIC.REGULARTABLETEST LIMIT 1 SAMPLE_SIZE 10000
         Prepared command = session.prepare(sql);
         ResultInterface result = command.query(0);
         result.next();

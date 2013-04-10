@@ -7,7 +7,7 @@ public class JavaAggregateTest extends TestBase {
 		new JavaAggregateTest().start();
 	}
 
-	//²âÊÔorg.h2.expression.JavaAggregate
+	//æµ‹è¯•org.h2.expression.JavaAggregate
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("drop table IF EXISTS JavaAggregateTest");

@@ -15,7 +15,7 @@ public class CreateFunctionAliasTest extends TestBase {
 		stmt.executeUpdate("DROP ALIAS IF EXISTS my_sqrt");
 		stmt.executeUpdate("DROP ALIAS IF EXISTS my_reverse");
 		
-		//必须是static方法
+		//蹇呴』鏄痵tatic鏂规硶
 		stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS my_sqrt DETERMINISTIC FOR \"java.lang.Math.sqrt\"");
 
 		stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS my_reverse AS "

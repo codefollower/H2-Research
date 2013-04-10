@@ -46,7 +46,7 @@ public class ExpressionColumn extends Expression {
         this.columnName = null;
     }
     
-    //¶ÔÓÚSELECT public.t.id FROM ExpressionColumnTest as t
+    //å¯¹äºSELECT public.t.id FROM ExpressionColumnTest as t
     //schemaName = public
     //tableAlias = t
     //columnName = id
@@ -125,17 +125,17 @@ public class ExpressionColumn extends Expression {
         }
     }
     
-    //ÁĞÃû²»´æÔÚµÄ¼ì²éÊÇ·ÅÔÚÕâÀï×ö
+    //åˆ—åä¸å­˜åœ¨çš„æ£€æŸ¥æ˜¯æ”¾åœ¨è¿™é‡Œåš
 	//sql = "select name,id3 from mytable order by name";
     //Column "ID3" not found;
-    public Expression optimize(Session session) { //ÔÚÖ®Ç°ÒÑµ÷ÓÃmapColumnsÁË£¬È·±£columnResolver±»ÊÊµ±¸³ÖµÁË
+    public Expression optimize(Session session) { //åœ¨ä¹‹å‰å·²è°ƒç”¨mapColumnsäº†ï¼Œç¡®ä¿columnResolverè¢«é€‚å½“èµ‹å€¼äº†
         if (columnResolver == null) {
             Schema schema = session.getDatabase().findSchema(
                     tableAlias == null ? session.getCurrentSchemaName() : tableAlias);
             if (schema != null) {
                 Constant constant = schema.findConstant(columnName);
                 if (constant != null) {
-                    return constant.getValue(); //¶ÔÓÚ³£Á¿×Ó¶ÎµÄÓÅ»¯ÊÇÖ±½Ó·µ»ØValueExpression
+                    return constant.getValue(); //å¯¹äºå¸¸é‡å­æ®µçš„ä¼˜åŒ–æ˜¯ç›´æ¥è¿”å›ValueExpression
                 }
             }
             String name = columnName;
@@ -297,11 +297,11 @@ public class ExpressionColumn extends Expression {
     }
 
     public void createIndexConditions(Session session, TableFilter filter) {
-    	//Èç
+    	//å¦‚
     	//create table IF NOT EXISTS DeleteTest(id int, name varchar(500), b boolean)
     	//delete from DeleteTest where b
-    	//°´×Ö¶ÎbÉ¾³ı£¬Êµ¼ÊÉÏ¾ÍÊÇÉ¾³ıb=trueµÄ¼ÇÂ¼
-    	//Èç¹ûÃ»ÓĞÎª×Ö¶Îb½¨Á¢Ë÷Òı£¬¾ÍÔÚorg.h2.table.TableFilter.prepare()ÖĞÉ¾³ıÕâ¸öÎŞÓÃÌõ¼ş
+    	//æŒ‰å­—æ®µbåˆ é™¤ï¼Œå®é™…ä¸Šå°±æ˜¯åˆ é™¤b=trueçš„è®°å½•
+    	//å¦‚æœæ²¡æœ‰ä¸ºå­—æ®µbå»ºç«‹ç´¢å¼•ï¼Œå°±åœ¨org.h2.table.TableFilter.prepare()ä¸­åˆ é™¤è¿™ä¸ªæ— ç”¨æ¡ä»¶
         TableFilter tf = getTableFilter();
         if (filter == tf && column.getType() == Value.BOOLEAN) {
             IndexCondition cond = IndexCondition.get(Comparison.EQUAL, this, ValueExpression

@@ -64,7 +64,7 @@ import org.h2.value.ValueString;
  * This class represents the statement
  * SCRIPT
  */
-public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此命令返回结果集，所以要用executeQuery，与RUNSCRIPT相反
+public class ScriptCommand extends ScriptBase { //鐢熸垚鍚勭Create SQL锛屾鍛戒护杩斿洖缁撴灉闆嗭紝鎵�浠ヨ鐢╡xecuteQuery锛屼笌RUNSCRIPT鐩稿弽
 
     private String charset = Constants.UTF8;
     private Set<String> schemaNames;

@@ -1,22 +1,22 @@
-ÒÔÏÂÊÇ¸ñÊ½·ÖÎö
+ä»¥ä¸‹æ˜¯æ ¼å¼åˆ†æ
 ------------------------------------------------------------------
 
-×Ö½ÚÊı   ´ú±íÊ²Ã´
+å­—èŠ‚æ•°   ä»£è¡¨ä»€ä¹ˆ
 
-Í·
+å¤´
 =======================
-1        type ¹Ì¶¨ÊÇPage.TYPE_STREAM_TRUNK (ÖµÊÇ7)
-2        checksum Ô¤ÏÈĞ´0£¬ÔÚĞ´Íêpageºó»ØÌî(¼ûorg.h2.store.PageStore.writePage(int, Data))
-4        parent Ç°Ò»¸öPageStreamTrunkµÄpageId£¬µÚÒ»¸öPageStreamTrunkµÄparentºÍtrunkPageIdÒ»Ñù
+1        type å›ºå®šæ˜¯Page.TYPE_STREAM_TRUNK (å€¼æ˜¯7)
+2        checksum é¢„å…ˆå†™0ï¼Œåœ¨å†™å®Œpageåå›å¡«(è§org.h2.store.PageStore.writePage(int, Data))
+4        parent å‰ä¸€ä¸ªPageStreamTrunkçš„pageIdï¼Œç¬¬ä¸€ä¸ªPageStreamTrunkçš„parentå’ŒtrunkPageIdä¸€æ ·
 4        logKey
-4        nextTrunk ÏÂÒ»¸öPageStreamTrunkµÄpageId
-2        pageCount PageStreamDataµÄ¸öÊı
+4        nextTrunk ä¸‹ä¸€ä¸ªPageStreamTrunkçš„pageId
+2        pageCount PageStreamDataçš„ä¸ªæ•°
 
-(Í·²¿Õ¼17×Ö½Ú)
+(å¤´éƒ¨å 17å­—èŠ‚)
 
-Ìå:
+ä½“:
 =======================
-pageCount¸ö
+pageCountä¸ª
 {
-	4         pageId PageStreamDataÒ³µÄpageId
+	4         pageId PageStreamDataé¡µçš„pageId
 }

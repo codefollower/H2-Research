@@ -1,16 +1,16 @@
-һ��JdbcConnection��Ӧһ��SessionRemote��
-һ��SessionRemote�ֶ�Ӧһ���������˵�Session
+一个JdbcConnection对应一个SessionRemote，
+一个SessionRemote又对应一个服务器端的Session
 
-SessionRemoteʵ��������JDBC�ͻ��˲�ģ����ֻ���Щ��⣬��ȷ������:��ӦԶ��Session
-
-
-��һ��SessionRemote�п���˳��ִ�ж��CommandRemote
+SessionRemote实际上是在JDBC客户端层的，名字会有些误解，正确理解是:对应远端Session
 
 
-��һ�����͵�close����������С����ֱ���:
-RESULT_CLOSE   ֪ͨserver�رս����������session��cache��ɾ�����������
-COMMAND_CLOSE  ֪ͨserver�ر�SQL�������session��cache��ɾ�������
-SESSION_CLOSE  ֪ͨserver�ر�session��ͣ���̣߳�ɾ����session��ص�������Դ(����ָ����ͷŴ�����Դ)
+在一次SessionRemote中可以顺序执行多个CommandRemote
+
+
+有一种类型的close，按级别由小到大分别是:
+RESULT_CLOSE   通知server关闭结果集，并在session的cache中删除结果集缓存
+COMMAND_CLOSE  通知server关闭SQL命令，并在session的cache中删除命令缓存
+SESSION_CLOSE  通知server关闭session，停掉线程，删除与session相关的所有资源(这条指令会释放大量资源)
 
 
 

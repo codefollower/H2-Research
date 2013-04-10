@@ -120,8 +120,8 @@ public class PageStore implements CacheWriter {
     public static final int LOG_MODE_SYNC = 2;
     private static final int PAGE_ID_FREE_LIST_ROOT = 3;
     private static final int PAGE_ID_META_ROOT = 4;
-    //MIN_PAGE_COUNTµÈÓÚ6
-    //3¸ö¹Ì¶¨Í·page + ÖÁÉÙÒ»¸öPageFreeList + metaIndex + PageStreamTrunk
+    //MIN_PAGE_COUNTç­‰äº6
+    //3ä¸ªå›ºå®šå¤´page + è‡³å°‘ä¸€ä¸ªPageFreeList + metaIndex + PageStreamTrunk
     private static final int MIN_PAGE_COUNT = 6;
     private static final int INCREMENT_KB = 1024;
     private static final int INCREMENT_PERCENT_MIN = 35;
@@ -138,7 +138,7 @@ public class PageStore implements CacheWriter {
     private String accessMode;
     private int pageSize = Constants.DEFAULT_PAGE_SIZE;
     private int pageSizeShift;
-    private long writeCountBase, writeCount, readCount; //readCount±íÊ¾¶ÁÁË¶àÉÙ¸öpage
+    private long writeCountBase, writeCount, readCount; //readCountè¡¨ç¤ºè¯»äº†å¤šå°‘ä¸ªpage
     private int logKey, logFirstTrunkPage, logFirstDataPage;
     private final Cache cache;
     private int freeListPagesPerList;
@@ -228,7 +228,7 @@ public class PageStore implements CacheWriter {
     /**
      * Start collecting statistics.
      */
-    public void statisticsStart() { //Ö»ÔÚorg.h2.command.dml.ExplainÖĞÓĞÓ¦ÓÃ
+    public void statisticsStart() { //åªåœ¨org.h2.command.dml.Explainä¸­æœ‰åº”ç”¨
         statistics = New.hashMap();
     }
 
@@ -237,7 +237,7 @@ public class PageStore implements CacheWriter {
      *
      * @return the statistics
      */
-    public HashMap<String, Integer> statisticsEnd() { //Ö»ÔÚorg.h2.command.dml.ExplainÖĞÓĞÓ¦ÓÃ
+    public HashMap<String, Integer> statisticsEnd() { //åªåœ¨org.h2.command.dml.Explainä¸­æœ‰åº”ç”¨
         HashMap<String, Integer> result = statistics;
         statistics = null;
         return result;
@@ -274,11 +274,11 @@ public class PageStore implements CacheWriter {
      */
     public synchronized void open() {
         try {
-            metaRootPageId.put(META_TABLE_ID, PAGE_ID_META_ROOT); //pageId=4µÄÒ³¹Ì¶¨ÊÇmetaIndexµÄrootPageId
+            metaRootPageId.put(META_TABLE_ID, PAGE_ID_META_ROOT); //pageId=4çš„é¡µå›ºå®šæ˜¯metaIndexçš„rootPageId
             if (FileUtils.exists(fileName)) {
                 long length = FileUtils.size(fileName);
-                //MIN_PAGE_COUNTµÈÓÚ6 = 3¸ö¹Ì¶¨Í·page + ÖÁÉÙÒ»¸öPageFreeList + metaIndex + PageStreamTrunk
-                //PAGE_SIZE_MIN=64£¬Ò»¸öpageµÄ´óĞ¡²»ÄÜµÍÓÚ64×Ö½Ú
+                //MIN_PAGE_COUNTç­‰äº6 = 3ä¸ªå›ºå®šå¤´page + è‡³å°‘ä¸€ä¸ªPageFreeList + metaIndex + PageStreamTrunk
+                //PAGE_SIZE_MIN=64ï¼Œä¸€ä¸ªpageçš„å¤§å°ä¸èƒ½ä½äº64å­—èŠ‚
                 if (length < MIN_PAGE_COUNT * PAGE_SIZE_MIN) {
                     if (database.isReadOnly()) {
                         throw DbException.get(ErrorCode.FILE_CORRUPTED_1, fileName + " length: " + length);
@@ -299,21 +299,21 @@ public class PageStore implements CacheWriter {
 
     private void openNew() {
         setPageSize(pageSize);
-        //Ò»¸öPageFreeList¿ÉÒÔÌî³ä¶àÉÙ¸öpageId£¬pageIdµÄ¸öÊı=(pageSize-3)*8£¬
-        //±ÈÈçpageSizeÊÇ128×Ö½Ú£¬ÄÇÃ´freeListPagesPerList¾ÍÊÇ1000
+        //ä¸€ä¸ªPageFreeListå¯ä»¥å¡«å……å¤šå°‘ä¸ªpageIdï¼ŒpageIdçš„ä¸ªæ•°=(pageSize-3)*8ï¼Œ
+        //æ¯”å¦‚pageSizeæ˜¯128å­—èŠ‚ï¼Œé‚£ä¹ˆfreeListPagesPerListå°±æ˜¯1000
         freeListPagesPerList = PageFreeList.getPagesAddressed(pageSize);
-        file = database.openFile(fileName, accessMode, false); //ÕâÀïÃæ»áĞ´Ç°Ãæ48¸ö×Ö½Ú£¬¼ûorg.h2.store.FileStore.init()
+        file = database.openFile(fileName, accessMode, false); //è¿™é‡Œé¢ä¼šå†™å‰é¢48ä¸ªå­—èŠ‚ï¼Œè§org.h2.store.FileStore.init()
         lockFile();
         recoveryRunning = true;
-        writeStaticHeader(); //ÕâÀïĞ´ÁËÒ»Ò³pageSize´óĞ¡µÄÊı¾İ
-        //µ÷ÓÃÍêwriteStaticHeaderºóÊı¾İ»¹Ã»Í¬²½µ½Ó²ÅÌ£¬
-        //½ÓÏÂÀ´µ÷ÓÃwriteVariableHeaderÊ±»á°ÑÉÏ´ÎÃ»Í¬²½µÄÍ¬²½µ½Ó²ÅÌ£¬
-        //ÔÚwriteVariableHeader()ÄÚ²¿¸üĞÂµÄÊı¾İĞèÒªµ½ÏÂ´Îµ÷ÓÃwriteVariableHeaderÊ±²ÅÍ¬²½µ½Ó²ÅÌ¡£
+        writeStaticHeader(); //è¿™é‡Œå†™äº†ä¸€é¡µpageSizeå¤§å°çš„æ•°æ®
+        //è°ƒç”¨å®ŒwriteStaticHeaderåæ•°æ®è¿˜æ²¡åŒæ­¥åˆ°ç¡¬ç›˜ï¼Œ
+        //æ¥ä¸‹æ¥è°ƒç”¨writeVariableHeaderæ—¶ä¼šæŠŠä¸Šæ¬¡æ²¡åŒæ­¥çš„åŒæ­¥åˆ°ç¡¬ç›˜ï¼Œ
+        //åœ¨writeVariableHeader()å†…éƒ¨æ›´æ–°çš„æ•°æ®éœ€è¦åˆ°ä¸‹æ¬¡è°ƒç”¨writeVariableHeaderæ—¶æ‰åŒæ­¥åˆ°ç¡¬ç›˜ã€‚
         writeVariableHeader();
         log = new PageLog(this);
-        increaseFileSize(MIN_PAGE_COUNT); //³õÊ¼»¯ÎÄ¼ş³¤¶ÈÎª6¸öpageSizeµÄ´óĞ¡
+        increaseFileSize(MIN_PAGE_COUNT); //åˆå§‹åŒ–æ–‡ä»¶é•¿åº¦ä¸º6ä¸ªpageSizeçš„å¤§å°
         openMetaIndex();
-        logFirstTrunkPage = allocatePage(); //µÚÒ»¸öPageStreamTrunkµÄpageIdÊÇ5
+        logFirstTrunkPage = allocatePage(); //ç¬¬ä¸€ä¸ªPageStreamTrunkçš„pageIdæ˜¯5
         log.openForWriting(logFirstTrunkPage, false);
         isNew = true;
         recoveryRunning = false;
@@ -379,10 +379,10 @@ public class PageStore implements CacheWriter {
     }
 
     private void openForWriting() {
-    	//readModeÖ»ÓĞorg.h2.store.PageStore.openExisting()µ÷ÓÃÁËÒ»´Î
-    	//ËùÒÔÍ¨¹ıopenForWriting()ÕâÀï´¥·¢log.openForWriting£¬ÔÙ´¥·¢setLogFirstPage
-    	//½ø¶ø´¥·¢writeVariableHeaderÍ¬²½Êı¾İµ½Ó²ÅÌÖĞ»á·¢ÉúÒ»´Î£¬
-    	//writeVariableHeaderµÄ´¥·¢¸ü¶àµÄÊÇÍ¨¹ıcommitÍê³É
+    	//readModeåªæœ‰org.h2.store.PageStore.openExisting()è°ƒç”¨äº†ä¸€æ¬¡
+    	//æ‰€ä»¥é€šè¿‡openForWriting()è¿™é‡Œè§¦å‘log.openForWritingï¼Œå†è§¦å‘setLogFirstPage
+    	//è¿›è€Œè§¦å‘writeVariableHeaderåŒæ­¥æ•°æ®åˆ°ç¡¬ç›˜ä¸­ä¼šå‘ç”Ÿä¸€æ¬¡ï¼Œ
+    	//writeVariableHeaderçš„è§¦å‘æ›´å¤šçš„æ˜¯é€šè¿‡commitå®Œæˆ
         if (!readMode || database.isReadOnly()) {
             return;
         }
@@ -482,7 +482,7 @@ public class PageStore implements CacheWriter {
      * @param compactMode 0 if no compacting should happen, otherwise
      * TransactionCommand.SHUTDOWN_COMPACT or TransactionCommand.SHUTDOWN_DEFRAG
      */
-    //ÏÂÃæ4¸ö·½·¨ÊÇÒ»ÆğµÄ£¬¹²Í¬Íê³ÉÑ¹ËõÈÎÎñ
+    //ä¸‹é¢4ä¸ªæ–¹æ³•æ˜¯ä¸€èµ·çš„ï¼Œå…±åŒå®Œæˆå‹ç¼©ä»»åŠ¡
     public synchronized void compact(int compactMode) {
         if (!database.getSettings().pageStoreTrim) {
             return;
@@ -751,8 +751,8 @@ public class PageStore implements CacheWriter {
         if (type == Page.TYPE_EMPTY) {
             return null;
         }
-        data.readShortInt(); //ÊÇchecksum
-        //³ıÁËPageFreeListÍâ£¬¶àÊıÊÇparentPageId£¬ÏÂÃæµÄread·½·¨ÖĞ¶¼»á°Ñdata resetµô£¬ËùÒÔ´ËĞĞ´úÂë¶ÔPageFreeListÎŞÓ°Ïì
+        data.readShortInt(); //æ˜¯checksum
+        //é™¤äº†PageFreeListå¤–ï¼Œå¤šæ•°æ˜¯parentPageIdï¼Œä¸‹é¢çš„readæ–¹æ³•ä¸­éƒ½ä¼šæŠŠdata resetæ‰ï¼Œæ‰€ä»¥æ­¤è¡Œä»£ç å¯¹PageFreeListæ— å½±å“
         data.readInt();
         if (!checksumTest(data.getBytes(), pageId, pageSize)) {
             throw DbException.get(ErrorCode.FILE_CORRUPTED_1, "wrong checksum");
@@ -891,7 +891,7 @@ public class PageStore implements CacheWriter {
             crc.update(page.getBytes(), 4, pageSize - 4);
             int expected = (int) crc.getValue();
             int got = page.readInt();
-            if (expected == got) { //Èç¹ûµÚÒ»¸öpageµÄcrc³ö´íÁË£¬ÄÇÃ´ÔÙ¶ÁµÚ¶ş¸ö£¬ÒòÎªµÚÒ»¸öºÍµÚ¶ş¸öÊÇÏàÍ¬µÄ£¬ÎªÁË·ÀÖ¹Ëğ»µ
+            if (expected == got) { //å¦‚æœç¬¬ä¸€ä¸ªpageçš„crcå‡ºé”™äº†ï¼Œé‚£ä¹ˆå†è¯»ç¬¬äºŒä¸ªï¼Œå› ä¸ºç¬¬ä¸€ä¸ªå’Œç¬¬äºŒä¸ªæ˜¯ç›¸åŒçš„ï¼Œä¸ºäº†é˜²æ­¢æŸå
                 writeCountBase = page.readLong();
                 logKey = page.readInt();
                 logFirstTrunkPage = page.readInt();
@@ -908,14 +908,14 @@ public class PageStore implements CacheWriter {
      * @param size the page size
      */
     public void setPageSize(int size) {
-    	//PAGE_SIZE²ÎÊı±ØĞëÔÚ64µ½32768(32K)Ö®¼ä£¬¼´64<=PAGE_SIZE<=32768
+    	//PAGE_SIZEå‚æ•°å¿…é¡»åœ¨64åˆ°32768(32K)ä¹‹é—´ï¼Œå³64<=PAGE_SIZE<=32768
         if (size < PAGE_SIZE_MIN || size > PAGE_SIZE_MAX) {
             throw DbException.get(ErrorCode.FILE_CORRUPTED_1, fileName + " pageSize: " + size);
         }
         boolean good = false;
         int shift = 0;
-        //ÅĞ¶ÏsizeÊÇ·ñÊÇ2µÄn´ÎÃİ(n>=0)£¬Ò²¾ÍÊÇËµsize±ØĞëÊÇ1¡¢2¡¢4¡¢8¡¢16¡¢32...
-        //Èç¹û²»ÊÇgoodÎªfalse£¬shift¶ÔÓ¦n
+        //åˆ¤æ–­sizeæ˜¯å¦æ˜¯2çš„næ¬¡å¹‚(n>=0)ï¼Œä¹Ÿå°±æ˜¯è¯´sizeå¿…é¡»æ˜¯1ã€2ã€4ã€8ã€16ã€32...
+        //å¦‚æœä¸æ˜¯goodä¸ºfalseï¼Œshiftå¯¹åº”n
         for (int i = 1; i <= size;) {
             if (size == i) {
                 good = true;
@@ -932,22 +932,22 @@ public class PageStore implements CacheWriter {
         pageSizeShift = shift;
     }
     
-    //Õâ¸öÊÇpage 0
+    //è¿™ä¸ªæ˜¯page 0
     /*
 	    pageId: 0
 	    ========================
-	          ÎÄ¼şÍ· ÔÚorg.h2.store.FileStore.init()ÖĞĞ´Èë
+	          æ–‡ä»¶å¤´ åœ¨org.h2.store.FileStore.init()ä¸­å†™å…¥
 	    ---------------------
 	    16      magic
-		16      salt  (Èç¹û²»Ê¹ÓÃ¼ÓÃÜ£¬Õâ16×Ö½Ú¾ÍÊÇmagic£¬Èç¹ûÊ¹ÓÃÁË¼ÓÃÜ£¬ÄÇÃ´ÊÇËæ»úÉú³ÉµÄ)
-		16      magic (Èç¹ûÊ¹ÓÃÁË¼ÓÃÜ£¬ÄÇÃ´Õâ16×Ö½ÚÊÇ¶Ômagic¼ÓÃÜºóµÄÖµ)
+		16      salt  (å¦‚æœä¸ä½¿ç”¨åŠ å¯†ï¼Œè¿™16å­—èŠ‚å°±æ˜¯magicï¼Œå¦‚æœä½¿ç”¨äº†åŠ å¯†ï¼Œé‚£ä¹ˆæ˜¯éšæœºç”Ÿæˆçš„)
+		16      magic (å¦‚æœä½¿ç”¨äº†åŠ å¯†ï¼Œé‚£ä¹ˆè¿™16å­—èŠ‚æ˜¯å¯¹magicåŠ å¯†åçš„å€¼)
 	
 	    StaticHeader
 	    ---------------------
-	    4       pageSize Ä¬ÈÏÊÇ2048(2K)
-	    1       WRITE_VERSION ³£Á¿3
-	    1       READ_VERSION ³£Á¿3
-	    1994          ±£Áô
+	    4       pageSize é»˜è®¤æ˜¯2048(2K)
+	    1       WRITE_VERSION å¸¸é‡3
+	    1       READ_VERSION å¸¸é‡3
+	    1994          ä¿ç•™
     */
     private void writeStaticHeader() {
         Data page = Data.create(database, new byte[pageSize - FileStore.HEADER_LENGTH]);
@@ -984,16 +984,16 @@ public class PageStore implements CacheWriter {
 	    4       logKey
 	    4       logFirstTrunkPage
 	    4       logFirstDataPage
-	    2024           ±£Áô(²¹¹»2k)
+	    2024           ä¿ç•™(è¡¥å¤Ÿ2k)
 	
-	    page 1ºÍ2ÊÇ¿É±äµÄ£¬Ëæ×ÅÊı¾İµÄ²»¶ÏĞ´Èë£¬Ç°5¸ö×Ö¶Î»á²»¶ÏµÄ¸üĞÂ
+	    page 1å’Œ2æ˜¯å¯å˜çš„ï¼Œéšç€æ•°æ®çš„ä¸æ–­å†™å…¥ï¼Œå‰5ä¸ªå­—æ®µä¼šä¸æ–­çš„æ›´æ–°
 	*/
-    //Èç¹ûlogModeÊÇLOG_MODE_SYNC£¬ÄÇÃ´Ã¿µ÷ÓÃÒ»´ÎwriteVariableHeader¾Í»á°ÑÊı¾İÍ¬²½µÄÓ²ÅÌ
+    //å¦‚æœlogModeæ˜¯LOG_MODE_SYNCï¼Œé‚£ä¹ˆæ¯è°ƒç”¨ä¸€æ¬¡writeVariableHeaderå°±ä¼šæŠŠæ•°æ®åŒæ­¥çš„ç¡¬ç›˜
     private void writeVariableHeader() {
         trace.debug("writeVariableHeader");
         if (logMode == LOG_MODE_SYNC) {
             file.sync();
-            //new Error().printStackTrace(); //ÎÒ¼ÓÉÏµÄ,µ÷ÊÔÊ²Ã´Ê±ºòÍ¬²½Êı¾İµ½Ó²ÅÌ
+            //new Error().printStackTrace(); //æˆ‘åŠ ä¸Šçš„,è°ƒè¯•ä»€ä¹ˆæ—¶å€™åŒæ­¥æ•°æ®åˆ°ç¡¬ç›˜
         }
         Data page = createData();
         page.writeInt(0);
@@ -1002,12 +1002,12 @@ public class PageStore implements CacheWriter {
         page.writeInt(logFirstTrunkPage);
         page.writeInt(logFirstDataPage);
         CRC32 crc = new CRC32();
-        crc.update(page.getBytes(), 4, pageSize - 4); //¼ÆËãCRCÊ±£¬ÅÅ³ıÇ°4¸ö×Ö½Ú
+        crc.update(page.getBytes(), 4, pageSize - 4); //è®¡ç®—CRCæ—¶ï¼Œæ’é™¤å‰4ä¸ªå­—èŠ‚
         page.setInt(0, (int) crc.getValue());
-        file.seek(pageSize); //Ìø¹ıµÚ1Ò³
+        file.seek(pageSize); //è·³è¿‡ç¬¬1é¡µ
         file.write(page.getBytes(), 0, pageSize);
-        file.seek(pageSize + pageSize); //Ìø¹ıµÚ2Ò³
-        file.write(page.getBytes(), 0, pageSize); //ÊÇµÚ2Ò³µÄÈßÓà
+        file.seek(pageSize + pageSize); //è·³è¿‡ç¬¬2é¡µ
+        file.write(page.getBytes(), 0, pageSize); //æ˜¯ç¬¬2é¡µçš„å†—ä½™
         // don't increment the write counter, because it was just written
     }
 
@@ -1071,8 +1071,8 @@ public class PageStore implements CacheWriter {
         }
         checkOpen();
         database.checkWritingAllowed();
-        if (!recoveryRunning) { //Èç¹ûÕıÔÚrecovery¹ı³ÌÖĞ£¬Ê²Ã´¶¼²»×ö
-            int pos = page.getPos(); //Õâ¸ö¾ÍÊÇpageId
+        if (!recoveryRunning) { //å¦‚æœæ­£åœ¨recoveryè¿‡ç¨‹ä¸­ï¼Œä»€ä¹ˆéƒ½ä¸åš
+            int pos = page.getPos(); //è¿™ä¸ªå°±æ˜¯pageId
             if (!log.getUndo(pos)) {
                 if (old == null) {
                     old = readPage(pos);
@@ -1108,12 +1108,12 @@ public class PageStore implements CacheWriter {
         cache.update(pos, page);
     }
     
-    //PAGE_ID_FREE_LIST_ROOTµÈÓÚ3£¬ÊÇ´ú±íÒ»¸ö".h2.db"ÎÄ¼şµÄÇ°3¸öpageÊÇ¹Ì¶¨Õ¼ÓÃµÄ£¬
-    //¼ûwriteStaticHeaderºÍwriteVariableHeader
-    //Ã¿¸öPageFreeListÄÜ·ÅfreeListPagesPerList¸öpage£¬
-    //¼ÙÉèfreeListPagesPerListÊÇ1000£¬pageIdÊÇ903£¬ÄÇÃ´Êµ¼ÊµÄpageIdÊÇ900£¬
-    //ËµÃ÷´ËpageÂäÔÚµÚ0ºÅPageFreeListÖĞ£¬Èç¹ûpageIdÊÇ1006£¬ÄÇÃ´Êµ¼ÊµÄpageIdÊÇ1003£¬
-    //ËµÃ÷´ËpageÂäÔÚµÚ1ºÅPageFreeListÖĞ¡£ÒÀ´ËÀàÍÆ¡£
+    //PAGE_ID_FREE_LIST_ROOTç­‰äº3ï¼Œæ˜¯ä»£è¡¨ä¸€ä¸ª".h2.db"æ–‡ä»¶çš„å‰3ä¸ªpageæ˜¯å›ºå®šå ç”¨çš„ï¼Œ
+    //è§writeStaticHeaderå’ŒwriteVariableHeader
+    //æ¯ä¸ªPageFreeListèƒ½æ”¾freeListPagesPerListä¸ªpageï¼Œ
+    //å‡è®¾freeListPagesPerListæ˜¯1000ï¼ŒpageIdæ˜¯903ï¼Œé‚£ä¹ˆå®é™…çš„pageIdæ˜¯900ï¼Œ
+    //è¯´æ˜æ­¤pageè½åœ¨ç¬¬0å·PageFreeListä¸­ï¼Œå¦‚æœpageIdæ˜¯1006ï¼Œé‚£ä¹ˆå®é™…çš„pageIdæ˜¯1003ï¼Œ
+    //è¯´æ˜æ­¤pageè½åœ¨ç¬¬1å·PageFreeListä¸­ã€‚ä¾æ­¤ç±»æ¨ã€‚
     private int getFreeListId(int pageId) {
         return (pageId - PAGE_ID_FREE_LIST_ROOT) / freeListPagesPerList;
     }
@@ -1130,10 +1130,10 @@ public class PageStore implements CacheWriter {
                 return list;
             }
         }
-        //ËãpageId£¬¸ÕºÃ¶ÔÓ¦getFreeListId£¬i¾Í±íÊ¾freeListId£¬
+        //ç®—pageIdï¼Œåˆšå¥½å¯¹åº”getFreeListIdï¼Œiå°±è¡¨ç¤ºfreeListIdï¼Œ
         //freeListId = (pageId - PAGE_ID_FREE_LIST_ROOT) / freeListPagesPerList
-        //ÏÖÔÚÒªÇópageId£¬ËùÒÔpageId=freeListId * freeListPagesPerList + PAGE_ID_FREE_LIST_ROOT
-        //ÕâÀïµÄpÊÇPageFreeListµÄpageId
+        //ç°åœ¨è¦æ±‚pageIdï¼Œæ‰€ä»¥pageId=freeListId * freeListPagesPerList + PAGE_ID_FREE_LIST_ROOT
+        //è¿™é‡Œçš„pæ˜¯PageFreeListçš„pageId
         int p = PAGE_ID_FREE_LIST_ROOT + i * freeListPagesPerList;
         while (p >= pageCount) {
             increaseFileSize();
@@ -1142,8 +1142,8 @@ public class PageStore implements CacheWriter {
             list = (PageFreeList) getPage(p);
         }
         if (list == null) {
-            list = PageFreeList.create(this, p); //µÚÒ»¸öPageFreeListµÄpageIdÊÇ3
-            //System.out.println("PageFreeList: pageId = "+p); //ÎÒ¼ÓÉÏµÄ
+            list = PageFreeList.create(this, p); //ç¬¬ä¸€ä¸ªPageFreeListçš„pageIdæ˜¯3
+            //System.out.println("PageFreeList: pageId = "+p); //æˆ‘åŠ ä¸Šçš„
             cache.put(list);
         }
         while (freeLists.size() <= i) {
@@ -1239,18 +1239,18 @@ public class PageStore implements CacheWriter {
         increaseFileSize(increment);
     }
 
-    //incrementÕâ¸ö²ÎÊı±íÊ¾ĞÂÔö¼Óincrement¸öpage
-    //ÄÇÃ´´ËÊ±ÎÄ¼şµÄ´óĞ¡¾ÍÊÇ(ÀÏµÄpageCount + increment) * pageSize
+    //incrementè¿™ä¸ªå‚æ•°è¡¨ç¤ºæ–°å¢åŠ incrementä¸ªpage
+    //é‚£ä¹ˆæ­¤æ—¶æ–‡ä»¶çš„å¤§å°å°±æ˜¯(è€çš„pageCount + increment) * pageSize
     private void increaseFileSize(int increment) {
-    	//µÚÒ»´Îµ÷ÓÃÊ±pageCountµÈÓÚ0
-    	//Ğ¡ÓÚpageCountµÄpageId¶¼ÊÇÒÑÊ¹ÓÃµÄ
+    	//ç¬¬ä¸€æ¬¡è°ƒç”¨æ—¶pageCountç­‰äº0
+    	//å°äºpageCountçš„pageIdéƒ½æ˜¯å·²ä½¿ç”¨çš„
         for (int i = pageCount; i < pageCount + increment; i++) {
             freed.set(i);
         }
         pageCount += increment;
-        //2µÄpageSizeShift´ÎÃİ=pageSize
-        //ËùÒÔpageCount << pageSizeShiftÊµ¼ÊÉÏ¾ÍÊÇpageCount * pageSize
-        //Ö»²»¹ıÓÃÒÆÎ»ÔËËã¸ü¸ßĞ§
+        //2çš„pageSizeShiftæ¬¡å¹‚=pageSize
+        //æ‰€ä»¥pageCount << pageSizeShiftå®é™…ä¸Šå°±æ˜¯pageCount * pageSize
+        //åªä¸è¿‡ç”¨ç§»ä½è¿ç®—æ›´é«˜æ•ˆ
         long newLength = (long) pageCount << pageSizeShift;
         file.setLength(newLength);
         writeCount++;
@@ -1390,12 +1390,12 @@ public class PageStore implements CacheWriter {
             }
         }
         checksumSet(bytes, pageId);
-		// pageId´Ó0¿ªÊ¼¼ÆÊıµÄ
-		//¼ÙÉèpageSizeÊÇ128£¬ÄÇÃ´pageSizeShift¾ÍÊÇ7£¬Ïàµ±ÓÚ2µÄ7´Î·½µÈÓÚ128
-        //pageId << pageSizeShiftÏàµ±ÓÚpageId * 128
-        //Èç¹ûpageIdÊÇ0£¬ËµÃ÷ÊÇµÚÒ»¸öpage£¬0 << pageSizeShift = 0£¬´Ó0ºÅÎ»ÖÃ¿ªÊ¼Ğ´£¬
-        //¼ÙÉèpageIdÊÇ3(µÚÒ»¸öPageFreeListµÄpageId¾ÍÊÇ3)£¬3 << pageSizeShift = 384£¬´Ó384ºÅÎ»ÖÃ¿ªÊ¼Ğ´¡£
-        //ËµÃ÷³ıÁËÍ·Èı¸ö¹Ì¶¨µÄpageÖ®Íâ£¬½ô½Ó×ÅµÄ¾ÍÊÇµÚÒ»¸öPageFreeListÁË¡£
+		// pageIdä»0å¼€å§‹è®¡æ•°çš„
+		//å‡è®¾pageSizeæ˜¯128ï¼Œé‚£ä¹ˆpageSizeShiftå°±æ˜¯7ï¼Œç›¸å½“äº2çš„7æ¬¡æ–¹ç­‰äº128
+        //pageId << pageSizeShiftç›¸å½“äºpageId * 128
+        //å¦‚æœpageIdæ˜¯0ï¼Œè¯´æ˜æ˜¯ç¬¬ä¸€ä¸ªpageï¼Œ0 << pageSizeShift = 0ï¼Œä»0å·ä½ç½®å¼€å§‹å†™ï¼Œ
+        //å‡è®¾pageIdæ˜¯3(ç¬¬ä¸€ä¸ªPageFreeListçš„pageIdå°±æ˜¯3)ï¼Œ3 << pageSizeShift = 384ï¼Œä»384å·ä½ç½®å¼€å§‹å†™ã€‚
+        //è¯´æ˜é™¤äº†å¤´ä¸‰ä¸ªå›ºå®šçš„pageä¹‹å¤–ï¼Œç´§æ¥ç€çš„å°±æ˜¯ç¬¬ä¸€ä¸ªPageFreeListäº†ã€‚
         file.seek((long) pageId << pageSizeShift);
         file.write(bytes, 0, pageSize);
         writeCount++;
@@ -1488,8 +1488,8 @@ public class PageStore implements CacheWriter {
      * @param row the row to add
      * @param add true if the row is added, false if it is removed
      */
-    //Ö»ÓĞÔÚorg.h2.index.PageDataIndexÖĞµ÷ÓÃ£¬
-    //org.h2.index.PageBtreeIndex²»µ÷ÓÃ
+    //åªæœ‰åœ¨org.h2.index.PageDataIndexä¸­è°ƒç”¨ï¼Œ
+    //org.h2.index.PageBtreeIndexä¸è°ƒç”¨
     public synchronized void logAddOrRemoveRow(Session session, int tableId, Row row, boolean add) {
         if (logMode != LOG_MODE_OFF) {
             if (!recoveryRunning) {
@@ -1509,8 +1509,8 @@ public class PageStore implements CacheWriter {
         log.commit(session.getId());
         long size = log.getSize();
         
-        //logSizeBaseÒ»¿ªÊ¼ÊÇ0£¬Èç¹ûsize±ÈmaxLogSize´ó£¬ÏÈ¿´Ò»ÏÂcheckpoint
-        if (size - logSizeBase > maxLogSize) { //maxLogSizeÍ¨¹ı"SET MAX_LOG_SIZE xxx"ÉèÖÃ£¬Ä¬ÈÏ16M
+        //logSizeBaseä¸€å¼€å§‹æ˜¯0ï¼Œå¦‚æœsizeæ¯”maxLogSizeå¤§ï¼Œå…ˆçœ‹ä¸€ä¸‹checkpoint
+        if (size - logSizeBase > maxLogSize) { //maxLogSizeé€šè¿‡"SET MAX_LOG_SIZE xxx"è®¾ç½®ï¼Œé»˜è®¤16M
             int firstSection = log.getLogFirstSectionId();
             checkpoint();
             if (ignoreBigLog) {
@@ -1540,7 +1540,7 @@ public class PageStore implements CacheWriter {
      * @param transaction the name of the transaction
      */
     public synchronized void prepareCommit(Session session, String transaction) {
-    	//¶ÔÓ¦PREPARE COMMIT newTransactionNameÓï¾ä
+    	//å¯¹åº”PREPARE COMMIT newTransactionNameè¯­å¥
         log.prepareCommit(session, transaction);
     }
 
@@ -1632,26 +1632,26 @@ public class PageStore implements CacheWriter {
         cols.add(new Column("COLUMNS", Value.STRING));
         metaSchema = new Schema(database, 0, "", null, true);
 
-        //ÔÚopen()·½·¨ÄÇÀïÓĞÒ»ĞĞ:
+        //åœ¨open()æ–¹æ³•é‚£é‡Œæœ‰ä¸€è¡Œ:
         //metaRootPageId.put(META_TABLE_ID, PAGE_ID_META_ROOT); 
-        //META_TABLE_IDÊÇ-1£¬PAGE_ID_META_ROOTÊÇ4
-        //metaTableµÄcreateÊÇfalse£¬ÕâÑùÔÚ´´½¨metaIndexÊ±£¬
-        //ÔÚPageDataIndexµÄ¹¹Ôìº¯ÊıÖĞÖ´ĞĞrootPageId = store.getRootPageId(id)Ê±´ÓmetaRootPageIdÖĞÈ¡³ö4
-        //pageId=4µÄÒ³¹Ì¶¨ÊÇmetaIndexµÄrootPageId
+        //META_TABLE_IDæ˜¯-1ï¼ŒPAGE_ID_META_ROOTæ˜¯4
+        //metaTableçš„createæ˜¯falseï¼Œè¿™æ ·åœ¨åˆ›å»ºmetaIndexæ—¶ï¼Œ
+        //åœ¨PageDataIndexçš„æ„é€ å‡½æ•°ä¸­æ‰§è¡ŒrootPageId = store.getRootPageId(id)æ—¶ä»metaRootPageIdä¸­å–å‡º4
+        //pageId=4çš„é¡µå›ºå®šæ˜¯metaIndexçš„rootPageId
         data.schema = metaSchema;
         data.tableName = "PAGE_INDEX";
-        data.id = META_TABLE_ID; //ÊÇ-1
+        data.id = META_TABLE_ID; //æ˜¯-1
         data.temporary = false;
         data.persistData = true;
         data.persistIndexes = true;
         data.create = false;
         data.session = systemSession;
         
-        //ÒòÎªRegularTableºÍPageDataIndexµÄid¶¼ÏàÍ¬
-        //ËùÒÔmetaTableºÍmetaIndexµÄid¶¼ÊÇ-1
-        //metaTableÖĞ´æ·ÅÁË³ımetaIndexÍâµÄËùÓĞË÷ÒıµÄÔªÊı¾İ(ÀïÃæÓĞ´ËË÷ÒıµÄroot pageId)
-        //¶ømetaIndexµÄpageId¹Ì¶¨ÊÇ4£¬ÕâÑùÔÚÆô¶¯Ê±ÏÈ°´4¶ÁmetaIndex£¬
-        //ÔÙ´ÓmetaTableÖĞ¶Á³öËùÓĞË÷ÒıµÄroot pageId£¬¾ÍÄÜ¸ù¾İroot pageIdÀ´¹¹ÔìÕû¸öË÷ÒıÊ÷ÁË
+        //å› ä¸ºRegularTableå’ŒPageDataIndexçš„idéƒ½ç›¸åŒ
+        //æ‰€ä»¥metaTableå’ŒmetaIndexçš„idéƒ½æ˜¯-1
+        //metaTableä¸­å­˜æ”¾äº†é™¤metaIndexå¤–çš„æ‰€æœ‰ç´¢å¼•çš„å…ƒæ•°æ®(é‡Œé¢æœ‰æ­¤ç´¢å¼•çš„root pageId)
+        //è€ŒmetaIndexçš„pageIdå›ºå®šæ˜¯4ï¼Œè¿™æ ·åœ¨å¯åŠ¨æ—¶å…ˆæŒ‰4è¯»metaIndexï¼Œ
+        //å†ä»metaTableä¸­è¯»å‡ºæ‰€æœ‰ç´¢å¼•çš„root pageIdï¼Œå°±èƒ½æ ¹æ®root pageIdæ¥æ„é€ æ•´ä¸ªç´¢å¼•æ ‘äº†
         metaTable = new RegularTable(data);
         metaIndex = (PageDataIndex) metaTable.getScanIndex(
                 systemSession);
@@ -1661,7 +1661,7 @@ public class PageStore implements CacheWriter {
 
     private void readMetaData() {
         Cursor cursor = metaIndex.find(systemSession, null, null);
-        //ÏÈ¶ÁPageDataIndex
+        //å…ˆè¯»PageDataIndex
         // first, create all tables
         while (cursor.next()) {
             Row row = cursor.get();
@@ -1670,7 +1670,7 @@ public class PageStore implements CacheWriter {
                 addMeta(row, systemSession, false);
             }
         }
-        //ÔÙ¶ÁPageBtreeIndex¡¢PageDelegateIndex
+        //å†è¯»PageBtreeIndexã€PageDelegateIndex
         // now create all secondary indexes
         // otherwise the table might not be created yet
         cursor = metaIndex.find(systemSession, null, null);
@@ -1698,16 +1698,16 @@ public class PageStore implements CacheWriter {
         metaObjects.remove(id);
     }
     
-    //Õâ¸ö·½·¨µÄ×÷ÓÃÊÇ°ÑËùÓĞË÷ÒıµÄidºÍpageId·Åµ½metaRootPageIdÖĞ£¬
-    //ÕâÑùÔÚorg.h2.engine.Database.open(int, int)ÖĞÖ´ĞĞrec.execute(this, systemSession, eventListener)Ê±
-    //»á´´½¨ĞÂµÄË÷ÒıÊµÁĞ£¬²»¹ıcreateÊÇfalse£¬ÕâÊ±¾ÍÖ±½Ó°´id´ÓmetaRootPageIdÖĞÈ¡³öpageIdÁË¡£
+    //è¿™ä¸ªæ–¹æ³•çš„ä½œç”¨æ˜¯æŠŠæ‰€æœ‰ç´¢å¼•çš„idå’ŒpageIdæ”¾åˆ°metaRootPageIdä¸­ï¼Œ
+    //è¿™æ ·åœ¨org.h2.engine.Database.open(int, int)ä¸­æ‰§è¡Œrec.execute(this, systemSession, eventListener)æ—¶
+    //ä¼šåˆ›å»ºæ–°çš„ç´¢å¼•å®åˆ—ï¼Œä¸è¿‡createæ˜¯falseï¼Œè¿™æ—¶å°±ç›´æ¥æŒ‰idä»metaRootPageIdä¸­å–å‡ºpageIdäº†ã€‚
     
-    //ÁíÍâ£¬Õâ¸ö·½·¨»¹ÉèÖÃmetaObjects£¬Ö÷ÒªÊÇÎªÁË¼ì²éPageBtreeIndex¡¢PageDelegateIndexµÄºÏ·¨ĞÔ£¬
-    //PageDataIndexµÄid£¬ÆäÊµ¾ÍÊÇPageBtreeIndex¡¢PageDelegateIndexµÄparent
-    //ÔÚrecover()·½·¨µÄ×îºó»áÇå¿ÕmetaObjectsÕâ¸ömapµÄÄÚÈİ¡£
-    //addMetaÕâ¸ö·½·¨¾ÍÊÇÓÉrecover()·½·¨´¥·¢µÄ
+    //å¦å¤–ï¼Œè¿™ä¸ªæ–¹æ³•è¿˜è®¾ç½®metaObjectsï¼Œä¸»è¦æ˜¯ä¸ºäº†æ£€æŸ¥PageBtreeIndexã€PageDelegateIndexçš„åˆæ³•æ€§ï¼Œ
+    //PageDataIndexçš„idï¼Œå…¶å®å°±æ˜¯PageBtreeIndexã€PageDelegateIndexçš„parent
+    //åœ¨recover()æ–¹æ³•çš„æœ€åä¼šæ¸…ç©ºmetaObjectsè¿™ä¸ªmapçš„å†…å®¹ã€‚
+    //addMetaè¿™ä¸ªæ–¹æ³•å°±æ˜¯ç”±recover()æ–¹æ³•è§¦å‘çš„
     
-    //Õâ¸ö·½·¨´´½¨µÄÊı¾İ¶ÔÏó²¢Î´¼Óµ½databaseºÍÏà¹ØµÄschemaÖĞ£¬ËùÒÔ²ÅÈ¡ÁË"T" + idÕâÀàÃû×Ö
+    //è¿™ä¸ªæ–¹æ³•åˆ›å»ºçš„æ•°æ®å¯¹è±¡å¹¶æœªåŠ åˆ°databaseå’Œç›¸å…³çš„schemaä¸­ï¼Œæ‰€ä»¥æ‰å–äº†"T" + idè¿™ç±»åå­—
     private void addMeta(Row row, Session session, boolean redo) {
         int id = row.getValue(0).getInt();
         int type = row.getValue(1).getInt();
@@ -1802,8 +1802,8 @@ public class PageStore implements CacheWriter {
      *
      * @param index the index
      */
-    //Ö»ÓĞPageDataIndex¡¢PageBtreeIndex¡¢PageDelegateIndexÈıÖÖÀàĞÍµÄPageIndex
-    //´Ë·½·¨Ò²»á°ÑmetaIndex¼Ó½øÀ´
+    //åªæœ‰PageDataIndexã€PageBtreeIndexã€PageDelegateIndexä¸‰ç§ç±»å‹çš„PageIndex
+    //æ­¤æ–¹æ³•ä¹Ÿä¼šæŠŠmetaIndexåŠ è¿›æ¥
     public synchronized void addIndex(PageIndex index) {
         metaObjects.put(index.getId(), index);
     }
@@ -1814,13 +1814,13 @@ public class PageStore implements CacheWriter {
      * @param index the index to add
      * @param session the session
      */
-    //Ö»ÓĞPageDataIndex¡¢PageBtreeIndex¡¢PageDelegateIndexÈıÖÖÀàĞÍµÄPageIndex
-    //ÒòÎªÖ»ÓĞCreateTableData.createÎªtrueÊ±²Åµ÷ÓÃaddMeta£¬
-    //¶ømetaIndexµÄCreateTableData.createÎªfalse£¬ËùÒÔmetaIndex×ÔÉíµÄÔªÊı¾İÊÇ²»»á¼Óµ½metaIndexÖĞµÄ¡£
+    //åªæœ‰PageDataIndexã€PageBtreeIndexã€PageDelegateIndexä¸‰ç§ç±»å‹çš„PageIndex
+    //å› ä¸ºåªæœ‰CreateTableData.createä¸ºtrueæ—¶æ‰è°ƒç”¨addMetaï¼Œ
+    //è€ŒmetaIndexçš„CreateTableData.createä¸ºfalseï¼Œæ‰€ä»¥metaIndexè‡ªèº«çš„å…ƒæ•°æ®æ˜¯ä¸ä¼šåŠ åˆ°metaIndexä¸­çš„ã€‚
     public void addMeta(PageIndex index, Session session) {
         Table table = index.getTable();
         
-        //Èç¹û²»ÊÇÁÙÊ±±í£¬½¨Ë÷ÒıÊ±ÒªËö×¡databaseµÄmeta±í
+        //å¦‚æœä¸æ˜¯ä¸´æ—¶è¡¨ï¼Œå»ºç´¢å¼•æ—¶è¦çä½databaseçš„metaè¡¨
         if (SysProperties.CHECK) {
             if (!table.isTemporary()) {
                 // to prevent ABBA locking problems, we need to always take
@@ -1833,8 +1833,8 @@ public class PageStore implements CacheWriter {
             }
         }
         synchronized (this) {
-        	//Ö»ÓĞPageDataIndexÊÇMETA_TYPE_DATA_INDEX£¬ÆäËû¶¼µ±³ÉMETA_TYPE_BTREE_INDEX
-        	//PageDelegateIndexÒ²±»µ±³ÉMETA_TYPE_BTREE_INDEX
+        	//åªæœ‰PageDataIndexæ˜¯META_TYPE_DATA_INDEXï¼Œå…¶ä»–éƒ½å½“æˆMETA_TYPE_BTREE_INDEX
+        	//PageDelegateIndexä¹Ÿè¢«å½“æˆMETA_TYPE_BTREE_INDEX
             int type = index instanceof PageDataIndex ? META_TYPE_DATA_INDEX : META_TYPE_BTREE_INDEX;
             IndexColumn[] columns = index.getIndexColumns();
             StatementBuilder buff = new StatementBuilder();
@@ -1843,7 +1843,7 @@ public class PageStore implements CacheWriter {
                 int id = col.column.getColumnId();
                 buff.append(id);
                 int sortType = col.sortType;
-                if (sortType != 0) { //0ÖµÊÇSortOrder.ASCENDING£¬Ä¬ÈÏ¾ÍÊÇSortOrder.ASCENDING£¬Ö»±£´æ·ÇSortOrder.ASCENDINGÖµ
+                if (sortType != 0) { //0å€¼æ˜¯SortOrder.ASCENDINGï¼Œé»˜è®¤å°±æ˜¯SortOrder.ASCENDINGï¼Œåªä¿å­˜éSortOrder.ASCENDINGå€¼
                     buff.append('/');
                     buff.append(sortType);
                 }
@@ -1877,10 +1877,10 @@ public class PageStore implements CacheWriter {
      * @param index the index to remove
      * @param session the session
      */
-    //Ö»ÓĞPageDataIndex¡¢PageBtreeIndex¡¢PageDelegateIndexÈıÖÖÀàĞÍµÄIndex
-    //°ÑIndex index¸Ä³ÉPageIndex index¸üºÃÀí½â£¬¶ÔÓ¦addMeta
+    //åªæœ‰PageDataIndexã€PageBtreeIndexã€PageDelegateIndexä¸‰ç§ç±»å‹çš„Index
+    //æŠŠIndex indexæ”¹æˆPageIndex indexæ›´å¥½ç†è§£ï¼Œå¯¹åº”addMeta
     public void removeMeta(Index index, Session session) {
-    	//Í¬addMetaÀàËÆ£¬//Èç¹û²»ÊÇÁÙÊ±±í£¬É¾³ıË÷ÒıÊ±ÒªËö×¡databaseµÄmeta±í
+    	//åŒaddMetaç±»ä¼¼ï¼Œ//å¦‚æœä¸æ˜¯ä¸´æ—¶è¡¨ï¼Œåˆ é™¤ç´¢å¼•æ—¶è¦çä½databaseçš„metaè¡¨
         if (SysProperties.CHECK) {
             if (!index.getTable().isTemporary()) {
                 // to prevent ABBA locking problems, we need to always take
@@ -1900,8 +1900,8 @@ public class PageStore implements CacheWriter {
         }
     }
 
-    //Ö»ÓĞPageDataIndex¡¢PageBtreeIndex¡¢PageDelegateIndexÈıÖÖÀàĞÍµÄIndex
-    //°ÑIndex index¸Ä³ÉPageIndex index¸üºÃÀí½â£¬¶ÔÓ¦addMeta
+    //åªæœ‰PageDataIndexã€PageBtreeIndexã€PageDelegateIndexä¸‰ç§ç±»å‹çš„Index
+    //æŠŠIndex indexæ”¹æˆPageIndex indexæ›´å¥½ç†è§£ï¼Œå¯¹åº”addMeta
     private void removeMetaIndex(Index index, Session session) {
         int key = index.getId() + 1;
         Row row = metaIndex.getRow(session, key);
@@ -2018,7 +2018,7 @@ public class PageStore implements CacheWriter {
         return cache;
     }
     
-    //¼ÆËãĞ£ÑéºÍÊ±²¢Î´±éÀúbyte[] dÊı×éÖĞµÄÃ¿¸ö×Ö½Ú£¬Ö»ÊÇÈ¡ÁËÒ»Ğ©ÌØÊâÏÂ±êµÄ×Ö½Ú×öÒ»Ğ©ÌØÊâÔËËã
+    //è®¡ç®—æ ¡éªŒå’Œæ—¶å¹¶æœªéå†byte[] dæ•°ç»„ä¸­çš„æ¯ä¸ªå­—èŠ‚ï¼Œåªæ˜¯å–äº†ä¸€äº›ç‰¹æ®Šä¸‹æ ‡çš„å­—èŠ‚åšä¸€äº›ç‰¹æ®Šè¿ç®—
     private void checksumSet(byte[] d, int pageId) {
         int ps = pageSize;
         int type = d[0];
@@ -2042,7 +2042,7 @@ public class PageStore implements CacheWriter {
      * @param pageSize the page size
      * @return true if it is correct
      */
-    //¸úÉÏÃæchecksumSet·½·¨ÄÚ²¿µÄ´úÂëÂß¼­ÀàËÆ
+    //è·Ÿä¸Šé¢checksumSetæ–¹æ³•å†…éƒ¨çš„ä»£ç é€»è¾‘ç±»ä¼¼
     public static boolean checksumTest(byte[] d, int pageId, int pageSize) {
         int ps = pageSize;
         int s1 = 255 + (d[0] & 255), s2 = 255 + s1;

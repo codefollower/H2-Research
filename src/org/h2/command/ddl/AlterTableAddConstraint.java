@@ -33,7 +33,7 @@ import org.h2.util.New;
  * This class represents the statement
  * ALTER TABLE ADD CONSTRAINT
  */
-//AlterTableAlterColumnÖ»ÓĞÖ´ĞĞalterÃüÁîÊ±»á²úÉú´ËÀàµÄÊµÀı£¬¶øAlterTableAddConstraintÊµÀıÔÚalterºÍcreate tableÃüÁîÖĞ¶¼»á²úÉú
+//AlterTableAlterColumnåªæœ‰æ‰§è¡Œalterå‘½ä»¤æ—¶ä¼šäº§ç”Ÿæ­¤ç±»çš„å®ä¾‹ï¼Œè€ŒAlterTableAddConstraintå®ä¾‹åœ¨alterå’Œcreate tableå‘½ä»¤ä¸­éƒ½ä¼šäº§ç”Ÿ
 public class AlterTableAddConstraint extends SchemaCommand {
 
     private int type;
@@ -78,8 +78,8 @@ public class AlterTableAddConstraint extends SchemaCommand {
      * @return the update count
      */
     private int tryUpdate() {
-        if (!transactional) { //ÔÚorg.h2.command.ddl.CreateTable.update()ÖĞÉèÖÃtransactional
-            session.commit(true); //Èç¹ûÊÇ·ÇÊÂÎñµÄ£¬ÄÇÃ´¾ÍµÃ×Ô¶¯Ìá½»
+        if (!transactional) { //åœ¨org.h2.command.ddl.CreateTable.update()ä¸­è®¾ç½®transactional
+            session.commit(true); //å¦‚æœæ˜¯éäº‹åŠ¡çš„ï¼Œé‚£ä¹ˆå°±å¾—è‡ªåŠ¨æäº¤
         }
         Database db = session.getDatabase();
         Table table = getSchema().getTableOrView(session, tableName);
@@ -93,8 +93,8 @@ public class AlterTableAddConstraint extends SchemaCommand {
         db.lockMeta(session);
         table.lock(session, true, true);
         Constraint constraint;
-        //ËÄÖÖÀàĞÍPRIMARY_KEY¡¢UNIQUE¡¢CHECK¡¢REFERENTIAL
-        //ÆäÖĞPRIMARY_KEY¡¢UNIQUE¹²ÓÃÒ»¸öConstraintUniqueÀà
+        //å››ç§ç±»å‹PRIMARY_KEYã€UNIQUEã€CHECKã€REFERENTIAL
+        //å…¶ä¸­PRIMARY_KEYã€UNIQUEå…±ç”¨ä¸€ä¸ªConstraintUniqueç±»
         switch (type) {
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY: {
             IndexColumn.mapColumns(indexColumns, table);
@@ -122,7 +122,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
             if (index == null) {
                 IndexType indexType = IndexType.createPrimaryKey(table.isPersistIndexes(), primaryKeyHash);
                 String indexName = table.getSchema().getUniqueIndexName(session, table, Constants.PREFIX_PRIMARY_KEY);
-                int id = getObjectId(); //»áµÃµ½ĞÂµÄ¶ÔÏóid£¬×÷ÎªË÷Òıid
+                int id = getObjectId(); //ä¼šå¾—åˆ°æ–°çš„å¯¹è±¡idï¼Œä½œä¸ºç´¢å¼•id
                 try {
                     index = table.addIndex(session, indexName, id, indexColumns, indexType, true, null);
                 } finally {
@@ -130,7 +130,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
                 }
             }
             index.getIndexType().setBelongsToConstraint(true);
-            int constraintId = getObjectId(); //ÓÖ»áµÃµ½ÁíÒ»¸öĞÂµÄ¶ÔÏóid£¬×÷ÎªÔ¼Êø¶ÔÏóid
+            int constraintId = getObjectId(); //åˆä¼šå¾—åˆ°å¦ä¸€ä¸ªæ–°çš„å¯¹è±¡idï¼Œä½œä¸ºçº¦æŸå¯¹è±¡id
             String name = generateConstraintName(table);
             ConstraintUnique pk = new ConstraintUnique(getSchema(), constraintId, name, table, true);
             pk.setColumns(indexColumns);
@@ -141,18 +141,18 @@ public class AlterTableAddConstraint extends SchemaCommand {
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_UNIQUE: {
             IndexColumn.mapColumns(indexColumns, table);
             boolean isOwner = false;
-            //Èç¹ûÃ»ÓĞÎªÔ¼Êø×Ö¶ÎÖ¸¶¨Ë÷Òı£¬ÄÇÃ´»á×Ô¶¯ÎªÕâĞ©Ô¼Êø×Ö¶Î´´½¨Ë÷Òı£¬´ËË÷Òı¹éÊôÓÚÔ¼Êø¶ÔÏó£¬±È²»ÊôÓÚ±í£¬µ«ÊÇÒ²¼Óµ½±íÖĞ
-            //¼ÙÉèÔÚf1ºÍf2ÉÏ½¨Á¢ÁËË÷Òı£¬²¢ÇÒÊÇÎ¨Ò»Ë÷Òı£¬ÏÖÔÚindexColumnsÁĞ¶à¼ÓÁËÒ»ÁĞf3£¬
-            //ÒòÎªf1ºÍf2ÄÜ±£Ö¤Î¨Ò»ÁË£¬ËùÒÔÖ±½ÓÓÃĞ©Ë÷Òıµ±³Éµ±Ç°Î¨Ò»Ô¼ÊøµÄË÷Òı¼´¿É
+            //å¦‚æœæ²¡æœ‰ä¸ºçº¦æŸå­—æ®µæŒ‡å®šç´¢å¼•ï¼Œé‚£ä¹ˆä¼šè‡ªåŠ¨ä¸ºè¿™äº›çº¦æŸå­—æ®µåˆ›å»ºç´¢å¼•ï¼Œæ­¤ç´¢å¼•å½’å±äºçº¦æŸå¯¹è±¡ï¼Œæ¯”ä¸å±äºè¡¨ï¼Œä½†æ˜¯ä¹ŸåŠ åˆ°è¡¨ä¸­
+            //å‡è®¾åœ¨f1å’Œf2ä¸Šå»ºç«‹äº†ç´¢å¼•ï¼Œå¹¶ä¸”æ˜¯å”¯ä¸€ç´¢å¼•ï¼Œç°åœ¨indexColumnsåˆ—å¤šåŠ äº†ä¸€åˆ—f3ï¼Œ
+            //å› ä¸ºf1å’Œf2èƒ½ä¿è¯å”¯ä¸€äº†ï¼Œæ‰€ä»¥ç›´æ¥ç”¨äº›ç´¢å¼•å½“æˆå½“å‰å”¯ä¸€çº¦æŸçš„ç´¢å¼•å³å¯
             if (index != null && canUseUniqueIndex(index, table, indexColumns)) {
                 isOwner = true;
                 index.getIndexType().setBelongsToConstraint(true);
             } else {
-            	//Èç²é¶¨ÒåÔ¼ÊøÊ±Ã»ÓĞÖ¸¶¨index£¬µ«ÓÖÄÜ´Óµ±Ç°±íÖĞµÃµ½Ò»¸öÂú×ãindexColumnsµÄÎ¨Ò»Ë÷Òı£¬
-            	//´ËÊ±isOwner¾ÍÊÇfalseÁË£¬Ò²¾ÍÊÇËµ·µ»ØµÄË÷Òı²»¹éÊôÔ¼Êø£¬»¹ÊÇ¹éÊô±í
+            	//å¦‚æŸ¥å®šä¹‰çº¦æŸæ—¶æ²¡æœ‰æŒ‡å®šindexï¼Œä½†åˆèƒ½ä»å½“å‰è¡¨ä¸­å¾—åˆ°ä¸€ä¸ªæ»¡è¶³indexColumnsçš„å”¯ä¸€ç´¢å¼•ï¼Œ
+            	//æ­¤æ—¶isOwnerå°±æ˜¯falseäº†ï¼Œä¹Ÿå°±æ˜¯è¯´è¿”å›çš„ç´¢å¼•ä¸å½’å±çº¦æŸï¼Œè¿˜æ˜¯å½’å±è¡¨
                 index = getUniqueIndex(table, indexColumns);
                 if (index == null) {
-                    index = createIndex(table, indexColumns, true); //ÓÃindexColumns´´½¨Ò»¸öÎ¨Ò»Ë÷Òı
+                    index = createIndex(table, indexColumns, true); //ç”¨indexColumnsåˆ›å»ºä¸€ä¸ªå”¯ä¸€ç´¢å¼•
                     isOwner = true;
                 }
             }
@@ -187,18 +187,18 @@ public class AlterTableAddConstraint extends SchemaCommand {
             }
             boolean isOwner = false;
             IndexColumn.mapColumns(indexColumns, table);
-            //Ö»Òªindex²»ÊÇScanË÷Òı(¼´getCreateSQL()²»Îªnull)£¬ÇÒindexËùÔÚ±í¾ÍÊÇtable£¬ÇÒË÷Òı×Ö¶Î°üº¬ËùÓĞµÄindexColumns
+            //åªè¦indexä¸æ˜¯Scanç´¢å¼•(å³getCreateSQL()ä¸ä¸ºnull)ï¼Œä¸”indexæ‰€åœ¨è¡¨å°±æ˜¯tableï¼Œä¸”ç´¢å¼•å­—æ®µåŒ…å«æ‰€æœ‰çš„indexColumns
             if (index != null && canUseIndex(index, table, indexColumns)) {
                 isOwner = true;
                 index.getIndexType().setBelongsToConstraint(true);
             } else {
-                index = getIndex(table, indexColumns); //isOwnerÍ¬ALTER_TABLE_ADD_CONSTRAINT_UNIQUEÖĞµÄ½âÊÍ
+                index = getIndex(table, indexColumns); //isOwneråŒALTER_TABLE_ADD_CONSTRAINT_UNIQUEä¸­çš„è§£é‡Š
                 if (index == null) {
                     index = createIndex(table, indexColumns, false);
                     isOwner = true;
                 }
             }
-            if (refIndexColumns == null) { //µ±Ö÷±í´æÔÚÖ÷¼üÊ±£¬ÒıÓÃ±í¿ÉÒÔ²»Ö¸¶¨Ö÷±íµÄÖ÷¼ü×Ö¶Î
+            if (refIndexColumns == null) { //å½“ä¸»è¡¨å­˜åœ¨ä¸»é”®æ—¶ï¼Œå¼•ç”¨è¡¨å¯ä»¥ä¸æŒ‡å®šä¸»è¡¨çš„ä¸»é”®å­—æ®µ
                 Index refIdx = refTable.getPrimaryKey();
                 refIndexColumns = refIdx.getIndexColumns();
             } else {
@@ -254,7 +254,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
     }
 
     private Index createIndex(Table t, IndexColumn[] cols, boolean unique) {
-        int indexId = getObjectId(); //µÃµ½ĞÂµÄ¶ÔÏóid
+        int indexId = getObjectId(); //å¾—åˆ°æ–°çš„å¯¹è±¡id
         IndexType indexType;
         if (unique) {
             // for unique constraints
@@ -311,7 +311,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
         for (IndexColumn c : cols) {
             set.add(c.column);
         }
-        //Ë÷ÒıÁĞÒª±ÈÔ¼ÊøÁĞÒªÉÙ£¬Ë÷ÒıÁĞ±ØĞë³öÏÖÔÚËùÓĞÔ¼ÊøÁĞÖĞ
+        //ç´¢å¼•åˆ—è¦æ¯”çº¦æŸåˆ—è¦å°‘ï¼Œç´¢å¼•åˆ—å¿…é¡»å‡ºç°åœ¨æ‰€æœ‰çº¦æŸåˆ—ä¸­
         for (Column c : indexCols) {
             // all columns of the index must be part of the list,
             // but not all columns of the list need to be part of the index

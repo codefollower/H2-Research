@@ -237,7 +237,7 @@ public class Schema extends DbObjectBase {
      * @param name the object name
      * @return the object or null
      */
-    //getTableOrView和findTableOrView差不多，差别是getTableOrView如果表不存在抛出异常，而findTableOrView只返回null
+    //getTableOrView鍜宖indTableOrView宸笉澶氾紝宸埆鏄痝etTableOrView濡傛灉琛ㄤ笉瀛樺湪鎶涘嚭寮傚父锛岃�宖indTableOrView鍙繑鍥瀗ull
     public Table findTableOrView(Session session, String name) {
         Table table = tablesAndViews.get(name);
         if (table == null && session != null) {
@@ -404,7 +404,7 @@ public class Schema extends DbObjectBase {
      * @return the table or view
      * @throws DbException if no such object exists
      */
-    //getTableOrView和findTableOrView差不多，差别是getTableOrView如果表不存在抛出异常，而findTableOrView只返回null
+    //getTableOrView鍜宖indTableOrView宸笉澶氾紝宸埆鏄痝etTableOrView濡傛灉琛ㄤ笉瀛樺湪鎶涘嚭寮傚父锛岃�宖indTableOrView鍙繑鍥瀗ull
     public Table getTableOrView(Session session, String name) {
         Table table = tablesAndViews.get(name);
         if (table == null) {

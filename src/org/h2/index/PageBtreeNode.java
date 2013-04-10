@@ -35,9 +35,9 @@ import org.h2.util.Utils;
  */
 public class PageBtreeNode extends PageBtree {
 
-    private static final int CHILD_OFFSET_PAIR_LENGTH = 6; //4×Ö½ÚµÄchild page id + 2×Ö½ÚµÄoffset
-    //Ö÷±íµÄkeyÊÇlongÀàĞÍ£¬¿ÉÒÔÈ¡Long.MIN_VALUE, ÓÃorg.h2.store.Data.writeVarLong(long)Ğ´Long.MIN_VALUEÊ±ÒªÓÃ10¸ö×Ö½Ú
-    //×¢:ÓÃorg.h2.store.Data.writeVarLong(long)Ğ´Long.MAX_VALUEÊ±ÓÃ9¸ö×Ö½Ú£¬ÒòÎªËüÊÇÕıÊı
+    private static final int CHILD_OFFSET_PAIR_LENGTH = 6; //4å­—èŠ‚çš„child page id + 2å­—èŠ‚çš„offset
+    //ä¸»è¡¨çš„keyæ˜¯longç±»å‹ï¼Œå¯ä»¥å–Long.MIN_VALUE, ç”¨org.h2.store.Data.writeVarLong(long)å†™Long.MIN_VALUEæ—¶è¦ç”¨10ä¸ªå­—èŠ‚
+    //æ³¨:ç”¨org.h2.store.Data.writeVarLong(long)å†™Long.MAX_VALUEæ—¶ç”¨9ä¸ªå­—èŠ‚ï¼Œå› ä¸ºå®ƒæ˜¯æ­£æ•°
     private static final int MAX_KEY_LENGTH = 10;
 
     private final boolean pageStoreInternalCount;
@@ -127,7 +127,7 @@ public class PageBtreeNode extends PageBtree {
      * @return the split point of this page, or -1 if no split is required
      */
     private int addChildTry(SearchRow row) {
-    	//keys²»µ½4¸öÊ±²»ÇĞ¸î
+    	//keysä¸åˆ°4ä¸ªæ—¶ä¸åˆ‡å‰²
         if (entryCount < 4) {
             return -1;
         }
@@ -138,16 +138,16 @@ public class PageBtreeNode extends PageBtree {
             // might get larger when _removing_ a child (if the new key needs
             // more space) - and removing a child can't split this page
         	
-        	//Ö÷±íµÄkeyÊÇlongÀàĞÍ£¬¿ÉÒÔÈ¡Long.MIN_VALUE, ÓÃorg.h2.store.Data.writeVarLong(long)Ğ´Long.MIN_VALUEÊ±ÒªÓÃ10¸ö×Ö½Ú
-            //×¢:ÓÃorg.h2.store.Data.writeVarLong(long)Ğ´Long.MAX_VALUEÊ±ÓÃ9¸ö×Ö½Ú£¬ÒòÎªËüÊÇÕıÊı
-            startData = entryCount + 1 * MAX_KEY_LENGTH; //¾ÍÊÇMAX_KEY_LENGTH+entryCount£¬¾ÍÊÇÏë¶à±£ÁôentryCount¸ö×Ö½Ú
+        	//ä¸»è¡¨çš„keyæ˜¯longç±»å‹ï¼Œå¯ä»¥å–Long.MIN_VALUE, ç”¨org.h2.store.Data.writeVarLong(long)å†™Long.MIN_VALUEæ—¶è¦ç”¨10ä¸ªå­—èŠ‚
+            //æ³¨:ç”¨org.h2.store.Data.writeVarLong(long)å†™Long.MAX_VALUEæ—¶ç”¨9ä¸ªå­—èŠ‚ï¼Œå› ä¸ºå®ƒæ˜¯æ­£æ•°
+            startData = entryCount + 1 * MAX_KEY_LENGTH; //å°±æ˜¯MAX_KEY_LENGTH+entryCountï¼Œå°±æ˜¯æƒ³å¤šä¿ç•™entryCountä¸ªå­—èŠ‚
         } else {
             int rowLength = index.getRowSize(data, row, onlyPosition);
             int pageSize = index.getPageStore().getPageSize();
             int last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
             startData = last - rowLength;
         }
-        //Ö»ÓĞÊ£Óà¿Õ¼ä²»ÄÜ·ÅÏÂCHILD_OFFSET_PAIR_LENGTHÊ±²ÅÇĞ¸î£¬²¢ÇÒÊÇÕÛ°ë
+        //åªæœ‰å‰©ä½™ç©ºé—´ä¸èƒ½æ”¾ä¸‹CHILD_OFFSET_PAIR_LENGTHæ—¶æ‰åˆ‡å‰²ï¼Œå¹¶ä¸”æ˜¯æŠ˜åŠ
         if (startData < start + CHILD_OFFSET_PAIR_LENGTH) {
             return entryCount / 2;
         }
@@ -157,7 +157,7 @@ public class PageBtreeNode extends PageBtree {
     /**
      * Add a child at the given position.
      *
-     * @param x the position ÊÇÖ¸rowsÊı×éµÄÏÂ±ê£¬´Ó0¿ªÊ¼£¬°Ñrow±äÁ¿¼Óµ½rowsÊı×éµÄxÏÂ±êÎ»ÖÃ´¦
+     * @param x the position æ˜¯æŒ‡rowsæ•°ç»„çš„ä¸‹æ ‡ï¼Œä»0å¼€å§‹ï¼ŒæŠŠrowå˜é‡åŠ åˆ°rowsæ•°ç»„çš„xä¸‹æ ‡ä½ç½®å¤„
      * @param childPageId the child
      * @param row the row smaller than the first row of the child and its children
      */
@@ -188,8 +188,8 @@ public class PageBtreeNode extends PageBtree {
         }
         rows = insert(rows, entryCount, x, row);
         offsets = insert(offsets, entryCount, x, offset);
-        add(offsets, x + 1, entryCount + 1, -rowLength); //Èç¹ûx²»ÊÇ×îºóÒ»¸öÏÂ±ê£¬ÄÇÃ´°ÑxÖ®ºóµÄÏÂ±ê¶ÔÓ¦µÄÔªËØÖµ¶¼¼õÉÙrowLength
-        childPageIds = insert(childPageIds, entryCount + 1, x + 1, childPageId); //childPageIdsµÄ³¤¶È±Èrows¶à1£¬ËùÒÔÒª¼Ó1
+        add(offsets, x + 1, entryCount + 1, -rowLength); //å¦‚æœxä¸æ˜¯æœ€åä¸€ä¸ªä¸‹æ ‡ï¼Œé‚£ä¹ˆæŠŠxä¹‹åçš„ä¸‹æ ‡å¯¹åº”çš„å…ƒç´ å€¼éƒ½å‡å°‘rowLength
+        childPageIds = insert(childPageIds, entryCount + 1, x + 1, childPageId); //childPageIdsçš„é•¿åº¦æ¯”rowså¤š1ï¼Œæ‰€ä»¥è¦åŠ 1
         start += CHILD_OFFSET_PAIR_LENGTH;
         if (pageStoreInternalCount) {
             if (rowCount != UNKNOWN_ROWCOUNT) {
@@ -206,25 +206,25 @@ public class PageBtreeNode extends PageBtree {
             int x = find(row, false, true, true);
             PageBtree page = index.getPage(childPageIds[x]);
             int splitPoint = page.addRowTry(row);
-            //1. ²»ĞèÒªÇĞ¸îµÄÇé¿ö
+            //1. ä¸éœ€è¦åˆ‡å‰²çš„æƒ…å†µ
             if (splitPoint == -1) {
                 break;
             }
             SearchRow pivot = page.getRow(splitPoint - 1);
             index.getPageStore().logUndo(this, data);
             int splitPoint2 = addChildTry(pivot);
-            //2. ÇĞ¸îPageBtreeNodeµÄÇé¿ö
-            //Èç¹ûPageBtreeNodeÒ³ÂúÁË£¬ÄÇÃ´Òª°ÑËüÇĞ¸î
+            //2. åˆ‡å‰²PageBtreeNodeçš„æƒ…å†µ
+            //å¦‚æœPageBtreeNodeé¡µæ»¡äº†ï¼Œé‚£ä¹ˆè¦æŠŠå®ƒåˆ‡å‰²
             if (splitPoint2 != -1) {
                 return splitPoint2;
             }
             
-//            System.out.println("-----------ÇĞ¸îNodeÇ°----------");
+//            System.out.println("-----------åˆ‡å‰²Nodeå‰----------");
 //            System.out.println(this);
 //            
-            //3. ÇĞ¸îPageBtreeNodeµÄ×î×ó±ß½áµãµÄÇé¿ö(×î×ó±ß½áµã¿ÉÄÜÊÇPageBtreeLeafÒ²¿ÉÄÜÊÇPageBtreeNode)
-            //¼ÌĞøÇĞ¸î×î×ó±ßµÄ×Ó½áµã(¼ÙÉè½ĞP0)£¬ÇĞ³ÉÁ½¸ö(¼ÙÉè½ĞP1£¬P2)£¬P1Êµ¼ÊÉÏ¾ÍÊÇP0£¬Ö»²»¹ıÊÇÔÚP0µÄ»ù´¡ÉÏ½ØÈ¡ÁËÒ»²¿·ÖÔªËØµ½P2ÖĞ£¬
-            //P2¼ÌĞø¼Óµ½µ±Ç°PageBtreeNodeµÄchildPageIdsÖĞ
+            //3. åˆ‡å‰²PageBtreeNodeçš„æœ€å·¦è¾¹ç»“ç‚¹çš„æƒ…å†µ(æœ€å·¦è¾¹ç»“ç‚¹å¯èƒ½æ˜¯PageBtreeLeafä¹Ÿå¯èƒ½æ˜¯PageBtreeNode)
+            //ç»§ç»­åˆ‡å‰²æœ€å·¦è¾¹çš„å­ç»“ç‚¹(å‡è®¾å«P0)ï¼Œåˆ‡æˆä¸¤ä¸ª(å‡è®¾å«P1ï¼ŒP2)ï¼ŒP1å®é™…ä¸Šå°±æ˜¯P0ï¼Œåªä¸è¿‡æ˜¯åœ¨P0çš„åŸºç¡€ä¸Šæˆªå–äº†ä¸€éƒ¨åˆ†å…ƒç´ åˆ°P2ä¸­ï¼Œ
+            //P2ç»§ç»­åŠ åˆ°å½“å‰PageBtreeNodeçš„childPageIdsä¸­
             PageBtree page2 = page.split(splitPoint);
             readAllRows();
             addChild(x, page2.getPos(), pivot);
@@ -232,12 +232,12 @@ public class PageBtreeNode extends PageBtree {
             index.getPageStore().update(page2);
             index.getPageStore().update(this);
             
-//            System.out.println("-----------°´" + pivot + "ÇĞ¸î----------");
-//            System.out.println("-----------NodeÇĞ¸î³ÉÁ½¸ö×ÓÒ³Ãæ----------");
+//            System.out.println("-----------æŒ‰" + pivot + "åˆ‡å‰²----------");
+//            System.out.println("-----------Nodeåˆ‡å‰²æˆä¸¤ä¸ªå­é¡µé¢----------");
 //            System.out.println(page);
 //            System.out.println(page2);
 //            
-//            System.out.println("-----------ÇĞ¸îNodeºó----------");
+//            System.out.println("-----------åˆ‡å‰²Nodeå----------");
 //            System.out.println(this);
         }
         updateRowCount(1);
@@ -260,7 +260,7 @@ public class PageBtreeNode extends PageBtree {
         }
     }
 
-    PageBtree split(int splitPoint) { //´ÓsplitPointÎ»ÖÃ(°üº¬splitPoint)¿ªÊ¼µÄÔªËØ¶¼»áÒÆ¶¯p2ÖĞ
+    PageBtree split(int splitPoint) { //ä»splitPointä½ç½®(åŒ…å«splitPoint)å¼€å§‹çš„å…ƒç´ éƒ½ä¼šç§»åŠ¨p2ä¸­
         int newPageId = index.getPageStore().allocatePage();
         PageBtreeNode p2 = PageBtreeNode.create(index, newPageId, parentPageId);
         index.getPageStore().logUndo(this, data);
@@ -271,14 +271,14 @@ public class PageBtreeNode extends PageBtree {
         int firstChild = childPageIds[splitPoint];
         readAllRows();
         for (int i = splitPoint; i < entryCount;) {
-        	//childPageIdsµÄ³¤¶È±Èrows¶à1£¬ËùÒÔÒª¼Ó1
+        	//childPageIdsçš„é•¿åº¦æ¯”rowså¤š1ï¼Œæ‰€ä»¥è¦åŠ 1
             p2.addChild(p2.entryCount, childPageIds[splitPoint + 1], getRow(splitPoint));
             removeChild(splitPoint);
         }
-        //ÎªÊ²Ã´ÒªÏÈ¼ÇÏÂ×îºóÒ»¸öchildPageId£¬È»ºóÉ¾µôÔÙ¸³Öµ»ØÈ¥ÄØ?
-        //ÒòÎªentryCount±ÈchildPageIdsµÄÓĞĞ§³¤¶ÈĞ¡1£¬
-        //entryCountÊÇrowsÖĞµÄÓĞĞ§·Ö¸ôkeyµÄ¸öÊı£¬
-        //removeChild(splitPoint - 1)ÖĞ»á°ÑrowsºÍoffsetsÖĞ×îºóÄÇ¸öÎŞÓÃµÄÉ¾ÁË
+        //ä¸ºä»€ä¹ˆè¦å…ˆè®°ä¸‹æœ€åä¸€ä¸ªchildPageIdï¼Œç„¶ååˆ æ‰å†èµ‹å€¼å›å»å‘¢?
+        //å› ä¸ºentryCountæ¯”childPageIdsçš„æœ‰æ•ˆé•¿åº¦å°1ï¼Œ
+        //entryCountæ˜¯rowsä¸­çš„æœ‰æ•ˆåˆ†éš”keyçš„ä¸ªæ•°ï¼Œ
+        //removeChild(splitPoint - 1)ä¸­ä¼šæŠŠrowså’Œoffsetsä¸­æœ€åé‚£ä¸ªæ— ç”¨çš„åˆ äº†
         int lastChild = childPageIds[splitPoint - 1];
         removeChild(splitPoint - 1);
         childPageIds[splitPoint - 1] = lastChild;
@@ -290,7 +290,7 @@ public class PageBtreeNode extends PageBtree {
         return p2;
     }
     
-    //ÖØĞÂÉèÖÃÒ»ÏÂÔ­À´ËùÓĞ×Ó½ÚµãµÄparentPageId
+    //é‡æ–°è®¾ç½®ä¸€ä¸‹åŸæ¥æ‰€æœ‰å­èŠ‚ç‚¹çš„parentPageId
     protected void remapChildren() {
         for (int i = 0; i < entryCount + 1; i++) {
             int child = childPageIds[i];
@@ -427,7 +427,7 @@ public class PageBtreeNode extends PageBtree {
 
     private void check() {
         if (SysProperties.CHECK) {
-            for (int i = 0; i < entryCount + 1; i++) { //childPageIdsµÄ³¤¶È±ÈentryCount´ó1
+            for (int i = 0; i < entryCount + 1; i++) { //childPageIdsçš„é•¿åº¦æ¯”entryCountå¤§1
                 int child = childPageIds[i];
                 if (child == 0) {
                     DbException.throwInternalError();
@@ -458,8 +458,8 @@ public class PageBtreeNode extends PageBtree {
         }
         readAllRows();
         writeHead();
-        data.writeInt(childPageIds[entryCount]); //childPageIdsµÄ³¤¶È±ÈentryCount´ó1£¬ËùÒÔ×îºóÒ»¸ö×ÓpageIdµ¥¶ÀĞ´
-        for (int i = 0; i < entryCount; i++) { //ÕâÀï²»°üº¬×îºóÒ»¸ö×ÓpageId
+        data.writeInt(childPageIds[entryCount]); //childPageIdsçš„é•¿åº¦æ¯”entryCountå¤§1ï¼Œæ‰€ä»¥æœ€åä¸€ä¸ªå­pageIdå•ç‹¬å†™
+        for (int i = 0; i < entryCount; i++) { //è¿™é‡Œä¸åŒ…å«æœ€åä¸€ä¸ªå­pageId
             data.writeInt(childPageIds[i]);
             data.writeShortInt(offsets[i]);
         }
@@ -492,7 +492,7 @@ public class PageBtreeNode extends PageBtree {
         if (entryCount > i) {
             int startNext = i > 0 ? offsets[i - 1] : index.getPageStore().getPageSize();
             int rowLength = startNext - offsets[i];
-            add(offsets, i, entryCount + 1, rowLength); //iºóµÄÔªËØÒªÍùÇ°ÒÆ£¬ËùÒÔoffsetÒªÔö¼ÓrowLength
+            add(offsets, i, entryCount + 1, rowLength); //iåçš„å…ƒç´ è¦å¾€å‰ç§»ï¼Œæ‰€ä»¥offsetè¦å¢åŠ rowLength
         }
         rows = remove(rows, entryCount + 1, i);
         offsets = remove(offsets, entryCount + 1, i);
@@ -506,16 +506,16 @@ public class PageBtreeNode extends PageBtree {
      * @param cursor the cursor
      * @param pageId id of the next page
      */
-    //org.h2.index.PageBtreeLeaf.nextPage(PageBtreeCursor)»áµ÷ÓÃ´Ë·½·¨£¬
-    //µ±ÔÚPageBtreeLeaf.nextPageÕÒÍêµ±Ç°PageBtreeLeafµÄ¼ÇÂ¼ºó£¬¾Í»á°Ñµ±Ç°PageBtreeLeafµÄpageId´«½øÀ´£¬
-    //ÒÔ´ËpageIdÀ´±éÀúchildPageIds£¬ÕÒµ½ÏÂÒ»¸öpage
+    //org.h2.index.PageBtreeLeaf.nextPage(PageBtreeCursor)ä¼šè°ƒç”¨æ­¤æ–¹æ³•ï¼Œ
+    //å½“åœ¨PageBtreeLeaf.nextPageæ‰¾å®Œå½“å‰PageBtreeLeafçš„è®°å½•åï¼Œå°±ä¼šæŠŠå½“å‰PageBtreeLeafçš„pageIdä¼ è¿›æ¥ï¼Œ
+    //ä»¥æ­¤pageIdæ¥éå†childPageIdsï¼Œæ‰¾åˆ°ä¸‹ä¸€ä¸ªpage
     void nextPage(PageBtreeCursor cursor, int pageId) {
         int i;
         // TODO maybe keep the index in the child page (transiently)
         for (i = 0; i < entryCount + 1; i++) {
             if (childPageIds[i] == pageId) {
-            	//pageId¶ÔÓ¦µÄ½áµãÒÑ¾­ÕÒ¹ıÁË£¬ÏÖÔÚÊÇÒªÕÒÏÂÒ»¸öpageId
-            	//µ±childPageIds[i]ÓëpageIdÏàµÈÊ±£¬i++Ö®ºó£¬childPageIds[i]±ãÊÇÏÂÒ»¸öpage£¬ËùÒÔ´ËÊ±Òªbreak
+            	//pageIdå¯¹åº”çš„ç»“ç‚¹å·²ç»æ‰¾è¿‡äº†ï¼Œç°åœ¨æ˜¯è¦æ‰¾ä¸‹ä¸€ä¸ªpageId
+            	//å½“childPageIds[i]ä¸pageIdç›¸ç­‰æ—¶ï¼Œi++ä¹‹åï¼ŒchildPageIds[i]ä¾¿æ˜¯ä¸‹ä¸€ä¸ªpageï¼Œæ‰€ä»¥æ­¤æ—¶è¦break
                 i++;
                 break;
             }
@@ -623,7 +623,7 @@ public class PageBtreeNode extends PageBtree {
         throw DbException.throwInternalError();
     }
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	@Override
 	public String tree(String p) {
 		StringBuilder s = new StringBuilder(200);
@@ -649,7 +649,7 @@ public class PageBtreeNode extends PageBtree {
 		return s.toString();
 	}
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public static String stringArray(Object[] array, String t) {
 		if (array == null) {
 			return "null";
@@ -667,7 +667,7 @@ public class PageBtreeNode extends PageBtree {
 		return buff.toString();
 	}
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public static String stringArray(Object[] array, String t, int entryCount) {
 		if (array == null) {
 			return "null";
@@ -685,7 +685,7 @@ public class PageBtreeNode extends PageBtree {
 		return buff.toString();
 	}
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public static String stringArray2(int[] array) {
 		if (array == null) {
 			return "null";
@@ -698,7 +698,7 @@ public class PageBtreeNode extends PageBtree {
 		return buff.toString();
 	}
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public static String stringArray2(int[] array, int entryCount) {
 		if (array == null) {
 			return "null";

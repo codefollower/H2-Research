@@ -15,7 +15,7 @@ public class JdbcCallableStatementTest extends TestBase {
 		//prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
 	}
 
-	//测试org.h2.result.LocalResult
+	//娴嬭瘯org.h2.result.LocalResult
 	//org.h2.result.ResultRemote
 	@Override
 	public void startInternal() throws Exception {
@@ -45,7 +45,7 @@ public class JdbcCallableStatementTest extends TestBase {
 		
 		//sql = "?2 = CALL myschema.MY_SQRT(2.2)";
 		CallableStatement cs = conn.prepareCall(sql);
-		//cs.registerOutParameter(1, Types.DOUBLE); //sqlType其实被忽略了，所以设什么都没用
+		//cs.registerOutParameter(1, Types.DOUBLE); //sqlType鍏跺疄琚拷鐣ヤ簡锛屾墍浠ヨ浠�涔堥兘娌＄敤
 		//cs.registerOutParameter("ID", Types.DOUBLE);
 		//cs.registerOutParameter("2", Types.DOUBLE);
 		//cs.registerOutParameter("MYSCHEMA.MY_SQRT(2.2)", Types.DOUBLE);

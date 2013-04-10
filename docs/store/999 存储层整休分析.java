@@ -1,22 +1,22 @@
-²ã´ÎÍ¼: ÓÉ´óµ½Ğ¡
+å±‚æ¬¡å›¾: ç”±å¤§åˆ°å°
 
 RegularTable => PageDataIndex => PageDataNode => PageDataLeaf
 
-×î³õÊÇÒ»¸öroot PageDataLeaf£¬µ±PageDataLeafºÜ´óÊ±»á·ÖÁÑ£¬±ä³ÉPageDataNodeºÍÁ½¸ö×ÓPageDataLeaf
+æœ€åˆæ˜¯ä¸€ä¸ªroot PageDataLeafï¼Œå½“PageDataLeafå¾ˆå¤§æ—¶ä¼šåˆ†è£‚ï¼Œå˜æˆPageDataNodeå’Œä¸¤ä¸ªå­PageDataLeaf
 
-Ò»¸öPageDataLeafÒ³¿ÉÒÔ·Å¶àĞĞ¼ÇÂ¼£¬ÏÈ·Åµ½ÄÚÈİÖĞ±£´æÔÚPageDataLeafµÄrows×Ö¶ÎÖĞ
+ä¸€ä¸ªPageDataLeafé¡µå¯ä»¥æ”¾å¤šè¡Œè®°å½•ï¼Œå…ˆæ”¾åˆ°å†…å®¹ä¸­ä¿å­˜åœ¨PageDataLeafçš„rowså­—æ®µä¸­
 
 
-Ìí¼ÓĞÂĞĞµÄ¹ı³Ì£º
+æ·»åŠ æ–°è¡Œçš„è¿‡ç¨‹ï¼š
 
-ÏÈĞ´µ½ÄÚ´æ£º
+å…ˆå†™åˆ°å†…å­˜ï¼š
 org.h2.table.RegularTable.addRow(Session, Row)
 	=> org.h2.index.PageDataIndex.add(Session, Row)
 		=> org.h2.index.PageDataIndex.addTry(Session, Row)
 			=> org.h2.index.PageDataLeaf.addRowTry(Row)
 				=> rows = insert(rows, entryCount, x, row);
 
-ÔÙĞ´»ØÓ²ÅÌ:
+å†å†™å›ç¡¬ç›˜:
 	at org.h2.index.PageDataLeaf.write(PageDataLeaf.java:456)
 	at org.h2.store.PageStore.writeBack(PageStore.java:1009)
 	at org.h2.store.PageStore.writeBack(PageStore.java:412)
@@ -32,7 +32,7 @@ org.h2.table.RegularTable.addRow(Session, Row)
 
 
 
-ÔÚorg.h2.engine.Database.addMeta(Session, DbObject)ÖĞ´æ±íÔªÊı¾İ
+åœ¨org.h2.engine.Database.addMeta(Session, DbObject)ä¸­å­˜è¡¨å…ƒæ•°æ®
 ( /* key:26 */ 14, 0, 0, STRINGDECODE('CREATE CACHED TABLE PUBLIC.TEST(\n    ID INT NOT NULL,\n    NAME VARCHAR(255)\n)'))
 
 

@@ -187,7 +187,7 @@ public class Parser {
 
     public Parser(Session session) {
         database = session.getDatabase();
-        this.identifiersToUpper = database.getSettings().databaseToUpper; //Ä¬ÈÏÊÇtrue£¬¼´±íÃû¡¢ÁĞÃûÄ¬ÈÏ»á×ª³É´óĞ´
+        this.identifiersToUpper = database.getSettings().databaseToUpper; //é»˜è®¤æ˜¯trueï¼Œå³è¡¨åã€åˆ—åé»˜è®¤ä¼šè½¬æˆå¤§å†™
         this.session = session;
     }
 
@@ -197,7 +197,7 @@ public class Parser {
      * @param sql the SQL statement to parse
      * @return the prepared object
      */
-    public Prepared prepare(String sql) { //±ÈÈçÔÚ³õÊ¼»¯DatabaseÊ±ÒªÖØ½¨Êı¾İ¿â¶ÔÏó£¬Ö»ÓĞµ¥ÌõSQL
+    public Prepared prepare(String sql) { //æ¯”å¦‚åœ¨åˆå§‹åŒ–Databaseæ—¶è¦é‡å»ºæ•°æ®åº“å¯¹è±¡ï¼Œåªæœ‰å•æ¡SQL
         Prepared p = parse(sql);
         p.prepare();
         if (currentTokenType != END) {
@@ -213,7 +213,7 @@ public class Parser {
      * @return the command object
      */
     public Command prepareCommand(String sql) {
-    	//±ÈÈçÔ¶³Ì¿Í»§¶Ë·¢ÆğµÄµ÷ÓÃ£¬¼ûorg.h2.server.TcpServerThread.process()£¬¿ÉÒÔÓĞ¶àÌõSQL
+    	//æ¯”å¦‚è¿œç¨‹å®¢æˆ·ç«¯å‘èµ·çš„è°ƒç”¨ï¼Œè§org.h2.server.TcpServerThread.process()ï¼Œå¯ä»¥æœ‰å¤šæ¡SQL
         try {
             Prepared p = parse(sql);
             p.prepare();
@@ -221,7 +221,7 @@ public class Parser {
             if (isToken(";")) {
                 String remaining = originalSQL.substring(parseIndex);
                 if (remaining.trim().length() != 0) {
-                    CommandList list = new CommandList(this, sql, c, remaining); //ÔÚËüµÄexecuteRemainingÖĞ»á¼ÌĞøµ÷ÓÃÕâÀïµÄ´úÂë
+                    CommandList list = new CommandList(this, sql, c, remaining); //åœ¨å®ƒçš„executeRemainingä¸­ä¼šç»§ç»­è°ƒç”¨è¿™é‡Œçš„ä»£ç 
                     // list.addCommand(c);
                     // do {
                     // c = parseCommand();
@@ -244,21 +244,21 @@ public class Parser {
      * @param sql the SQL statement to parse
      * @return the prepared object
      */
-    Prepared parse(String sql) { //³ı´ËÀàÍâ£¬Ö»¿´µ½ÔÚorg.h2.command.CommandContainer.recompileIfRequired()ÖĞÊ¹ÓÃ
+    Prepared parse(String sql) { //é™¤æ­¤ç±»å¤–ï¼Œåªçœ‹åˆ°åœ¨org.h2.command.CommandContainer.recompileIfRequired()ä¸­ä½¿ç”¨
         Prepared p;
         try {
             // first, try the fast variant
-        	//´ó¶àÊıÇé¿öÏÂSQL¶¼ÊÇÕıÈ·µÄ£¬ËùÒÔÕâÀï×öÁËĞ©ÓÅ»¯: Ä¬ÈÏ²»Ê¹ÓÃexpectedList£¬µ±³öÏÖ´íÎóÊ±²¶»ñDbException£¬
-			//Èç¹ûÊÇÓï·¨´íÎóÄÇÃ´ÔÙ½âÎöÒ»´Î£¬²¢ÓÃexpectedList¼ÇÂ¼SQLÔÚÓï·¨²ãÃæÈ±ÁËÄÄĞ©¶«Î÷£¬
-			//Èç¹ûÊÇ·ÇÓï·¨´íÎó£¬Ôò°ÑSQL¹ØÁªµ½Òì³££¬Ö±½ÓÅ×³öÒì³£¡£
-        	//Èç¹û²»ÆğÓÃÕâ¸öÓÅ»¯£¬ÄÇÃ´ÒòÎªÆµ·±µ÷ÓÃreadIf->addExpected»áµ¼ÖÂexpectedList±äµÃºÜ´ó
+        	//å¤§å¤šæ•°æƒ…å†µä¸‹SQLéƒ½æ˜¯æ­£ç¡®çš„ï¼Œæ‰€ä»¥è¿™é‡Œåšäº†äº›ä¼˜åŒ–: é»˜è®¤ä¸ä½¿ç”¨expectedListï¼Œå½“å‡ºç°é”™è¯¯æ—¶æ•è·DbExceptionï¼Œ
+			//å¦‚æœæ˜¯è¯­æ³•é”™è¯¯é‚£ä¹ˆå†è§£æä¸€æ¬¡ï¼Œå¹¶ç”¨expectedListè®°å½•SQLåœ¨è¯­æ³•å±‚é¢ç¼ºäº†å“ªäº›ä¸œè¥¿ï¼Œ
+			//å¦‚æœæ˜¯éè¯­æ³•é”™è¯¯ï¼Œåˆ™æŠŠSQLå…³è”åˆ°å¼‚å¸¸ï¼Œç›´æ¥æŠ›å‡ºå¼‚å¸¸ã€‚
+        	//å¦‚æœä¸èµ·ç”¨è¿™ä¸ªä¼˜åŒ–ï¼Œé‚£ä¹ˆå› ä¸ºé¢‘ç¹è°ƒç”¨readIf->addExpectedä¼šå¯¼è‡´expectedListå˜å¾—å¾ˆå¤§
             p = parse(sql, false);
         } catch (DbException e) {
             if (e.getErrorCode() == ErrorCode.SYNTAX_ERROR_1) {
                 // now, get the detailed exception
                 p = parse(sql, true);
             } else {
-                throw e.addSQL(sql); //±ÈÈçupdateÊ±Èç¹û±íÃû²»´æÔÚ¾Í»áÊÇErrorCode.TABLE_OR_VIEW_NOT_FOUND_1
+                throw e.addSQL(sql); //æ¯”å¦‚updateæ—¶å¦‚æœè¡¨åä¸å­˜åœ¨å°±ä¼šæ˜¯ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1
             }
         }
         p.setPrepareAlways(recompileAlways);
@@ -302,7 +302,7 @@ public class Parser {
                 c = parseCall();
                 break;
             case '(':
-            	//±È½ÏÌØÊâ£¬Ã»ÓĞreadIf£¬¶øÊÇÔÚparseSelectSub()ÖĞreadIf
+            	//æ¯”è¾ƒç‰¹æ®Šï¼Œæ²¡æœ‰readIfï¼Œè€Œæ˜¯åœ¨parseSelectSub()ä¸­readIf
                 c = parseSelect();
                 break;
             case 'a':
@@ -358,7 +358,7 @@ public class Parser {
                 break;
             case 'f':
             case 'F':
-            	//±È½ÏÌØÊâ£¬Ã»ÓĞreadIf£¬¶øÊÇÔÚparseSelectSub()ÖĞreadIf
+            	//æ¯”è¾ƒç‰¹æ®Šï¼Œæ²¡æœ‰readIfï¼Œè€Œæ˜¯åœ¨parseSelectSub()ä¸­readIf
                 if (isToken("FROM")) {
                     c = parseSelect();
                 }
@@ -407,7 +407,7 @@ public class Parser {
                 break;
             case 's':
             case 'S':
-            	//±È½ÏÌØÊâ£¬Ã»ÓĞreadIf£¬¶øÊÇÔÚparseSelectSub()ÖĞreadIf
+            	//æ¯”è¾ƒç‰¹æ®Šï¼Œæ²¡æœ‰readIfï¼Œè€Œæ˜¯åœ¨parseSelectSub()ä¸­readIf
                 if (isToken("SELECT")) {
                     c = parseSelect();
                 } else if (readIf("SET")) {
@@ -574,8 +574,8 @@ public class Parser {
         }
         String procedureName = readAliasIdentifier();
         if (readIf("(")) {
-        	//ÈçPREPARE mytest (int, long, date) AS select * from ExecuteProcedureTest
-        	//Õâ¸ölistÆäÊµÃ»Ê¹ÓÃ
+        	//å¦‚PREPARE mytest (int, long, date) AS select * from ExecuteProcedureTest
+        	//è¿™ä¸ªlistå…¶å®æ²¡ä½¿ç”¨
             ArrayList<Column> list = New.arrayList();
             for (int i = 0;; i++) {
                 Column column = parseColumnForTable("C" + i, true);
@@ -671,7 +671,7 @@ public class Parser {
         TableFilter filter = readSimpleTableFilter();
         command.setTableFilter(filter);
         read("SET");
-        //Èç: update UpdateTest set(name, id) = ('123',10)
+        //å¦‚: update UpdateTest set(name, id) = ('123',10)
         if (readIf("(")) {
             ArrayList<Column> columns = New.arrayList();
             do {
@@ -695,13 +695,13 @@ public class Parser {
                 }
             }
         } else {
-        	//Èç: update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3
+        	//å¦‚: update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3
             do {
                 Column column = readTableColumn(filter);
                 read("=");
                 Expression expression;
                 if (readIf("DEFAULT")) {
-                    expression = ValueExpression.getDefault(); //Êµ¼ÊÉÏÊÇnull
+                    expression = ValueExpression.getDefault(); //å®é™…ä¸Šæ˜¯null
                 } else {
                     expression = readExpression();
                 }
@@ -738,7 +738,7 @@ public class Parser {
         Delete command = new Delete(session);
         Expression limit = null;
         if (readIf("TOP")) {
-            limit = readTerm().optimize(session); //ÎªÊ²Ã´ÒªÔÚÕâµ÷ÓÃoptimize¼ûorg.h2.command.dml.Delete.prepare()µÄ×¢ÊÍ
+            limit = readTerm().optimize(session); //ä¸ºä»€ä¹ˆè¦åœ¨è¿™è°ƒç”¨optimizeè§org.h2.command.dml.Delete.prepare()çš„æ³¨é‡Š
         }
         currentPrepared = command;
         int start = lastParseIndex;
@@ -917,8 +917,8 @@ public class Parser {
         return prep;
     }
     
-    //isSelectÓĞ»ØËİ,¶ÁÍêËùÓĞ×óÀ¨ºÅ£¬È»ºó¿´ÏÂÒ»¸ötokenÊÇ·ñÊÇselect¡¢from
-	//È»ºóÔÙ´Óµ÷ÓÃisSelectÇ°µÄlastParseIndex¿ªÊ¼½âÎö£¬µ±Ç°tokenÊÇµ÷ÓÃisSelectÇ°µÄtoken.
+    //isSelectæœ‰å›æº¯,è¯»å®Œæ‰€æœ‰å·¦æ‹¬å·ï¼Œç„¶åçœ‹ä¸‹ä¸€ä¸ªtokenæ˜¯å¦æ˜¯selectã€from
+	//ç„¶åå†ä»è°ƒç”¨isSelectå‰çš„lastParseIndexå¼€å§‹è§£æï¼Œå½“å‰tokenæ˜¯è°ƒç”¨isSelectå‰çš„token.
     private boolean isSelect() {
         int start = lastParseIndex;
         while (readIf("(")) {
@@ -1039,13 +1039,13 @@ public class Parser {
         return command;
     }
 
-    private TableFilter readTableFilter(boolean fromOuter) { //×î¿ªÊ¼ÊÇ´ÓparseSelectSimpleFromPart·½·¨´¥·¢
+    private TableFilter readTableFilter(boolean fromOuter) { //æœ€å¼€å§‹æ˜¯ä»parseSelectSimpleFromPartæ–¹æ³•è§¦å‘
         Table table;
         String alias = null;
-        if (readIf("(")) { //ÔÚfromºóÖ±½Ó¸ú×óÀ¨ºÅ£¬Èç"from (select 1)"
-        	//isSelectÓĞ»ØËİ,¶ÁÍêËùÓĞ×óÀ¨ºÅ£¬È»ºó¿´ÏÂÒ»¸ötokenÊÇ·ñÊÇselect¡¢from
-        	//È»ºóÔÙ´Óµ÷ÓÃisSelectÇ°µÄlastParseIndex¿ªÊ¼½âÎö£¬µ±Ç°tokenÊÇµ÷ÓÃisSelectÇ°µÄtoken.
-            if (isSelect()) { //Èç"FROM ((select 1) union (select 1))";
+        if (readIf("(")) { //åœ¨fromåç›´æ¥è·Ÿå·¦æ‹¬å·ï¼Œå¦‚"from (select 1)"
+        	//isSelectæœ‰å›æº¯,è¯»å®Œæ‰€æœ‰å·¦æ‹¬å·ï¼Œç„¶åçœ‹ä¸‹ä¸€ä¸ªtokenæ˜¯å¦æ˜¯selectã€from
+        	//ç„¶åå†ä»è°ƒç”¨isSelectå‰çš„lastParseIndexå¼€å§‹è§£æï¼Œå½“å‰tokenæ˜¯è°ƒç”¨isSelectå‰çš„token.
+            if (isSelect()) { //å¦‚"FROM ((select 1) union (select 1))";
                 Query query = parseSelectUnion();
                 read(")");
                 query.setParameterList(New.arrayList(parameters));
@@ -1059,7 +1059,7 @@ public class Parser {
                 alias = session.getNextSystemIdentifier(sqlCommand);
                 table = TableView.createTempView(s, session.getUser(), alias, query, currentSelect);
             } else {
-            	//Èç"FROM (mytable) SELECT * "
+            	//å¦‚"FROM (mytable) SELECT * "
             	//"FROM (mytable1 RIGHT OUTER JOIN mytable2 ON mytable1.id1=mytable2.id2) AS t SELECT * "
                 TableFilter top;
                 if (database.getSettings().nestedJoins) {
@@ -1078,7 +1078,7 @@ public class Parser {
                 return top;
             }
         } else if (readIf("VALUES")) {
-            table = parseValuesTable().getTable(); //Èç"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
+            table = parseValuesTable().getTable(); //å¦‚"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
         } else {
             String tableName = readIdentifierWithSchema(null);
             Schema schema = getSchema();
@@ -1091,7 +1091,7 @@ public class Parser {
             }
             if (foundLeftBracket) {
                 Schema mainSchema = database.getSchema(Constants.SCHEMA_MAIN);
-                //Èç"FROM SYSTEM_RANGE(1,100) SELECT * ";
+                //å¦‚"FROM SYSTEM_RANGE(1,100) SELECT * ";
                 if (equalsToken(tableName, RangeTable.NAME)) {
                     Expression min = readExpression();
                     read(",");
@@ -1099,9 +1099,9 @@ public class Parser {
                     read(")");
                     table = new RangeTable(mainSchema, min, max, false);
                 } else {
-                	//Èç"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
-                	//Õâ¸ö²»ºÏ·¨£¬µÄFunctionTableÖĞ»áÅ×´ísql = "FROM USER() SELECT * "; //º¯Êı·µ»ØÖµÀàĞÍ±ØĞëÊÇRESULT_SET
-                	//Ö»ÓĞCSVREAD¡¢LINK_SCHEMA¡¢TABLE¡¢TABLE_DISTINCTÕâ4¸öº¯ÊıµÄ·µ»ØÖµÀàĞÍÊÇRESULT_SET
+                	//å¦‚"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
+                	//è¿™ä¸ªä¸åˆæ³•ï¼Œçš„FunctionTableä¸­ä¼šæŠ›é”™sql = "FROM USER() SELECT * "; //å‡½æ•°è¿”å›å€¼ç±»å‹å¿…é¡»æ˜¯RESULT_SET
+                	//åªæœ‰CSVREADã€LINK_SCHEMAã€TABLEã€TABLE_DISTINCTè¿™4ä¸ªå‡½æ•°çš„è¿”å›å€¼ç±»å‹æ˜¯RESULT_SET
                     Expression expr = readFunction(schema, tableName);
                     if (!(expr instanceof FunctionCall)) {
                         throw getSyntaxError();
@@ -1113,10 +1113,10 @@ public class Parser {
                     table = new FunctionTable(mainSchema, session, expr, call);
                 }
             } else if (equalsToken("DUAL", tableName)) {
-                table = getDualTable(false); //Èç"FROM DUAL SELECT * "
+                table = getDualTable(false); //å¦‚"FROM DUAL SELECT * "
             } else if (database.getMode().sysDummy1 && equalsToken("SYSDUMMY1", tableName)) {
-                table = getDualTable(false); //Èç"FROM SYSDUMMY1 SELECT * "£¬ÒªÊÊµ±ÉèÖÃMODE²ÎÊı
-            } else { //Õı³£µÄ from tableNameÓï·¨
+                table = getDualTable(false); //å¦‚"FROM SYSDUMMY1 SELECT * "ï¼Œè¦é€‚å½“è®¾ç½®MODEå‚æ•°
+            } else { //æ­£å¸¸çš„ from tableNameè¯­æ³•
                 table = readTableOrView(tableName);
             }
         }
@@ -1187,7 +1187,7 @@ public class Parser {
         }
         SetComment command = new SetComment(session);
         String objectName;
-        if (column) { //ÈçCOMMENT ON COLUMN mydb.public.SetCommentTest.f1
+        if (column) { //å¦‚COMMENT ON COLUMN mydb.public.SetCommentTest.f1
             // can't use readIdentifierWithSchema() because
             // it would not read schema.table.column correctly
             // if the db name is equal to the schema name
@@ -1359,16 +1359,16 @@ public class Parser {
         return command;
     }
     
-    //Èç¹ûRIGHT¡¢LEFT¡¢INNER¡¢JOINÕâ5ÖÖJOINºóÃæÃ»ÓĞÖ±½Ó½ÓON¾Í»á³öÏÖµİ¹éµ÷ÓÃreadJoinµÄÇé¿ö£¬
-    //Èç: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
-    //¼ÓONµÄ»°ËäÈ»Ò²»áµİ¹éµ÷ÓÃreadJoin£¬µ«ÒòÎª½ô½Ó×ÅµÄtokenÊÇON£¬ËùÒÔÊµ¼ÊÉÏreadJoinÊ²Ã´¶¼²»×ö
-    //²Î¼û<<Êı¾İ¿âÏµÍ³»ù´¡½Ì³Ì>>p24¡¢p25¡¢p26¡¢p129¡¢p163
-    private TableFilter readJoin(TableFilter top, Select command, boolean nested, boolean fromOuter) { //Ç¶Ì×¡¢Íâ²¿
-    	//fromOuterÕâ¸ö²ÎÊıÖ»ÓĞ´ÓLEFT/RIGHT OUTER½øÈëreadJoinÎªtrue
-    	//nestedÕâ¸ö²ÎÊıÖ»ÓĞ´ÓLEFT OUTER½øÈëreadJoinÎªtrue
+    //å¦‚æœRIGHTã€LEFTã€INNERã€JOINè¿™5ç§JOINåé¢æ²¡æœ‰ç›´æ¥æ¥ONå°±ä¼šå‡ºç°é€’å½’è°ƒç”¨readJoinçš„æƒ…å†µï¼Œ
+    //å¦‚: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
+    //åŠ ONçš„è¯è™½ç„¶ä¹Ÿä¼šé€’å½’è°ƒç”¨readJoinï¼Œä½†å› ä¸ºç´§æ¥ç€çš„tokenæ˜¯ONï¼Œæ‰€ä»¥å®é™…ä¸ŠreadJoinä»€ä¹ˆéƒ½ä¸åš
+    //å‚è§<<æ•°æ®åº“ç³»ç»ŸåŸºç¡€æ•™ç¨‹>>p24ã€p25ã€p26ã€p129ã€p163
+    private TableFilter readJoin(TableFilter top, Select command, boolean nested, boolean fromOuter) { //åµŒå¥—ã€å¤–éƒ¨
+    	//fromOuterè¿™ä¸ªå‚æ•°åªæœ‰ä»LEFT/RIGHT OUTERè¿›å…¥readJoinä¸ºtrue
+    	//nestedè¿™ä¸ªå‚æ•°åªæœ‰ä»LEFT OUTERè¿›å…¥readJoinä¸ºtrue
         boolean joined = false;
-        TableFilter last = top; //lastÖ»¶ÔNATURAL JOINÓĞÓÃ
-        //NESTED_JOINS²ÎÊıÄ¬ÈÏÊÇtrue
+        TableFilter last = top; //laståªå¯¹NATURAL JOINæœ‰ç”¨
+        //NESTED_JOINSå‚æ•°é»˜è®¤æ˜¯true
         boolean nestedJoins = database.getSettings().nestedJoins;
         while (true) {
             if (readIf("RIGHT")) {
@@ -1382,11 +1382,11 @@ public class Parser {
                 if (readIf("ON")) {
                     on = readExpression();
                 }
-                //µ±t1 RIGHT OUTER JOIN t2Ê±£¬t2·ÅÔÚÇ°Ãæ£¬t1Ç¶Ì×ÔÚÒ»¸öDualTableÖĞ£¬È»ºót2È¥joinÕâ¸öDualTable
+                //å½“t1 RIGHT OUTER JOIN t2æ—¶ï¼Œt2æ”¾åœ¨å‰é¢ï¼Œt1åµŒå¥—åœ¨ä¸€ä¸ªDualTableä¸­ï¼Œç„¶åt2å»joinè¿™ä¸ªDualTable
                 if (nestedJoins) {
                     top = getNested(top);
-                    //RIGHT OUTERºÍLEFT OUTERÊ±£¬addJoinµÄµÚ¶ş¸ö²ÎÊı¶¼ÊÇtrue
-                    newTop.addJoin(top, true, false, on); //Íâ²¿¡¢Ç¶Ì×(addJoinºÍreadJoinµÄË³Ğò¸ÕºÃÏà·´)
+                    //RIGHT OUTERå’ŒLEFT OUTERæ—¶ï¼ŒaddJoinçš„ç¬¬äºŒä¸ªå‚æ•°éƒ½æ˜¯true
+                    newTop.addJoin(top, true, false, on); //å¤–éƒ¨ã€åµŒå¥—(addJoinå’ŒreadJoinçš„é¡ºåºåˆšå¥½ç›¸å)
                 } else {
                     newTop.addJoin(top, true, false, on);
                 }
@@ -1400,9 +1400,9 @@ public class Parser {
                 if (nestedJoins) {
                     join = readJoin(join, command, true, true);
                 } else {
-                    //µ±nestedJoinsÎªfalseÊ±,
-                    //¶ÔÓÚSELECT * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 LEFT OUTER JOIN JoinTest3
-                    //Êµ¼ÊÉÏÊÇJoinTest1.join => JoinTest3.join => JoinTest2
+                    //å½“nestedJoinsä¸ºfalseæ—¶,
+                    //å¯¹äºSELECT * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 LEFT OUTER JOIN JoinTest3
+                    //å®é™…ä¸Šæ˜¯JoinTest1.join => JoinTest3.join => JoinTest2
                     top = readJoin(top, command, false, true);
                 }
                 Expression on = null;
@@ -1413,7 +1413,7 @@ public class Parser {
                 last = join;
             } else if (readIf("FULL")) {
                 throw getSyntaxError();
-            } else if (readIf("INNER")) { //INNER JOIN»òJOIN¾ÍÊÇ¦ÈÁ¬½Ó(ÔÚµÑ¿¨¶ù»ı»ıÖ®ÉÏ¼Ó¹ıÂËÌõ¼ş)
+            } else if (readIf("INNER")) { //INNER JOINæˆ–JOINå°±æ˜¯Î¸è¿æ¥(åœ¨ç¬›å¡å„¿ç§¯ç§¯ä¹‹ä¸ŠåŠ è¿‡æ»¤æ¡ä»¶)
                 read("JOIN");
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
@@ -1428,7 +1428,7 @@ public class Parser {
                     top.addJoin(join, fromOuter, false, on);
                 }
                 last = join;
-            } else if (readIf("JOIN")) { //¸úINNER JOINÒ»Ñù
+            } else if (readIf("JOIN")) { //è·ŸINNER JOINä¸€æ ·
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
                 top = readJoin(top, command, false, false);
@@ -1442,8 +1442,8 @@ public class Parser {
                     top.addJoin(join, fromOuter, false, on);
                 }
                 last = join;
-            } else if (readIf("CROSS")) { //CROSS JOINºÍNATURAL JOINºóÃæ²»ÄÜÔÙreadJoin£¬ÒòÎªÃ»ÓĞON×Ó¾ä£¬µ«ÊÇ¿ÉÒÔ½ÓÆäËûJOIN
-                read("JOIN"); //CROSS JOIN¾ÍÊÇÇóµÑ¿¨¶ù»ı
+            } else if (readIf("CROSS")) { //CROSS JOINå’ŒNATURAL JOINåé¢ä¸èƒ½å†readJoinï¼Œå› ä¸ºæ²¡æœ‰ONå­å¥ï¼Œä½†æ˜¯å¯ä»¥æ¥å…¶ä»–JOIN
+                read("JOIN"); //CROSS JOINå°±æ˜¯æ±‚ç¬›å¡å„¿ç§¯
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
                 if (nestedJoins) {
@@ -1452,7 +1452,7 @@ public class Parser {
                     top.addJoin(join, fromOuter, false, null);
                 }
                 last = join;
-            } else if (readIf("NATURAL")) { //CROSS JOINºÍNATURAL JOINºóÃæ²»ÄÜÔÙreadJoin£¬ÒòÎªÃ»ÓĞON×Ó¾ä£¬µ«ÊÇ¿ÉÒÔ½ÓÆäËûJOIN
+            } else if (readIf("NATURAL")) { //CROSS JOINå’ŒNATURAL JOINåé¢ä¸èƒ½å†readJoinï¼Œå› ä¸ºæ²¡æœ‰ONå­å¥ï¼Œä½†æ˜¯å¯ä»¥æ¥å…¶ä»–JOIN
                 read("JOIN");
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
@@ -1461,10 +1461,10 @@ public class Parser {
                 String tableSchema = last.getTable().getSchema().getName();
                 String joinSchema = join.getTable().getSchema().getName();
                 Expression on = null;
-                //È¡×ó±ßºÍÓÒ±ßÁĞÃûÏàÍ¬µÄÁĞÀ´×÷ÎªonÌõ¼ş£¬ÓÃµÈÓÚ¹ØÏµ±í´ïÊ½À´±íÊ¾£¬Èç¹ûÓĞ¶à¸öÕâÑùµÄÏàÍ¬ÁĞ£¬ÔòÓÃANDÆ´×°
-                //Èç: SELECT t1.id, t1.b FROM JoinTest1 t1 NATURAL JOIN JoinTest4 t2
-                //Ôò: on = ((PUBLIC.T1.ID = PUBLIC.T2.ID) AND (PUBLIC.T1.NAME = PUBLIC.T2.NAME))
-                for (Column tc : tableCols) { //´Ó×ó±ßµÄ±í¿ªÊ¼
+                //å–å·¦è¾¹å’Œå³è¾¹åˆ—åç›¸åŒçš„åˆ—æ¥ä½œä¸ºonæ¡ä»¶ï¼Œç”¨ç­‰äºå…³ç³»è¡¨è¾¾å¼æ¥è¡¨ç¤ºï¼Œå¦‚æœæœ‰å¤šä¸ªè¿™æ ·çš„ç›¸åŒåˆ—ï¼Œåˆ™ç”¨ANDæ‹¼è£…
+                //å¦‚: SELECT t1.id, t1.b FROM JoinTest1 t1 NATURAL JOIN JoinTest4 t2
+                //åˆ™: on = ((PUBLIC.T1.ID = PUBLIC.T2.ID) AND (PUBLIC.T1.NAME = PUBLIC.T2.NAME))
+                for (Column tc : tableCols) { //ä»å·¦è¾¹çš„è¡¨å¼€å§‹
                     String tableColumnName = tc.getName();
                     for (Column c : joinCols) {
                         String joinColumnName = c.getName();
@@ -1493,13 +1493,13 @@ public class Parser {
                 break;
             }
         }
-        //µ±NESTED_JOINS²ÎÊıÎªtrueÊÇÏÂÃæÕâÌõsqlµÄJoinTest2 JOIN JoinTest3¾ÍÂú×ãÕâ¸öifÌõ¼ş
-        //ÒòÎªJoinTest1 LEFT OUTER JOIN JoinTest2»áÊ¹µÃnestedÎªtrue
+        //å½“NESTED_JOINSå‚æ•°ä¸ºtrueæ˜¯ä¸‹é¢è¿™æ¡sqlçš„JoinTest2 JOIN JoinTest3å°±æ»¡è¶³è¿™ä¸ªifæ¡ä»¶
+        //å› ä¸ºJoinTest1 LEFT OUTER JOIN JoinTest2ä¼šä½¿å¾—nestedä¸ºtrue
         //SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 JOIN JoinTest3
-        //Ïàµ±ÓÚ:
+        //ç›¸å½“äº:
         //JoinTest1.join => TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest2).join => TableFilter(JoinTest3)
-        //Ò²¾ÍÊÇÏÈËãJoinTest2 JOIN JoinTest3(¼ÙÉè½á¹ûÊÇR)
-        //È»ºóJoinTest1ÔÙÓÚR½øĞĞLEFT OUTER JOIN
+        //ä¹Ÿå°±æ˜¯å…ˆç®—JoinTest2 JOIN JoinTest3(å‡è®¾ç»“æœæ˜¯R)
+        //ç„¶åJoinTest1å†äºRè¿›è¡ŒLEFT OUTER JOIN
         if (nested && joined) {
             top = getNested(top);
         }
@@ -1507,7 +1507,7 @@ public class Parser {
     }
 
     private TableFilter getNested(TableFilter n) {
-        String joinTable = Constants.PREFIX_JOIN + parseIndex; //Èç£ºSYSTEM_JOIN_25
+        String joinTable = Constants.PREFIX_JOIN + parseIndex; //å¦‚ï¼šSYSTEM_JOIN_25
         TableFilter top = new TableFilter(session, getDualTable(true), joinTable, rightsChecked, currentSelect);
         top.addJoin(n, false, true, null);
         return top;
@@ -1581,13 +1581,13 @@ public class Parser {
     }
     
     /*
-		¶ÔÓÚ¼òµ¥µÄsql£¬Èçselect name1 from mytable1 order by name1
-		parseSelectSub()¸ºÔğ½âÎöselect name1 from mytable1
-		parseSelectUnionExtension¸ºÔğ½âÎö order by name1
+		å¯¹äºç®€å•çš„sqlï¼Œå¦‚select name1 from mytable1 order by name1
+		parseSelectSub()è´Ÿè´£è§£æselect name1 from mytable1
+		parseSelectUnionExtensionè´Ÿè´£è§£æ order by name1
 		
-		Èç¹ûunion sqlÊÇselect name1 from mytable1 union select name2 from mytable2 order by name1
-		parseSelectSub()¸ºÔğ½âÎöselect name1 from mytable1
-		parseSelectUnionExtension¸ºÔğ½âÎö union select name2 from mytable2 order by name1
+		å¦‚æœunion sqlæ˜¯select name1 from mytable1 union select name2 from mytable2 order by name1
+		parseSelectSub()è´Ÿè´£è§£æselect name1 from mytable1
+		parseSelectUnionExtensionè´Ÿè´£è§£æ union select name2 from mytable2 order by name1
 	*/
     private Query parseSelectUnion() {
         int start = lastParseIndex;
@@ -1595,7 +1595,7 @@ public class Parser {
         return parseSelectUnionExtension(command, start, false);
     }
     
-    //Ö»ÓĞÔÚparseSelectUnionÖĞµ÷ÓÃ£¬unionOnly×ÜÎªfalse
+    //åªæœ‰åœ¨parseSelectUnionä¸­è°ƒç”¨ï¼ŒunionOnlyæ€»ä¸ºfalse
     private Query parseSelectUnionExtension(Query command, int start, boolean unionOnly) {
         while (true) {
             if (readIf("UNION")) {
@@ -1629,11 +1629,11 @@ public class Parser {
         return command;
     }
     
-    //½âÎösqlÖĞµÄLIMIT¡¢ordey by¡¢FOR UPDATE
-    //Èç¹ûÊÇunionÊ±LIMIT¡¢ordey by¡¢FOR UPDATE²»ÄÜ·ÅÔÚ×Ó¾äÖĞ£¬Òª·ÅÔÚ×îºó
-	//±ÈÈçÕâÌõÊÇ´íÎóµÄ:
+    //è§£æsqlä¸­çš„LIMITã€ordey byã€FOR UPDATE
+    //å¦‚æœæ˜¯unionæ—¶LIMITã€ordey byã€FOR UPDATEä¸èƒ½æ”¾åœ¨å­å¥ä¸­ï¼Œè¦æ”¾åœ¨æœ€å
+	//æ¯”å¦‚è¿™æ¡æ˜¯é”™è¯¯çš„:
 	//sql = "select name1 from mytable1 order by name1 union select name2 from mytable2";
-	//Òª¸Ä³ÉÕâÑù:
+	//è¦æ”¹æˆè¿™æ ·:
 	//sql = "select name1 from mytable1 union select name2 from mytable2 order by name1";
     private void parseEndOfQuery(Query command) {
         if (readIf("ORDER")) {
@@ -1684,7 +1684,7 @@ public class Parser {
             // http://sqlpro.developpez.com/SQL2008/
             if (readIf("OFFSET")) {
                 command.setOffset(readExpression().optimize(session));
-                //OFFSET Òª¸úROW»òROWS£¬²»ÄÜÉÙ
+                //OFFSET è¦è·ŸROWæˆ–ROWSï¼Œä¸èƒ½å°‘
                 if (!readIf("ROW")) {
                     read("ROWS");
                 }
@@ -1751,7 +1751,7 @@ public class Parser {
     }
 
     private Query parseSelectSub() {
-        if (readIf("(")) { //ÔÚparsePrepared()ÖĞÃ»ÓĞreadIf£¬ËùÒÔµ±Ç°tokenÊÇ"("¡¢from¡¢selectÖ®Ò»
+        if (readIf("(")) { //åœ¨parsePrepared()ä¸­æ²¡æœ‰readIfï¼Œæ‰€ä»¥å½“å‰tokenæ˜¯"("ã€fromã€selectä¹‹ä¸€
             Query command = parseSelectUnion();
             read(")");
             return command;
@@ -1772,10 +1772,10 @@ public class Parser {
         command.addTableFilter(top, true);
         boolean isOuter = false;
         while (true) {
-        	//Èçsql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
-        	//´ËÊ±topÊÇTableFilter(JoinTest1)
+        	//å¦‚sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
+        	//æ­¤æ—¶topæ˜¯TableFilter(JoinTest1)
             TableFilter n = top.getNestedJoin();
-            //nÊÇnull
+            //næ˜¯null
             if (n != null) {
                 n.visit(new TableFilterVisitor() {
                     public void accept(TableFilter f) {
@@ -1783,30 +1783,30 @@ public class Parser {
                     }
                 });
             }
-            //joinÊÇTableFilter(SYSTEM_JOIN_xxx)
+            //joinæ˜¯TableFilter(SYSTEM_JOIN_xxx)
             TableFilter join = top.getJoin();
             if (join == null) {
                 break;
             }
             
-            //isOuterÊÇtrue
+            //isOuteræ˜¯true
             isOuter = isOuter | join.isJoinOuter();
             if (isOuter) {
                 command.addTableFilter(join, false);
             } else {
                 // make flat so the optimizer can work better
-            	//Èçsql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";
-            	//´ËÊ±onÊÇid>30
-            	//joinÊÇJoinTest2
+            	//å¦‚sql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";
+            	//æ­¤æ—¶onæ˜¯id>30
+            	//joinæ˜¯JoinTest2
                 Expression on = join.getJoinCondition();
                 if (on != null) {
                     command.addCondition(on);
                 }
                 join.removeJoinCondition();
-                //ÔÚJoinTest1ÖĞÉ¾³ıjoin×Ö¶Î£¬ÕâÑùJoinTest1ºÍJoinTest2¾Í¶Ï¿ªÁË£¬
-                //Èçsql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";
-                //µ«ÊÇÔÚorg.h2.command.dml.Optimizer.optimize()
-                //µÄ f2[i].addJoin(f2[i + 1], false, false, null)ÖĞÓÖ¼ÓÉÏ
+                //åœ¨JoinTest1ä¸­åˆ é™¤joinå­—æ®µï¼Œè¿™æ ·JoinTest1å’ŒJoinTest2å°±æ–­å¼€äº†ï¼Œ
+                //å¦‚sql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";
+                //ä½†æ˜¯åœ¨org.h2.command.dml.Optimizer.optimize()
+                //çš„ f2[i].addJoin(f2[i + 1], false, false, null)ä¸­åˆåŠ ä¸Š
                 top.removeJoin();
                 command.addTableFilter(join, true);
             }
@@ -1814,7 +1814,7 @@ public class Parser {
         }
     }
     
-    //Ö»´¦ÀíSELECTÓï¾äÖĞµÄSelect Expression
+    //åªå¤„ç†SELECTè¯­å¥ä¸­çš„Select Expression
     private void parseSelectSimpleSelectPart(Select command) {
         Select temp = currentSelect;
         // make sure aggregate functions will not work in TOP and LIMIT
@@ -1844,7 +1844,7 @@ public class Parser {
                 expressions.add(new Wildcard(null, null));
             } else {
                 Expression expr = readExpression();
-                //name n1, name as n2¶¼¿ÉÒÔ
+                //name n1, name as n2éƒ½å¯ä»¥
                 if (readIf("AS") || currentTokenType == IDENTIFIER) {
                     String alias = readAliasIdentifier();
                     boolean aliasColumnName = database.getSettings().aliasColumnName;
@@ -1857,12 +1857,12 @@ public class Parser {
         command.setExpressions(expressions);
     }
     
-    //Ö»´¦ÀíSELECTÓï¾äÖĞµÄfrom¡¢Select Expression¡¢where¡¢group by¡¢having×Ó¾ä
+    //åªå¤„ç†SELECTè¯­å¥ä¸­çš„fromã€Select Expressionã€whereã€group byã€havingå­å¥
     private Select parseSelectSimple() {
         boolean fromFirst;
         if (readIf("SELECT")) {
             fromFirst = false;
-        } else if (readIf("FROM")) { //Ö§³Öfrom ... select ...Óï·¨
+        } else if (readIf("FROM")) { //æ”¯æŒfrom ... select ...è¯­æ³•
             fromFirst = true;
         } else {
             throw getSyntaxError();
@@ -1878,7 +1878,7 @@ public class Parser {
             parseSelectSimpleSelectPart(command);
         } else {
             parseSelectSimpleSelectPart(command);
-            //Ã»ÓĞfrom£¬Èç"select 2"
+            //æ²¡æœ‰fromï¼Œå¦‚"select 2"
             if (!readIf("FROM")) {
                 // select without FROM: convert to SELECT ... FROM
                 // SYSTEM_RANGE(1,1)
@@ -1889,7 +1889,7 @@ public class Parser {
                 parseSelectSimpleFromPart(command);
             }
         }
-        //ÏÂÃæ´úÂë´¦Àíwhere¡¢group by¡¢having×Ó¾ä
+        //ä¸‹é¢ä»£ç å¤„ç†whereã€group byã€havingå­å¥
         if (readIf("WHERE")) {
             Expression condition = readExpression();
             command.addCondition(condition);
@@ -1969,8 +1969,8 @@ public class Parser {
             boolean not = false;
             if (readIf("NOT")) {
                 not = true;
-                //ÕâÑù²»ºÏ·¨: delete from mytable where name not null
-                //ÕâÑù²ÅºÏ·¨: delete from mytable where name is null
+                //è¿™æ ·ä¸åˆæ³•: delete from mytable where name not null
+                //è¿™æ ·æ‰åˆæ³•: delete from mytable where name is null
                 if (isToken("NULL")) {
                     // this really only works for NOT NULL!
                     parseIndex = backup;
@@ -2009,7 +2009,7 @@ public class Parser {
                 }
             } else if (readIf("IN")) {
                 read("(");
-                if (readIf(")")) { //¶ÔÓÚIN()Ö±½Ó·µ»Øfalse³£Á¿
+                if (readIf(")")) { //å¯¹äºIN()ç›´æ¥è¿”å›falseå¸¸é‡
                     r = ValueExpression.get(ValueBoolean.get(false));
                 } else {
                     if (isSelect()) {
@@ -2023,16 +2023,16 @@ public class Parser {
                             v.add(last);
                         } while (readIf(","));
                         if (v.size() == 1 && (last instanceof Subquery)) {
-                        	//Èçid in(+(select id from SubqueryTest where id=1 and name='a1'))
-                        	//SubqueryµÄ¼ÇÂ¼²»ÄÜ¶àÓÚ1Ìõ£¬ËùÒÔÔÚÇ°Ãæ·Å+ºÅ¾Í¿ÉÒÔÈÆ¹ıisSelect()£¬´ËÊ±·µ»ØµÄ¾ÍÊÇÒ»¸öSubquery
-                        	//µ«ÊÇ·Å¼õºÅÊÇ²»ĞĞµÄ£¬»áµÃµ½Ò»¸öOperation
-                        	//+ºÅ»á×ª³ÉConditionInSelect£¬¶ø²»ÔÙÊ¹ÓÃConditionIn
+                        	//å¦‚id in(+(select id from SubqueryTest where id=1 and name='a1'))
+                        	//Subqueryçš„è®°å½•ä¸èƒ½å¤šäº1æ¡ï¼Œæ‰€ä»¥åœ¨å‰é¢æ”¾+å·å°±å¯ä»¥ç»•è¿‡isSelect()ï¼Œæ­¤æ—¶è¿”å›çš„å°±æ˜¯ä¸€ä¸ªSubquery
+                        	//ä½†æ˜¯æ”¾å‡å·æ˜¯ä¸è¡Œçš„ï¼Œä¼šå¾—åˆ°ä¸€ä¸ªOperation
+                        	//+å·ä¼šè½¬æˆConditionInSelectï¼Œè€Œä¸å†ä½¿ç”¨ConditionIn
                             Subquery s = (Subquery) last;
                             Query q = s.getQuery();
                             r = new ConditionInSelect(database, r, q, false, Comparison.EQUAL);
                         } else {
-                        	//ConditionInµÄvalueListÊÇ¿ÉÒÔ°üº¬SubqueryµÄ
-                        	//Èçid in(3, (select id from SubqueryTest where id=1 and name='a1'))";
+                        	//ConditionInçš„valueListæ˜¯å¯ä»¥åŒ…å«Subqueryçš„
+                        	//å¦‚id in(3, (select id from SubqueryTest where id=1 and name='a1'))";
                             r = new ConditionIn(database, r, v);
                         }
                     }
@@ -2261,7 +2261,7 @@ public class Parser {
     }
 
     private Expression readFunction(Schema schema, String name) {
-    	//Ö»ÓĞFunctionAliasÒ²¾ÍÊÇJavaFunction²ÅÓĞschema
+    	//åªæœ‰FunctionAliasä¹Ÿå°±æ˜¯JavaFunctionæ‰æœ‰schema
         if (schema != null) {
             return readJavaFunction(schema, name);
         }
@@ -2427,7 +2427,7 @@ public class Parser {
     }
 
     private Expression readWildcardOrSequenceValue(String schema, String objectName) {
-        if (readIf("*")) { //Èç"select t.* from mytable t"ÖĞµÄ"t.*"
+        if (readIf("*")) { //å¦‚"select t.* from mytable t"ä¸­çš„"t.*"
             return new Wildcard(schema, objectName);
         }
         if (schema == null) {
@@ -2717,10 +2717,10 @@ public class Parser {
             break;
         }
         case ROWNUM:
-        	//ROW_NUMBERº¯ÊıËäÈ»¶¨ÒåÁË£¬µ«ROW_NUMBER()º¯ÊıÎŞĞ§£¬²»Ö§³ÖÕâÑùµÄÓï·¨
+        	//ROW_NUMBERå‡½æ•°è™½ç„¶å®šä¹‰äº†ï¼Œä½†ROW_NUMBER()å‡½æ•°æ— æ•ˆï¼Œä¸æ”¯æŒè¿™æ ·çš„è¯­æ³•
     		//sql = "SELECT ROW_NUMBER()"; 
-    		//ROWNUMº¯ÊıËäÈ»Ã»ÓĞ¶¨Òå£¬µ«ROWNUM()ÊÇÓĞĞ§£¬ParserÔÚ½âÎöÊ±°ÑËûµ±³ÉROWNUMÎ±×Ö¶Î´¦Àí
-    		//µ±³ÉÁËorg.h2.expression.Rownum£¬¼ûorg.h2.command.Parser.readTerm()
+    		//ROWNUMå‡½æ•°è™½ç„¶æ²¡æœ‰å®šä¹‰ï¼Œä½†ROWNUM()æ˜¯æœ‰æ•ˆï¼ŒParseråœ¨è§£ææ—¶æŠŠä»–å½“æˆROWNUMä¼ªå­—æ®µå¤„ç†
+    		//å½“æˆäº†org.h2.expression.Rownumï¼Œè§org.h2.command.Parser.readTerm()
     		//sql = "SELECT ROWNUM()"; 
             read();
             if (readIf("(")) {
@@ -2740,12 +2740,12 @@ public class Parser {
             throw getSyntaxError();
         }
         if (readIf("[")) {
-        	//sql = "SELECT ('Hello', 'World')[2]"; //null, ÏÂ±êÒª´Ó0¿ªÊ¼
-    		//sql = "SELECT ('Hello', 'World')[1]"; //World£¬
+        	//sql = "SELECT ('Hello', 'World')[2]"; //null, ä¸‹æ ‡è¦ä»0å¼€å§‹
+    		//sql = "SELECT ('Hello', 'World')[1]"; //Worldï¼Œ
             Function function = Function.getFunction(database, "ARRAY_GET");
             function.setParameter(0, r);
             r = readExpression();
-            //ARRAY_GETº¯ÊıµÄÏÂ±ê´Ó1¿ªÊ¼£¬ËùÒÔÒª¼Ó1
+            //ARRAY_GETå‡½æ•°çš„ä¸‹æ ‡ä»1å¼€å§‹ï¼Œæ‰€ä»¥è¦åŠ 1
             r = new Operation(Operation.PLUS, r, ValueExpression.get(ValueInt.get(1)));
             function.setParameter(1, r);
             r = function;
@@ -2754,13 +2754,13 @@ public class Parser {
         if (readIf("::")) {
             // PostgreSQL compatibility
             if (readIf("REGCLASS")) {
-            	//ÈçÏÂ:
+            	//å¦‚ä¸‹:
             	//stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS PG_GET_OID FOR \"my.test.ParserTest.testPG_GET_OID\"");
         		//sql = "SELECT 'ddd'::REGCLASS";
             	//public static void testPG_GET_OID(String str) {
             	//	System.out.println("testPG_GET_OID: " + str);
             	//}
-            	//´ËÊ±rÏÈÊÇ'ddd'Õâ¸ö×Ö·û´®£¬È»ºóµ÷ÓÃPG_GET_OIDÕâ¸ö×Ô¶¨Òåº¯Êı
+            	//æ­¤æ—¶rå…ˆæ˜¯'ddd'è¿™ä¸ªå­—ç¬¦ä¸²ï¼Œç„¶åè°ƒç”¨PG_GET_OIDè¿™ä¸ªè‡ªå®šä¹‰å‡½æ•°
                 FunctionAlias f = findFunctionAlias(Constants.SCHEMA_MAIN, "PG_GET_OID");
                 if (f == null) {
                     throw getSyntaxError();
@@ -2769,8 +2769,8 @@ public class Parser {
                 JavaFunction func = new JavaFunction(f, args);
                 r = func;
             } else {
-            	//Èçsql = "SELECT 12::varchar";£¬±íÊ¾CAST(12 AS varchar)£¬°Ñ12×ª³ÉvarcharÀàĞÍ
-            	//ÕâÀïµÄrÏÈÊÇ12£¬È»ºó±ä³ÉCASTº¯Êı
+            	//å¦‚sql = "SELECT 12::varchar";ï¼Œè¡¨ç¤ºCAST(12 AS varchar)ï¼ŒæŠŠ12è½¬æˆvarcharç±»å‹
+            	//è¿™é‡Œçš„rå…ˆæ˜¯12ï¼Œç„¶åå˜æˆCASTå‡½æ•°
                 Column col = parseColumnWithType(null);
                 Function function = Function.getFunction(database, "CAST");
                 function.setDataType(col);
@@ -2871,7 +2871,7 @@ public class Parser {
         return s;
     }
     
-    //¶ÔÓÚmydb.public.mytable
+    //å¯¹äºmydb.public.mytable
     private String readIdentifierWithSchema(String defaultSchemaName) {
         if (currentTokenType != IDENTIFIER) {
             throw DbException.getSyntaxError(sqlCommand, parseIndex, "identifier");
@@ -2923,8 +2923,8 @@ public class Parser {
     }
 
     private void read(String expected) {
-    	//ÓÃ`¡¢[]¡¢¡°°üÎ§ÆğÀ´µÄ×Ö·û´®Ëù´ú±íµÄToken»áÊ¹µÃcurrentTokenQuoted=true
-		//Èç"CREATE or `REPLACE` TABLE IF NOT EXISTS
+    	//ç”¨`ã€[]ã€â€œåŒ…å›´èµ·æ¥çš„å­—ç¬¦ä¸²æ‰€ä»£è¡¨çš„Tokenä¼šä½¿å¾—currentTokenQuoted=true
+		//å¦‚"CREATE or `REPLACE` TABLE IF NOT EXISTS
 		//expected = currentToken = REPLACE
 		//currentTokenQuoted = true
         if (currentTokenQuoted || !equalsToken(expected, currentToken)) {
@@ -2934,9 +2934,9 @@ public class Parser {
         read();
     }
     
-    //readÓëreadIfµÄ²î±ğ
-	//read: expectedÓëcurrentToken±ØĞëÒ»Ñù£¬²»Ò»ÑùÔò±¨Óï·¨´íÎó£¬ÈçÊÇÃ»ÓĞÓï·¨´íÎóÔ¤¶ÁÏÂÒ»¸ötoken
-	//readIf: Ö»ÓĞtokenÓëcurrentTokenÒ»ÑùÊ±²ÅÔ¤¶ÁÏÂÒ»¸ötoken£¬²»ÏàÍ¬²»»á±¨Óï·¨´íÎó
+    //readä¸readIfçš„å·®åˆ«
+	//read: expectedä¸currentTokenå¿…é¡»ä¸€æ ·ï¼Œä¸ä¸€æ ·åˆ™æŠ¥è¯­æ³•é”™è¯¯ï¼Œå¦‚æ˜¯æ²¡æœ‰è¯­æ³•é”™è¯¯é¢„è¯»ä¸‹ä¸€ä¸ªtoken
+	//readIf: åªæœ‰tokenä¸currentTokenä¸€æ ·æ—¶æ‰é¢„è¯»ä¸‹ä¸€ä¸ªtokenï¼Œä¸ç›¸åŒä¸ä¼šæŠ¥è¯­æ³•é”™è¯¯
     private boolean readIf(String token) {
         if (!currentTokenQuoted && equalsToken(token, currentToken)) {
             read();
@@ -2945,7 +2945,7 @@ public class Parser {
         addExpected(token);
         return false;
     }
-    //ÓëreadIf(String token)´ó²¿·İÏàÍ¬£¬Î¨Ò»²î±ğÊÇisToken²»»áÔ¤¶ÁÏÂÒ»¸ötoken
+    //ä¸readIf(String token)å¤§éƒ¨ä»½ç›¸åŒï¼Œå”¯ä¸€å·®åˆ«æ˜¯isTokenä¸ä¼šé¢„è¯»ä¸‹ä¸€ä¸ªtoken
     private boolean isToken(String token) {
         boolean result = equalsToken(token, currentToken) && !currentTokenQuoted;
         if (result) {
@@ -2955,7 +2955,7 @@ public class Parser {
         return false;
     }
     
-    //Èç¹ûidentifiersToUpperÎªfalseÊ±£¬±È½Ïa¡¢b»áºöÂÔ´óĞ¡Ğ´
+    //å¦‚æœidentifiersToUpperä¸ºfalseæ—¶ï¼Œæ¯”è¾ƒaã€bä¼šå¿½ç•¥å¤§å°å†™
     private boolean equalsToken(String a, String b) {
         if (a == null) {
             return b == null;
@@ -2982,12 +2982,12 @@ public class Parser {
         lastParseIndex = parseIndex;
         int i = parseIndex;
         int type = types[i];
-        while (type == 0) { //Ìø¹ı×îÇ°ÃætypeÎª0µÄÔªËØ£¬ÒòÎª0¶ÔÓ¦µÄ×Ö·ûÊÇ¿Õ°×ÀàµÄ
+        while (type == 0) { //è·³è¿‡æœ€å‰é¢typeä¸º0çš„å…ƒç´ ï¼Œå› ä¸º0å¯¹åº”çš„å­—ç¬¦æ˜¯ç©ºç™½ç±»çš„
             type = types[++i];
         }
         int start = i;
         char[] chars = sqlCommandChars;
-        char c = chars[i++]; //×¢ÒâÕâÀï£¬cÊÇµ±Ç°×Ö·û£¬µ±ÏÂÃæchars[i]Ê±¾ÍÊÇÏÂÒ»¸ö×Ö·ûÁË
+        char c = chars[i++]; //æ³¨æ„è¿™é‡Œï¼Œcæ˜¯å½“å‰å­—ç¬¦ï¼Œå½“ä¸‹é¢chars[i]æ—¶å°±æ˜¯ä¸‹ä¸€ä¸ªå­—ç¬¦äº†
         currentToken = "";
         switch (type) {
         case CHAR_NAME:
@@ -3004,31 +3004,31 @@ public class Parser {
             return;
         case CHAR_QUOTED: {
             String result = null;
-            //ÄÚ²¿µÄforÑ­»·ÓÃÓÚÕÒ³öµÚÒ»¶ÔË«ÒıºÅÖĞ°üº¬µÄ×Ö·û
-			//Èç¹ûË«ÒıºÅÖĞ°üº¬µÄ×Ö·ûÓÖÓĞË«ÒıºÅ£¬whileÑ­»·¼ÌĞøÑ°ÕÒºóÃæµÄ×Ö·û
-			//±ÈÈç¶ÔÓÚ"aaa""bbb"£¬iÏÈ´ÓµÚÒ»¸öa¿ªÊ¼£¬µ½´ïµÚ¶ş¸ö"ºÅÊ±£¬if (chars[i] == '\"')Îªtrue£¬
-			//ÒòÎª´ËÊ±resultÎªnull£¬ËùÒÔresult = sqlCommand.substring(begin, i) = aaa
-			//½Ó×ÅÍË³öforÑ­»·£¬ÒòÎªchars[++i]="£¬ËùÒÔwhileÑ­»·¼ÌĞø,´ËÊ±begin´ÓµÚÒ»¸öb¿ªÊ¼£¬
-			//½øÈëµ½if (chars[i] == '\"')Ê±£¬ÒòÎªÇ°Ãæresult = aaa£¬
-			//ËùÒÔresult += sqlCommand.substring(begin - 1, i) = aaa"bbb
-			//Ò²¾ÍÊÇËµË«ÒıºÅÖĞ°üº¬µÄ×Ö·ûÈç¹ûÊÇÁ¬ĞøµÄÁ½¸ö""ÄÇÃ´¾Í±íÊ¾"ºÅ×ÔÉí
+            //å†…éƒ¨çš„forå¾ªç¯ç”¨äºæ‰¾å‡ºç¬¬ä¸€å¯¹åŒå¼•å·ä¸­åŒ…å«çš„å­—ç¬¦
+			//å¦‚æœåŒå¼•å·ä¸­åŒ…å«çš„å­—ç¬¦åˆæœ‰åŒå¼•å·ï¼Œwhileå¾ªç¯ç»§ç»­å¯»æ‰¾åé¢çš„å­—ç¬¦
+			//æ¯”å¦‚å¯¹äº"aaa""bbb"ï¼Œiå…ˆä»ç¬¬ä¸€ä¸ªaå¼€å§‹ï¼Œåˆ°è¾¾ç¬¬äºŒä¸ª"å·æ—¶ï¼Œif (chars[i] == '\"')ä¸ºtrueï¼Œ
+			//å› ä¸ºæ­¤æ—¶resultä¸ºnullï¼Œæ‰€ä»¥result = sqlCommand.substring(begin, i) = aaa
+			//æ¥ç€é€€å‡ºforå¾ªç¯ï¼Œå› ä¸ºchars[++i]="ï¼Œæ‰€ä»¥whileå¾ªç¯ç»§ç»­,æ­¤æ—¶beginä»ç¬¬ä¸€ä¸ªbå¼€å§‹ï¼Œ
+			//è¿›å…¥åˆ°if (chars[i] == '\"')æ—¶ï¼Œå› ä¸ºå‰é¢result = aaaï¼Œ
+			//æ‰€ä»¥result += sqlCommand.substring(begin - 1, i) = aaa"bbb
+			//ä¹Ÿå°±æ˜¯è¯´åŒå¼•å·ä¸­åŒ…å«çš„å­—ç¬¦å¦‚æœæ˜¯è¿ç»­çš„ä¸¤ä¸ª""é‚£ä¹ˆå°±è¡¨ç¤º"å·è‡ªèº«
             while (true) {
                 for (int begin = i;; i++) {
                     if (chars[i] == '\"') {
                         if (result == null) {
                             result = sqlCommand.substring(begin, i);
                         } else {
-                            result += sqlCommand.substring(begin - 1, i); //begin - 1±íÊ¾°ÑÇ°ÃæµÄ"ºÅÒ²¼Ó½øÀ´
+                            result += sqlCommand.substring(begin - 1, i); //begin - 1è¡¨ç¤ºæŠŠå‰é¢çš„"å·ä¹ŸåŠ è¿›æ¥
                         }
                         break;
                     }
                 }
-                //µ½ÕâÀïÊ±chars[i]ÊÇÒ»¸öË«ÒıºÅ£¬Èç¹ûÏÂÒ»¸ö×Ö·û²»ÊÇË«ÒıºÅÔòÍË³ö£¬
-                //Èç¹ûÏÂÒ»¸öÓÖÊÇË«ÒıºÅËµÃ÷ÊÇÓÃÀ´±íÊ¾Ë«ÒıºÅ×Ö·û±¾Éí
-                if (chars[++i] != '\"') { //±ÈÈç"aaa""bbb"µÄ³¡¾°£¬×îÖÕ»á×ª»»³Éaaa"bbb
+                //åˆ°è¿™é‡Œæ—¶chars[i]æ˜¯ä¸€ä¸ªåŒå¼•å·ï¼Œå¦‚æœä¸‹ä¸€ä¸ªå­—ç¬¦ä¸æ˜¯åŒå¼•å·åˆ™é€€å‡ºï¼Œ
+                //å¦‚æœä¸‹ä¸€ä¸ªåˆæ˜¯åŒå¼•å·è¯´æ˜æ˜¯ç”¨æ¥è¡¨ç¤ºåŒå¼•å·å­—ç¬¦æœ¬èº«
+                if (chars[++i] != '\"') { //æ¯”å¦‚"aaa""bbb"çš„åœºæ™¯ï¼Œæœ€ç»ˆä¼šè½¬æ¢æˆaaa"bbb
                     break;
                 }
-                i++; //chars[i]ÊÇÒ»¸öË«ÒıºÅ£¬ËùÒÔÒªÍùÏÂÇ°½øÒ»¸ñ
+                i++; //chars[i]æ˜¯ä¸€ä¸ªåŒå¼•å·ï¼Œæ‰€ä»¥è¦å¾€ä¸‹å‰è¿›ä¸€æ ¼
             }
             currentToken = StringUtils.fromCacheOrNew(result);
             parseIndex = i;
@@ -3037,7 +3037,7 @@ public class Parser {
             return;
         }
         case CHAR_SPECIAL_2:
-        	//Á½¸öCHAR_SPECIAL_2ÀàĞÍµÄ×Ö·ûÒªºÏ²¢¡£ÀıÈç!=
+        	//ä¸¤ä¸ªCHAR_SPECIAL_2ç±»å‹çš„å­—ç¬¦è¦åˆå¹¶ã€‚ä¾‹å¦‚!=
             if (types[i] == CHAR_SPECIAL_2) {
                 i++;
             }
@@ -3051,12 +3051,12 @@ public class Parser {
             parseIndex = i;
             return;
         case CHAR_VALUE:
-        	//Èç¹ûDATABASE_TO_UPPERÊÇfalse£¬ÄÇÃ´0xÊÇ´íµÄ
-        	//Èçsql = "select id,name from ParserTest where id > 0x2";
-        	//Ö»ÄÜÓÃ´óĞ´0X£¬²¢ÇÒÒ²Ö»ÄÜÓÃA-F£¬
-        	//·ñÔòÏñwhere id > 0X2ab£¬Êµ¼ÊÊÇwhere id > 0X2£¬µ«ÊÇabÃ»ÓĞ¶Áµ½£¬
-        	//µ±ÅĞ¶Ïorg.h2.command.Parser.prepareCommand(String)Ê±£¬(currentTokenType != END)Îªfalse¾Í³ö´í
-            if (c == '0' && chars[i] == 'X') { //ÔÚinitializeÖĞÒÑ°Ñx×ª»»³É´óĞ´X
+        	//å¦‚æœDATABASE_TO_UPPERæ˜¯falseï¼Œé‚£ä¹ˆ0xæ˜¯é”™çš„
+        	//å¦‚sql = "select id,name from ParserTest where id > 0x2";
+        	//åªèƒ½ç”¨å¤§å†™0Xï¼Œå¹¶ä¸”ä¹Ÿåªèƒ½ç”¨A-Fï¼Œ
+        	//å¦åˆ™åƒwhere id > 0X2abï¼Œå®é™…æ˜¯where id > 0X2ï¼Œä½†æ˜¯abæ²¡æœ‰è¯»åˆ°ï¼Œ
+        	//å½“åˆ¤æ–­org.h2.command.Parser.prepareCommand(String)æ—¶ï¼Œ(currentTokenType != END)ä¸ºfalseå°±å‡ºé”™
+            if (c == '0' && chars[i] == 'X') { //åœ¨initializeä¸­å·²æŠŠxè½¬æ¢æˆå¤§å†™X
                 // hex number
                 long number = 0;
                 start += 2;
@@ -3071,11 +3071,11 @@ public class Parser {
                         parseIndex = i;
                         return;
                     }
-                    //(number << 4)±íÊ¾³ËÒÔ16,¶ø"c - (c >= 'A' ? ('A' - 0xa) : ('0')"ÊÇËãµ±Ç°cÓë'0'»ò¡®A'µÄ²îÖµ
-                    //Èç¹ûc>='A'£¬ÄÇÃ´c = 0xa+(c-'A')
-                    //Èç¹ûc>='0',ÇÒĞ¡ÓÚ'A'£¬ÄÇÃ´c = '0'+(c-'0');
+                    //(number << 4)è¡¨ç¤ºä¹˜ä»¥16,è€Œ"c - (c >= 'A' ? ('A' - 0xa) : ('0')"æ˜¯ç®—å½“å‰cä¸'0'æˆ–â€˜A'çš„å·®å€¼
+                    //å¦‚æœc>='A'ï¼Œé‚£ä¹ˆc = 0xa+(c-'A')
+                    //å¦‚æœc>='0',ä¸”å°äº'A'ï¼Œé‚£ä¹ˆc = '0'+(c-'0');
                     number = (number << 4) + c - (c >= 'A' ? ('A' - 0xa) : ('0'));
-                    //16½øÖÆÖµ>Integer.MAX_VALUEÊ±×ª³ÉBigDecimalÀ´±íÊ¾
+                    //16è¿›åˆ¶å€¼>Integer.MAX_VALUEæ—¶è½¬æˆBigDecimalæ¥è¡¨ç¤º
                     if (number > Integer.MAX_VALUE) {
                         readHexDecimal(start, i);
                         return;
@@ -3117,11 +3117,11 @@ public class Parser {
                 parseIndex = i;
                 return;
             }
-            readDecimal(i - 1, i); //Èç".123"Ê±£¬ÒòÎªcÊÇµãºÅ£¬c¶ÔÓ¦i-1£¬ËùÒÔÒª°Ñc°üº¬½øÀ´
+            readDecimal(i - 1, i); //å¦‚".123"æ—¶ï¼Œå› ä¸ºcæ˜¯ç‚¹å·ï¼Œcå¯¹åº”i-1ï¼Œæ‰€ä»¥è¦æŠŠcåŒ…å«è¿›æ¥
             return;
-        case CHAR_STRING: { //×Ö·û´®Literal
+        case CHAR_STRING: { //å­—ç¬¦ä¸²Literal
             String result = null;
-            //ÓëCHAR_QUOTEDÀàËÆ
+            //ä¸CHAR_QUOTEDç±»ä¼¼
             while (true) {
                 for (int begin = i;; i++) {
                     if (chars[i] == '\'') {
@@ -3145,9 +3145,9 @@ public class Parser {
             currentTokenType = VALUE;
             return;
         }
-        case CHAR_DOLLAR_QUOTED_STRING: { //$$×Ö·û´®£¬ÓÃÀ´¶¨Òå×Ô¶¨Òåº¯ÊıºÍ´æ´¢¹ı³ÌµÄjava´úÂë
+        case CHAR_DOLLAR_QUOTED_STRING: { //$$å­—ç¬¦ä¸²ï¼Œç”¨æ¥å®šä¹‰è‡ªå®šä¹‰å‡½æ•°å’Œå­˜å‚¨è¿‡ç¨‹çš„javaä»£ç 
             String result = null;
-            int begin = i - 1; //Ç°ÃæÒ»¸ö×Ö·ûÒ²ÊÇCHAR_DOLLAR_QUOTED_STRING£¬ËùÒÔÔÚsqlCommand.substring(begin, i)Ê±Òª°üº¬
+            int begin = i - 1; //å‰é¢ä¸€ä¸ªå­—ç¬¦ä¹Ÿæ˜¯CHAR_DOLLAR_QUOTED_STRINGï¼Œæ‰€ä»¥åœ¨sqlCommand.substring(begin, i)æ—¶è¦åŒ…å«
             while (types[i] == CHAR_DOLLAR_QUOTED_STRING) {
                 i++;
             }
@@ -3169,33 +3169,33 @@ public class Parser {
         }
     }
 
-    //×ÖÃæÖµ(LITERAL)£¬±ÈÈç"123"¡¢"12.999"¡¢×Ö·û´®"abcdddd"ÕâÖÖ
-    //text²ÎÊıÎªtrueÊ±ËµÃ÷µ±Ç°Òª¼ì²é×Ö·û´®ÀàĞÍµÄ×ÖÃæÖµ
+    //å­—é¢å€¼(LITERAL)ï¼Œæ¯”å¦‚"123"ã€"12.999"ã€å­—ç¬¦ä¸²"abcdddd"è¿™ç§
+    //textå‚æ•°ä¸ºtrueæ—¶è¯´æ˜å½“å‰è¦æ£€æŸ¥å­—ç¬¦ä¸²ç±»å‹çš„å­—é¢å€¼
     private void checkLiterals(boolean text) {
-        if (!session.getAllowLiterals()) { //Ä¬ÈÏÊÇfalse
+        if (!session.getAllowLiterals()) { //é»˜è®¤æ˜¯false
         	
-        	//ÓĞÈıÖÖÑ¡Ïî
-        	//ALLOW_LITERALS_ALL ¶¼ÔÊĞí
-        	//ALLOW_LITERALS_NONE ËµÃ÷²»ÔÊĞí³öÏÖ×ÖÃæÖµ
-        	//ALLOW_LITERALS_NUMBERS Ö»ÔÊĞíÊı×Ö×ÖÃæÖµ
-            int allowed = database.getAllowLiterals(); //Ä¬ÈÏÊÇALLOW_LITERALS_ALL
+        	//æœ‰ä¸‰ç§é€‰é¡¹
+        	//ALLOW_LITERALS_ALL éƒ½å…è®¸
+        	//ALLOW_LITERALS_NONE è¯´æ˜ä¸å…è®¸å‡ºç°å­—é¢å€¼
+        	//ALLOW_LITERALS_NUMBERS åªå…è®¸æ•°å­—å­—é¢å€¼
+            int allowed = database.getAllowLiterals(); //é»˜è®¤æ˜¯ALLOW_LITERALS_ALL
             
-            //Èç¹ûÊÇALLOW_LITERALS_NONE£¬ËµÃ÷²»ÔÊĞí³öÏÖ×ÖÃæÖµ
-            //µ±text²ÎÊıÎªtrueÊ±ËµÃ÷µ±Ç°Òª¼ì²é×Ö·û´®ÀàĞÍµÄ×ÖÃæÖµ£¬Ö»ÓĞALLOW_LITERALS_ALL²ÅÔÊĞí
+            //å¦‚æœæ˜¯ALLOW_LITERALS_NONEï¼Œè¯´æ˜ä¸å…è®¸å‡ºç°å­—é¢å€¼
+            //å½“textå‚æ•°ä¸ºtrueæ—¶è¯´æ˜å½“å‰è¦æ£€æŸ¥å­—ç¬¦ä¸²ç±»å‹çš„å­—é¢å€¼ï¼Œåªæœ‰ALLOW_LITERALS_ALLæ‰å…è®¸
             if (allowed == Constants.ALLOW_LITERALS_NONE || (text && allowed != Constants.ALLOW_LITERALS_ALL)) {
-            	//ÀıÈç:
+            	//ä¾‹å¦‚:
             	//sql = "select id,name from ParserTest where id > .123";
-        		//ALLOW_LITERALS_ALL=2 ¶¼ÔÊĞí
-            	//ALLOW_LITERALS_NONE=0 ËµÃ÷²»ÔÊĞí³öÏÖ×ÖÃæÖµ
-            	//ALLOW_LITERALS_NUMBERS=1 Ö»ÔÊĞíÊı×Ö×ÖÃæÖµ
-        		//stmt.executeUpdate("SET ALLOW_LITERALS 1"); //Ö»ÔÊĞíÊı×Ö×ÖÃæÖµ
-        		//sql = "select id,name from ParserTest where name = 'abc'"; //ÕâÊ±¾Í²»ÔÊĞí³öÏÖ×Ö·û´®×ÖÃæÖµÁË
+        		//ALLOW_LITERALS_ALL=2 éƒ½å…è®¸
+            	//ALLOW_LITERALS_NONE=0 è¯´æ˜ä¸å…è®¸å‡ºç°å­—é¢å€¼
+            	//ALLOW_LITERALS_NUMBERS=1 åªå…è®¸æ•°å­—å­—é¢å€¼
+        		//stmt.executeUpdate("SET ALLOW_LITERALS 1"); //åªå…è®¸æ•°å­—å­—é¢å€¼
+        		//sql = "select id,name from ParserTest where name = 'abc'"; //è¿™æ—¶å°±ä¸å…è®¸å‡ºç°å­—ç¬¦ä¸²å­—é¢å€¼äº†
                 throw DbException.get(ErrorCode.LITERALS_ARE_NOT_ALLOWED);
             }
         }
     }
 
-    private void readHexDecimal(int start, int i) { //16½øÖÆÖµ>Integer.MAX_VALUEÊ±×ª³ÉBigDecimalÀ´±íÊ¾
+    private void readHexDecimal(int start, int i) { //16è¿›åˆ¶å€¼>Integer.MAX_VALUEæ—¶è½¬æˆBigDecimalæ¥è¡¨ç¤º
         char[] chars = sqlCommandChars;
         char c;
         do {
@@ -3214,8 +3214,8 @@ public class Parser {
         int[] types = characterTypes;
         // go until the first non-number
         while (true) {
-            int t = types[i]; //¸Õ¿ªÊ¼Ê±types[iÊÇCHAR_DOT
-            //±ÈÈçÒªÕÒe/E»òÆäËû×Ö·û±ÈÈç¿Õ¸ñ°¡£¬ËµÃ÷Êı×Ö½áÊøÁË
+            int t = types[i]; //åˆšå¼€å§‹æ—¶types[iæ˜¯CHAR_DOT
+            //æ¯”å¦‚è¦æ‰¾e/Eæˆ–å…¶ä»–å­—ç¬¦æ¯”å¦‚ç©ºæ ¼å•Šï¼Œè¯´æ˜æ•°å­—ç»“æŸäº†
             if (t != CHAR_DOT && t != CHAR_VALUE) {
                 break;
             }
@@ -3260,28 +3260,28 @@ public class Parser {
         return session;
     }
     
-	//´Ë·½·¨Éæ¼°ÒÔÏÂÊµÀı×Ö¶Î:
+	//æ­¤æ–¹æ³•æ¶‰åŠä»¥ä¸‹å®ä¾‹å­—æ®µ:
 	//originalSQL
 	//sqlCommand
 	//sqlCommandChars
 	//characterTypes
-	//parseIndex(´Ó0¿ªÊ¼)
+	//parseIndex(ä»0å¼€å§‹)
 
-	//types³õÊ¼»¯Ê±Ã¿¸öÔªËØ¶¼ÊÇ0
-	//´Ë·½·¨½«×¢ÊÍ¡¢$$ÓÃ¿Õ¸ñÌæ»», °Ñ"`"¡¢"["»»³ÉË«ÒıºÅ£¬
-	//Í¬Ê±¶ÔSQLÖĞµÄÃ¿¸ö×Ö·û±íÃ÷ÆäÀàĞÍ£¬ÒÔ±ãÏÂÒ»²½ÔÚread·½·¨ÖĞÊ¶±ğsqlÖĞµÄ¸÷ÖÖ½á¹¹¡£
+	//typesåˆå§‹åŒ–æ—¶æ¯ä¸ªå…ƒç´ éƒ½æ˜¯0
+	//æ­¤æ–¹æ³•å°†æ³¨é‡Šã€$$ç”¨ç©ºæ ¼æ›¿æ¢, æŠŠ"`"ã€"["æ¢æˆåŒå¼•å·ï¼Œ
+	//åŒæ—¶å¯¹SQLä¸­çš„æ¯ä¸ªå­—ç¬¦è¡¨æ˜å…¶ç±»å‹ï¼Œä»¥ä¾¿ä¸‹ä¸€æ­¥åœ¨readæ–¹æ³•ä¸­è¯†åˆ«sqlä¸­çš„å„ç§ç»“æ„ã€‚
     private void initialize(String sql) {
         if (sql == null) {
             sql = "";
         }
-        originalSQL = sql; //²»»á±ä£¬×îÔ­Ê¼µÄSQL
-        sqlCommand = sql; //»á±ä
+        originalSQL = sql; //ä¸ä¼šå˜ï¼Œæœ€åŸå§‹çš„SQL
+        sqlCommand = sql; //ä¼šå˜
         int len = sql.length() + 1;
-        //commandºÍtypesµÄ³¤¶ÈÒª±ÈsqlµÄ³¤¶È¶à1£¬commandµÄ×îºóÒ»¸ö×Ö·ûcommand[len]ÊÇ¿Õ¸ñ£¬
-		//typesµÄ×îºóÒ»¸öÔªËØtypes[len]ÊÇCHAR_END(ÊÇ1)
+        //commandå’Œtypesçš„é•¿åº¦è¦æ¯”sqlçš„é•¿åº¦å¤š1ï¼Œcommandçš„æœ€åä¸€ä¸ªå­—ç¬¦command[len]æ˜¯ç©ºæ ¼ï¼Œ
+		//typesçš„æœ€åä¸€ä¸ªå…ƒç´ types[len]æ˜¯CHAR_END(æ˜¯1)
 
-		//×îÖÕµÄcommandºÍtypes»á·Ö±ğ´æµ½sqlCommandCharsºÍcharacterTypes×Ö¶Î
-		//commandÈç¹ûÓĞ±ä¶¯£¬ÔòsqlCommand×Ö¶ÎµÄÖµÖØĞÂ´ÓcommandÉú³É
+		//æœ€ç»ˆçš„commandå’Œtypesä¼šåˆ†åˆ«å­˜åˆ°sqlCommandCharså’ŒcharacterTypeså­—æ®µ
+		//commandå¦‚æœæœ‰å˜åŠ¨ï¼Œåˆ™sqlCommandå­—æ®µçš„å€¼é‡æ–°ä»commandç”Ÿæˆ
         char[] command = new char[len];
         int[] types = new int[len];
         len--;
@@ -3289,46 +3289,46 @@ public class Parser {
         boolean changed = false;
         command[len] = ' ';
         int startLoop = 0;
-        int lastType = 0; //Ö»ÓÃÀ´ÅĞ¶Ï$×Ö·ûÊÇ·ñ¿ÉÒÔ³öÏÖÔÚCHAR_NAMEºÍCHAR_VALUE×Ö·ûºóÃæ
+        int lastType = 0; //åªç”¨æ¥åˆ¤æ–­$å­—ç¬¦æ˜¯å¦å¯ä»¥å‡ºç°åœ¨CHAR_NAMEå’ŒCHAR_VALUEå­—ç¬¦åé¢
         for (int i = 0; i < len; i++) {
             char c = command[i];
             int type = 0;
             switch (c) {
-            //µ¥¸ö"/"±íÊ¾CHAR_SPECIAL_1×Ö·û£¬"/*"ÊÇ¿é×¢ÊÍµÄ¿ªÊ¼±êÖ¾£¬"//"ÊÇµ¥ĞĞ×¢ÊÍµÄ¿ªÊ¼±êÖ¾
+            //å•ä¸ª"/"è¡¨ç¤ºCHAR_SPECIAL_1å­—ç¬¦ï¼Œ"/*"æ˜¯å—æ³¨é‡Šçš„å¼€å§‹æ ‡å¿—ï¼Œ"//"æ˜¯å•è¡Œæ³¨é‡Šçš„å¼€å§‹æ ‡å¿—
             case '/':
                 if (command[i + 1] == '*') {
                     // block comment
                     changed = true;
                     command[i] = ' ';
                     command[i + 1] = ' ';
-                    //startLoopÊÇ"/"ºÅ¿ªÊ¼µÄÎ»ÖÃ£¬µ±³öÏÖÓï·¨´íÎóÊ±²ÅÓĞÓÃ£¬»áÔÚËüµÄÎ»ÖÃÖ®Ç°·ÅÖÃ[*]
-					//Àı×Ó: Syntax error in SQL statement "DROP [*]/*TABLE TEST";
+                    //startLoopæ˜¯"/"å·å¼€å§‹çš„ä½ç½®ï¼Œå½“å‡ºç°è¯­æ³•é”™è¯¯æ—¶æ‰æœ‰ç”¨ï¼Œä¼šåœ¨å®ƒçš„ä½ç½®ä¹‹å‰æ”¾ç½®[*]
+					//ä¾‹å­: Syntax error in SQL statement "DROP [*]/*TABLE TEST";
                     startLoop = i;
                     i += 2;
-                    checkRunOver(i, len, startLoop); //¼ì²éÊÇ·ñ³¬³ösql³¤¶ÈÁË(i>=len)
+                    checkRunOver(i, len, startLoop); //æ£€æŸ¥æ˜¯å¦è¶…å‡ºsqlé•¿åº¦äº†(i>=len)
                     while (command[i] != '*' || command[i + 1] != '/') {
                         command[i++] = ' ';
                         checkRunOver(i, len, startLoop);
                     }
                     command[i] = ' ';
                     command[i + 1] = ' ';
-                    //ÕâÀï¶ÔiÔö¼Óºó»¹ÊÇÖ¸Ïò'/'µÄÎ»ÖÃ£¬
-					//ÒòÎªtype´ËÊ±ÊÇ0£¬ËùÒÔºóÃæµÄtypes[i] = type;¡¡lastType = type;¶¼ÊÇ0
+                    //è¿™é‡Œå¯¹iå¢åŠ åè¿˜æ˜¯æŒ‡å‘'/'çš„ä½ç½®ï¼Œ
+					//å› ä¸ºtypeæ­¤æ—¶æ˜¯0ï¼Œæ‰€ä»¥åé¢çš„types[i] = type;ã€€lastType = type;éƒ½æ˜¯0
                     i++;
                 } else if (command[i + 1] == '/') {
                     // single line comment
                     changed = true;
-                    startLoop = i; //startLoopÊÇµÚÒ»¸ö"/"ºÅ¿ªÊ¼µÄÎ»ÖÃ
+                    startLoop = i; //startLoopæ˜¯ç¬¬ä¸€ä¸ª"/"å·å¼€å§‹çš„ä½ç½®
                     while (true) {
-                        c = command[i]; //×îÏÈ¿ªÊ¼ÊÇµÚÒ»¸ö"/"
+                        c = command[i]; //æœ€å…ˆå¼€å§‹æ˜¯ç¬¬ä¸€ä¸ª"/"
                         
-                        //i >= len - 1ÊÇ¶ÔÓ¦×îºóÒ»¸ö·Ç»Ø³µ»»ĞĞ×Ö·û
+                        //i >= len - 1æ˜¯å¯¹åº”æœ€åä¸€ä¸ªéå›è½¦æ¢è¡Œå­—ç¬¦
                         if (c == '\n' || c == '\r' || i >= len - 1) {
 
-							//µ±c == '\n' || c == '\r' || i >= len - 1Ê±ÕâÀï¾ÍÍË³öÁË£¬command[i]µÄÖµÃ»±ä
-							//ÀıÈç"DROP TABLE //TA"£¬Ã»ÓĞ»Ø³µ»»ĞĞ·û, ´ËÊ±i >= len - 1
-							//sqlÓï¾ä±ä³É"DROP TABLE    A "
-							//µ«ÊÇ¶ÔÓ¦"A"µÄtypeÊÇ0£¬ËùÒÔÅöÇÉ±ÜÃâÁËÎÊÌâ: 
+							//å½“c == '\n' || c == '\r' || i >= len - 1æ—¶è¿™é‡Œå°±é€€å‡ºäº†ï¼Œcommand[i]çš„å€¼æ²¡å˜
+							//ä¾‹å¦‚"DROP TABLE //TA"ï¼Œæ²¡æœ‰å›è½¦æ¢è¡Œç¬¦, æ­¤æ—¶i >= len - 1
+							//sqlè¯­å¥å˜æˆ"DROP TABLE    A "
+							//ä½†æ˜¯å¯¹åº”"A"çš„typeæ˜¯0ï¼Œæ‰€ä»¥ç¢°å·§é¿å…äº†é—®é¢˜: 
 							//Syntax error in SQL statement "DROP TABLE    A "; 
 							//expected "identifier"; SQL statement: DROP TABLE //TA [42001-170]
                             break;
@@ -3340,7 +3340,7 @@ public class Parser {
                     type = CHAR_SPECIAL_1;
                 }
                 break;
-            case '-': //Óë"//"ÏàÍ¬£¬¶¼ÊÇ±íÊ¾µ¥ĞĞ×¢ÊÍ£¬µ¥¸ö"-"±íÊ¾CHAR_SPECIAL_1×Ö·û
+            case '-': //ä¸"//"ç›¸åŒï¼Œéƒ½æ˜¯è¡¨ç¤ºå•è¡Œæ³¨é‡Šï¼Œå•ä¸ª"-"è¡¨ç¤ºCHAR_SPECIAL_1å­—ç¬¦
                 if (command[i + 1] == '-') {
                     // single line comment
                     changed = true;
@@ -3358,12 +3358,12 @@ public class Parser {
                 }
                 break;
             case '$':
-            	//$$...$$ÓÃÀ´±íÊ¾javaÔ´´úÂë£¬Í¨³£ÓÃÓÚCREATE ALIASÓï¾ä(½¨Á¢×Ô¶¨ÒåµÄº¯Êı£¬¶ø²»ÊÇ±ğÃû)
-            	//¼ûh2ÎÄµµ: Features => User-Defined Functions and Stored Procedures
+            	//$$...$$ç”¨æ¥è¡¨ç¤ºjavaæºä»£ç ï¼Œé€šå¸¸ç”¨äºCREATE ALIASè¯­å¥(å»ºç«‹è‡ªå®šä¹‰çš„å‡½æ•°ï¼Œè€Œä¸æ˜¯åˆ«å)
+            	//è§h2æ–‡æ¡£: Features => User-Defined Functions and Stored Procedures
             	
-				//(i == 0 || command[i - 1] <= ' ')±íÊ¾Èç¹ûsqlÒÔ$$¿ªÊ¼£¬»òÕß$$Ç°ÃæµÚÒ»¸ö×Ö·ûÊÇ¿Õ¸ñ»ò¿ØÖÆ×Ö·û£¬
-				//ËµÃ÷ÕâÀïÓÃÀ´±íÊ¾javaÔ´´úÂë
-				//ASCIIÂë±íÖĞ0µ½31ÊÇ¿ØÖÆ×Ö·û, 32ÊÇ¿Õ¸ñ
+				//(i == 0 || command[i - 1] <= ' ')è¡¨ç¤ºå¦‚æœsqlä»¥$$å¼€å§‹ï¼Œæˆ–è€…$$å‰é¢ç¬¬ä¸€ä¸ªå­—ç¬¦æ˜¯ç©ºæ ¼æˆ–æ§åˆ¶å­—ç¬¦ï¼Œ
+				//è¯´æ˜è¿™é‡Œç”¨æ¥è¡¨ç¤ºjavaæºä»£ç 
+				//ASCIIç è¡¨ä¸­0åˆ°31æ˜¯æ§åˆ¶å­—ç¬¦, 32æ˜¯ç©ºæ ¼
                 if (command[i + 1] == '$' && (i == 0 || command[i - 1] <= ' ')) {
                     // dollar quoted string
                     changed = true;
@@ -3380,12 +3380,12 @@ public class Parser {
                     command[i + 1] = ' ';
                     i++;
                 } else {
-                	//$×÷Îª±êÊ¶·ûµÄÒ»²¿·İ
+                	//$ä½œä¸ºæ ‡è¯†ç¬¦çš„ä¸€éƒ¨ä»½
                     if (lastType == CHAR_NAME || lastType == CHAR_VALUE) {
                         // $ inside an identifier is supported
                         type = CHAR_NAME;
                     } else {
-                    	//Èç: Ö§³Ö×Ô¶¨ÒåµÄ²ÎÊıË³Ğò£¬¶ø²»ÊÇ°´?³öÏÖµÄË³ĞòÅÅ
+                    	//å¦‚: æ”¯æŒè‡ªå®šä¹‰çš„å‚æ•°é¡ºåºï¼Œè€Œä¸æ˜¯æŒ‰?å‡ºç°çš„é¡ºåºæ’
                     	//PreparedStatement ps = conn.prepareStatement("delete top ?2 from ParserTest where id>10 and name=?1");
                 		//ps.setString(1, "abc");
                 		//ps.setInt(2, 3);
@@ -3417,20 +3417,20 @@ public class Parser {
             case '=':
             case ':':
             case '~':
-                type = CHAR_SPECIAL_2; //ÕâÀà×Ö·û¿ÉÁ½Á½×éºÏ£¬Èç"<="¡¢"!="¡¢"<>¡°
+                type = CHAR_SPECIAL_2; //è¿™ç±»å­—ç¬¦å¯ä¸¤ä¸¤ç»„åˆï¼Œå¦‚"<="ã€"!="ã€"<>â€œ
                 break;
             case '.':
                 type = CHAR_DOT;
                 break;
-            case '\'': //×Ö·û´®£¬×¢ÒâÔÚsqlÀï×Ö·û´®ÊÇÓÃµ¥ÒıºÅÀ¨ÆğÀ´£¬²»ÏñjavaÊÇÓÃË«ÒıºÅ
+            case '\'': //å­—ç¬¦ä¸²ï¼Œæ³¨æ„åœ¨sqlé‡Œå­—ç¬¦ä¸²æ˜¯ç”¨å•å¼•å·æ‹¬èµ·æ¥ï¼Œä¸åƒjavaæ˜¯ç”¨åŒå¼•å·
                 type = types[i] = CHAR_STRING;
                 startLoop = i;
                 while (command[++i] != '\'') {
                     checkRunOver(i, len, startLoop);
                 }
                 break;
-            case '[': //SQL Server aliasÓï·¨
-                if (database.getMode().squareBracketQuotedNames) { //Òª¼Óprop.setProperty("MODE", "MSSQLServer");
+            case '[': //SQL Server aliasè¯­æ³•
+                if (database.getMode().squareBracketQuotedNames) { //è¦åŠ prop.setProperty("MODE", "MSSQLServer");
                     // SQL Server alias for "
                     command[i] = '"';
                     changed = true;
@@ -3444,7 +3444,7 @@ public class Parser {
                     type = CHAR_SPECIAL_1;
                 }
                 break;
-            case '`': //MySQL aliasÓï·¨£¬²»¹ı²»Çø·Ö´óĞ¡Ğ´£¬Ä¬ÈÏ¶¼ÊÇ´óĞ´
+            case '`': //MySQL aliasè¯­æ³•ï¼Œä¸è¿‡ä¸åŒºåˆ†å¤§å°å†™ï¼Œé»˜è®¤éƒ½æ˜¯å¤§å†™
                 // MySQL alias for ", but not case sensitive
                 command[i] = '"';
                 changed = true;
@@ -3469,7 +3469,7 @@ public class Parser {
                 break;
             default:
                 if (c >= 'a' && c <= 'z') {
-                    if (identifiersToUpper) { //Èç¹ûDATABASE_TO_UPPER²ÎÊıÎªtrue£¬ÄÇÃ´a-zÒª×ª³É´óĞ´
+                    if (identifiersToUpper) { //å¦‚æœDATABASE_TO_UPPERå‚æ•°ä¸ºtrueï¼Œé‚£ä¹ˆa-zè¦è½¬æˆå¤§å†™
                         command[i] = (char) (c - ('a' - 'A'));
                         changed = true;
                     }
@@ -3479,7 +3479,7 @@ public class Parser {
                 } else if (c >= '0' && c <= '9') {
                     type = CHAR_VALUE;
                 } else {
-                    if (c <= ' ' || Character.isSpaceChar(c)) { //¿ØÖÆ×Ö·ûºÍ¿Õ°×¶ÔÓ¦µÄtype¶¼ÊÇ0
+                    if (c <= ' ' || Character.isSpaceChar(c)) { //æ§åˆ¶å­—ç¬¦å’Œç©ºç™½å¯¹åº”çš„typeéƒ½æ˜¯0
                         // whitespace
                     } else if (Character.isJavaIdentifierPart(c)) {
                         type = CHAR_NAME;
@@ -3599,7 +3599,7 @@ public class Parser {
             // if not yet converted to uppercase, do it now
             s = StringUtils.toUpperEnglish(s);
         }
-        return getSaveTokenType(s, database.getMode().supportOffsetFetch); //DB2¡¢Derby¡¢PostgreSQLÖ§³Ö
+        return getSaveTokenType(s, database.getMode().supportOffsetFetch); //DB2ã€Derbyã€PostgreSQLæ”¯æŒ
     }
 
     private boolean isKeyword(String s) {
@@ -3607,7 +3607,7 @@ public class Parser {
             // if not yet converted to uppercase, do it now
             s = StringUtils.toUpperEnglish(s);
         }
-        return isKeyword(s, false); //FETCHºÍOFFSET´ËÊ±²»Ëã¹Ø¼ü×Ö
+        return isKeyword(s, false); //FETCHå’ŒOFFSETæ­¤æ—¶ä¸ç®—å…³é”®å­—
     }
 
     /**
@@ -3625,24 +3625,24 @@ public class Parser {
     }
     
     /*
-		    ×Ü¹²38¸öÌØÊâtoken£¬²»ÄÜ³äµ±±êÊ¶·ûÓÃ
+		    æ€»å…±38ä¸ªç‰¹æ®Štokenï¼Œä¸èƒ½å……å½“æ ‡è¯†ç¬¦ç”¨
 		
-		    7¸öÌØÊâµÄÈÕÆÚÊ±¼äÀàĞÍ:
+		    7ä¸ªç‰¹æ®Šçš„æ—¥æœŸæ—¶é—´ç±»å‹:
 		    ---------------------------------------------------
-		    CURRENT_TIMESTAMP¡¢CURRENT_TIME¡¢CURRENT_DATEÊÇÈı¸öÌØÊâµÄtoken£¬ËûÃÇ¼´²»ÊÇ¹Ø¼ü×Ö£¬Ò²²»ÊÇ±êÊ¶·û£¬
-		         µ«ÊÇ²»ÄÜÓÃËüÃÇ³äµ±±êÊ¶·ûÈ¥£¬±ÈÈç²»ÄÜÓÃCURRENT_DATEµ±±íÃû:
-		    CREATE TABLE current_date ÕâÑùµÄÓï·¨ÊÇ´íÎóµÄ¡£
+		    CURRENT_TIMESTAMPã€CURRENT_TIMEã€CURRENT_DATEæ˜¯ä¸‰ä¸ªç‰¹æ®Šçš„tokenï¼Œä»–ä»¬å³ä¸æ˜¯å…³é”®å­—ï¼Œä¹Ÿä¸æ˜¯æ ‡è¯†ç¬¦ï¼Œ
+		         ä½†æ˜¯ä¸èƒ½ç”¨å®ƒä»¬å……å½“æ ‡è¯†ç¬¦å»ï¼Œæ¯”å¦‚ä¸èƒ½ç”¨CURRENT_DATEå½“è¡¨å:
+		    CREATE TABLE current_date è¿™æ ·çš„è¯­æ³•æ˜¯é”™è¯¯çš„ã€‚
 		
-		    SYSTIMESTAMP¡¢SYSTIME¡¢SYSDATEÓëCURRENT_TIMESTAMP¡¢CURRENT_TIME¡¢CURRENT_DATEµÈ¼Û
-		    TODAYÒ²ÓëCURRENT_DATEµÈ¼Û
+		    SYSTIMESTAMPã€SYSTIMEã€SYSDATEä¸CURRENT_TIMESTAMPã€CURRENT_TIMEã€CURRENT_DATEç­‰ä»·
+		    TODAYä¹Ÿä¸CURRENT_DATEç­‰ä»·
 		
-		    3¸ö³£Á¿tokenÀàĞÍ:
+		    3ä¸ªå¸¸é‡tokenç±»å‹:
 		    ---------------------------------------------------
 		    FALSE
 		    TRUE
 		    NULL
 		
-		    28¸öKEYWORD(¹Ø¼ü×Ö)
+		    28ä¸ªKEYWORD(å…³é”®å­—)
 		    ---------------------------------------------------
 		    CROSS
 		    DISTINCT
@@ -3652,7 +3652,7 @@ public class Parser {
 		    FROM
 		    FOR
 		    FULL
-		    FETCH Èç¹ûÊı¾İ¿âÖ§³ÖsupportOffsetFetch(DB2¡¢Derby¡¢PostgreSQL¶¼Ö§³Ö)
+		    FETCH å¦‚æœæ•°æ®åº“æ”¯æŒsupportOffsetFetch(DB2ã€Derbyã€PostgreSQLéƒ½æ”¯æŒ)
 		
 		    GROUP
 		    HAVING
@@ -3668,7 +3668,7 @@ public class Parser {
 		    NATURAL
 		
 		    ON
-		    OFFSET  Èç¹ûÊı¾İ¿âÖ§³ÖsupportOffsetFetch(DB2¡¢Derby¡¢PostgreSQL¶¼Ö§³Ö)
+		    OFFSET  å¦‚æœæ•°æ®åº“æ”¯æŒsupportOffsetFetch(DB2ã€Derbyã€PostgreSQLéƒ½æ”¯æŒ)
 		    ORDER
 		    ORDER
 		    PRIMARY
@@ -3783,9 +3783,9 @@ public class Parser {
 
     private Column parseColumnForTable(String columnName, boolean defaultNullable) {
         Column column;
-        boolean isIdentity = false; //ÎŞÓÃ£¬Ã»ÓĞ±»ÉèÎªtrue£¬Ò»Ö±ÊÇfalse
-        //IDENTITYºÍSERIALÏàµ±ÓÚ×Ö¶ÎÀàĞÍÃû£¬ÊÇÁ½¸öÌØÊâµÄÁĞÀàĞÍ
-        if (readIf("IDENTITY") || readIf("SERIAL")) { //Èç: CREATE TABLE IF NOT EXISTS mytable (f1 IDENTITY(1,10))
+        boolean isIdentity = false; //æ— ç”¨ï¼Œæ²¡æœ‰è¢«è®¾ä¸ºtrueï¼Œä¸€ç›´æ˜¯false
+        //IDENTITYå’ŒSERIALç›¸å½“äºå­—æ®µç±»å‹åï¼Œæ˜¯ä¸¤ä¸ªç‰¹æ®Šçš„åˆ—ç±»å‹
+        if (readIf("IDENTITY") || readIf("SERIAL")) { //å¦‚: CREATE TABLE IF NOT EXISTS mytable (f1 IDENTITY(1,10))
             column = new Column(columnName, Value.LONG);
             column.setOriginalSQL("IDENTITY");
             parseAutoIncrement(column);
@@ -3802,7 +3802,7 @@ public class Parser {
                 column.setPrimaryKey(true);
             }
         } else {
-            column = parseColumnWithType(columnName); //½âÎöÁĞÀàĞÍ
+            column = parseColumnWithType(columnName); //è§£æåˆ—ç±»å‹
         }
         if (readIf("NOT")) {
             read("NULL");
@@ -3813,8 +3813,8 @@ public class Parser {
             // domains may be defined as not nullable
             column.setNullable(defaultNullable & column.isNullable());
         }
-        if (readIf("AS")) { //ÓëDEFAULTÓĞµãÏàËÆ
-            if (isIdentity) { //ÎŞÓÃ£¬Ã»ÓĞ±»ÉèÎªtrue£¬Ò»Ö±ÊÇfalse
+        if (readIf("AS")) { //ä¸DEFAULTæœ‰ç‚¹ç›¸ä¼¼
+            if (isIdentity) { //æ— ç”¨ï¼Œæ²¡æœ‰è¢«è®¾ä¸ºtrueï¼Œä¸€ç›´æ˜¯false
                 getSyntaxError();
             }
             Expression expr = readExpression();
@@ -3901,7 +3901,7 @@ public class Parser {
     }
 
     private Column parseColumnWithType(String columnName) {
-        String original = currentToken; //×Ö¶ÎÀàĞÍ
+        String original = currentToken; //å­—æ®µç±»å‹
         boolean regular = false;
         if (readIf("LONG")) {
             if (readIf("RAW")) {
@@ -4026,18 +4026,18 @@ public class Parser {
         return column;
     }
     
-    //¿ÉÒÔÓÃCreate½¨Á¢13ÖÖÊı¾İ¿â¶ÔÏó
+    //å¯ä»¥ç”¨Createå»ºç«‹13ç§æ•°æ®åº“å¯¹è±¡
 	//USER ROLE SCHEMA
 	//AGGREGATE ALIAS CONSTANT
-	//SEQUENCE TRIGGER DOMAIN(»òTYPE»òDATATYPE)
+	//SEQUENCE TRIGGER DOMAIN(æˆ–TYPEæˆ–DATATYPE)
 	//TABLE LINKED_TABLE VIEW INDEX
     private Prepared parseCreate() {
-        boolean orReplace = false; //Ö»¶ÔVIEWÕæÕıÆğ×÷ÓÃ
+        boolean orReplace = false; //åªå¯¹VIEWçœŸæ­£èµ·ä½œç”¨
         if (readIf("OR")) {
             read("REPLACE");
             orReplace = true;
         }
-        boolean force = readIf("FORCE"); //Ö»¶ÔVIEW¡¢AGGREGATE¡¢ALIAS¡¢TRIGGER¡¢LINKED_TABLEÕæÕıÆğ×÷ÓÃ
+        boolean force = readIf("FORCE"); //åªå¯¹VIEWã€AGGREGATEã€ALIASã€TRIGGERã€LINKED_TABLEçœŸæ­£èµ·ä½œç”¨
         if (readIf("VIEW")) {
             return parseCreateView(force, orReplace);
         } else if (readIf("ALIAS")) {
@@ -4065,7 +4065,7 @@ public class Parser {
         } else if (readIf("LINKED")) {
             return parseCreateLinkedTable(false, false, force);
         }
-        // tables or linked tables or Ë÷Òı(×îºóÒ»¸öelse²¿·İµÄ´úÂë)
+        // tables or linked tables or ç´¢å¼•(æœ€åä¸€ä¸ªelseéƒ¨ä»½çš„ä»£ç )
         boolean memory = false, cached = false;
         if (readIf("MEMORY")) {
             memory = true;
@@ -4097,21 +4097,21 @@ public class Parser {
                 cached = database.getDefaultTableType() == Table.TYPE_CACHED;
             }
             return parseCreateTable(false, false, cached);
-        } else { //Õâ¸öelse·ÖÖ¦ÊÇ´¦Àí½¨Ë÷ÒıÓï·¨
+        } else { //è¿™ä¸ªelseåˆ†ææ˜¯å¤„ç†å»ºç´¢å¼•è¯­æ³•
             boolean hash = false, primaryKey = false, unique = false;
             String indexName = null;
             Schema oldSchema = null;
             boolean ifNotExists = false;
-            //¶ÔÓÚÕâÑùµÄÓï·¨:CREATE PRIMARY KEY HASH ON CreateIndexTest(f1)
-            //´ËÊ±Ã»ÓĞINDEX¹Ø¼ü×Ö£¬Ò²Ã»ÓĞ¶¨ÒåË÷ÒıÃû³Æ£¬ÔÚCreateIndexÀï»á×Ô¶¯Éú³É
-            //PRIMARY KEYË÷Òı²»ÓÃINDEX¹Ø¼ü×Ö
+            //å¯¹äºè¿™æ ·çš„è¯­æ³•:CREATE PRIMARY KEY HASH ON CreateIndexTest(f1)
+            //æ­¤æ—¶æ²¡æœ‰INDEXå…³é”®å­—ï¼Œä¹Ÿæ²¡æœ‰å®šä¹‰ç´¢å¼•åç§°ï¼Œåœ¨CreateIndexé‡Œä¼šè‡ªåŠ¨ç”Ÿæˆ
+            //PRIMARY KEYç´¢å¼•ä¸ç”¨INDEXå…³é”®å­—
             if (readIf("PRIMARY")) {
                 read("KEY");
                 if (readIf("HASH")) {
                     hash = true;
                 }
                 primaryKey = true;
-                //ÈçCREATE PRIMARY KEY HASH IF NOT EXISTS idx0 ON CreateIndexTest(f1)
+                //å¦‚CREATE PRIMARY KEY HASH IF NOT EXISTS idx0 ON CreateIndexTest(f1)
                 if (!isToken("ON")) {
                     ifNotExists = readIfNoExists();
                     indexName = readIdentifierWithSchema(null);
@@ -4638,7 +4638,7 @@ public class Parser {
         read("RENAME");
         read("TO");
         String newName = readIdentifierWithSchema(old.getName());
-        checkSchema(old); //ÀıÈç ALTER INDEX mydb.public.idx0 RENAME TO schema0.idx1
+        checkSchema(old); //ä¾‹å¦‚ ALTER INDEX mydb.public.idx0 RENAME TO schema0.idx1
         command.setNewName(newName);
         return command;
     }
@@ -5134,15 +5134,15 @@ public class Parser {
     }
 
     private Prepared parseAlterTable() {
-    	//ALTER TABLEÃüÁî¾Í·ÖÏÂÃæ5´óÀà: 
-        //Ôö¼ÓÔ¼Êø¡¢Ôö¼ÓÁĞ¡¢ÖØÃüÃû±í¡¢DROPÔ¼ÊøºÍÁĞ¡¢ĞŞ¸ÄÁĞ
+    	//ALTER TABLEå‘½ä»¤å°±åˆ†ä¸‹é¢5å¤§ç±»: 
+        //å¢åŠ çº¦æŸã€å¢åŠ åˆ—ã€é‡å‘½åè¡¨ã€DROPçº¦æŸå’Œåˆ—ã€ä¿®æ”¹åˆ—
         Table table = readTableOrView();
         if (readIf("ADD")) {
             Prepared command = parseAlterTableAddConstraintIf(table.getName(), table.getSchema());
             if (command != null) {
                 return command;
             }
-            //ADD COLUMNÊ±²»ÄÜ¼ÓÔ¼Êø£¬±ÈÈçÕâ¸öÊÇ´íµÄ:
+            //ADD COLUMNæ—¶ä¸èƒ½åŠ çº¦æŸï¼Œæ¯”å¦‚è¿™ä¸ªæ˜¯é”™çš„:
             //ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int PRIMARY KEY
             return parseAlterTableAddColumn(table);
         } else if (readIf("SET")) {
@@ -5182,7 +5182,7 @@ public class Parser {
                 command.setIndexName(idx.getName());
                 return command;
             } else {
-            	//Èç:
+            	//å¦‚:
             	//sql = "ALTER TABLE mytable DROP COLUMN f1";
                 //sql = "ALTER TABLE mytable DROP f1";
                 readIf("COLUMN");
@@ -5350,14 +5350,14 @@ public class Parser {
     private DefineCommand parseAlterTableAddConstraintIf(String tableName, Schema schema) {
         String constraintName = null, comment = null;
         boolean ifNotExists = false;
-        boolean allowIndexDefinition = database.getMode().indexDefinitionInCreateTable; //Ö»ÓĞMySQL ModeÊÇtrue
+        boolean allowIndexDefinition = database.getMode().indexDefinitionInCreateTable; //åªæœ‰MySQL Modeæ˜¯true
         
-        //¶¨ÒåÔ¼ÊøÃû³Æ
+        //å®šä¹‰çº¦æŸåç§°
         if (readIf("CONSTRAINT")) {
             ifNotExists = readIfNoExists();
             constraintName = readIdentifierWithSchema(schema.getName());
-            //±íÃûschemaºÍÔ¼Êøschema±ØĞëÒ»Ñù
-            //±ÈÈçÕâÑùÊÇ´íµÄ: CREATE TABLE  myschema.mytable (f1 int, CONSTRAINT public.my_constraint)
+            //è¡¨åschemaå’Œçº¦æŸschemaå¿…é¡»ä¸€æ ·
+            //æ¯”å¦‚è¿™æ ·æ˜¯é”™çš„: CREATE TABLE  myschema.mytable (f1 int, CONSTRAINT public.my_constraint)
             checkSchema(schema);
             comment = readCommentIf();
             allowIndexDefinition = true;
@@ -5374,8 +5374,8 @@ public class Parser {
             }
             read("(");
             command.setIndexColumns(parseIndexColumnList());
-            //¿ÉÒÔÖ¸¶¨Ò»¸ö²»´æÔÚµÄË÷Òı£¬µ«ÊÇÒ²²»»á±¨´í
-            //Èç: PRIMARY KEY HASH(f1,f2) INDEX myindex
+            //å¯ä»¥æŒ‡å®šä¸€ä¸ªä¸å­˜åœ¨çš„ç´¢å¼•ï¼Œä½†æ˜¯ä¹Ÿä¸ä¼šæŠ¥é”™
+            //å¦‚: PRIMARY KEY HASH(f1,f2) INDEX myindex
             if (readIf("INDEX")) {
                 String indexName = readIdentifierWithSchema();
                 command.setIndex(getSchema().findIndex(session, indexName));
@@ -5386,10 +5386,10 @@ public class Parser {
             // need to read ahead, as it could be a column name
             int start = lastParseIndex;
             read();
-            //ÀıÈç
+            //ä¾‹å¦‚
             //CREATE TABLE IF NOT EXISTS mytable (f1 int,CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' INDEX int)
-            //Ò²ÊÇºÏ·¨µÄ£¬ÆäÖĞ¡°INDEX int¡±±»µ±³ÉÁË×Ö¶Î
-            //¶ø¡°CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha'¡±±»ºöÊÓÁË
+            //ä¹Ÿæ˜¯åˆæ³•çš„ï¼Œå…¶ä¸­â€œINDEX intâ€è¢«å½“æˆäº†å­—æ®µ
+            //è€Œâ€œCONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha'â€è¢«å¿½è§†äº†
             if (DataType.getTypeByName(currentToken) != null) {
                 // known data type
                 parseIndex = start;
@@ -5399,9 +5399,9 @@ public class Parser {
             CreateIndex command = new CreateIndex(session, schema);
             command.setComment(comment);
             command.setTableName(tableName);
-            //»òÕß²»Ö¸¶¨Ë÷ÒıÃûINDEX(f1,f2)£¬µ±Ö´ĞĞorg.h2.command.ddl.CreateIndex.update()Ê±»á×Ô¶¯Éú³ÉÒ»¸öË÷ÒıÃû(ÒÔ"INDEX_"¿ªÍ·)
+            //æˆ–è€…ä¸æŒ‡å®šç´¢å¼•åINDEX(f1,f2)ï¼Œå½“æ‰§è¡Œorg.h2.command.ddl.CreateIndex.update()æ—¶ä¼šè‡ªåŠ¨ç”Ÿæˆä¸€ä¸ªç´¢å¼•å(ä»¥"INDEX_"å¼€å¤´)
             if (!readIf("(")) {
-            	//Ö¸¶¨Ë÷ÒıÃûINDEX myindex(f1,f2)
+            	//æŒ‡å®šç´¢å¼•åINDEX myindex(f1,f2)
                 command.setIndexName(readUniqueIdentifier());
                 read("(");
             }
@@ -5419,12 +5419,12 @@ public class Parser {
             command = new AlterTableAddConstraint(session, schema, ifNotExists);
             command.setType(CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_UNIQUE);
             if (!readIf("(")) {
-            	//ÓÖ¿ÉÒÔÖÆ¶¨Ô¼ÊøÃû£¬ÈçUNIQUE KEY INDEX myunique(f1,f2)£¬¸²¸ÇÇ°ÃæCONSTRAINTÖĞ¶¨ÒåµÄÔ¼ÊøÃû
+            	//åˆå¯ä»¥åˆ¶å®šçº¦æŸåï¼Œå¦‚UNIQUE KEY INDEX myunique(f1,f2)ï¼Œè¦†ç›–å‰é¢CONSTRAINTä¸­å®šä¹‰çš„çº¦æŸå
                 constraintName = readUniqueIdentifier();
                 read("(");
             }
             command.setIndexColumns(parseIndexColumnList());
-            //Í¬Ç°ÃæµÄPRIMARY KEY
+            //åŒå‰é¢çš„PRIMARY KEY
             if (readIf("INDEX")) {
                 String indexName = readIdentifierWithSchema();
                 command.setIndex(getSchema().findIndex(session, indexName));
@@ -5435,7 +5435,7 @@ public class Parser {
             read("KEY");
             read("(");
             command.setIndexColumns(parseIndexColumnList());
-            //Í¬Ç°ÃæµÄPRIMARY KEY
+            //åŒå‰é¢çš„PRIMARY KEY
             if (readIf("INDEX")) {
                 String indexName = readIdentifierWithSchema();
                 command.setIndex(schema.findIndex(session, indexName));
@@ -5462,9 +5462,9 @@ public class Parser {
 
     private void parseReferences(AlterTableAddConstraint command, Schema schema, String tableName) {
         if (readIf("(")) {
-        	//ÏàÍ¬±íÖĞµÄ×Ö¶Î»¥ÏàÒıÓÃ£¬Èç:
+        	//ç›¸åŒè¡¨ä¸­çš„å­—æ®µäº’ç›¸å¼•ç”¨ï¼Œå¦‚:
         	//CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int REFERENCES(f1))
-        	//f2ÒıÓÃf1
+        	//f2å¼•ç”¨f1
             command.setRefTableName(schema, tableName);
             command.setRefIndexColumns(parseIndexColumnList());
         } else {
@@ -5474,7 +5474,7 @@ public class Parser {
                 command.setRefIndexColumns(parseIndexColumnList());
             }
         }
-        //ÈçCREATE TABLE IF NOT EXISTS mytable3 (f1 int REFERENCES mytable1(f2) INDEX myindex ON DELETE CASCADE
+        //å¦‚CREATE TABLE IF NOT EXISTS mytable3 (f1 int REFERENCES mytable1(f2) INDEX myindex ON DELETE CASCADE
         if (readIf("INDEX")) {
             String indexName = readIdentifierWithSchema();
             command.setRefIndex(getSchema().findIndex(session, indexName));
@@ -5506,7 +5506,7 @@ public class Parser {
         command.setTableName(tableName);
         command.setComment(readCommentIf());
         read("(");
-        command.setDriver(readString()); //readString()Òª¼Óµ¥ÒıºÅ£¬Èç'com.mysql.jdbc.Driver'
+        command.setDriver(readString()); //readString()è¦åŠ å•å¼•å·ï¼Œå¦‚'com.mysql.jdbc.Driver'
         read(",");
         command.setUrl(readString());
         read(",");
@@ -5530,12 +5530,12 @@ public class Parser {
         return command;
     }
     
-    //µ±CREATE CACHED TABLEÊ±£¬persistIndexesÎªtrue
+    //å½“CREATE CACHED TABLEæ—¶ï¼ŒpersistIndexesä¸ºtrue
     private CreateTable parseCreateTable(boolean temp, boolean globalTemp, boolean persistIndexes) {
         boolean ifNotExists = readIfNoExists();
         String tableName = readIdentifierWithSchema();
-        //ÈçCREATE CACHED GLOBAL TEMPORARY TABLE IF NOT EXISTS TEST9.SESSION.mytable (f1 int)
-        //SESSION schemaÓëGLOBAL TEMPORARYÍ¬Ê±³öÏÖÊ±»áÈÏÎª²»ÊÇglobalµÄ¡£
+        //å¦‚CREATE CACHED GLOBAL TEMPORARY TABLE IF NOT EXISTS TEST9.SESSION.mytable (f1 int)
+        //SESSION schemaä¸GLOBAL TEMPORARYåŒæ—¶å‡ºç°æ—¶ä¼šè®¤ä¸ºä¸æ˜¯globalçš„ã€‚
         if (temp && globalTemp && equalsToken("SESSION", schemaName)) {
             // support weird syntax: declare global temporary table session.xy
             // (...) not logged
@@ -5553,11 +5553,11 @@ public class Parser {
         if (readIf("(")) {
             if (!readIf(")")) {
                 do {
-                	//Ô¼ÊøºÍ×Ö¶Î¿ÉÒÔ·Ö¿ª
-                    DefineCommand c = parseAlterTableAddConstraintIf(tableName, schema); //¶¨ÒåÔ¼Êø
+                	//çº¦æŸå’Œå­—æ®µå¯ä»¥åˆ†å¼€
+                    DefineCommand c = parseAlterTableAddConstraintIf(tableName, schema); //å®šä¹‰çº¦æŸ
                     if (c != null) {
                         command.addConstraintCommand(c);
-                    } else {  //¶¨Òå×Ö¶Î
+                    } else {  //å®šä¹‰å­—æ®µ
                         String columnName = readColumnIdentifier();
                         Column column = parseColumnForTable(columnName, true);
                         if (column.isAutoIncrement() && column.isPrimaryKey()) {
@@ -5573,19 +5573,19 @@ public class Parser {
                         command.addColumn(column);
                         String constraintName = null;
                         
-                        //ÏÂÃæ²¿·Ö±íÊ¾ÔÚ×Ö¶Îºó¶¨ÒåÔ¼Êø£¬Èç: name varchar PRIMARY KEY
+                        //ä¸‹é¢éƒ¨åˆ†è¡¨ç¤ºåœ¨å­—æ®µåå®šä¹‰çº¦æŸï¼Œå¦‚: name varchar PRIMARY KEY
                         if (readIf("CONSTRAINT")) {
                             constraintName = readColumnIdentifier();
                         }
-                        //Èç: f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10)
-                        //´ËÊ±CONSTRAINTÃûÎŞÓÃ
+                        //å¦‚: f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10)
+                        //æ­¤æ—¶CONSTRAINTåæ— ç”¨
                         if (readIf("PRIMARY")) {
                             read("KEY");
                             boolean hash = readIf("HASH");
                             IndexColumn[] cols = { new IndexColumn() };
                             cols[0].columnName = column.getName();
-                            //Ö¸¶¨false£¬ÒâË¼¾ÍÊÇÃ»ÓĞ´øIF NOT EXISTS
-                            //×Ö¶ÎÀàĞÍºóÃæ½ô¸úÔ¼Êø¶¨Òå²»ÄÜ´øIF NOT EXISTS
+                            //æŒ‡å®šfalseï¼Œæ„æ€å°±æ˜¯æ²¡æœ‰å¸¦IF NOT EXISTS
+                            //å­—æ®µç±»å‹åé¢ç´§è·Ÿçº¦æŸå®šä¹‰ä¸èƒ½å¸¦IF NOT EXISTS
                             AlterTableAddConstraint pk = new AlterTableAddConstraint(session, schema, false);
                             pk.setPrimaryKeyHash(hash);
                             pk.setType(CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY);
@@ -5665,7 +5665,7 @@ public class Parser {
                     read("LOGGED");
                 }
             }
-            if (readIf("TRANSACTIONAL")) { //Ö»ÓĞÁÙÊ±±íTRANSACTIONAL²Å»áÎªtrue
+            if (readIf("TRANSACTIONAL")) { //åªæœ‰ä¸´æ—¶è¡¨TRANSACTIONALæ‰ä¼šä¸ºtrue
                 command.setTransactional(true);
             }
         } else if (!persistIndexes && readIf("NOT")) {
@@ -5709,12 +5709,12 @@ public class Parser {
      * @param s the identifier
      * @return the quoted identifier
      */
-    //Âú×ãÏÂÁĞÈı¸öÌõ¼şµÄ×Ö·û´®¶¼Òª¼ÓË«ÒıºÅ£¬²¢ÇÒÈç¹û×Ö·û´®ÖĞµÄ×Ö·ûÊÇË«ÒıºÅÔòÓÃÁ½¸öË«ÒıºÅ±íÊ¾
-    //1. µÚÒ»¸ö×Ö·û²»ÊÇ×ÖÄ¸Ò²²»ÊÇÏÂ»®Ïß£¬»òÕßÊÇĞ¡Ğ´
-    //2. µÚ¶ş¸ö×Ö·û¿ªÊ¼µÄ×Ö·û²»ÊÇ×ÖÄ¸¡¢²»ÊÇÊı×Ö¡¢Ò²²»ÊÇÏÂ»®Ïß£¬»òÕßÊÇĞ¡Ğ´
-    //3. ×Ö·û´®ÊÇÒ»¸ö¹Ø¼ü×Ö
-    //µ÷ÓÃÕâ¸ö·½·¨¶ø²»ÊÇÖ±½Óµ÷ÓÃStringUtils.quoteIdentifierĞÔÄÜ¸üºÃ£¬ÒòÎª´ó¶àÊıÇé¿ö¾ÍÊÇÒ»¸öÆÕÍ¨µÄ±êÊ¶·û£¬Ã»ÓĞÊ²Ã´ÌØÊâµÄ£¬
-    //ÕâÊ±¾Í²»±ØÒªÔÙÖØĞÂ¹¹ÔìÒ»¸ö¼ÓÒıºÅµÄ×Ö·û´®
+    //æ»¡è¶³ä¸‹åˆ—ä¸‰ä¸ªæ¡ä»¶çš„å­—ç¬¦ä¸²éƒ½è¦åŠ åŒå¼•å·ï¼Œå¹¶ä¸”å¦‚æœå­—ç¬¦ä¸²ä¸­çš„å­—ç¬¦æ˜¯åŒå¼•å·åˆ™ç”¨ä¸¤ä¸ªåŒå¼•å·è¡¨ç¤º
+    //1. ç¬¬ä¸€ä¸ªå­—ç¬¦ä¸æ˜¯å­—æ¯ä¹Ÿä¸æ˜¯ä¸‹åˆ’çº¿ï¼Œæˆ–è€…æ˜¯å°å†™
+    //2. ç¬¬äºŒä¸ªå­—ç¬¦å¼€å§‹çš„å­—ç¬¦ä¸æ˜¯å­—æ¯ã€ä¸æ˜¯æ•°å­—ã€ä¹Ÿä¸æ˜¯ä¸‹åˆ’çº¿ï¼Œæˆ–è€…æ˜¯å°å†™
+    //3. å­—ç¬¦ä¸²æ˜¯ä¸€ä¸ªå…³é”®å­—
+    //è°ƒç”¨è¿™ä¸ªæ–¹æ³•è€Œä¸æ˜¯ç›´æ¥è°ƒç”¨StringUtils.quoteIdentifieræ€§èƒ½æ›´å¥½ï¼Œå› ä¸ºå¤§å¤šæ•°æƒ…å†µå°±æ˜¯ä¸€ä¸ªæ™®é€šçš„æ ‡è¯†ç¬¦ï¼Œæ²¡æœ‰ä»€ä¹ˆç‰¹æ®Šçš„ï¼Œ
+    //è¿™æ—¶å°±ä¸å¿…è¦å†é‡æ–°æ„é€ ä¸€ä¸ªåŠ å¼•å·çš„å­—ç¬¦ä¸²
     public static String quoteIdentifier(String s) {
         if (s == null || s.length() == 0) {
             return "\"\"";

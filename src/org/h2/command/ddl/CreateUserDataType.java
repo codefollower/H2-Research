@@ -20,7 +20,7 @@ import org.h2.value.DataType;
  * This class represents the statement
  * CREATE DOMAIN
  */
-//CREATE DOMAIN¡¢CREATE TYPE¡¢CREATE DATATYPE¶¼ÊÇÒ»ÑùµÄ
+//CREATE DOMAINã€CREATE TYPEã€CREATE DATATYPEéƒ½æ˜¯ä¸€æ ·çš„
 public class CreateUserDataType extends DefineCommand {
 
     private String typeName;
@@ -57,17 +57,17 @@ public class CreateUserDataType extends DefineCommand {
         DataType builtIn = DataType.getTypeByName(typeName);
         if (builtIn != null) {
             if (!builtIn.hidden) {
-            	//´ÓµÚ¶ş¸öÃû³Æ¿ªÊ¼µÄ¶¼ÊÇÒş²ØÀàĞÍµÄ£¬ÈçÏÂÃæµÄint
+            	//ä»ç¬¬äºŒä¸ªåç§°å¼€å§‹çš„éƒ½æ˜¯éšè—ç±»å‹çš„ï¼Œå¦‚ä¸‹é¢çš„int
                 //new String[]{"INTEGER", "INT", "MEDIUMINT", "INT4", "SIGNED"}
-                //Òş²ØÀàĞÍÔÚÓÃ»§ÔÚÊı¾İ¿âÖĞÃ»ÓĞ½¨±íÊ±¿ÉÒÔ¸²¸Ç
-                //ÈçCREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
-                //µ«ÊÇ·ÇÒş²ØÀàĞÍ¾Í²»ÄÜ¸²¸Ç
-                //ÈçCREATE DATATYPE IF NOT EXISTS integer AS VARCHAR(255)
+                //éšè—ç±»å‹åœ¨ç”¨æˆ·åœ¨æ•°æ®åº“ä¸­æ²¡æœ‰å»ºè¡¨æ—¶å¯ä»¥è¦†ç›–
+                //å¦‚CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+                //ä½†æ˜¯ééšè—ç±»å‹å°±ä¸èƒ½è¦†ç›–
+                //å¦‚CREATE DATATYPE IF NOT EXISTS integer AS VARCHAR(255)
                 throw DbException.get(ErrorCode.USER_DATA_TYPE_ALREADY_EXISTS_1, typeName);
             }
             
-            //Èç¹ûÓÃ»§ÔÚÊı¾İ¿âÖĞÃ»ÓĞ½¨±í£¬ÄÇÃ´×Ô¶¨ÒåµÄ×Ö¶ÎÀàĞÍ¿ÉÒÔÓëÄÚÖÃ×Ö¶ÎÀàĞÍµÄÃû×ÖÒ»Ñù
-            //ÈçCREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+            //å¦‚æœç”¨æˆ·åœ¨æ•°æ®åº“ä¸­æ²¡æœ‰å»ºè¡¨ï¼Œé‚£ä¹ˆè‡ªå®šä¹‰çš„å­—æ®µç±»å‹å¯ä»¥ä¸å†…ç½®å­—æ®µç±»å‹çš„åå­—ä¸€æ ·
+            //å¦‚CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
             Table table = session.getDatabase().getFirstUserTable();
             if (table != null) {
                 throw DbException.get(ErrorCode.USER_DATA_TYPE_ALREADY_EXISTS_1, typeName + " (" + table.getSQL() + ")");

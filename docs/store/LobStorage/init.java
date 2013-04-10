@@ -6,9 +6,9 @@
             return;
         }
         synchronized (handler) {
-			//org.h2.engine.DatabaseºÍorg.h2.engine.SessionRemoteµÈ¶¼ÊµÏÖÁËorg.h2.store.DataHandler½Ó¿Ú
-			//Ö»ÓĞorg.h2.engine.Database²»·µ»Ønull, ¶ÔÓ¦server¶Ë
-			//org.h2.engine.SessionRemote·µ»Ønull£¬¶ÔÓ¦client¶Ë
+			//org.h2.engine.Databaseå’Œorg.h2.engine.SessionRemoteç­‰éƒ½å®ç°äº†org.h2.store.DataHandleræ¥å£
+			//åªæœ‰org.h2.engine.Databaseä¸è¿”å›null, å¯¹åº”serverç«¯
+			//org.h2.engine.SessionRemoteè¿”å›nullï¼Œå¯¹åº”clientç«¯
             conn = handler.getLobConnection();
             init = true;
             if (conn == null) {

@@ -11,7 +11,7 @@ import org.h2.value.DataType;
 /**
  * This class contains information about a built-in function.
  */
-class FunctionInfo { //7¸ö×Ö¶Î
+class FunctionInfo { //7ä¸ªå­—æ®µ
 
     /**
      * The name of the function.
@@ -33,7 +33,7 @@ class FunctionInfo { //7¸ö×Ö¶Î
      */
     int parameterCount;
     
-    //×¢ÊÍ¶àÁË¸öif£¬Õâ¸ö±äÁ¿±íÊ¾: Ö»Òª´«¸øº¯ÊıµÄ²ÎÊıÓĞÒ»¸öÊÇnull£¬ÄÇÃ´º¯Êı·µ»ØÖµ¾ÍÊÇnull
+    //æ³¨é‡Šå¤šäº†ä¸ªifï¼Œè¿™ä¸ªå˜é‡è¡¨ç¤º: åªè¦ä¼ ç»™å‡½æ•°çš„å‚æ•°æœ‰ä¸€ä¸ªæ˜¯nullï¼Œé‚£ä¹ˆå‡½æ•°è¿”å›å€¼å°±æ˜¯null
     /**
      * If the result of the function is NULL if any of the parameters is NULL.
      */
@@ -42,14 +42,14 @@ class FunctionInfo { //7¸ö×Ö¶Î
     /**
      * If this function always returns the same value for the same parameters.
      */
-    boolean deterministic; //¶ÔÓÚÏàÍ¬µÄ²ÎÊı£¬Ã¿´Îµ÷ÓÃ¿ÉÄÜ·µ»Ø²»Í¬Öµ£¬±ÈÈç:CURRENT_TIME¡¢RANDÖ®ÀàµÄº¯Êı
+    boolean deterministic; //å¯¹äºç›¸åŒçš„å‚æ•°ï¼Œæ¯æ¬¡è°ƒç”¨å¯èƒ½è¿”å›ä¸åŒå€¼ï¼Œæ¯”å¦‚:CURRENT_TIMEã€RANDä¹‹ç±»çš„å‡½æ•°
 
     /**
      * Whether the function is fast, meaning the result shouldn't be cached.
      */
 	boolean fast;
 
-	public String toString() { //ÎÒ¼ÓÉÏµÄ
+	public String toString() { //æˆ‘åŠ ä¸Šçš„
 //		return name + " type=" + type + " dataType="
 //				+ DataType.getDataType(dataType).name + " parameterCount="
 //				+ parameterCount + " nullIfParameterIsNull="
@@ -60,7 +60,7 @@ class FunctionInfo { //7¸ö×Ö¶Î
 				+ pad(nullIfParameterIsNull, 8) + pad(deterministic, 8) + pad(fast, 8);
 	}
 
-	public int hashCode() { //ÎÒ¼ÓÉÏµÄ
+	public int hashCode() { //æˆ‘åŠ ä¸Šçš„
 		return type;
 	}
 

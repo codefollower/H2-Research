@@ -9,9 +9,9 @@ public class ScriptCommandTest extends TestBase {
 
 	@Override
 	public void startInternal() throws Exception {
-		sql = "BACKUP TO E:/H2/baseDir/myBackup"; //文件名要加单引号
+		sql = "BACKUP TO E:/H2/baseDir/myBackup"; //鏂囦欢鍚嶈鍔犲崟寮曞彿
 		sql = "BACKUP TO 'E:/H2/baseDir/myBackup'";
-		sql = "SCRIPT NODATA"; //生成各种Create SQL，此命令返回结果集，所以要用executeQuery
+		sql = "SCRIPT NODATA"; //鐢熸垚鍚勭Create SQL锛屾鍛戒护杩斿洖缁撴灉闆嗭紝鎵�浠ヨ鐢╡xecuteQuery
 		executeQuery();
 	}
 }

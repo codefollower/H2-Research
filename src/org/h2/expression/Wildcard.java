@@ -19,14 +19,14 @@ import org.h2.value.Value;
  * This object is only used temporarily during the parsing phase, and later
  * replaced by column expressions.
  */
-//Wildcard±í´ïÊ½¼´*ºÅ±í´ïÊ½ÔÚorg.h2.command.dml.Select.expandColumnList()ÖĞ»á±»Ìæ»»³É×Ö¶ÎÁĞ±í
-//ËùÒÔ´ËÀàºÜ¶à·½·¨ÊÇ²»ÄÜµ÷ÓÃµÄ£¬·Ç·¨µÄ
+//Wildcardè¡¨è¾¾å¼å³*å·è¡¨è¾¾å¼åœ¨org.h2.command.dml.Select.expandColumnList()ä¸­ä¼šè¢«æ›¿æ¢æˆå­—æ®µåˆ—è¡¨
+//æ‰€ä»¥æ­¤ç±»å¾ˆå¤šæ–¹æ³•æ˜¯ä¸èƒ½è°ƒç”¨çš„ï¼Œéæ³•çš„
 public class Wildcard extends Expression {
-	//¶ÔÓÚÏÂÃæÈıÌõsql:
+	//å¯¹äºä¸‹é¢ä¸‰æ¡sql:
 	//sql = "select * from WildcardTest";
 	//sql = "select WildcardTest.* from WildcardTest";
 	//sql = "select public.WildcardTest.* from WildcardTest";
-	//×Ö¶Îschema¡¢table·Ö±ğÊÇ
+	//å­—æ®µschemaã€tableåˆ†åˆ«æ˜¯
 	//null, null
 	//null, WildcardTest
 	//public, WildcardTest
@@ -82,13 +82,13 @@ public class Wildcard extends Expression {
         return schema;
     }
     
-    //¶ÔÓÚselect WildcardTest.* from WildcardTest
-    //´ËÊ±table=WildcardTest
+    //å¯¹äºselect WildcardTest.* from WildcardTest
+    //æ­¤æ—¶table=WildcardTest
     public String getSQL() {
         if (table == null) {
             return "*";
         }
-        return StringUtils.quoteIdentifier(table) + ".*"; //´ËÊ±·µ»Ø: "WildcardTest".*
+        return StringUtils.quoteIdentifier(table) + ".*"; //æ­¤æ—¶è¿”å›: "WildcardTest".*
     }
 
     public void updateAggregate(Session session) {

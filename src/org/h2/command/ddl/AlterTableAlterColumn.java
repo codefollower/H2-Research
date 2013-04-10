@@ -45,8 +45,8 @@ import org.h2.util.New;
  * ALTER TABLE ALTER COLUMN SET NULL,
  * ALTER TABLE DROP COLUMN
  */
-//Ò»´ÎÖ»ÄÜĞŞ¸ÄÒ»¸ö±í
-//Ö»ÓĞÖ´ĞĞalterÃüÁîÊ±»á²úÉú´ËÀàµÄÊµÀı£¬¶øAlterTableAddConstraintÊµÀıÔÚalterºÍcreate tableÃüÁîÖĞ¶¼»á²úÉú
+//ä¸€æ¬¡åªèƒ½ä¿®æ”¹ä¸€ä¸ªè¡¨
+//åªæœ‰æ‰§è¡Œalterå‘½ä»¤æ—¶ä¼šäº§ç”Ÿæ­¤ç±»çš„å®ä¾‹ï¼Œè€ŒAlterTableAddConstraintå®ä¾‹åœ¨alterå’Œcreate tableå‘½ä»¤ä¸­éƒ½ä¼šäº§ç”Ÿ
 public class AlterTableAlterColumn extends SchemaCommand {
 
     private Table table;
@@ -84,7 +84,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
         session.commit(true);
         Database db = session.getDatabase();
         session.getUser().checkRight(table, Right.ALL);
-        table.checkSupportAlter(); //Ö»ÓĞMVTableºÍRegularTableÖ§³Ö
+        table.checkSupportAlter(); //åªæœ‰MVTableå’ŒRegularTableæ”¯æŒ
         table.lock(session, true, true);
         Sequence sequence = oldColumn == null ? null : oldColumn.getSequence();
         if (newColumn != null) {
@@ -95,15 +95,15 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 checkDefaultReferencesTable(column.getDefaultExpression());
             }
         }
-        //·Ö7ÖÖ²Ù×÷: °ÑÁĞÉèÎªNOT NULL¡¢°ÑÁĞÉèÎªNULL¡¢°ÑÁĞÉèÎªÄ¬ÈÏÖµ¡¢¸Ä±äÁĞÀàĞÍ¡¢Ôö¼ÓÁĞ¡¢É¾³ıÁĞ¡¢¸ü¸ÄÁĞµÄÑ¡ÔñÒò×ÓSELECTIVITY
-        //ÆäÖĞÔö¼ÓÁĞ¡¢É¾³ıÁĞĞèÒª¿½±´Êı¾İµ½ĞÂ±í£¬¸Ä±äÁĞÀàĞÍµ½¸üĞ¡·¶Î§Ê±Ò²Òª¿½±´Êı¾İµ½ĞÂ±í
+        //åˆ†7ç§æ“ä½œ: æŠŠåˆ—è®¾ä¸ºNOT NULLã€æŠŠåˆ—è®¾ä¸ºNULLã€æŠŠåˆ—è®¾ä¸ºé»˜è®¤å€¼ã€æ”¹å˜åˆ—ç±»å‹ã€å¢åŠ åˆ—ã€åˆ é™¤åˆ—ã€æ›´æ”¹åˆ—çš„é€‰æ‹©å› å­SELECTIVITY
+        //å…¶ä¸­å¢åŠ åˆ—ã€åˆ é™¤åˆ—éœ€è¦æ‹·è´æ•°æ®åˆ°æ–°è¡¨ï¼Œæ”¹å˜åˆ—ç±»å‹åˆ°æ›´å°èŒƒå›´æ—¶ä¹Ÿè¦æ‹·è´æ•°æ®åˆ°æ–°è¡¨
         switch (type) {
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_NOT_NULL: {
             if (!oldColumn.isNullable()) {
                 // no change
                 break;
             }
-            checkNoNullValues(); //Èç¹ûÒªĞŞ¸ÄµÄÁĞÓĞNULLÖµ£¬ÄÇÃ´²»ÔÊĞí°ÑÁĞĞŞ¸ÄÎªNOT NULL
+            checkNoNullValues(); //å¦‚æœè¦ä¿®æ”¹çš„åˆ—æœ‰NULLå€¼ï¼Œé‚£ä¹ˆä¸å…è®¸æŠŠåˆ—ä¿®æ”¹ä¸ºNOT NULL
             oldColumn.setNullable(false);
             db.update(session, table);
             break;
@@ -113,7 +113,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 // no change
                 break;
             }
-            checkNullable(); //Èç¹ûÒªĞŞ¸ÄµÄÁĞÊÇÖ÷¼üË÷Òı»òhashË÷ÒıµÄÁĞ£¬ÄÇÃ´²»ÔÊĞí°ÑÁĞĞŞ¸ÄÎªNULL
+            checkNullable(); //å¦‚æœè¦ä¿®æ”¹çš„åˆ—æ˜¯ä¸»é”®ç´¢å¼•æˆ–hashç´¢å¼•çš„åˆ—ï¼Œé‚£ä¹ˆä¸å…è®¸æŠŠåˆ—ä¿®æ”¹ä¸ºNULL
             oldColumn.setNullable(true);
             db.update(session, table);
             break;
@@ -160,7 +160,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             break;
         }
         case CommandInterface.ALTER_TABLE_DROP_COLUMN: {
-            if (table.getColumns().length == 1) { //²»ÄÜÉ¾³ı×îºóÒ»ÁĞ
+            if (table.getColumns().length == 1) { //ä¸èƒ½åˆ é™¤æœ€åä¸€åˆ—
                 throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, oldColumn.getSQL());
             }
             table.dropSingleColumnConstraintsAndIndexes(session, oldColumn);
@@ -196,7 +196,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             if (c.isPrimaryKey()) {
                 c.setOriginalSQL("IDENTITY");
             } else {
-                int objId = getObjectId(); //×÷Îª×Ô¶¯Éú³ÉµÄSequenceµÄ¶ÔÏóid
+                int objId = getObjectId(); //ä½œä¸ºè‡ªåŠ¨ç”Ÿæˆçš„Sequenceçš„å¯¹è±¡id
                 c.convertAutoIncrementToSequence(session, getSchema(), objId, table.isTemporary());
             }
         }
@@ -270,13 +270,13 @@ public class AlterTableAlterColumn extends SchemaCommand {
         }
     }
     
-    //columnsÊÇÔ­ÏÈ±íµÄÁĞ£¬newColumns·ÅĞÂÁĞ£¬Ò»¿ªÊ¼Îª¿Õlist
-    //²»½ö½öÊÇ¿½±´±í½á¹¹£¬»¹»áÊÊµ±ÔöÉ¾¸ÄÁĞ£¬È»ºó¿½±´Êı¾İ(ÓÃcreate ... as select ...µÄ·½Ê½)
+    //columnsæ˜¯åŸå…ˆè¡¨çš„åˆ—ï¼ŒnewColumnsæ”¾æ–°åˆ—ï¼Œä¸€å¼€å§‹ä¸ºç©ºlist
+    //ä¸ä»…ä»…æ˜¯æ‹·è´è¡¨ç»“æ„ï¼Œè¿˜ä¼šé€‚å½“å¢åˆ æ”¹åˆ—ï¼Œç„¶åæ‹·è´æ•°æ®(ç”¨create ... as select ...çš„æ–¹å¼)
     private Table cloneTableStructure(Column[] columns, Database db, String tempName, ArrayList<Column> newColumns) {
-        for (Column col : columns) { //¸ÕºÃColumnId¾ÍÊÇ´Ó0¿ªÊ¼µÄ
+        for (Column col : columns) { //åˆšå¥½ColumnIdå°±æ˜¯ä»0å¼€å§‹çš„
             newColumns.add(col.getClone());
         }
-        //µ÷ÕûÎ»ÖÃ
+        //è°ƒæ•´ä½ç½®
         if (type == CommandInterface.ALTER_TABLE_DROP_COLUMN) {
             int position = oldColumn.getColumnId();
             newColumns.remove(position);
@@ -325,7 +325,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
             if (type == CommandInterface.ALTER_TABLE_ADD_COLUMN && columnsToAdd.contains(nc)) {
                 Expression def = nc.getDefaultExpression();
-                //SELECT F1, F2, NULLÕâÑùµÄSQLÒ²ÊÇ¿ÉÒÔµÄ£¬ËùÒÔÓÃNULL±íÊ¾£¬ÕâÑùĞÂµÄÁĞÄ¬ÈÏÊÇNULLÖµ
+                //SELECT F1, F2, NULLè¿™æ ·çš„SQLä¹Ÿæ˜¯å¯ä»¥çš„ï¼Œæ‰€ä»¥ç”¨NULLè¡¨ç¤ºï¼Œè¿™æ ·æ–°çš„åˆ—é»˜è®¤æ˜¯NULLå€¼
                 columnList.append(def == null ? "NULL" : def.getSQL());
             } else {
                 columnList.append(nc.getSQL());
@@ -352,27 +352,27 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 continue;
             } else if (child instanceof Index) {
                 Index idx = (Index) child;
-                if (idx.getIndexType().getBelongsToConstraint()) { //ÊôÓÚÔ¼ÊøµÄË÷Òı²»ĞèÒª½¨Á¢
+                if (idx.getIndexType().getBelongsToConstraint()) { //å±äºçº¦æŸçš„ç´¢å¼•ä¸éœ€è¦å»ºç«‹
                     continue;
                 }
             }
-            //TableµÄchildrenÓĞ6ÖÖ: index¡¢constraint¡¢trigger¡¢sequence¡¢view¡¢right
-            //ÆäÖĞÖ»ÓĞindexÔÚÌØÊâÇé¿öÏÂgetCreateSQL·µ»Ønull£¬±ÈÈçScanIndex
-            //·µ»Ønull¾Í±íÊ¾´Ë¶ÔÏó²»ĞèÒª½¨Á¢
+            //Tableçš„childrenæœ‰6ç§: indexã€constraintã€triggerã€sequenceã€viewã€right
+            //å…¶ä¸­åªæœ‰indexåœ¨ç‰¹æ®Šæƒ…å†µä¸‹getCreateSQLè¿”å›nullï¼Œæ¯”å¦‚ScanIndex
+            //è¿”å›nullå°±è¡¨ç¤ºæ­¤å¯¹è±¡ä¸éœ€è¦å»ºç«‹
             String createSQL = child.getCreateSQL();
             if (createSQL == null) {
                 continue;
             }
             if (child instanceof TableView) {
                 continue;
-            } else if (child.getType() == DbObject.TABLE_OR_VIEW) { //Ç°ÃæµÄifÒÑÅÅ³ıTableView£¬ËùÒÔ²»¿ÉÒÔ³öÏÖTalbeµÄ×Ó¶ÔÏóÊÇTable
+            } else if (child.getType() == DbObject.TABLE_OR_VIEW) { //å‰é¢çš„ifå·²æ’é™¤TableViewï¼Œæ‰€ä»¥ä¸å¯ä»¥å‡ºç°Talbeçš„å­å¯¹è±¡æ˜¯Table
                 DbException.throwInternalError();
             }
             String quotedName = Parser.quoteIdentifier(tempName + "_" + child.getName());
             String sql = null;
             if (child instanceof ConstraintReferential) {
                 ConstraintReferential r = (ConstraintReferential) child;
-                //¶¨ÒåÔ¼ÊøµÄ±íÓĞ¿ÉÄÜ²»µÈÓÚµ±Ç°talbeÂğ? ÒòÎªÒÑÖªConstraintReferentialÊÇtableµÄ×Ó¶ÔÏóÁË£¿
+                //å®šä¹‰çº¦æŸçš„è¡¨æœ‰å¯èƒ½ä¸ç­‰äºå½“å‰talbeå—? å› ä¸ºå·²çŸ¥ConstraintReferentialæ˜¯tableçš„å­å¯¹è±¡äº†ï¼Ÿ
                 if (r.getTable() != table) {
                     sql = r.getCreateSQLForCopy(r.getTable(), newTable, quotedName, false);
                 }
@@ -381,7 +381,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 sql = child.getCreateSQLForCopy(newTable, quotedName);
             }
             if (sql != null) {
-                if (child instanceof TriggerObject) { //´¥·¢Æ÷·Å×îºóÖ´ĞĞ
+                if (child instanceof TriggerObject) { //è§¦å‘å™¨æ”¾æœ€åæ‰§è¡Œ
                     triggers.add(sql);
                 } else {
                     execute(sql, true);

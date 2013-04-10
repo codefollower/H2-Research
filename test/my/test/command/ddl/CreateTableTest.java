@@ -23,12 +23,12 @@ public class CreateTableTest extends TestBase {
         //parseAlterTableAddConstraintIf();
         parseColumnForTable();
 
-        sql = "CREATE TABLE IF NOT EXISTS mytable3 (" + "f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10), " + //¥À ±CONSTRAINT√˚Œﬁ”√
+        sql = "CREATE TABLE IF NOT EXISTS mytable3 (" + "f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10), " + //Ê≠§Êó∂CONSTRAINTÂêçÊó†Áî®
                 "f2 int CONSTRAINT c2 UNIQUE, " + //
                 "f3 int CONSTRAINT c3 NOT NULL, " + //
                 "f4 int CONSTRAINT c4 NULL , " + //
                 "f5 int CONSTRAINT c5 NOT NULL CHECK f5>0, " + //
-                "f6 int CONSTRAINT c6 NOT NULL REFERENCES(f1) , " + //◊‘“˝”√
+                "f6 int CONSTRAINT c6 NOT NULL REFERENCES(f1) , " + //Ëá™ÂºïÁî®
                 "f7 int CONSTRAINT c7 NOT NULL REFERENCES mytable1(f1) , " + //
                 "f8 int CONSTRAINT c8 NOT NULL REFERENCES mytable1(f1) ON DELETE CASCADE " + //
                 ")";
@@ -91,7 +91,7 @@ public class CreateTableTest extends TestBase {
 
     void parseColumnWithType() throws Exception {
         stmt.executeUpdate("DROP DOMAIN IF EXISTS EMAIL");
-        //VALUE «CREATE DOMAIN”Ôæ‰µƒƒ¨»œ¡Ÿ ±¡–√˚
+        //VALUEÊòØCREATE DOMAINËØ≠Âè•ÁöÑÈªòËÆ§‰∏¥Êó∂ÂàóÂêç
         stmt.executeUpdate("CREATE DOMAIN IF NOT EXISTS EMAIL AS VARCHAR(255) CHECK (POSITION('@', VALUE) > 1)");
 
         sql = "CREATE TABLE IF NOT EXISTS mytable (" + //
@@ -100,7 +100,7 @@ public class CreateTableTest extends TestBase {
                 "f3 CHARACTER VARYING, " + //
                 "f4 EMAIL , " + //
                 //                "f5 int CONSTRAINT c5 NOT NULL CHECK f5>0, " + //
-                //                "f6 int CONSTRAINT c6 NOT NULL REFERENCES(f1) , " + //◊‘“˝”√
+                //                "f6 int CONSTRAINT c6 NOT NULL REFERENCES(f1) , " + //Ëá™ÂºïÁî®
                 //                "f7 int CONSTRAINT c7 NOT NULL REFERENCES mytable1(f1) , " + //
                 //                "f8 int CONSTRAINT c8 NOT NULL REFERENCES mytable1(f1) ON DELETE CASCADE " + //
                 "f9 int" + //
@@ -130,7 +130,7 @@ public class CreateTableTest extends TestBase {
         //stmt.executeUpdate("CREATE CACHED GLOBAL TEMPORARY TABLE IF NOT EXISTS mytable (f1 int)");
         //stmt.executeUpdate("CREATE CACHED GLOBAL TEMPORARY TABLE IF NOT EXISTS TEST9.SESSION.mytable (f1 int)");
 
-        //±Ì√˚schema∫Õ‘º ¯schema±ÿ–Î“ª—˘
+        //Ë°®ÂêçschemaÂíåÁ∫¶ÊùüschemaÂøÖÈ°ª‰∏ÄÊ†∑
         //stmt.executeUpdate("CREATE TABLE IF NOT EXISTS myschema.mytable (f1 int,f2 int,"
         //		+ "CONSTRAINT IF NOT EXISTS public.my_constraint COMMENT IS 'haha' PRIMARY KEY HASH(f1,f2))");
 

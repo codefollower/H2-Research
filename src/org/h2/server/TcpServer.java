@@ -41,7 +41,7 @@ import org.h2.util.Tool;
  * the same database over the network.
  */
 
-//´ËÀàÖĞµÄ·½·¨µ÷ÓÃË³ĞòÊÇ:
+//æ­¤ç±»ä¸­çš„æ–¹æ³•è°ƒç”¨é¡ºåºæ˜¯:
 //init => start => isRunning => listen
 public class TcpServer implements Service {
 
@@ -92,19 +92,19 @@ public class TcpServer implements Service {
         prop.setProperty("user", "");
         prop.setProperty("password", managementPassword);
         // avoid using the driver manager
-        // urlÈç: jdbc:h2:mem:management_db_9092
-        //ÄÚ´æÊı¾İ¿â²»×ßTCP£¬Ö´ĞĞµ½ÕâÀïÊ±TcpServerµÄlistenerThread»¹Ã»Æô¶¯£¬
-        //ËùÒÔÏÂÃæµÄsqlÓï¾ä²»»áÔÚTcpServerThreadÕâ¸öÀàÖĞÊÕµ½ÇëÇó
+        // urlå¦‚: jdbc:h2:mem:management_db_9092
+        //å†…å­˜æ•°æ®åº“ä¸èµ°TCPï¼Œæ‰§è¡Œåˆ°è¿™é‡Œæ—¶TcpServerçš„listenerThreadè¿˜æ²¡å¯åŠ¨ï¼Œ
+        //æ‰€ä»¥ä¸‹é¢çš„sqlè¯­å¥ä¸ä¼šåœ¨TcpServerThreadè¿™ä¸ªç±»ä¸­æ”¶åˆ°è¯·æ±‚
         Connection conn = Driver.load().connect("jdbc:h2:" + getManagementDbName(port), prop);
         managementDb = conn;
         Statement stat = null;
         try {
             stat = conn.createStatement();
-            //½¨Á¢ÁËÒ»¸ö×Ô¶¨ÒåµÄº¯ÊıSTOP_SERVER£¬
-            //Í¨¹ıÀàËÆÕâÑùCALL STOP_SERVER(9092, '', 0)¾ÍÄÜ¹Ø±ÕH2Êı¾İ¿â
-            //µ÷ÓÃµÄÊÇorg.h2.server.TcpServer.stopServer(int, String, int)·½·¨
-            //²»¹ıÒòÎªº¯ÊıSTOP_SERVERÊÇÔÚÄÚ´æÊı¾İ¿âµÄ£¬ËùÒÔÍ¨¹ıTCPÔ¶³Ìµ÷ÓÃÊÇ²»ĞĞµÄ£¬
-            //ÒªÔÚClient¶ËÊÖ¹¤ÔÙ½¨Á¢Í¬ÑùµÄº¯Êı£¬¼û: my.test.server.TcpServerTest
+            //å»ºç«‹äº†ä¸€ä¸ªè‡ªå®šä¹‰çš„å‡½æ•°STOP_SERVERï¼Œ
+            //é€šè¿‡ç±»ä¼¼è¿™æ ·CALL STOP_SERVER(9092, '', 0)å°±èƒ½å…³é—­H2æ•°æ®åº“
+            //è°ƒç”¨çš„æ˜¯org.h2.server.TcpServer.stopServer(int, String, int)æ–¹æ³•
+            //ä¸è¿‡å› ä¸ºå‡½æ•°STOP_SERVERæ˜¯åœ¨å†…å­˜æ•°æ®åº“çš„ï¼Œæ‰€ä»¥é€šè¿‡TCPè¿œç¨‹è°ƒç”¨æ˜¯ä¸è¡Œçš„ï¼Œ
+            //è¦åœ¨Clientç«¯æ‰‹å·¥å†å»ºç«‹åŒæ ·çš„å‡½æ•°ï¼Œè§: my.test.server.TcpServerTest
             stat.execute("CREATE ALIAS IF NOT EXISTS STOP_SERVER FOR \"" + TcpServer.class.getName() + ".stopServer\"");
             stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS(ID INT PRIMARY KEY, URL VARCHAR, USER VARCHAR, CONNECTED TIMESTAMP)");
             managementDbAdd = conn.prepareStatement("INSERT INTO SESSIONS VALUES(?, ?, ?, NOW())");
@@ -135,8 +135,8 @@ public class TcpServer implements Service {
      * @param url the database URL
      * @param user the user name
      */
-    //ÔÚorg.h2.server.TcpServerThread.run()ÖĞµ÷ÓÃ£¬
-    //Ã¿½¨Á¢Ò»¸öĞÂµÄSession¶ÔÏóÊ±£¬°ÑËü±£´æµ½ÄÚ´æÊı¾İ¿âmanagement_db_9092µÄSESSIONS±í
+    //åœ¨org.h2.server.TcpServerThread.run()ä¸­è°ƒç”¨ï¼Œ
+    //æ¯å»ºç«‹ä¸€ä¸ªæ–°çš„Sessionå¯¹è±¡æ—¶ï¼ŒæŠŠå®ƒä¿å­˜åˆ°å†…å­˜æ•°æ®åº“management_db_9092çš„SESSIONSè¡¨
     synchronized void addConnection(int id, String url, String user) {
         try {
             managementDbAdd.setInt(1, id);
@@ -153,8 +153,8 @@ public class TcpServer implements Service {
      *
      * @param id the connection id
      */
-    //ÔÚorg.h2.server.TcpServerThread.closeSession()ÖĞµ÷ÓÃ£¬
-    //¹Ø±ÕSession¶ÔÏóÊ±£¬°ÑËü´ÓÄÚ´æÊı¾İ¿âmanagement_db_9092µÄSESSIONS±íÖĞÉ¾³ı
+    //åœ¨org.h2.server.TcpServerThread.closeSession()ä¸­è°ƒç”¨ï¼Œ
+    //å…³é—­Sessionå¯¹è±¡æ—¶ï¼ŒæŠŠå®ƒä»å†…å­˜æ•°æ®åº“management_db_9092çš„SESSIONSè¡¨ä¸­åˆ é™¤
     synchronized void removeConnection(int id) {
         try {
             managementDbRemove.setInt(1, id);
@@ -236,20 +236,20 @@ public class TcpServer implements Service {
         try {
             serverSocket = NetUtils.createServerSocket(port, ssl);
         } catch (DbException e) {
-        	//Èç¹ûÆô¶¯Ê±Ã»ÓĞÖ¸¶¨²ÎÊı-tcpPort£¬ÄÇÃ´ÔÚ¶Ë¿Ú±»Õ¼ÓÃÊ±×Ô¶¯Ñ¡ÔñÆäËû¶Ë¿Ú£¬·ñÔòÖ±½ÓÅ×Òì³£
+        	//å¦‚æœå¯åŠ¨æ—¶æ²¡æœ‰æŒ‡å®šå‚æ•°-tcpPortï¼Œé‚£ä¹ˆåœ¨ç«¯å£è¢«å ç”¨æ—¶è‡ªåŠ¨é€‰æ‹©å…¶ä»–ç«¯å£ï¼Œå¦åˆ™ç›´æ¥æŠ›å¼‚å¸¸
             if (!portIsSet) {
                 serverSocket = NetUtils.createServerSocket(0, ssl);
             } else {
                 throw e;
             }
         }
-        port = serverSocket.getLocalPort(); //ÕâÀï¾ÍÄÜ¿´µ½×Ô¶¯Ñ¡ÔñµÄ¶Ë¿Ú
+        port = serverSocket.getLocalPort(); //è¿™é‡Œå°±èƒ½çœ‹åˆ°è‡ªåŠ¨é€‰æ‹©çš„ç«¯å£
         initManagementDb();
     }
 
     public void listen() {
-    	//ÔÚorg.h2.tools.Server.start()ÖĞµÄservice.getName() + " (" + service.getURL() + ")";
-    	//listenerÏß³ÌÃûÊÇ: H2 TCP Server (tcp://localhost:9092)
+    	//åœ¨org.h2.tools.Server.start()ä¸­çš„service.getName() + " (" + service.getURL() + ")";
+    	//listenerçº¿ç¨‹åæ˜¯: H2 TCP Server (tcp://localhost:9092)
         listenerThread = Thread.currentThread();
         String threadName = listenerThread.getName();
         try {
@@ -257,7 +257,7 @@ public class TcpServer implements Service {
                 Socket s = serverSocket.accept();
                 TcpServerThread c = new TcpServerThread(s, this, nextThreadId++);
                 running.add(c);
-                //TcpServerThreadÏß³ÌÃûÊÇ: "H2 TCP Server (tcp://localhost:9092) thread"
+                //TcpServerThreadçº¿ç¨‹åæ˜¯: "H2 TCP Server (tcp://localhost:9092) thread"
                 Thread thread = new Thread(c, threadName + " thread");
                 thread.setDaemon(isDaemon);
                 c.setThread(thread);
@@ -272,9 +272,9 @@ public class TcpServer implements Service {
         stopManagementDb();
     }
     
-    //²âÊÔÊÇ·ñÔÚ±¾µØÁ¬µÃÉÏTcpServer£¬´ËÊ±listen()ÒÑ¾­Ö´ĞĞÁË
-    //Õâ¸ö·½·¨»á´¥·¢½¨Á¢Ò»¸öTcpServerThread£¬
-    //²»¹ıºÜ¿ì¾Í¹ØµôÁË£¬ÒòÎªÃ»ÓĞ½¨Á¢Session¶ÔÏó£¬Ò²Ã»ÔÚSESSIONS±íÖĞ´æÈë¼ÇÂ¼¡£
+    //æµ‹è¯•æ˜¯å¦åœ¨æœ¬åœ°è¿å¾—ä¸ŠTcpServerï¼Œæ­¤æ—¶listen()å·²ç»æ‰§è¡Œäº†
+    //è¿™ä¸ªæ–¹æ³•ä¼šè§¦å‘å»ºç«‹ä¸€ä¸ªTcpServerThreadï¼Œ
+    //ä¸è¿‡å¾ˆå¿«å°±å…³æ‰äº†ï¼Œå› ä¸ºæ²¡æœ‰å»ºç«‹Sessionå¯¹è±¡ï¼Œä¹Ÿæ²¡åœ¨SESSIONSè¡¨ä¸­å­˜å…¥è®°å½•ã€‚
     public synchronized boolean isRunning(boolean traceError) {
         if (serverSocket == null) {
             return false;
@@ -338,7 +338,7 @@ public class TcpServer implements Service {
      * @param password the password (or null)
      * @param shutdownMode the shutdown mode, SHUTDOWN_NORMAL or SHUTDOWN_FORCE.
      */
-    //Í¨¹ıÀàËÆÕâÑùCALL STOP_SERVER(9092, '', 0)¾ÍÄÜ¹Ø±ÕH2Êı¾İ¿â£¬¼ûmy.test.server.TcpServerTest
+    //é€šè¿‡ç±»ä¼¼è¿™æ ·CALL STOP_SERVER(9092, '', 0)å°±èƒ½å…³é—­H2æ•°æ®åº“ï¼Œè§my.test.server.TcpServerTest
     public static void stopServer(int port, String password, int shutdownMode) {
         if (port == 0) {
             for (int p : SERVERS.keySet().toArray(new Integer[0])) {

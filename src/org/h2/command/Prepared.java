@@ -22,7 +22,7 @@ import org.h2.value.Value;
 /**
  * A prepared statement.
  */
-//Ö»ÓĞÈı¸ö³éÏó·½·¨: isTransactional¡¢queryMeta¡¢getType
+//åªæœ‰ä¸‰ä¸ªæŠ½è±¡æ–¹æ³•: isTransactionalã€queryMetaã€getType
 public abstract class Prepared {
 
     /**
@@ -38,7 +38,7 @@ public abstract class Prepared {
     /**
      * Whether to create a new object (for indexes).
      */
-    protected boolean create = true; //ÓÃÓÚCreateTableºÍCreateIndex
+    protected boolean create = true; //ç”¨äºCreateTableå’ŒCreateIndex
 
     /**
      * The list of parameters.
@@ -74,7 +74,7 @@ public abstract class Prepared {
      *
      * @return true if it is
      */
-    public abstract boolean isTransactional(); //Èç¹û·µ»Øtrue£¬ÄÇÃ´ÔÚorg.h2.command.Command.stop()ÖĞ²»»á×Ô¶¯Ìá½»ÊÂÎñ£¬ĞèÓÃ»§´¥·¢
+    public abstract boolean isTransactional(); //å¦‚æœè¿”å›trueï¼Œé‚£ä¹ˆåœ¨org.h2.command.Command.stop()ä¸­ä¸ä¼šè‡ªåŠ¨æäº¤äº‹åŠ¡ï¼Œéœ€ç”¨æˆ·è§¦å‘
 
     /**
      * Get an empty result set containing the meta data.
@@ -105,7 +105,7 @@ public abstract class Prepared {
      *
      * @return true if it must
      */
-    //ÏÂÃæ5¸ö×ÓÀà¸²¸ÇÁË´Ë·½·¨£¬²¢·µ»Øfalse
+    //ä¸‹é¢5ä¸ªå­ç±»è¦†ç›–äº†æ­¤æ–¹æ³•ï¼Œå¹¶è¿”å›false
     //org.h2.command.dml.BackupCommand
     //org.h2.command.dml.NoOperation
     //org.h2.command.dml.ScriptBase
@@ -193,7 +193,7 @@ public abstract class Prepared {
     /**
      * Prepare this statement.
      */
-    public void prepare() { //Ö»ÓĞ8ÖÖDMLÀàSQLÊµÏÖÁËËü: Call¡¢Explain¡¢Merge¡¢Delete¡¢Insert¡¢Update¡¢Select¡¢SelectUnion
+    public void prepare() { //åªæœ‰8ç§DMLç±»SQLå®ç°äº†å®ƒ: Callã€Explainã€Mergeã€Deleteã€Insertã€Updateã€Selectã€SelectUnion
         // nothing to do
     }
 
@@ -253,7 +253,7 @@ public abstract class Prepared {
      *
      * @return the object id
      */
-    protected int getObjectId() { //getÍêÖ®ºó£¬Èç¹ûÔ­À´µÄobjectId²»Îª0£¬ÄÇÃ´ÒªÉèÎª0
+    protected int getObjectId() { //getå®Œä¹‹åï¼Œå¦‚æœåŸæ¥çš„objectIdä¸ä¸º0ï¼Œé‚£ä¹ˆè¦è®¾ä¸º0
         int id = objectId;
         if (id == 0) {
             id = session.getDatabase().allocateObjectId();
@@ -268,7 +268,7 @@ public abstract class Prepared {
      *
      * @return the execution plan
      */
-    public String getPlanSQL() { //Ö»ÓĞCRUD¼°MergeÊµÏÖÁË´Ë·½·¨
+    public String getPlanSQL() { //åªæœ‰CRUDåŠMergeå®ç°äº†æ­¤æ–¹æ³•
         return null;
     }
 
@@ -355,8 +355,8 @@ public abstract class Prepared {
      * Notifies query progress via the DatabaseEventListener
      */
     private void setProgress() {
-    	//µÈ¼ÛÓÚ((currentRowNumber % 128) == 0)£¬µ«ÊÇ(currentRowNumber & 127)ĞÔÄÜ¸ü¸ß
-        if ((currentRowNumber & 127) == 0) { //Ã¿¹ı128Ìõ¼ÇÂ¼ÌáÊ¾Ò»´Î½ø¶È
+    	//ç­‰ä»·äº((currentRowNumber % 128) == 0)ï¼Œä½†æ˜¯(currentRowNumber & 127)æ€§èƒ½æ›´é«˜
+        if ((currentRowNumber & 127) == 0) { //æ¯è¿‡128æ¡è®°å½•æç¤ºä¸€æ¬¡è¿›åº¦
             session.getDatabase().setProgress(DatabaseEventListener.STATE_STATEMENT_PROGRESS, sqlStatement, currentRowNumber, 0);
         }
     }
@@ -412,13 +412,13 @@ public abstract class Prepared {
      * @param values the values of the row
      * @return the exception
      */
-    //ÔÚ×ÓÀàInsertºÍMergeÖĞÓĞÊ¹ÓÃ
-    //Èçinsert into TableFilterTest(id, name, b) values(70, 'b3', true), ('o7', 'b3', true)
+    //åœ¨å­ç±»Insertå’ŒMergeä¸­æœ‰ä½¿ç”¨
+    //å¦‚insert into TableFilterTest(id, name, b) values(70, 'b3', true), ('o7', 'b3', true)
     //Exception in thread "main" org.h2.jdbc.JdbcSQLException: Data conversion error converting "'o7' 
     //(TABLEFILTERTEST: ID INT)";  SQL statement:
     //insert into TableFilterTest(id, name, b) values(70, 'b3', true), ('o7', 'b3', true) -- row #2 ('o7', 'b3', TRUE) 
     //[22018-171]
-    //ÔÚorg.h2.command.dml.Insert.insertRows()ÖĞ´¥·¢£¬ÏÈµ÷ÓÃPrepared.getSQL(Expression[])
+    //åœ¨org.h2.command.dml.Insert.insertRows()ä¸­è§¦å‘ï¼Œå…ˆè°ƒç”¨Prepared.getSQL(Expression[])
     protected DbException setRow(DbException e, int rowId, String values) {
         StringBuilder buff = new StringBuilder();
         if (sqlStatement != null) {
@@ -432,10 +432,10 @@ public abstract class Prepared {
         return e.addSQL(buff.toString());
     }
 
-    //Ö»ÓĞDML²¢ÇÒÊÇÏÂÃæµÄÕâ¼¸Àà¿É»º´æ:
-    //Insert¡¢Delete¡¢Update¡¢Merge¡¢TransactionCommandÕâ5¸öÎŞÌõ¼ş¿É»º´æ
-    //CallÕâ¸öµ±²úÉúµÄ½á¹û²»ÊÇ½á¹û¼¯Ê±¿É»º´æ£¬·ñÔò²»¿É»º´æ
-    //SelectÕâ¸öµ±²»ÊÇisForUpdateÊ±¿É»º´æ£¬·ñÔò²»¿É»º´æ
+    //åªæœ‰DMLå¹¶ä¸”æ˜¯ä¸‹é¢çš„è¿™å‡ ç±»å¯ç¼“å­˜:
+    //Insertã€Deleteã€Updateã€Mergeã€TransactionCommandè¿™5ä¸ªæ— æ¡ä»¶å¯ç¼“å­˜
+    //Callè¿™ä¸ªå½“äº§ç”Ÿçš„ç»“æœä¸æ˜¯ç»“æœé›†æ—¶å¯ç¼“å­˜ï¼Œå¦åˆ™ä¸å¯ç¼“å­˜
+    //Selectè¿™ä¸ªå½“ä¸æ˜¯isForUpdateæ—¶å¯ç¼“å­˜ï¼Œå¦åˆ™ä¸å¯ç¼“å­˜
     public boolean isCacheable() {
         return false;
     }

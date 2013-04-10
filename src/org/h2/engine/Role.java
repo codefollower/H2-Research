@@ -17,7 +17,7 @@ public class Role extends RightOwner {
 
     private final boolean system;
 
-    //org.h2.engine.Database.open(int, int)ÀïÔ¤¶¨ÒåÁËÒ»¸öpublicRole = new Role(this, 0, Constants.PUBLIC_ROLE_NAME, true);
+    //org.h2.engine.Database.open(int, int)é‡Œé¢„å®šä¹‰äº†ä¸€ä¸ªpublicRole = new Role(this, 0, Constants.PUBLIC_ROLE_NAME, true);
     //Constants.PUBLIC_ROLE_NAME="PUBLIC"
     public Role(Database database, int id, String roleName, boolean system) {
         super(database, id, roleName, Trace.USER);
@@ -39,7 +39,7 @@ public class Role extends RightOwner {
      * @return the SQL statement
      */
     public String getCreateSQL(boolean ifNotExists) {
-        if (system) { //system½ÇÉ«²»ĞèÒªÉú³ÉcreateÓï¾ä£¬ÔÚorg.h2.engine.Database.open(int, int)Àï»á×Ô¶¯½¨Á¢
+        if (system) { //systemè§’è‰²ä¸éœ€è¦ç”Ÿæˆcreateè¯­å¥ï¼Œåœ¨org.h2.engine.Database.open(int, int)é‡Œä¼šè‡ªåŠ¨å»ºç«‹
             return null;
         }
         StringBuilder buff = new StringBuilder("CREATE ROLE ");
@@ -58,35 +58,35 @@ public class Role extends RightOwner {
         return DbObject.ROLE;
     }
     
-    //dorp roleÊ±»áµ÷ÓÃ
-    //É¾³ıÈ¨ÏŞ(ÀàËÆÓÚµ÷ÓÃrevokeÃüÁî)
+    //dorp roleæ—¶ä¼šè°ƒç”¨
+    //åˆ é™¤æƒé™(ç±»ä¼¼äºè°ƒç”¨revokeå‘½ä»¤)
     public void removeChildrenAndResources(Session session) {
-    	//ÓëÒ»¸ö´ËroleÏà¹ØµÄÈ¨ÏŞÓĞÈıÖÖ
-    	//Ç°Á½ÖÖÊÇ´Ërole±»¶¯ÊÚÓè¸øÆäËûRightOwnerµÄ(°üÀ¨ÓÃ»§ºÍÆäËû½ÇÉ«)
-    	//ÁíÒ»ÖÖÊÇÊÚÓè¸ø´Ërole×Ô¼ºµÄ
+    	//ä¸ä¸€ä¸ªæ­¤roleç›¸å…³çš„æƒé™æœ‰ä¸‰ç§
+    	//å‰ä¸¤ç§æ˜¯æ­¤roleè¢«åŠ¨æˆäºˆç»™å…¶ä»–RightOwnerçš„(åŒ…æ‹¬ç”¨æˆ·å’Œå…¶ä»–è§’è‰²)
+    	//å¦ä¸€ç§æ˜¯æˆäºˆç»™æ­¤roleè‡ªå·±çš„
     	
-    	//´Ërole±»ÊÚÓè¸øÄÄĞ©userÁË£¬ÄÇÃÇÕâĞ©userÒª°Ñ´ËÈ¨ÏŞÉ¾ÁË
+    	//æ­¤roleè¢«æˆäºˆç»™å“ªäº›useräº†ï¼Œé‚£ä»¬è¿™äº›userè¦æŠŠæ­¤æƒé™åˆ äº†
         for (User user : database.getAllUsers()) {
             Right right = user.getRightForRole(this);
             if (right != null) {
-            	//´Ë·½·¨ÄÚ²¿»áµ÷ÓÃRightµÄremoveChildrenAndResources£¬È»ºó»á´¥·¢UserµÄrevokeRole
+            	//æ­¤æ–¹æ³•å†…éƒ¨ä¼šè°ƒç”¨Rightçš„removeChildrenAndResourcesï¼Œç„¶åä¼šè§¦å‘Userçš„revokeRole
                 database.removeDatabaseObject(session, right);
             }
         }
         
-        //´Ërole±»ÊÚÓè¸øÄÄĞ©RoleÁË£¬ÄÇÃÇÕâĞ©RoleÒª°Ñ´ËÈ¨ÏŞÉ¾ÁË
+        //æ­¤roleè¢«æˆäºˆç»™å“ªäº›Roleäº†ï¼Œé‚£ä»¬è¿™äº›Roleè¦æŠŠæ­¤æƒé™åˆ äº†
         for (Role r2 : database.getAllRoles()) {
             Right right = r2.getRightForRole(this);
             if (right != null) {
-            	//´Ë·½·¨ÄÚ²¿»áµ÷ÓÃRightµÄremoveChildrenAndResources£¬È»ºó»á´¥·¢RoleµÄrevokeRole
+            	//æ­¤æ–¹æ³•å†…éƒ¨ä¼šè°ƒç”¨Rightçš„removeChildrenAndResourcesï¼Œç„¶åä¼šè§¦å‘Roleçš„revokeRole
                 database.removeDatabaseObject(session, right);
             }
         }
         
-        //ÊÚÓè¸ø´Ërole×Ô¼ºµÄÈ¨ÏŞÒªÉ¾³ı
+        //æˆäºˆç»™æ­¤roleè‡ªå·±çš„æƒé™è¦åˆ é™¤
         for (Right right : database.getAllRights()) {
             if (right.getGrantee() == this) {
-            	//´Ë·½·¨ÄÚ²¿»áµ÷ÓÃRightµÄremoveChildrenAndResources£¬È»ºó»á´¥·¢RoleµÄrevokeRole
+            	//æ­¤æ–¹æ³•å†…éƒ¨ä¼šè°ƒç”¨Rightçš„removeChildrenAndResourcesï¼Œç„¶åä¼šè§¦å‘Roleçš„revokeRole
                 database.removeDatabaseObject(session, right);
             }
         }

@@ -1,31 +1,31 @@
-Ö÷ÒªÏà¹ØµÄÀàÔÚorg.h2.command°üÖĞ
+ä¸»è¦ç›¸å…³çš„ç±»åœ¨org.h2.commandåŒ…ä¸­
 
-SQLÓï¾äÓÉorg.h2.command.ParserÀà½âÎö
+SQLè¯­å¥ç”±org.h2.command.Parserç±»è§£æ
 
-SQLÓï¾ä·ÖÁ½ÖÖ:
+SQLè¯­å¥åˆ†ä¸¤ç§:
 DML (data manipulation language)
-	=> ¶ÔÓ¦org.h2.command.dml°ü
+	=> å¯¹åº”org.h2.command.dmlåŒ…
 
 DDL (data definition language) 
-	=> ¶ÔÓ¦org.h2.command.ddl°ü
+	=> å¯¹åº”org.h2.command.ddlåŒ…
 
 
-±ÈÈçCREATE TABLEÓï¾ä¶ÔÓ¦org.h2.command.ddl.CreateTableÀà
-ÔÙ±ÈÈçINSERTÓï¾ä¶ÔÓ¦org.h2.command.dml.InsertÀà
+æ¯”å¦‚CREATE TABLEè¯­å¥å¯¹åº”org.h2.command.ddl.CreateTableç±»
+å†æ¯”å¦‚INSERTè¯­å¥å¯¹åº”org.h2.command.dml.Insertç±»
 
-SHOWÓï¾äÔÚParserÀàÖĞµ±³ÉSELECTÓï¾ä£¬¶ÔÓ¦org.h2.command.dml.SelectÀà
+SHOWè¯­å¥åœ¨Parserç±»ä¸­å½“æˆSELECTè¯­å¥ï¼Œå¯¹åº”org.h2.command.dml.Selectç±»
 
-org.h2.command.PreparedÊÇËùÓĞSQLÓï¾ä¶ÔÓ¦µÄÀàµÄ³¬Àà
+org.h2.command.Preparedæ˜¯æ‰€æœ‰SQLè¯­å¥å¯¹åº”çš„ç±»çš„è¶…ç±»
 
-PreparedÀàÀïµÄapi£¬Ò»°ãÊÇÏÈµ÷ÓÃprepare£¬ÔÙµ÷ÓÃupdate»òquery£¬update¶ÔÓ¦¸üĞÂ²Ù×÷£¬query¶ÔÓ¦²éÑ¯²Ù×÷¡£
+Preparedç±»é‡Œçš„apiï¼Œä¸€èˆ¬æ˜¯å…ˆè°ƒç”¨prepareï¼Œå†è°ƒç”¨updateæˆ–queryï¼Œupdateå¯¹åº”æ›´æ–°æ“ä½œï¼Œqueryå¯¹åº”æŸ¥è¯¢æ“ä½œã€‚
 
 
-org.h2.command.CommandInterface½Ó¿ÚÓÃÀ´±íÊ¾Ö´ĞĞµÄSQLÃüÁî
-	<= org.h2.command.Command (ÓÃÓÚ·şÎñ¶Ë)
+org.h2.command.CommandInterfaceæ¥å£ç”¨æ¥è¡¨ç¤ºæ‰§è¡Œçš„SQLå‘½ä»¤
+	<= org.h2.command.Command (ç”¨äºæœåŠ¡ç«¯)
 		<= org.h2.command.CommandContainer
 		<= org.h2.command.CommandList
-	<= org.h2.command.CommandRemote (ÓÃÓÚ¿Í»§¶Ë)
+	<= org.h2.command.CommandRemote (ç”¨äºå®¢æˆ·ç«¯)
 
-	CommandÓëCommandRemoteÍ¨³£ÊÇ¶ÔÓ¦µÄ£¬CommandRemoteÀàÓÃÔÚJDBCµÄÊµÏÖÖĞ(org.h2.jdbc°üÖĞµÄÀà)£¬
-	ÓÃCommandRemoteÀ´·¢ËÍÃüÁî¡¢´¦Àí½á¹û¼¯£¬CommandÓëÖ®¶ÔÓ¦¡£
+	Commandä¸CommandRemoteé€šå¸¸æ˜¯å¯¹åº”çš„ï¼ŒCommandRemoteç±»ç”¨åœ¨JDBCçš„å®ç°ä¸­(org.h2.jdbcåŒ…ä¸­çš„ç±»)ï¼Œ
+	ç”¨CommandRemoteæ¥å‘é€å‘½ä»¤ã€å¤„ç†ç»“æœé›†ï¼ŒCommandä¸ä¹‹å¯¹åº”ã€‚
 

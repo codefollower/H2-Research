@@ -51,13 +51,13 @@ public class CommandRemote implements CommandInterface {
     }
 
     private void prepare(SessionRemote s, boolean createParams) {
-    	//ËäÈ»getNextIdÄÚ²¿ÊÇnextId++;
-    	//µ«ÊÇorg.h2.engine.SessionRemote.prepareCommand(String, int)ÊÇsynchronizedµÄ£¬
+    	//è™½ç„¶getNextIdå†…éƒ¨æ˜¯nextId++;
+    	//ä½†æ˜¯org.h2.engine.SessionRemote.prepareCommand(String, int)æ˜¯synchronizedçš„ï¼Œ
     	//
-    	//ÁíÍâorg.h2.command.CommandRemote.prepareIfRequired()Ò²ÔÚsynchronized (session)ÖĞµ÷ÓÃ
-    	//ËùÒÔÕâÀïÃ»ÓĞ²¢·¢ÎÊÌâ
+    	//å¦å¤–org.h2.command.CommandRemote.prepareIfRequired()ä¹Ÿåœ¨synchronized (session)ä¸­è°ƒç”¨
+    	//æ‰€ä»¥è¿™é‡Œæ²¡æœ‰å¹¶å‘é—®é¢˜
     	
-        id = s.getNextId(); //Õâ¸öid»á·¢Íùserver£¬ÓÃÓÚ»º´æserver¶ÔÓ¦µÄcommand¡£
+        id = s.getNextId(); //è¿™ä¸ªidä¼šå‘å¾€serverï¼Œç”¨äºç¼“å­˜serverå¯¹åº”çš„commandã€‚
         for (int i = 0, count = 0; i < transferList.size(); i++) {
             try {
                 Transfer transfer = transferList.get(i);
@@ -74,9 +74,9 @@ public class CommandRemote implements CommandInterface {
                 int paramCount = transfer.readInt();
                 if (createParams) {
                     parameters.clear();
-                    //prepare½×¶ÎÃ¿¸öParameterRemoteÖ»ÓĞÀàĞÍ»¹Ã»ÓĞÖµ£¬»áÔÚ½ÓÏÂÀ´Í¨¹ıgetParameters()´«¸øJdbcPreparedStatement
-                    //È»ºóÔÚJdbcPreparedStatementÖĞÉèÖÃ£¬Èç¹ûÔÚexecuteQueryºÍexecuteUpdateÖĞ»¹Ã»ÓĞÎªÕâĞ©²ÎÊıÉèÖÃÖµ£¬
-                    //ÄÇÃ´µ÷ÓÃcheckParametersÊ±»áÅ×Òì³£
+                    //prepareé˜¶æ®µæ¯ä¸ªParameterRemoteåªæœ‰ç±»å‹è¿˜æ²¡æœ‰å€¼ï¼Œä¼šåœ¨æ¥ä¸‹æ¥é€šè¿‡getParameters()ä¼ ç»™JdbcPreparedStatement
+                    //ç„¶ååœ¨JdbcPreparedStatementä¸­è®¾ç½®ï¼Œå¦‚æœåœ¨executeQueryå’ŒexecuteUpdateä¸­è¿˜æ²¡æœ‰ä¸ºè¿™äº›å‚æ•°è®¾ç½®å€¼ï¼Œ
+                    //é‚£ä¹ˆè°ƒç”¨checkParametersæ—¶ä¼šæŠ›å¼‚å¸¸
                     for (int j = 0; j < paramCount; j++) {
                         ParameterRemote p = new ParameterRemote(j);
                         p.readMetaData(transfer);
@@ -109,8 +109,8 @@ public class CommandRemote implements CommandInterface {
         }
     }
     
-    //Õâ¸ö²¢²»ÊÇ¶ÔÓ¦java.sql.ResultSetMetaData£¬¶øÊÇÔÚorg.h2.jdbc.JdbcPreparedStatement.getMetaData()µ÷ÓÃ
-    //µÈ¼ÛÓÚResultSet.getMetaData()£¬Ö»²»¹ıPreparedStatement.getMetaData()²»ĞèÒªÊÂÏÈÖ´ĞĞ²éÑ¯
+    //è¿™ä¸ªå¹¶ä¸æ˜¯å¯¹åº”java.sql.ResultSetMetaDataï¼Œè€Œæ˜¯åœ¨org.h2.jdbc.JdbcPreparedStatement.getMetaData()è°ƒç”¨
+    //ç­‰ä»·äºResultSet.getMetaData()ï¼Œåªä¸è¿‡PreparedStatement.getMetaData()ä¸éœ€è¦äº‹å…ˆæ‰§è¡ŒæŸ¥è¯¢
     public ResultInterface getMetaData() {
         synchronized (session) {
             if (!isQuery) {
@@ -123,13 +123,13 @@ public class CommandRemote implements CommandInterface {
                 Transfer transfer = transferList.get(i);
                 try {
                     session.traceOperation("COMMAND_GET_META_DATA", id);
-                    //ÕâÀïµÃµ½µÄResultRemoteÒ²»áÔÚserver¶Ë°´objectId»º´æÒ»¸öorg.h2.result.LocalResult
-                    //µ«ÊÇÕâ¸öResultRemoteÔÚorg.h2.jdbc.JdbcPreparedStatement.getMetaData()ÖĞ±»·â×°µ½JdbcResultSetMetaDataºó
-                    //Ã»ÓĞ»ú»áµ÷ÓÃResultRemote.closeÀ´ÊÍ·Åserver¶ËµÄÏà¹Ø¶«Î÷ÁË
-                    //Õâ¸öÓ°ÏìÓĞ¶à´ó?²»¹ıserver¶ËµÄcacheÊÇÓĞÏŞÖÆµÄ£¬²¢ÇÒ°´sessionÀ´ÅäÖÃ£¬ËùÒÔ²»ÖÁÓÚÔì³ÉOOM
+                    //è¿™é‡Œå¾—åˆ°çš„ResultRemoteä¹Ÿä¼šåœ¨serverç«¯æŒ‰objectIdç¼“å­˜ä¸€ä¸ªorg.h2.result.LocalResult
+                    //ä½†æ˜¯è¿™ä¸ªResultRemoteåœ¨org.h2.jdbc.JdbcPreparedStatement.getMetaData()ä¸­è¢«å°è£…åˆ°JdbcResultSetMetaDataå
+                    //æ²¡æœ‰æœºä¼šè°ƒç”¨ResultRemote.closeæ¥é‡Šæ”¾serverç«¯çš„ç›¸å…³ä¸œè¥¿äº†
+                    //è¿™ä¸ªå½±å“æœ‰å¤šå¤§?ä¸è¿‡serverç«¯çš„cacheæ˜¯æœ‰é™åˆ¶çš„ï¼Œå¹¶ä¸”æŒ‰sessionæ¥é…ç½®ï¼Œæ‰€ä»¥ä¸è‡³äºé€ æˆOOM
                     //==========================
-                    //ÉÏÃæÀí½â´íÁË£¬ResultRemoteµÄ¹¹Ôìº¯ÊıÖĞ»á´¥·¢ResultRemote.fetchRows(boolean)£¬
-                    //ÒòÎªrowCountÊÇ0£¬ËùÒÔµ±ÏÂ¾Íµ÷ÓÃsendCloseÁË
+                    //ä¸Šé¢ç†è§£é”™äº†ï¼ŒResultRemoteçš„æ„é€ å‡½æ•°ä¸­ä¼šè§¦å‘ResultRemote.fetchRows(boolean)ï¼Œ
+                    //å› ä¸ºrowCountæ˜¯0ï¼Œæ‰€ä»¥å½“ä¸‹å°±è°ƒç”¨sendCloseäº†
                     transfer.writeInt(SessionRemote.COMMAND_GET_META_DATA).writeInt(id).writeInt(objectId);
                     session.done(transfer);
                     int columnCount = transfer.readInt();
@@ -163,7 +163,7 @@ public class CommandRemote implements CommandInterface {
                         fetch = fetchSize;
                     }
                     transfer.writeInt(fetch);
-                    //Èç¹ûÊÇJdbcStatement£¬Ã»ÓĞ²ÎÊı£¬JdbcPreparedStatement²ÅÓĞ
+                    //å¦‚æœæ˜¯JdbcStatementï¼Œæ²¡æœ‰å‚æ•°ï¼ŒJdbcPreparedStatementæ‰æœ‰
                     sendParameters(transfer);
                     session.done(transfer);
                     int columnCount = transfer.readInt();
@@ -172,11 +172,11 @@ public class CommandRemote implements CommandInterface {
                         result = null;
                     }
                     result = new ResultRemote(session, transfer, objectId, columnCount, fetch);
-                    //¶ÔÓÚÖ»¶Á²éÑ¯Ö»ĞèÒª´ÓÒ»Ì¨serverÉÏ»ñµÃ½á¹û¾Í¿ÉÒÔÁË£¬²»ĞèÒªÃ¿Ì¨server¶¼²éÑ¯Ò»´Î
-                    //select ... for update²¢²»ÄÜÊ¹readonlyÎªfalse£¬
-                    //Ïà·´£¬ÔÚwhereÖĞ¼ÓÉÏÒ»Ğ©NotDeterministicµÄº¯Êı£¬ÀıÈçRAND¡¢RANDOMµÈ·´¶øÄÜÊ¹readonlyÎªfalse
-                    //¼ûorg.h2.expression.Function.addFunctionNotDeterministic(String, int, int, int)
-                    //Àı×Ó: select * from SessionRemoteTest where id>? and b=? and id<RAND()
+                    //å¯¹äºåªè¯»æŸ¥è¯¢åªéœ€è¦ä»ä¸€å°serverä¸Šè·å¾—ç»“æœå°±å¯ä»¥äº†ï¼Œä¸éœ€è¦æ¯å°serveréƒ½æŸ¥è¯¢ä¸€æ¬¡
+                    //select ... for updateå¹¶ä¸èƒ½ä½¿readonlyä¸ºfalseï¼Œ
+                    //ç›¸åï¼Œåœ¨whereä¸­åŠ ä¸Šä¸€äº›NotDeterministicçš„å‡½æ•°ï¼Œä¾‹å¦‚RANDã€RANDOMç­‰åè€Œèƒ½ä½¿readonlyä¸ºfalse
+                    //è§org.h2.expression.Function.addFunctionNotDeterministic(String, int, int, int)
+                    //ä¾‹å­: select * from SessionRemoteTest where id>? and b=? and id<RAND()
                     if (readonly) {
                         break;
                     }
@@ -190,7 +190,7 @@ public class CommandRemote implements CommandInterface {
         }
     }
     
-    //×¢Òâ: transferList.size´óÓÚ1Ê±£¬ËµÃ÷ÊÇ¼¯Èº»·¾³£¬µ«ÊÇ²¢²»ÊÇXA£¬Ò²¾ÍÊÇËµ¿ÉÄÜÓĞÒ»Ì¨server¸üĞÂ³É¹¦ÁË£¬¿ÉÒÔÔÊĞíÁíÒ»Ì¨¸üĞÂ²»³É¹¦
+    //æ³¨æ„: transferList.sizeå¤§äº1æ—¶ï¼Œè¯´æ˜æ˜¯é›†ç¾¤ç¯å¢ƒï¼Œä½†æ˜¯å¹¶ä¸æ˜¯XAï¼Œä¹Ÿå°±æ˜¯è¯´å¯èƒ½æœ‰ä¸€å°serveræ›´æ–°æˆåŠŸäº†ï¼Œå¯ä»¥å…è®¸å¦ä¸€å°æ›´æ–°ä¸æˆåŠŸ
     public int executeUpdate() {
         checkParameters();
         synchronized (session) {
@@ -202,19 +202,19 @@ public class CommandRemote implements CommandInterface {
                 try {
                     session.traceOperation("COMMAND_EXECUTE_UPDATE", id);
                     transfer.writeInt(SessionRemote.COMMAND_EXECUTE_UPDATE).writeInt(id);
-                    //Èç¹ûÊÇJdbcStatement£¬Ã»ÓĞ²ÎÊı£¬JdbcPreparedStatement²ÅÓĞ
+                    //å¦‚æœæ˜¯JdbcStatementï¼Œæ²¡æœ‰å‚æ•°ï¼ŒJdbcPreparedStatementæ‰æœ‰
                     sendParameters(transfer);
                     session.done(transfer);
                     updateCount = transfer.readInt();
                     autoCommit = transfer.readBoolean();
                 } catch (IOException e) {
-                	//Ö»ÓĞËùÓĞserver¶¼³ö´íÊ±²Å³¢ÊÔÖØÁ¬(²»¹ıÒªÈ¡¾öÓÚ¸÷ÖÖ²ÎÊı)
+                	//åªæœ‰æ‰€æœ‰serveréƒ½å‡ºé”™æ—¶æ‰å°è¯•é‡è¿(ä¸è¿‡è¦å–å†³äºå„ç§å‚æ•°)
                     session.removeServer(e, i--, ++count);
                 }
             }
-            session.setAutoCommitFromServer(autoCommit); //Èç¹ûÊÇ¼¯Èº»·¾³£¬ÉèÎªfalse
-            session.autoCommitIfCluster(); //Èç¹ûÊÇ¼¯Èº»·¾³£¬Í¨ÖªËùÓĞserverÌá½»ÊÂÎñ
-            session.readSessionState();//µ±session×´Ì¬·¢Éú¸Ä±äÊ±£¬ÌáÈ¡INFORMATION_SCHEMA.SESSION_STATEĞÅÏ¢£¬ÏÂ´Î¿ÉÖØ½¨session
+            session.setAutoCommitFromServer(autoCommit); //å¦‚æœæ˜¯é›†ç¾¤ç¯å¢ƒï¼Œè®¾ä¸ºfalse
+            session.autoCommitIfCluster(); //å¦‚æœæ˜¯é›†ç¾¤ç¯å¢ƒï¼Œé€šçŸ¥æ‰€æœ‰serveræäº¤äº‹åŠ¡
+            session.readSessionState();//å½“sessionçŠ¶æ€å‘ç”Ÿæ”¹å˜æ—¶ï¼Œæå–INFORMATION_SCHEMA.SESSION_STATEä¿¡æ¯ï¼Œä¸‹æ¬¡å¯é‡å»ºsession
             return updateCount;
         }
     }

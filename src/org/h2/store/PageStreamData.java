@@ -19,11 +19,11 @@ import org.h2.engine.Session;
  * </ul>
  */
 public class PageStreamData extends Page {
-	//Í·²¿Õ¼11×Ö½Ú
+	//å¤´éƒ¨å 11å­—èŠ‚
     private static final int DATA_START = 11;
 
     private final PageStore store;
-    private int trunk; //PageStreamTrunkµÄpageId
+    private int trunk; //PageStreamTrunkçš„pageId
     private int logKey;
     private Data data;
     private int remaining;
@@ -111,7 +111,7 @@ public class PageStreamData extends Page {
      * @param pageSize the page size
      * @return the number of bytes
      */
-    //Ò»¸öPageStreamDataµÄÈİÁ¿: pageSize-11(ÒòÎªÒ»¸öPageStreamDataµÄÍ·¾ÍÕ¼ÁË11×Ö½Ú)
+    //ä¸€ä¸ªPageStreamDataçš„å®¹é‡: pageSize-11(å› ä¸ºä¸€ä¸ªPageStreamDataçš„å¤´å°±å äº†11å­—èŠ‚)
     static int getCapacity(int pageSize) {
         return pageSize - DATA_START;
     }

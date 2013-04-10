@@ -89,7 +89,7 @@ public class PageDataLeaf extends PageData {
      */
     static PageDataLeaf create(PageDataIndex index, int pageId, int parentPageId) {
         PageDataLeaf p = new PageDataLeaf(index, pageId, index.getPageStore().createData());
-        //´Óorg.h2.store.PageStore.openNew()×ªµ½ÕâÊ±£¬ÒòÎªrecoveryRunningÊÇtrue£¬ËùÒÔlogUndoÊ²Ã´¶¼Ã»×ö
+        //ä»org.h2.store.PageStore.openNew()è½¬åˆ°è¿™æ—¶ï¼Œå› ä¸ºrecoveryRunningæ˜¯trueï¼Œæ‰€ä»¥logUndoä»€ä¹ˆéƒ½æ²¡åš
         index.getPageStore().logUndo(p, null);
         p.rows = Row.EMPTY_ARRAY;
         p.parentPageId = parentPageId;
@@ -165,10 +165,10 @@ public class PageDataLeaf extends PageData {
         int rowLength = getRowLength(row);
         int pageSize = index.getPageStore().getPageSize();
         int last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
-        //ÎªÊ²Ã´Òª¼Ó2? ÒòÎªĞ´offsetÊ±offsetÕ¼ÁËÁ½¸ö×Ö½Ú
-        //startÒ»¿ªÊ¼ÊÇ11£¬ÒòÎªPageDataLeafµÄÍ·²¿Õ¼ÁË11×Ö½Ú£¬
-        //Ğ´ÍêÍ·²¿ÒÔºó½Ó×Å°´ĞĞ¸öÊıĞ´keyºÍOffset£¬keyÊÇ¿É±älong
-        //ÕâÀïµÄÅĞ¶ÏÓÃÀ´±£Ö¤Ò»¸öpageÖĞÄÜĞ´ÏÂÍ·²¿ºÍkey\Offset¶Ô£¬·ñÔòÒª¶Ô´ËpageÇĞ¸î³ÉÁ½¸ö
+        //ä¸ºä»€ä¹ˆè¦åŠ 2? å› ä¸ºå†™offsetæ—¶offsetå äº†ä¸¤ä¸ªå­—èŠ‚
+        //startä¸€å¼€å§‹æ˜¯11ï¼Œå› ä¸ºPageDataLeafçš„å¤´éƒ¨å äº†11å­—èŠ‚ï¼Œ
+        //å†™å®Œå¤´éƒ¨ä»¥åæ¥ç€æŒ‰è¡Œä¸ªæ•°å†™keyå’ŒOffsetï¼Œkeyæ˜¯å¯å˜long
+        //è¿™é‡Œçš„åˆ¤æ–­ç”¨æ¥ä¿è¯ä¸€ä¸ªpageä¸­èƒ½å†™ä¸‹å¤´éƒ¨å’Œkey\Offsetå¯¹ï¼Œå¦åˆ™è¦å¯¹æ­¤pageåˆ‡å‰²æˆä¸¤ä¸ª
         int keyOffsetPairLen = 2 + Data.getVarLongLen(row.getKey());
         if (entryCount > 0 && last - rowLength < start + keyOffsetPairLen) {
             int x = findInsertionPoint(row.getKey());
@@ -223,31 +223,31 @@ public class PageDataLeaf extends PageData {
         }
         if (offset < start) {
             writtenData = false;
-            //Êı¾İOverflowµÄµ±Ç°ĞĞ¶ÀÕ¼Ò»¸öĞÂµÄPageDataLeaf£¬entryCountÎª1
+            //æ•°æ®Overflowçš„å½“å‰è¡Œç‹¬å ä¸€ä¸ªæ–°çš„PageDataLeafï¼ŒentryCountä¸º1
             if (entryCount > 1) {
                 DbException.throwInternalError();
             }
             // need to write the overflow page id
             start += 4;
             
-            //¼Ù¶¨keyµÄ¿É±älongÊÇ1,
-            //Êı¾İOverflowµÄPageDataLeafÈç¹ûpageSizeÊÇ128£¬ÄÇÃ´´ËÊ±startÎª18(Í·²¿  11+ keyºÍoffset 3 + overflow page id 4)
-            //ËùÒÔ´ËPageDataLeafÖ»´æÁËpageSize - start¸ö×Ö½Ú£¬µ±Ç°ĞĞÊ£ÓàµÄ×Ö½Ú·ÅÔÚPageDataOverflowÖĞ£¬
-            //Èç¹ûÒ»¸öPageDataOverflow»¹·Å²»Íêµ±Ç°ĞĞ£¬ÔòÓÃ¶à¸öPageDataOverflow£¬
-            //¶à¸öPageDataOverflowÖ®¼ä»áÍ¨¹ıËûÃÇµÄnext page id´®ÆğÀ´
+            //å‡å®škeyçš„å¯å˜longæ˜¯1,
+            //æ•°æ®Overflowçš„PageDataLeafå¦‚æœpageSizeæ˜¯128ï¼Œé‚£ä¹ˆæ­¤æ—¶startä¸º18(å¤´éƒ¨  11+ keyå’Œoffset 3 + overflow page id 4)
+            //æ‰€ä»¥æ­¤PageDataLeafåªå­˜äº†pageSize - startä¸ªå­—èŠ‚ï¼Œå½“å‰è¡Œå‰©ä½™çš„å­—èŠ‚æ”¾åœ¨PageDataOverflowä¸­ï¼Œ
+            //å¦‚æœä¸€ä¸ªPageDataOverflowè¿˜æ”¾ä¸å®Œå½“å‰è¡Œï¼Œåˆ™ç”¨å¤šä¸ªPageDataOverflowï¼Œ
+            //å¤šä¸ªPageDataOverflowä¹‹é—´ä¼šé€šè¿‡ä»–ä»¬çš„next page idä¸²èµ·æ¥
             
-            //¼ÙÉèrowLength=260£¬ÄÇÃ´´ËPageDataLeaf´æ·ÅÆäÖĞµÄ110¸ö×Ö½Ú
-            //µÚÒ»¸öPageDataOverflow´æ·Å117¸ö×Ö½Ú(128-11)
-            //µÚ¶ş¸öPageDataOverflow´æ·Å×îºó33¸ö×Ö½Ú
+            //å‡è®¾rowLength=260ï¼Œé‚£ä¹ˆæ­¤PageDataLeafå­˜æ”¾å…¶ä¸­çš„110ä¸ªå­—èŠ‚
+            //ç¬¬ä¸€ä¸ªPageDataOverflowå­˜æ”¾117ä¸ªå­—èŠ‚(128-11)
+            //ç¬¬äºŒä¸ªPageDataOverflowå­˜æ”¾æœ€å33ä¸ªå­—èŠ‚
             int remaining = rowLength - (pageSize - start); //remaining=150
             // fix offset
             offset = start;
             offsets[x] = offset;
             int previous = getPos();
-            int dataOffset = pageSize; //ÏÂÒ»´Î´Ó Data allÕâ¸ö×Ö½ÚÊı×éµÄÄÄ¸öµØ·½copy×Ö½Úµ½PageDataOverflowÖĞ
+            int dataOffset = pageSize; //ä¸‹ä¸€æ¬¡ä» Data allè¿™ä¸ªå­—èŠ‚æ•°ç»„çš„å“ªä¸ªåœ°æ–¹copyå­—èŠ‚åˆ°PageDataOverflowä¸­
             int page = index.getPageStore().allocatePage();
             firstOverflowPageId = page;
-            this.overflowRowSize = pageSize + rowLength; //Õâ¸öÖ»ÊÇ¾¡¿ÉÄÜ¶àµÄ¹ÀËãDataÒª¶à´óµÄ×Ö½ÚÊı×é
+            this.overflowRowSize = pageSize + rowLength; //è¿™ä¸ªåªæ˜¯å°½å¯èƒ½å¤šçš„ä¼°ç®—Dataè¦å¤šå¤§çš„å­—èŠ‚æ•°ç»„
             writeData();
             // free up the space used by the row
             Row r = rows[0];
@@ -387,7 +387,7 @@ public class PageDataLeaf extends PageData {
             if (split != -1) {
                 DbException.throwInternalError("split " + split);
             }
-            removeRow(splitPoint); //splitPointºóµÄÔªËØÍùÇ°ÒÆ
+            removeRow(splitPoint); //splitPointåçš„å…ƒç´ å¾€å‰ç§»
         }
         return p2;
     }

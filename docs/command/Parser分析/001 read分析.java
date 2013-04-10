@@ -1,6 +1,6 @@
     private void read(String expected) {
-		//ÓÃ`¡¢[]¡¢¡°°üÎ§ÆğÀ´µÄ×Ö·û´®Ëù´ú±íµÄToken»áÊ¹µÃcurrentTokenQuoted=true
-		//Èç"CREATE or `REPLACE` TABLE IF NOT EXISTS
+		//ç”¨`ã€[]ã€â€œåŒ…å›´èµ·æ¥çš„å­—ç¬¦ä¸²æ‰€ä»£è¡¨çš„Tokenä¼šä½¿å¾—currentTokenQuoted=true
+		//å¦‚"CREATE or `REPLACE` TABLE IF NOT EXISTS
 		//expected = currentToken = REPLACE
 		//currentTokenQuoted = true
         if (currentTokenQuoted || !equalsToken(expected, currentToken)) {
@@ -10,9 +10,9 @@
         read();
     }
 
-	//readÓëreadIfµÄ²î±ğ
-	//read: expectedÓëcurrentToken±ØĞëÒ»Ñù£¬²»Ò»ÑùÔò±¨Óï·¨´íÎó£¬ÈçÊÇÃ»ÓĞÓï·¨´íÎóÔ¤¶ÁÏÂÒ»¸ötoken
-	//readIf: Ö»ÓĞtokenÓëcurrentTokenÒ»ÑùÊ±²ÅÔ¤¶ÁÏÂÒ»¸ötoken£¬²»ÏàÍ¬²»»á±¨Óï·¨´íÎó
+	//readä¸readIfçš„å·®åˆ«
+	//read: expectedä¸currentTokenå¿…é¡»ä¸€æ ·ï¼Œä¸ä¸€æ ·åˆ™æŠ¥è¯­æ³•é”™è¯¯ï¼Œå¦‚æ˜¯æ²¡æœ‰è¯­æ³•é”™è¯¯é¢„è¯»ä¸‹ä¸€ä¸ªtoken
+	//readIf: åªæœ‰tokenä¸currentTokenä¸€æ ·æ—¶æ‰é¢„è¯»ä¸‹ä¸€ä¸ªtokenï¼Œä¸ç›¸åŒä¸ä¼šæŠ¥è¯­æ³•é”™è¯¯
     private boolean readIf(String token) {
         if (!currentTokenQuoted && equalsToken(token, currentToken)) {
             read();
@@ -22,7 +22,7 @@
         return false;
     }
 
-	//ÓëreadIf(String token)´ó²¿·İÏàÍ¬£¬Î¨Ò»²î±ğÊÇisToken²»»áÔ¤¶ÁÏÂÒ»¸ötoken
+	//ä¸readIf(String token)å¤§éƒ¨ä»½ç›¸åŒï¼Œå”¯ä¸€å·®åˆ«æ˜¯isTokenä¸ä¼šé¢„è¯»ä¸‹ä¸€ä¸ªtoken
 	private boolean isToken(String token) {
         boolean result = equalsToken(token, currentToken) && !currentTokenQuoted;
         if (result) {
@@ -52,7 +52,7 @@
         lastParseIndex = parseIndex;
         int i = parseIndex;
         int type = types[i];
-        while (type == 0) { //Ìø¹ı×îÇ°ÃætypeÎª0µÄÔªËØ£¬ÒòÎª0¶ÔÓ¦µÄ×Ö·ûÊÇ¿Õ°×ÀàµÄ£¬Ã»ÒâÒå
+        while (type == 0) { //è·³è¿‡æœ€å‰é¢typeä¸º0çš„å…ƒç´ ï¼Œå› ä¸º0å¯¹åº”çš„å­—ç¬¦æ˜¯ç©ºç™½ç±»çš„ï¼Œæ²¡æ„ä¹‰
             type = types[++i];
         }
         int start = i;
@@ -74,26 +74,26 @@
             return;
         case CHAR_QUOTED: {
             String result = null;
-			//ÄÚ²¿µÄforÑ­»·ÓÃÓÚÕÒ³öµÚÒ»¶ÔË«ÒıºÅÖĞ°üº¬µÄ×Ö·û
-			//Èç¹ûË«ÒıºÅÖĞ°üº¬µÄ×Ö·ûÓÖÓĞË«ÒıºÅ£¬whileÑ­»·¼ÌĞøÑ°ÕÒºóÃæµÄ×Ö·û
-			//±ÈÈç¶ÔÓÚ"aaa""bbb"£¬iÏÈ´ÓµÚÒ»¸öa¿ªÊ¼£¬µ½´ïµÚ¶ş¸ö"ºÅÊ±£¬if (chars[i] == '\"')Îªtrue£¬
-			//ÒòÎª´ËÊ±resultÎªnull£¬ËùÒÔresult = sqlCommand.substring(begin, i) = aaa
-			//½Ó×ÅÍË³öforÑ­»·£¬ÒòÎªchars[++i]="£¬ËùÒÔwhileÑ­»·¼ÌĞø,´ËÊ±begin´ÓµÚÒ»¸öb¿ªÊ¼£¬
-			//½øÈëµ½if (chars[i] == '\"')Ê±£¬ÒòÎªÇ°Ãæresult = aaa£¬
-			//ËùÒÔresult += sqlCommand.substring(begin - 1, i) = aaa"bbb
-			//Ò²¾ÍÊÇËµË«ÒıºÅÖĞ°üº¬µÄ×Ö·ûÈç¹ûÊÇÁ¬ĞøµÄÁ½¸ö""ÄÇÃ´¾Í±íÊ¾"ºÅ×ÔÉí
+			//å†…éƒ¨çš„forå¾ªç¯ç”¨äºæ‰¾å‡ºç¬¬ä¸€å¯¹åŒå¼•å·ä¸­åŒ…å«çš„å­—ç¬¦
+			//å¦‚æœåŒå¼•å·ä¸­åŒ…å«çš„å­—ç¬¦åˆæœ‰åŒå¼•å·ï¼Œwhileå¾ªç¯ç»§ç»­å¯»æ‰¾åé¢çš„å­—ç¬¦
+			//æ¯”å¦‚å¯¹äº"aaa""bbb"ï¼Œiå…ˆä»ç¬¬ä¸€ä¸ªaå¼€å§‹ï¼Œåˆ°è¾¾ç¬¬äºŒä¸ª"å·æ—¶ï¼Œif (chars[i] == '\"')ä¸ºtrueï¼Œ
+			//å› ä¸ºæ­¤æ—¶resultä¸ºnullï¼Œæ‰€ä»¥result = sqlCommand.substring(begin, i) = aaa
+			//æ¥ç€é€€å‡ºforå¾ªç¯ï¼Œå› ä¸ºchars[++i]="ï¼Œæ‰€ä»¥whileå¾ªç¯ç»§ç»­,æ­¤æ—¶beginä»ç¬¬ä¸€ä¸ªbå¼€å§‹ï¼Œ
+			//è¿›å…¥åˆ°if (chars[i] == '\"')æ—¶ï¼Œå› ä¸ºå‰é¢result = aaaï¼Œ
+			//æ‰€ä»¥result += sqlCommand.substring(begin - 1, i) = aaa"bbb
+			//ä¹Ÿå°±æ˜¯è¯´åŒå¼•å·ä¸­åŒ…å«çš„å­—ç¬¦å¦‚æœæ˜¯è¿ç»­çš„ä¸¤ä¸ª""é‚£ä¹ˆå°±è¡¨ç¤º"å·è‡ªèº«
             while (true) {
                 for (int begin = i;; i++) {
                     if (chars[i] == '\"') {
                         if (result == null) {
                             result = sqlCommand.substring(begin, i);
                         } else {
-                            result += sqlCommand.substring(begin - 1, i); //begin - 1±íÊ¾°ÑÇ°ÃæµÄ"ºÅÒ²¼Ó½øÀ´
+                            result += sqlCommand.substring(begin - 1, i); //begin - 1è¡¨ç¤ºæŠŠå‰é¢çš„"å·ä¹ŸåŠ è¿›æ¥
                         }
                         break;
                     }
                 }
-                if (chars[++i] != '\"') { //±ÈÈç"aaa""bbb"µÄ³¡¾°£¬×îÖÕ»á×ª»»³Éaaa"bbb
+                if (chars[++i] != '\"') { //æ¯”å¦‚"aaa""bbb"çš„åœºæ™¯ï¼Œæœ€ç»ˆä¼šè½¬æ¢æˆaaa"bbb
                     break;
                 }
                 i++;
@@ -105,7 +105,7 @@
             return;
         }
         case CHAR_SPECIAL_2:
-			//Á½¸öCHAR_SPECIAL_2ÀàĞÍµÄ×Ö·ûÒªºÏ²¢¡£ÀıÈç!=
+			//ä¸¤ä¸ªCHAR_SPECIAL_2ç±»å‹çš„å­—ç¬¦è¦åˆå¹¶ã€‚ä¾‹å¦‚!=
             if (types[i] == CHAR_SPECIAL_2) {
                 i++;
             }
@@ -119,7 +119,7 @@
             parseIndex = i;
             return;
         case CHAR_VALUE:
-            if (c == '0' && chars[i] == 'X') { //ÔÚinitializeÖĞÒÑ°Ñx×ª»»³É´óĞ´X
+            if (c == '0' && chars[i] == 'X') { //åœ¨initializeä¸­å·²æŠŠxè½¬æ¢æˆå¤§å†™X
                 // hex number
                 long number = 0;
                 start += 2;
@@ -180,7 +180,7 @@
             return;
         case CHAR_STRING: {
             String result = null;
-			//ÓëCHAR_QUOTEDÀàËÆ
+			//ä¸CHAR_QUOTEDç±»ä¼¼
             while (true) {
                 for (int begin = i;; i++) {
                     if (chars[i] == '\'') {

@@ -71,9 +71,9 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         super(conn, id, resultSetType, resultSetConcurrency, closeWithResultSet);
         setTrace(session.getTrace(), TraceObject.PREPARED_STATEMENT, id);
         this.sqlStatement = sql;
-        //ÕâÀïÒªÊÂÏÈ±£´æºÃCommandInterfaceµÄÊµÀı£¬¶øJdbcStatement²»ĞèÒª
-        //JdbcStatementÃ¿´ÎÖ§³ÖÊ±¶¼ÖØĞÂµÃµ½Ò»¸öCommandInterfaceµÄÊµÀı£¬È»ºóÓÃÍê¾Í¹Øµô£¬
-        //JdbcPreparedStatement²»»á¹Ø£¬Ö»ÓĞµ÷ÓÃclose()Ê±²Å¹Ø
+        //è¿™é‡Œè¦äº‹å…ˆä¿å­˜å¥½CommandInterfaceçš„å®ä¾‹ï¼Œè€ŒJdbcStatementä¸éœ€è¦
+        //JdbcStatementæ¯æ¬¡æ”¯æŒæ—¶éƒ½é‡æ–°å¾—åˆ°ä¸€ä¸ªCommandInterfaceçš„å®ä¾‹ï¼Œç„¶åç”¨å®Œå°±å…³æ‰ï¼Œ
+        //JdbcPreparedStatementä¸ä¼šå…³ï¼Œåªæœ‰è°ƒç”¨close()æ—¶æ‰å…³
         command = conn.prepareCommand(sql, fetchSize);
     }
 
@@ -144,7 +144,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
             try {
                 return executeUpdateInternal();
             } finally {
-                afterWriting(); //ÒòÎªÔÚcheckClosedForWriteÖĞÓĞ¿ÉÄÜ´¥·¢org.h2.engine.Database.beforeWriting()
+                afterWriting(); //å› ä¸ºåœ¨checkClosedForWriteä¸­æœ‰å¯èƒ½è§¦å‘org.h2.engine.Database.beforeWriting()
             }
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -319,7 +319,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     public void setInt(int parameterIndex, int x) throws SQLException {
         try {
             if (isDebugEnabled()) {
-                debugCode("setInt("+parameterIndex+", "+x+");"); //ÀıÈçÊä³ö: /**/prep0.setInt(1, 50);
+                debugCode("setInt("+parameterIndex+", "+x+");"); //ä¾‹å¦‚è¾“å‡º: /**/prep0.setInt(1, 50);
             }
             setParameter(parameterIndex, ValueInt.get(x));
         } catch (Exception e) {
@@ -339,7 +339,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
             if (isDebugEnabled()) {
                 debugCode("setString("+parameterIndex+", "+quote(x)+");");
             }
-            //(Value)ÊÇ¶àÓàµÄ
+            //(Value)æ˜¯å¤šä½™çš„
             Value v = x == null ? (Value) ValueNull.INSTANCE : ValueString.get(x);
             setParameter(parameterIndex, v);
         } catch (Exception e) {

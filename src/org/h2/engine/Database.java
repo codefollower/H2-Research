@@ -252,7 +252,7 @@ public class Database implements DataHandler {
         }
     }
 
-    //Ã»¿´µ½µ÷ÓÃ
+    //æ²¡çœ‹åˆ°è°ƒç”¨
     public static void setInitialPowerOffCount(int count) {
         initialPowerOffCount = count;
     }
@@ -591,7 +591,7 @@ public class Database implements DataHandler {
             trace = traceSystem.getTrace(Trace.DATABASE);
         }
         systemUser = new User(this, 0, SYSTEM_USER_NAME, true); //DBA
-        mainSchema = new Schema(this, 0, Constants.SCHEMA_MAIN, systemUser, true); //PUBLIC ²»Ã÷È·Ö¸¶¨SchemaÊ±£¬Ä¬ÈÏ¾ÍÊÇËü
+        mainSchema = new Schema(this, 0, Constants.SCHEMA_MAIN, systemUser, true); //PUBLIC ä¸æ˜ç¡®æŒ‡å®šSchemaæ—¶ï¼Œé»˜è®¤å°±æ˜¯å®ƒ
         infoSchema = new Schema(this, -1, "INFORMATION_SCHEMA", systemUser, true);
         schemas.put(mainSchema.getName(), mainSchema);
         schemas.put(infoSchema.getName(), infoSchema);
@@ -621,12 +621,12 @@ public class Database implements DataHandler {
         data.session = systemSession;
         meta = mainSchema.createTable(data);
         IndexColumn[] pkCols = IndexColumn.wrap(new Column[] { columnId });
-        //ÊÇTreeIndex£¬ÒòÎªcreatePrimaryKeyÊ¹ÓÃÁËpersistent=false, hash=false
+        //æ˜¯TreeIndexï¼Œå› ä¸ºcreatePrimaryKeyä½¿ç”¨äº†persistent=false, hash=false
         metaIdIndex = meta.addIndex(systemSession, "SYS_ID", 0, pkCols, IndexType.createPrimaryKey(
                 false, false), true, null);
         objectIds.set(0);
         
-        //¶ÁÕû¸öSYS±í£¬È¡³öËùÓĞµÄDDLÓï¾ä£¬È»ºóÖØĞÂÖ´ĞĞÒ»±é
+        //è¯»æ•´ä¸ªSYSè¡¨ï¼Œå–å‡ºæ‰€æœ‰çš„DDLè¯­å¥ï¼Œç„¶åé‡æ–°æ‰§è¡Œä¸€é
         starting = true;
         Cursor cursor = metaIdIndex.find(systemSession, null, null);
         ArrayList<MetaRecord> records = New.arrayList();
@@ -635,7 +635,7 @@ public class Database implements DataHandler {
             objectIds.set(rec.getId());
             records.add(rec);
         }
-        Collections.sort(records); //°´ÉıĞòÅÅ£¬Ëã·¨¼ûorg.h2.engine.MetaRecord.compareTo(MetaRecord)
+        Collections.sort(records); //æŒ‰å‡åºæ’ï¼Œç®—æ³•è§org.h2.engine.MetaRecord.compareTo(MetaRecord)
         for (MetaRecord rec : records) {
             rec.execute(this, systemSession, eventListener);
         }
@@ -663,7 +663,7 @@ public class Database implements DataHandler {
         }
         getLobStorage().init();
 
-        addSchemaObject(systemSession, meta); //ÎÒ¼ÓÉÏµÄ£¬¼ÓÉÏÕâ¸öÄÜµ÷ÊÔSYS±í
+        addSchemaObject(systemSession, meta); //æˆ‘åŠ ä¸Šçš„ï¼ŒåŠ ä¸Šè¿™ä¸ªèƒ½è°ƒè¯•SYSè¡¨
         systemSession.commit(true);
 
         trace.info("opened {0}", databaseName);
@@ -722,7 +722,7 @@ public class Database implements DataHandler {
             if (obj instanceof TableView) {
                 TableView view = (TableView) obj;
                 if (!view.isInvalid()) {
-                    view.recompile(systemSession, true); //session¾ÍÊÇsystemSession
+                    view.recompile(systemSession, true); //sessionå°±æ˜¯systemSession
                 }
             }
         }
@@ -734,7 +734,7 @@ public class Database implements DataHandler {
         }
         synchronized (infoSchema) {
             if (!metaTablesInitialized) {
-            	//½«ËùÓĞµÄMetaTable·ÅÈëINFORMATION_SCHEMA
+            	//å°†æ‰€æœ‰çš„MetaTableæ”¾å…¥INFORMATION_SCHEMA
                 for (int type = 0, count = MetaTable.getMetaTableTypeCount(); type < count; type++) {
                     MetaTable m = new MetaTable(infoSchema, -1 - type, type);
                     infoSchema.add(m);
@@ -795,12 +795,12 @@ public class Database implements DataHandler {
      * @param id the id of the object to remove
      */
     public synchronized void removeMeta(Session session, int id) {
-    	//±ÈÈçSYS±íµÄidÊÇ0
-        if (id > 0 && !starting) { //Èç¹ûstartingÎªtrue£¬ËµÃ÷Êı¾İ¿âÊÇÔÚopen¹ı³ÌÖĞ£¬±ÈÈçÔÚÖ´ĞĞMetaRecord
+    	//æ¯”å¦‚SYSè¡¨çš„idæ˜¯0
+        if (id > 0 && !starting) { //å¦‚æœstartingä¸ºtrueï¼Œè¯´æ˜æ•°æ®åº“æ˜¯åœ¨openè¿‡ç¨‹ä¸­ï¼Œæ¯”å¦‚åœ¨æ‰§è¡ŒMetaRecord
             SearchRow r = meta.getTemplateSimpleRow(false);
             r.setValue(0, ValueInt.get(id));
-            //ÔÚµ÷ÓÃremoveMetaÇ°±ØĞëµ÷ÓÃ¹ılockMetaÁË£¬Èç¹ûwasLockedÎªfalse
-            //ËµÃ÷µ±Ç°meta±íÃ»ÓĞµ÷ÓÃlockMeta»òÕß±»ÆäËûsessionËø×¡ÁË
+            //åœ¨è°ƒç”¨removeMetaå‰å¿…é¡»è°ƒç”¨è¿‡lockMetaäº†ï¼Œå¦‚æœwasLockedä¸ºfalse
+            //è¯´æ˜å½“å‰metaè¡¨æ²¡æœ‰è°ƒç”¨lockMetaæˆ–è€…è¢«å…¶ä»–sessioné”ä½äº†
             boolean wasLocked = lockMeta(session);
             Cursor cursor = metaIdIndex.find(session, r, r);
             if (cursor.next()) {
@@ -1287,7 +1287,7 @@ public class Database implements DataHandler {
      *
      * @return the id
      */
-    public synchronized int allocateObjectId() { //Èç¹ûÇ°ÃæµÄ¶ÔÏóid»ØÊÕÁË£¬ÕâÀï»áÖØ¸´ÀûÓÃÇ°ÃæÒÑ»ØÊÕµÄid¡£
+    public synchronized int allocateObjectId() { //å¦‚æœå‰é¢çš„å¯¹è±¡idå›æ”¶äº†ï¼Œè¿™é‡Œä¼šé‡å¤åˆ©ç”¨å‰é¢å·²å›æ”¶çš„idã€‚
         int i = objectIds.nextClearBit(0);
         objectIds.set(i);
         return i;
@@ -1440,8 +1440,8 @@ public class Database implements DataHandler {
      * @param session the session
      * @param obj the database object
      */
-    //²¢²»»áÖ´ĞĞobjµÄÏà¹Øsql£¬Ò²²»É¾³ı»òĞŞ¸ÄSchema»òDatabaseÖĞµÄÏà¹ØmapºÍobjµÄ×Ó¶ÔÏó
-    //½ö½öÊÇÏÈÉ¾³ıSYS±íÖĞÓëobjÏà¹ØµÄ¾Ésql²¢Ìí¼ÓĞÂµÄsql
+    //å¹¶ä¸ä¼šæ‰§è¡Œobjçš„ç›¸å…³sqlï¼Œä¹Ÿä¸åˆ é™¤æˆ–ä¿®æ”¹Schemaæˆ–Databaseä¸­çš„ç›¸å…³mapå’Œobjçš„å­å¯¹è±¡
+    //ä»…ä»…æ˜¯å…ˆåˆ é™¤SYSè¡¨ä¸­ä¸objç›¸å…³çš„æ—§sqlå¹¶æ·»åŠ æ–°çš„sql
     public synchronized void update(Session session, DbObject obj) {
         lockMeta(session);
         int id = obj.getId();
@@ -1501,7 +1501,7 @@ public class Database implements DataHandler {
         obj.checkRename();
         int id = obj.getId();
         lockMeta(session);
-        removeMeta(session, id); //µ÷ÓÃÁËÁ½´Î£¬updateWithChildren=>update=>removeMeta
+        removeMeta(session, id); //è°ƒç”¨äº†ä¸¤æ¬¡ï¼ŒupdateWithChildren=>update=>removeMeta
         map.remove(obj.getName());
         obj.rename(newName);
         map.put(newName, obj);
@@ -1571,7 +1571,7 @@ public class Database implements DataHandler {
             removeDatabaseObject(session, comment);
         }
         int id = obj.getId();
-        obj.removeChildrenAndResources(session);  //ÀïÃæÒ²ÓĞ¿ÉÄÜµ÷ÓÃremoveMeta
+        obj.removeChildrenAndResources(session);  //é‡Œé¢ä¹Ÿæœ‰å¯èƒ½è°ƒç”¨removeMeta
         map.remove(objName);
         removeMeta(session, id);
     }
@@ -2028,7 +2028,7 @@ public class Database implements DataHandler {
 
     public void setMultiThreaded(boolean multiThreaded) {
         if (multiThreaded && this.multiThreaded != multiThreaded) {
-        	//²»ÔÊĞíÀàËÆÕâÑùÍ¬Ê±ÉèÖÃMULTI_THREADEDºÍMVCCÎªtrue
+        	//ä¸å…è®¸ç±»ä¼¼è¿™æ ·åŒæ—¶è®¾ç½®MULTI_THREADEDå’ŒMVCCä¸ºtrue
         	//prop.setProperty("MULTI_THREADED", "true");
     		//prop.setProperty("MVCC", "true");
             if (multiVersion) {
@@ -2130,7 +2130,7 @@ public class Database implements DataHandler {
             if (!readOnly && fileLockMethod == FileLock.LOCK_FS) {
                 pageStore.setLockFile(true);
             }
-            pageStore.setLogMode(logMode); //Ä¬ÈÏÊÇLOG_MODE_SYNC
+            pageStore.setLogMode(logMode); //é»˜è®¤æ˜¯LOG_MODE_SYNC
             pageStore.open();
         }
         return pageStore;

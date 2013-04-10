@@ -118,19 +118,19 @@ public class Aggregate extends Expression {
 
     private static final HashMap<String, Integer> AGGREGATES = New.hashMap();
     
-    //¶ÔÓÚselect GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest
+    //å¯¹äºselect GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest
     //type = GROUP_CONCAT
     //select = org.h2.command.dml.Select
     //distinct = true
-    //on = ¶ÔÓ¦nameµÄ±í´ïÊ½org.h2.expression.ExpressionColumn
-    //separator = ¶ÔÓ¦','µÄ±í´ïÊ½
+    //on = å¯¹åº”nameçš„è¡¨è¾¾å¼org.h2.expression.ExpressionColumn
+    //separator = å¯¹åº”','çš„è¡¨è¾¾å¼
     //orderList = ORDER BY id
     private final int type;
     private final Select select;
     private final boolean distinct;
 
     private Expression on;
-    //Ö»ÓĞGROUP_CONCAT²ÅÓĞseparator¡¢orderList
+    //åªæœ‰GROUP_CONCATæ‰æœ‰separatorã€orderList
     private Expression separator;
     private ArrayList<SelectOrderBy> orderList;
     private SortOrder sort;
@@ -220,7 +220,7 @@ public class Aggregate extends Expression {
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
             SelectOrderBy o = orderList.get(i);
-            index[i] = i + 1; //ÎªÊ²Ã´Òª´Ó1¿ªÈçÄØ£¬ÒòÎª0ºÅÏÂ±ê¸øGROUP_CONCATÖĞµÄ±í´ïÊ½ÓÃ
+            index[i] = i + 1; //ä¸ºä»€ä¹ˆè¦ä»1å¼€å¦‚å‘¢ï¼Œå› ä¸º0å·ä¸‹æ ‡ç»™GROUP_CONCATä¸­çš„è¡¨è¾¾å¼ç”¨
             int order = o.descending ? SortOrder.DESCENDING : SortOrder.ASCENDING;
             sortType[i] = order;
         }
@@ -254,8 +254,8 @@ public class Aggregate extends Expression {
         if (type == GROUP_CONCAT) {
             if (v != ValueNull.INSTANCE) {
                 v = v.convertTo(Value.STRING);
-                //¶ÔÓÚselect GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest
-                //v=name×Ö¶ÎµÄÖµ£¬ÕâÀïÊÇ°Ñname×Ö¶ÎµÄÖµºÍÅÅĞò×Ö¶ÎidµÄÖµºÏ³ÉÒ»¸öValue[] array
+                //å¯¹äºselect GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest
+                //v=nameå­—æ®µçš„å€¼ï¼Œè¿™é‡Œæ˜¯æŠŠnameå­—æ®µçš„å€¼å’Œæ’åºå­—æ®µidçš„å€¼åˆæˆä¸€ä¸ªValue[] array
                 if (orderList != null) {
                     int size = orderList.size();
                     Value[] array = new Value[1 + size];
@@ -272,8 +272,8 @@ public class Aggregate extends Expression {
     }
 
     public Value getValue(Session session) {
-    	//¿ìËÙ¾ÛºÏ²éÑ¯£¬ĞĞÊıÍ¨¹ıË÷ÒıÀïµÄÄ³¸ö×Ö¶Î¾ÍÄÜµÃµ½
-    	//Í¬Ñùmin¡¢maxÒ²ºÃµÃµ½£¬ÒòÎªb-treeË÷ÒıÊÇÓĞĞòµÄ£¬Ö»Òª×Ö¶ÎÊÇË÷ÒıÖ÷¼ümin¾ÍÊÇµÚÒ»ĞĞ¡¢max¾ÍÊÇ×îºóÒ»ĞĞ
+    	//å¿«é€ŸèšåˆæŸ¥è¯¢ï¼Œè¡Œæ•°é€šè¿‡ç´¢å¼•é‡Œçš„æŸä¸ªå­—æ®µå°±èƒ½å¾—åˆ°
+    	//åŒæ ·minã€maxä¹Ÿå¥½å¾—åˆ°ï¼Œå› ä¸ºb-treeç´¢å¼•æ˜¯æœ‰åºçš„ï¼Œåªè¦å­—æ®µæ˜¯ç´¢å¼•ä¸»é”®minå°±æ˜¯ç¬¬ä¸€è¡Œã€maxå°±æ˜¯æœ€åä¸€è¡Œ
         if (select.isQuickAggregateQuery()) {
             switch (type) {
             case COUNT:
@@ -303,9 +303,9 @@ public class Aggregate extends Expression {
         }
         HashMap<Expression, Object> group = select.getCurrentGroup();
         if (group == null) {
-        	//±ÈÈç: select ABS(SELECTIVITY(id)) from AggregateTest where max(id)>9
-        	//¾ÛºÏº¯Êı²»ÄÜÓÃÓÚWhereÖĞ
-        	//µ«ÊÇ¿ÉÒÔÓÃÓÚhavingÖĞ£¬Èç: select id,count(id) from AggregateTest group by id having max(id)>9";
+        	//æ¯”å¦‚: select ABS(SELECTIVITY(id)) from AggregateTest where max(id)>9
+        	//èšåˆå‡½æ•°ä¸èƒ½ç”¨äºWhereä¸­
+        	//ä½†æ˜¯å¯ä»¥ç”¨äºhavingä¸­ï¼Œå¦‚: select id,count(id) from AggregateTest group by id having max(id)>9";
             throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getSQL());
         }
         AggregateData data = (AggregateData) group.get(this);
@@ -552,7 +552,7 @@ public class Aggregate extends Expression {
         return text + StringUtils.enclose(on.getSQL());
     }
 
-    //onÊÇË÷ÒıµÄµÚÒ»¸ö×Ö¶Î£¬ÇÒ´ËË÷ÒıÄÜ¹»È·¶¨µÚÒ»ĞĞºÍ×îºóÒ»ĞĞ¼ÇÂ¼
+    //onæ˜¯ç´¢å¼•çš„ç¬¬ä¸€ä¸ªå­—æ®µï¼Œä¸”æ­¤ç´¢å¼•èƒ½å¤Ÿç¡®å®šç¬¬ä¸€è¡Œå’Œæœ€åä¸€è¡Œè®°å½•
     private Index getColumnIndex() {
         if (on instanceof ExpressionColumn) {
             ExpressionColumn col = (ExpressionColumn) on;
@@ -568,15 +568,15 @@ public class Aggregate extends Expression {
     }
 
     public boolean isEverything(ExpressionVisitor visitor) {
-    	//¶ÔÓ¦org.h2.command.dml.SelectµÄisQuickAggregateQueryµÄÇé¿ö
+    	//å¯¹åº”org.h2.command.dml.Selectçš„isQuickAggregateQueryçš„æƒ…å†µ
         if (visitor.getType() == ExpressionVisitor.OPTIMIZABLE_MIN_MAX_COUNT_ALL) {
             switch (type) {
-            case COUNT: //count(Ö¸¶¨×Ö¶Î)µÄÇé¿ö£¬ÕâÖÖ³¡¾°Èç¹ûÊÇDISTINCT»ò×Ö¶ÎÎªnull£¬ÄÇÃ´²»ÄÜÊ¹ÓÃOPTIMIZABLE_MIN_MAX_COUNT_ALLÓÅ»¯
+            case COUNT: //count(æŒ‡å®šå­—æ®µ)çš„æƒ…å†µï¼Œè¿™ç§åœºæ™¯å¦‚æœæ˜¯DISTINCTæˆ–å­—æ®µä¸ºnullï¼Œé‚£ä¹ˆä¸èƒ½ä½¿ç”¨OPTIMIZABLE_MIN_MAX_COUNT_ALLä¼˜åŒ–
                 if (!distinct && on.getNullable() == Column.NOT_NULLABLE) {
                     return visitor.getTable().canGetRowCount();
                 }
                 return false;
-            case COUNT_ALL: //count(*)µÄÇé¿ö
+            case COUNT_ALL: //count(*)çš„æƒ…å†µ
                 return visitor.getTable().canGetRowCount();
             case MIN:
             case MAX:

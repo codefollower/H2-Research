@@ -12,12 +12,12 @@ import org.h2.table.Table;
 /**
  * A database object such as a table, an index, or a user.
  */
-//15¸ö×Ö¶Î£¬16¸ö·½·¨
+//15ä¸ªå­—æ®µï¼Œ16ä¸ªæ–¹æ³•
 public interface DbObject {
 	
-	//15ÖÖÊı¾İ¿â¶ÔÏó(´Ó0µ½14)£¬
+	//15ç§æ•°æ®åº“å¯¹è±¡(ä»0åˆ°14)ï¼Œ
 	/*
-    SchemaÕÆ¹Ü7¸öÄÜ´øSchemaÇ°×ºµÄÄ£Ê½Êı¾İ¿â¶ÔÏó
+    SchemaæŒç®¡7ä¸ªèƒ½å¸¦Schemaå‰ç¼€çš„æ¨¡å¼æ•°æ®åº“å¯¹è±¡
     private final HashMap<String, Table> tablesAndViews;
     private final HashMap<String, Index> indexes;
     private final HashMap<String, Sequence> sequences;
@@ -26,7 +26,7 @@ public interface DbObject {
     private final HashMap<String, Constant> constants;
     private final HashMap<String, FunctionAlias> functions;
 
-          ¶øDatabaseÀà×ÔÉíÕÆ¹ÜÁËÆäËû8¸öÊı¾İ¿â¶ÔÏó£¬ÕâĞ©¶ÔÏóÒòÎª²»ÊÇÄ£Ê½Êı¾İ¿â¶ÔÏó£¬ËùÒÔ²»ÄÜ´øSchemaÇ°×º
+          è€ŒDatabaseç±»è‡ªèº«æŒç®¡äº†å…¶ä»–8ä¸ªæ•°æ®åº“å¯¹è±¡ï¼Œè¿™äº›å¯¹è±¡å› ä¸ºä¸æ˜¯æ¨¡å¼æ•°æ®åº“å¯¹è±¡ï¼Œæ‰€ä»¥ä¸èƒ½å¸¦Schemaå‰ç¼€
     private final HashMap<String, Role> roles = New.hashMap();
     private final HashMap<String, User> users = New.hashMap();
     private final HashMap<String, Setting> settings = New.hashMap();
@@ -126,7 +126,7 @@ public interface DbObject {
      *
      * @return the list of children
      */
-    ArrayList<DbObject> getChildren(); //Ö»ÓĞTableºÍUserÓĞChildren
+    ArrayList<DbObject> getChildren(); //åªæœ‰Tableå’ŒUseræœ‰Children
 
     /**
      * Get the database.
@@ -171,7 +171,7 @@ public interface DbObject {
      *
      * @return the SQL statement
      */
-    String getDropSQL(); //Ö»¿´µ½org.h2.command.dml.ScriptCommandÖĞÓĞÊ¹ÓÃ
+    String getDropSQL(); //åªçœ‹åˆ°org.h2.command.dml.ScriptCommandä¸­æœ‰ä½¿ç”¨
 
     /**
      * Get the object type.

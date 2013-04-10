@@ -12,8 +12,8 @@ public class CreateUserTest extends TestBase {
 		//prop.setProperty("password", "78");
 	}
 
-	//²âÊÔorg.h2.command.Parser.parseCreateUser()ºÍorg.h2.command.ddl.CreateUser
-	//ºÍorg.h2.engine.User
+	//æµ‹è¯•org.h2.command.Parser.parseCreateUser()å’Œorg.h2.command.ddl.CreateUser
+	//å’Œorg.h2.engine.User
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("DROP ROLE IF EXISTS sa1");
@@ -24,9 +24,9 @@ public class CreateUserTest extends TestBase {
 		stmt.executeUpdate("DROP USER IF EXISTS SA3 CASCADE");
 
 		stmt.executeUpdate("CREATE USER IF NOT EXISTS sa1 PASSWORD 'abc' ADMIN");
-		//X²»¼ÓÒ²ÊÇ¿ÉÒÔµÄ
-		stmt.executeUpdate("CREATE USER IF NOT EXISTS SA2 SALT X'123456' HASH X'78' ADMIN"); // X'...'±ØĞëÊÇÅ¼Êı¸ö
-		stmt.executeUpdate("CREATE USER IF NOT EXISTS SA3 IDENTIFIED BY abc"); // ÃÜÂë²»¼ÓÒıºÅ
+		//Xä¸åŠ ä¹Ÿæ˜¯å¯ä»¥çš„
+		stmt.executeUpdate("CREATE USER IF NOT EXISTS SA2 SALT X'123456' HASH X'78' ADMIN"); // X'...'å¿…é¡»æ˜¯å¶æ•°ä¸ª
+		stmt.executeUpdate("CREATE USER IF NOT EXISTS SA3 IDENTIFIED BY abc"); // å¯†ç ä¸åŠ å¼•å·
 
 		stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS TEST_SCHEMA2 AUTHORIZATION SA2");
 

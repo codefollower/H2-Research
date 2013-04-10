@@ -30,7 +30,7 @@ public class ConditionInSelect extends Condition {
     private final Query query;
     private final boolean all;
     private final int compareType;
-    private int queryLevel; //Ã»¿´µ½ÓÃ´¦
+    private int queryLevel; //æ²¡çœ‹åˆ°ç”¨å¤„
 
     public ConditionInSelect(Database database, Expression left, Query query, boolean all, int compareType) {
         this.database = database;
@@ -46,16 +46,16 @@ public class ConditionInSelect extends Condition {
         session.addTemporaryResult(rows);
         Value l = left.getValue(session);
         
-        //×Ó²éÑ¯Ã»ÓĞ¼ÇÂ¼Ê±£¬Èç¹ûÊÇALLÀàĞÍµÄ×Ó²éÑ¯£¬ÄÇÃ´ÈÏÎªÌõ¼şÎªtrue£¬
-        //·ñÔòÎªfalse£¬
-        //¼ÙÉè±íÖĞ×Ö¶ÎidµÄÖµÊÇ1µ½6£¬ÕâÌõÓï¾ä
+        //å­æŸ¥è¯¢æ²¡æœ‰è®°å½•æ—¶ï¼Œå¦‚æœæ˜¯ALLç±»å‹çš„å­æŸ¥è¯¢ï¼Œé‚£ä¹ˆè®¤ä¸ºæ¡ä»¶ä¸ºtrueï¼Œ
+        //å¦åˆ™ä¸ºfalseï¼Œ
+        //å‡è®¾è¡¨ä¸­å­—æ®µidçš„å€¼æ˜¯1åˆ°6ï¼Œè¿™æ¡è¯­å¥
         //delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
-        //ÀïÃæµÄ×Ó²éÑ¯Ã»ÓĞÖµ£¬ËùÒÔwhere id<ALL()Ê±¶¼Îªtrue£¬Êµ¼ÊÉÏÊÇÉ¾³ıËùÓĞ¼ÇÂ¼
-        //Èç¹û¸Ä³ÉANY£¬ÄÇÃ´Ê²Ã´¼ÇÂ¼¶¼²»É¾
+        //é‡Œé¢çš„å­æŸ¥è¯¢æ²¡æœ‰å€¼ï¼Œæ‰€ä»¥where id<ALL()æ—¶éƒ½ä¸ºtrueï¼Œå®é™…ä¸Šæ˜¯åˆ é™¤æ‰€æœ‰è®°å½•
+        //å¦‚æœæ”¹æˆANYï¼Œé‚£ä¹ˆä»€ä¹ˆè®°å½•éƒ½ä¸åˆ 
         if (rows.getRowCount() == 0) {
             return ValueBoolean.get(all);
         } else if (l == ValueNull.INSTANCE) {
-        	//Èç¹ûleftÊÇnull£¬ÄÇÃ´·µ»Ønull
+        	//å¦‚æœleftæ˜¯nullï¼Œé‚£ä¹ˆè¿”å›null
             return l;
         }
         if (!session.getDatabase().getSettings().optimizeInSelect) {
@@ -64,20 +64,20 @@ public class ConditionInSelect extends Condition {
         if (all || (compareType != Comparison.EQUAL && compareType != Comparison.EQUAL_NULL_SAFE)) {
             return getValueSlow(rows, l);
         }
-        //ÏÂÃæ´úÂëÊÇ´¦Àí·Çall£¬ÇÒÊÇEQUAL»òEQUAL_NULL_SAFEµÄÇé¿ö
+        //ä¸‹é¢ä»£ç æ˜¯å¤„ç†éallï¼Œä¸”æ˜¯EQUALæˆ–EQUAL_NULL_SAFEçš„æƒ…å†µ
         
-        //»ñµÃ½á¹û¼¯ÖĞµÚÒ»ÁĞµÄÀàĞÍ
+        //è·å¾—ç»“æœé›†ä¸­ç¬¬ä¸€åˆ—çš„ç±»å‹
         int dataType = rows.getColumnType(0);
-        //Èç¹ûÁĞµÄÀàĞÍÊÇnull£¬ÄÇÃ´·µ»Øfalse
+        //å¦‚æœåˆ—çš„ç±»å‹æ˜¯nullï¼Œé‚£ä¹ˆè¿”å›false
         if (dataType == Value.NULL) {
             return ValueBoolean.get(false);
         }
-        //°ÑleftµÄÖµ×ª³É½á¹û¼¯ÖĞµÚÒ»ÁĞµÄÀàĞÍ£¬È»ºóÅĞ¶Ï½á¹û¼¯ÖĞÊÇ·ñ°üº¬Ëütrue
+        //æŠŠleftçš„å€¼è½¬æˆç»“æœé›†ä¸­ç¬¬ä¸€åˆ—çš„ç±»å‹ï¼Œç„¶ååˆ¤æ–­ç»“æœé›†ä¸­æ˜¯å¦åŒ…å«å®ƒtrue
         l = l.convertTo(dataType);
         if (rows.containsDistinct(new Value[] { l })) {
             return ValueBoolean.get(true);
         }
-        //½á¹û¼¯ÖĞ²»°üº¬leftÇÒÓĞnull£¬ÄÇÃ´·µ»Ønull
+        //ç»“æœé›†ä¸­ä¸åŒ…å«leftä¸”æœ‰nullï¼Œé‚£ä¹ˆè¿”å›null
         if (rows.containsDistinct(new Value[] { ValueNull.INSTANCE })) {
             return ValueNull.INSTANCE;
         }
@@ -115,16 +115,16 @@ public class ConditionInSelect extends Condition {
     public void mapColumns(ColumnResolver resolver, int level) {
         left.mapColumns(resolver, level);
         query.mapColumns(resolver, level + 1);
-        this.queryLevel = Math.max(level, this.queryLevel); //Ã»¿´µ½ÓÃ´¦
+        this.queryLevel = Math.max(level, this.queryLevel); //æ²¡çœ‹åˆ°ç”¨å¤„
     }
 
     public Expression optimize(Session session) {
         left = left.optimize(session);
         query.setRandomAccessResult(true);
         query.prepare();
-        //Èçwhere id in(select id,name from ConditionInSelectTest where id=3)
+        //å¦‚where id in(select id,name from ConditionInSelectTest where id=3)
         //org.h2.jdbc.JdbcSQLException: Subquery is not a single column query
-        //×Ó²éÑ¯²»ÄÜ¶àÓÚ1¸öÁĞ
+        //å­æŸ¥è¯¢ä¸èƒ½å¤šäº1ä¸ªåˆ—
         if (query.getColumnCount() != 1) {
             throw DbException.get(ErrorCode.SUBQUERY_IS_NOT_SINGLE_COLUMN);
         }
@@ -175,9 +175,9 @@ public class ConditionInSelect extends Condition {
         if (filter != l.getTableFilter()) {
             return;
         }
-        //queryÖĞµÄcolumnResolverÓëfilter²»ÊÇÍ¬Ò»¸öÊµÀıÊ±¾Í°Ñquery¼ÓÈëË÷ÒıÌõ¼ş
-        //Ò²¾ÍÊÇËµÈç¹ûqueryÖĞµÄcolumnResolverÓëfilterÊÇÍ¬Ò»¸öÊµÀı£¬
-        //¾ÍÏàµ±ÓÚfilter×Ô¼ºÕÒ×Ô¼ºÁË£¬»á³öÏÖËÀÑ­»·
+        //queryä¸­çš„columnResolverä¸filterä¸æ˜¯åŒä¸€ä¸ªå®ä¾‹æ—¶å°±æŠŠqueryåŠ å…¥ç´¢å¼•æ¡ä»¶
+        //ä¹Ÿå°±æ˜¯è¯´å¦‚æœqueryä¸­çš„columnResolverä¸filteræ˜¯åŒä¸€ä¸ªå®ä¾‹ï¼Œ
+        //å°±ç›¸å½“äºfilterè‡ªå·±æ‰¾è‡ªå·±äº†ï¼Œä¼šå‡ºç°æ­»å¾ªç¯
         ExpressionVisitor visitor = ExpressionVisitor.getNotFromResolverVisitor(filter);
         if (!query.isEverything(visitor)) {
             return;

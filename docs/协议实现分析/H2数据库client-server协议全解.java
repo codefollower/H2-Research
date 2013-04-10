@@ -1,43 +1,43 @@
-H2Êı¾İ¿âµÄ°æ±¾: 1.3.169
+H2æ•°æ®åº“çš„ç‰ˆæœ¬: 1.3.169
 
-server¶ËÓĞÒ»¸ölistenÏß³Ì£¬
+serverç«¯æœ‰ä¸€ä¸ªlistençº¿ç¨‹ï¼Œ
 org.h2.server.TcpServer.listen()
 
-´ËÏß³ÌÒ»Ö±ÔÚ¼àÌı¿Í»§¶ËÁ¬½Ó£¬
-Ò»µ«ÊÕµ½¿Í»§¶ËÁ¬½ÓÇëÇó¾Í¿ªÒ»¸öĞÂµÄÏß³Ì´¦ÀíËü(²¢Î´Ê¹ÓÃÏß³Ì³Ø¡¢Ã¿Á¬½ÓÃ¿Ïß³Ì)
+æ­¤çº¿ç¨‹ä¸€ç›´åœ¨ç›‘å¬å®¢æˆ·ç«¯è¿æ¥ï¼Œ
+ä¸€ä½†æ”¶åˆ°å®¢æˆ·ç«¯è¿æ¥è¯·æ±‚å°±å¼€ä¸€ä¸ªæ–°çš„çº¿ç¨‹å¤„ç†å®ƒ(å¹¶æœªä½¿ç”¨çº¿ç¨‹æ± ã€æ¯è¿æ¥æ¯çº¿ç¨‹)
 
 
-Ğ­Òé¹²ÓĞ18ÌõÃüÁî(´Ó0µ½17)
+åè®®å…±æœ‰18æ¡å‘½ä»¤(ä»0åˆ°17)
 
 
-1. ³õÊ¼»¯½×¶Î(»òÎÕÊÖ½×¶Î)
+1. åˆå§‹åŒ–é˜¶æ®µ(æˆ–æ¡æ‰‹é˜¶æ®µ)
 
-clientÏÈ·¢Êı¾İ:
+clientå…ˆå‘æ•°æ®:
 int     minClientVersion
 int     maxClientVersion
-String  db               //Êı¾İ¿âÃû
+String  db               //æ•°æ®åº“å
 String  URL
 String  userName
-byte[]  userPasswordHash //32×Ö½Ú£¬Ê¹ÓÃSHA256Ëã·¨¶Ô userName + "@" + userPassword ½øĞĞhash£¬×÷ÎªÓÃ»§±£´æµ½Êı¾İ¿âÖĞµÄÃÜÂë
-byte[]  filePasswordHash //32×Ö½Ú£¬Ê¹ÓÃSHA256Ëã·¨¶Ô "file@" + filePassword ½øĞĞhash£¬ÓÃÀ´¼ÓÃÜÊı¾İ¿âÎÄ¼ş
-int     keys length //urlÖĞµÄkey-value²ÎÊı¸öÊı
+byte[]  userPasswordHash //32å­—èŠ‚ï¼Œä½¿ç”¨SHA256ç®—æ³•å¯¹ userName + "@" + userPassword è¿›è¡Œhashï¼Œä½œä¸ºç”¨æˆ·ä¿å­˜åˆ°æ•°æ®åº“ä¸­çš„å¯†ç 
+byte[]  filePasswordHash //32å­—èŠ‚ï¼Œä½¿ç”¨SHA256ç®—æ³•å¯¹ "file@" + filePassword è¿›è¡Œhashï¼Œç”¨æ¥åŠ å¯†æ•°æ®åº“æ–‡ä»¶
+int     keys length //urlä¸­çš„key-valueå‚æ•°ä¸ªæ•°
 
-keys length¸ö
+keys lengthä¸ª
 {
 	String key
 	String value
 }
 
-µ±Ç°Ö§³ÖµÄĞ­Òé°æ±¾ÊÇ6¡¢7¡¢8¡¢9¡¢10¡¢11¡¢12
+å½“å‰æ”¯æŒçš„åè®®ç‰ˆæœ¬æ˜¯6ã€7ã€8ã€9ã€10ã€11ã€12
 
-minClientVersionºÍmaxClientVersionÓÃÀ´¸æËßserver¶Ëµ±Ç°clientÄÜÖ§³ÖµÄ×îĞ¡ºÍ×î´óĞ­Òé°æ±¾ÊÇ¶àÉÙ£¬
-¸ù¾İÕâÁ½¸ö²ÎÊı£¬server¶Ë»áÑ¡ÔñÒ»¸öºÏÊÊµÄĞ­Òé°æ±¾ÓëclientÍ¨ĞÅ£¬
-Ñ¡ÔñºÏÊÊµÄĞ­Òé°æ±¾µÄ·½·¨ÈçÏÂ:
-6<=minClientVersion<=12£¬
-Èç¹ûmaxClientVersion>=12£¬ÄÇÃ´¾ÍÓÃ12£¬·ñÔòÊ¹ÓÃminClientVersion
+minClientVersionå’ŒmaxClientVersionç”¨æ¥å‘Šè¯‰serverç«¯å½“å‰clientèƒ½æ”¯æŒçš„æœ€å°å’Œæœ€å¤§åè®®ç‰ˆæœ¬æ˜¯å¤šå°‘ï¼Œ
+æ ¹æ®è¿™ä¸¤ä¸ªå‚æ•°ï¼Œserverç«¯ä¼šé€‰æ‹©ä¸€ä¸ªåˆé€‚çš„åè®®ç‰ˆæœ¬ä¸clienté€šä¿¡ï¼Œ
+é€‰æ‹©åˆé€‚çš„åè®®ç‰ˆæœ¬çš„æ–¹æ³•å¦‚ä¸‹:
+6<=minClientVersion<=12ï¼Œ
+å¦‚æœmaxClientVersion>=12ï¼Œé‚£ä¹ˆå°±ç”¨12ï¼Œå¦åˆ™ä½¿ç”¨minClientVersion
 
 
-serverÏìÓ¦: STATUS_OK »ò STATUS_ERROR
+serverå“åº”: STATUS_OK æˆ– STATUS_ERROR
 
 STATUS_OK:
 ------------------------------------
@@ -55,53 +55,53 @@ String  sql
 int     errorCode 
 String  trace
 ------------------------------------
-¼ûorg.h2.server.TcpServerThread.sendError(Throwable)
+è§org.h2.server.TcpServerThread.sendError(Throwable)
 
 
-2. sessionIdÉèÖÃ
+2. sessionIdè®¾ç½®
 
-client×Ô¼ºÉú³ÉÒ»¸ö³¤¶ÈÎª64¸ö×Ö·ûµÄsessionId£¬È»ºó´«¸øserver£¬
-client¸øserver·¢ËÍµÄÊÇÒ»¸öSESSION_SET_IDÊı¾İ°ü
+clientè‡ªå·±ç”Ÿæˆä¸€ä¸ªé•¿åº¦ä¸º64ä¸ªå­—ç¬¦çš„sessionIdï¼Œç„¶åä¼ ç»™serverï¼Œ
+clientç»™serverå‘é€çš„æ˜¯ä¸€ä¸ªSESSION_SET_IDæ•°æ®åŒ…
 
-sessionIdÔÚserver¶Ë»áÔÚÄÚ´æÖĞ±£´æ£¬µ±clientµ÷ÓÃorg.h2.jdbc.JdbcStatement.cancel()Ê±²ÅÓÃµ½
+sessionIdåœ¨serverç«¯ä¼šåœ¨å†…å­˜ä¸­ä¿å­˜ï¼Œå½“clientè°ƒç”¨org.h2.jdbc.JdbcStatement.cancel()æ—¶æ‰ç”¨åˆ°
 
 ------------------------------------
 int     SESSION_SET_ID(12)
 String  sessionId
 ------------------------------------
 
-serverÏìÓ¦: Ö»ÓĞSTATUS_OK
+serverå“åº”: åªæœ‰STATUS_OK
 ------------------------------------
 int     STATUS_OK(1)
 ------------------------------------
 
 
-ÉÏÃæµÄ1ºÍ2ÔÚclientºÍserverÖ®¼äÃ¿´Î½¨Á¢Ò»¸öĞÂµÄconnection(»ò³ÆÎªsession)Ê±¶¼»á¹Ì¶¨·¢ËÍ£¬
-(¼û: org.h2.engine.SessionRemote.initTransfer(ConnectionInfo, String, String))
+ä¸Šé¢çš„1å’Œ2åœ¨clientå’Œserverä¹‹é—´æ¯æ¬¡å»ºç«‹ä¸€ä¸ªæ–°çš„connection(æˆ–ç§°ä¸ºsession)æ—¶éƒ½ä¼šå›ºå®šå‘é€ï¼Œ
+(è§: org.h2.engine.SessionRemote.initTransfer(ConnectionInfo, String, String))
 
 
 
 
-3. prepare½×¶Î
+3. prepareé˜¶æ®µ
 
 
-½ÓÏÂÀ´°´Ö´ĞĞSQLÓï¾äµÄÀà±ğ·Ö³ÉÁ½Àà: QUERYºÍUPDATE
+æ¥ä¸‹æ¥æŒ‰æ‰§è¡ŒSQLè¯­å¥çš„ç±»åˆ«åˆ†æˆä¸¤ç±»: QUERYå’ŒUPDATE
 
-Ö´ĞĞSQLÖ®Ç°£¬ĞèÒªÏÈ½øĞĞprepare£¬
-client¸øserver·¢ËÍµÄÊÇÒ»¸öSESSION_PREPARE_READ_PARAMS»òSESSION_PREPAREÊı¾İ°ü£¬Á½Õß¸ñÊ½¼¸±¾ÉÏÒ»Ñù£¬
-SESSION_PREPARE_READ_PARAMSĞèÒªserverÏìÓ¦µÄÊı¾İ°üÖĞ°üº¬SQLÓï¾äÖĞµÄ²ÎÊıÔªÊı¾İ£¬SESSION_PREPAREÔò²»ĞèÒª£¬
-SESSION_PREPAREÓÃÔÚµÚ¶ş´Î¶ÔÍ¬Ò»¸öSQL½øĞĞprepareÊ±¡£
+æ‰§è¡ŒSQLä¹‹å‰ï¼Œéœ€è¦å…ˆè¿›è¡Œprepareï¼Œ
+clientç»™serverå‘é€çš„æ˜¯ä¸€ä¸ªSESSION_PREPARE_READ_PARAMSæˆ–SESSION_PREPAREæ•°æ®åŒ…ï¼Œä¸¤è€…æ ¼å¼å‡ æœ¬ä¸Šä¸€æ ·ï¼Œ
+SESSION_PREPARE_READ_PARAMSéœ€è¦serverå“åº”çš„æ•°æ®åŒ…ä¸­åŒ…å«SQLè¯­å¥ä¸­çš„å‚æ•°å…ƒæ•°æ®ï¼ŒSESSION_PREPAREåˆ™ä¸éœ€è¦ï¼Œ
+SESSION_PREPAREç”¨åœ¨ç¬¬äºŒæ¬¡å¯¹åŒä¸€ä¸ªSQLè¿›è¡Œprepareæ—¶ã€‚
 
 SESSION_PREPARE_READ_PARAMS
 ------------------------------------
 int     SESSION_PREPARE_READ_PARAMS(11)
-int     id(Ö´ĞĞµ±Ç°sqlÊ±Îª´Ë²Ù×÷Éú³ÉµÄÒ»¸ö¼ÆÊıÆ÷)
+int     id(æ‰§è¡Œå½“å‰sqlæ—¶ä¸ºæ­¤æ“ä½œç”Ÿæˆçš„ä¸€ä¸ªè®¡æ•°å™¨)
 String  sql
 ------------------------------------
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
-int     STATUS_OK »ò STATUS_OK_STATE_CHANGED
+int     STATUS_OK æˆ– STATUS_OK_STATE_CHANGED
 boolean isQuery
 boolean readonly
 int     sql parameter size
@@ -111,69 +111,69 @@ Parameter MetaData[]
 SESSION_PREPARE
 ------------------------------------
 int     SESSION_PREPARE(0)
-int     id(Ö´ĞĞµ±Ç°sqlÊ±Îª´Ë²Ù×÷Éú³ÉµÄÒ»¸ö¼ÆÊıÆ÷)
+int     id(æ‰§è¡Œå½“å‰sqlæ—¶ä¸ºæ­¤æ“ä½œç”Ÿæˆçš„ä¸€ä¸ªè®¡æ•°å™¨)
 String  sql
 ------------------------------------
 
-serverÊÕµ½ÉÏÃæÁ½¸ö°üºó£¬»á°´id°Ñ¶ÔÓ¦µÄSQL»º´æÆğÀ´£¬
-serverÏìÓ¦:
+serveræ”¶åˆ°ä¸Šé¢ä¸¤ä¸ªåŒ…åï¼Œä¼šæŒ‰idæŠŠå¯¹åº”çš„SQLç¼“å­˜èµ·æ¥ï¼Œ
+serverå“åº”:
 ------------------------------------
-int     STATUS_OK »ò STATUS_OK_STATE_CHANGED
+int     STATUS_OK æˆ– STATUS_OK_STATE_CHANGED
 boolean isQuery
 boolean readonly
 int     sql parameter size
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.command.CommandRemote.prepare(SessionRemote, boolean)
+ç›¸å…³æºä»£ç è§: org.h2.command.CommandRemote.prepare(SessionRemote, boolean)
 
 
 
 4. update
 
-µ±½øĞĞjava.sql.Statement.executeUpdateÖ®ÀàµÄ²Ù×÷Ê±Í¨³£»á´¥·¢update
+å½“è¿›è¡Œjava.sql.Statement.executeUpdateä¹‹ç±»çš„æ“ä½œæ—¶é€šå¸¸ä¼šè§¦å‘update
 
 COMMAND_EXECUTE_UPDATE
 ------------------------------------
 int     COMMAND_EXECUTE_UPDATE(3)
-int     id(¶ÔÓ¦prepare½×¶ÎÉú³ÉµÄid)
+int     id(å¯¹åº”prepareé˜¶æ®µç”Ÿæˆçš„id)
 int     sql parameter size
 Parameter[]
 ------------------------------------
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
-int     STATUS_OK »ò STATUS_OK_STATE_CHANGED
+int     STATUS_OK æˆ– STATUS_OK_STATE_CHANGED
 int     updateCount
 boolean autoCommit
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.command.CommandRemote.executeUpdate()
+ç›¸å…³æºä»£ç è§: org.h2.command.CommandRemote.executeUpdate()
 
 
 
 5. query
 
-(TODO ĞèÒª¾ÙÀıÍêÉÆ)
+(TODO éœ€è¦ä¸¾ä¾‹å®Œå–„)
 
-µ±½øĞĞjava.sql.Statement.executeQueryÖ®ÀàµÄ²Ù×÷Ê±Í¨³£»á´¥·¢query
+å½“è¿›è¡Œjava.sql.Statement.executeQueryä¹‹ç±»çš„æ“ä½œæ—¶é€šå¸¸ä¼šè§¦å‘query
 
 COMMAND_EXECUTE_QUERY
 ------------------------------------
 int     COMMAND_EXECUTE_QUERY(2)
-int     id(¶ÔÓ¦prepare½×¶ÎÉú³ÉµÄid)
-int     objectId(¸úidÀàËÆ£¬Êµ¼ÊÉÏ¾ÍÊÇÒ»¸öµİÔö¼ÆÊıÆ÷)
+int     id(å¯¹åº”prepareé˜¶æ®µç”Ÿæˆçš„id)
+int     objectId(è·Ÿidç±»ä¼¼ï¼Œå®é™…ä¸Šå°±æ˜¯ä¸€ä¸ªé€’å¢è®¡æ•°å™¨)
 int     maxRows
 int     fetchSize
 int     sql parameter size
 Parameter[]
 ------------------------------------
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
-int     STATUS_OK »ò STATUS_OK_STATE_CHANGED
+int     STATUS_OK æˆ– STATUS_OK_STATE_CHANGED
 int     columnCount
 int     rowCount
-ResultColumn[] ½á¹û¼¯ÖĞÁĞµÄÔªÊı¾İ
+ResultColumn[] ç»“æœé›†ä¸­åˆ—çš„å…ƒæ•°æ®
 	ResultColumn {
 		String  Alias
 		String  SchemaName
@@ -188,35 +188,35 @@ ResultColumn[] ½á¹û¼¯ÖĞÁĞµÄÔªÊı¾İ
 	}
 row result {
 	boolean hasNext
-	Èç¹ûhasNext==true
-	×Ö¶ÎÖµ£¬...
+	å¦‚æœhasNext==true
+	å­—æ®µå€¼ï¼Œ...
 }
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.command.CommandRemote.executeQuery(int, boolean)
+ç›¸å…³æºä»£ç è§: org.h2.command.CommandRemote.executeQuery(int, boolean)
 
 
 
 
 
-6. ÆäËûÃüÁî
+6. å…¶ä»–å‘½ä»¤
 
-6.1 »ñÈ¡½á¹û¼¯ÔªÊı¾İ
+6.1 è·å–ç»“æœé›†å…ƒæ•°æ®
 
 
 COMMAND_GET_META_DATA
 ------------------------------------
 int     COMMAND_GET_META_DATA(10)
-int     id(¶ÔÓ¦prepare½×¶ÎÉú³ÉµÄid)
-int     objectId(¸úidÀàËÆ£¬Êµ¼ÊÉÏ¾ÍÊÇÒ»¸öµİÔö¼ÆÊıÆ÷)
+int     id(å¯¹åº”prepareé˜¶æ®µç”Ÿæˆçš„id)
+int     objectId(è·Ÿidç±»ä¼¼ï¼Œå®é™…ä¸Šå°±æ˜¯ä¸€ä¸ªé€’å¢è®¡æ•°å™¨)
 ------------------------------------
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
 int     STATUS_OK
 int     columnCount
-int     rowCount (¹Ì¶¨ÊÇ0)
-ResultColumn[] ½á¹û¼¯ÖĞÁĞµÄÔªÊı¾İ
+int     rowCount (å›ºå®šæ˜¯0)
+ResultColumn[] ç»“æœé›†ä¸­åˆ—çš„å…ƒæ•°æ®
 	ResultColumn {
 		String  Alias
 		String  SchemaName
@@ -232,7 +232,7 @@ ResultColumn[] ½á¹û¼¯ÖĞÁĞµÄÔªÊı¾İ
 }
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.command.CommandRemote.getMetaData()
+ç›¸å…³æºä»£ç è§: org.h2.command.CommandRemote.getMetaData()
 
 
 
@@ -242,12 +242,12 @@ ResultColumn[] ½á¹û¼¯ÖĞÁĞµÄÔªÊı¾İ
 COMMAND_CLOSE
 ------------------------------------
 int     COMMAND_CLOSE(4)
-int     id(¶ÔÓ¦prepare½×¶ÎÉú³ÉµÄid)
+int     id(å¯¹åº”prepareé˜¶æ®µç”Ÿæˆçš„id)
 ------------------------------------
 
-serverÇå³ı¶ÔÓ¦idµÄ»º´æ£¬ÎŞÏìÓ¦°ü
+serveræ¸…é™¤å¯¹åº”idçš„ç¼“å­˜ï¼Œæ— å“åº”åŒ…
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.command.CommandRemote.close()
+ç›¸å…³æºä»£ç è§: org.h2.command.CommandRemote.close()
 
 
 
@@ -256,23 +256,23 @@ serverÇå³ı¶ÔÓ¦idµÄ»º´æ£¬ÎŞÏìÓ¦°ü
 RESULT_FETCH_ROWS
 ------------------------------------
 int     RESULT_FETCH_ROWS(5)
-int     id(¶ÔÓ¦Query½×¶ÎÉú³ÉµÄid)
+int     id(å¯¹åº”Queryé˜¶æ®µç”Ÿæˆçš„id)
 int     fetchSize
 ------------------------------------
 
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
 int     STATUS_OK
 int     columnCount
 row result {
 	boolean hasNext
-	Èç¹ûhasNext==true
-	×Ö¶ÎÖµ£¬...
+	å¦‚æœhasNext==true
+	å­—æ®µå€¼ï¼Œ...
 }
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.result.ResultRemote.fetchRows(boolean)
+ç›¸å…³æºä»£ç è§: org.h2.result.ResultRemote.fetchRows(boolean)
 
 
 6.4 RESULT_CLOSE
@@ -280,77 +280,77 @@ row result {
 RESULT_CLOSE
 ------------------------------------
 int     RESULT_CLOSE(7)
-int     id(¶ÔÓ¦Query½×¶ÎÉú³ÉµÄid)
+int     id(å¯¹åº”Queryé˜¶æ®µç”Ÿæˆçš„id)
 ------------------------------------
 
 
-serverÇå³ı¶ÔÓ¦idµÄ»º´æ£¬ÎŞÏìÓ¦°ü
+serveræ¸…é™¤å¯¹åº”idçš„ç¼“å­˜ï¼Œæ— å“åº”åŒ…
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.result.ResultRemote.sendClose()
+ç›¸å…³æºä»£ç è§: org.h2.result.ResultRemote.sendClose()
 
 
 
 6.5 RESULT_RESET
 
-ÔÚ½øĞĞjava.sql.ResultSetµÄfirst¡¢beforeFirst¡¢absolute»á´¥·¢´Ë²Ù×÷
+åœ¨è¿›è¡Œjava.sql.ResultSetçš„firstã€beforeFirstã€absoluteä¼šè§¦å‘æ­¤æ“ä½œ
 RESULT_RESET
 ------------------------------------
 int     RESULT_RESET(6)
-int     id(¶ÔÓ¦Query½×¶ÎÉú³ÉµÄid)
+int     id(å¯¹åº”Queryé˜¶æ®µç”Ÿæˆçš„id)
 ------------------------------------
 
 
-server¶ËµÄResult¶ÔÏó±»reset£¬ÎŞÏìÓ¦°ü
+serverç«¯çš„Resultå¯¹è±¡è¢«resetï¼Œæ— å“åº”åŒ…
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.result.ResultRemote.reset()
+ç›¸å…³æºä»£ç è§: org.h2.result.ResultRemote.reset()
 
 
 
 6.6 COMMAND_COMMIT
 
-ÔÚ¼¯Èº»·¾³ÏÂ»á×Ô¶¯Ìá½»Ä£Ê½»á±ä³Éfalse£¬µ±Ö´ĞĞ²Ù×÷Íêºó£¬client¶Ë»á×Ô¶¯·¢´ËÃüÁî¸øËùÓĞserver£¬Í¨ÖªËûÃÇÌá½».
+åœ¨é›†ç¾¤ç¯å¢ƒä¸‹ä¼šè‡ªåŠ¨æäº¤æ¨¡å¼ä¼šå˜æˆfalseï¼Œå½“æ‰§è¡Œæ“ä½œå®Œåï¼Œclientç«¯ä¼šè‡ªåŠ¨å‘æ­¤å‘½ä»¤ç»™æ‰€æœ‰serverï¼Œé€šçŸ¥ä»–ä»¬æäº¤.
 COMMAND_COMMIT
 ------------------------------------
 int     COMMAND_COMMIT(8)
 ------------------------------------
 
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
-int     STATUS_OK »ò STATUS_OK_STATE_CHANGED
+int     STATUS_OK æˆ– STATUS_OK_STATE_CHANGED
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.engine.SessionRemote.autoCommitIfCluster()
+ç›¸å…³æºä»£ç è§: org.h2.engine.SessionRemote.autoCommitIfCluster()
 
 
 
 
 6.7 CHANGE_ID
 
-Í¨³£ÔÚserver¶ËÃ¿¸ösessionµÄcache´óĞ¡¶¼ÊÇÓĞÏŞÖÆµÄ£¬Ä¬ÈÏÊÇ64¸ö£¬µ±½á¹û¼¯µÄidºÜĞ¡(Ò²¾ÍÒâÎ¶×ÅºÜ¾ÉÁË)
-ÄÇÃ´ĞèÒª´Óµ±Ç°µÄSessionRemoteµÃµ½Ò»¸öĞÂµÄid£¬È»ºóÍ¨ÖªserverÓÃÕâ¸öĞÂidÓëÔ­À´cacheÖĞµÄ½á¹û¼¯ÖØĞÂÓ³ÉäÒ»´Î.
+é€šå¸¸åœ¨serverç«¯æ¯ä¸ªsessionçš„cacheå¤§å°éƒ½æ˜¯æœ‰é™åˆ¶çš„ï¼Œé»˜è®¤æ˜¯64ä¸ªï¼Œå½“ç»“æœé›†çš„idå¾ˆå°(ä¹Ÿå°±æ„å‘³ç€å¾ˆæ—§äº†)
+é‚£ä¹ˆéœ€è¦ä»å½“å‰çš„SessionRemoteå¾—åˆ°ä¸€ä¸ªæ–°çš„idï¼Œç„¶åé€šçŸ¥serverç”¨è¿™ä¸ªæ–°idä¸åŸæ¥cacheä¸­çš„ç»“æœé›†é‡æ–°æ˜ å°„ä¸€æ¬¡.
 
 CHANGE_ID
 ------------------------------------
 int     CHANGE_ID(9)
-int     ¾ÉID
-int     ĞÂID
+int     æ—§ID
+int     æ–°ID
 ------------------------------------
 
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
-server¶ËÎŞÏìÓ¦°ü
+serverç«¯æ— å“åº”åŒ…
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.result.ResultRemote.remapIfOld()
+ç›¸å…³æºä»£ç è§: org.h2.result.ResultRemote.remapIfOld()
 
 
 
 
 6.8 SESSION_SET_AUTOCOMMIT
 
-¸Ä±äautoCommitÄ£Ê½
+æ”¹å˜autoCommitæ¨¡å¼
 
 SESSION_SET_AUTOCOMMIT
 ------------------------------------
@@ -359,18 +359,18 @@ boolean true or false
 ------------------------------------
 
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
 int     STATUS_OK
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.engine.SessionRemote.setAutoCommitSend(boolean)
+ç›¸å…³æºä»£ç è§: org.h2.engine.SessionRemote.setAutoCommitSend(boolean)
 
 
 
 6.9 SESSION_UNDO_LOG_POS
 
-¹Ø±ÕÁ¬½ÓÊ±£¬¿´¿´server¶ËÊÇ·ñ»¹ÓĞ³·ÏûÈÕÖ¾£¬Èç¹ûÓĞ£¬ÔòÖ´ĞĞrollback²Ù×÷
+å…³é—­è¿æ¥æ—¶ï¼Œçœ‹çœ‹serverç«¯æ˜¯å¦è¿˜æœ‰æ’¤æ¶ˆæ—¥å¿—ï¼Œå¦‚æœæœ‰ï¼Œåˆ™æ‰§è¡Œrollbackæ“ä½œ
 
 SESSION_UNDO_LOG_POS
 ------------------------------------
@@ -378,13 +378,13 @@ int     SESSION_UNDO_LOG_POS(16)
 ------------------------------------
 
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
 int     STATUS_OK
 int     Undo Log Pos
 ------------------------------------
 
-Ïà¹ØÔ´´úÂë¼û: org.h2.engine.SessionRemote.getUndoLogPos()
+ç›¸å…³æºä»£ç è§: org.h2.engine.SessionRemote.getUndoLogPos()
 
 
 
@@ -396,8 +396,8 @@ TODO
 
 7 misc
 
-»¹ÓĞÁ½ÖÖÌØÊâÇé¿ö:
-ÔÚorg.h2.server.TcpServerThread.run()ÖĞÌØÊâÇéÀí£¬¶ÔÓ¦if (db == null && originalURL == null)Õâ¸öÓï¾ä
+è¿˜æœ‰ä¸¤ç§ç‰¹æ®Šæƒ…å†µ:
+åœ¨org.h2.server.TcpServerThread.run()ä¸­ç‰¹æ®Šæƒ…ç†ï¼Œå¯¹åº”if (db == null && originalURL == null)è¿™ä¸ªè¯­å¥
 
 SessionRemote.SESSION_CANCEL_STATEMENT
 ------------------------------------
@@ -409,12 +409,12 @@ String  sessionId
 int     SessionRemote.SESSION_CANCEL_STATEMENT(13)
 int     statement id
 ------------------------------------
-¼û: org.h2.engine.SessionRemote.cancelStatement(int)
+è§: org.h2.engine.SessionRemote.cancelStatement(int)
 
 
-serverÏìÓ¦:
+serverå“åº”:
 ------------------------------------
-²»ĞèÒªÏìÓ¦
+ä¸éœ€è¦å“åº”
 ------------------------------------
 
 
@@ -428,12 +428,12 @@ String  null
 String  sessionId
 int     SessionRemote.SESSION_CHECK_KEY(14)
 ------------------------------------
-¼û: org.h2.store.FileLock.checkServer()
+è§: org.h2.store.FileLock.checkServer()
 
 
 
 
-serverÏìÓ¦:
+serverå“åº”:
 
 STATUS_OK:
 ------------------------------------
@@ -451,34 +451,34 @@ String  sql
 int     errorCode 
 String  trace
 ------------------------------------
-¼ûorg.h2.server.TcpServerThread.sendError(Throwable)
+è§org.h2.server.TcpServerThread.sendError(Throwable)
 
 
 
-µÚÒ»¸öÎÕÊÖ°ü´¦ÀíÍêÖ®ºó£¬¾Í¿ÉÒÔÒ»Ö±Ê¹ÓÃ³¤Á¬½ÓÀ´·¢ÃüÁîÁË:
+ç¬¬ä¸€ä¸ªæ¡æ‰‹åŒ…å¤„ç†å®Œä¹‹åï¼Œå°±å¯ä»¥ä¸€ç›´ä½¿ç”¨é•¿è¿æ¥æ¥å‘å‘½ä»¤äº†:
 
-ÃüÁîĞ­Òé°ü:
+å‘½ä»¤åè®®åŒ…:
 
 int     operation
-Ã¿¸öÃüÁî¶¼ÓĞ×Ô¼ºµÄ¸ñÊ½
+æ¯ä¸ªå‘½ä»¤éƒ½æœ‰è‡ªå·±çš„æ ¼å¼
 
-¾ßÌå¼û: org.h2.server.TcpServerThread.process()
+å…·ä½“è§: org.h2.server.TcpServerThread.process()
 
-client¶Ë·¢µÄµÚÒ»¸öÃüÁîÒ»°ãÊÇSessionRemote.SESSION_PREPARE_READ_PARAMS/SESSION_PREPARE
-¾ßÌå¼û: org.h2.command.CommandRemote.prepare(SessionRemote, boolean)
-
-
-
-
-ÈıÖÖÀàĞÍµÄcloseÃüÁî£¬°´¼¶±ğÓÉĞ¡µ½´ó·Ö±ğÊÇ:
-RESULT_CLOSE   Í¨Öªserver¹Ø±Õ½á¹û¼¯£¬²¢ÔÚsessionµÄcacheÖĞÉ¾³ı½á¹û¼¯»º´æ
-COMMAND_CLOSE  Í¨Öªserver¹Ø±ÕSQLÃüÁî£¬²¢ÔÚsessionµÄcacheÖĞÉ¾³ıÃüÁî»º´æ
-SESSION_CLOSE  Í¨Öªserver¹Ø±Õsession£¬Í£µôÏß³Ì£¬É¾³ıÓësessionÏà¹ØµÄËùÓĞ×ÊÔ´(ÕâÌõÃüÁî»áÊÍ·Å´óÁ¿×ÊÔ´)
+clientç«¯å‘çš„ç¬¬ä¸€ä¸ªå‘½ä»¤ä¸€èˆ¬æ˜¯SessionRemote.SESSION_PREPARE_READ_PARAMS/SESSION_PREPARE
+å…·ä½“è§: org.h2.command.CommandRemote.prepare(SessionRemote, boolean)
 
 
 
 
-Á÷³Ì:
+ä¸‰ç§ç±»å‹çš„closeå‘½ä»¤ï¼ŒæŒ‰çº§åˆ«ç”±å°åˆ°å¤§åˆ†åˆ«æ˜¯:
+RESULT_CLOSE   é€šçŸ¥serverå…³é—­ç»“æœé›†ï¼Œå¹¶åœ¨sessionçš„cacheä¸­åˆ é™¤ç»“æœé›†ç¼“å­˜
+COMMAND_CLOSE  é€šçŸ¥serverå…³é—­SQLå‘½ä»¤ï¼Œå¹¶åœ¨sessionçš„cacheä¸­åˆ é™¤å‘½ä»¤ç¼“å­˜
+SESSION_CLOSE  é€šçŸ¥serverå…³é—­sessionï¼Œåœæ‰çº¿ç¨‹ï¼Œåˆ é™¤ä¸sessionç›¸å…³çš„æ‰€æœ‰èµ„æº(è¿™æ¡å‘½ä»¤ä¼šé‡Šæ”¾å¤§é‡èµ„æº)
+
+
+
+
+æµç¨‹:
 
 org.h2.server.TcpServer.listen()
 	=> org.h2.server.TcpServerThread.run()

@@ -39,13 +39,13 @@
         }
     }
     
-    private TableFilter readTableFilter(boolean fromOuter) { //×î¿ªÊ¼ÊÇ´ÓparseSelectSimpleFromPart·½·¨´¥·¢
+    private TableFilter readTableFilter(boolean fromOuter) { //æœ€å¼€å§‹æ˜¯ä»parseSelectSimpleFromPartæ–¹æ³•è§¦å‘
         Table table;
         String alias = null;
-        if (readIf("(")) { //ÔÚfromºóÖ±½Ó¸ú×óÀ¨ºÅ£¬Èç"from (select 1)"
-        	//isSelectÓĞ»ØËİ,¶ÁÍêËùÓĞ×óÀ¨ºÅ£¬È»ºó¿´ÏÂÒ»¸ötokenÊÇ·ñÊÇselect¡¢from
-        	//È»ºóÔÙ´Óµ÷ÓÃisSelectÇ°µÄlastParseIndex¿ªÊ¼½âÎö£¬µ±Ç°tokenÊÇµ÷ÓÃisSelectÇ°µÄtoken.
-            if (isSelect()) { //Èç"FROM ((select 1) union (select 1))";
+        if (readIf("(")) { //åœ¨fromåç›´æ¥è·Ÿå·¦æ‹¬å·ï¼Œå¦‚"from (select 1)"
+        	//isSelectæœ‰å›æº¯,è¯»å®Œæ‰€æœ‰å·¦æ‹¬å·ï¼Œç„¶åçœ‹ä¸‹ä¸€ä¸ªtokenæ˜¯å¦æ˜¯selectã€from
+        	//ç„¶åå†ä»è°ƒç”¨isSelectå‰çš„lastParseIndexå¼€å§‹è§£æï¼Œå½“å‰tokenæ˜¯è°ƒç”¨isSelectå‰çš„token.
+            if (isSelect()) { //å¦‚"FROM ((select 1) union (select 1))";
                 Query query = parseSelectUnion();
                 read(")");
                 query.setParameterList(New.arrayList(parameters));
@@ -59,7 +59,7 @@
                 alias = session.getNextSystemIdentifier(sqlCommand);
                 table = TableView.createTempView(s, session.getUser(), alias, query, currentSelect);
             } else {
-            	//Èç"FROM (mytable) SELECT * "
+            	//å¦‚"FROM (mytable) SELECT * "
             	//"FROM (mytable1 RIGHT OUTER JOIN mytable2 ON mytable1.id1=mytable2.id2) AS t SELECT * "
                 TableFilter top;
                 if (database.getSettings().nestedJoins) {
@@ -78,13 +78,13 @@
                 return top;
             }
         } else if (readIf("VALUES")) {
-            table = parseValuesTable().getTable(); //Èç"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
+            table = parseValuesTable().getTable(); //å¦‚"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
         } else {
             String tableName = readIdentifierWithSchema(null);
             Schema schema = getSchema();
             if (readIf("(")) {
                 Schema mainSchema = database.getSchema(Constants.SCHEMA_MAIN);
-                //Èç"FROM SYSTEM_RANGE(1,100) SELECT * ";
+                //å¦‚"FROM SYSTEM_RANGE(1,100) SELECT * ";
                 if (equalsToken(tableName, RangeTable.NAME)) {
                     Expression min = readExpression();
                     read(",");
@@ -92,9 +92,9 @@
                     read(")");
                     table = new RangeTable(mainSchema, min, max, false);
                 } else {
-                	//Èç"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
-                	//Õâ¸ö²»ºÏ·¨£¬µÄFunctionTableÖĞ»áÅ×´ísql = "FROM USER() SELECT * "; //º¯Êı·µ»ØÖµÀàĞÍ±ØĞëÊÇRESULT_SET
-                	//Ö»ÓĞCSVREAD¡¢LINK_SCHEMA¡¢TABLE¡¢TABLE_DISTINCTÕâ4¸öº¯ÊıµÄ·µ»ØÖµÀàĞÍÊÇRESULT_SET
+                	//å¦‚"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
+                	//è¿™ä¸ªä¸åˆæ³•ï¼Œçš„FunctionTableä¸­ä¼šæŠ›é”™sql = "FROM USER() SELECT * "; //å‡½æ•°è¿”å›å€¼ç±»å‹å¿…é¡»æ˜¯RESULT_SET
+                	//åªæœ‰CSVREADã€LINK_SCHEMAã€TABLEã€TABLE_DISTINCTè¿™4ä¸ªå‡½æ•°çš„è¿”å›å€¼ç±»å‹æ˜¯RESULT_SET
                     Expression expr = readFunction(schema, tableName);
                     if (!(expr instanceof FunctionCall)) {
                         throw getSyntaxError();
@@ -106,10 +106,10 @@
                     table = new FunctionTable(mainSchema, session, expr, call);
                 }
             } else if (equalsToken("DUAL", tableName)) {
-                table = getDualTable(false); //Èç"FROM DUAL SELECT * "
+                table = getDualTable(false); //å¦‚"FROM DUAL SELECT * "
             } else if (database.getMode().sysDummy1 && equalsToken("SYSDUMMY1", tableName)) {
-                table = getDualTable(false); //Èç"FROM SYSDUMMY1 SELECT * "£¬ÒªÊÊµ±ÉèÖÃMODE²ÎÊı
-            } else { //Õı³£µÄ from tableNameÓï·¨
+                table = getDualTable(false); //å¦‚"FROM SYSDUMMY1 SELECT * "ï¼Œè¦é€‚å½“è®¾ç½®MODEå‚æ•°
+            } else { //æ­£å¸¸çš„ from tableNameè¯­æ³•
                 table = readTableOrView(tableName);
             }
         }
@@ -131,10 +131,10 @@
     }
 
     
-    //Èç¹ûRIGHT¡¢LEFT¡¢INNER¡¢JOINÕâ5ÖÖJOINºóÃæÃ»ÓĞÖ±½Ó½ÓON¾Í»á³öÏÖµİ¹éµ÷ÓÃreadJoinµÄÇé¿ö£¬
-    //Èç: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
-    //¼ÓONµÄ»°ËäÈ»Ò²»áµİ¹éµ÷ÓÃreadJoin£¬µ«ÒòÎª½ô½Ó×ÅµÄtokenÊÇON£¬ËùÒÔÊµ¼ÊÉÏreadJoinÊ²Ã´¶¼²»×ö
-    private TableFilter readJoin(TableFilter top, Select command, boolean nested, boolean fromOuter) { //Ç¶Ì×¡¢Íâ²¿
+    //å¦‚æœRIGHTã€LEFTã€INNERã€JOINè¿™5ç§JOINåé¢æ²¡æœ‰ç›´æ¥æ¥ONå°±ä¼šå‡ºç°é€’å½’è°ƒç”¨readJoinçš„æƒ…å†µï¼Œ
+    //å¦‚: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
+    //åŠ ONçš„è¯è™½ç„¶ä¹Ÿä¼šé€’å½’è°ƒç”¨readJoinï¼Œä½†å› ä¸ºç´§æ¥ç€çš„tokenæ˜¯ONï¼Œæ‰€ä»¥å®é™…ä¸ŠreadJoinä»€ä¹ˆéƒ½ä¸åš
+    private TableFilter readJoin(TableFilter top, Select command, boolean nested, boolean fromOuter) { //åµŒå¥—ã€å¤–éƒ¨
         boolean joined = false;
         TableFilter last = top;
         boolean nestedJoins = database.getSettings().nestedJoins;
@@ -150,11 +150,11 @@
                 if (readIf("ON")) {
                     on = readExpression();
                 }
-                //µ±t1 RIGHT OUTER JOIN t2Ê±£¬t2·ÅÔÚÇ°Ãæ£¬t1Ç¶Ì×ÔÚÒ»¸öDualTableÖĞ£¬È»ºót2È¥joinÕâ¸öDualTable
+                //å½“t1 RIGHT OUTER JOIN t2æ—¶ï¼Œt2æ”¾åœ¨å‰é¢ï¼Œt1åµŒå¥—åœ¨ä¸€ä¸ªDualTableä¸­ï¼Œç„¶åt2å»joinè¿™ä¸ªDualTable
                 if (nestedJoins) {
                     top = getNested(top);
-                    //RIGHT OUTERºÍLEFT OUTERÊ±£¬addJoinµÄµÚ¶ş¸ö²ÎÊı¶¼ÊÇtrue
-                    newTop.addJoin(top, true, false, on); //Íâ²¿¡¢Ç¶Ì×(addJoinºÍreadJoinµÄË³Ğò¸ÕºÃÏà·´)
+                    //RIGHT OUTERå’ŒLEFT OUTERæ—¶ï¼ŒaddJoinçš„ç¬¬äºŒä¸ªå‚æ•°éƒ½æ˜¯true
+                    newTop.addJoin(top, true, false, on); //å¤–éƒ¨ã€åµŒå¥—(addJoinå’ŒreadJoinçš„é¡ºåºåˆšå¥½ç›¸å)
                 } else {
                     newTop.addJoin(top, true, false, on);
                 }
@@ -193,7 +193,7 @@
                     top.addJoin(join, fromOuter, false, on);
                 }
                 last = join;
-            } else if (readIf("JOIN")) { //¸úINNER JOINÒ»Ñù
+            } else if (readIf("JOIN")) { //è·ŸINNER JOINä¸€æ ·
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
                 top = readJoin(top, command, false, false);
@@ -262,7 +262,7 @@
     }
 
     private TableFilter getNested(TableFilter n) {
-        String joinTable = Constants.PREFIX_JOIN + parseIndex; //Èç£ºSYSTEM_JOIN_25
+        String joinTable = Constants.PREFIX_JOIN + parseIndex; //å¦‚ï¼šSYSTEM_JOIN_25
         TableFilter top = new TableFilter(session, getDualTable(true), joinTable, rightsChecked, currentSelect);
         top.addJoin(n, false, true, null);
         return top;

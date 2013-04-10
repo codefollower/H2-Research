@@ -390,12 +390,12 @@ public class DataType {
             dt.defaultScale = dataType.defaultScale;
             dt.defaultDisplaySize = dataType.defaultDisplaySize;
             dt.caseSensitive = dataType.caseSensitive;
-            //´ÓµÚ¶þ¸öÃû³Æ¿ªÊ¼µÄ¶¼ÊÇÒþ²ØÀàÐÍµÄ£¬ÈçÏÂÃæµÄint
+            //ä»Žç¬¬äºŒä¸ªåç§°å¼€å§‹çš„éƒ½æ˜¯éšè—ç±»åž‹çš„ï¼Œå¦‚ä¸‹é¢çš„int
             //new String[]{"INTEGER", "INT", "MEDIUMINT", "INT4", "SIGNED"}
-            //Òþ²ØÀàÐÍÔÚÓÃ»§ÔÚÊý¾Ý¿âÖÐÃ»ÓÐ½¨±íÊ±¿ÉÒÔ¸²¸Ç
-            //ÈçCREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
-            //µ«ÊÇ·ÇÒþ²ØÀàÐÍ¾Í²»ÄÜ¸²¸Ç
-            //ÈçCREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+            //éšè—ç±»åž‹åœ¨ç”¨æˆ·åœ¨æ•°æ®åº“ä¸­æ²¡æœ‰å»ºè¡¨æ—¶å¯ä»¥è¦†ç›–
+            //å¦‚CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+            //ä½†æ˜¯éžéšè—ç±»åž‹å°±ä¸èƒ½è¦†ç›–
+            //å¦‚CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
             dt.hidden = i > 0;
             dt.memory = memory;
             for (DataType t2 : TYPES) {

@@ -12,7 +12,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Properties;
 
-//ÕÒ¶ÏµãÌõ¼şindexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
+//æ‰¾æ–­ç‚¹æ¡ä»¶indexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
 //index.getName().equalsIgnoreCase("idx_name");
 //tableFilter.getTable().getName().equalsIgnoreCase("PageStoreTest");
 public class PageStoreTest extends TestBase {
@@ -28,7 +28,7 @@ public class PageStoreTest extends TestBase {
 
 		//prop.setProperty("ACCESS_MODE_DATA", "r");
 
-		//PAGE_SIZE²ÎÊı±ØĞëÔÚ64µ½32768(32K)Ö®¼ä£¬¼´64<=PAGE_SIZE<=32768£¬²¢ÇÒÊÇ2µÄn´ÎÃİ(n>=0)
+		//PAGE_SIZEå‚æ•°å¿…é¡»åœ¨64åˆ°32768(32K)ä¹‹é—´ï¼Œå³64<=PAGE_SIZE<=32768ï¼Œå¹¶ä¸”æ˜¯2çš„næ¬¡å¹‚(n>=0)
 		//prop.setProperty("PAGE_SIZE", "32769");
 		//prop.setProperty("PAGE_SIZE", "1024");
 
@@ -69,13 +69,13 @@ public class PageStoreTest extends TestBase {
 
 	}
 
-	//ÖØµã²âÊÔfind
+	//é‡ç‚¹æµ‹è¯•find
 	public static void main1(String[] args) throws Exception {
 		Properties prop = new Properties();
 		prop.setProperty("user", "sa");
 		prop.setProperty("password", "");
 
-		//prop.setProperty("MODE", "DB2"); //Ö§³ÖSYSDUMMY1
+		//prop.setProperty("MODE", "DB2"); //æ”¯æŒSYSDUMMY1
 
 		int len = 256;
 		StringBuilder s = new StringBuilder(len);
@@ -92,8 +92,8 @@ public class PageStoreTest extends TestBase {
 		prop.setProperty("CACHE_SIZE", "4096");
 		prop.setProperty("PAGE_SIZE", "128");
 		prop.setProperty("LOG", "0"); //0: LOG_MODE_OFF, 2: LOG_MODE_SYNC
-		prop.setProperty("CACHE_TYPE", "TQ"); //Ö»ÓĞÁ½ÖÖ: LRU¡¢TQ»òÕß¼Ó¡°SOFT_¡±Ç°×º
-		prop.setProperty("FILE_LOCK", "FS"); //ÓĞ5ÖÖ: NO¡¢FILE¡¢SOCKET¡¢SERIALIZED¡¢FS
+		prop.setProperty("CACHE_TYPE", "TQ"); //åªæœ‰ä¸¤ç§: LRUã€TQæˆ–è€…åŠ â€œSOFT_â€å‰ç¼€
+		prop.setProperty("FILE_LOCK", "FS"); //æœ‰5ç§: NOã€FILEã€SOCKETã€SERIALIZEDã€FS
 		//prop.setProperty("MVCC", "true");
 
 		String url = "jdbc:h2:tcp://localhost:9092/mydb6";

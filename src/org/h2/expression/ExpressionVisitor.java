@@ -16,7 +16,7 @@ import org.h2.table.Table;
  * The visitor pattern is used to iterate through all expressions of a query
  * to optimize a statement.
  */
-//ÓĞ10ÖÖÀàĞÍ
+//æœ‰10ç§ç±»å‹
 public class ExpressionVisitor {
     /**
      * Is the value independent on unset parameters or on columns of a higher

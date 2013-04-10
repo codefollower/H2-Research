@@ -248,7 +248,7 @@ public abstract class Value {
      * @return the order number
      */
     static int getOrder(int type) {
-    	//µ±Á½¸öÖµĞèÒª·¢Éú×ª»»Ê±£¬orderÊı×ÖĞ¡µ½Òª×ªµ½Êı×Ö´óµÄ£¬±ÈÈçaÊÇint£¬bÊÇlong£¬intÊÇ23£¬longÊÇ24£¬ÄÇÃ´ÔÚ×öÔËËãÊ±aÒª×ª³Élong
+    	//å½“ä¸¤ä¸ªå€¼éœ€è¦å‘ç”Ÿè½¬æ¢æ—¶ï¼Œorderæ•°å­—å°åˆ°è¦è½¬åˆ°æ•°å­—å¤§çš„ï¼Œæ¯”å¦‚aæ˜¯intï¼Œbæ˜¯longï¼Œintæ˜¯23ï¼Œlongæ˜¯24ï¼Œé‚£ä¹ˆåœ¨åšè¿ç®—æ—¶aè¦è½¬æˆlong
         switch(type) {
         case UNKNOWN:
             return 1;
@@ -900,7 +900,7 @@ public abstract class Value {
     }
 
     public int getScale() {
-    	//ValueDecimal¡¢ValueDouble¡¢ValueFloat¡¢ValueTimestamp¸²¸ÇÁË£¬µ«ÊÇValueDouble¡¢ValueFloat»¹ÊÇ·µ»Ø0
+    	//ValueDecimalã€ValueDoubleã€ValueFloatã€ValueTimestampè¦†ç›–äº†ï¼Œä½†æ˜¯ValueDoubleã€ValueFloatè¿˜æ˜¯è¿”å›0
         return 0;
     }
 
@@ -972,7 +972,7 @@ public abstract class Value {
      * @param tableId the table to link to
      * @return the new value or itself
      */
-    public Value link(DataHandler handler, int tableId) { //Ö»¶ÔValueLob¡¢ValueLobDbÓĞÓÃ
+    public Value link(DataHandler handler, int tableId) { //åªå¯¹ValueLobã€ValueLobDbæœ‰ç”¨
         return this;
     }
 
@@ -982,7 +982,7 @@ public abstract class Value {
      *
      * @return true if it is
      */
-    public boolean isLinked() { //Ö»¶ÔValueLob¡¢ValueLobDbÓĞÓÃ
+    public boolean isLinked() { //åªå¯¹ValueLobã€ValueLobDbæœ‰ç”¨
         return false;
     }
 
@@ -990,7 +990,7 @@ public abstract class Value {
      * Mark any underlying resource as 'not linked to any table'. For values
      * that are kept fully in memory this method has no effect.
      */
-    public void unlink() { //Ö»¶ÔValueLob¡¢ValueLobDbÓĞÓÃ
+    public void unlink() { //åªå¯¹ValueLobã€ValueLobDbæœ‰ç”¨
         // nothing to do
     }
 
@@ -998,7 +998,7 @@ public abstract class Value {
      * Close the underlying resource, if any. For values that are kept fully in
      * memory this method has no effect.
      */
-    public void close() { //Ö»¶ÔValueLob¡¢ValueLobDbÓĞÓÃ
+    public void close() { //åªå¯¹ValueLobã€ValueLobDbæœ‰ç”¨
         // nothing to do
     }
 
@@ -1043,7 +1043,7 @@ public abstract class Value {
      *
      * @return the table id
      */
-    public int getTableId() { //Ö»¶ÔValueLob¡¢ValueLobDbÓĞÓÃ
+    public int getTableId() { //åªå¯¹ValueLobã€ValueLobDbæœ‰ç”¨
         return 0;
     }
 
@@ -1052,7 +1052,7 @@ public abstract class Value {
      *
      * @return the byte array
      */
-    public byte[] getSmall() { //Ö»¶ÔValueLob¡¢ValueLobDbÓĞÓÃ
+    public byte[] getSmall() { //åªå¯¹ValueLobã€ValueLobDbæœ‰ç”¨
         return null;
     }
 
@@ -1061,7 +1061,7 @@ public abstract class Value {
      *
      * @return the new value
      */
-    public Value copyToTemp() { //Ö»¶ÔValueLob¡¢ValueLobDbÓĞÓÃ
+    public Value copyToTemp() { //åªå¯¹ValueLobã€ValueLobDbæœ‰ç”¨
         return this;
     }
 
@@ -1075,14 +1075,14 @@ public abstract class Value {
     /**
      * A "binary large object".
      */
-    public interface ValueClob { //Ö»¶ÔValueLobDbÓĞÓÃ
+    public interface ValueClob { //åªå¯¹ValueLobDbæœ‰ç”¨
         // this is a marker interface
     }
 
     /**
      * A "character large object".
      */
-    public interface ValueBlob { //Ö»¶ÔValueLobDbÓĞÓÃ
+    public interface ValueBlob { //åªå¯¹ValueLobDbæœ‰ç”¨
         // this is a marker interface
     }
 

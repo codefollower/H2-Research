@@ -24,7 +24,7 @@ public class ValueInt extends Value {
 
     /**
      * The maximum display size of an int.
-     * Example: -2147483648 //Õâ¸öÊÇInteger.MIN_VALUE
+     * Example: -2147483648 //è¿™ä¸ªæ˜¯Integer.MIN_VALUE
      */
     public static final int DISPLAY_SIZE = 11;
 
@@ -56,7 +56,7 @@ public class ValueInt extends Value {
         if (i >= 0 && i < STATIC_SIZE) {
             return STATIC_CACHE[i];
         }
-        //ÇóhashMask£¬Ê¹µÃÐÂÖµÄÜ·Åµ½0µ½255µÄÏÂ±êÖÐ
+        //æ±‚hashMaskï¼Œä½¿å¾—æ–°å€¼èƒ½æ”¾åˆ°0åˆ°255çš„ä¸‹æ ‡ä¸­
         ValueInt v = DYNAMIC_CACHE[i & (DYNAMIC_SIZE - 1)];
         if (v == null || v.value != i) {
             v = new ValueInt(i);
@@ -65,7 +65,7 @@ public class ValueInt extends Value {
         return v;
     }
 
-    //¶¼×ª³ÉlongÔÙÔËËã£¬±ÜÃâÒç³ö
+    //éƒ½è½¬æˆlongå†è¿ç®—ï¼Œé¿å…æº¢å‡º
     public Value add(Value v) {
         ValueInt other = (ValueInt) v;
         return checkRange((long) value + (long) other.value);

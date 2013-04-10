@@ -57,8 +57,8 @@ public class PageBtreeCursor implements Cursor {
         }
         if (i >= current.getEntryCount()) {
             current.nextPage(this);
-            //Èç¹ûcurrentÊÇ×î¶¥²ãµÄleaf£¬ÄÇÃ´ÔÚnextPageÀï»áµ÷ÓÃcursor.setCurrent(null, 0);
-            //´ËÊ±current±äÎªnullÁË
+            //å¦‚æœcurrentæ˜¯æœ€é¡¶å±‚çš„leafï¼Œé‚£ä¹ˆåœ¨nextPageé‡Œä¼šè°ƒç”¨cursor.setCurrent(null, 0);
+            //æ­¤æ—¶currentå˜ä¸ºnulläº†
             if (current == null) {
                 return false;
             }
@@ -79,8 +79,8 @@ public class PageBtreeCursor implements Cursor {
         }
         if (i < 0) {
             current.previousPage(this);
-            //Èç¹ûcurrentÊÇ×î¶¥²ãµÄleaf£¬ÄÇÃ´ÔÚpreviousPageÀï»áµ÷ÓÃcursor.setCurrent(null, 0);
-            //´ËÊ±current±äÎªnullÁË
+            //å¦‚æœcurrentæ˜¯æœ€é¡¶å±‚çš„leafï¼Œé‚£ä¹ˆåœ¨previousPageé‡Œä¼šè°ƒç”¨cursor.setCurrent(null, 0);
+            //æ­¤æ—¶currentå˜ä¸ºnulläº†
             if (current == null) {
                 return false;
             }

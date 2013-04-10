@@ -1,23 +1,23 @@
-½Ó¿Ú: org.h2.server.Service
+æŽ¥å£: org.h2.server.Service
 	=> org.h2.server.TcpServer
 	=> org.h2.server.web.WebServer
 	=> org.h2.server.pg.PgServer
 
-¿ÉÒÔÔÚorg.h2.tools.ServerÀàÖÐÍ¬Ê±Æô¶¯ÉÏÃæÈý¸ö·þÎñ
+å¯ä»¥åœ¨org.h2.tools.Serverç±»ä¸­åŒæ—¶å¯åŠ¨ä¸Šé¢ä¸‰ä¸ªæœåŠ¡
 
-ÓÉorg.h2.tools.ServerÀà°´ÏÂÃæµÄË³Ðòµ÷ÓÃorg.h2.server.ServiceµÄÎÄ·¨:
+ç”±org.h2.tools.Serverç±»æŒ‰ä¸‹é¢çš„é¡ºåºè°ƒç”¨org.h2.server.Serviceçš„æ–‡æ³•:
 init(String...) => start() => listen()
 
-org.h2.tools.ServerÀà¼Ì³Ð×Ô³éÏóÀàorg.h2.util.Tool
+org.h2.tools.Serverç±»ç»§æ‰¿è‡ªæŠ½è±¡ç±»org.h2.util.Tool
 
 
 main Server -> tcp Server(web/pg Server)
 
-tcp Server(web/pg Server)µÄShutdownHandlerÖ¸Ïòtcp Server
+tcp Server(web/pg Server)çš„ShutdownHandleræŒ‡å‘tcp Server
 
 
-ServerÔËÐÐÁ÷³Ì:
+Serverè¿è¡Œæµç¨‹:
 
-Èç¹ûÊ²Ã´²ÎÊý¶¼²»¼Ó£¬ÄÇÃ´»áÍ¬Ê±Æô¶¯tcp¡¢web¡¢pg¡¢browser
+å¦‚æžœä»€ä¹ˆå‚æ•°éƒ½ä¸åŠ ï¼Œé‚£ä¹ˆä¼šåŒæ—¶å¯åŠ¨tcpã€webã€pgã€browser
 org.h2.tools.Server.main(String...)
 	=> org.h2.tools.Server.runTool(String...)
