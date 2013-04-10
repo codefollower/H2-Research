@@ -73,30 +73,30 @@ import org.h2.value.ValueUuid;
  * This class implements most built-in functions of this database.
  */
 public class Function extends Expression implements FunctionCall {
-	//Numeric Functions: ÊıÖµº¯Êı39¸ö(LOGºÍLNµÈ¼Û£¬ËùÒÔËãÒ»¸ö)
+	//Numeric Functions: æ•°å€¼å‡½æ•°39ä¸ª(LOGå’ŒLNç­‰ä»·ï¼Œæ‰€ä»¥ç®—ä¸€ä¸ª)
     public static final int ABS = 0, ACOS = 1, ASIN = 2, ATAN = 3, ATAN2 = 4, BITAND = 5, BITOR = 6, BITXOR = 7,
             CEILING = 8, COS = 9, COT = 10, DEGREES = 11, EXP = 12, FLOOR = 13, LOG = 14, LOG10 = 15, MOD = 16,
             PI = 17, POWER = 18, RADIANS = 19, RAND = 20, ROUND = 21, ROUNDMAGIC = 22, SIGN = 23, SIN = 24, SQRT = 25,
             TAN = 26, TRUNCATE = 27, SECURE_RAND = 28, HASH = 29, ENCRYPT = 30, DECRYPT = 31, COMPRESS = 32,
             EXPAND = 33, ZERO = 34, RANDOM_UUID = 35, COSH = 36, SINH = 37, TANH = 38, LN = 39;
     
-    //String Functions: ×Ö·û´®º¯Êı43¸ö(ÎÄµµÖ»ÓĞ38¸ö)
+    //String Functions: å­—ç¬¦ä¸²å‡½æ•°43ä¸ª(æ–‡æ¡£åªæœ‰38ä¸ª)
     public static final int ASCII = 50, BIT_LENGTH = 51, CHAR = 52, CHAR_LENGTH = 53, CONCAT = 54, DIFFERENCE = 55,
             HEXTORAW = 56, INSERT = 57, INSTR = 58, LCASE = 59, LEFT = 60, LENGTH = 61, LOCATE = 62, LTRIM = 63,
             OCTET_LENGTH = 64, RAWTOHEX = 65, REPEAT = 66, REPLACE = 67, RIGHT = 68, RTRIM = 69, SOUNDEX = 70,
             SPACE = 71, SUBSTR = 72, SUBSTRING = 73, UCASE = 74, LOWER = 75, UPPER = 76, POSITION = 77, TRIM = 78,
             STRINGENCODE = 79, STRINGDECODE = 80, STRINGTOUTF8 = 81, UTF8TOSTRING = 82, XMLATTR = 83, XMLNODE = 84,
             XMLCOMMENT = 85, XMLCDATA = 86, XMLSTARTDOC = 87, XMLTEXT = 88, REGEXP_REPLACE = 89, RPAD = 90, LPAD = 91,
-            CONCAT_WS = 92; //±íÊ¾:concat with separator
+            CONCAT_WS = 92; //è¡¨ç¤º:concat with separator
     
-    //Time and Date Functions: Ê±¼äÓëÈÕÆÚº¯Êı26¸ö(ÎÄµµÖ»ÓĞ20¸ö)
+    //Time and Date Functions: æ—¶é—´ä¸æ—¥æœŸå‡½æ•°26ä¸ª(æ–‡æ¡£åªæœ‰20ä¸ª)
     public static final int CURDATE = 100, CURTIME = 101, DATE_ADD = 102, DATE_DIFF = 103, DAY_NAME = 104,
             DAY_OF_MONTH = 105, DAY_OF_WEEK = 106, DAY_OF_YEAR = 107, HOUR = 108, MINUTE = 109, MONTH = 110, MONTH_NAME = 111,
             NOW = 112, QUARTER = 113, SECOND = 114, WEEK = 115, YEAR = 116, CURRENT_DATE = 117, CURRENT_TIME = 118,
             CURRENT_TIMESTAMP = 119, EXTRACT = 120, FORMATDATETIME = 121, PARSEDATETIME = 122,
             ISO_YEAR = 123, ISO_WEEK = 124, ISO_DAY_OF_WEEK = 125;
 
-    //ÏÂÃæµÄ¶¼ÊÇSystem Functions: ÏµÍ³º¯Êı9+31+1=41¸ö(ÎÄµµÖ»ÓĞ38¸ö)
+    //ä¸‹é¢çš„éƒ½æ˜¯System Functions: ç³»ç»Ÿå‡½æ•°9+31+1=41ä¸ª(æ–‡æ¡£åªæœ‰38ä¸ª)
     public static final int DATABASE = 150, USER = 151, CURRENT_USER = 152, IDENTITY = 153, SCOPE_IDENTITY = 154,
             AUTOCOMMIT = 155, READONLY = 156, DATABASE_PATH = 157, LOCK_TIMEOUT = 158, DISK_SPACE_USED = 159;
 
@@ -112,13 +112,13 @@ public class Function extends Expression implements FunctionCall {
 	 */
 	public static final int H2VERSION = 231;
 
-	//ROW_NUMBERº¯ÊıËäÈ»¶¨ÒåÁË£¬µ«ROW_NUMBER()º¯ÊıÎŞĞ§£¬²»Ö§³ÖÕâÑùµÄÓï·¨
+	//ROW_NUMBERå‡½æ•°è™½ç„¶å®šä¹‰äº†ï¼Œä½†ROW_NUMBER()å‡½æ•°æ— æ•ˆï¼Œä¸æ”¯æŒè¿™æ ·çš„è¯­æ³•
 	//sql = "SELECT ROW_NUMBER()"; 
-	//ROWNUMº¯ÊıËäÈ»Ã»ÓĞ¶¨Òå£¬µ«ROWNUM()ÊÇÓĞĞ§£¬ParserÔÚ½âÎöÊ±°ÑËûµ±³ÉROWNUMÎ±×Ö¶Î´¦Àí
-	//µ±³ÉÁËorg.h2.expression.Rownum£¬¼ûorg.h2.command.Parser.readTerm()
+	//ROWNUMå‡½æ•°è™½ç„¶æ²¡æœ‰å®šä¹‰ï¼Œä½†ROWNUM()æ˜¯æœ‰æ•ˆï¼ŒParseråœ¨è§£ææ—¶æŠŠä»–å½“æˆROWNUMä¼ªå­—æ®µå¤„ç†
+	//å½“æˆäº†org.h2.expression.Rownumï¼Œè§org.h2.command.Parser.readTerm()
 	//sql = "SELECT ROWNUM()"; 
-	//ÕâÑù¾ÍÃ»ÎÊÌâÁË,ÔÚÕâ¸ö·½·¨ÖĞorg.h2.command.Parser.readFunction(Schema, String)
-	//°ÑROW_NUMBER×ª³Éorg.h2.expression.RownumÁË
+	//è¿™æ ·å°±æ²¡é—®é¢˜äº†,åœ¨è¿™ä¸ªæ–¹æ³•ä¸­org.h2.command.Parser.readFunction(Schema, String)
+	//æŠŠROW_NUMBERè½¬æˆorg.h2.expression.Rownumäº†
 	//sql = "SELECT ROW_NUMBER()OVER()";
 	public static final int ROW_NUMBER = 300;
 
@@ -175,8 +175,8 @@ public class Function extends Expression implements FunctionCall {
         DATE_PART.put("MS", Calendar.MILLISECOND);
 
 		// SOUNDEX_INDEX
-		// 34¸ö×Ö·û(26¸ö´óĞ´×ÖÄ¸¼Ó1µ½8Õâ8¸öÊı×Ö)
-		// 7: AEIOUY ¼°ËüÃÇµÄĞ¡Ğ´(ÏÂÍ¬)
+		// 34ä¸ªå­—ç¬¦(26ä¸ªå¤§å†™å­—æ¯åŠ 1åˆ°8è¿™8ä¸ªæ•°å­—)
+		// 7: AEIOUY åŠå®ƒä»¬çš„å°å†™(ä¸‹åŒ)
 		// 8: HW
 		// 1: BFPV
 		// 2: CGJKQSXZ
@@ -399,7 +399,7 @@ public class Function extends Expression implements FunctionCall {
     }
 
     private static void addFunction(String name, int type, int parameterCount, int dataType,
-            boolean nullIfParameterIsNull, boolean deterministic, boolean fast) { //7¸ö×Ö¶Î
+            boolean nullIfParameterIsNull, boolean deterministic, boolean fast) { //7ä¸ªå­—æ®µ
         FunctionInfo info = new FunctionInfo();
         info.name = name;
         info.type = type;
@@ -434,7 +434,7 @@ public class Function extends Expression implements FunctionCall {
         return FUNCTIONS.get(name);
     }
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public static java.util.Collection<FunctionInfo> getFunctionInfos() {
 		return FUNCTIONS.values();
 	}
@@ -494,7 +494,7 @@ public class Function extends Expression implements FunctionCall {
     private Value getSimpleValue(Session session, Value v0, Expression[] args, Value[] values) {
         Value result;
         switch (info.type) {
-        //ÏÂÃæÊÇÊıÖµº¯Êı, ¹²28¸ö
+        //ä¸‹é¢æ˜¯æ•°å€¼å‡½æ•°, å…±28ä¸ª
         case ABS:
             result = v0.getSignum() > 0 ? v0 : v0.negate();
             break;
@@ -509,7 +509,7 @@ public class Function extends Expression implements FunctionCall {
             break;
         case CEILING:
         	//sql = "SELECT CEILING(1.22)"; //2.0
-    		//sql = "SELECT CEILING(0.22)"; //1.0 //Ìì»¨°å
+    		//sql = "SELECT CEILING(0.22)"; //1.0 //å¤©èŠ±æ¿
             result = ValueDouble.get(Math.ceil(v0.getDouble()));
             break;
         case COS:
@@ -534,20 +534,20 @@ public class Function extends Expression implements FunctionCall {
             break;
         case FLOOR:
         	//sql = "SELECT FLOOR(1.22)"; //1.0
-    		//sql = "SELECT FLOOR(0.22)"; //0.0 //µØ°å
+    		//sql = "SELECT FLOOR(0.22)"; //0.0 //åœ°æ¿
             result = ValueDouble.get(Math.floor(v0.getDouble()));
             break;
-        case LN: //µ×ÊıeµÄ¶àÉÙ´ÎÃİÊÇv0
+        case LN: //åº•æ•°eçš„å¤šå°‘æ¬¡å¹‚æ˜¯v0
             result = ValueDouble.get(Math.log(v0.getDouble()));
             break;
         case LOG:
-            if (database.getMode().logIsLogBase10) { //Ö»ÓĞPostgreSQL²Å°ÑLOGºÍLN¿´³ÉÒ»Ñù£¬ÆäËûÊı¾İ¿â°Ñ°ÑLOGºÍLOG10
+            if (database.getMode().logIsLogBase10) { //åªæœ‰PostgreSQLæ‰æŠŠLOGå’ŒLNçœ‹æˆä¸€æ ·ï¼Œå…¶ä»–æ•°æ®åº“æŠŠæŠŠLOGå’ŒLOG10
                 result = ValueDouble.get(Math.log10(v0.getDouble()));
             } else {
                 result = ValueDouble.get(Math.log(v0.getDouble()));
             }
             break;
-        case LOG10: //µ×Êı10µÄ¶àÉÙ´ÎÃİÊÇv0
+        case LOG10: //åº•æ•°10çš„å¤šå°‘æ¬¡å¹‚æ˜¯v0
             result = ValueDouble.get(log10(v0.getDouble()));
             break;
         case PI:
@@ -587,8 +587,8 @@ public class Function extends Expression implements FunctionCall {
         case SECURE_RAND:
             result = ValueBytes.getNoCopy(MathUtils.secureRandomBytes(v0.getInt()));
             break;
-        case EXPAND: //½âÑ¹£¬¶ÔÓ¦COMPRESSº¯Êı
-        	//sql = "SELECT EXPAND(x'1234')"; //Ö»ÄÜ½ÓCOMPRESSº¯Êı
+        case EXPAND: //è§£å‹ï¼Œå¯¹åº”COMPRESSå‡½æ•°
+        	//sql = "SELECT EXPAND(x'1234')"; //åªèƒ½æ¥COMPRESSå‡½æ•°
     		//sql = "SELECT UTF8TOSTRING(EXPAND(COMPRESS(STRINGTOUTF8('Test'))))";
             result = ValueBytes.getNoCopy(CompressTool.getInstance().expand(v0.getBytesNoCopy()));
             break;
@@ -598,7 +598,7 @@ public class Function extends Expression implements FunctionCall {
         case RANDOM_UUID:
             result = ValueUuid.getNewRandom();
             break;
-        //ÏÂÃæÊÇ×Ö·û´®º¯Êı, ¹²23¸ö
+        //ä¸‹é¢æ˜¯å­—ç¬¦ä¸²å‡½æ•°, å…±23ä¸ª
             // string
         case ASCII: {
             String s = v0.getString();
@@ -622,7 +622,7 @@ public class Function extends Expression implements FunctionCall {
         case OCTET_LENGTH:
             result = ValueLong.get(2 * length(v0));
             break;
-        case CONCAT_WS: //±íÊ¾:concat with separator
+        case CONCAT_WS: //è¡¨ç¤º:concat with separator
         case CONCAT: {
             result = ValueNull.INSTANCE;
             int start = 0;
@@ -705,7 +705,7 @@ public class Function extends Expression implements FunctionCall {
         case XMLSTARTDOC:
             result = ValueString.get(StringUtils.xmlStartDoc());
             break;
-        //ÏÂÃæÊÇÊ±¼äÓëÈÕÆÚº¯Êı, ¹²21¸ö
+        //ä¸‹é¢æ˜¯æ—¶é—´ä¸æ—¥æœŸå‡½æ•°, å…±21ä¸ª
         case DAY_NAME: {
             SimpleDateFormat dayName = new SimpleDateFormat("EEEE", Locale.ENGLISH);
             result = ValueString.get(dayName.format(v0.getDate()));
@@ -715,9 +715,9 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.DAY_OF_MONTH));
             break;
         case DAY_OF_WEEK:
-        	//ÖÜÈÕ£¬ÖÜÒ»............................................, ÖÜÁù
+        	//å‘¨æ—¥ï¼Œå‘¨ä¸€............................................, å‘¨å…­
         	//SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
-        	//Êı×ÖÊÇ1, 2, 3... , 7£¬ËùÒÔÖÜÒ»¶ÔÓ¦µÄÊı×ÖÊÇ2
+        	//æ•°å­—æ˜¯1, 2, 3... , 7ï¼Œæ‰€ä»¥å‘¨ä¸€å¯¹åº”çš„æ•°å­—æ˜¯2
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.DAY_OF_WEEK));
             break;
         case DAY_OF_YEAR:
@@ -733,15 +733,15 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH));
             break;
         case MONTH_NAME: {
-        	//sql = "SELECT MONTHNAME(CURRENT_DATE)"; //²»ÊÇMONTH_NAME£¬Ã»ÓĞÏÂ»®Ïß
+        	//sql = "SELECT MONTHNAME(CURRENT_DATE)"; //ä¸æ˜¯MONTH_NAMEï¼Œæ²¡æœ‰ä¸‹åˆ’çº¿
             SimpleDateFormat monthName = new SimpleDateFormat("MMMM", Locale.ENGLISH);
             result = ValueString.get(monthName.format(v0.getDate()));
             break;
         }
         case QUARTER:
-        	//µÚ¼¸¸ö¼¾¶È£¬ÓÃ1¡¢2¡¢3¡¢4±íÊ¾
-        	//ÒòÎªDateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)·µ»ØµÄÔÂ·İ¼ÓÁË1£¬ËùÒÔÕâÀïÒª¼õÒ»
-        	//0, 1, 2, 3Õâ4¸öÊı³ıÒÔ3¶¼ÊÇ0£¬ËùÒÔÒª¼Ó1£¬Í¬ÑùÆäËûµÄÔÂ·İÒ²ÀàËÆ
+        	//ç¬¬å‡ ä¸ªå­£åº¦ï¼Œç”¨1ã€2ã€3ã€4è¡¨ç¤º
+        	//å› ä¸ºDateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)è¿”å›çš„æœˆä»½åŠ äº†1ï¼Œæ‰€ä»¥è¿™é‡Œè¦å‡ä¸€
+        	//0, 1, 2, 3è¿™4ä¸ªæ•°é™¤ä»¥3éƒ½æ˜¯0ï¼Œæ‰€ä»¥è¦åŠ 1ï¼ŒåŒæ ·å…¶ä»–çš„æœˆä»½ä¹Ÿç±»ä¼¼
             result = ValueInt.get((DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH) - 1) / 3 + 1);
             break;
         case SECOND:
@@ -760,7 +760,7 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(DateTimeUtils.getIsoWeek(v0.getDate()));
             break;
         case ISO_DAY_OF_WEEK:
-        	//Õâ¸ö¾ÍÕı³£ÁË£¬ÖÜ1ÓÃÊı×Ö1±íÊ¾£¬¸úDAY_OF_WEEK²»Ò»Ñù
+        	//è¿™ä¸ªå°±æ­£å¸¸äº†ï¼Œå‘¨1ç”¨æ•°å­—1è¡¨ç¤ºï¼Œè·ŸDAY_OF_WEEKä¸ä¸€æ ·
             result = ValueInt.get(DateTimeUtils.getIsoDayOfWeek(v0.getDate()));
             break;
         case CURDATE:
@@ -781,30 +781,30 @@ public class Function extends Expression implements FunctionCall {
         case CURRENT_TIMESTAMP: {
             long now = session.getTransactionStart();
             ValueTimestamp vt = ValueTimestamp.get(new Timestamp(now));
-            //NOW(1)±íÊ¾ºÁÃëÊıÖ»±£ÁôÒ»Î»£¬ÈçNOW()="2012-12-03 22:03:44.647" ÔòNOW(1)="2012-12-03 22:03:44.6"
-    		//ºÁÃëÊıÒ»°ãÊÇ3Î»£¬Èç¹ûNOW(100)£¬100>3ÁË£¬ËùÒÔNOW(100)¸úNOW()Ò»Ñù
+            //NOW(1)è¡¨ç¤ºæ¯«ç§’æ•°åªä¿ç•™ä¸€ä½ï¼Œå¦‚NOW()="2012-12-03 22:03:44.647" åˆ™NOW(1)="2012-12-03 22:03:44.6"
+    		//æ¯«ç§’æ•°ä¸€èˆ¬æ˜¯3ä½ï¼Œå¦‚æœNOW(100)ï¼Œ100>3äº†ï¼Œæ‰€ä»¥NOW(100)è·ŸNOW()ä¸€æ ·
             if (v0 != null) {
                 Mode mode = database.getMode();
-                //org.h2.value.ValueTimestamp.convertScale(boolean, int)ºöÊÓconvertOnlyToSmallerScale²ÎÊı
-                //ËùÒÔconvertOnlyToSmallerScaleÃ»ÓÃµÄ
+                //org.h2.value.ValueTimestamp.convertScale(boolean, int)å¿½è§†convertOnlyToSmallerScaleå‚æ•°
+                //æ‰€ä»¥convertOnlyToSmallerScaleæ²¡ç”¨çš„
                 vt = (ValueTimestamp) vt.convertScale(mode.convertOnlyToSmallerScale, v0.getInt());
             }
             result = vt;
             break;
         }
-        //ÏÂÃæÊÇÏµÍ³º¯Êı ,¹²29¸ö£¬ÉÙÁË3¸ö: ROW_NUMBER¡¢TABLE¡¢TABLE_DISTINCT
-        //ROW_NUMBERº¯ÊıËäÈ»¶¨ÒåÁË£¬µ«ROW_NUMBER()º¯ÊıÎŞĞ§£¬²»Ö§³ÖÕâÑùµÄÓï·¨
+        //ä¸‹é¢æ˜¯ç³»ç»Ÿå‡½æ•° ,å…±29ä¸ªï¼Œå°‘äº†3ä¸ª: ROW_NUMBERã€TABLEã€TABLE_DISTINCT
+        //ROW_NUMBERå‡½æ•°è™½ç„¶å®šä¹‰äº†ï¼Œä½†ROW_NUMBER()å‡½æ•°æ— æ•ˆï¼Œä¸æ”¯æŒè¿™æ ·çš„è¯­æ³•
 		//sql = "SELECT ROW_NUMBER()"; 
-		//ROWNUMº¯ÊıËäÈ»Ã»ÓĞ¶¨Òå£¬µ«ROWNUM()ÊÇÓĞĞ§£¬ParserÔÚ½âÎöÊ±°ÑËûµ±³ÉROWNUMÎ±×Ö¶Î´¦Àí
-		//µ±³ÉÁËorg.h2.expression.Rownum£¬¼ûorg.h2.command.Parser.readTerm()
+		//ROWNUMå‡½æ•°è™½ç„¶æ²¡æœ‰å®šä¹‰ï¼Œä½†ROWNUM()æ˜¯æœ‰æ•ˆï¼ŒParseråœ¨è§£ææ—¶æŠŠä»–å½“æˆROWNUMä¼ªå­—æ®µå¤„ç†
+		//å½“æˆäº†org.h2.expression.Rownumï¼Œè§org.h2.command.Parser.readTerm()
 		//sql = "SELECT ROWNUM()"; 
-        //ÕâÑù¾ÍÃ»ÎÊÌâÁË,ÔÚÕâ¸ö·½·¨ÖĞorg.h2.command.Parser.readFunction(Schema, String)
-		//°ÑROW_NUMBER×ª³Éorg.h2.expression.RownumÁË
+        //è¿™æ ·å°±æ²¡é—®é¢˜äº†,åœ¨è¿™ä¸ªæ–¹æ³•ä¸­org.h2.command.Parser.readFunction(Schema, String)
+		//æŠŠROW_NUMBERè½¬æˆorg.h2.expression.Rownumäº†
 		//sql = "SELECT ROW_NUMBER()OVER()";
         
-        //ÔÚÕâ¸ö·½·¨ÖĞ
+        //åœ¨è¿™ä¸ªæ–¹æ³•ä¸­
         //org.h2.command.Parser.readFunction(Schema, String)
-        //°ÑTABLE¡¢TABLE_DISTINCT×ª³ÉTableFunctionÁË¡£
+        //æŠŠTABLEã€TABLE_DISTINCTè½¬æˆTableFunctionäº†ã€‚
         case DATABASE:
             result = ValueString.get(database.getShortName());
             break;
@@ -862,7 +862,7 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(session.getId());
             break;
         case IFNULL: {
-        	//Èç¹ûvo²»Îªnull·µ»Øvo£¬·ñÔò·µ»Øv1s
+        	//å¦‚æœvoä¸ä¸ºnullè¿”å›voï¼Œå¦åˆ™è¿”å›v1s
             result = v0;
             if (v0 == ValueNull.INSTANCE) {
                 result = getNullOrValue(session, args, values, 1);
@@ -884,7 +884,7 @@ public class Function extends Expression implements FunctionCall {
             for (int i = 1; i < args.length - 1; i += 2) {
                 if (database.areEqual(v0, getNullOrValue(session, args, values, i))) {
                     index = i + 1;
-                    break; //ÎÒ¼ÓÉÏµÄ£¬¼û: E:\H2\my-h2\my-h2-docs\00 H2´úÂëBug\bug»ã×Ü.javaÖĞµÄ1
+                    break; //æˆ‘åŠ ä¸Šçš„ï¼Œè§: E:\H2\my-h2\my-h2-docs\00 H2ä»£ç Bug\bugæ±‡æ€».javaä¸­çš„1
                 }
             }
             if (index < 0 && args.length % 2 == 0) {
@@ -904,7 +904,7 @@ public class Function extends Expression implements FunctionCall {
             result = v.convertTo(dataType);
             break;
         }
-        case COALESCE: { //·µ»ØµÚÒ»¸ö²»ÎªnullµÄ
+        case COALESCE: { //è¿”å›ç¬¬ä¸€ä¸ªä¸ä¸ºnullçš„
             result = v0;
             for (int i = 0; i < args.length; i++) {
                 Value v = getNullOrValue(session, args, values, i);
@@ -915,8 +915,8 @@ public class Function extends Expression implements FunctionCall {
             }
             break;
         }
-        case GREATEST: //×î´óµÄÒ»¸ö
-        case LEAST: { //×îĞ¡µÄÒ»¸ö
+        case GREATEST: //æœ€å¤§çš„ä¸€ä¸ª
+        case LEAST: { //æœ€å°çš„ä¸€ä¸ª
             result = ValueNull.INSTANCE;
             for (int i = 0; i < args.length; i++) {
                 Value v = getNullOrValue(session, args, values, i);
@@ -954,7 +954,7 @@ public class Function extends Expression implements FunctionCall {
         case ARRAY_GET: {
             if (v0.getType() == Value.ARRAY) {
                 Value v1 = getNullOrValue(session, args, values, 1);
-                int element = v1.getInt(); //ÏÂ±ê´Ó1¿ªÊ¼
+                int element = v1.getInt(); //ä¸‹æ ‡ä»1å¼€å§‹
                 Value[] list = ((ValueArray) v0).getList();
                 if (element < 1 || element > list.length) {
                     result = ValueNull.INSTANCE;
@@ -1039,7 +1039,7 @@ public class Function extends Expression implements FunctionCall {
 
     private Value getValueWithArgs(Session session, Expression[] args) {
         Value[] values = new Value[args.length];
-        //Èç¹ûº¯ÊıÒªÇóËùÓĞµÄ²ÎÊı·Çnull£¬ÄÇÃ´Ö»ÒªÓĞÒ»¸ö²ÎÊıÊÇnull£¬º¯Êı¾ÍÖ±½Ó·µ»Ønull
+        //å¦‚æœå‡½æ•°è¦æ±‚æ‰€æœ‰çš„å‚æ•°énullï¼Œé‚£ä¹ˆåªè¦æœ‰ä¸€ä¸ªå‚æ•°æ˜¯nullï¼Œå‡½æ•°å°±ç›´æ¥è¿”å›null
         if (info.nullIfParameterIsNull) {
             for (int i = 0; i < args.length; i++) {
                 Expression e = args[i];
@@ -1050,14 +1050,14 @@ public class Function extends Expression implements FunctionCall {
                 values[i] = v;
             }
         }
-        //args²ÎÊıÃû£¬valuesÊÇ²ÎÊıÖµ£¬ÕâÀïÊÇÏÈÈ¡µÚ0¸öÏÂ±êµÄ²ÎÊıÖµ(¿ÉÄÜÎªnull)
+        //argså‚æ•°åï¼Œvaluesæ˜¯å‚æ•°å€¼ï¼Œè¿™é‡Œæ˜¯å…ˆå–ç¬¬0ä¸ªä¸‹æ ‡çš„å‚æ•°å€¼(å¯èƒ½ä¸ºnull)
         Value v0 = getNullOrValue(session, args, values, 0);
-        //Ö»ĞèÒªÒ»¸ö²ÎÊıµÄº¯Êı(Ò²ÓĞÉÙÊıÊÇÓĞ¶à¸ö²ÎÊıµÄ)
+        //åªéœ€è¦ä¸€ä¸ªå‚æ•°çš„å‡½æ•°(ä¹Ÿæœ‰å°‘æ•°æ˜¯æœ‰å¤šä¸ªå‚æ•°çš„)
         Value resultSimple = getSimpleValue(session, v0, args, values);
         if (resultSimple != null) {
             return resultSimple;
         }
-        //ÏÂÃæÊÇĞèÒªÁ½¸ö»òÁ½¸öÒÔÉÏ²ÎÊıµÄº¯Êı
+        //ä¸‹é¢æ˜¯éœ€è¦ä¸¤ä¸ªæˆ–ä¸¤ä¸ªä»¥ä¸Šå‚æ•°çš„å‡½æ•°
         Value v1 = getNullOrValue(session, args, values, 1);
         Value v2 = getNullOrValue(session, args, values, 2);
         Value v3 = getNullOrValue(session, args, values, 3);
@@ -1065,7 +1065,7 @@ public class Function extends Expression implements FunctionCall {
         Value v5 = getNullOrValue(session, args, values, 5);
         Value result;
         switch (info.type) {
-        //ÏÂÃæÊÇÊıÖµº¯Êı, ¹²12¸ö
+        //ä¸‹é¢æ˜¯æ•°å€¼å‡½æ•°, å…±12ä¸ª
         case ATAN2:
             result = ValueDouble.get(Math.atan2(v0.getDouble(), v1.getDouble()));
             break;
@@ -1090,10 +1090,10 @@ public class Function extends Expression implements FunctionCall {
             result = ValueDouble.get(Math.pow(v0.getDouble(), v1.getDouble()));
             break;
         case ROUND: {
-        	//sql = "SELECT ROUND(12.234, 2)"; //12.23,  4Éá5Èë£¬Ğ¡Êı±£ÁôÁ½Î»
+        	//sql = "SELECT ROUND(12.234, 2)"; //12.23,  4èˆ5å…¥ï¼Œå°æ•°ä¿ç•™ä¸¤ä½
     		//sql = "SELECT ROUND(12.235, 2)"; //12.24
     		//sql = "SELECT ROUND(12.236, 2)"; //12.24
-            double f = v1 == null ? 1. : Math.pow(10., v1.getDouble()); //Ğ¡ÊıÎ»ÊÇ2£¬Ïàµ±ÓÚÏÈÇó10µÄ2´Î·½
+            double f = v1 == null ? 1. : Math.pow(10., v1.getDouble()); //å°æ•°ä½æ˜¯2ï¼Œç›¸å½“äºå…ˆæ±‚10çš„2æ¬¡æ–¹
             result = ValueDouble.get(Math.round(v0.getDouble() * f) / f);
             break;
         }
@@ -1125,7 +1125,7 @@ public class Function extends Expression implements FunctionCall {
         case DECRYPT:
             result = ValueBytes.getNoCopy(decrypt(v0.getString(), v1.getBytesNoCopy(), v2.getBytesNoCopy()));
             break;
-        case COMPRESS: {  //Ñ¹Ëõ£¬¶ÔÓ¦EXPANDº¯Êı
+        case COMPRESS: {  //å‹ç¼©ï¼Œå¯¹åº”EXPANDå‡½æ•°
             String algorithm = null;
             if (v1 != null) {
                 algorithm = v1.getString();
@@ -1133,7 +1133,7 @@ public class Function extends Expression implements FunctionCall {
             result = ValueBytes.getNoCopy(CompressTool.getInstance().compress(v0.getBytesNoCopy(), algorithm));
             break;
         }
-        //ÏÂÃæÊÇ×Ö·û´®º¯Êı, ¹²20¸ö£¬ÕâÓĞ19¸ö£¬È»ºó×îÏÂÃæÓĞ1¸öXMLTEXT
+        //ä¸‹é¢æ˜¯å­—ç¬¦ä¸²å‡½æ•°, å…±20ä¸ªï¼Œè¿™æœ‰19ä¸ªï¼Œç„¶åæœ€ä¸‹é¢æœ‰1ä¸ªXMLTEXT
         case DIFFERENCE:
             result = ValueInt.get(getDifference(v0.getString(), v1.getString()));
             break;
@@ -1221,39 +1221,39 @@ public class Function extends Expression implements FunctionCall {
         case LPAD:
             result = ValueString.get(StringUtils.pad(v0.getString(), v1.getInt(), v2 == null ? null : v2.getString(), false));
             break;
-        //ÏÂÃæÊÇÊ±¼äÓëÈÕÆÚº¯Êı ,¹²5¸ö
+        //ä¸‹é¢æ˜¯æ—¶é—´ä¸æ—¥æœŸå‡½æ•° ,å…±5ä¸ª
             // date
         case H2VERSION:
             result = ValueString.get(Constants.getVersion());
             break;
         case DATE_ADD:
-        	//ÔÂ·İ¼Ó1£¬½á¹ûÊÇ2001-02-28 00:00:00.0 
+        	//æœˆä»½åŠ 1ï¼Œç»“æœæ˜¯2001-02-28 00:00:00.0 
     		//sql = "SELECT DATEADD('MONTH', 1, DATE '2001-01-31')";
             result = ValueTimestamp.get(dateadd(v0.getString(), v1.getInt(), v2.getTimestamp()));
             break;
         case DATE_DIFF:
-        	//ÓÃºóÃæµÄYEAR¼õÈ¥Ç°ÃæµÄYEAR£¬1999-2001=-2
+        	//ç”¨åé¢çš„YEARå‡å»å‰é¢çš„YEARï¼Œ1999-2001=-2
     		//sql = "SELECT DATEDIFF('YEAR', DATE '2001-01-31', DATE '1999-01-31')";
             result = ValueLong.get(datediff(v0.getString(), v1.getTimestamp(), v2.getTimestamp()));
             break;
         case EXTRACT: {
-        	//³éÈ¡ÈÕÆÚºÍÄê·İ CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 
+        	//æŠ½å–æ—¥æœŸå’Œå¹´ä»½ CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 
     		//sql = "SELECT CURRENT_TIMESTAMP, EXTRACT(DAY FROM CURRENT_TIMESTAMP), EXTRACT(YEAR FROM CURRENT_TIMESTAMP)";
             int field = getDatePart(v0.getString());
             result = ValueInt.get(DateTimeUtils.getDatePart(v1.getTimestamp(), field));
             break;
         }
         case FORMATDATETIME: {
-        	//format datetime ¸ñÊ½»¯ÈÕÆÚÊ±¼ä
+        	//format datetime æ ¼å¼åŒ–æ—¥æœŸæ—¶é—´
         	//sql = "SELECT FORMATDATETIME(TIMESTAMP '2001-02-03 04:05:06', 'EEE, d MMM yyyy HH:mm:ss z', 'en', 'GMT')";
         	
         	//v0 timestamp = TIMESTAMP '2001-02-03 04:05:06' , 
     		//v1 formatString = 'EEE, d MMM yyyy HH:mm:ss z'
     		//v2 localeString = 'en'
     		//v3 timeZoneString = 'GMT'
-    		//½á¹û Fri, 2 Feb 2001 20:05:06 GMT
+    		//ç»“æœ Fri, 2 Feb 2001 20:05:06 GMT
         	
-        	//voºÍv1Ö»ÒªÒ»¸öÎªnull£¬½á¹ûÎªnull
+        	//voå’Œv1åªè¦ä¸€ä¸ªä¸ºnullï¼Œç»“æœä¸ºnull
             if (v0 == ValueNull.INSTANCE || v1 == ValueNull.INSTANCE) {
                 result = ValueNull.INSTANCE;
             } else {
@@ -1264,12 +1264,12 @@ public class Function extends Expression implements FunctionCall {
             break;
         }
         case PARSEDATETIME: {
-        	//parse datetime½âÎöÈÕÆÚÊ±¼ä
-    		//°´ºóÃæÈı¸ö²ÎÊıÖ¸¶¨µÄ¸ñÊ½½âÎöµÚÒ»¸ö²ÎÊı£¬µÃµ½Ò»¸öjava.util.Date
-    		//½á¹û: 2001-02-03 11:05:06.0 
+        	//parse datetimeè§£ææ—¥æœŸæ—¶é—´
+    		//æŒ‰åé¢ä¸‰ä¸ªå‚æ•°æŒ‡å®šçš„æ ¼å¼è§£æç¬¬ä¸€ä¸ªå‚æ•°ï¼Œå¾—åˆ°ä¸€ä¸ªjava.util.Date
+    		//ç»“æœ: 2001-02-03 11:05:06.0 
     		//sql = "SELECT PARSEDATETIME('Sat, 3 Feb 2001 03:05:06 GMT', 'EEE, d MMM yyyy HH:mm:ss z', 'en', 'GMT')";
             
-        	//Í¬ÉÏ
+        	//åŒä¸Š
         	if (v0 == ValueNull.INSTANCE || v1 == ValueNull.INSTANCE) {
                 result = ValueNull.INSTANCE;
             } else {
@@ -1280,9 +1280,9 @@ public class Function extends Expression implements FunctionCall {
             }
             break;
         }
-        //ÏÂÃæÊÇÏµÍ³º¯Êı ,¹²9¸ö
+        //ä¸‹é¢æ˜¯ç³»ç»Ÿå‡½æ•° ,å…±9ä¸ª
         case NULLIF:
-        	//ÏàµÈ·µ»Ønull£¬²»ÏàµÈ·µ»Øv0
+        	//ç›¸ç­‰è¿”å›nullï¼Œä¸ç›¸ç­‰è¿”å›v0
             result = database.areEqual(v0, v1) ? ValueNull.INSTANCE : v0;
             break;
             // system
@@ -1396,7 +1396,7 @@ public class Function extends Expression implements FunctionCall {
             result = v0.convertPrecision(v1.getLong(), v2.getBoolean());
             break;
         }
-        //×Ö·û´®º¯Êı
+        //å­—ç¬¦ä¸²å‡½æ•°
         case XMLTEXT:
             if (v1 == null) {
                 result = ValueString.get(StringUtils.xmlText(v0.getString()));
@@ -1763,9 +1763,9 @@ public class Function extends Expression implements FunctionCall {
     }
 
     private static String getSoundex(String s) {
-    	//¼ûhttp://www.archives.gov/publications/general-info-leaflets/55-census.html
-    	// 34¸ö×Ö·û(26¸ö´óĞ´×ÖÄ¸¼Ó1µ½8Õâ8¸öÊı×Ö)
-		// 7: AEIOUY ¼°ËüÃÇµÄĞ¡Ğ´(ÏÂÍ¬)
+    	//è§http://www.archives.gov/publications/general-info-leaflets/55-census.html
+    	// 34ä¸ªå­—ç¬¦(26ä¸ªå¤§å†™å­—æ¯åŠ 1åˆ°8è¿™8ä¸ªæ•°å­—)
+		// 7: AEIOUY åŠå®ƒä»¬çš„å°å†™(ä¸‹åŒ)
 		// 8: HW
 		// 1: BFPV
 		// 2: CGJKQSXZ
@@ -1773,10 +1773,10 @@ public class Function extends Expression implements FunctionCall {
 		// 4: L
 		// 5: MN
 		// 6: R
-		//Ëã·¨ÊÇ: ºöÂÔËùÓĞµÄ·Ç×Ö·û£¬È»ºó±£ÁôµÚÒ»¸ö×Ö·û£¬ºöÂÔ¶ÔÓ¦7ºÍ8µÄ×Ö·û£¬ÆäËûµÄ×ª³É¶ÔÓ¦µÄÊı×Ö£¬ÖØ¸´µÄ²»Ëã£¬²»¹»4Î»µÄ²¹0
-        //sql = "SELECT SOUNDEX('1aaa')"; //1±»È¥µô£¬±£ÁôµÚÒ»¸öa£¬µÚ¶şºÍµÚÈı¸öa¶ÔÓ¦7±»ºöÂÔ£¬ËùÒÔ×îºóÊÇa000
+		//ç®—æ³•æ˜¯: å¿½ç•¥æ‰€æœ‰çš„éå­—ç¬¦ï¼Œç„¶åä¿ç•™ç¬¬ä¸€ä¸ªå­—ç¬¦ï¼Œå¿½ç•¥å¯¹åº”7å’Œ8çš„å­—ç¬¦ï¼Œå…¶ä»–çš„è½¬æˆå¯¹åº”çš„æ•°å­—ï¼Œé‡å¤çš„ä¸ç®—ï¼Œä¸å¤Ÿ4ä½çš„è¡¥0
+        //sql = "SELECT SOUNDEX('1aaa')"; //1è¢«å»æ‰ï¼Œä¿ç•™ç¬¬ä¸€ä¸ªaï¼Œç¬¬äºŒå’Œç¬¬ä¸‰ä¸ªaå¯¹åº”7è¢«å¿½ç•¥ï¼Œæ‰€ä»¥æœ€åæ˜¯a000
 		
-		//B±£Áô£¬HÈ¥µô£¬C×ª³É2£¬WÈ¥µô£¬D×ª³É3£¬HÈ¥µô£¬AÈ¥µô£¬×îºóÊÇB23ÒòÎªÊÇ3Î»£¬ËùÒÔ²»¹»4Î»£¬×îºóÊÇB230
+		//Bä¿ç•™ï¼ŒHå»æ‰ï¼ŒCè½¬æˆ2ï¼ŒWå»æ‰ï¼ŒDè½¬æˆ3ï¼ŒHå»æ‰ï¼ŒAå»æ‰ï¼Œæœ€åæ˜¯B23å› ä¸ºæ˜¯3ä½ï¼Œæ‰€ä»¥ä¸å¤Ÿ4ä½ï¼Œæœ€åæ˜¯B230
 		//sql = "SELECT SOUNDEX('BHCWDHA')";
     	
         int len = s.length();

@@ -29,10 +29,10 @@ class CommandList extends Command {
     }
     
     //sql = "select id,name from ParserTest;select id,name from ParserTest;select id,name from ParserTest";
-    //ÄÇÃ´ÏÈÖ´ĞĞµÚÒ»¸ö£¬´ËÊ±remainingCommandÊÇCommandList(ºóÃæÁ½¸öselect)£¬È»ºó¼ÌĞøCommandList.query£¬
-    //´ËÊ±remainingCommandÊÇCommandContainer
-    //×ÜÖ®Â·¾¶ÊÇÕâÑùCommandList->CommandList->CommandContainer
-    //×¢Òâsession.prepareLocalÀïÊÇ»áÖØĞÂnewĞÂµÄParser
+    //é‚£ä¹ˆå…ˆæ‰§è¡Œç¬¬ä¸€ä¸ªï¼Œæ­¤æ—¶remainingCommandæ˜¯CommandList(åé¢ä¸¤ä¸ªselect)ï¼Œç„¶åç»§ç»­CommandList.queryï¼Œ
+    //æ­¤æ—¶remainingCommandæ˜¯CommandContainer
+    //æ€»ä¹‹è·¯å¾„æ˜¯è¿™æ ·CommandList->CommandList->CommandContainer
+    //æ³¨æ„session.prepareLocalé‡Œæ˜¯ä¼šé‡æ–°newæ–°çš„Parser
     private void executeRemaining() {
         Command remainingCommand = session.prepareLocal(remaining);
         if (remainingCommand.isQuery()) {

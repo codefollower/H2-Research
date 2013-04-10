@@ -7,7 +7,7 @@ public class ExplainTest extends TestBase {
 		new ExplainTest().start();
 	}
 
-	//²âÊÔorg.h2.command.Parser.parseExplain()
+	//æµ‹è¯•org.h2.command.Parser.parseExplain()
 	//org.h2.command.dml.Explain
 	@Override
 	public void startInternal() throws Exception {

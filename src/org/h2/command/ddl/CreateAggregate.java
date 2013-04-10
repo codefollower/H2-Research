@@ -22,7 +22,7 @@ public class CreateAggregate extends DefineCommand {
 
     private Schema schema;
     private String name;
-    private String javaClassMethod; //ÊÇclassName£¬ÀàÃû£¬²»ÊÇÀà·½·¨
+    private String javaClassMethod; //æ˜¯classNameï¼Œç±»åï¼Œä¸æ˜¯ç±»æ–¹æ³•
     private boolean ifNotExists;
     private boolean force;
 

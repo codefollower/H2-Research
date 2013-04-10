@@ -21,9 +21,9 @@ public class FileUtilsTest {
 	}
 	public static void testFilePathZip() throws Exception {
 		System.setProperty("user.home", "E:/H2/lib");
-		//FileUtils.newInputStream("zip:~/servlet-api-2.4.jar"); //²»ÄÜÖ±½Ó´ò¿ªjar
-		//FileUtils.newInputStream("zip:~/servlet-api-2.4.jar!/javax/servlet/Filter.class "); //×îºó²»ÄÜÓĞ¿Õ¸ñ
-		//¸ĞÌ¾ºÅºóÃæÓĞÃ»ÓĞ/¶¼ÊÇ¿ÉÒÔµÄ
+		//FileUtils.newInputStream("zip:~/servlet-api-2.4.jar"); //ä¸èƒ½ç›´æ¥æ‰“å¼€jar
+		//FileUtils.newInputStream("zip:~/servlet-api-2.4.jar!/javax/servlet/Filter.class "); //æœ€åä¸èƒ½æœ‰ç©ºæ ¼
+		//æ„Ÿå¹å·åé¢æœ‰æ²¡æœ‰/éƒ½æ˜¯å¯ä»¥çš„
 		//FileUtils.newInputStream("zip:~/servlet-api-2.4.jar!javax/servlet/Filter.class");
 		FileUtils.newInputStream("zip:~/servlet-api-2.4.jar!/javax/servlet/Filter.class");
 		

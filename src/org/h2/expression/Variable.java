@@ -17,17 +17,17 @@ import org.h2.value.Value;
  * A user-defined variable, for example: @ID.
  */
 public class Variable extends Expression {
-	// ¶ÔÓÚÈçÏÂÓï¾ä:
+	// å¯¹äºå¦‚ä¸‹è¯­å¥:
 	// stmt.executeUpdate("SET @topVariableName=3");
 	// sql = "select @topVariableName";
-	// sql = "select @nullVariableName"; //²»´æÔÚµÄ±äÁ¿Ãû£¬´ËÊ±ÖµÎªnull
-	//×Ó¶ÎnameºÍlastValue·Ö±ğÊÇ
+	// sql = "select @nullVariableName"; //ä¸å­˜åœ¨çš„å˜é‡åï¼Œæ­¤æ—¶å€¼ä¸ºnull
+	//å­æ®µnameå’ŒlastValueåˆ†åˆ«æ˜¯
 	//topVariableName, 3
 	//nullVariableName, null
     private final String name;
     private Value lastValue;
     
-    //Ö»¿´µ½ÔÚorg.h2.command.Parser.readTerm()ÖĞÊ¹ÓÃ
+    //åªçœ‹åˆ°åœ¨org.h2.command.Parser.readTerm()ä¸­ä½¿ç”¨
     public Variable(Session session, String name) {
         this.name = name;
         lastValue = session.getVariable(name);
@@ -46,8 +46,8 @@ public class Variable extends Expression {
     }
 
     public String getSQL() {
-    	//µ÷ÓÃÕâ¸ö·½·¨¶ø²»ÊÇÖ±½Óµ÷ÓÃStringUtils.quoteIdentifierĞÔÄÜ¸üºÃ£¬ÒòÎª´ó¶àÊıÇé¿ö¾ÍÊÇÒ»¸öÆÕÍ¨µÄ±êÊ¶·û£¬Ã»ÓĞÊ²Ã´ÌØÊâµÄ£¬
-        //ÕâÊ±¾Í²»±ØÒªÔÙÖØĞÂ¹¹ÔìÒ»¸ö¼ÓÒıºÅµÄ×Ö·û´®
+    	//è°ƒç”¨è¿™ä¸ªæ–¹æ³•è€Œä¸æ˜¯ç›´æ¥è°ƒç”¨StringUtils.quoteIdentifieræ€§èƒ½æ›´å¥½ï¼Œå› ä¸ºå¤§å¤šæ•°æƒ…å†µå°±æ˜¯ä¸€ä¸ªæ™®é€šçš„æ ‡è¯†ç¬¦ï¼Œæ²¡æœ‰ä»€ä¹ˆç‰¹æ®Šçš„ï¼Œ
+        //è¿™æ—¶å°±ä¸å¿…è¦å†é‡æ–°æ„é€ ä¸€ä¸ªåŠ å¼•å·çš„å­—ç¬¦ä¸²
         return "@" + Parser.quoteIdentifier(name);
     }
 
@@ -79,8 +79,8 @@ public class Variable extends Expression {
         case ExpressionVisitor.GET_COLUMNS:
             return true;
         case ExpressionVisitor.DETERMINISTIC:
-        	//ÒòÎª±äÁ¿±¾Éí¾ÍÊÇ¿É±äµÄ£¬ËùÒÔ²¢²»È·¶¨£¬
-        	//µ±ÒªÅĞ¶Ïµ±Ç°±í´ïÊ½(¼´±äÁ¿)ÊÇ·ñÂú×ãExpressionVisitor.DETERMINISTIC(È·¶¨ĞÔ)Ê±ÏÔÈ»·µ»Øfalse
+        	//å› ä¸ºå˜é‡æœ¬èº«å°±æ˜¯å¯å˜çš„ï¼Œæ‰€ä»¥å¹¶ä¸ç¡®å®šï¼Œ
+        	//å½“è¦åˆ¤æ–­å½“å‰è¡¨è¾¾å¼(å³å˜é‡)æ˜¯å¦æ»¡è¶³ExpressionVisitor.DETERMINISTIC(ç¡®å®šæ€§)æ—¶æ˜¾ç„¶è¿”å›false
             return false;
         default:
             throw DbException.throwInternalError("type="+visitor.getType());

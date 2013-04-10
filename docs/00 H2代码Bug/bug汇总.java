@@ -1,6 +1,6 @@
-1. DECODE º¯ÊıÃ»ÓĞ·µ»ØµÚÒ»¸öÆ¥ÅäµÄÖµ£¬ÓëÎÄµµÃèÊö²»·ûºÏ
+1. DECODE å‡½æ•°æ²¡æœ‰è¿”å›ç¬¬ä¸€ä¸ªåŒ¹é…çš„å€¼ï¼Œä¸æ–‡æ¡£æè¿°ä¸ç¬¦åˆ
 
-ÎÄµµ: 
+æ–‡æ¡£: 
 Returns the first matching value. NULL is considered to match NULL. 
 If no match was found, then NULL or the last parameter (if the parameter count is even) is returned. 
 This function is provided for Oracle compatibility (see there for details).
@@ -10,13 +10,13 @@ Example:
 CALL DECODE(RAND()>0.5, 0, 'Red', 1, 'Black');
 
 
-ÖØÏÖ:
+é‡ç°:
 SELECT DECODE(0, 0, 'v1', 0, 'v2', 1, 'v3', 1, 'v4')
 
-ÕıÈ·Ó¦·µ»Øv1
-µ«ÊÇ·µ»ØÁËv2
+æ­£ç¡®åº”è¿”å›v1
+ä½†æ˜¯è¿”å›äº†v2
 
-ĞŞ¸´:
+ä¿®å¤:
 org.h2.expression.Function.getSimpleValue(Session, Value, Expression[], Value[])
 
 		case DECODE: {
@@ -24,7 +24,7 @@ org.h2.expression.Function.getSimpleValue(Session, Value, Expression[], Value[])
             for (int i = 1; i < args.length - 1; i += 2) {
                 if (database.areEqual(v0, getNullOrValue(session, args, values, i))) {
                     index = i + 1;
-					break; //ÔÚÕâÀï¼ÓÉÏÕâÒ»ĞĞ
+					break; //åœ¨è¿™é‡ŒåŠ ä¸Šè¿™ä¸€è¡Œ
                 }
             }
             if (index < 0 && args.length % 2 == 0) {

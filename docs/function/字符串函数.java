@@ -1,11 +1,11 @@
-×Ö·û´®º¯Êı43¸ö
+å­—ç¬¦ä¸²å‡½æ•°43ä¸ª
 
-º¯ÊıÃû            º¯ÊıÖÖÀà    ·µ»ØÖµµÄÀàĞÍ  ²ÎÊı¸öÊı(-1±íÊ¾¿É±ä²ÎÊı)   nullIfParameterIsNull   deterministic    fast  
+å‡½æ•°å            å‡½æ•°ç§ç±»    è¿”å›å€¼çš„ç±»å‹  å‚æ•°ä¸ªæ•°(-1è¡¨ç¤ºå¯å˜å‚æ•°)   nullIfParameterIsNull   deterministic    fast  
 ------------------------------------------------------------------------------------
 ASCII               50        INTEGER        1     true    true    false   
 BIT_LENGTH          51        BIGINT         1     true    true    false   
-CHAR                52        VARCHAR        1     true    true    false   CHR                 52        VARCHAR        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
-CHAR_LENGTH         53        INTEGER        1     true    true    false   CHARACTER_LENGTH    53        INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+CHAR                52        VARCHAR        1     true    true    false   CHR                 52        VARCHAR        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
+CHAR_LENGTH         53        INTEGER        1     true    true    false   CHARACTER_LENGTH    53        INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
 CONCAT              54        VARCHAR        -1    false   true    false   
 CONCAT_WS           92        VARCHAR        -1    false   true    false   
 DIFFERENCE          55        INTEGER        2     true    true    false   

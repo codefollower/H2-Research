@@ -1,25 +1,25 @@
-×î»ù±¾µÄ×¢Òâµã: PageBtreeNodeµÄ×Ó½áµãÒªÃ´È«ÊÇPageBtreeNode£¬ÒªÊÇÈ«ÊÇPageBtreeLeaf£¬²»»á»ìºÏÁ½Õß¡£
+æœ€åŸºæœ¬çš„æ³¨æ„ç‚¹: PageBtreeNodeçš„å­ç»“ç‚¹è¦ä¹ˆå…¨æ˜¯PageBtreeNodeï¼Œè¦æ˜¯å…¨æ˜¯PageBtreeLeafï¼Œä¸ä¼šæ··åˆä¸¤è€…ã€‚
 
-ÀàÍ¼:
-Óëorg.h2.index.PageBtreeLeafÀàËÆ
+ç±»å›¾:
+ä¸org.h2.index.PageBtreeLeafç±»ä¼¼
 
-ÀàÍ¼:
+ç±»å›¾:
 
-org.h2.util.CacheObject (´ËÀàÖĞµÄpos×Ö¶Î¾ÍÊÇPageBtreeLeafµÄpageId)
+org.h2.util.CacheObject (æ­¤ç±»ä¸­çš„poså­—æ®µå°±æ˜¯PageBtreeLeafçš„pageId)
 	org.h2.store.Page
 		org.h2.index.PageBtree
 			org.h2.index.PageBtreeNode
 
 
-CacheObjectµÄÖ±½Ó×ÓÀàÖ»ÓĞorg.h2.util.CacheHeadºÍorg.h2.store.Page
+CacheObjectçš„ç›´æ¥å­ç±»åªæœ‰org.h2.util.CacheHeadå’Œorg.h2.store.Page
 
 
 
-org.h2.store.PageÀà¶¨ÒåÁË8ÖÖÒ³ÃæÀàĞÍ£¬·Ö±ğ¶ÔÓ¦8¸ö×ÓÀà:
+org.h2.store.Pageç±»å®šä¹‰äº†8ç§é¡µé¢ç±»å‹ï¼Œåˆ†åˆ«å¯¹åº”8ä¸ªå­ç±»:
 
-Ò³ÃæÀàĞÍid¡¡Ò³ÃæÃû³Æ            ¶ÔÓ¦µÄÀà
+é¡µé¢ç±»å‹idã€€é¡µé¢åç§°            å¯¹åº”çš„ç±»
 ------------------------------------------------------------------
-0           TYPE_EMPTY          ÓĞÃ»Àà£¬Ö÷ÒªÓÃÓÚÒì³£»òÆäËûÇé¿ö
+0           TYPE_EMPTY          æœ‰æ²¡ç±»ï¼Œä¸»è¦ç”¨äºå¼‚å¸¸æˆ–å…¶ä»–æƒ…å†µ
 
 1           TYPE_DATA_LEAF      org.h2.index.PageDataLeaf
 2           TYPE_DATA_NODE      org.h2.index.PageDataNode
@@ -33,31 +33,31 @@ org.h2.store.PageÀà¶¨ÒåÁË8ÖÖÒ³ÃæÀàĞÍ£¬·Ö±ğ¶ÔÓ¦8¸ö×ÓÀà:
 8           TYPE_STREAM_DATA    org.h2.store.PageStreamData
 ------------------------------------------------------------------
 
-PageDataLeaf¡¢PageBtreeLeaf¡¢PageBtreeNodeÕâÈıÕßµÄ¿ÉÒÔÔÚÒµÃæÀàĞÍ×Ö¶ÎÖĞ¼ÓÉÏFLAG_LAST
-FLAG_LAST±íÊ¾´ËÒ³ÊÇ×îºóÒ»Ò³¡£
+PageDataLeafã€PageBtreeLeafã€PageBtreeNodeè¿™ä¸‰è€…çš„å¯ä»¥åœ¨ä¸šé¢ç±»å‹å­—æ®µä¸­åŠ ä¸ŠFLAG_LAST
+FLAG_LASTè¡¨ç¤ºæ­¤é¡µæ˜¯æœ€åä¸€é¡µã€‚
 
 
 
-org.h2.util.CacheObjectµÄ×Ö¶ÎÓĞ:
+org.h2.util.CacheObjectçš„å­—æ®µæœ‰:
 	public CacheObject cachePrevious
 	public CacheObject cacheNext
 	public CacheObject cacheChained
 	private int pos
 	private boolean changed
 
-org.h2.store.PageµÄ×Ö¶ÎÓĞ:
+org.h2.store.Pageçš„å­—æ®µæœ‰:
 	protected int changeCount;
 	
-	Á½¸ö³éÏó·½·¨:
+	ä¸¤ä¸ªæŠ½è±¡æ–¹æ³•:
 
-	moveTo(Session, int) //ÒÆ¶¯µ±Ç°pageµ½ĞÂµÄÎ»ÖÃ
-	write() //Ğ´µ±Ç°Ò³ÃæµÄÊı¾İµ½Ó²ÅÌ
+	moveTo(Session, int) //ç§»åŠ¨å½“å‰pageåˆ°æ–°çš„ä½ç½®
+	write() //å†™å½“å‰é¡µé¢çš„æ•°æ®åˆ°ç¡¬ç›˜
 
-	Ìá¹©ÁËÈıÀàstatic·½·¨£¬add¡¢insert¡¢remove£¬ÓÃÓÚ´ÓÊı¾İÖĞ¸øÔ­ÓĞÔªËØ¼ÓÉÏÒ»¸ö(¿ÉÄÜÊÇ¸ºÖµ)¡¢Ôö¼ÓÒ»¸öĞÂÔªËØ¡¢É¾³ıÒ»¸öÔªËØ
-	ÕâÀà·½·¨¶àÓÃÓÚÔÚrowsÊı×éºÍoffsets¡¢keysÊı×éÖĞ£¬rowsÓÃÓÚ·Å¼ÇÂ¼£¬offsetsÓÃÓÚ·Å¼ÇÂ¼ÔÚpageÖĞµÄÏà¶ÔÎ»ÖÃ£¬keysÓÃÓÚ·Å¼ÇÂ¼µÄkey¡£
+	æä¾›äº†ä¸‰ç±»staticæ–¹æ³•ï¼Œaddã€insertã€removeï¼Œç”¨äºä»æ•°æ®ä¸­ç»™åŸæœ‰å…ƒç´ åŠ ä¸Šä¸€ä¸ª(å¯èƒ½æ˜¯è´Ÿå€¼)ã€å¢åŠ ä¸€ä¸ªæ–°å…ƒç´ ã€åˆ é™¤ä¸€ä¸ªå…ƒç´ 
+	è¿™ç±»æ–¹æ³•å¤šç”¨äºåœ¨rowsæ•°ç»„å’Œoffsetsã€keysæ•°ç»„ä¸­ï¼Œrowsç”¨äºæ”¾è®°å½•ï¼Œoffsetsç”¨äºæ”¾è®°å½•åœ¨pageä¸­çš„ç›¸å¯¹ä½ç½®ï¼Œkeysç”¨äºæ”¾è®°å½•çš„keyã€‚
 
 
-org.h2.index.PageBtreeµÄ×Ö¶ÎÓĞ:
+org.h2.index.PageBtreeçš„å­—æ®µæœ‰:
 	 protected final PageBtreeIndex index
 	 protected int parentPageId
 	 protected final Data data
@@ -70,8 +70,8 @@ org.h2.index.PageBtreeµÄ×Ö¶ÎÓĞ:
 	 protected int memoryEstimated
 
 
-org.h2.index.PageBtreeNodeµÄ×Ö¶ÎÓĞ:
-    private final boolean pageStoreInternalCount; //Ä¬ÈÏÊÇfalse£¬Í¨¹ı²ÎÊıPAGE_STORE_INTERNAL_COUNTÉèÖÃ
+org.h2.index.PageBtreeNodeçš„å­—æ®µæœ‰:
+    private final boolean pageStoreInternalCount; //é»˜è®¤æ˜¯falseï¼Œé€šè¿‡å‚æ•°PAGE_STORE_INTERNAL_COUNTè®¾ç½®
     /**
      * The page ids of the children.
      */
@@ -82,45 +82,45 @@ org.h2.index.PageBtreeNodeµÄ×Ö¶ÎÓĞ:
     private int rowCount = UNKNOWN_ROWCOUNT; // -1;
 
 
-ÒÔÏÂÊÇ¸ñÊ½·ÖÎö
+ä»¥ä¸‹æ˜¯æ ¼å¼åˆ†æ
 ------------------------------------------------------------------
 
-×Ö½ÚÊı   ´ú±íÊ²Ã´
+å­—èŠ‚æ•°   ä»£è¡¨ä»€ä¹ˆ
 
-Í·
+å¤´
 =======================
-1        type ÓĞÁ½Öµ(Page.TYPE_BTREE_NODE | Page.FLAG_LAST(×îºóÒ»Ò³)) »ò Page.TYPE_BTREE_NODE
-2        checksum Ô¤ÏÈĞ´0£¬ÔÚĞ´Íêpageºó»ØÌî(¼ûorg.h2.store.PageStore.writePage(int, Data))
+1        type æœ‰ä¸¤å€¼(Page.TYPE_BTREE_NODE | Page.FLAG_LAST(æœ€åä¸€é¡µ)) æˆ– Page.TYPE_BTREE_NODE
+2        checksum é¢„å…ˆå†™0ï¼Œåœ¨å†™å®Œpageåå›å¡«(è§org.h2.store.PageStore.writePage(int, Data))
 4        parentPageId
-VarInt   index¶ÔÏóid(×¢Òâ£¬²»ÊÇ±í¶ÔÏóid£¬PageDataNode²ÅÊÇ±í¶ÔÏóid)
-4        rowCountStored ÒÑ´æ´¢µÄĞĞÊı
-2        entryCount ·Ö¸ôµãµÄ¸öÊı(rowsÊı×éµÄÓĞĞ§¸öÊı)£¬Ò²µÈÓÚ×Ó½Úµã¸öÊı-1
+VarInt   indexå¯¹è±¡id(æ³¨æ„ï¼Œä¸æ˜¯è¡¨å¯¹è±¡idï¼ŒPageDataNodeæ‰æ˜¯è¡¨å¯¹è±¡id)
+4        rowCountStored å·²å­˜å‚¨çš„è¡Œæ•°
+2        entryCount åˆ†éš”ç‚¹çš„ä¸ªæ•°(rowsæ•°ç»„çš„æœ‰æ•ˆä¸ªæ•°)ï¼Œä¹Ÿç­‰äºå­èŠ‚ç‚¹ä¸ªæ•°-1
 
-Ìå:
+ä½“:
 =======================
-4        rightmost child page id (×îÓÒ±ßµÄ×ÓÒ³id)
+4        rightmost child page id (æœ€å³è¾¹çš„å­é¡µid)
 
-entryCount¸ö
+entryCountä¸ª
 {
 	4         child page id
 	2         offset
 }
 
-entryCount¸ö
-{	(´Óoffset¿ªÊ¼Ğ´)
+entryCountä¸ª
+{	(ä»offsetå¼€å§‹å†™)
 
-	columnCount¸ö
+	columnCountä¸ª
 	{
 		VarLong key
-		Value   Ë÷ÒıÁĞÖµ (Èç¹ûonlyPositionÎªtrue£¬ÄÇÃ´²»°üº¬ÕâÒ»²¿·Ö£¬Ö»ÓĞÇ°ÃæµÄVarLong key)
+		Value   ç´¢å¼•åˆ—å€¼ (å¦‚æœonlyPositionä¸ºtrueï¼Œé‚£ä¹ˆä¸åŒ…å«è¿™ä¸€éƒ¨åˆ†ï¼Œåªæœ‰å‰é¢çš„VarLong key)
 	}
 	
 }
 
-(****Ò»¸öPageBtreeNodeÏÂÃæ¹Ò4¸öPageBtreeLeaf£¬ ³¬¹ı4¸öÊ±ÇĞ·Ö****)
-ÉÏÃæÕâ¾ä»°Àí½â´íÁË£¬Èç¹ûPageBtreeLeaf¸öÊıĞ¡ÓÚ4Ê±¿ìËÙ·µ»Ø-1±íÊ¾²»ĞèÒª¶ÔPageBtreeNodeÇĞ·Ö£¬
-PageBtreeNodeÊ²Ã´Ê±ºòÇĞ·ÖĞèÒª¿´pageSizeºÍË÷Òı×Ö¶ÎµÄ³¤¶È£¬
-²»¹ıPageBtreeNode×îÉÙÓĞ4¸öPageBtreeLeaf
+(****ä¸€ä¸ªPageBtreeNodeä¸‹é¢æŒ‚4ä¸ªPageBtreeLeafï¼Œ è¶…è¿‡4ä¸ªæ—¶åˆ‡åˆ†****)
+ä¸Šé¢è¿™å¥è¯ç†è§£é”™äº†ï¼Œå¦‚æœPageBtreeLeafä¸ªæ•°å°äº4æ—¶å¿«é€Ÿè¿”å›-1è¡¨ç¤ºä¸éœ€è¦å¯¹PageBtreeNodeåˆ‡åˆ†ï¼Œ
+PageBtreeNodeä»€ä¹ˆæ—¶å€™åˆ‡åˆ†éœ€è¦çœ‹pageSizeå’Œç´¢å¼•å­—æ®µçš„é•¿åº¦ï¼Œ
+ä¸è¿‡PageBtreeNodeæœ€å°‘æœ‰4ä¸ªPageBtreeLeaf
 
 
 
@@ -132,10 +132,10 @@ rowLength = 12
 [116, 104, 92, 80, 68, 56, 44, 32, 0, 0]
 
 splitPoint= 2
-´ÓÏÂ±êÎª2µÄÎ»ÖÃ¿ªÊ¼split(ÇĞ·Ö)£¬´ÓsplitPoint(°üº¬)µ½½áÊøµÄÔªËØ·ÅÔÚpage2
-´Ó¿ªÊ¼µ½splitPointµÄÔªËØÔÚpage1£¬
-splitPointÇ°ÃæµÄÔªËØµ¥¶À³é³öÀ´×öÎª¸¸½áµãµÄ·Ö¸ôkey£¬
-Ò²¾ÍÊÇËµÖĞ¼ä²ãµÄ½áµãÖĞµÄ·Ö¸ôkey£¬>=·Ö¸ôkeyµÄÔÚ×ó±ßµÄ×Ó½áµã£¬<·Ö¸ôkeyµÄÔÚÓÒ±ßµÄ×Ó½áµã
+ä»ä¸‹æ ‡ä¸º2çš„ä½ç½®å¼€å§‹split(åˆ‡åˆ†)ï¼Œä»splitPoint(åŒ…å«)åˆ°ç»“æŸçš„å…ƒç´ æ”¾åœ¨page2
+ä»å¼€å§‹åˆ°splitPointçš„å…ƒç´ åœ¨page1ï¼Œ
+splitPointå‰é¢çš„å…ƒç´ å•ç‹¬æŠ½å‡ºæ¥åšä¸ºçˆ¶ç»“ç‚¹çš„åˆ†éš”keyï¼Œ
+ä¹Ÿå°±æ˜¯è¯´ä¸­é—´å±‚çš„ç»“ç‚¹ä¸­çš„åˆ†éš”keyï¼Œ>=åˆ†éš”keyçš„åœ¨å·¦è¾¹çš„å­ç»“ç‚¹ï¼Œ<åˆ†éš”keyçš„åœ¨å³è¾¹çš„å­ç»“ç‚¹
 pivot = ( /* 7 */ '1000000007' )
 
 
@@ -150,10 +150,10 @@ page2 = 6
 [116, 104, 92, 80, 0]
 
 
-PageBtreeNode·Ö¸ôÇ°
+PageBtreeNodeåˆ†éš”å‰
 ---------------------------
 childPageIds = [74, 86, 84, 81, 79, 76, 73, 0, 0, 0, 0]
-rows(·Ö¸ôkey) = [( /* 37 */ '1000000037' ), ( /* 31 */ '1000000031' ), ( /* 25 */ '1000000025' ), ( /* 19 */ '1000000019' ), ( /* 13 */ '1000000013' ), ( /* 7 */ '1000000007' ), null, null, null, null]
+rows(åˆ†éš”key) = [( /* 37 */ '1000000037' ), ( /* 31 */ '1000000031' ), ( /* 25 */ '1000000025' ), ( /* 19 */ '1000000019' ), ( /* 13 */ '1000000013' ), ( /* 7 */ '1000000007' ), null, null, null, null]
 entryCount = 6
 splitPoint =3
 pivot = ( /* 25 */ '1000000025' )
@@ -163,7 +163,7 @@ pivot = ( /* 25 */ '1000000025' )
 PageBtreeNode p2
 ---------------------------
 childPageIds = [81, 79, 76, 73, 0, 0]
-rows(·Ö¸ôkey) = [( /* 19 */ '1000000019' ), ( /* 13 */ '1000000013' ), ( /* 7 */ '1000000007' ), null, null]
+rows(åˆ†éš”key) = [( /* 19 */ '1000000019' ), ( /* 13 */ '1000000013' ), ( /* 7 */ '1000000007' ), null, null]
 entryCount = 3
 ---------------------------
 pageId=89
@@ -171,13 +171,13 @@ pageId=89
 PageBtreeNode p1
 ---------------------------
 childPageIds = [74, 86, 84, 73, 73, 73]
-rows(·Ö¸ôkey) = [( /* 37 */ '1000000037' ), ( /* 31 */ '1000000031' ), ( /* 25 */ '1000000025' ), ( /* 7 */ '1000000007' ), ( /* 7 */ '1000000007' )]
+rows(åˆ†éš”key) = [( /* 37 */ '1000000037' ), ( /* 31 */ '1000000031' ), ( /* 25 */ '1000000025' ), ( /* 7 */ '1000000007' ), ( /* 7 */ '1000000007' )]
 entryCount = 2
 ---------------------------
-pageId=90 (ĞÂ·ÖÅäÒ»¸öpageId)
+pageId=90 (æ–°åˆ†é…ä¸€ä¸ªpageId)
 
-µÃµ½Ò»¸öĞÂµÄPageBtreeNodeºó£¬
-´ËPageBtreeNodeµÄchildPageIdsÊÇ[90, 89] rows(·Ö¸ôkey) = [( /* 25 */ '1000000025' )]
+å¾—åˆ°ä¸€ä¸ªæ–°çš„PageBtreeNodeåï¼Œ
+æ­¤PageBtreeNodeçš„childPageIdsæ˜¯[90, 89] rows(åˆ†éš”key) = [( /* 25 */ '1000000025' )]
 
 
 0 1 2 3 4 5 6 7 ... 116 117 118 119 120 121 122 123 124 125 126 127
@@ -221,12 +221,12 @@ keyOffsetPairLen = 3
 last - rowLength = 44 - 12 = 32
 start + keyOffsetPairLen = 32 + 3 = 35
 
-µ±Ç°ĞĞ: ( /* key:8 */ 8, 'abcdef1234')
+å½“å‰è¡Œ: ( /* key:8 */ 8, 'abcdef1234')
 
-Ò²¾ÍÊÇËµÏÈ¿´¿´µ±Ç°page(128×Ö½Ú)Èç¹ûÒª´æµ±Ç°ĞĞµÄ»°ÊÇ·ñÓĞ×ã¹»¿Õ¼ä´ækeyOffsetPair£¬
-ÒòÎªµ±Ç°ĞĞµÄ³¤¶ÈÊÇ12£¬pageÖĞÖ»Ê£ÏÂ44¸ö×Ö½ÚÁË(0µ½43)£¬ÔÙ´æ12¸ö¾ÍÖ»Ê£32¸ö¿ÉÓÃ£¬
-¶østartµ±Ç°ÒÑ¾­µ½32ÁË£¬ÔÙ´æµ±Ç°ĞĞµÄkeyOffsetPairµÄ»°Òª¶à¼Ó3£¬ÔòstartÎ»ÖÃÒÆµ½35£¬³¬¹ıÊ£Óà¿ÉÓÃµÄ32¸ö×Ö½ÚÁË¡£
-ËùÒÔ´ËÊ±Òª¶Ôµ±Ç°µÄPageDataLeaf½øĞĞÇĞ¸î¡£
+ä¹Ÿå°±æ˜¯è¯´å…ˆçœ‹çœ‹å½“å‰page(128å­—èŠ‚)å¦‚æœè¦å­˜å½“å‰è¡Œçš„è¯æ˜¯å¦æœ‰è¶³å¤Ÿç©ºé—´å­˜keyOffsetPairï¼Œ
+å› ä¸ºå½“å‰è¡Œçš„é•¿åº¦æ˜¯12ï¼Œpageä¸­åªå‰©ä¸‹44ä¸ªå­—èŠ‚äº†(0åˆ°43)ï¼Œå†å­˜12ä¸ªå°±åªå‰©32ä¸ªå¯ç”¨ï¼Œ
+è€Œstartå½“å‰å·²ç»åˆ°32äº†ï¼Œå†å­˜å½“å‰è¡Œçš„keyOffsetPairçš„è¯è¦å¤šåŠ 3ï¼Œåˆ™startä½ç½®ç§»åˆ°35ï¼Œè¶…è¿‡å‰©ä½™å¯ç”¨çš„32ä¸ªå­—èŠ‚äº†ã€‚
+æ‰€ä»¥æ­¤æ—¶è¦å¯¹å½“å‰çš„PageDataLeafè¿›è¡Œåˆ‡å‰²ã€‚
 
 		if (entryCount > 0 && last - rowLength < start + keyOffsetPairLen) {
             int x = findInsertionPoint(row.getKey()); //x = 7
@@ -242,12 +242,12 @@ start + keyOffsetPairLen = 32 + 3 = 35
                 // split in half would be:
                 // return entryCount / 2;
                 int third = entryCount / 3;
-                return x < third ? third : x >= 2 * third ? 2 * third : x; //·µ»Ø4 (´Órows[4]=( /* key:5 */ 5, 'abcdef1234')¿ªÊ¼ÇĞ¸î)
+                return x < third ? third : x >= 2 * third ? 2 * third : x; //è¿”å›4 (ä»rows[4]=( /* key:5 */ 5, 'abcdef1234')å¼€å§‹åˆ‡å‰²)
             }
             return x;
         }
 
-ĞÂµÄPageDataLeafµÄ
+æ–°çš„PageDataLeafçš„
 rows = [( /* key:5 */ 5, 'abcdef1234'), ( /* key:6 */ 6, 'abcdef1234'), ( /* key:7 */ 7, 'abcdef1234'), null, null, null]
 
 

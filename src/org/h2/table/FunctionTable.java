@@ -39,8 +39,8 @@ public class FunctionTable extends Table {
     private LocalResult cachedResult;
     private Value cachedValue;
 
-    //ÔÚorg.h2.command.Parser.parseValuesTable()ºÍorg.h2.command.Parser.readTableFilter(boolean)ÖĞÓĞµ÷ÓÃ
-    //functionExprºÍfunctionÊµ¼ÊÉÏÊÇÍ¬Ò»¸ö¶ÔÏó
+    //åœ¨org.h2.command.Parser.parseValuesTable()å’Œorg.h2.command.Parser.readTableFilter(boolean)ä¸­æœ‰è°ƒç”¨
+    //functionExprå’Œfunctionå®é™…ä¸Šæ˜¯åŒä¸€ä¸ªå¯¹è±¡
     public FunctionTable(Schema schema, Session session, Expression functionExpr, FunctionCall function) {
         super(schema, 0, function.getName(), false, true);
         this.functionExpr = functionExpr;

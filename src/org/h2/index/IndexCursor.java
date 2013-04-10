@@ -26,8 +26,8 @@ import org.h2.value.ValueNull;
  * The filter used to walk through an index. This class supports IN(..)
  * and IN(SELECT ...) optimizations.
  */
-//¸ù¾İwhereÌõ¼şÖĞµÄÖµÀ´ÅĞ¶Ïindex´ÓÄÄÀï¿ªÊ¼ÕÒ´ÓÄÄÀï½áÊø£¬
-//±ÈÈçwhere id>10 and id<20£¬¾ÍÒâÎ¶×ÅÒªÕÒ(10£¬20)Õâ¸öÇø¼äÄÚµÄ¼ÇÂ¼¡£
+//æ ¹æ®whereæ¡ä»¶ä¸­çš„å€¼æ¥åˆ¤æ–­indexä»å“ªé‡Œå¼€å§‹æ‰¾ä»å“ªé‡Œç»“æŸï¼Œ
+//æ¯”å¦‚where id>10 and id<20ï¼Œå°±æ„å‘³ç€è¦æ‰¾(10ï¼Œ20)è¿™ä¸ªåŒºé—´å†…çš„è®°å½•ã€‚
 public class IndexCursor implements Cursor {
 
     private Session session;
@@ -53,7 +53,7 @@ public class IndexCursor implements Cursor {
         this.index = index;
         this.table = index.getTable();
         Column[] columns = table.getColumns();
-        //°Ñ±íÖĞµÄËùÓĞ×Ö¶Î×Ö¶Î×öÒ»ÏÂ±ê¼Ç£¬Èç¹ûÊÇË÷Òı×Ö¶Î£¬ÄÇÃ´¶ÔÓ¦indexColumnsÊı×éÖĞµÄÔªËØ²»Îªnull
+        //æŠŠè¡¨ä¸­çš„æ‰€æœ‰å­—æ®µå­—æ®µåšä¸€ä¸‹æ ‡è®°ï¼Œå¦‚æœæ˜¯ç´¢å¼•å­—æ®µï¼Œé‚£ä¹ˆå¯¹åº”indexColumnsæ•°ç»„ä¸­çš„å…ƒç´ ä¸ä¸ºnull
         indexColumns = new IndexColumn[columns.length];
         IndexColumn[] idxCols = index.getIndexColumns();
         if (idxCols != null) {
@@ -83,7 +83,7 @@ public class IndexCursor implements Cursor {
         // don't use enhanced for loop to avoid creating objects
         for (int i = 0, size = indexConditions.size(); i < size; i++) {
             IndexCondition condition = indexConditions.get(i);
-            if (condition.isAlwaysFalse()) { //Èç: "select * from IndexCursorTest where 2>3
+            if (condition.isAlwaysFalse()) { //å¦‚: "select * from IndexCursorTest where 2>3
                 alwaysFalse = true;
                 break;
             }
@@ -131,9 +131,9 @@ public class IndexCursor implements Cursor {
                     inList = null;
                     inResult = null;
                 }
-                //µ±OPTIMIZE_IS_NULLÉèÎªfalseÊ±£¬
-                //¶ÔÓÚÕâÑùµÄSELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
-                //»¹ÊÇ»á·µ»ØJoinTest1µÄËùÓĞ¼ÇÂ¼£¬JoinTest2ÖĞµÄÈ«Îªnull
+                //å½“OPTIMIZE_IS_NULLè®¾ä¸ºfalseæ—¶ï¼Œ
+                //å¯¹äºè¿™æ ·çš„SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
+                //è¿˜æ˜¯ä¼šè¿”å›JoinTest1çš„æ‰€æœ‰è®°å½•ï¼ŒJoinTest2ä¸­çš„å…¨ä¸ºnull
                 if (!session.getDatabase().getSettings().optimizeIsNull) {
                     if (isStart && isEnd) {
                         if (v == ValueNull.INSTANCE) {
@@ -166,7 +166,7 @@ public class IndexCursor implements Cursor {
             return true;
         }
         IndexColumn idxCol = cols[0];
-        //idxCol.column == columnÕâ¸öÌõ¼ş¿Ï¶¨ÊÇÂú×ãµÄ£¬ÒòÎªÔÚ¸ù¾İwhere¹¹ÔìË÷ÒıÌõ¼şÊ±£¬Õâ¸ö×Ö¶Î¾ÍÊÇµÚÒ»¸öË÷Òı×Ö¶Î
+        //idxCol.column == columnè¿™ä¸ªæ¡ä»¶è‚¯å®šæ˜¯æ»¡è¶³çš„ï¼Œå› ä¸ºåœ¨æ ¹æ®whereæ„é€ ç´¢å¼•æ¡ä»¶æ—¶ï¼Œè¿™ä¸ªå­—æ®µå°±æ˜¯ç¬¬ä¸€ä¸ªç´¢å¼•å­—æ®µ
         return idxCol == null || idxCol.column == column;
     }
 

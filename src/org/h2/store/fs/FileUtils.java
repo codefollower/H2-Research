@@ -133,7 +133,7 @@ public class FileUtils {
      * @param path the directory
      * @return the list of fully qualified file names
      */
-    public static List<String> newDirectoryStream(String path) { //ÎÄ¼şºÍÄ¿Â¼Ãû¶¼»áÁĞ³öÀ´
+    public static List<String> newDirectoryStream(String path) { //æ–‡ä»¶å’Œç›®å½•åéƒ½ä¼šåˆ—å‡ºæ¥
         List<FilePath> list = FilePath.get(path).newDirectoryStream();
         int len = list.size();
         List<String> result = New.arrayList(len);

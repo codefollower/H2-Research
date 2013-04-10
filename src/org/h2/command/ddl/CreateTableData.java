@@ -15,7 +15,7 @@ import org.h2.util.New;
 /**
  * The data required to create a table.
  */
-//×Ü¹²12¸ö×Ö¶Î£¬¶¼ÊÇÄ¬ÈÏÖµ(null¡¢false¡¢0µÈ)£¬Ö»ÓĞcolumns×Ö¶Î²»Îªnull
+//æ€»å…±12ä¸ªå­—æ®µï¼Œéƒ½æ˜¯é»˜è®¤å€¼(nullã€falseã€0ç­‰)ï¼Œåªæœ‰columnså­—æ®µä¸ä¸ºnull
 public class CreateTableData {
 
     /**
@@ -78,7 +78,7 @@ public class CreateTableData {
      */
     public boolean isHidden;
 
-	public String toString() { // ÎÒ¼ÓÉÏµÄ
+	public String toString() { // æˆ‘åŠ ä¸Šçš„
 		return "CreateTableData[id=" + id + ", tableName=" + tableName
 				+ ", create=" + create + ", persistIndexes=" + persistIndexes
 				+ ", persistData=" + persistData + "]";

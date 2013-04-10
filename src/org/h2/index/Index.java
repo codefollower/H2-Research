@@ -26,14 +26,14 @@ public interface Index extends SchemaObject {
      *
      * @return the plan
      */
-    String getPlanSQL(); //ÊÇ"Ä£Ê½Ãû.Ë÷ÒıÃû"£¬¸úgetCreateSQL()²»Ò»Ñù£¬getCreateSQL()ÊÇÍêÕûµÄ"CREATE INDEX"
+    String getPlanSQL(); //æ˜¯"æ¨¡å¼å.ç´¢å¼•å"ï¼Œè·ŸgetCreateSQL()ä¸ä¸€æ ·ï¼ŒgetCreateSQL()æ˜¯å®Œæ•´çš„"CREATE INDEX"
 
     /**
      * Close this index.
      *
      * @param session the session used to write data
      */
-    void close(Session session); //ÔÚorg.h2.store.PageStore.recover()ÖĞµ÷ÓÃÒ»´Î£¬È»ºóÔÚ¹Ø±ÕÊı¾İ¿âÊ±ÓÖµ÷ÓÃÒ»´Î
+    void close(Session session); //åœ¨org.h2.store.PageStore.recover()ä¸­è°ƒç”¨ä¸€æ¬¡ï¼Œç„¶ååœ¨å…³é—­æ•°æ®åº“æ—¶åˆè°ƒç”¨ä¸€æ¬¡
 
     /**
      * Add a row to the index.
@@ -49,7 +49,7 @@ public interface Index extends SchemaObject {
      * @param session the session
      * @param row the row
      */
-    void remove(Session session, Row row); //É¾³ıµ¥ĞĞ
+    void remove(Session session, Row row); //åˆ é™¤å•è¡Œ
 
     /**
      * Find a row or a list of rows and create a cursor to iterate over the result.
@@ -89,14 +89,14 @@ public interface Index extends SchemaObject {
      *
      * @param session the session
      */
-    void remove(Session session); //É¾³ıĞĞ²¢ÊÍ·Åpage
+    void remove(Session session); //åˆ é™¤è¡Œå¹¶é‡Šæ”¾page
 
     /**
      * Remove all rows from the index.
      *
      * @param session the session
      */
-    void truncate(Session session); //²»ÊÍ·Åpage£¬Ö»É¾³ıĞĞ
+    void truncate(Session session); //ä¸é‡Šæ”¾pageï¼Œåªåˆ é™¤è¡Œ
 
     /**
      * Check if the index can directly look up the lowest or highest value of a
@@ -111,7 +111,7 @@ public interface Index extends SchemaObject {
      *
      * @return true if it can
      */
-    boolean canFindNext(); //Ö»ÓĞPageBtreeIndex·µ»Øtrue
+    boolean canFindNext(); //åªæœ‰PageBtreeIndexè¿”å›true
 
     /**
      * Find a row or a list of rows that is larger and create a cursor to
@@ -122,7 +122,7 @@ public interface Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor
      */
-    Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //Ö»ÓĞorg.h2.index.PageBtreeIndexÊµÏÖÁË
+    Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //åªæœ‰org.h2.index.PageBtreeIndexå®ç°äº†
 
     /**
      * Find the first (or last) value of this index. The cursor returned is
@@ -133,7 +133,7 @@ public interface Index extends SchemaObject {
      *            value should be returned
      * @return a cursor (never null)
      */
-    Cursor findFirstOrLast(Session session, boolean first); //ÓÃÓÚ¿ìÊømin¡¢max¾ÛºÏ²éÑ¯
+    Cursor findFirstOrLast(Session session, boolean first); //ç”¨äºå¿«æŸminã€maxèšåˆæŸ¥è¯¢
 
     /**
      * Check if the index needs to be rebuilt.
@@ -141,7 +141,7 @@ public interface Index extends SchemaObject {
      *
      * @return true if a rebuild is required.
      */
-    boolean needRebuild(); //¹¹½¨Ë÷ÒıÊ±µ÷ÓÃ
+    boolean needRebuild(); //æ„å»ºç´¢å¼•æ—¶è°ƒç”¨
 
     /**
      * Get the row count of this table, for the given session.
@@ -172,7 +172,7 @@ public interface Index extends SchemaObject {
      * @param compare the second row
      * @return 0 if both rows are equal, -1 if the first row is smaller, otherwise 1
      */
-    int compareRows(SearchRow rowData, SearchRow compare); //Ö»±È½ÏË÷Òı×Ö¶Î£¬²¢²»Ò»¶¨ÊÇËùÓĞ×Ö¶Î
+    int compareRows(SearchRow rowData, SearchRow compare); //åªæ¯”è¾ƒç´¢å¼•å­—æ®µï¼Œå¹¶ä¸ä¸€å®šæ˜¯æ‰€æœ‰å­—æ®µ
 
     /**
      * Get the index of a column in the list of index columns
@@ -180,7 +180,7 @@ public interface Index extends SchemaObject {
      * @param col the column
      * @return the index (0 meaning first column)
      */
-    int getColumnIndex(Column col); //²¢²»ÊÇ·µ»ØÁĞid£¬¶øÊÇË÷Òı×Ö¶ÎÁĞ±íÖĞµÄÎ»ÖÃ
+    int getColumnIndex(Column col); //å¹¶ä¸æ˜¯è¿”å›åˆ—idï¼Œè€Œæ˜¯ç´¢å¼•å­—æ®µåˆ—è¡¨ä¸­çš„ä½ç½®
 
     /**
      * Get the indexed columns as index columns (with ordering information).
@@ -217,8 +217,8 @@ public interface Index extends SchemaObject {
      * @param operation the operation type
      * @param row the row
      */
-    //Èç¹ûÊ¹ÓÃÁËmultiVersion£¬ÔÚÌá½»Ê±É¾³ırow
-    void commit(int operation, Row row); //PageDataIndex¡¢ScanIndex¡¢MultiVersionIndexÓĞÊµÏÖ£¬ÆäËû×ÓÀàÊ²Ã´¶¼Ã»×ö
+    //å¦‚æœä½¿ç”¨äº†multiVersionï¼Œåœ¨æäº¤æ—¶åˆ é™¤row
+    void commit(int operation, Row row); //PageDataIndexã€ScanIndexã€MultiVersionIndexæœ‰å®ç°ï¼Œå…¶ä»–å­ç±»ä»€ä¹ˆéƒ½æ²¡åš
 
     /**
      * Get the row with the given key.
@@ -227,23 +227,23 @@ public interface Index extends SchemaObject {
      * @param key the unique key
      * @return the row
      */
-    Row getRow(Session session, long key); //°´key»ñÈ¡Ö÷±íµÄÍêÕû¼ÇÂ¼
+    Row getRow(Session session, long key); //æŒ‰keyè·å–ä¸»è¡¨çš„å®Œæ•´è®°å½•
 
     /**
      * Does this index support lookup by row id?
      *
      * @return true if it does
      */
-    //°´_ROWID_ÅÅĞòÊ±£¬Ö±½ÓÊ¹ÓÃMVPrimaryIndex¡¢PageDataIndex
-    boolean isRowIdIndex(); //Ö»ÓĞorg.h2.mvstore.db.MVPrimaryIndexºÍorg.h2.index.PageDataIndex·µ»Øtrue
+    //æŒ‰_ROWID_æ’åºæ—¶ï¼Œç›´æ¥ä½¿ç”¨MVPrimaryIndexã€PageDataIndex
+    boolean isRowIdIndex(); //åªæœ‰org.h2.mvstore.db.MVPrimaryIndexå’Œorg.h2.index.PageDataIndexè¿”å›true
 
     /**
      * Can this index iterate over all rows?
      *
      * @return true if it can
      */
-    //Ö»¿´µ½org.h2.store.PageStore.compact(int)ÔÚÓÃ
-    boolean canScan(); //HashIndex¡¢NonUniqueHashIndex¡¢FunctionIndex·µ»Øfalse
+    //åªçœ‹åˆ°org.h2.store.PageStore.compact(int)åœ¨ç”¨
+    boolean canScan(); //HashIndexã€NonUniqueHashIndexã€FunctionIndexè¿”å›false
 
     /**
      * Enable or disable the 'sorted insert' optimizations (rows are inserted in
@@ -252,9 +252,9 @@ public interface Index extends SchemaObject {
      *
      * @param sortedInsertMode the new value
      */
-    //Ö»ÔÚorg.h2.index.PageDataLeafÖĞÓÃµ½£¬
-    //Èçinsert into IndexTestTable(id, name, address) SORTED values(...)
-    //¼ûorg.h2.index.PageDataLeaf.addRowTry(Row)£¬insert¼ÓÁËSORTEDºó£¬»ñÈ¡ÇĞ»»µãµÄ·½Ê½²»Ò»Ñù¡£
-    void setSortedInsertMode(boolean sortedInsertMode); //PageIndexÓĞ¸²¸Ç´Ë·½·¨
+    //åªåœ¨org.h2.index.PageDataLeafä¸­ç”¨åˆ°ï¼Œ
+    //å¦‚insert into IndexTestTable(id, name, address) SORTED values(...)
+    //è§org.h2.index.PageDataLeaf.addRowTry(Row)ï¼ŒinsertåŠ äº†SORTEDåï¼Œè·å–åˆ‡æ¢ç‚¹çš„æ–¹å¼ä¸ä¸€æ ·ã€‚
+    void setSortedInsertMode(boolean sortedInsertMode); //PageIndexæœ‰è¦†ç›–æ­¤æ–¹æ³•
 
 }

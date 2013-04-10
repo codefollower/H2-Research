@@ -15,38 +15,38 @@ public class ConnectionInfoTest {
 		//prop.setProperty("password", "");
 		prop.put("password", new char[]{});
 
-		prop.setProperty("not_exists", "haha"); //Ã»ÓĞÒì³£
+		prop.setProperty("not_exists", "haha"); //æ²¡æœ‰å¼‚å¸¸
 
 		//System.setProperty("h2.urlMap", "E:/H2/my-h2/my-h2-src/my/test/h2.urlMap.properties");
 
 		prop.setProperty("max_compact_time", "300");
 		
 		prop.setProperty("PASSWORD_HASH", "true");
-		prop.setProperty("CIPHER", "AES"); //AES¡¢XTEA¡¢FOG
+		prop.setProperty("CIPHER", "AES"); //AESã€XTEAã€FOG
 		
-		//Èç¹ûÅäÖÃÁËCIPHER£¬ÔòÃØÃÜ°üº¬Á½²¿·İ£¬ÓÃ¿Õ¸ñ·Ö¿ª£¬µÚÒ»²¿·İÊÇfilePassword£¬µÚ¶ş²¿·İÊÇÕæÊµÃÜÂë
-		//²¢ÇÒÊ¹ÓÃ16½øÖÆ×Ö·û£¬×Ö·û¸öÊıÊÇÅ¼Êı£¬Èç¹ûPASSWORD_HASH²ÎÊıÊÇtrueÄÇÃ´²»ÔÙ½øĞĞSHA256
+		//å¦‚æœé…ç½®äº†CIPHERï¼Œåˆ™ç§˜å¯†åŒ…å«ä¸¤éƒ¨ä»½ï¼Œç”¨ç©ºæ ¼åˆ†å¼€ï¼Œç¬¬ä¸€éƒ¨ä»½æ˜¯filePasswordï¼Œç¬¬äºŒéƒ¨ä»½æ˜¯çœŸå®å¯†ç 
+		//å¹¶ä¸”ä½¿ç”¨16è¿›åˆ¶å­—ç¬¦ï¼Œå­—ç¬¦ä¸ªæ•°æ˜¯å¶æ•°ï¼Œå¦‚æœPASSWORD_HASHå‚æ•°æ˜¯trueé‚£ä¹ˆä¸å†è¿›è¡ŒSHA256
 		
-		//abcÊÇ»ùÊı
+		//abcæ˜¯åŸºæ•°
 		//org.h2.message.DbException: Hexadecimal string with odd number of characters: "abc" [90003-169]
 		//prop.setProperty("password", "abc 123");
 		
-		//×Ö·û"g"²»ÊÇ16½øÖÆ×Ö·û
+		//å­—ç¬¦"g"ä¸æ˜¯16è¿›åˆ¶å­—ç¬¦
 		//org.h2.message.DbException: Hexadecimal string contains non-hex character: "abcg" [90004-169]
 		//prop.setProperty("password", "abcg 123");
 		
-		//ÕıÈ·µÄ
+		//æ­£ç¡®çš„
 		prop.setProperty("password", "abcd 1234");
 
 		String url = "my.url";
 		url = "jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false";
 		url = "jdbc:h2:test";
 		
-		//ÓĞÒì³£: org.h2.message.DbException: Unsupported connection setting "NOT_EXISTS" [90113-169]
+		//æœ‰å¼‚å¸¸: org.h2.message.DbException: Unsupported connection setting "NOT_EXISTS" [90113-169]
 		//url = "jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false;not_exists=haha";
 		
-		//ÓĞÒì³£: org.h2.message.DbException: Duplicate property "USER" [90066-169]
-		//Èç¹ûÖµÏàÍ¬¾Í²»»á±¨´í
+		//æœ‰å¼‚å¸¸: org.h2.message.DbException: Duplicate property "USER" [90066-169]
+		//å¦‚æœå€¼ç›¸åŒå°±ä¸ä¼šæŠ¥é”™
 		//url = "jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false;user=sa2";
 		ConnectionInfo info = new ConnectionInfo(url, prop);
 		

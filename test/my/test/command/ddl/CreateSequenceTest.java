@@ -10,7 +10,7 @@ public class CreateSequenceTest extends TestBase {
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("DROP SEQUENCE IF EXISTS myseq");
-		//º”¡ÀBELONGS_TO_TABLEæÕ…æ≤ªµÙ¡À
+		//Âä†‰∫ÜBELONGS_TO_TABLEÂ∞±Âà†‰∏çÊéâ‰∫Ü
 		//stmt.executeUpdate("CREATE SEQUENCE IF NOT EXISTS myseq START WITH 1000 INCREMENT BY 1 CACHE 20 BELONGS_TO_TABLE");
 		stmt.executeUpdate("CREATE SEQUENCE IF NOT EXISTS myseq START WITH 1000 INCREMENT BY 1 CACHE 20");
 

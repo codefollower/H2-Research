@@ -11,21 +11,21 @@ public class TcpServerTest extends TestBase {
 
 	@Override
 	public void startInternal() throws Exception {
-		//½¨Á¢ÁËÒ»¸ö×Ô¶¨ÒåµÄº¯ÊıSTOP_SERVER£¬
-        //Í¨¹ıÀàËÆÕâÑùCALL STOP_SERVER(9092, '', 0)¾ÍÄÜ¹Ø±ÕH2Êı¾İ¿â
-        //µ÷ÓÃµÄÊÇorg.h2.server.TcpServer.stopServer(int, String, int)·½·¨
-        //²»¹ıÒòÎªº¯ÊıSTOP_SERVERÊÇÔÚÄÚ´æÊı¾İ¿âµÄ£¬ËùÒÔÍ¨¹ıTCPÔ¶³Ìµ÷ÓÃÊÇ²»ĞĞµÄ£¬
-        //ÒªÔÚClient¶ËÊÖ¹¤ÔÙ½¨Á¢Í¬ÑùµÄº¯Êı£¬¼û: org.h2.server.TcpServer.initManagementDb()
+		//å»ºç«‹äº†ä¸€ä¸ªè‡ªå®šä¹‰çš„å‡½æ•°STOP_SERVERï¼Œ
+        //é€šè¿‡ç±»ä¼¼è¿™æ ·CALL STOP_SERVER(9092, '', 0)å°±èƒ½å…³é—­H2æ•°æ®åº“
+        //è°ƒç”¨çš„æ˜¯org.h2.server.TcpServer.stopServer(int, String, int)æ–¹æ³•
+        //ä¸è¿‡å› ä¸ºå‡½æ•°STOP_SERVERæ˜¯åœ¨å†…å­˜æ•°æ®åº“çš„ï¼Œæ‰€ä»¥é€šè¿‡TCPè¿œç¨‹è°ƒç”¨æ˜¯ä¸è¡Œçš„ï¼Œ
+        //è¦åœ¨Clientç«¯æ‰‹å·¥å†å»ºç«‹åŒæ ·çš„å‡½æ•°ï¼Œè§: org.h2.server.TcpServer.initManagementDb()
 		stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS STOP_SERVER FOR \"" //
 				+ TcpServer.class.getName() + ".stopServer\"");
 
 		//SHUTDOWN_NORMAL = 0;
 		//SHUTDOWN_FORCE = 1;
 
-		//Õı³£¹Ø±ÕH2Êı¾İ¿â
+		//æ­£å¸¸å…³é—­H2æ•°æ®åº“
 		stmt.executeUpdate("CALL STOP_SERVER(9092, '', 0)");
 
-		//Ç¿ÖÆ¹Ø±ÕH2Êı¾İ¿â
+		//å¼ºåˆ¶å…³é—­H2æ•°æ®åº“
 		//stmt.executeUpdate("CALL STOP_SERVER(9092, '', 1)");
 	}
 

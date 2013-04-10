@@ -420,12 +420,12 @@ public abstract class Query extends Prepared {
                 }
             }
             
-            //ÔÚselectÖĞ¼ÓdistinctÊ±distinct±äÁ¿Îªtrue
-        	//´ËÊ±Èç¹ûorder by×Ó¾äÖĞµÄ×Ö¶ÎÔÚselect×Ö¶ÎÁĞ±íÖĞ²»´æÔÚ£¬ÄÇÃ´¾ÍÈÏÎªÊÇ´íÎó
-        	//±ÈÈçselect distinct name from mytable order by id descÊÇ´íµÄ
-        	//´íÎóÌáÊ¾:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
-        	//ÕâÑù¾ÍÃ»ÎÊÌâselect name from mytable order by id desc
-            //»á×Ô¶¯¼Óorder byÖĞµÄ×Ö¶Îµ½select×Ö¶ÎÁĞ±íÖĞ
+            //åœ¨selectä¸­åŠ distinctæ—¶distinctå˜é‡ä¸ºtrue
+        	//æ­¤æ—¶å¦‚æœorder byå­å¥ä¸­çš„å­—æ®µåœ¨selectå­—æ®µåˆ—è¡¨ä¸­ä¸å­˜åœ¨ï¼Œé‚£ä¹ˆå°±è®¤ä¸ºæ˜¯é”™è¯¯
+        	//æ¯”å¦‚select distinct name from mytable order by id descæ˜¯é”™çš„
+        	//é”™è¯¯æç¤º:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
+        	//è¿™æ ·å°±æ²¡é—®é¢˜select name from mytable order by id desc
+            //ä¼šè‡ªåŠ¨åŠ order byä¸­çš„å­—æ®µåˆ°selectå­—æ®µåˆ—è¡¨ä¸­
             if (!isAlias) {
                 if (mustBeInResult) {
                     throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT, e.getSQL());
@@ -446,8 +446,8 @@ public abstract class Query extends Prepared {
      * @param expressionCount the number of columns in the query
      * @return the {@link SortOrder} object
      */
-    //order by×Ö¶ÎÁĞ±íÔÚselect×Ö¶ÎÁĞ±íÖĞµÄÎ»ÖÃË÷Òı(´Ó0¿ªÊ¼¼ÆÊı)ºÍorder by×Ö¶ÎÅÅĞòÀàĞÍÉú³ÉÁ½¸öÊı×é:indexes¡¢sortTypes
-    //µÃµ½Ò»¸ö×ÛºÏµÄSortOrderÊµÀı
+    //order byå­—æ®µåˆ—è¡¨åœ¨selectå­—æ®µåˆ—è¡¨ä¸­çš„ä½ç½®ç´¢å¼•(ä»0å¼€å§‹è®¡æ•°)å’Œorder byå­—æ®µæ’åºç±»å‹ç”Ÿæˆä¸¤ä¸ªæ•°ç»„:indexesã€sortTypes
+    //å¾—åˆ°ä¸€ä¸ªç»¼åˆçš„SortOrderå®ä¾‹
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];

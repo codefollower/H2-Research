@@ -20,7 +20,7 @@ import org.h2.util.BitField;
  */
 public class PageFreeList extends Page {
 
-    private static final int DATA_START = 3; //Í·Èı¸ö×Ö½Ú
+    private static final int DATA_START = 3; //å¤´ä¸‰ä¸ªå­—èŠ‚
 
     private final PageStore store;
     private final BitField used;
@@ -32,12 +32,12 @@ public class PageFreeList extends Page {
         // kept in cache, and array list in page store
         setPos(pageId);
         this.store = store;
-        //Ğ´PageFreeListÕâ¸öPageµ½ÎÄ¼şÊ±£¬µÚ1¸ö×Ö½ÚÊÇpage type£¬µÚ2ºÍ3¸ö×Ö½ÚÊÇchecksum£¬ËùÒÔÊµ¼ÊµÄpageSizeÒª¼õ3£¬
-        //ÎªÊ²µÚÒª³ËÒÔ8ÄØ£¬ÒòÎª1¸ö×Ö½ÚÕ¼8Î»£¬
-        //BitField(pageCount)Àï»á³ıÒÔ8£¬ËùÒÔBitFieldÊµ¼Ê·ÖÅäÁËpageCount¸ölong
+        //å†™PageFreeListè¿™ä¸ªPageåˆ°æ–‡ä»¶æ—¶ï¼Œç¬¬1ä¸ªå­—èŠ‚æ˜¯page typeï¼Œç¬¬2å’Œ3ä¸ªå­—èŠ‚æ˜¯checksumï¼Œæ‰€ä»¥å®é™…çš„pageSizeè¦å‡3ï¼Œ
+        //ä¸ºä»€ç¬¬è¦ä¹˜ä»¥8å‘¢ï¼Œå› ä¸º1ä¸ªå­—èŠ‚å 8ä½ï¼Œ
+        //BitField(pageCount)é‡Œä¼šé™¤ä»¥8ï¼Œæ‰€ä»¥BitFieldå®é™…åˆ†é…äº†pageCountä¸ªlong
         pageCount = (store.getPageSize() - DATA_START) * 8;
         used = new BitField(pageCount);
-        used.set(0); //°ÑBitFieldÖĞµÄµÚÒ»¸ölongµÄµÚ1Î»ÖÃ1£¬Ïàµ±ÓÚµÚ1Î»±»Õ¼ÓÃ
+        used.set(0); //æŠŠBitFieldä¸­çš„ç¬¬ä¸€ä¸ªlongçš„ç¬¬1ä½ç½®1ï¼Œç›¸å½“äºç¬¬1ä½è¢«å ç”¨
     }
 
     /**
@@ -189,7 +189,7 @@ public class PageFreeList extends Page {
      * @return the number of pages
      */
     public static int getPagesAddressed(int pageSize) {
-        return (pageSize - DATA_START) * 8; //±ÈÈçÒ»¸öpageµÄsizeÊÇ2K£¬ÄÇÃ´¼õÈ¥Í·Èı¸ö×Ö½Úºó¾ÍÊÇÊ£ÏÂµÄ×Ö½ÚÊı£¬ÔÙ³ËÒÔ8ÒÔ±íÊ¾bitÎ»Êı
+        return (pageSize - DATA_START) * 8; //æ¯”å¦‚ä¸€ä¸ªpageçš„sizeæ˜¯2Kï¼Œé‚£ä¹ˆå‡å»å¤´ä¸‰ä¸ªå­—èŠ‚åå°±æ˜¯å‰©ä¸‹çš„å­—èŠ‚æ•°ï¼Œå†ä¹˜ä»¥8ä»¥è¡¨ç¤ºbitä½æ•°
     }
 
     /**

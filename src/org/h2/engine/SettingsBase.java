@@ -16,7 +16,7 @@ import org.h2.util.Utils;
  */
 public class SettingsBase {
 
-    private final HashMap<String, String> settings; //存放的是没有h2前缀的默认名称，如DEFAULT_TABLE_ENGINE
+    private final HashMap<String, String> settings; //瀛樻斁鐨勬槸娌℃湁h2鍓嶇紑鐨勯粯璁ゅ悕绉帮紝濡侱EFAULT_TABLE_ENGINE
 
     protected SettingsBase(HashMap<String, String> s) {
         this.settings = s;
@@ -64,7 +64,7 @@ public class SettingsBase {
     protected String get(String key, String defaultValue) {
         StringBuilder buff = new StringBuilder("h2.");
         boolean nextUpper = false;
-        for (char c : key.toCharArray()) { //如ALIAS_COLUMN_NAME转成h2.aliasColumnName
+        for (char c : key.toCharArray()) { //濡侫LIAS_COLUMN_NAME杞垚h2.aliasColumnName
             if (c == '_') {
                 nextUpper = true;
             } else {

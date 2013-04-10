@@ -34,22 +34,22 @@ public class SelectUnionTest extends TestBase {
 		stmt.executeUpdate("insert into SelectUnionTest2(id, name, b) values(3, 'a3', false)");
 		stmt.executeUpdate("insert into SelectUnionTest2(id, name, b) values(3, 'b3', true)");
 
-		//²éÑ¯ÁĞ¸öÊı±ØĞëÒ»Ñù
+		//æŸ¥è¯¢åˆ—ä¸ªæ•°å¿…é¡»ä¸€æ ·
 		sql = "select id from SelectUnionTest1 UNION select name, b from SelectUnionTest2 order by id";
 
-		//²éÑ¯ÁĞÃû±ØĞëÒ»Ñù
+		//æŸ¥è¯¢åˆ—åå¿…é¡»ä¸€æ ·
 		sql = "select id from SelectUnionTest1 UNION select name from SelectUnionTest2 order by id";
 
 		sql = "select id from SelectUnionTest1 UNION select id from SelectUnionTest2 order by id";
 
-		//ÕâÁ½ÌõÊÇµÈ¼ÛµÄ£¬Ã»ÓĞÖØ¸´
+		//è¿™ä¸¤æ¡æ˜¯ç­‰ä»·çš„ï¼Œæ²¡æœ‰é‡å¤
 		sql = "select * from SelectUnionTest1 UNION select * from SelectUnionTest2 order by id";
 		sql = "select * from SelectUnionTest1 UNION DISTINCT select * from SelectUnionTest2 order by id";
 
-		//ÓĞÖØ¸´
+		//æœ‰é‡å¤
 		sql = "select * from SelectUnionTest1 UNION ALL select * from SelectUnionTest2 order by id";
 
-		//ÕâÁ½ÌõÊÇµÈ¼ÛµÄ£¬½á¹û¼¯ÓĞÖØ¸´
+		//è¿™ä¸¤æ¡æ˜¯ç­‰ä»·çš„ï¼Œç»“æœé›†æœ‰é‡å¤
 		sql = "select * from SelectUnionTest1 EXCEPT select * from SelectUnionTest2 order by id";
 		sql = "select * from SelectUnionTest1 MINUS select * from SelectUnionTest2 order by id";
 		

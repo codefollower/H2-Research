@@ -1,36 +1,36 @@
-Ïà¹Ø´úÂë:
+ç›¸å…³ä»£ç :
 
 1. org.h2.command.Parser.parseCreateTrigger(boolean)
-¸ºÔğ½âÎö´¥·¢Æ÷µÄSQLÓï·¨
+è´Ÿè´£è§£æè§¦å‘å™¨çš„SQLè¯­æ³•
 
 
 2. org.h2.command.ddl.CreateTrigger
-½âÎö´¥·¢Æ÷µÄSQLÓï·¨Ê±µÃµ½µÄÊı¾İ·ÅÔÚCreateTrigger¶ÔÏóÖĞ£¬
-µ÷ÓÃorg.h2.command.ddl.CreateTrigger.update()»áÉú³ÉÄÚ²¿µÄorg.h2.schema.TriggerObjectÊµÀı£¬
-²¢°Ñ´ËTriggerObjectÊµÀıµÄÒ»Ğ©ĞÅÏ¢·Åµ½DatabaseµÄMeta±í¡¢Schema¶ÔÏó¡¢Table¶ÔÏó¡£
+è§£æè§¦å‘å™¨çš„SQLè¯­æ³•æ—¶å¾—åˆ°çš„æ•°æ®æ”¾åœ¨CreateTriggerå¯¹è±¡ä¸­ï¼Œ
+è°ƒç”¨org.h2.command.ddl.CreateTrigger.update()ä¼šç”Ÿæˆå†…éƒ¨çš„org.h2.schema.TriggerObjectå®ä¾‹ï¼Œ
+å¹¶æŠŠæ­¤TriggerObjectå®ä¾‹çš„ä¸€äº›ä¿¡æ¯æ”¾åˆ°Databaseçš„Metaè¡¨ã€Schemaå¯¹è±¡ã€Tableå¯¹è±¡ã€‚
 
 3. org.h2.schema.TriggerObject
-ÄÚº¬org.h2.api.Trigger½Ó¿ÚµÄÊµÏÖÀàµÄÊµÀı£¬ÒÔ¼°CreateTrigger¶ÔÏó´«½øÀ´µÄÒ»Ğ©²ÎÊı£¬
-µ±½øĞĞCRUD²Ù×÷Ê±»á´¥·¢:
+å†…å«org.h2.api.Triggeræ¥å£çš„å®ç°ç±»çš„å®ä¾‹ï¼Œä»¥åŠCreateTriggerå¯¹è±¡ä¼ è¿›æ¥çš„ä¸€äº›å‚æ•°ï¼Œ
+å½“è¿›è¡ŒCRUDæ“ä½œæ—¶ä¼šè§¦å‘:
 	org.h2.schema.TriggerObject.fire(Session, int, boolean)
-		´Ë·½·¨¶Ô²»¼ÓFOR EACH ROWµÄ´¥·¢Æ÷ÓĞĞ§
+		æ­¤æ–¹æ³•å¯¹ä¸åŠ FOR EACH ROWçš„è§¦å‘å™¨æœ‰æ•ˆ
 	org.h2.schema.TriggerObject.fireRow(Session, Row, Row, boolean, boolean)
-		´Ë·½·¨Ö»¶Ô¼ÓFOR EACH ROWµÄ´¥·¢Æ÷ÓĞĞ§
+		æ­¤æ–¹æ³•åªå¯¹åŠ FOR EACH ROWçš„è§¦å‘å™¨æœ‰æ•ˆ
 
 
-4. org.h2.table.TableÀàÖĞµÄÒ»Ğ©fire·½·¨
+4. org.h2.table.Tableç±»ä¸­çš„ä¸€äº›fireæ–¹æ³•
 
 org.h2.table.Table.fire(Session, int, boolean)
-	´Ë·½·¨¶Ô²»¼ÓFOR EACH ROWµÄ´¥·¢Æ÷ÓĞĞ§
-	ÒòÎªÒ»Ìõinsert sql¿ÉÒÔÔö¼Ó¶àĞĞ¼ÇÂ¼£¬´Ë·½·¨Ïàµ±ÓÚÓ¦ÓÃÓÚÕû¸öinsert sqlµÄ£¬
-	¶øÏÂÃæÈı¸ö·½·¨Ó¦ÓÃÓÚinsert sqlÖĞµÄÃ¿ĞĞ¼ÇÂ¼£¬
-	¾ßÌå¼ûorg.h2.command.dml.Insert.insertRows()
-	ÔÚorg.h2.command.dml.Insert.insertRows()µÄÇ°ºóµ÷ÓÃfire£¬
-	¶øÔÚorg.h2.command.dml.Insert.insertRows()ÄÚ²¿µÄforÑ­»·ÖĞµ÷ÓÃÏÂÃæÈı¸ö·½·¨ÖĞµÄÇ°Á½¸ö
-	org.h2.table.Table.fireRow()Ö»ÓÃÓÚdeleteºÍupdate
+	æ­¤æ–¹æ³•å¯¹ä¸åŠ FOR EACH ROWçš„è§¦å‘å™¨æœ‰æ•ˆ
+	å› ä¸ºä¸€æ¡insert sqlå¯ä»¥å¢åŠ å¤šè¡Œè®°å½•ï¼Œæ­¤æ–¹æ³•ç›¸å½“äºåº”ç”¨äºæ•´ä¸ªinsert sqlçš„ï¼Œ
+	è€Œä¸‹é¢ä¸‰ä¸ªæ–¹æ³•åº”ç”¨äºinsert sqlä¸­çš„æ¯è¡Œè®°å½•ï¼Œ
+	å…·ä½“è§org.h2.command.dml.Insert.insertRows()
+	åœ¨org.h2.command.dml.Insert.insertRows()çš„å‰åè°ƒç”¨fireï¼Œ
+	è€Œåœ¨org.h2.command.dml.Insert.insertRows()å†…éƒ¨çš„forå¾ªç¯ä¸­è°ƒç”¨ä¸‹é¢ä¸‰ä¸ªæ–¹æ³•ä¸­çš„å‰ä¸¤ä¸ª
+	org.h2.table.Table.fireRow()åªç”¨äºdeleteå’Œupdate
 	
 org.h2.table.Table.fireBeforeRow(Session, Row, Row)
 org.h2.table.Table.fireAfterRow(Session, Row, Row, boolean)
 org.h2.table.Table.fireRow()
-	ÕâÈı¸ö·½·¨Ö»¶Ô¼ÓFOR EACH ROWµÄ´¥·¢Æ÷ÓĞĞ§
+	è¿™ä¸‰ä¸ªæ–¹æ³•åªå¯¹åŠ FOR EACH ROWçš„è§¦å‘å™¨æœ‰æ•ˆ
 

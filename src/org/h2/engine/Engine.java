@@ -25,7 +25,7 @@ import org.h2.util.Utils;
  * It is also responsible for opening and creating new databases.
  * This is a singleton class.
  */
-//ÏÈµ÷ÓÃgetInstance()£¬ÔÙµ÷ÓÃcreateSession
+//å…ˆè°ƒç”¨getInstance()ï¼Œå†è°ƒç”¨createSession
 public class Engine implements SessionFactory {
 
     private static final Engine INSTANCE = new Engine();
@@ -34,16 +34,16 @@ public class Engine implements SessionFactory {
     private volatile long wrongPasswordDelay = SysProperties.DELAY_WRONG_PASSWORD_MIN;
     private boolean jmx;
     
-    //µ÷ÓÃË³Ðò: 1 (Èç¹ûÊÇÄÚ´æÊý¾Ý¿â£¬ÕâÒ»²½²»µ÷ÓÃ£¬Ö±½Óµ½2)
+    //è°ƒç”¨é¡ºåº: 1 (å¦‚æžœæ˜¯å†…å­˜æ•°æ®åº“ï¼Œè¿™ä¸€æ­¥ä¸è°ƒç”¨ï¼Œç›´æŽ¥åˆ°2)
     public static Engine getInstance() {
         return INSTANCE;
     }
     
-    //µ÷ÓÃË³Ðò: 5
-    //ÑéÖ¤ÓÃ»§ÃûºÍÃÜÂë£¬Èç¹ûÊÇµÚÒ»¸öÓÃ»§ÔòÉèÎªadmin
+    //è°ƒç”¨é¡ºåº: 5
+    //éªŒè¯ç”¨æˆ·åå’Œå¯†ç ï¼Œå¦‚æžœæ˜¯ç¬¬ä¸€ä¸ªç”¨æˆ·åˆ™è®¾ä¸ºadmin
     private Session openSession(ConnectionInfo ci, boolean ifExists, String cipher) {
-    	//Èç¹ûÉèÖÃÁËh2.baseDir£¬Èç:System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
-    	//ÄÇÃ´name¾Í°üº¬ÁËh2.baseDir£¬·ñÔò¾ÍÊÇµ±Ç°¹¤×÷Ä¿Â¼
+    	//å¦‚æžœè®¾ç½®äº†h2.baseDirï¼Œå¦‚:System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
+    	//é‚£ä¹ˆnameå°±åŒ…å«äº†h2.baseDirï¼Œå¦åˆ™å°±æ˜¯å½“å‰å·¥ä½œç›®å½•
         String name = ci.getName();
         Database database;
         ci.removeProperty("NO_UPGRADE", false);
@@ -61,7 +61,7 @@ public class Engine implements SessionFactory {
             }
             database = new Database(ci, cipher);
             opened = true;
-            //Èç¹ûÊý¾Ý¿â²»´æÔÚ£¬ÄÇÃ´µ±Ç°Á¬½ÓserverµÄÓÃ»§¿Ï¶¨Ò²²»´æÔÚ£¬ËùÒÔÖ±½Ó°Ñ´ËÓÃ»§µ±³Éadmin£¬²¢´´½¨Ëü¡£
+            //å¦‚æžœæ•°æ®åº“ä¸å­˜åœ¨ï¼Œé‚£ä¹ˆå½“å‰è¿žæŽ¥serverçš„ç”¨æˆ·è‚¯å®šä¹Ÿä¸å­˜åœ¨ï¼Œæ‰€ä»¥ç›´æŽ¥æŠŠæ­¤ç”¨æˆ·å½“æˆadminï¼Œå¹¶åˆ›å»ºå®ƒã€‚
             if (database.getAllUsers().size() == 0) {
                 // users is the last thing we add, so if no user is around,
                 // the database is new (or not initialized correctly)
@@ -94,7 +94,7 @@ public class Engine implements SessionFactory {
                         }
                     }
                 }
-                //openedÎªtrueËµÃ÷ÊÇÊÇÐÂ´ò¿ªÊý¾Ý¿â£¬Èç¹ûuserÊÇnullËµÃ÷ÓÃ»§ÑéÖ¤Ê§°Ü
+                //openedä¸ºtrueè¯´æ˜Žæ˜¯æ˜¯æ–°æ‰“å¼€æ•°æ®åº“ï¼Œå¦‚æžœuseræ˜¯nullè¯´æ˜Žç”¨æˆ·éªŒè¯å¤±è´¥
                 if (opened && (user == null || !user.isAdmin())) {
                     // reset - because the user is not an admin, and has no
                     // right to listen to exceptions
@@ -126,17 +126,17 @@ public class Engine implements SessionFactory {
      * @param ci the connection information
      * @return the session
      */
-    //µ÷ÓÃË³Ðò: 2
+    //è°ƒç”¨é¡ºåº: 2
     public Session createSession(ConnectionInfo ci) {
         return INSTANCE.createSessionAndValidate(ci);
     }
     
-    //µ÷ÓÃË³Ðò: 3
+    //è°ƒç”¨é¡ºåº: 3
     private Session createSessionAndValidate(ConnectionInfo ci) {
         try {
             ConnectionInfo backup = null;
             String lockMethodName = ci.getProperty("FILE_LOCK", null);
-            //Ä¬ÈÏÊÇFileLock.LOCK_FILE
+            //é»˜è®¤æ˜¯FileLock.LOCK_FILE
             int fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
             if (fileLockMethod == FileLock.LOCK_SERIALIZED) {
                 // In serialized mode, database instance sharing is not possible
@@ -147,10 +147,10 @@ public class Engine implements SessionFactory {
                     throw DbException.convert(e);
                 }
             }
-            Session session = openSession(ci); //ciµÄÄÚ²¿»á±ä»¯
+            Session session = openSession(ci); //ciçš„å†…éƒ¨ä¼šå˜åŒ–
             validateUserAndPassword(true);
             if (backup != null) {
-                session.setConnectionInfo(backup); //Ê¹ÓÃ×î³õµÄci
+                session.setConnectionInfo(backup); //ä½¿ç”¨æœ€åˆçš„ci
             }
             return session;
         } catch (DbException e) {
@@ -161,13 +161,13 @@ public class Engine implements SessionFactory {
         }
     }
 
-    //µ÷ÓÃË³Ðò: 4
-    //Ö´ÐÐSETºÍINIT²ÎÊýÖÐÖ¸¶¨µÄSQL
+    //è°ƒç”¨é¡ºåº: 4
+    //æ‰§è¡ŒSETå’ŒINITå‚æ•°ä¸­æŒ‡å®šçš„SQL
     private synchronized Session openSession(ConnectionInfo ci) {
         boolean ifExists = ci.removeProperty("IFEXISTS", false);
         boolean ignoreUnknownSetting = ci.removeProperty("IGNORE_UNKNOWN_SETTINGS", false);
         String cipher = ci.removeProperty("CIPHER", null);
-        String init = ci.removeProperty("INIT", null); //INIT²ÎÊý¿ÉÒÔ·ÅÒ»Ð©³õÊ¼»¯µÄSQL
+        String init = ci.removeProperty("INIT", null); //INITå‚æ•°å¯ä»¥æ”¾ä¸€äº›åˆå§‹åŒ–çš„SQL
         Session session;
         while (true) {
             session = openSession(ci, ifExists, cipher);
@@ -189,10 +189,10 @@ public class Engine implements SessionFactory {
                 // database setting are only used when opening the database
                 continue;
             }
-            //connectionÏà¹ØµÄ²ÎÊýÔÚorg.h2.command.Parser.parseSet()ÖÐ±»×ª³ÉNoOperation
+            //connectionç›¸å…³çš„å‚æ•°åœ¨org.h2.command.Parser.parseSet()ä¸­è¢«è½¬æˆNoOperation
             String value = ci.getProperty(setting);
             try {
-            	//session.prepareCommandÊÇÔÚ±¾µØÖ´ÐÐsql£¬²»×ßjdbc
+            	//session.prepareCommandæ˜¯åœ¨æœ¬åœ°æ‰§è¡Œsqlï¼Œä¸èµ°jdbc
                 CommandInterface command = session.prepareCommand("SET " + Parser.quoteIdentifier(setting) + " "
                         + value, Integer.MAX_VALUE);
                 command.executeUpdate();
@@ -219,7 +219,7 @@ public class Engine implements SessionFactory {
         return session;
     }
 
-    //µ÷ÓÃË³Ðò: 6
+    //è°ƒç”¨é¡ºåº: 6
     private static void checkClustering(ConnectionInfo ci, Database database) {
         String clusterSession = ci.getProperty(SetTypes.CLUSTER, null);
         if (Constants.CLUSTERING_DISABLED.equals(clusterSession)) {
@@ -246,7 +246,7 @@ public class Engine implements SessionFactory {
      *
      * @param name the database name
      */
-    //µ÷ÓÃË³Ðò: 8
+    //è°ƒç”¨é¡ºåº: 8
     void close(String name) {
         if (jmx) {
             try {
@@ -275,13 +275,13 @@ public class Engine implements SessionFactory {
      * @param correct if the user name or the password was correct
      * @throws DbException the exception 'wrong user or password'
      */
-    //µ÷ÓÃË³Ðò: 7
-    //ÎªÁË·ÀÖ¹¹¥»÷£¬²»¹ÜÓÃ»§ÃûºÍÃÜÂëÊÇ·ñÕýÈ·¶¼Òªµ÷ÓÃ
+    //è°ƒç”¨é¡ºåº: 7
+    //ä¸ºäº†é˜²æ­¢æ”»å‡»ï¼Œä¸ç®¡ç”¨æˆ·åå’Œå¯†ç æ˜¯å¦æ­£ç¡®éƒ½è¦è°ƒç”¨
     private void validateUserAndPassword(boolean correct) {
         int min = SysProperties.DELAY_WRONG_PASSWORD_MIN;
         if (correct) {
             long delay = wrongPasswordDelay;
-            //µÚÒ»´Î²»sleep£¬ÒòÎªdelayµÈÓÚmin
+            //ç¬¬ä¸€æ¬¡ä¸sleepï¼Œå› ä¸ºdelayç­‰äºŽmin
             if (delay > min && delay > 0) {
                 // the first correct password must be blocked,
                 // otherwise parallel attacks are possible

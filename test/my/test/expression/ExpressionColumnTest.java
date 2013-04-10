@@ -7,7 +7,7 @@ public class ExpressionColumnTest extends TestBase {
 		new ExpressionColumnTest().start();
 	}
 
-	//²âÊÔorg.h2.expression.ExpressionColumn
+	//æµ‹è¯•org.h2.expression.ExpressionColumn
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("drop table IF EXISTS ExpressionColumnTest");
@@ -20,10 +20,10 @@ public class ExpressionColumnTest extends TestBase {
 		stmt.executeUpdate("insert into ExpressionColumnTest(id, name) values(3, 'a3')");
 		stmt.executeUpdate("insert into ExpressionColumnTest(id, name) values(3, 'b3')");
 
-		//public.ExpressionColumnTest.idÕâÑùÓÃÊÇ²»¶ÔµÄ
-		//ÔÚorg.h2.expression.ExpressionColumn.optimize(Session)ÖÐ¼ì²é
+		//public.ExpressionColumnTest.idè¿™æ ·ç”¨æ˜¯ä¸å¯¹çš„
+		//åœ¨org.h2.expression.ExpressionColumn.optimize(Session)ä¸­æ£€æŸ¥
 		sql = "SELECT public.ExpressionColumnTest.id FROM ExpressionColumnTest as t";
-		//public.t.idÕâÑù²ÅÐÐ£¬ÒòÎªÓÒ±ßÓÐas t
+		//public.t.idè¿™æ ·æ‰è¡Œï¼Œå› ä¸ºå³è¾¹æœ‰as t
 		sql = "SELECT public.t.id FROM ExpressionColumnTest as t";
 		sql = "SELECT _rowid_, id, name FROM ExpressionColumnTest WHERE _rowid_>2";
 

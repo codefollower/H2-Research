@@ -25,7 +25,7 @@ public class ConditionIn extends Condition {
     private final Database database;
     private Expression left;
     private final ArrayList<Expression> valueList;
-    private int queryLevel; //Ã»¿´µ½ÓÃ´¦
+    private int queryLevel; //æ²¡çœ‹åˆ°ç”¨å¤„
 
     /**
      * Create a new IN(..) condition.
@@ -40,14 +40,14 @@ public class ConditionIn extends Condition {
         this.valueList = values;
     }
 
-    public Value getValue(Session session) { //Ã¿ĞĞ¼ÇÂ¼¶¼Òªµ÷ÓÃ´Ë·½·¨ÅĞ¶ÏÒ»ÏÂ
-        Value l = left.getValue(session); //Èç¹ûleftÊÇ×Ö¶Î£¬ÕâÀï¾Í»áÈ¡Õâ¸ö×Ö¶ÎÔÚµ±Ç°¼ÇÂ¼ÖĞµÄ×Ö¶ÎÖµ
+    public Value getValue(Session session) { //æ¯è¡Œè®°å½•éƒ½è¦è°ƒç”¨æ­¤æ–¹æ³•åˆ¤æ–­ä¸€ä¸‹
+        Value l = left.getValue(session); //å¦‚æœleftæ˜¯å­—æ®µï¼Œè¿™é‡Œå°±ä¼šå–è¿™ä¸ªå­—æ®µåœ¨å½“å‰è®°å½•ä¸­çš„å­—æ®µå€¼
         if (l == ValueNull.INSTANCE) {
             return l;
         }
         boolean result = false;
         boolean hasNull = false;
-        //È»ºóÔÚÕâ¸öforÖĞ£¬°ÑvalueListÖĞµÄÖµ×ª»»³ÉleftµÄÀàĞÍ£¬²¢Óëleft±È½Ï£¬Èç¹ûÏàµÈ£¬ÄÇÃ´¾Í·µ»ØtrueÁË
+        //ç„¶ååœ¨è¿™ä¸ªforä¸­ï¼ŒæŠŠvalueListä¸­çš„å€¼è½¬æ¢æˆleftçš„ç±»å‹ï¼Œå¹¶ä¸leftæ¯”è¾ƒï¼Œå¦‚æœç›¸ç­‰ï¼Œé‚£ä¹ˆå°±è¿”å›trueäº†
         for (Expression e : valueList) {
             Value r = e.getValue(session);
             if (r == ValueNull.INSTANCE) {
@@ -60,8 +60,8 @@ public class ConditionIn extends Condition {
                 }
             }
         }
-        //valueListÖĞÓĞnullÖµ£¬²¢ÇÒÃ»ÓĞÖµÂú×ãleft£¬ÄÇÃ´·µ»Ønull
-        //Èçdelete from ConditionInTest where id in(30,40,null)£¬¼ÙÉèidÔÚ±íÖĞµÄÖµÃ»ÓĞ30¡¢40, ´ËÊ±¾Í·µ»Ønull
+        //valueListä¸­æœ‰nullå€¼ï¼Œå¹¶ä¸”æ²¡æœ‰å€¼æ»¡è¶³leftï¼Œé‚£ä¹ˆè¿”å›null
+        //å¦‚delete from ConditionInTest where id in(30,40,null)ï¼Œå‡è®¾idåœ¨è¡¨ä¸­çš„å€¼æ²¡æœ‰30ã€40, æ­¤æ—¶å°±è¿”å›null
         if (!result && hasNull) {
             return ValueNull.INSTANCE;
         }
@@ -73,14 +73,14 @@ public class ConditionIn extends Condition {
         for (Expression e : valueList) {
             e.mapColumns(resolver, level);
         }
-        this.queryLevel = Math.max(level, this.queryLevel); //Ã»¿´µ½ÓÃ´¦
+        this.queryLevel = Math.max(level, this.queryLevel); //æ²¡çœ‹åˆ°ç”¨å¤„
     }
 
     public Expression optimize(Session session) {
         left = left.optimize(session);
         boolean constant = left.isConstant();
-        //Èçdelete from ConditionInTest where null in(1,2)
-        //´ËÊ±leftÊÇ¸öconstant£¬·µ»Ønull£¬Ê²Ã´¶¼Ã»É¾³ı
+        //å¦‚delete from ConditionInTest where null in(1,2)
+        //æ­¤æ—¶leftæ˜¯ä¸ªconstantï¼Œè¿”å›nullï¼Œä»€ä¹ˆéƒ½æ²¡åˆ é™¤
         if (constant && left == ValueExpression.getNull()) {
             return left;
         }
@@ -98,13 +98,13 @@ public class ConditionIn extends Condition {
             }
             valueList.set(i, e);
         }
-        //Èçdelete from ConditionInTest where 2 in(1,2)
-        //Ö±½Ó·µ»ØtrueÖµ
+        //å¦‚delete from ConditionInTest where 2 in(1,2)
+        //ç›´æ¥è¿”å›trueå€¼
         if (constant && allValuesConstant) {
             return ValueExpression.get(getValue(session));
         }
-        //Èçdelete from ConditionInTest where id in(2)
-        //×ª»»³Édelete from ConditionInTest where id = 2
+        //å¦‚delete from ConditionInTest where id in(2)
+        //è½¬æ¢æˆdelete from ConditionInTest where id = 2
         if (size == 1) {
             Expression right = valueList.get(0);
             Expression expr = new Comparison(session, Comparison.EQUAL, left, right);
@@ -112,8 +112,8 @@ public class ConditionIn extends Condition {
             return expr;
         }
 
-        //Èçselect count(*) from ConditionInTest where id in(1,2)
-        //leftÊÇid£¬²»ÊÇ³£Á¿£¬µ«ÊÇvalueListÈ«ÊÇ³£Ê±ÇÒÊÇÏàÍ¬µÄÀàĞÍ
+        //å¦‚select count(*) from ConditionInTest where id in(1,2)
+        //leftæ˜¯idï¼Œä¸æ˜¯å¸¸é‡ï¼Œä½†æ˜¯valueListå…¨æ˜¯å¸¸æ—¶ä¸”æ˜¯ç›¸åŒçš„ç±»å‹
 
         if (allValuesConstant && !allValuesNull) {
             int leftType = left.getType();

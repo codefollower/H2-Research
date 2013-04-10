@@ -1,28 +1,28 @@
-×Ö½ÚÊý   ´ú±íÊ²Ã´
+å­—èŠ‚æ•°   ä»£è¡¨ä»€ä¹ˆ
 
-Í·
+å¤´
 =======================
-1        type ÓÐÁ½Öµ(Page.TYPE_DATA_LEAF | Page.FLAG_LAST(×îºóÒ»Ò³)) »ò Page.TYPE_DATA_LEAF
-2        checksum Ô¤ÏÈÐ´0£¬ÔÚÐ´Íêpageºó»ØÌî(¼ûorg.h2.store.PageStore.writePage(int, Data))
+1        type æœ‰ä¸¤å€¼(Page.TYPE_DATA_LEAF | Page.FLAG_LAST(æœ€åŽä¸€é¡µ)) æˆ– Page.TYPE_DATA_LEAF
+2        checksum é¢„å…ˆå†™0ï¼Œåœ¨å†™å®ŒpageåŽå›žå¡«(è§org.h2.store.PageStore.writePage(int, Data))
 4        parentPageId
-VarInt   index¶ÔÏóid(Êµ¼ÊÊÇ±í¶ÔÏóid)
+VarInt   indexå¯¹è±¡id(å®žé™…æ˜¯è¡¨å¯¹è±¡id)
 VarInt   columnCount
-2        entryCount (ÐÐÊý)
+2        entryCount (è¡Œæ•°)
 
-Ìå:
+ä½“:
 =======================
-4        with overflow: the first overflow page id(Èç¹ûfirstOverflowPageId !=0)
+4        with overflow: the first overflow page id(å¦‚æžœfirstOverflowPageId !=0)
 
-entryCount¸ö
+entryCountä¸ª
 {
 	VarLong   key
 	2         offset
 }
 
-entryCount¸ö
-{	(´Óoffset¿ªÊ¼Ð´)
+entryCountä¸ª
+{	(ä»Žoffsetå¼€å§‹å†™)
 
-	columnCount¸ö
+	columnCountä¸ª
 	{
 		column value
 	}
@@ -76,12 +76,12 @@ keyOffsetPairLen = 3
 last - rowLength = 44 - 12 = 32
 start + keyOffsetPairLen = 32 + 3 = 35
 
-µ±Ç°ÐÐ: ( /* key:8 */ 8, 'abcdef1234')
+å½“å‰è¡Œ: ( /* key:8 */ 8, 'abcdef1234')
 
-Ò²¾ÍÊÇËµÏÈ¿´¿´µ±Ç°page(128×Ö½Ú)Èç¹ûÒª´æµ±Ç°ÐÐµÄ»°ÊÇ·ñÓÐ×ã¹»¿Õ¼ä´ækeyOffsetPair£¬
-ÒòÎªµ±Ç°ÐÐµÄ³¤¶ÈÊÇ12£¬pageÖÐÖ»Ê£ÏÂ44¸ö×Ö½ÚÁË(0µ½43)£¬ÔÙ´æ12¸ö¾ÍÖ»Ê£32¸ö¿ÉÓÃ£¬
-¶østartµ±Ç°ÒÑ¾­µ½32ÁË£¬ÔÙ´æµ±Ç°ÐÐµÄkeyOffsetPairµÄ»°Òª¶à¼Ó3£¬ÔòstartÎ»ÖÃÒÆµ½35£¬³¬¹ýÊ£Óà¿ÉÓÃµÄ32¸ö×Ö½ÚÁË¡£
-ËùÒÔ´ËÊ±Òª¶Ôµ±Ç°µÄPageDataLeaf½øÐÐÇÐ¸î¡£
+ä¹Ÿå°±æ˜¯è¯´å…ˆçœ‹çœ‹å½“å‰page(128å­—èŠ‚)å¦‚æžœè¦å­˜å½“å‰è¡Œçš„è¯æ˜¯å¦æœ‰è¶³å¤Ÿç©ºé—´å­˜keyOffsetPairï¼Œ
+å› ä¸ºå½“å‰è¡Œçš„é•¿åº¦æ˜¯12ï¼Œpageä¸­åªå‰©ä¸‹44ä¸ªå­—èŠ‚äº†(0åˆ°43)ï¼Œå†å­˜12ä¸ªå°±åªå‰©32ä¸ªå¯ç”¨ï¼Œ
+è€Œstartå½“å‰å·²ç»åˆ°32äº†ï¼Œå†å­˜å½“å‰è¡Œçš„keyOffsetPairçš„è¯è¦å¤šåŠ 3ï¼Œåˆ™startä½ç½®ç§»åˆ°35ï¼Œè¶…è¿‡å‰©ä½™å¯ç”¨çš„32ä¸ªå­—èŠ‚äº†ã€‚
+æ‰€ä»¥æ­¤æ—¶è¦å¯¹å½“å‰çš„PageDataLeafè¿›è¡Œåˆ‡å‰²ã€‚
 
 		if (entryCount > 0 && last - rowLength < start + keyOffsetPairLen) {
             int x = findInsertionPoint(row.getKey()); //x = 7
@@ -97,11 +97,11 @@ start + keyOffsetPairLen = 32 + 3 = 35
                 // split in half would be:
                 // return entryCount / 2;
                 int third = entryCount / 3;
-                return x < third ? third : x >= 2 * third ? 2 * third : x; //·µ»Ø4 (´Órows[4]=( /* key:5 */ 5, 'abcdef1234')¿ªÊ¼ÇÐ¸î)
+                return x < third ? third : x >= 2 * third ? 2 * third : x; //è¿”å›ž4 (ä»Žrows[4]=( /* key:5 */ 5, 'abcdef1234')å¼€å§‹åˆ‡å‰²)
             }
             return x;
         }
 
-ÐÂµÄPageDataLeafµÄ
+æ–°çš„PageDataLeafçš„
 rows = [( /* key:5 */ 5, 'abcdef1234'), ( /* key:6 */ 6, 'abcdef1234'), ( /* key:7 */ 7, 'abcdef1234'), null, null, null]
 

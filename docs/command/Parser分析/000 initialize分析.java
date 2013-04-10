@@ -1,26 +1,26 @@
-	//´Ë·½·¨Éæ¼°ÒÔÏÂÊµÀý×Ö¶Î:
+	//æ­¤æ–¹æ³•æ¶‰åŠä»¥ä¸‹å®žä¾‹å­—æ®µ:
 	//originalSQL
 	//sqlCommand
 	//sqlCommandChars
 	//characterTypes
-	//parseIndex(´Ó0¿ªÊ¼)
+	//parseIndex(ä»Ž0å¼€å§‹)
 
-	//types³õÊ¼»¯Ê±Ã¿¸öÔªËØ¶¼ÊÇ0
-	//´Ë·½·¨½«×¢ÊÍ¡¢$$ÓÃ¿Õ¸ñÌæ»», °Ñ"`"¡¢"["»»³ÉË«ÒýºÅ£¬
-	//Í¬Ê±¶ÔSQLÖÐµÄÃ¿¸ö×Ö·û±íÃ÷ÆäÀàÐÍ£¬ÒÔ±ãÏÂÒ»²½ÔÚread·½·¨ÖÐÊ¶±ðsqlÖÐµÄ¸÷ÖÖ½á¹¹¡£
+	//typesåˆå§‹åŒ–æ—¶æ¯ä¸ªå…ƒç´ éƒ½æ˜¯0
+	//æ­¤æ–¹æ³•å°†æ³¨é‡Šã€$$ç”¨ç©ºæ ¼æ›¿æ¢, æŠŠ"`"ã€"["æ¢æˆåŒå¼•å·ï¼Œ
+	//åŒæ—¶å¯¹SQLä¸­çš„æ¯ä¸ªå­—ç¬¦è¡¨æ˜Žå…¶ç±»åž‹ï¼Œä»¥ä¾¿ä¸‹ä¸€æ­¥åœ¨readæ–¹æ³•ä¸­è¯†åˆ«sqlä¸­çš„å„ç§ç»“æž„ã€‚
     private void initialize(String sql) {
         if (sql == null) {
             sql = "";
         }
-        originalSQL = sql; //²»»á±ä£¬×îÔ­Ê¼µÄSQL
-        sqlCommand = sql; //»á±ä
+        originalSQL = sql; //ä¸ä¼šå˜ï¼Œæœ€åŽŸå§‹çš„SQL
+        sqlCommand = sql; //ä¼šå˜
         int len = sql.length() + 1;
 
-		//commandºÍtypesµÄ³¤¶ÈÒª±ÈsqlµÄ³¤¶È¶à1£¬commandµÄ×îºóÒ»¸ö×Ö·ûcommand[len]ÊÇ¿Õ¸ñ£¬
-		//typesµÄ×îºóÒ»¸öÔªËØtypes[len]ÊÇCHAR_END(ÊÇ1)
+		//commandå’Œtypesçš„é•¿åº¦è¦æ¯”sqlçš„é•¿åº¦å¤š1ï¼Œcommandçš„æœ€åŽä¸€ä¸ªå­—ç¬¦command[len]æ˜¯ç©ºæ ¼ï¼Œ
+		//typesçš„æœ€åŽä¸€ä¸ªå…ƒç´ types[len]æ˜¯CHAR_END(æ˜¯1)
 
-		//×îÖÕµÄcommandºÍtypes»á·Ö±ð´æµ½sqlCommandCharsºÍcharacterTypes×Ö¶Î
-		//commandÈç¹ûÓÐ±ä¶¯£¬ÔòsqlCommand×Ö¶ÎµÄÖµÖØÐÂ´ÓcommandÉú³É
+		//æœ€ç»ˆçš„commandå’Œtypesä¼šåˆ†åˆ«å­˜åˆ°sqlCommandCharså’ŒcharacterTypeså­—æ®µ
+		//commandå¦‚æžœæœ‰å˜åŠ¨ï¼Œåˆ™sqlCommandå­—æ®µçš„å€¼é‡æ–°ä»Žcommandç”Ÿæˆ
         char[] command = new char[len];
         int[] types = new int[len];
         len--;
@@ -33,7 +33,7 @@
             char c = command[i];
             int type = 0;
             switch (c) {
-			//"µ¥¸ö"/"±íÊ¾CHAR_SPECIAL_1×Ö·û£¬"/*"ÊÇ¿é×¢ÊÍµÄ¿ªÊ¼±êÖ¾£¬"//"ÊÇµ¥ÐÐ×¢ÊÍµÄ¿ªÊ¼±êÖ¾
+			//"å•ä¸ª"/"è¡¨ç¤ºCHAR_SPECIAL_1å­—ç¬¦ï¼Œ"/*"æ˜¯å—æ³¨é‡Šçš„å¼€å§‹æ ‡å¿—ï¼Œ"//"æ˜¯å•è¡Œæ³¨é‡Šçš„å¼€å§‹æ ‡å¿—
             case '/':
                 if (command[i + 1] == '*') {
                     // block comment
@@ -41,8 +41,8 @@
                     command[i] = ' ';
                     command[i + 1] = ' ';
 					
-					//startLoopÊÇ"/"ºÅ¿ªÊ¼µÄÎ»ÖÃ£¬µ±³öÏÖÓï·¨´íÎóÊ±²ÅÓÐÓÃ£¬»áÔÚËüµÄÎ»ÖÃÖ®Ç°·ÅÖÃ[*]
-					//Àý×Ó: Syntax error in SQL statement "DROP [*]/*TABLE TEST";
+					//startLoopæ˜¯"/"å·å¼€å§‹çš„ä½ç½®ï¼Œå½“å‡ºçŽ°è¯­æ³•é”™è¯¯æ—¶æ‰æœ‰ç”¨ï¼Œä¼šåœ¨å®ƒçš„ä½ç½®ä¹‹å‰æ”¾ç½®[*]
+					//ä¾‹å­: Syntax error in SQL statement "DROP [*]/*TABLE TEST";
                     startLoop = i;
                     i += 2;
                     checkRunOver(i, len, startLoop);
@@ -52,8 +52,8 @@
                     }
                     command[i] = ' ';
                     command[i + 1] = ' ';
-					//ÕâÀï¶ÔiÔö¼Óºó»¹ÊÇÖ¸Ïò'/'µÄÎ»ÖÃ£¬
-					//ÒòÎªtype´ËÊ±ÊÇ0£¬ËùÒÔºóÃæµÄtypes[i] = type;¡¡lastType = type;¶¼ÊÇ0
+					//è¿™é‡Œå¯¹iå¢žåŠ åŽè¿˜æ˜¯æŒ‡å‘'/'çš„ä½ç½®ï¼Œ
+					//å› ä¸ºtypeæ­¤æ—¶æ˜¯0ï¼Œæ‰€ä»¥åŽé¢çš„types[i] = type;ã€€lastType = type;éƒ½æ˜¯0
                     i++;
                 } else if (command[i + 1] == '/') {
                     // single line comment
@@ -61,12 +61,12 @@
                     startLoop = i;
                     while (true) {
                         c = command[i];
-                        if (c == '\n' || c == '\r' || i >= len - 1) { //i >= len - 1ÊÇ¶ÔÓ¦×îºóÒ»ÐÐÃ»ÓÐ»Ø³µ»»ÐÐ·û
+                        if (c == '\n' || c == '\r' || i >= len - 1) { //i >= len - 1æ˜¯å¯¹åº”æœ€åŽä¸€è¡Œæ²¡æœ‰å›žè½¦æ¢è¡Œç¬¦
 
-							//µ±c == '\n' || c == '\r' || i >= len - 1Ê±ÕâÀï¾ÍÍË³öÁË£¬command[i]µÄÖµÃ»±ä
-							//ÀýÈç"DROP TABLE //single line comment, drop table t"£¬Ã»ÓÐ»Ø³µ»»ÐÐ·û, ´ËÊ±i >= len - 1
-							//sqlÓï¾ä±ä³É"DROP TABLE                                   t "
-							//µ«ÊÇ¶ÔÓ¦"t"µÄtypeÊÇ0£¬ËùÒÔÅöÇÉ±ÜÃâÁËÎÊÌâ: 
+							//å½“c == '\n' || c == '\r' || i >= len - 1æ—¶è¿™é‡Œå°±é€€å‡ºäº†ï¼Œcommand[i]çš„å€¼æ²¡å˜
+							//ä¾‹å¦‚"DROP TABLE //single line comment, drop table t"ï¼Œæ²¡æœ‰å›žè½¦æ¢è¡Œç¬¦, æ­¤æ—¶i >= len - 1
+							//sqlè¯­å¥å˜æˆ"DROP TABLE                                   t "
+							//ä½†æ˜¯å¯¹åº”"t"çš„typeæ˜¯0ï¼Œæ‰€ä»¥ç¢°å·§é¿å…äº†é—®é¢˜: 
 							//Syntax error in SQL statement "DROP TABLE                                   t "; 
 							//expected "identifier"; SQL statement:DROP TABLE //single line comment, drop table t [42001-168]
                             break;
@@ -78,7 +78,7 @@
                     type = CHAR_SPECIAL_1;
                 }
                 break;
-            case '-': //Óë"//"ÏàÍ¬£¬¶¼ÊÇ±íÊ¾µ¥ÐÐ×¢ÊÍ
+            case '-': //ä¸Ž"//"ç›¸åŒï¼Œéƒ½æ˜¯è¡¨ç¤ºå•è¡Œæ³¨é‡Š
                 if (command[i + 1] == '-') {
                     // single line comment
                     changed = true;
@@ -96,10 +96,10 @@
                 }
                 break;
             case '$':
-				//$$...$$ÓÃÀ´±íÊ¾javaÔ´´úÂë£¬¼ûh2ÎÄµµ: Features => User-Defined Functions and Stored Procedures
-				//(i == 0 || command[i - 1] <= ' ')±íÊ¾Èç¹ûsqlÒÔ$$¿ªÊ¼£¬»òÕß$$Ç°ÃæµÚÒ»¸ö×Ö·ûÊÇ¿Õ¸ñ»ò¿ØÖÆ×Ö·û£¬
-				//ËµÃ÷ÕâÀïÓÃÀ´±íÊ¾javaÔ´´úÂë
-				//ASCIIÂë±íÖÐ0µ½31ÊÇ¿ØÖÆ×Ö·û, 32ÊÇ¿Õ¸ñ
+				//$$...$$ç”¨æ¥è¡¨ç¤ºjavaæºä»£ç ï¼Œè§h2æ–‡æ¡£: Features => User-Defined Functions and Stored Procedures
+				//(i == 0 || command[i - 1] <= ' ')è¡¨ç¤ºå¦‚æžœsqlä»¥$$å¼€å§‹ï¼Œæˆ–è€…$$å‰é¢ç¬¬ä¸€ä¸ªå­—ç¬¦æ˜¯ç©ºæ ¼æˆ–æŽ§åˆ¶å­—ç¬¦ï¼Œ
+				//è¯´æ˜Žè¿™é‡Œç”¨æ¥è¡¨ç¤ºjavaæºä»£ç 
+				//ASCIIç è¡¨ä¸­0åˆ°31æ˜¯æŽ§åˆ¶å­—ç¬¦, 32æ˜¯ç©ºæ ¼
                 if (command[i + 1] == '$' && (i == 0 || command[i - 1] <= ' ')) {
                     // dollar quoted string
                     changed = true;
@@ -116,7 +116,7 @@
                     command[i + 1] = ' ';
                     i++;
                 } else {
-					//$×÷Îª±êÊ¶·ûµÄÒ»²¿·Ý
+					//$ä½œä¸ºæ ‡è¯†ç¬¦çš„ä¸€éƒ¨ä»½
                     if (lastType == CHAR_NAME || lastType == CHAR_VALUE) {
                         // $ inside an identifier is supported
                         type = CHAR_NAME;
@@ -159,7 +159,7 @@
                     checkRunOver(i, len, startLoop);
                 }
                 break;
-            case '[': //SQL Server aliasÓï·¨
+            case '[': //SQL Server aliasè¯­æ³•
                 if (database.getMode().squareBracketQuotedNames) {
                     // SQL Server alias for "
                     command[i] = '"';
@@ -174,7 +174,7 @@
                     type = CHAR_SPECIAL_1;
                 }
                 break;
-            case '`': //MySQL aliasÓï·¨£¬²»¹ý²»Çø·Ö´óÐ¡Ð´£¬Ä¬ÈÏ¶¼ÊÇ´óÐ´
+            case '`': //MySQL aliasè¯­æ³•ï¼Œä¸è¿‡ä¸åŒºåˆ†å¤§å°å†™ï¼Œé»˜è®¤éƒ½æ˜¯å¤§å†™
                 // MySQL alias for ", but not case sensitive
                 command[i] = '"';
                 changed = true;

@@ -38,28 +38,28 @@ import org.h2.value.Value;
  * A view is a virtual table that is defined by a query.
  */
 /*
-         ÓĞÈıÖÖ²úÉúTableViewµÄ·½Ê½:
-	1. CREATE VIEWÓï¾ä
+         æœ‰ä¸‰ç§äº§ç”ŸTableViewçš„æ–¹å¼:
+	1. CREATE VIEWè¯­å¥
 
-	Èç: CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view COMMENT IS 'my view'(f1,f2) 
+	å¦‚: CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view COMMENT IS 'my view'(f1,f2) 
 			AS SELECT id,name FROM CreateViewTest
 
 
-	2. Ç¶ÈëÔÚFROMÖĞµÄÁÙÊ±ÊÓÍ¼
+	2. åµŒå…¥åœ¨FROMä¸­çš„ä¸´æ—¶è§†å›¾
 
-	Èç: select id,name from (select id,name from CreateViewTest)
+	å¦‚: select id,name from (select id,name from CreateViewTest)
 
 
-	3. WITH RECURSIVEÓï¾ä
+	3. WITH RECURSIVEè¯­å¥
 
-	Èç: WITH RECURSIVE my_tmp_table(f1,f2) 
+	å¦‚: WITH RECURSIVE my_tmp_table(f1,f2) 
 			AS (select id,name from CreateViewTest UNION ALL select 1, 2) 
 				select f1, f2 from my_tmp_table
-	RECURSIVEÕâ¸ö¹Ø¼ü×ÖÊÇ¿ÉÑ¡µÄ
+	RECURSIVEè¿™ä¸ªå…³é”®å­—æ˜¯å¯é€‰çš„
 
 
-	Ö»ÓĞ2¿ÉÒÔ´øParameters£¬ËüÊÇÍ¨¹ıÕâ¸ö·½·¨µ÷ÓÃ: org.h2.table.TableView.createTempView(Session, User, String, Query, Query)
-	Ö»ÓĞ3µÄrecursiveÊÇtrue 
+	åªæœ‰2å¯ä»¥å¸¦Parametersï¼Œå®ƒæ˜¯é€šè¿‡è¿™ä¸ªæ–¹æ³•è°ƒç”¨: org.h2.table.TableView.createTempView(Session, User, String, Query, Query)
+	åªæœ‰3çš„recursiveæ˜¯true 
  */
 public class TableView extends Table {
 
@@ -101,13 +101,13 @@ public class TableView extends Table {
         String oldQuerySQL = this.querySQL;
         String[] oldColumnNames = this.columnNames;
         boolean oldRecursive = this.recursive;
-        //initÀïÖ´ĞĞÁËÒ»´ÎinitColumnsAndTables£¬ËäÈ»Ö´ĞĞÁËÁ½´ÎinitColumnsAndTables£¬µ«ÊÇinitÖĞ»¹½¨Á¢ÁËViewIndex
-        //ËùÒÔÕâÀïÊÇ±ØĞëµ÷ÓÃinitµÄ
+        //inité‡Œæ‰§è¡Œäº†ä¸€æ¬¡initColumnsAndTablesï¼Œè™½ç„¶æ‰§è¡Œäº†ä¸¤æ¬¡initColumnsAndTablesï¼Œä½†æ˜¯initä¸­è¿˜å»ºç«‹äº†ViewIndex
+        //æ‰€ä»¥è¿™é‡Œæ˜¯å¿…é¡»è°ƒç”¨initçš„
         init(querySQL, null, columnNames, session, recursive);
-        //recompileÀïÓÖÖ´ĞĞÁËÒ»´ÎinitColumnsAndTables
+        //recompileé‡Œåˆæ‰§è¡Œäº†ä¸€æ¬¡initColumnsAndTables
         DbException e = recompile(session, force);
         
-        //Èç¹ûÊ§°ÜÁË£¬°´Ô­À´µÄÖØĞÂÀ´¹ı
+        //å¦‚æœå¤±è´¥äº†ï¼ŒæŒ‰åŸæ¥çš„é‡æ–°æ¥è¿‡
         if (e != null) {
             init(oldQuerySQL, null, oldColumnNames, session, oldRecursive);
             recompile(session, true);
@@ -151,12 +151,12 @@ public class TableView extends Table {
             }
         }
         
-        //ÈçÏÂ:
+        //å¦‚ä¸‹:
         //CREATE OR REPLACE FORCE VIEW my_view(f1,f2) AS SELECT id,name FROM CreateViewTest
 		//CREATE OR REPLACE FORCE VIEW view1 AS SELECT f1 FROM my_view
 		//CREATE OR REPLACE FORCE VIEW view2 AS SELECT f2 FROM my_view
-        //view1ºÍview2ÊÇ½¨Á¢ÔÚmy_viewÕâ¸öÊÓÍ¼Ö®ÉÏ£¬µ±Òªrecompile my_viewÊ±£¬ÒòÎªview1ºÍview2ÒÀÀµÁËmy_view
-        //ËùÒÔÒª¶ÔËûÃÇÖØĞÂrecompile£¬ÕâÀïgetViews()·µ»Øview1ºÍview2
+        //view1å’Œview2æ˜¯å»ºç«‹åœ¨my_viewè¿™ä¸ªè§†å›¾ä¹‹ä¸Šï¼Œå½“è¦recompile my_viewæ—¶ï¼Œå› ä¸ºview1å’Œview2ä¾èµ–äº†my_view
+        //æ‰€ä»¥è¦å¯¹ä»–ä»¬é‡æ–°recompileï¼Œè¿™é‡ŒgetViews()è¿”å›view1å’Œview2
         ArrayList<TableView> views = getViews();
         if (views != null) {
             views = New.arrayList(views);
@@ -179,32 +179,32 @@ public class TableView extends Table {
         Column[] cols;
         removeViewFromTables();
         try {
-            Query query = compileViewQuery(session, querySQL); //ÖØĞÂ¶ÔselectÓï¾ä½øĞĞ½âÎöºÍprepare
+            Query query = compileViewQuery(session, querySQL); //é‡æ–°å¯¹selectè¯­å¥è¿›è¡Œè§£æå’Œprepare
             this.querySQL = query.getPlanSQL();
             tables = New.arrayList(query.getTables());
             ArrayList<Expression> expressions = query.getExpressions();
             ArrayList<Column> list = New.arrayList();
             
-    		//select×Ö¶Î¸öÊı±Èview×Ö¶Î¶àµÄÇé¿ö£¬¶à³öÀ´µÄ°´select×Ö¶ÎÔ­À´µÄËã
-    		//ÕâÀïÊµ¼ÊÊÇf1¡¢name
+    		//selectå­—æ®µä¸ªæ•°æ¯”viewå­—æ®µå¤šçš„æƒ…å†µï¼Œå¤šå‡ºæ¥çš„æŒ‰selectå­—æ®µåŸæ¥çš„ç®—
+    		//è¿™é‡Œå®é™…æ˜¯f1ã€name
     		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1) " //
     		//		+ "AS SELECT id,name FROM CreateViewTest";
 
-    		//select×Ö¶Î¸öÊı±Èview×Ö¶ÎÉÙµÄÇé¿ö£¬viewÖĞÉÙµÄ×Ö¶Î±»ºöÂÔ
-    		//ÕâÀïÊµ¼ÊÊÇf1£¬¶øf2±»ºöÂÔÁË£¬Ò²²»ÌáÊ¾´íÎó
+    		//selectå­—æ®µä¸ªæ•°æ¯”viewå­—æ®µå°‘çš„æƒ…å†µï¼Œviewä¸­å°‘çš„å­—æ®µè¢«å¿½ç•¥
+    		//è¿™é‡Œå®é™…æ˜¯f1ï¼Œè€Œf2è¢«å¿½ç•¥äº†ï¼Œä¹Ÿä¸æç¤ºé”™è¯¯
     		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
     		//		+ "AS SELECT id FROM CreateViewTest";
 
-    		//²»¹Ü¼Ó²»¼ÓFORCE£¬¸úÉÏÃæÒ²Ò»Ñù
+    		//ä¸ç®¡åŠ ä¸åŠ FORCEï¼Œè·Ÿä¸Šé¢ä¹Ÿä¸€æ ·
     		//sql = "CREATE OR REPLACE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
     		//		+ "AS SELECT id FROM CreateViewTest";
             
-            //expressions.sizeÓĞ¿ÉÄÜ´óÓÚquery.getColumnCount()£¬ÒòÎªquery.getColumnCount()²»°üº¬group byµÈ¶îÍâ¼Ó½øÀ´µÄ±í´ïÊ½
+            //expressions.sizeæœ‰å¯èƒ½å¤§äºquery.getColumnCount()ï¼Œå› ä¸ºquery.getColumnCount()ä¸åŒ…å«group byç­‰é¢å¤–åŠ è¿›æ¥çš„è¡¨è¾¾å¼
             for (int i = 0, count = query.getColumnCount(); i < count; i++) {
                 Expression expr = expressions.get(i);
                 String name = null;
-                //ÈçCREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
-                //Ã»ÓĞÎªÊÓÍ¼Ö¸¶¨×Ö¶ÎµÄÊ±ºò£¬ÓÃselect×Ö¶ÎÁĞ±íÖĞµÄÃû×Ö£¬´ËÊ±columnNames==null
+                //å¦‚CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
+                //æ²¡æœ‰ä¸ºè§†å›¾æŒ‡å®šå­—æ®µçš„æ—¶å€™ï¼Œç”¨selectå­—æ®µåˆ—è¡¨ä¸­çš„åå­—ï¼Œæ­¤æ—¶columnNames==null
                 if (columnNames != null && columnNames.length > i) {
                     name = columnNames[i];
                 }

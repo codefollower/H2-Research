@@ -9,7 +9,7 @@ public class UpdateTest extends TestBase {
 	public void init() throws Exception {
 		prop.setProperty("LARGE_TRANSACTIONS", "false");
 	}
-	//²âÊÔorg.h2.command.Parser.parseUpdate()
+	//æµ‹è¯•org.h2.command.Parser.parseUpdate()
 	//org.h2.command.dml.Update
 	@Override
 	public void startInternal() throws Exception {
@@ -24,24 +24,24 @@ public class UpdateTest extends TestBase {
 		stmt.executeUpdate("insert into UpdateTest(id, name) values(3, 'a3')");
 		stmt.executeUpdate("insert into UpdateTest(id, name) values(3, 'b3')");
 
-		sql = "update UpdateTest set(id) = ('123',10)"; //´íÎó
-		sql = "update UpdateTest set(id) = (10,'123')"; //´íÎó
+		sql = "update UpdateTest set(id) = ('123',10)"; //é”™è¯¯
+		sql = "update UpdateTest set(id) = (10,'123')"; //é”™è¯¯
 		sql = "update UpdateTest set(id) = (10)";
 		sql = "update UpdateTest set(name, id) = ('123',10)";
 
 		sql = "update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3";
-		//²»ÔÊĞíÖ¸¶¨ÏàÍ¬µÄÁĞ
+		//ä¸å…è®¸æŒ‡å®šç›¸åŒçš„åˆ—
 		//sql = "update UpdateTest set(name, id, id) = ('123',10,10)"; //Duplicate column name "ID";
 		
 		//sql = "update UpdateTest set name = name || 'aa'";
 		//sql = "update UpdateTest set name = name || 'a'";
-		//stmt.executeUpdate("SET MAX_OPERATION_MEMORY 100"); //Ä¬ÈÏÊÇ10Íò
-		//stmt.executeUpdate("SET UNDO_LOG 0"); //Ä¬ÈÏÊÇ1£¬Ò²¾ÍÊÇtrue£¬¿ªÆô³·ÏûÈÕÖ¾
-		//stmt.executeUpdate("SET MAX_MEMORY_UNDO 3"); //Ä¬ÈÏÊÇ5Íò
+		//stmt.executeUpdate("SET MAX_OPERATION_MEMORY 100"); //é»˜è®¤æ˜¯10ä¸‡
+		//stmt.executeUpdate("SET UNDO_LOG 0"); //é»˜è®¤æ˜¯1ï¼Œä¹Ÿå°±æ˜¯trueï¼Œå¼€å¯æ’¤æ¶ˆæ—¥å¿—
+		//stmt.executeUpdate("SET MAX_MEMORY_UNDO 3"); //é»˜è®¤æ˜¯5ä¸‡
 		stmt.executeUpdate(sql);
 
 		//		sql = "update UpdateTest set(name, id) = (?,10)";
-		//		//²âÊÔorg.h2.command.dml.Update.setAssignment(Column, Expression)ÖĞµÄif (expression instanceof Parameter)
+		//		//æµ‹è¯•org.h2.command.dml.Update.setAssignment(Column, Expression)ä¸­çš„if (expression instanceof Parameter)
 		//		sql = "update UpdateTest set(name) = (?)";
 		//		ps = conn.prepareStatement(sql);
 		//		ps.setString(1, "b1");

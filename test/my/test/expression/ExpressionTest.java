@@ -7,7 +7,7 @@ public class ExpressionTest extends TestBase {
 		new ExpressionTest().start();
 	}
 
-	//²âÊÔorg.h2.command.Parser.readCondition()
+	//æµ‹è¯•org.h2.command.Parser.readCondition()
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("create table IF NOT EXISTS mytable(id int primary key, name varchar(500))");
@@ -32,21 +32,21 @@ public class ExpressionTest extends TestBase {
 		//		ps.setInt(2, 3);
 		//		ps.executeUpdate();
 
-		//ÏÂÃæ2ÌõSQL²âÊÔorg.h2.command.Parser.readCondition()ÖÐµÄNOTºÍEXISTS
+		//ä¸‹é¢2æ¡SQLæµ‹è¯•org.h2.command.Parser.readCondition()ä¸­çš„NOTå’ŒEXISTS
 		//stmt.executeUpdate("delete from mytable where not (id>0)");
 		//stmt.executeUpdate("delete from mytable where EXISTS (select id from mytable where id>10)");
 
-		//ÏÂÃæ5ÌõSQL²âÊÔorg.h2.command.Parser.readConcat()µÄ5ÖÖÇé¿ö
+		//ä¸‹é¢5æ¡SQLæµ‹è¯•org.h2.command.Parser.readConcat()çš„5ç§æƒ…å†µ
 		//stmt.executeUpdate("delete from mytable where name='aaa' || 'bbb' || 'ccc'");
 		//stmt.executeUpdate("delete from mytable where name~'aaa'");
 		//stmt.executeUpdate("delete from mytable where name~*'aaa'");
 		//stmt.executeUpdate("delete from mytable where name!~'aaa'");
 		//stmt.executeUpdate("delete from mytable where name!~*'aaa'");
 
-		stmt.executeUpdate("delete from mytable where name not null"); //ÕâÑù²»ºÏ·¨
-		//stmt.executeUpdate("delete from mytable where name is null"); //ÕâÑù²ÅºÏ·¨
+		stmt.executeUpdate("delete from mytable where name not null"); //è¿™æ ·ä¸åˆæ³•
+		//stmt.executeUpdate("delete from mytable where name is null"); //è¿™æ ·æ‰åˆæ³•
 
-		//stmt.executeUpdate("delete from mytable where name like 'abc' ESCAPE 'bcd'"); //ESCAPEÖ»ÄÜÊÇÒ»¸ö×Ö·û
+		//stmt.executeUpdate("delete from mytable where name like 'abc' ESCAPE 'bcd'"); //ESCAPEåªèƒ½æ˜¯ä¸€ä¸ªå­—ç¬¦
 		//stmt.executeUpdate("delete from mytable where name like 'abc' ESCAPE 'b'");
 		//stmt.executeUpdate("delete from mytable where name REGEXP 'b-'");
 
@@ -65,7 +65,7 @@ public class ExpressionTest extends TestBase {
 		//stmt.executeUpdate("delete from mytable where id BETWEEN 1 AND 2");
 
 		stmt.executeUpdate("delete from mytable where id > ALL(select id from mytable where id>10)");
-		//ANYºÍSOMEÒ»Ñù
+		//ANYå’ŒSOMEä¸€æ ·
 		stmt.executeUpdate("delete from mytable where id > ANY(select id from mytable where id>10)");
 		stmt.executeUpdate("delete from mytable where id > SOME(select id from mytable where id>10)");
 		//stmt.executeUpdate("delete from mytable where id > 10 (+) id > 10");

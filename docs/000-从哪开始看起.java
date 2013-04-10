@@ -1,9 +1,9 @@
-先看server目录中的文档
+鍏堢湅server鐩綍涓殑鏂囨。
 
-org.h2.tools.Server是主入口
+org.h2.tools.Server鏄富鍏ュ彛
 
 
-三种server:  tcp、pg、web
+涓夌server:  tcp銆乸g銆亀eb
 
 org.h2.server.Service
 	=> org.h2.dev.ftp.server.FtpServer

@@ -89,15 +89,15 @@ public class Mode {
      * For unique indexes, NULL is distinct. That means only one row with NULL
      * in one of the columns is allowed.
      */
-    public boolean uniqueIndexSingleNull; //Derby/HSQLDB/MSSQLServer¶ÔÓÚÎ¨Ò»Ë÷ÒıÖ»ÔÊĞíÕû¸ö±íÖĞÖ»ÓĞÒ»Ìõ¼ÇÂ¼º¬ÓĞnullÖµ
+    public boolean uniqueIndexSingleNull; //Derby/HSQLDB/MSSQLServerå¯¹äºå”¯ä¸€ç´¢å¼•åªå…è®¸æ•´ä¸ªè¡¨ä¸­åªæœ‰ä¸€æ¡è®°å½•å«æœ‰nullå€¼
 
     /**
      * When using unique indexes, multiple rows with NULL in all columns
      * are allowed, however it is not allowed to have multiple rows with the
      * same values otherwise.
      */
-    //Ö»ÓĞOracleÎªtrue
-    public boolean uniqueIndexSingleNullExceptAllColumnsAreNull; //¶ÔÓÚÎ¨Ò»Ë÷Òı£¬Ë÷Òı¼ÇÂ¼¿ÉÒÔÈ«Îªnull
+    //åªæœ‰Oracleä¸ºtrue
+    public boolean uniqueIndexSingleNullExceptAllColumnsAreNull; //å¯¹äºå”¯ä¸€ç´¢å¼•ï¼Œç´¢å¼•è®°å½•å¯ä»¥å…¨ä¸ºnull
 
     /**
      * Support the pseudo-table SYSIBM.SYSDUMMY1.

@@ -17,7 +17,7 @@ public class RegularTableTest extends TestBase {
 		//prop.setProperty("ANALYZE_AUTO", "3");
 	}
 
-	//²âÊÔorg.h2.result.LocalResult
+	//æµ‹è¯•org.h2.result.LocalResult
 	//org.h2.result.ResultRemote
 	//org.h2.command.dml.Select.queryWithoutCache(int, ResultTarget)
 	@Override

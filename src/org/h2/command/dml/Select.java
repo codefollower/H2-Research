@@ -64,13 +64,13 @@ public class Select extends Query {
     private TableFilter topTableFilter;
     private final ArrayList<TableFilter> filters = New.arrayList();
     private final ArrayList<TableFilter> topFilters = New.arrayList();
-    private ArrayList<Expression> expressions; //select a,b,c fromÖĞµÄa,b,c
+    private ArrayList<Expression> expressions; //select a,b,c fromä¸­çš„a,b,c
     private Expression[] expressionArray;
-    private Expression having; //having×Ó¾ä
-    private Expression condition; //where×Ó¾ä
+    private Expression having; //havingå­å¥
+    private Expression condition; //whereå­å¥
     private int visibleColumnCount, distinctColumnCount;
-    private ArrayList<SelectOrderBy> orderList; //¶ÔÓ¦order by£¬Ò»¸ö×Ö¶Î¶ÔÓ¦Ò»¸öSelectOrderBy
-    private ArrayList<Expression> group; //¶ÔÓ¦group by£¬Ò»¸ö×Ö¶Î¶ÔÓ¦Ò»¸öExpression
+    private ArrayList<SelectOrderBy> orderList; //å¯¹åº”order byï¼Œä¸€ä¸ªå­—æ®µå¯¹åº”ä¸€ä¸ªSelectOrderBy
+    private ArrayList<Expression> group; //å¯¹åº”group byï¼Œä¸€ä¸ªå­—æ®µå¯¹åº”ä¸€ä¸ªExpression
     private int[] groupIndex;
     private boolean[] groupByExpression;
     private HashMap<Expression, Object> currentGroup;
@@ -78,7 +78,7 @@ public class Select extends Query {
     private boolean isGroupQuery, isGroupSortedQuery;
     private boolean isForUpdate, isForUpdateMvcc;
     private double cost;
-    //isQuickAggregateQueryÊÇÕë¶Ômin¡¢max¡¢countÈı¸ö¾ÛºÏº¯ÊıµÄÌØ±ğÓÅ»¯
+    //isQuickAggregateQueryæ˜¯é’ˆå¯¹minã€maxã€countä¸‰ä¸ªèšåˆå‡½æ•°çš„ç‰¹åˆ«ä¼˜åŒ–
     private boolean isQuickAggregateQuery, isDistinctQuery;
     private boolean isPrepared, checkInit;
     private boolean sortUsingIndex;
@@ -120,7 +120,7 @@ public class Select extends Query {
     /**
      * Called if this query contains aggregate functions.
      */
-    public void setGroupQuery() { //ÓĞgroup by»òhaving»ò¾ÛºÏº¯ÊıÊ±¶¼»áµ÷ÓÃ
+    public void setGroupQuery() { //æœ‰group byæˆ–havingæˆ–èšåˆå‡½æ•°æ—¶éƒ½ä¼šè°ƒç”¨
         isGroupQuery = true;
     }
 
@@ -157,9 +157,9 @@ public class Select extends Query {
         }
     }
     
-    //µ±Îªgroup by×Ö¶Î½¨Á¢Ë÷Òı²¢°´´Ë×Ö¶ÎÅÅĞòÊ±Ê±¾Íµ÷ÓÃ´Ë·½·¨ (¾ÛºÏº¯ÊıµÄ³¡¾°²»ÊÊÓÃ)
-    //Èçselect id,count(id) from mytable where id>2 group by id having id=3 order by id
-    //´Ë·½·¨µÄ´úÂë´ó¶àÊı¸úqueryGroupÀàËÆ
+    //å½“ä¸ºgroup byå­—æ®µå»ºç«‹ç´¢å¼•å¹¶æŒ‰æ­¤å­—æ®µæ’åºæ—¶æ—¶å°±è°ƒç”¨æ­¤æ–¹æ³• (èšåˆå‡½æ•°çš„åœºæ™¯ä¸é€‚ç”¨)
+    //å¦‚select id,count(id) from mytable where id>2 group by id having id=3 order by id
+    //æ­¤æ–¹æ³•çš„ä»£ç å¤§å¤šæ•°è·ŸqueryGroupç±»ä¼¼
     private void queryGroupSorted(int columnCount, ResultTarget result) {
         int rowNumber = 0;
         setCurrentRowNumber(0);
@@ -180,7 +180,7 @@ public class Select extends Query {
                     previousKeyValues = keyValues;
                     currentGroup = New.hashMap();
                 } else if (!Arrays.equals(previousKeyValues, keyValues)) {
-                	//ÒòÎªÊÇ°´group by×Ö¶ÎÅÅĞòµÄ£¬µ±Ç°ºóÁ½ĞĞµÄgroup by×Ö¶ÎÖµ²»ÏàµÈÊ±¾Í¿ÉÒÔÈ·¶¨ÊÇ²»Í¬×éÁË£¬ÕâÊ±Ö±½ÓºÏ²¢
+                	//å› ä¸ºæ˜¯æŒ‰group byå­—æ®µæ’åºçš„ï¼Œå½“å‰åä¸¤è¡Œçš„group byå­—æ®µå€¼ä¸ç›¸ç­‰æ—¶å°±å¯ä»¥ç¡®å®šæ˜¯ä¸åŒç»„äº†ï¼Œè¿™æ—¶ç›´æ¥åˆå¹¶
                     addGroupSortedRow(previousKeyValues, columnCount, result);
                     previousKeyValues = keyValues;
                     currentGroup = New.hashMap();
@@ -188,7 +188,7 @@ public class Select extends Query {
                 currentGroupRowId++;
 
                 for (int i = 0; i < columnCount; i++) {
-                	//groupByExpression×Ö¶Î²»¿ÉÄÜÎªnull£¬ÒòÎªisGroupSortedQueryÎªtrueÊ±£¬getGroupByExpressionCount() > 0
+                	//groupByExpressionå­—æ®µä¸å¯èƒ½ä¸ºnullï¼Œå› ä¸ºisGroupSortedQueryä¸ºtrueæ—¶ï¼ŒgetGroupByExpressionCount() > 0
                     if (groupByExpression == null || !groupByExpression[i]) {
                         Expression expr = expressions.get(i);
                         expr.updateAggregate(session);
@@ -196,7 +196,7 @@ public class Select extends Query {
                 }
             }
         }
-        //×îºóÒ»²¿·ÖÒ²ÒªºÏ²¢
+        //æœ€åä¸€éƒ¨åˆ†ä¹Ÿè¦åˆå¹¶
         if (previousKeyValues != null) {
             addGroupSortedRow(previousKeyValues, columnCount, result);
         }
@@ -204,11 +204,11 @@ public class Select extends Query {
 
     private void addGroupSortedRow(Value[] keyValues, int columnCount, ResultTarget result) {
         Value[] row = new Value[columnCount];
-        //ÏÈÌî³ägroup by×Ö¶Î
+        //å…ˆå¡«å……group byå­—æ®µ
         for (int j = 0; groupIndex != null && j < groupIndex.length; j++) {
             row[groupIndex[j]] = keyValues[j];
         }
-        //ÔÙÌî³ä·Çgroup by×Ö¶Î
+        //å†å¡«å……égroup byå­—æ®µ
         for (int j = 0; j < columnCount; j++) {
             if (groupByExpression != null && groupByExpression[j]) {
                 continue;
@@ -223,8 +223,8 @@ public class Select extends Query {
         result.addRow(row);
     }
     
-    //ÀıÈç:select id,count(id) from mytable where id>2 group by id having id=3 order by id
-    //having id=3Ò²¼Óµ½expressionsÖĞÁË£¬´ËÊ±columnCountÊÇ3£¬µ«ÊÇdistinctColumnCountÊÇ2£¬ËùÒÔÒªÈ¥µôÒ»ÁĞ
+    //ä¾‹å¦‚:select id,count(id) from mytable where id>2 group by id having id=3 order by id
+    //having id=3ä¹ŸåŠ åˆ°expressionsä¸­äº†ï¼Œæ­¤æ—¶columnCountæ˜¯3ï¼Œä½†æ˜¯distinctColumnCountæ˜¯2ï¼Œæ‰€ä»¥è¦å»æ‰ä¸€åˆ—
     private Value[] keepOnlyDistinct(Value[] row, int columnCount) {
         if (columnCount == distinctColumnCount) {
             return row;
@@ -266,7 +266,7 @@ public class Select extends Query {
         }
         return null;
     }
-    //ÓÃÓÚgroupµÄË÷Òı¸úorder byË÷Òı²»Ò»Ñù£¬ÓÃÓÚgroupµÄË÷ÒıµÄË÷Òı×Ö¶ÎË³Ğò²»ĞèÒªºÍgroup×Ö¶ÎË³ĞòÒ»Ñù£¬¶øorder byĞèÒªÒ»Ñù
+    //ç”¨äºgroupçš„ç´¢å¼•è·Ÿorder byç´¢å¼•ä¸ä¸€æ ·ï¼Œç”¨äºgroupçš„ç´¢å¼•çš„ç´¢å¼•å­—æ®µé¡ºåºä¸éœ€è¦å’Œgroupå­—æ®µé¡ºåºä¸€æ ·ï¼Œè€Œorder byéœ€è¦ä¸€æ ·
     private boolean isGroupSortedIndex(TableFilter tableFilter, Index index) {
         // check that all the GROUP BY expressions are part of the index
         Column[] indexColumns = index.getColumns();
@@ -281,7 +281,7 @@ public class Select extends Query {
             if (!(expr instanceof ExpressionColumn)) {
                 return false;
             }
-            //¿´¿´group by×Ö¶ÎÊÇ·ñÊÇË÷Òı×Ö¶Î
+            //çœ‹çœ‹group byå­—æ®µæ˜¯å¦æ˜¯ç´¢å¼•å­—æ®µ
             ExpressionColumn exprCol = (ExpressionColumn) expr;
             for (int j = 0; j < indexColumns.length; ++j) {
                 if (tableFilter == exprCol.getTableFilter()) {
@@ -293,16 +293,16 @@ public class Select extends Query {
             }
             // We didn't find a matching index column
             // for one group by expression
-            //Ö»ÒªÆäÖĞÒ»¸ögroup by×Ö¶ÎÔÚindex×Ö¶ÎÖĞÕÒ²»µ½£¬ÄÇÃ´¾ÍÈÏÎª´Ëindex²»ÊÊºÏÓÃÓÚgroupË÷Òı
-            //Èç¹ûµ±Ç°group by×Ö¶ÎÔÚindex×Ö¶ÎÖĞÕÒµ½ÁË£¬»áÔÚÉÏÃæµÄÄÚ²¿forÑ­»·ÖĞÍ¨¹ıcontinue outerLoop×ªµ½Íâ²ãµÄfor£¬iÔö¼Ó£¬
-            //²»»á×ªµ½ÕâÀï
+            //åªè¦å…¶ä¸­ä¸€ä¸ªgroup byå­—æ®µåœ¨indexå­—æ®µä¸­æ‰¾ä¸åˆ°ï¼Œé‚£ä¹ˆå°±è®¤ä¸ºæ­¤indexä¸é€‚åˆç”¨äºgroupç´¢å¼•
+            //å¦‚æœå½“å‰group byå­—æ®µåœ¨indexå­—æ®µä¸­æ‰¾åˆ°äº†ï¼Œä¼šåœ¨ä¸Šé¢çš„å†…éƒ¨forå¾ªç¯ä¸­é€šè¿‡continue outerLoopè½¬åˆ°å¤–å±‚çš„forï¼Œiå¢åŠ ï¼Œ
+            //ä¸ä¼šè½¬åˆ°è¿™é‡Œ
             return false;
         }
         // check that the first columns in the index are grouped
         // good: index(a, b, c); group by b, a
         // bad: index(a, b, c); group by a, c
-        //group by×Ö¶ÎÁĞ±íµÄÇ°ºóÁ½¸ö×Ö¶ÎÔÚindexÖĞÒªÍ¬Ê±³öÏÖ£¬²¢ÇÒÊÇ½ô°¤×ÅµÄ(²»·ÖÇ°ºó)
-        //index(a, b, c); group by a, c¾Í²»ĞĞ£¬ÒòÎª"group by a, c"ÖĞµÄaºÍcËäÈ»¶¼ÊÇË÷Òı×Ö¶Î£¬µ«ÊÇÔÚindexÖĞ²»ÊÇ½ô°¤×ÅµÄ
+        //group byå­—æ®µåˆ—è¡¨çš„å‰åä¸¤ä¸ªå­—æ®µåœ¨indexä¸­è¦åŒæ—¶å‡ºç°ï¼Œå¹¶ä¸”æ˜¯ç´§æŒ¨ç€çš„(ä¸åˆ†å‰å)
+        //index(a, b, c); group by a, cå°±ä¸è¡Œï¼Œå› ä¸º"group by a, c"ä¸­çš„aå’Œcè™½ç„¶éƒ½æ˜¯ç´¢å¼•å­—æ®µï¼Œä½†æ˜¯åœ¨indexä¸­ä¸æ˜¯ç´§æŒ¨ç€çš„
         for (int i = 1; i < grouped.length; i++) {
             if (!grouped[i - 1] && grouped[i]) {
                 return false;
@@ -324,7 +324,7 @@ public class Select extends Query {
         return count;
     }
     
-    //¿´Õâ·½·¨µÄ´úÂëÊ±ÒªÊ±¿ÌÏëµ½¾ÛºÏº¯Êı¡¢group by¡¢having¶¼ÓĞ¿ÉÄÜ´¥·¢Ëü
+    //çœ‹è¿™æ–¹æ³•çš„ä»£ç æ—¶è¦æ—¶åˆ»æƒ³åˆ°èšåˆå‡½æ•°ã€group byã€havingéƒ½æœ‰å¯èƒ½è§¦å‘å®ƒ
     private void queryGroup(int columnCount, LocalResult result) {
         ValueHashMap<HashMap<Expression, Object>> groups = ValueHashMap.newInstance();
         int rowNumber = 0;
@@ -335,13 +335,13 @@ public class Select extends Query {
             if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
                 Value key;
                 rowNumber++;
-                //¾ÛºÏº¯ÊıµÄÇéĞÎ
-                if (groupIndex == null) { //Èçselect count(id) from mytable where id>0Ê±groupIndex=null
+                //èšåˆå‡½æ•°çš„æƒ…å½¢
+                if (groupIndex == null) { //å¦‚select count(id) from mytable where id>0æ—¶groupIndex=null
                     key = defaultGroup;
-                } else { //group by¡¢havingµÄÇéĞÎ
-                	//°´µ±Ç°ĞĞ£¬³éÈ¡group by×Ö¶ÎÁĞ±íµÄÖµ£¬×éºÏ³ÉÒ»¸ökey
-                	//ÀıÈçgroup by id,name£¬ÄÇÃ´ÏÈ°´idµÄ×Ö¶ÎÏÂ±ê´Óµ±Ç°ĞĞÖĞÈ¡³öÖµ£¬·Åµ½keyValues[0]ÖĞ£¬
-                	//È»ºóÈ¡³öname×Ö¶ÎµÄÖµ·Åµ½keyValues[1]ÖĞ¡£
+                } else { //group byã€havingçš„æƒ…å½¢
+                	//æŒ‰å½“å‰è¡Œï¼ŒæŠ½å–group byå­—æ®µåˆ—è¡¨çš„å€¼ï¼Œç»„åˆæˆä¸€ä¸ªkey
+                	//ä¾‹å¦‚group by id,nameï¼Œé‚£ä¹ˆå…ˆæŒ‰idçš„å­—æ®µä¸‹æ ‡ä»å½“å‰è¡Œä¸­å–å‡ºå€¼ï¼Œæ”¾åˆ°keyValues[0]ä¸­ï¼Œ
+                	//ç„¶åå–å‡ºnameå­—æ®µçš„å€¼æ”¾åˆ°keyValues[1]ä¸­ã€‚
                     Value[] keyValues = new Value[groupIndex.length];
                     // update group
                     for (int i = 0; i < groupIndex.length; i++) {
@@ -359,20 +359,20 @@ public class Select extends Query {
                 currentGroup = values;
                 currentGroupRowId++;
                 int len = columnCount;
-                //Èç¹ûÊÇ¾ÛºÏº¯ÊıµÄ³¡¾°£¬ÄÇÃ´select±í´ïÊ½ÁĞ±í²¿·Ö²»ÄÜ³öÏÖ×Ö¶Î
-                //Èç¹ûÊÇgroup by¡¢havingµÄ³¡¾°£¬ÄÇÃ´select±í´ïÊ½ÁĞ±í²¿·ÖÖ»ÔÊĞí³öÏÖgroup by×Ö¶Î
+                //å¦‚æœæ˜¯èšåˆå‡½æ•°çš„åœºæ™¯ï¼Œé‚£ä¹ˆselectè¡¨è¾¾å¼åˆ—è¡¨éƒ¨åˆ†ä¸èƒ½å‡ºç°å­—æ®µ
+                //å¦‚æœæ˜¯group byã€havingçš„åœºæ™¯ï¼Œé‚£ä¹ˆselectè¡¨è¾¾å¼åˆ—è¡¨éƒ¨åˆ†åªå…è®¸å‡ºç°group byå­—æ®µ
                 for (int i = 0; i < len; i++) {
-                	//µ±ÊÇ¾ÛºÏº¯ÊıÊ±groupByExpressionÎªnull£¬group by¡¢havingµÄÇéĞÎgroupByExpression²»Îªnull
-                	//select id,count(id) from mytable where id>0Ê±ÊÇ¾ÛºÏº¯Êı£¬µ«ÊÇ¼ÓÈëid×Ö¶ÎÊÇ´íÎóµÄ£¬
-                	//´Ó³£Ê¶Àí½âÀ´¿´×Ö¶ÎºÍ¾ÛºÏº¯Êı·ÅÔÚÒ»ÆğÓĞÆçÒå£¬²»ÖªµÀ¸ÃÔõÃ´ÏÔÊ½½á¹û£¬
-                	//ËùÒÔ»á±¨´í: Column "ID" must be in the GROUP BY list
-                	//Èç¹û±ä³ÉÕâÑùselect id,count(id) from mytable where id>0 group by id
-                	//ÄÇÃ´ÓïÒå¾ÍºÜÃ÷È·ÁË£ºÒÔid·Ö×é£¬È»ºóÍ³¼ÆÃ¿×éµÄĞĞÊı¡£
-                	//ÕâÑùÏÔÊ¾½á¹ûÊ±£¬
+                	//å½“æ˜¯èšåˆå‡½æ•°æ—¶groupByExpressionä¸ºnullï¼Œgroup byã€havingçš„æƒ…å½¢groupByExpressionä¸ä¸ºnull
+                	//select id,count(id) from mytable where id>0æ—¶æ˜¯èšåˆå‡½æ•°ï¼Œä½†æ˜¯åŠ å…¥idå­—æ®µæ˜¯é”™è¯¯çš„ï¼Œ
+                	//ä»å¸¸è¯†ç†è§£æ¥çœ‹å­—æ®µå’Œèšåˆå‡½æ•°æ”¾åœ¨ä¸€èµ·æœ‰æ­§ä¹‰ï¼Œä¸çŸ¥é“è¯¥æ€ä¹ˆæ˜¾å¼ç»“æœï¼Œ
+                	//æ‰€ä»¥ä¼šæŠ¥é”™: Column "ID" must be in the GROUP BY list
+                	//å¦‚æœå˜æˆè¿™æ ·select id,count(id) from mytable where id>0 group by id
+                	//é‚£ä¹ˆè¯­ä¹‰å°±å¾ˆæ˜ç¡®äº†ï¼šä»¥idåˆ†ç»„ï¼Œç„¶åç»Ÿè®¡æ¯ç»„çš„è¡Œæ•°ã€‚
+                	//è¿™æ ·æ˜¾ç¤ºç»“æœæ—¶ï¼Œ
                 	//1  2
                 	//2  4
                 	//3  5
-                	//¾Í±íÊ¾idÊÇ1µÄÓĞÁ½ĞĞ£¬idÊÇ2µÄÓĞ4ĞĞ£¬idÊÇ3µÄÓĞ5ĞĞ
+                	//å°±è¡¨ç¤ºidæ˜¯1çš„æœ‰ä¸¤è¡Œï¼Œidæ˜¯2çš„æœ‰4è¡Œï¼Œidæ˜¯3çš„æœ‰5è¡Œ
                     if (groupByExpression == null || !groupByExpression[i]) {
                         Expression expr = expressions.get(i);
                         expr.updateAggregate(session);
@@ -383,8 +383,8 @@ public class Select extends Query {
                 }
             }
         }
-        //Ö»ÓĞ¾Û»áº¯Êı£¬µ«ÊÇÃ»ÓĞ¼ÇÂ¼(¿ÉÄÜÊÇ±í±¾ÉíÃ»ÓĞ¼ÇÂ¼£¬»òÃ»ÓĞÂú×ãÌõ¼şµÄ¼ÇÂ¼)
-        //ÀıÈç¼ÙÉèid×î´óÎª10,ÓÃĞ©Óï¾ä²âÊÔselect count(id) from mytable where id>1000
+        //åªæœ‰èšä¼šå‡½æ•°ï¼Œä½†æ˜¯æ²¡æœ‰è®°å½•(å¯èƒ½æ˜¯è¡¨æœ¬èº«æ²¡æœ‰è®°å½•ï¼Œæˆ–æ²¡æœ‰æ»¡è¶³æ¡ä»¶çš„è®°å½•)
+        //ä¾‹å¦‚å‡è®¾idæœ€å¤§ä¸º10,ç”¨äº›è¯­å¥æµ‹è¯•select count(id) from mytable where id>1000
         if (groupIndex == null && groups.size() == 0) {
             groups.put(defaultGroup, new HashMap<Expression, Object>());
         }
@@ -394,11 +394,11 @@ public class Select extends Query {
             currentGroup = groups.get(key);
             Value[] keyValues = key.getList();
             Value[] row = new Value[columnCount];
-            //ÏÈÌî³ägroup by×Ö¶Î
+            //å…ˆå¡«å……group byå­—æ®µ
             for (int j = 0; groupIndex != null && j < groupIndex.length; j++) {
                 row[groupIndex[j]] = keyValues[j];
             }
-            //ÔÙÌî³ä·Çgroup by×Ö¶Î
+            //å†å¡«å……égroup byå­—æ®µ
             for (int j = 0; j < columnCount; j++) {
                 if (groupByExpression != null && groupByExpression[j]) {
                     continue;
@@ -406,7 +406,7 @@ public class Select extends Query {
                 Expression expr = expressions.get(j);
                 row[j] = expr.getValue(session);
             }
-            //¸ù¾İhavingÌõ¼ş¹ıÂË£¬havingÌõ¼şÒ²»á¼ÓÈëexpressionsÖĞ£¬ËùÒÔÔÚÉÏÃærow[j] = expr.getValue(session)Ê±ÒÑ¾­ËãºÃÁËtrue»òfalse
+            //æ ¹æ®havingæ¡ä»¶è¿‡æ»¤ï¼Œhavingæ¡ä»¶ä¹Ÿä¼šåŠ å…¥expressionsä¸­ï¼Œæ‰€ä»¥åœ¨ä¸Šé¢row[j] = expr.getValue(session)æ—¶å·²ç»ç®—å¥½äº†trueæˆ–false
             if (isHavingNullOrFalse(row)) {
                 continue;
             }
@@ -428,7 +428,7 @@ public class Select extends Query {
             return null;
         }
         ArrayList<Column> sortColumns = New.arrayList();
-        //Éú³Éorderby×Ö¶ÎÁĞ±í
+        //ç”Ÿæˆorderbyå­—æ®µåˆ—è¡¨
         for (int idx : sort.getIndexes()) {
             if (idx < 0 || idx >= expressions.size()) {
                 throw DbException.getInvalidValueException("ORDER BY", idx + 1);
@@ -449,15 +449,15 @@ public class Select extends Query {
         }
         Column[] sortCols = sortColumns.toArray(new Column[sortColumns.size()]);
         int[] sortTypes = sort.getSortTypes();
-        //Èç¹ûÃ»ÓĞorderby×Ö¶ÎÖ±½ÓÓÃscan index
+        //å¦‚æœæ²¡æœ‰orderbyå­—æ®µç›´æ¥ç”¨scan index
         if (sortCols.length == 0) {
             // sort just on constants - can use scan index
             return topTableFilter.getTable().getScanIndex(session);
         }
         ArrayList<Index> list = topTableFilter.getTable().getIndexes();
         if (list != null) {
-        	//Ñ­»·±éÀúµ±Ç°±íµÄËùÓĞË÷Òı£¬¶Ô±ÈÃ¿¸öË÷ÒıµÄ×Ö¶ÎÊÇ·ñºÏorderby×Ö¶Î(¿ÉÄÜ»áÓĞ¶à¸ö)ºÍÅÅĞòÀàĞÍÊÇ·ñÒ»Ñù£¬
-        	//Èç¹û¶¼Ò»Ñù£¬ÄÇÃ´·µ»Ø´ËË÷Òı
+        	//å¾ªç¯éå†å½“å‰è¡¨çš„æ‰€æœ‰ç´¢å¼•ï¼Œå¯¹æ¯”æ¯ä¸ªç´¢å¼•çš„å­—æ®µæ˜¯å¦åˆorderbyå­—æ®µ(å¯èƒ½ä¼šæœ‰å¤šä¸ª)å’Œæ’åºç±»å‹æ˜¯å¦ä¸€æ ·ï¼Œ
+        	//å¦‚æœéƒ½ä¸€æ ·ï¼Œé‚£ä¹ˆè¿”å›æ­¤ç´¢å¼•
             for (int i = 0, size = list.size(); i < size; i++) {
                 Index index = list.get(i);
                 if (index.getCreateSQL() == null) {
@@ -493,7 +493,7 @@ public class Select extends Query {
                 }
             }
         }
-        //°´_ROWID_ÅÅĞòµÄÇé¿ö
+        //æŒ‰_ROWID_æ’åºçš„æƒ…å†µ
         if (sortCols.length == 1 && sortCols[0].getColumnId() == -1) {
             // special case: order by _ROWID_
             Index index = topTableFilter.getTable().getScanIndex(session);
@@ -504,7 +504,7 @@ public class Select extends Query {
         return null;
     }
     
-    //¶ÔÓÚselect distinct name from mytable, Ö±½Ó×ßnameµÄB-treeË÷Òı¾Í¿ÉÒÔµÃµ½nameÀıµÄÖµÁË£¬²»ÓÃÕÒPageDataË÷Òı
+    //å¯¹äºselect distinct name from mytable, ç›´æ¥èµ°nameçš„B-treeç´¢å¼•å°±å¯ä»¥å¾—åˆ°nameä¾‹çš„å€¼äº†ï¼Œä¸ç”¨æ‰¾PageDataç´¢å¼•
     private void queryDistinct(ResultTarget result, long limitRows) {
         // limitRows must be long, otherwise we get an int overflow
         // if limitRows is at or near Integer.MAX_VALUE
@@ -566,7 +566,7 @@ public class Select extends Query {
                 Value[] row = new Value[columnCount];
                 for (int i = 0; i < columnCount; i++) {
                     Expression expr = expressions.get(i);
-                    //´¥·¢:
+                    //è§¦å‘:
                     //org.h2.expression.ExpressionColumn.getValue(Session)
                     //org.h2.table.TableFilter.getValue(Column)
                     row[i] = expr.getValue(session);
@@ -640,7 +640,7 @@ public class Select extends Query {
         }
         topTableFilter.startQuery(session);
         topTableFilter.reset();
-        boolean exclusive = isForUpdate && !isForUpdateMvcc; //¼ûsetForUpdate(boolean)
+        boolean exclusive = isForUpdate && !isForUpdateMvcc; //è§setForUpdate(boolean)
         if (isForUpdateMvcc) {
             if (isGroupQuery) {
                 throw DbException.getUnsupportedException("FOR UPDATE && GROUP");
@@ -656,7 +656,7 @@ public class Select extends Query {
         }
         topTableFilter.lock(session, exclusive, exclusive);
         ResultTarget to = result != null ? result : target;
-        //Èç¹ûĞĞÊıÏŞÖÆÊÇ0£¬ÄÇÃ´Ê²Ã´Ò²²»×ö
+        //å¦‚æœè¡Œæ•°é™åˆ¶æ˜¯0ï¼Œé‚£ä¹ˆä»€ä¹ˆä¹Ÿä¸åš
         if (limitRows != 0) {
             if (isQuickAggregateQuery) {
                 queryQuick(columnCount, to);
@@ -696,43 +696,43 @@ public class Select extends Query {
         return old != null ? old : new LocalResult(session, expressionArray, visibleColumnCount);
     }
     
-    //°Ñ"select *"×ª³É"select ±íµÄËùÓĞ×Ö¶Î"
-    //Ò²¾ÍÊÇ°Ñµ¥¸öWildcardÕ¹¿ª³É¶à¸öExpressionColumn
+    //æŠŠ"select *"è½¬æˆ"select è¡¨çš„æ‰€æœ‰å­—æ®µ"
+    //ä¹Ÿå°±æ˜¯æŠŠå•ä¸ªWildcardå±•å¼€æˆå¤šä¸ªExpressionColumn
     private void expandColumnList() {
         Database db = session.getDatabase();
 
         // the expressions may change within the loop
         for (int i = 0; i < expressions.size(); i++) {
             Expression expr = expressions.get(i);
-            //select±í´ïÊ¾ÖĞ¿ÉÒÔÍ¬Ê±³öÏÖ*ºÍ×Ö¶ÎÃû
-            //Èçselect id, * from mytable as t where id>199
-            //µ±exprÊÇidÊ±ÊÇÒ»¸öExpressionColumn
-            //µ±exprÊÇ*Ê±ÊÇÒ»¸öWildcard
-            //Ö»ÓĞ×ÓÀàorg.h2.expression.Wildcard¸²¸ÇÁËisWildcard·½·¨²¢ÇÒ·µ»ØÎªtrue
+            //selectè¡¨è¾¾ç¤ºä¸­å¯ä»¥åŒæ—¶å‡ºç°*å’Œå­—æ®µå
+            //å¦‚select id, * from mytable as t where id>199
+            //å½“expræ˜¯idæ—¶æ˜¯ä¸€ä¸ªExpressionColumn
+            //å½“expræ˜¯*æ—¶æ˜¯ä¸€ä¸ªWildcard
+            //åªæœ‰å­ç±»org.h2.expression.Wildcardè¦†ç›–äº†isWildcardæ–¹æ³•å¹¶ä¸”è¿”å›ä¸ºtrue
             if (!expr.isWildcard()) {
                 continue;
             }
             String schemaName = expr.getSchemaName();
-            //ExpressionColumnÀàÃ»ÓĞ¸²¸ÇgetTableAlias·½·¨£¬ËùÒÔÄÄÅÂÕâÑù public.t.idÒıÓÃÁĞ£¬Ò²²»»á·µ»Øt
-            //²»¹ıÕâÀïµÄ´úÂëÃ»ÎÊÌâ£¬ÒòÎªÔËĞĞµ½ÕâÀïÊ±expr¿Ï¶¨ÊÇWildcard£¬WildcardÓĞ¸²¸ÇgetTableAlias·½·¨,
-            //ÕâĞ©×¢ÊÍÖ»ÊÇË³±ãÌáÒ»ÏÂgetTableAliasÔÚ³¬ÀàºÍ²»Í¬×ÓÀàÖĞµÄÊµÏÖ²î±ğ
+            //ExpressionColumnç±»æ²¡æœ‰è¦†ç›–getTableAliasæ–¹æ³•ï¼Œæ‰€ä»¥å“ªæ€•è¿™æ · public.t.idå¼•ç”¨åˆ—ï¼Œä¹Ÿä¸ä¼šè¿”å›t
+            //ä¸è¿‡è¿™é‡Œçš„ä»£ç æ²¡é—®é¢˜ï¼Œå› ä¸ºè¿è¡Œåˆ°è¿™é‡Œæ—¶exprè‚¯å®šæ˜¯Wildcardï¼ŒWildcardæœ‰è¦†ç›–getTableAliasæ–¹æ³•,
+            //è¿™äº›æ³¨é‡Šåªæ˜¯é¡ºä¾¿æä¸€ä¸‹getTableAliasåœ¨è¶…ç±»å’Œä¸åŒå­ç±»ä¸­çš„å®ç°å·®åˆ«
             String tableAlias = expr.getTableAlias();
-            //Èçselect * from mytable
+            //å¦‚select * from mytable
             if (tableAlias == null) {
                 int temp = i;
                 expressions.remove(i);
-                //ÓĞ¿ÉÄÜÊÇ¶à±íjoin£¬ÕâÊ±Ò»¸ö*¾Í»áÏÈÀ©Õ¹³É¶à±íµÄ*£¬Èçt1.*£¬t2.*
+                //æœ‰å¯èƒ½æ˜¯å¤šè¡¨joinï¼Œè¿™æ—¶ä¸€ä¸ª*å°±ä¼šå…ˆæ‰©å±•æˆå¤šè¡¨çš„*ï¼Œå¦‚t1.*ï¼Œt2.*
                 for (TableFilter filter : filters) {
                     Wildcard c2 = new Wildcard(filter.getTable().getSchema().getName(), filter.getTableAlias());
                     expressions.add(i++, c2);
                 }
-                //¼ÌĞø´ÓWildcard c2¼Ó½øµÄµØ·½½øĞĞ(temp - 1Ö®ºófor (int i = 0; i < expressions.size(); i++)ÖĞÔÙi++£¬
-                //ËùÒÔi¸úÉÏ´ÎÒ»Ñù)
+                //ç»§ç»­ä»Wildcard c2åŠ è¿›çš„åœ°æ–¹è¿›è¡Œ(temp - 1ä¹‹åfor (int i = 0; i < expressions.size(); i++)ä¸­å†i++ï¼Œ
+                //æ‰€ä»¥iè·Ÿä¸Šæ¬¡ä¸€æ ·)
                 i = temp - 1;
             } else {
-            	//Èçselect public.t.* from mytable as t where id>199
-            	//ÆäÖĞpublicÊÇschemaName
-            	//tÊÇtableAlias
+            	//å¦‚select public.t.* from mytable as t where id>199
+            	//å…¶ä¸­publicæ˜¯schemaName
+            	//tæ˜¯tableAlias
                 TableFilter filter = null;
                 for (TableFilter f : filters) {
                     if (db.equalsIdentifiers(tableAlias, f.getTableAlias())) {
@@ -750,32 +750,32 @@ public class Select extends Query {
                 expressions.remove(i);
                 Column[] columns = t.getColumns();
                 
-                //Ô­ÏÈÊÇselect * from natural_join_test_table1  natural join natural_join_test_table2
-                //AGE2Ã»ÓĞºöÂÔ£¬Ö»ÓĞNATURAL_JOIN_TEST_TABLE2µÄidºÍname±»ºöÂÔÁË£¬ÒòÎªËûÃÇÊÇNatural JoinÁĞ
+                //åŸå…ˆæ˜¯select * from natural_join_test_table1  natural join natural_join_test_table2
+                //AGE2æ²¡æœ‰å¿½ç•¥ï¼Œåªæœ‰NATURAL_JOIN_TEST_TABLE2çš„idå’Œnameè¢«å¿½ç•¥äº†ï¼Œå› ä¸ºä»–ä»¬æ˜¯Natural Joinåˆ—
                 //[NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME, NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
                 for (Column c : columns) {
-                    if (filter.isNaturalJoinColumn(c)) { //Ìø¹ıNatural JoinÁĞ
+                    if (filter.isNaturalJoinColumn(c)) { //è·³è¿‡Natural Joinåˆ—
                         continue;
                     }
                     ExpressionColumn ec = new ExpressionColumn(session.getDatabase(), null, alias, c.getName());
                     expressions.add(i++, ec);
                 }
-                //i--Ö®ºófor (int i = 0; i < expressions.size(); i++)ÖĞÔÙi++, ËùÒÔÏÂ´ÎÊµ¼ÊÊÇÕ¹¿ªºóµÄÏÂÒ»¸öÔªËØ¿ªÊ¼
-                //±ÈÈçselect public.t.id, *, name from mytable as t where id>199
-                //Õ¹¿ªºóÊÇselect public.t.id, [id, name], name from mytable as t where id>199
-                //ÏÂ´Î¾Í´Ó×îºóÒ»¸önameµÄ¿ªÊ¼
+                //i--ä¹‹åfor (int i = 0; i < expressions.size(); i++)ä¸­å†i++, æ‰€ä»¥ä¸‹æ¬¡å®é™…æ˜¯å±•å¼€åçš„ä¸‹ä¸€ä¸ªå…ƒç´ å¼€å§‹
+                //æ¯”å¦‚select public.t.id, *, name from mytable as t where id>199
+                //å±•å¼€åæ˜¯select public.t.id, [id, name], name from mytable as t where id>199
+                //ä¸‹æ¬¡å°±ä»æœ€åä¸€ä¸ªnameçš„å¼€å§‹
                 i--;
             }
         }
     }
 
     public void init() {
-    	//expressions×Ö¶Î»á¶¯Ì¬¼ÓÈë*À©Õ¹ºóµÄ×Ö¶Î¡¢È±Ê§µÄorder by¡¢GROUP BY×Ö¶Î£¬»¹ÓĞhaving±í´ïÊ½
+    	//expressionså­—æ®µä¼šåŠ¨æ€åŠ å…¥*æ‰©å±•åçš„å­—æ®µã€ç¼ºå¤±çš„order byã€GROUP BYå­—æ®µï¼Œè¿˜æœ‰havingè¡¨è¾¾å¼
         if (SysProperties.CHECK && checkInit) {
             DbException.throwInternalError();
         }
         expandColumnList();
-        visibleColumnCount = expressions.size(); //visibleColumnCount²»°üº¬È±Ê§µÄorder by¡¢GROUP BY×Ö¶Î£¬»¹ÓĞhaving±í´ïÊ½
+        visibleColumnCount = expressions.size(); //visibleColumnCountä¸åŒ…å«ç¼ºå¤±çš„order byã€GROUP BYå­—æ®µï¼Œè¿˜æœ‰havingè¡¨è¾¾å¼
         ArrayList<String> expressionSQL;
         if (orderList != null || group != null) {
             expressionSQL = New.arrayList();
@@ -789,12 +789,12 @@ public class Select extends Query {
             expressionSQL = null;
         }
         if (orderList != null) {
-        	//ÔÚselectÖĞ¼ÓdistinctÊ±distinct±äÁ¿Îªtrue
-        	//´ËÊ±Èç¹ûorder by×Ó¾äÖĞµÄ×Ö¶ÎÔÚselect×Ö¶ÎÁĞ±íÖĞ²»´æÔÚ£¬ÄÇÃ´¾ÍÈÏÎªÊÇ´íÎó
-        	//±ÈÈçselect distinct name from mytable order by id descÊÇ´íµÄ
-        	//´íÎóÌáÊ¾:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
-        	//ÕâÑù¾ÍÃ»ÎÊÌâselect name from mytable order by id desc
-        	//»á×Ô¶¯¼Óorder byÖĞµÄ×Ö¶Îµ½select×Ö¶ÎÁĞ±íÖĞ
+        	//åœ¨selectä¸­åŠ distinctæ—¶distinctå˜é‡ä¸ºtrue
+        	//æ­¤æ—¶å¦‚æœorder byå­å¥ä¸­çš„å­—æ®µåœ¨selectå­—æ®µåˆ—è¡¨ä¸­ä¸å­˜åœ¨ï¼Œé‚£ä¹ˆå°±è®¤ä¸ºæ˜¯é”™è¯¯
+        	//æ¯”å¦‚select distinct name from mytable order by id descæ˜¯é”™çš„
+        	//é”™è¯¯æç¤º:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
+        	//è¿™æ ·å°±æ²¡é—®é¢˜select name from mytable order by id desc
+        	//ä¼šè‡ªåŠ¨åŠ order byä¸­çš„å­—æ®µåˆ°selectå­—æ®µåˆ—è¡¨ä¸­
             initOrder(session, expressions, expressionSQL, orderList, visibleColumnCount, distinct, filters);
         }
         distinctColumnCount = expressions.size();
@@ -813,10 +813,10 @@ public class Select extends Query {
         // then 'HAVING' expressions,
         // and 'GROUP BY' expressions at the end
         
-        //ÎªgroupIndexºÍgroupByExpressionÁ½¸ö×Ö¶Î¸³Öµ£¬
-        //groupIndex¼ÇÂ¼ÁËGROUP BY×Ó¾äÖĞµÄ×Ö¶ÎÔÚselect×Ö¶ÎÁĞ±íÖĞµÄÎ»ÖÃË÷Òı(´Ó0¿ªÊ¼¼ÆÊı)
-        //groupByExpression×éÊıµÄ´óĞ¡¸úselect×Ö¶ÎÁĞ±íÒ»Ñù£¬ÀàËÆÓÚÒ»¸öbitmap£¬ÓÃÀ´¼ÇÂ¼ÁËselect×Ö¶ÎÁĞ±íÖĞµÄÄÄĞ©×Ö¶ÎÊÇGROUP BY×Ö¶Î
-        //Èç¹ûGROUP BY×Ó¾äÖĞµÄ×Ö¶Î²»ÔÚselect×Ö¶ÎÁĞ±íÖĞ£¬ÄÇÃ´»á°ÑËü¼Óµ½select×Ö¶ÎÁĞ±í
+        //ä¸ºgroupIndexå’ŒgroupByExpressionä¸¤ä¸ªå­—æ®µèµ‹å€¼ï¼Œ
+        //groupIndexè®°å½•äº†GROUP BYå­å¥ä¸­çš„å­—æ®µåœ¨selectå­—æ®µåˆ—è¡¨ä¸­çš„ä½ç½®ç´¢å¼•(ä»0å¼€å§‹è®¡æ•°)
+        //groupByExpressionç»„æ•°çš„å¤§å°è·Ÿselectå­—æ®µåˆ—è¡¨ä¸€æ ·ï¼Œç±»ä¼¼äºä¸€ä¸ªbitmapï¼Œç”¨æ¥è®°å½•äº†selectå­—æ®µåˆ—è¡¨ä¸­çš„å“ªäº›å­—æ®µæ˜¯GROUP BYå­—æ®µ
+        //å¦‚æœGROUP BYå­å¥ä¸­çš„å­—æ®µä¸åœ¨selectå­—æ®µåˆ—è¡¨ä¸­ï¼Œé‚£ä¹ˆä¼šæŠŠå®ƒåŠ åˆ°selectå­—æ®µåˆ—è¡¨
         if (group != null) {
             int size = group.size();
             int expSize = expressionSQL.size();
@@ -859,11 +859,11 @@ public class Select extends Query {
         // map columns in select list and condition
         for (TableFilter f : filters) {
             for (Expression expr : expressions) {
-            	//ÏñÕâÑùsql = "select id, name from natural_join_test_table1, natural_join_test_table2";
-            	//Èç¹ûnatural_join_test_table1ºÍnatural_join_test_table2ÓĞÏàÍ¬µÄid,name
-            	//ÄÇÃ´ÔÚµÚÒ»´Îorg.h2.expression.ExpressionColumn.mapColumn(ColumnResolver, Column, int)Ê±
-            	//columnResolver=null£¬´ËÊ±columnResolverÉèÎªnatural_join_test_table1
-            	//µ±µÚ¶ş´ÎmapColumnÊ±£¬ÒòÎªidÕâ¸öExpressionColumnµÄcolumnResolverÒÑ¾­Éè¹ıÁË£¬ËùÒÔ±¨´í:
+            	//åƒè¿™æ ·sql = "select id, name from natural_join_test_table1, natural_join_test_table2";
+            	//å¦‚æœnatural_join_test_table1å’Œnatural_join_test_table2æœ‰ç›¸åŒçš„id,name
+            	//é‚£ä¹ˆåœ¨ç¬¬ä¸€æ¬¡org.h2.expression.ExpressionColumn.mapColumn(ColumnResolver, Column, int)æ—¶
+            	//columnResolver=nullï¼Œæ­¤æ—¶columnResolverè®¾ä¸ºnatural_join_test_table1
+            	//å½“ç¬¬äºŒæ¬¡mapColumnæ—¶ï¼Œå› ä¸ºidè¿™ä¸ªExpressionColumnçš„columnResolverå·²ç»è®¾è¿‡äº†ï¼Œæ‰€ä»¥æŠ¥é”™:
             	//Ambiguous column name "ID";
                 expr.mapColumns(f, 0);
             }
@@ -874,7 +874,7 @@ public class Select extends Query {
         if (havingIndex >= 0) {
             Expression expr = expressions.get(havingIndex);
             SelectListColumnResolver res = new SelectListColumnResolver(this);
-            //µ±having²»ÔÚvisibleColumnµÄ×Ö¶ÎÁĞ±íÖĞÊ±£¬mapColumnsÊ²Ã´¶¼²»×ö
+            //å½“havingä¸åœ¨visibleColumnçš„å­—æ®µåˆ—è¡¨ä¸­æ—¶ï¼ŒmapColumnsä»€ä¹ˆéƒ½ä¸åš
             expr.mapColumns(res, 0);
         }
         checkInit = true;
@@ -888,12 +888,12 @@ public class Select extends Query {
         if (SysProperties.CHECK && !checkInit) {
             DbException.throwInternalError("not initialized");
         }
-        //µÃµ½Ò»¸ö×ÛºÏµÄSortOrderÊµÀıºóÇå³ıÎŞÓÃµÄorderList
+        //å¾—åˆ°ä¸€ä¸ªç»¼åˆçš„SortOrderå®ä¾‹åæ¸…é™¤æ— ç”¨çš„orderList
         if (orderList != null) {
             sort = prepareOrder(orderList, expressions.size());
             orderList = null;
         }
-        //initÖĞÒÑ¾­ÊÂÏÈmapColumnsÁË
+        //initä¸­å·²ç»äº‹å…ˆmapColumnsäº†
         for (int i = 0; i < expressions.size(); i++) {
             Expression e = expressions.get(i);
             expressions.set(i, e.optimize(session));
@@ -909,39 +909,39 @@ public class Select extends Query {
                 // select p, c from parent
                 // left outer join child on p = pc where c is null;
                 if (!f.isJoinOuter() && !f.isJoinOuterIndirect()) {
-                	//Ö»ÒªÊÇÕı³£µÄ´øÓĞwhereÌõ¼şµÄ¶¼»áµ÷ÓÃ
-                	//½¨Á¢Ë÷ÒıÌõ¼ş
-                	//Èç: select name from mytable where id=3
-                	//ÁíÍâ£¬Ïñ:SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 WHERE id2=90
-                	//ÒòÎªf=JoinTest2ÊÇouterÁ¬½Ó£¬ËùÒÔÒ²²»°ÑÌõ¼ş¼Óµ½JoinTest2Õâ¸öTableFilterÖĞ
-                	//Í¬Ê±ÒòÎªid2²»ÊÇJoinTest1µÄ×Ö¶Î£¬ËùÒÔÒ²²»¼ÓÈëJoinTest1Õâ¸öTableFilterÖĞ
+                	//åªè¦æ˜¯æ­£å¸¸çš„å¸¦æœ‰whereæ¡ä»¶çš„éƒ½ä¼šè°ƒç”¨
+                	//å»ºç«‹ç´¢å¼•æ¡ä»¶
+                	//å¦‚: select name from mytable where id=3
+                	//å¦å¤–ï¼Œåƒ:SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 WHERE id2=90
+                	//å› ä¸ºf=JoinTest2æ˜¯outerè¿æ¥ï¼Œæ‰€ä»¥ä¹Ÿä¸æŠŠæ¡ä»¶åŠ åˆ°JoinTest2è¿™ä¸ªTableFilterä¸­
+                	//åŒæ—¶å› ä¸ºid2ä¸æ˜¯JoinTest1çš„å­—æ®µï¼Œæ‰€ä»¥ä¹Ÿä¸åŠ å…¥JoinTest1è¿™ä¸ªTableFilterä¸­
                     condition.createIndexConditions(session, f);
                 }
             }
         }
         
-        //ÕâÀïÊÇÕë¶Ômin¡¢max¡¢countÈı¸ö¾ÛºÏº¯ÊıµÄÌØ±ğÓÅ»¯£¬¼ûorg.h2.expression.Aggregate.getValue(Session)
-        //ÓĞgroup by»òhaving»ò¾ÛºÏº¯ÊıÊ±isGroupQuery=true
-        //Í¬Ê±Âú×ãÏÂÃæ5¸öÌõ¼şÊ±isQuickAggregateQueryÎªtrue
-        //isGroupQuery=true¡¢groupIndex=null(¼´Ã»ÓĞgroup by×Ó¾ä)¡¢Ã»ÓĞhaving¡¢µ¥±í¡¢ÎŞwhere
-        //²âÊÔÏÂÃæ´úÂëÓÃselect count(id) from mytable
+        //è¿™é‡Œæ˜¯é’ˆå¯¹minã€maxã€countä¸‰ä¸ªèšåˆå‡½æ•°çš„ç‰¹åˆ«ä¼˜åŒ–ï¼Œè§org.h2.expression.Aggregate.getValue(Session)
+        //æœ‰group byæˆ–havingæˆ–èšåˆå‡½æ•°æ—¶isGroupQuery=true
+        //åŒæ—¶æ»¡è¶³ä¸‹é¢5ä¸ªæ¡ä»¶æ—¶isQuickAggregateQueryä¸ºtrue
+        //isGroupQuery=trueã€groupIndex=null(å³æ²¡æœ‰group byå­å¥)ã€æ²¡æœ‰havingã€å•è¡¨ã€æ— where
+        //æµ‹è¯•ä¸‹é¢ä»£ç ç”¨select count(id) from mytable
         if (isGroupQuery && groupIndex == null && havingIndex < 0 && filters.size() == 1) {
             if (condition == null) {
                 Table t = filters.get(0).getTable();
-                //·µ»ØOPTIMIZABLE_MIN_MAX_COUNT_ALLÀàĞÍ
+                //è¿”å›OPTIMIZABLE_MIN_MAX_COUNT_ALLç±»å‹
                 ExpressionVisitor optimizable = ExpressionVisitor.getOptimizableVisitor(t);
-                //isEverythingÀïÔÙÅĞ¶ÏËùÓĞµÄselect×Ö¶Î±í´ïÊ½¶ÔÓÚOPTIMIZABLE_MIN_MAX_COUNT_ALLÊÇ·ñ¿ÉÓÅ»¯
-                //¿É²Î¿¼org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
+                //isEverythingé‡Œå†åˆ¤æ–­æ‰€æœ‰çš„selectå­—æ®µè¡¨è¾¾å¼å¯¹äºOPTIMIZABLE_MIN_MAX_COUNT_ALLæ˜¯å¦å¯ä¼˜åŒ–
+                //å¯å‚è€ƒorg.h2.expression.Aggregate.isEverything(ExpressionVisitor)
                 isQuickAggregateQuery = isEverything(optimizable);
             }
         }
-        cost = preparePlan(); //ÕâÒ»²½ÀïÍ·»áÎªtopTableFilterÑ¡Ôñ×îºÏÊÊµÄË÷Òı£¬Ö»²»¹ıÏÂÃæ3¸öifÈç¹ûÅöµ½ÌØÊâÇé¿öÔÙµ÷ÕûË÷Òı
+        cost = preparePlan(); //è¿™ä¸€æ­¥é‡Œå¤´ä¼šä¸ºtopTableFilteré€‰æ‹©æœ€åˆé€‚çš„ç´¢å¼•ï¼Œåªä¸è¿‡ä¸‹é¢3ä¸ªifå¦‚æœç¢°åˆ°ç‰¹æ®Šæƒ…å†µå†è°ƒæ•´ç´¢å¼•
         
-        //ÒÔÏÂÈı¸öifÓï¾äÊÇÓÃÀ´Ñ¡Ôñ²»Í¬µÄindex
+        //ä»¥ä¸‹ä¸‰ä¸ªifè¯­å¥æ˜¯ç”¨æ¥é€‰æ‹©ä¸åŒçš„index
         
-        //ÓÃselect distinct name from mytable²âÊÔÏÂÃæµÄ´úÂë£¬
-        //Îªname½¨Á¢UNIQUE(name,...)(nameÊÇµÚÒ»¸ö×Ö¶Î)£¬½¨±íÊ±Îªname×Ö¶Î¼ÓSELECTIVITY 10
-        //ÕâÑù£¬¾Í²»»áÓÃÆäËûË÷Òı£¬¶øÊÇÓÃUNIQUEË÷Òı
+        //ç”¨select distinct name from mytableæµ‹è¯•ä¸‹é¢çš„ä»£ç ï¼Œ
+        //ä¸ºnameå»ºç«‹UNIQUE(name,...)(nameæ˜¯ç¬¬ä¸€ä¸ªå­—æ®µ)ï¼Œå»ºè¡¨æ—¶ä¸ºnameå­—æ®µåŠ SELECTIVITY 10
+        //è¿™æ ·ï¼Œå°±ä¸ä¼šç”¨å…¶ä»–ç´¢å¼•ï¼Œè€Œæ˜¯ç”¨UNIQUEç´¢å¼•
         if (distinct && session.getDatabase().getSettings().optimizeDistinct &&
                 !isGroupQuery && filters.size() == 1 &&
                 expressions.size() == 1 && condition == null) {
@@ -968,7 +968,7 @@ public class Select extends Query {
                 }
             }
         }
-        //ÓĞorder by£¬µ«ÊÇÃ»ÓĞ¾ÛºÏº¯Êı£¬Ò²Ã»ÓĞgroup byµÄÇéĞÍ
+        //æœ‰order byï¼Œä½†æ˜¯æ²¡æœ‰èšåˆå‡½æ•°ï¼Œä¹Ÿæ²¡æœ‰group byçš„æƒ…å‹
         if (sort != null && !isQuickAggregateQuery && !isGroupQuery) {
             Index index = getSortIndex();
             if (index != null) {
@@ -999,7 +999,7 @@ public class Select extends Query {
                 }
             }
         }
-        //Ã»ÓĞ¾ÛºÏº¯Êı£¬ÓĞgroup byµÄÇéĞÍ
+        //æ²¡æœ‰èšåˆå‡½æ•°ï¼Œæœ‰group byçš„æƒ…å‹
         if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) {
             Index index = getGroupSortedIndex();
             Index current = topTableFilter.getIndex();
@@ -1392,7 +1392,7 @@ public class Select extends Query {
         return false;
     }
 
-	public String toString() { //ÎÒ¼ÓÉÏµÄ
+	public String toString() { //æˆ‘åŠ ä¸Šçš„
 		return getPlanSQL();
 	}
     public SortOrder prepareOrder() {

@@ -56,7 +56,7 @@ public class ConnectionInfo implements Cloneable {
      */
     public ConnectionInfo(String name) {
         this.name = name;
-        this.url = Constants.START_URL + name; //Èçjdbc:h2:mydb£¬Ã»ÓĞtcpÁË£¬´ËÊ±persistentÒ²ÊÇtrue
+        this.url = Constants.START_URL + name; //å¦‚jdbc:h2:mydbï¼Œæ²¡æœ‰tcpäº†ï¼Œæ­¤æ—¶persistentä¹Ÿæ˜¯true
         parseName();
     }
 
@@ -68,17 +68,17 @@ public class ConnectionInfo implements Cloneable {
      */
     public ConnectionInfo(String u, Properties info) {
         u = remapURL(u);
-        this.originalURL = u; //originalURL²»»áÔÙ±ä
+        this.originalURL = u; //originalURLä¸ä¼šå†å˜
         if (!u.startsWith(Constants.START_URL)) { //"jdbc:h2:"
             throw DbException.getInvalidValueException("url", u);
         }
-        this.url = u; //urlÔÚ½ÓÏÂÀ´µÄ´úÂëÖĞ»áÔÙ±ä£¬È¥µô²ÎÊı
+        this.url = u; //urlåœ¨æ¥ä¸‹æ¥çš„ä»£ç ä¸­ä¼šå†å˜ï¼Œå»æ‰å‚æ•°
         readProperties(info);
         readSettingsFromURL();
         setUserName(removeProperty("USER", ""));
         convertPasswords();
 
-		//È¥µô"jdbc:h2:"£¬±ÈÈçjdbc:h2:tcp://localhost:9092/test9
+		//å»æ‰"jdbc:h2:"ï¼Œæ¯”å¦‚jdbc:h2:tcp://localhost:9092/test9
 		//name = tcp://localhost:9092/test9
         name = url.substring(Constants.START_URL.length());
         parseName();
@@ -143,7 +143,7 @@ public class ConnectionInfo implements Cloneable {
             name = name.substring("file:".length());
             persistent = true;
         } else {
-            persistent = true; //µÈÍ¬ÓÚ"file:name"
+            persistent = true; //ç­‰åŒäº"file:name"
         }
         if (persistent && !remote) {
             if ("/".equals(SysProperties.FILE_SEPARATOR)) {
@@ -228,21 +228,21 @@ public class ConnectionInfo implements Cloneable {
         info.keySet().toArray(list);
         DbSettings s = null;
 
-		//¿ÉÔÚinfoÖĞÅäÈıÖÖ²ÎÊı£¬Ïà¹ØÎÄµµ¼û:E:\H2\my-h2\my-h2-docs\999 ¿ÉÅäÖÃµÄ²ÎÊı»ã×Ü.javaÖĞµÄ1¡¢2¡¢3Ïî
+		//å¯åœ¨infoä¸­é…ä¸‰ç§å‚æ•°ï¼Œç›¸å…³æ–‡æ¡£è§:E:\H2\my-h2\my-h2-docs\999 å¯é…ç½®çš„å‚æ•°æ±‡æ€».javaä¸­çš„1ã€2ã€3é¡¹
         for (Object k : list) {
             String key = StringUtils.toUpperEnglish(k.toString());
             if (prop.containsKey(key)) {
                 throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
             }
             Object value = info.get(k);
-			//Ö§³Öorg.h2.command.dml.SetTypesÖĞµÄ²ÎÊıºÍConnectionInfoÓëconnectionTimeÏà¹ØµÄ²ÎÊı
+			//æ”¯æŒorg.h2.command.dml.SetTypesä¸­çš„å‚æ•°å’ŒConnectionInfoä¸connectionTimeç›¸å…³çš„å‚æ•°
             if (isKnownSetting(key)) {
                 prop.put(key, value);
             } else {
                 if (s == null) {
                     s = getDbSettings();
                 }
-				//org.h2.constant.DbSettingsÖĞµÄ²ÎÊı
+				//org.h2.constant.DbSettingsä¸­çš„å‚æ•°
                 if (s.containsKey(key)) {
                     prop.put(key, value);
                 }
@@ -251,9 +251,9 @@ public class ConnectionInfo implements Cloneable {
     }
 
     private void readSettingsFromURL() {
-		//Èçurl=jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false
+		//å¦‚url=jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false
         DbSettings dbSettings = DbSettings.getInstance(null);
-        int idx = url.indexOf(';');//ÓÃ";"ºÅÀ´·Ö¸ô²ÎÊı£¬µÚÒ»¸ö";"ºÅ±íÃ÷urlºÍ²ÎÊıµÄ·Ö½ç£¬Ö®ºóµÄ";"ºÅÓÃÀ´·Ö¸ô¶à¸ö²ÎÊı
+        int idx = url.indexOf(';');//ç”¨";"å·æ¥åˆ†éš”å‚æ•°ï¼Œç¬¬ä¸€ä¸ª";"å·è¡¨æ˜urlå’Œå‚æ•°çš„åˆ†ç•Œï¼Œä¹‹åçš„";"å·ç”¨æ¥åˆ†éš”å¤šä¸ªå‚æ•°
         if (idx >= 0) {
 			//optimize_distinct=true;early_filter=true;nested_joins=false
             String settings = url.substring(idx + 1);
@@ -272,14 +272,14 @@ public class ConnectionInfo implements Cloneable {
                 String value = setting.substring(equal + 1);
                 String key = setting.substring(0, equal);
                 key = StringUtils.toUpperEnglish(key);
-				//infoÖĞ³ıÁË¿ÉÒÔÅäÈıÖÖ²ÎÊıÍâ(Ïà¹ØÎÄµµ¼û:E:\H2\my-h2\my-h2-docs\999 ¿ÉÅäÖÃµÄ²ÎÊı»ã×Ü.javaÖĞµÄ1¡¢2¡¢3Ïî)
-				//»¹¿ÉÒÔÅäÆäËû²ÎÊı£¬µ«ÊÇ±»ºöÂÔ
-				//µ«ÊÇurlÖĞÖ»ÄÜÅäÈıÖÖ²ÎÊı
+				//infoä¸­é™¤äº†å¯ä»¥é…ä¸‰ç§å‚æ•°å¤–(ç›¸å…³æ–‡æ¡£è§:E:\H2\my-h2\my-h2-docs\999 å¯é…ç½®çš„å‚æ•°æ±‡æ€».javaä¸­çš„1ã€2ã€3é¡¹)
+				//è¿˜å¯ä»¥é…å…¶ä»–å‚æ•°ï¼Œä½†æ˜¯è¢«å¿½ç•¥
+				//ä½†æ˜¯urlä¸­åªèƒ½é…ä¸‰ç§å‚æ•°
                 if (!isKnownSetting(key) && !dbSettings.containsKey(key)) {
                     throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, key);
                 }
-				//²»ÄÜÓëinfoÖĞµÄ²ÎÊıÖØ¸´(Èç¹ûÖµÏàÍ¬¾Í²»»á±¨´í)
-				//Àı×Ó¼ûmy.test.ConnectionInfoTest
+				//ä¸èƒ½ä¸infoä¸­çš„å‚æ•°é‡å¤(å¦‚æœå€¼ç›¸åŒå°±ä¸ä¼šæŠ¥é”™)
+				//ä¾‹å­è§my.test.ConnectionInfoTest
                 String old = prop.getProperty(key);
                 if (old != null && !old.equals(value)) {
                     throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
@@ -294,11 +294,11 @@ public class ConnectionInfo implements Cloneable {
         if (p == null) {
             return new char[0];
         } else if (p instanceof char[]) {
-			//ÀıÈç:
+			//ä¾‹å¦‚:
 			//Properties prop = new Properties();
 			//prop.put("password", new char[]{});
-			//ÒòÎªProperties¼Ì³ĞÁËjava.util.Hashtable<K, V>
-			//¿ÉÒÔµ÷ÓÃjava.util.Hashtable.put(Object, Object)
+			//å› ä¸ºPropertiesç»§æ‰¿äº†java.util.Hashtable<K, V>
+			//å¯ä»¥è°ƒç”¨java.util.Hashtable.put(Object, Object)
             return (char[]) p;
         } else {
             return p.toString().toCharArray();
@@ -311,10 +311,10 @@ public class ConnectionInfo implements Cloneable {
      */
     private void convertPasswords() {
         char[] password = removePassword();
-        boolean passwordHash = removeProperty("PASSWORD_HASH", false); //Èç¹ûPASSWORD_HASH²ÎÊıÊÇtrueÄÇÃ´²»ÔÙ½øĞĞSHA256
+        boolean passwordHash = removeProperty("PASSWORD_HASH", false); //å¦‚æœPASSWORD_HASHå‚æ•°æ˜¯trueé‚£ä¹ˆä¸å†è¿›è¡ŒSHA256
 
-		//Èç¹ûÅäÖÃÁËCIPHER£¬ÔòÃØÃÜ°üº¬Á½²¿·İ£¬ÓÃ¿Õ¸ñ·Ö¿ª£¬µÚÒ»²¿·İÊÇfilePassword£¬µÚ¶ş²¿·İÊÇÕæÊµÃÜÂë
-		//²¢ÇÒÊ¹ÓÃ16½øÖÆ×Ö·û£¬×Ö·û¸öÊıÊÇÅ¼Êı£¬Èç¹ûPASSWORD_HASH²ÎÊıÊÇtrueÄÇÃ´²»ÔÙ½øĞĞSHA256
+		//å¦‚æœé…ç½®äº†CIPHERï¼Œåˆ™ç§˜å¯†åŒ…å«ä¸¤éƒ¨ä»½ï¼Œç”¨ç©ºæ ¼åˆ†å¼€ï¼Œç¬¬ä¸€éƒ¨ä»½æ˜¯filePasswordï¼Œç¬¬äºŒéƒ¨ä»½æ˜¯çœŸå®å¯†ç 
+		//å¹¶ä¸”ä½¿ç”¨16è¿›åˆ¶å­—ç¬¦ï¼Œå­—ç¬¦ä¸ªæ•°æ˜¯å¶æ•°ï¼Œå¦‚æœPASSWORD_HASHå‚æ•°æ˜¯trueé‚£ä¹ˆä¸å†è¿›è¡ŒSHA256
         if (getProperty("CIPHER", null) != null) {
             // split password into (filePassword+' '+userPassword)
             int space = -1;
@@ -334,15 +334,15 @@ public class ConnectionInfo implements Cloneable {
             Arrays.fill(password, (char) 0);
             password = np;
 
-			//filePasswordHashÓÃ"file"½øĞĞhash
+			//filePasswordHashç”¨"file"è¿›è¡Œhash
             filePasswordHash = hashPassword(passwordHash, "file", filePassword);
         }
-		//filePasswordHashÓÃÓÃ»§Ãû½øĞĞhash
+		//filePasswordHashç”¨ç”¨æˆ·åè¿›è¡Œhash
         userPasswordHash = hashPassword(passwordHash, user, password);
     }
 
     private static byte[] hashPassword(boolean passwordHash, String userName, char[] password) {
-		//Èç¹ûPASSWORD_HASH²ÎÊıÊÇtrueÄÇÃ´²»ÔÙ½øĞĞSHA256
+		//å¦‚æœPASSWORD_HASHå‚æ•°æ˜¯trueé‚£ä¹ˆä¸å†è¿›è¡ŒSHA256
         if (passwordHash) {
             return StringUtils.convertHexToBytes(new String(password));
         }
@@ -645,9 +645,9 @@ public class ConnectionInfo implements Cloneable {
     }
 
     private static String remapURL(String url) {
-		//±ÈÈçSystem.setProperty("h2.urlMap", "E:/H2/my-h2/my-h2-src/my/test/h2.urlMap.properties");
-		//¼ÙÉèurl="my.url"£¬ÄÇÃ´¿ÉÒÔÔÚh2.urlMap.propertiesÖĞÖØĞÂÓ³Éä: my.url=my.url=jdbc:h2:tcp://localhost:9092/test9
-		//×îºó·µ»ØµÄurlÊµ¼ÊÊÇjdbc:h2:tcp://localhost:9092/test9
+		//æ¯”å¦‚System.setProperty("h2.urlMap", "E:/H2/my-h2/my-h2-src/my/test/h2.urlMap.properties");
+		//å‡è®¾url="my.url"ï¼Œé‚£ä¹ˆå¯ä»¥åœ¨h2.urlMap.propertiesä¸­é‡æ–°æ˜ å°„: my.url=my.url=jdbc:h2:tcp://localhost:9092/test9
+		//æœ€åè¿”å›çš„urlå®é™…æ˜¯jdbc:h2:tcp://localhost:9092/test9
         String urlMap = SysProperties.URL_MAP;
         if (urlMap != null && urlMap.length() > 0) {
             try {

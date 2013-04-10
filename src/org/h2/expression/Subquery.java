@@ -25,30 +25,30 @@ import org.h2.value.ValueNull;
 public class Subquery extends Expression {
 
     private final Query query;
-    private Expression expression; //queryµÄselect×Ö¶ÎÁĞ±í£¬Èç¹ûÓĞ¶àÁĞ£¬ÄÇÃ´ÊÇÒ»¸öExpressionList
+    private Expression expression; //queryçš„selectå­—æ®µåˆ—è¡¨ï¼Œå¦‚æœæœ‰å¤šåˆ—ï¼Œé‚£ä¹ˆæ˜¯ä¸€ä¸ªExpressionList
 
     public Subquery(Query query) {
         this.query = query;
     }
     
-    //×Ó²éÑ¯²»ÄÜ¶àÓÚ1¸öÁĞ
+    //å­æŸ¥è¯¢ä¸èƒ½å¤šäº1ä¸ªåˆ—
 	//sql = "delete from ConditionInSelectTest where id in(select id,name from ConditionInSelectTest where id=3)";
 	//sql = "delete from ConditionInSelectTest where id in(select id from ConditionInSelectTest where id>2)";
 
 	//sql = "delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)";
-	//ANYºÍSOMEÒ»Ñù
+	//ANYå’ŒSOMEä¸€æ ·
 	//sql = "delete from ConditionInSelectTest where id > ANY(select id from ConditionInSelectTest where id>1)";
 	//sql = "delete from ConditionInSelectTest where id > SOME(select id from ConditionInSelectTest where id>10)";
 	
-	//ÑÏ¸ñÀ´ËµÕâÖÖsql²ÅËãSubquery£¬ÉÏÃæµÄin£¬ALL£¬ANY£¬SOME¶¼Ö»ÊÇÆÕÍ¨µÄselect
-	//Subquery°üº¬µÄĞĞÊı²»ÄÜ´óÓÚ1£¬¶øin£¬ALL£¬ANY£¬SOMEÃ»ÏŞÖÆ£¬
-	//ÏëÒ»ÏÂÒ²Àí½â£¬±ÈÈçid> (select id from ConditionInSelectTest where id>1)Èç¹ûÕâ¸öSubquery´óÓÚ1ĞĞ£¬ÄÇÃ´id¾Í²»ÖªµÀºÍË­±È½Ï
+	//ä¸¥æ ¼æ¥è¯´è¿™ç§sqlæ‰ç®—Subqueryï¼Œä¸Šé¢çš„inï¼ŒALLï¼ŒANYï¼ŒSOMEéƒ½åªæ˜¯æ™®é€šçš„select
+	//SubqueryåŒ…å«çš„è¡Œæ•°ä¸èƒ½å¤§äº1ï¼Œè€Œinï¼ŒALLï¼ŒANYï¼ŒSOMEæ²¡é™åˆ¶ï¼Œ
+	//æƒ³ä¸€ä¸‹ä¹Ÿç†è§£ï¼Œæ¯”å¦‚id> (select id from ConditionInSelectTest where id>1)å¦‚æœè¿™ä¸ªSubqueryå¤§äº1è¡Œï¼Œé‚£ä¹ˆidå°±ä¸çŸ¥é“å’Œè°æ¯”è¾ƒ
 	//sql = "delete from ConditionInSelectTest where id > (select id from ConditionInSelectTest where id>1)";
-    //µ«ÊÇSubquery¿ÉÒÔÓĞ¶àÀı
+    //ä½†æ˜¯Subqueryå¯ä»¥æœ‰å¤šä¾‹
 	//sql = "delete from ConditionInSelectTest where id > (select id, name from ConditionInSelectTest where id=1 and name='a1')";
     public Value getValue(Session session) {
         query.setSession(session);
-        //getValueËäÈ»ÔÚÖ÷²éÑ¯ÓĞ¶àÌõ¼ÇÂ¼µÄÇé¿öÏÂ¶¼»á±»µ÷ÓÃ£¬µ«ÊÇqueryÄÚ²¿ÊÇÓĞ»º´æµÄ£¬Ö»ÊÇÒ»¸öÇ³¿½±´£¬ËùÒÔ¶ÔĞÔÄÜÓ°Ïì²»´ó
+        //getValueè™½ç„¶åœ¨ä¸»æŸ¥è¯¢æœ‰å¤šæ¡è®°å½•çš„æƒ…å†µä¸‹éƒ½ä¼šè¢«è°ƒç”¨ï¼Œä½†æ˜¯queryå†…éƒ¨æ˜¯æœ‰ç¼“å­˜çš„ï¼Œåªæ˜¯ä¸€ä¸ªæµ…æ‹·è´ï¼Œæ‰€ä»¥å¯¹æ€§èƒ½å½±å“ä¸å¤§
         ResultInterface result = query.query(2);
         try {
             int rowcount = result.getRowCount();
@@ -64,18 +64,18 @@ public class Subquery extends Expression {
                 if (result.getVisibleColumnCount() == 1) {
                     v = values[0];
                 } else {
-                	//¶ÔÓÚid > (select id, name from ConditionInSelectTest where id=1 and name='a1')
-                	//´ËÊ±ÓÉid, nameµÃµ½Ò»¸öValueArray
-                	//µ«½øĞĞ±È½ÏÊ±£¬×ó±ßµÄidÒ²»á×ª»»³ÉÒ»¸öStringÊı×é£¬×îºóÓëValueArray±È½Ï
-                	//ËùÒÔÈç¹û×Ó²éÑ¯Ö»ĞèÒªÒ»¸öÁĞÊ±£¬¾Í²»Ó¦¸Ã¶àĞ´Ò»¸öÁĞ£¬ÕâÑùĞÔÄÜ¸ü¸ß¡£
+                	//å¯¹äºid > (select id, name from ConditionInSelectTest where id=1 and name='a1')
+                	//æ­¤æ—¶ç”±id, nameå¾—åˆ°ä¸€ä¸ªValueArray
+                	//ä½†è¿›è¡Œæ¯”è¾ƒæ—¶ï¼Œå·¦è¾¹çš„idä¹Ÿä¼šè½¬æ¢æˆä¸€ä¸ªStringæ•°ç»„ï¼Œæœ€åä¸ValueArrayæ¯”è¾ƒ
+                	//æ‰€ä»¥å¦‚æœå­æŸ¥è¯¢åªéœ€è¦ä¸€ä¸ªåˆ—æ—¶ï¼Œå°±ä¸åº”è¯¥å¤šå†™ä¸€ä¸ªåˆ—ï¼Œè¿™æ ·æ€§èƒ½æ›´é«˜ã€‚
                     v = ValueArray.get(values);
                 }
             }
             return v;
         } finally {
-            //¶ÔÓÚorg.h2.result.LocalResultÖ»ÓĞexternal²»ÎªnullÊ±²Å°ÑclosedÉèÎªtrue
-        	//µ±ÔÚorg.h2.command.dml.Query.query(int)ÅĞ¶Ïorg.h2.result.LocalResult.isClosed()Ê±ÒòÎªclosedÎªfalse
-        	//ËùÒÔÕâ¸öclose·½·¨²¢Ã»Ğ§¹û¡£
+            //å¯¹äºorg.h2.result.LocalResultåªæœ‰externalä¸ä¸ºnullæ—¶æ‰æŠŠclosedè®¾ä¸ºtrue
+        	//å½“åœ¨org.h2.command.dml.Query.query(int)åˆ¤æ–­org.h2.result.LocalResult.isClosed()æ—¶å› ä¸ºclosedä¸ºfalse
+        	//æ‰€ä»¥è¿™ä¸ªcloseæ–¹æ³•å¹¶æ²¡æ•ˆæœã€‚
             result.close();
         }
     }

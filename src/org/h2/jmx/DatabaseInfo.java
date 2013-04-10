@@ -74,7 +74,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
             ObjectName mbeanObjectName = getObjectName(name, path);
             MBEANS.put(path, mbeanObjectName);
             DatabaseInfo info = new DatabaseInfo(database);
-            //ÓÃÓÚ´Ó"/org/h2/res/javadoc.properties"ÖĞÈ¡³öÊôĞÔµÄÃèÊöÎÄ±¾
+            //ç”¨äºä»"/org/h2/res/javadoc.properties"ä¸­å–å‡ºå±æ€§çš„æè¿°æ–‡æœ¬
             Object mbean = new DocumentedMBean(info, DatabaseInfoMBean.class);
             mbeanServer.registerMBean(mbean, mbeanObjectName);
         }

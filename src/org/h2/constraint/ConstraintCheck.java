@@ -82,11 +82,11 @@ public class ConstraintCheck extends Constraint {
         invalidate();
     }
 
-    public void checkRow(Session session, Table t, Row oldRow, Row newRow) { //±ÈÈçÓÃÓÚinsertÊ±
+    public void checkRow(Session session, Table t, Row oldRow, Row newRow) { //æ¯”å¦‚ç”¨äºinsertæ—¶
         if (newRow == null) {
             return;
         }
-        filter.set(newRow); //ÎªÁËÔÚexpr.getValueÄÜÈ¡µ½µ±Ç°newRow
+        filter.set(newRow); //ä¸ºäº†åœ¨expr.getValueèƒ½å–åˆ°å½“å‰newRow
         // Both TRUE and NULL are ok
         if (Boolean.FALSE.equals(expr.getValue(session).getBoolean())) {
             throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, getShortDescription());
@@ -120,15 +120,15 @@ public class ConstraintCheck extends Constraint {
         return true;
     }
 
-    //Í¨³£ÊÇÔÚ¹¹½¨Ô¼Êø¶ÔÏóÖ®ºóÂíÉÏ¸ù¾İCHECKºÍNOCHECKµ÷ÓÃÓë²»µ÷ÓÃ
-    public void checkExistingData(Session session) { //±ÈÈçÓÃÓÚalterÊ±
+    //é€šå¸¸æ˜¯åœ¨æ„å»ºçº¦æŸå¯¹è±¡ä¹‹åé©¬ä¸Šæ ¹æ®CHECKå’ŒNOCHECKè°ƒç”¨ä¸ä¸è°ƒç”¨
+    public void checkExistingData(Session session) { //æ¯”å¦‚ç”¨äºalteræ—¶
         if (session.getDatabase().isStarting()) {
             // don't check at startup
             return;
         }
-        //ÓÃNOT£¬ÒâË¼¾ÍÊÇËµÖ»ÒªÕÒµ½Ò»¸ö·´Àı¾ÍÓëÔ¼Êø³åÍ»ÁË
-        //±ÈÈç£¬Èç¹ûÊÇCHECK f1 not null£¬
-        //Èç¹û´ËÊ±±íÖĞµÄf1×Ö¶Î´æÔÚnullÖµ£¬ÄÇÃ´Õâ¸öÔ¼Êø¾Í´´½¨Ê§°Ü
+        //ç”¨NOTï¼Œæ„æ€å°±æ˜¯è¯´åªè¦æ‰¾åˆ°ä¸€ä¸ªåä¾‹å°±ä¸çº¦æŸå†²çªäº†
+        //æ¯”å¦‚ï¼Œå¦‚æœæ˜¯CHECK f1 not nullï¼Œ
+        //å¦‚æœæ­¤æ—¶è¡¨ä¸­çš„f1å­—æ®µå­˜åœ¨nullå€¼ï¼Œé‚£ä¹ˆè¿™ä¸ªçº¦æŸå°±åˆ›å»ºå¤±è´¥
         String sql = "SELECT 1 FROM " + filter.getTable().getSQL() + " WHERE NOT(" + expr.getSQL() + ")";
         ResultInterface r = session.prepare(sql).query(1);
         if (r.next()) {

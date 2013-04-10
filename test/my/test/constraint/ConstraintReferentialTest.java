@@ -18,11 +18,11 @@ public class ConstraintReferentialTest extends TestBase {
 		stmt.executeUpdate("DROP TABLE IF EXISTS ConstraintReferentialTest1");
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS ConstraintReferentialTest1 (f1 int PRIMARY KEY not null)");
 		
-		//ÔÚEclipse´ò¶Ïµã:constraintName.equalsIgnoreCase("myfk")
+		//åœ¨Eclipseæ‰“æ–­ç‚¹:constraintName.equalsIgnoreCase("myfk")
 		stmt.executeUpdate("ALTER TABLE ConstraintReferentialTest2 "
 				+"ADD CONSTRAINT myfk FOREIGN KEY (f1) REFERENCES ConstraintReferentialTest1(f1)");
 		
-		//µ±Ö÷±í´æÔÚÖ÷¼üÊ±£¬ÒıÓÃ±í¿ÉÒÔ²»Ö¸¶¨Ö÷±íµÄÖ÷¼ü×Ö¶Î
+		//å½“ä¸»è¡¨å­˜åœ¨ä¸»é”®æ—¶ï¼Œå¼•ç”¨è¡¨å¯ä»¥ä¸æŒ‡å®šä¸»è¡¨çš„ä¸»é”®å­—æ®µ
 		stmt.executeUpdate("ALTER TABLE ConstraintReferentialTest2 "
                 +"ADD CONSTRAINT myfk FOREIGN KEY (f1) REFERENCES ConstraintReferentialTest1");
 		stmt.executeUpdate("insert into ConstraintReferentialTest1(f1) values(1)");

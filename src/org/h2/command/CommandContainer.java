@@ -42,7 +42,7 @@ class CommandContainer extends Command {
         return prepared.isQuery();
     }
     
-    //重新解析并prepare
+    //閲嶆柊瑙ｆ瀽骞秔repare
     private void recompileIfRequired() {
         if (prepared.needRecompile()) {
             // TODO test with 'always recompile'

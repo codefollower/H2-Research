@@ -58,7 +58,7 @@ public class ConditionAndOr extends Condition {
     }
 
     public void createIndexConditions(Session session, TableFilter filter) {
-        if (andOrType == AND) { //Ö»´¦ÀíANDµÄ³¡¾°
+        if (andOrType == AND) { //åªå¤„ç†ANDçš„åœºæ™¯
             left.createIndexConditions(session, filter);
             right.createIndexConditions(session, filter);
         }
@@ -125,7 +125,7 @@ public class ConditionAndOr extends Condition {
         // http://www-cs-students.stanford.edu/~wlam/compsci/sqlnulls
         left = left.optimize(session);
         right = right.optimize(session);
-        //Cost´ú¼ÛÉÙµÄ»»×ó±ß
+        //Costä»£ä»·å°‘çš„æ¢å·¦è¾¹
         int lc = left.getCost(), rc = right.getCost();
         if (rc < lc) {
             Expression t = left;

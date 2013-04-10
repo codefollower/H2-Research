@@ -8,35 +8,35 @@
             }
         }
         data.writeInt(parentPageId);
-        data.writeVarInt(index.getId()); //Ë÷Òı¶ÔÏñid
-        data.writeInt(rowCountStored); //ĞĞÊı
-        data.writeShortInt(entryCount); //leafµÄÒ³Êı
+        data.writeVarInt(index.getId()); //ç´¢å¼•å¯¹åƒid
+        data.writeInt(rowCountStored); //è¡Œæ•°
+        data.writeShortInt(entryCount); //leafçš„é¡µæ•°
     }
 
 [8, 7, 9, 10, 11, 12, 13, 14, 0, 0, 0, 0]
 
-×î»ù±¾µÄ×¢Òâµã: PageDataNodeµÄ×Ó½áµãÒªÃ´È«ÊÇPageDataNode£¬ÒªÊÇÈ«ÊÇPageDataLeaf£¬²»»á»ìºÏÁ½Õß¡£
+æœ€åŸºæœ¬çš„æ³¨æ„ç‚¹: PageDataNodeçš„å­ç»“ç‚¹è¦ä¹ˆå…¨æ˜¯PageDataNodeï¼Œè¦æ˜¯å…¨æ˜¯PageDataLeafï¼Œä¸ä¼šæ··åˆä¸¤è€…ã€‚
 
-ÀàÍ¼:
-Óëorg.h2.index.PageDataLeafÀàËÆ
+ç±»å›¾:
+ä¸org.h2.index.PageDataLeafç±»ä¼¼
 
-ÀàÍ¼:
+ç±»å›¾:
 
-org.h2.util.CacheObject (´ËÀàÖĞµÄpos×Ö¶Î¾ÍÊÇPageDataNodeµÄpageId)
+org.h2.util.CacheObject (æ­¤ç±»ä¸­çš„poså­—æ®µå°±æ˜¯PageDataNodeçš„pageId)
 	org.h2.store.Page
 		org.h2.index.PageData
 			org.h2.index.PageDataNode
 
 
-CacheObjectµÄÖ±½Ó×ÓÀàÖ»ÓĞorg.h2.util.CacheHeadºÍorg.h2.store.Page
+CacheObjectçš„ç›´æ¥å­ç±»åªæœ‰org.h2.util.CacheHeadå’Œorg.h2.store.Page
 
 
 
-org.h2.store.PageÀà¶¨ÒåÁË8ÖÖÒ³ÃæÀàĞÍ£¬·Ö±ğ¶ÔÓ¦8¸ö×ÓÀà:
+org.h2.store.Pageç±»å®šä¹‰äº†8ç§é¡µé¢ç±»å‹ï¼Œåˆ†åˆ«å¯¹åº”8ä¸ªå­ç±»:
 
-Ò³ÃæÀàĞÍid¡¡Ò³ÃæÃû³Æ            ¶ÔÓ¦µÄÀà
+é¡µé¢ç±»å‹idã€€é¡µé¢åç§°            å¯¹åº”çš„ç±»
 ------------------------------------------------------------------
-0           TYPE_EMPTY          ÓĞÃ»Àà£¬Ö÷ÒªÓÃÓÚÒì³£»òÆäËûÇé¿ö
+0           TYPE_EMPTY          æœ‰æ²¡ç±»ï¼Œä¸»è¦ç”¨äºå¼‚å¸¸æˆ–å…¶ä»–æƒ…å†µ
 
 1           TYPE_DATA_LEAF      org.h2.index.PageDataLeaf
 2           TYPE_DATA_NODE      org.h2.index.PageDataNode
@@ -50,31 +50,31 @@ org.h2.store.PageÀà¶¨ÒåÁË8ÖÖÒ³ÃæÀàĞÍ£¬·Ö±ğ¶ÔÓ¦8¸ö×ÓÀà:
 8           TYPE_STREAM_DATA    org.h2.store.PageStreamData
 ------------------------------------------------------------------
 
-PageDataLeaf¡¢PageBtreeLeaf¡¢PageBtreeNodeÕâÈıÕßµÄ¿ÉÒÔÔÚÒµÃæÀàĞÍ×Ö¶ÎÖĞ¼ÓÉÏFLAG_LAST
-FLAG_LAST±íÊ¾´ËÒ³ÊÇ×îºóÒ»Ò³¡£
+PageDataLeafã€PageBtreeLeafã€PageBtreeNodeè¿™ä¸‰è€…çš„å¯ä»¥åœ¨ä¸šé¢ç±»å‹å­—æ®µä¸­åŠ ä¸ŠFLAG_LAST
+FLAG_LASTè¡¨ç¤ºæ­¤é¡µæ˜¯æœ€åä¸€é¡µã€‚
 
 
 
-org.h2.util.CacheObjectµÄ×Ö¶ÎÓĞ:
+org.h2.util.CacheObjectçš„å­—æ®µæœ‰:
 	public CacheObject cachePrevious
 	public CacheObject cacheNext
 	public CacheObject cacheChained
 	private int pos
 	private boolean changed
 
-org.h2.store.PageµÄ×Ö¶ÎÓĞ:
+org.h2.store.Pageçš„å­—æ®µæœ‰:
 	protected int changeCount;
 	
-	Á½¸ö³éÏó·½·¨:
+	ä¸¤ä¸ªæŠ½è±¡æ–¹æ³•:
 
-	moveTo(Session, int) //ÒÆ¶¯µ±Ç°pageµ½ĞÂµÄÎ»ÖÃ
-	write() //Ğ´µ±Ç°Ò³ÃæµÄÊı¾İµ½Ó²ÅÌ
+	moveTo(Session, int) //ç§»åŠ¨å½“å‰pageåˆ°æ–°çš„ä½ç½®
+	write() //å†™å½“å‰é¡µé¢çš„æ•°æ®åˆ°ç¡¬ç›˜
 
-	Ìá¹©ÁËÈıÀàstatic·½·¨£¬add¡¢insert¡¢remove£¬ÓÃÓÚ´ÓÊı¾İÖĞ¸øÔ­ÓĞÔªËØ¼ÓÉÏÒ»¸ö(¿ÉÄÜÊÇ¸ºÖµ)¡¢Ôö¼ÓÒ»¸öĞÂÔªËØ¡¢É¾³ıÒ»¸öÔªËØ
-	ÕâÀà·½·¨¶àÓÃÓÚÔÚrowsÊı×éºÍoffsets¡¢keysÊı×éÖĞ£¬rowsÓÃÓÚ·Å¼ÇÂ¼£¬offsetsÓÃÓÚ·Å¼ÇÂ¼ÔÚpageÖĞµÄÏà¶ÔÎ»ÖÃ£¬keysÓÃÓÚ·Å¼ÇÂ¼µÄkey¡£
+	æä¾›äº†ä¸‰ç±»staticæ–¹æ³•ï¼Œaddã€insertã€removeï¼Œç”¨äºä»æ•°æ®ä¸­ç»™åŸæœ‰å…ƒç´ åŠ ä¸Šä¸€ä¸ª(å¯èƒ½æ˜¯è´Ÿå€¼)ã€å¢åŠ ä¸€ä¸ªæ–°å…ƒç´ ã€åˆ é™¤ä¸€ä¸ªå…ƒç´ 
+	è¿™ç±»æ–¹æ³•å¤šç”¨äºåœ¨rowsæ•°ç»„å’Œoffsetsã€keysæ•°ç»„ä¸­ï¼Œrowsç”¨äºæ”¾è®°å½•ï¼Œoffsetsç”¨äºæ”¾è®°å½•åœ¨pageä¸­çš„ç›¸å¯¹ä½ç½®ï¼Œkeysç”¨äºæ”¾è®°å½•çš„keyã€‚
 
 
-org.h2.index.PageDataµÄ×Ö¶ÎÓĞ:
+org.h2.index.PageDataçš„å­—æ®µæœ‰:
 	 protected final PageDataIndex index
 	 protected int parentPageId
 	 protected final Data data
@@ -84,32 +84,32 @@ org.h2.index.PageDataµÄ×Ö¶ÎÓĞ:
 	 protected int memoryEstimated
 
 
-org.h2.index.PageDataNodeµÄ×Ö¶ÎÓĞ:
+org.h2.index.PageDataNodeçš„å­—æ®µæœ‰:
     private int[] childPageIds;
     private int rowCountStored = UNKNOWN_ROWCOUNT; // -1;
     private int rowCount = UNKNOWN_ROWCOUNT; // -1;
 	private int length;
 
 
-ÒÔÏÂÊÇ¸ñÊ½·ÖÎö
+ä»¥ä¸‹æ˜¯æ ¼å¼åˆ†æ
 ------------------------------------------------------------------
 
-×Ö½ÚÊı   ´ú±íÊ²Ã´
+å­—èŠ‚æ•°   ä»£è¡¨ä»€ä¹ˆ
 
-Í·
+å¤´
 =======================
 1        type Page.TYPE_DATA_NODE
-2        checksum Ô¤ÏÈĞ´0£¬ÔÚĞ´Íêpageºó»ØÌî(¼ûorg.h2.store.PageStore.writePage(int, Data))
+2        checksum é¢„å…ˆå†™0ï¼Œåœ¨å†™å®Œpageåå›å¡«(è§org.h2.store.PageStore.writePage(int, Data))
 4        parentPageId
-VarInt   index¶ÔÏóid(Êµ¼ÊÊÇ±í¶ÔÏóid)
+VarInt   indexå¯¹è±¡id(å®é™…æ˜¯è¡¨å¯¹è±¡id)
 4        rowCountStored
-2        entryCount ·Ö¸ôµãµÄ¸öÊı(keysÊı×éµÄÓĞĞ§¸öÊı)£¬Ò²µÈÓÚ×Ó½Úµã¸öÊı-1
+2        entryCount åˆ†éš”ç‚¹çš„ä¸ªæ•°(keysæ•°ç»„çš„æœ‰æ•ˆä¸ªæ•°)ï¼Œä¹Ÿç­‰äºå­èŠ‚ç‚¹ä¸ªæ•°-1
 
-Ìå:
+ä½“:
 =======================
-4        rightmost child page id (×îÓÒ±ßµÄ×ÓÒ³id)
+4        rightmost child page id (æœ€å³è¾¹çš„å­é¡µid)
 
-entryCount¸ö
+entryCountä¸ª
 {
 	4         child page id
 	VarLong   key

@@ -31,13 +31,13 @@ import org.h2.util.New;
  * of a table. Each regular table has one such object, even if no primary key or
  * indexes are defined.
  */
-//½¨±íÊ±¼Ó NOT PERSISTENT¿ÉÒÔ²âÊÔ´ËÀà£¬
-//Èç: create LOCAL TEMPORARY table IF NOT EXISTS IndexTestTable(id int not null, name varchar(500) not null) NOT PERSISTENT
-//Êı¾İ·ÅÔÚÄÚ´æÖĞ£¬²»´æµ½Ó²ÅÌ
-//´ËÀàÖ»ÄÜÍ¨¹ı½¨±íÊ±´¥·¢£¬²»ÄÜÍ¨¹ı½¨Ë÷Òı´¥·¢
-//¼´£ºÖ»ÔÚRegularTable(CreateTableData)ÖĞÊ¹ÓÃ£¬²»ÄÜÍ¨¹ıRegularTable.addIndex´¥·¢
-//org.h2.index.MultiVersionIndex²»»áÇ¶Ì×ScanIndex
-//ÒòÎªMultiVersionIndexÖ»ÔÚRegularTable.addIndexÖĞÊ¹ÓÃ£¬¶øScanIndex²»ÄÜÍ¨¹ıRegularTable.addIndex´¥·¢
+//å»ºè¡¨æ—¶åŠ  NOT PERSISTENTå¯ä»¥æµ‹è¯•æ­¤ç±»ï¼Œ
+//å¦‚: create LOCAL TEMPORARY table IF NOT EXISTS IndexTestTable(id int not null, name varchar(500) not null) NOT PERSISTENT
+//æ•°æ®æ”¾åœ¨å†…å­˜ä¸­ï¼Œä¸å­˜åˆ°ç¡¬ç›˜
+//æ­¤ç±»åªèƒ½é€šè¿‡å»ºè¡¨æ—¶è§¦å‘ï¼Œä¸èƒ½é€šè¿‡å»ºç´¢å¼•è§¦å‘
+//å³ï¼šåªåœ¨RegularTable(CreateTableData)ä¸­ä½¿ç”¨ï¼Œä¸èƒ½é€šè¿‡RegularTable.addIndexè§¦å‘
+//org.h2.index.MultiVersionIndexä¸ä¼šåµŒå¥—ScanIndex
+//å› ä¸ºMultiVersionIndexåªåœ¨RegularTable.addIndexä¸­ä½¿ç”¨ï¼Œè€ŒScanIndexä¸èƒ½é€šè¿‡RegularTable.addIndexè§¦å‘
 public class ScanIndex extends BaseIndex {
     private long firstFree = -1;
     private ArrayList<Row> rows = New.arrayList();
@@ -47,7 +47,7 @@ public class ScanIndex extends BaseIndex {
     private HashSet<Row> delta;
     private long rowCount;
     
-    //¸úPageDataIndexÒ»Ñù£¬id¶¼ÊÇ±íid
+    //è·ŸPageDataIndexä¸€æ ·ï¼Œidéƒ½æ˜¯è¡¨id
     public ScanIndex(RegularTable table, int id, IndexColumn[] columns, IndexType indexType) {
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
         if (database.isMultiVersion()) {
@@ -95,7 +95,7 @@ public class ScanIndex extends BaseIndex {
             row.setKey(key);
             rows.add(row);
         } else {
-            long key = firstFree; //Ê¹ÓÃÉÏ´ÎÉ¾³ıµÄ¼ÇÂ¼µÄÎ»ÖÃ
+            long key = firstFree; //ä½¿ç”¨ä¸Šæ¬¡åˆ é™¤çš„è®°å½•çš„ä½ç½®
             Row free = rows.get((int) key);
             firstFree = free.getKey();
             row.setKey(key);
@@ -106,7 +106,7 @@ public class ScanIndex extends BaseIndex {
             if (delta == null) {
                 delta = New.hashSet();
             }
-            boolean wasDeleted = delta.remove(row); //RowÀàÃ»ÓĞÊµÏÖhashCode·½·¨£¬Ä¬ÈÏ²ÉÓÃObjetc.hashCode·½·¨
+            boolean wasDeleted = delta.remove(row); //Rowç±»æ²¡æœ‰å®ç°hashCodeæ–¹æ³•ï¼Œé»˜è®¤é‡‡ç”¨Objetc.hashCodeæ–¹æ³•
             if (!wasDeleted) {
                 delta.add(row);
             }
@@ -115,8 +115,8 @@ public class ScanIndex extends BaseIndex {
         rowCount++;
     }
     
-    //Í¨¹ıConnection.setAutoCommit(false)½ûÓÃ×Ô¶¯Ìá½»ÊÂÎñ£¬¾Í²»»áÃ¿insert»òdeleteÒ»Ìõ¼ÇÂ¼¾Íµ÷ÓÃ´Ë·½·¨£¬
-    //ÕâÑùdeltaÖĞ¾Í»áÓĞ¼ÇÂ¼ÁË£¬·ñÔòÃ¿´Îµ÷ÓÃ´Ë·½·¨Çå³ırow
+    //é€šè¿‡Connection.setAutoCommit(false)ç¦ç”¨è‡ªåŠ¨æäº¤äº‹åŠ¡ï¼Œå°±ä¸ä¼šæ¯insertæˆ–deleteä¸€æ¡è®°å½•å°±è°ƒç”¨æ­¤æ–¹æ³•ï¼Œ
+    //è¿™æ ·deltaä¸­å°±ä¼šæœ‰è®°å½•äº†ï¼Œå¦åˆ™æ¯æ¬¡è°ƒç”¨æ­¤æ–¹æ³•æ¸…é™¤row
     public void commit(int operation, Row row) {
         if (database.isMultiVersion()) {
             if (delta != null) {
@@ -149,7 +149,7 @@ public class ScanIndex extends BaseIndex {
                 throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1, rows.size() + ": " + key);
             }
             rows.set((int) key, free);
-            firstFree = key; //Èç¹ûÁ¬ĞøÉ¾Á½´ÎÒÔÉÏ£¬ÄÜÍ¨¹ıfirstFreeºÍfree.key´®½Ó³ÉÒ»¸öÎ´Ê¹ÓÃµÄ¿ÕĞĞÁĞ±í£¬ÕâÑùÔÚaddÊ±¿ÉÒÔÒ»¸ö¸öÊ¹ÓÃ
+            firstFree = key; //å¦‚æœè¿ç»­åˆ ä¸¤æ¬¡ä»¥ä¸Šï¼Œèƒ½é€šè¿‡firstFreeå’Œfree.keyä¸²æ¥æˆä¸€ä¸ªæœªä½¿ç”¨çš„ç©ºè¡Œåˆ—è¡¨ï¼Œè¿™æ ·åœ¨addæ—¶å¯ä»¥ä¸€ä¸ªä¸ªä½¿ç”¨
         }
         if (database.isMultiVersion()) {
             // if storage is null, the delete flag is not yet set

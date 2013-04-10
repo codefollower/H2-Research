@@ -1,10 +1,10 @@
-PageStoreµÄÊµÀıÔÚorg.h2.engine.Database.getPageStore()ÖĞÉú³É
+PageStoreçš„å®ä¾‹åœ¨org.h2.engine.Database.getPageStore()ä¸­ç”Ÿæˆ
 
-È»ºó°´ÏÂÃæµÄÁ÷³Ìµ÷ÓÃ:
+ç„¶åæŒ‰ä¸‹é¢çš„æµç¨‹è°ƒç”¨:
 org.h2.store.PageStore.open()
-	=> org.h2.store.PageStore.openNew() //Êı¾İ¿âÎÄ¼ş²»´æÔÚ
+	=> org.h2.store.PageStore.openNew() //æ•°æ®åº“æ–‡ä»¶ä¸å­˜åœ¨
 	
-»ò	=> org.h2.store.PageStore.openExisting() //Êı¾İ¿âÎÄ¼şÒÑ´æÔÚ
+æˆ–	=> org.h2.store.PageStore.openExisting() //æ•°æ®åº“æ–‡ä»¶å·²å­˜åœ¨
 		=> org.h2.engine.Database.openFile(String, String, boolean)
 			=> org.h2.store.FileStore.open(DataHandler, String, String, String, byte[])
 				=> org.h2.store.FileStore.FileStore(DataHandler, String, String)
@@ -12,7 +12,7 @@ org.h2.store.PageStore.open()
 			=> org.h2.store.FileStore.init()
 
 
-PAGE_INDEX±í
+PAGE_INDEXè¡¨
 CREATE CACHED TABLE "".PAGE_INDEX(
     ID INTEGER,
     TYPE INTEGER,
@@ -25,15 +25,15 @@ CREATE CACHED TABLE "".PAGE_INDEX(
         CreateTableData data = new CreateTableData();
         ArrayList<Column> cols = data.columns;
         cols.add(new Column("ID", Value.INT)); //index id
-        cols.add(new Column("TYPE", Value.INT)); //¶ÔÓ¦META_TYPE_DATA_INDEXºÍMETA_TYPE_BTREE_INDEX
+        cols.add(new Column("TYPE", Value.INT)); //å¯¹åº”META_TYPE_DATA_INDEXå’ŒMETA_TYPE_BTREE_INDEX
         cols.add(new Column("PARENT", Value.INT)); //table id
         cols.add(new Column("HEAD", Value.INT)); //RootPageId
-        cols.add(new Column("OPTIONS", Value.STRING)); //CompareMode name£¬Strength£¬ÁÙÊ±±í£¬d(±íÊ¾ÊÇPageDelegateIndex)
-        cols.add(new Column("COLUMNS", Value.STRING)); //ÁĞid/sortType
+        cols.add(new Column("OPTIONS", Value.STRING)); //CompareMode nameï¼ŒStrengthï¼Œä¸´æ—¶è¡¨ï¼Œd(è¡¨ç¤ºæ˜¯PageDelegateIndex)
+        cols.add(new Column("COLUMNS", Value.STRING)); //åˆ—id/sortType
         metaSchema = new Schema(database, 0, "", null, true);
         data.schema = metaSchema;
         data.tableName = "PAGE_INDEX";
-        data.id = META_TABLE_ID; //idÊÇ-1
+        data.id = META_TABLE_ID; //idæ˜¯-1
         data.temporary = false;
         data.persistData = true;
         data.persistIndexes = true;
@@ -46,14 +46,14 @@ CREATE CACHED TABLE "".PAGE_INDEX(
         metaObjects.put(-1, metaIndex);
     }
 
-//ÄÚ´æÊı¾İ¿â²»»áÉú³ÉPageStoreÊµÀı
+//å†…å­˜æ•°æ®åº“ä¸ä¼šç”ŸæˆPageStoreå®ä¾‹
 
-//Ã¿¸öPageµÄsizeÄ¬ÈÏÊÇ2k
-//Ò»¸öPageStoreµÄ ÊµÀı¾Í´ú±íÒ»¸ö".h2.db"ÎÄ¼ş
+//æ¯ä¸ªPageçš„sizeé»˜è®¤æ˜¯2k
+//ä¸€ä¸ªPageStoreçš„ å®ä¾‹å°±ä»£è¡¨ä¸€ä¸ª".h2.db"æ–‡ä»¶
 
 
-×îÏÈ¿ªÊ¼µ÷ÓÃorg.h2.store.PageStore.allocatePage()µÄÊÇÔÚclient¶Ë·¢ÆğµÄ·ÇÄÚ´æÊı¾İ¿â·ÃÎÊÊ±
-ÔÚorg.h2.engine.Database.openµÄmeta = mainSchema.createTable(data)ÄÇÀï
+æœ€å…ˆå¼€å§‹è°ƒç”¨org.h2.store.PageStore.allocatePage()çš„æ˜¯åœ¨clientç«¯å‘èµ·çš„éå†…å­˜æ•°æ®åº“è®¿é—®æ—¶
+åœ¨org.h2.engine.Database.opençš„meta = mainSchema.createTable(data)é‚£é‡Œ
 -------------------------------------------------------------
 java.lang.Error
 	at org.h2.index.PageDataIndex.<init>(PageDataIndex.java:78)
@@ -70,7 +70,7 @@ java.lang.Error
 	at java.lang.Thread.run(Thread.java:662)
 
 
-×îÔçµ÷ÓÃorg.h2.store.PageStore.getFreeList(int)ÊÇÔÚÕâ:
+æœ€æ—©è°ƒç”¨org.h2.store.PageStore.getFreeList(int)æ˜¯åœ¨è¿™:
 -------------------------------------------------------------
 java.lang.Error
 	at org.h2.store.PageStore.getFreeList(PageStore.java:1084)
@@ -99,11 +99,11 @@ java.lang.Error
 org.h2.store.PageStore.addMeta(PageIndex, Session)
 ( /* key:17 */ 16, 1, 15, 70, 'OFF,0,,', '1')
 
-´Óorg.h2.engine.Database.getPageStore()¿ªÊ¼´¥·¢PageStoreµÄ³õÊ¼»¯
+ä»org.h2.engine.Database.getPageStore()å¼€å§‹è§¦å‘PageStoreçš„åˆå§‹åŒ–
 
 	//fileName = E:/H2/test.h2.db
 	//accessMode = rw
-	//cacheSizeDefault = 16384 (Ä¬ÈÏ16K)£¬¿ÉÍ¨¹ıCACHE_SIZE²ÎÊıÉèÖÃ
+	//cacheSizeDefault = 16384 (é»˜è®¤16K)ï¼Œå¯é€šè¿‡CACHE_SIZEå‚æ•°è®¾ç½®
     public PageStore(Database database, String fileName, String accessMode, int cacheSizeDefault) {
         this.fileName = fileName;
         this.accessMode = accessMode;
@@ -111,14 +111,14 @@ org.h2.store.PageStore.addMeta(PageIndex, Session)
         trace = database.getTrace(Trace.PAGE_STORE);
         // if (fileName.endsWith("X.h2.db"))
         // trace.setLevel(TraceSystem.DEBUG);
-        String cacheType = database.getCacheType(); //Ä¬ÈÏLRU
+        String cacheType = database.getCacheType(); //é»˜è®¤LRU
         this.cache = CacheLRU.getCache(this, cacheType, cacheSizeDefault);
         systemSession = new Session(database, null, 0);
     }
 
 	//org.h2.store.PageFreeList.getPagesAddressed(int)
     public static int getPagesAddressed(int pageSize) { //2048 (2K)
-        return (pageSize - DATA_START) * 8; //cacheSizeDefaultÊÇ16K£¬ËùÒÔ´ó¸ÅÄÜ´æ8¸öpage
+        return (pageSize - DATA_START) * 8; //cacheSizeDefaultæ˜¯16Kï¼Œæ‰€ä»¥å¤§æ¦‚èƒ½å­˜8ä¸ªpage
     }
 
 org.h2.store.PageStore.open()
@@ -134,10 +134,10 @@ org.h2.store.PageStore.open()
         int len = Constants.FILE_BLOCK_SIZE;
         byte[] salt;
         byte[] magic = HEADER.getBytes(); //HEADER_LENGTH = 48
-        if (length() < HEADER_LENGTH) { //µÚÒ»´Î½¨Á¢*.h2.dbÎÄ¼şÊ±lengthÎª0
+        if (length() < HEADER_LENGTH) { //ç¬¬ä¸€æ¬¡å»ºç«‹*.h2.dbæ–‡ä»¶æ—¶lengthä¸º0
             // write unencrypted
             checkedWriting = false;
-			//Ğ´ÈëÈı¸ö"-- H2 0.5/B -- \n"£¬Ã¿¸ö16×Ö½Ú
+			//å†™å…¥ä¸‰ä¸ª"-- H2 0.5/B -- \n"ï¼Œæ¯ä¸ª16å­—èŠ‚
             writeDirect(magic, 0, len);
             salt = generateSalt();
             writeDirect(salt, 0, len);
@@ -191,7 +191,7 @@ org.h2.store.PageStore.open()
             if (newLength > fileLength) {
                 long pos = filePos;
                 file.position(newLength - 1);
-                FileUtils.writeFully(file, ByteBuffer.wrap(new byte[1])); //ÔÚ×îºóÄÇ¸öÎ»ÖÃĞ´0
+                FileUtils.writeFully(file, ByteBuffer.wrap(new byte[1])); //åœ¨æœ€åé‚£ä¸ªä½ç½®å†™0
                 file.position(pos);
             } else {
                 file.truncate(newLength);
@@ -206,11 +206,11 @@ org.h2.store.PageStore.open()
 
 org.h2.store.PageStore.openMetaIndex()
 
-TODO »¹ÓĞÎÊÌâ
-**************·Ç³£ÖØÒª****************************
-        Êı¾İÊ²Ã´Ê±ºòÍ¬²½µ½Ó²ÅÌ
+TODO è¿˜æœ‰é—®é¢˜
+**************éå¸¸é‡è¦****************************
+        æ•°æ®ä»€ä¹ˆæ—¶å€™åŒæ­¥åˆ°ç¡¬ç›˜
 **************************************************
-org.h2.engine.Session.commit(boolean)»òorg.h2.engine.Session.rollback()
+org.h2.engine.Session.commit(boolean)æˆ–org.h2.engine.Session.rollback()
 	=>org.h2.engine.Database.commit(Session)
 		=>org.h2.store.PageStore.commit(Session)
 			=>org.h2.store.PageStore.checkpoint()
@@ -223,10 +223,10 @@ org.h2.engine.Session.commit(boolean)»òorg.h2.engine.Session.rollback()
 **************************************************
 
     private void openForWriting() {
-    	//readModeÖ»ÓĞorg.h2.store.PageStore.openExisting()µ÷ÓÃÁËÒ»´Î
-    	//ËùÒÔÍ¨¹ıopenForWriting()ÕâÀï´¥·¢log.openForWriting£¬ÔÙ´¥·¢setLogFirstPage
-    	//½ø¶ø´¥·¢writeVariableHeaderÍ¬²½Êı¾İµ½Ó²ÅÌÖĞ»á·¢ÉúÒ»´Î£¬
-    	//writeVariableHeaderµÄ´¥·¢¸ü¶àµÄÊÇÍ¨¹ıcommitÍê³É
+    	//readModeåªæœ‰org.h2.store.PageStore.openExisting()è°ƒç”¨äº†ä¸€æ¬¡
+    	//æ‰€ä»¥é€šè¿‡openForWriting()è¿™é‡Œè§¦å‘log.openForWritingï¼Œå†è§¦å‘setLogFirstPage
+    	//è¿›è€Œè§¦å‘writeVariableHeaderåŒæ­¥æ•°æ®åˆ°ç¡¬ç›˜ä¸­ä¼šå‘ç”Ÿä¸€æ¬¡ï¼Œ
+    	//writeVariableHeaderçš„è§¦å‘æ›´å¤šçš„æ˜¯é€šè¿‡commitå®Œæˆ
         if (!readMode || database.isReadOnly()) {
             return;
         }
@@ -240,7 +240,7 @@ org.h2.engine.Session.commit(boolean)»òorg.h2.engine.Session.rollback()
         checkpoint();
     }
 
-»òÕß»¹ÓĞÕâ¸ö:
+æˆ–è€…è¿˜æœ‰è¿™ä¸ª:
 java.lang.Error
 	at org.h2.store.PageStore.writeVariableHeader(PageStore.java:995)
 	at org.h2.store.PageStore.setLogFirstPage(PageStore.java:975)
@@ -254,7 +254,7 @@ java.lang.Error
 	at org.h2.server.TcpServerThread.process(TcpServerThread.java:270)
 	at org.h2.server.TcpServerThread.run(TcpServerThread.java:149)
 	at java.lang.Thread.run(Thread.java:662)
-ºÍÕâ¸ö:
+å’Œè¿™ä¸ª:
 java.lang.Error
 	at org.h2.store.PageStore.writeVariableHeader(PageStore.java:995)
 	at org.h2.store.PageStore.setLogFirstPage(PageStore.java:975)

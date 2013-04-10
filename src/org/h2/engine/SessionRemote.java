@@ -65,14 +65,14 @@ public class SessionRemote extends SessionWithState implements DataHandler {
 
     private static SessionFactory sessionFactory;
     
-    //Ö»ÓĞconnectionInfo.isRemote()ÎªtrueÊ±traceSystem²ÅÓĞÖµ£¬
-    //·ñÔòÊÇÒ»¸öÄÚ´æÊı¾İ¿â£¬connectEmbeddedOrServer·µ»ØµÄÊÇorg.h2.engine.Session,
-    //´ËÊ±ÓÉorg.h2.engine.SessionµÃµ½traceSystem
+    //åªæœ‰connectionInfo.isRemote()ä¸ºtrueæ—¶traceSystemæ‰æœ‰å€¼ï¼Œ
+    //å¦åˆ™æ˜¯ä¸€ä¸ªå†…å­˜æ•°æ®åº“ï¼ŒconnectEmbeddedOrServerè¿”å›çš„æ˜¯org.h2.engine.Session,
+    //æ­¤æ—¶ç”±org.h2.engine.Sessionå¾—åˆ°traceSystem
     private TraceSystem traceSystem;
     private Trace trace;
     private ArrayList<Transfer> transferList = New.arrayList();
     private int nextId;
-    private boolean autoCommit = true; //¼¯Èº»·¾³ÉÏÕâ¸ö²ÎÊıÆäÊµÃ»ÒâÒå
+    private boolean autoCommit = true; //é›†ç¾¤ç¯å¢ƒä¸Šè¿™ä¸ªå‚æ•°å…¶å®æ²¡æ„ä¹‰
     private CommandInterface autoCommitFalse, autoCommitTrue;
     private ConnectionInfo connectionInfo;
     private String databaseName;
@@ -209,8 +209,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     }
 
     private void setAutoCommitSend(boolean autoCommit) {
-        //VERSION_8¿ªÊ¼Í¨¹ıSESSION_SET_AUTOCOMMITĞ­ÒéÖ¸Áî£¬ÒÔÇ°µÄ°æ±¾Í¨¹ıSET AUTOCOMMITÓï¾ä
-        //¶ÔÓÚcommitºÍrollbackÔòÃ»ÓĞ¶ÔÓ¦µÄĞ­ÒéÖ¸Áî£¬Ö»ÄÜÍ¨¹ıCOMMIT¡¢ROLLBACKÓï¾ä
+        //VERSION_8å¼€å§‹é€šè¿‡SESSION_SET_AUTOCOMMITåè®®æŒ‡ä»¤ï¼Œä»¥å‰çš„ç‰ˆæœ¬é€šè¿‡SET AUTOCOMMITè¯­å¥
+        //å¯¹äºcommitå’Œrollbackåˆ™æ²¡æœ‰å¯¹åº”çš„åè®®æŒ‡ä»¤ï¼Œåªèƒ½é€šè¿‡COMMITã€ROLLBACKè¯­å¥
         if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_8) {
             for (int i = 0, count = 0; i < transferList.size(); i++) {
                 Transfer transfer = transferList.get(i);
@@ -288,12 +288,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
      */
     public SessionInterface connectEmbeddedOrServer(boolean openNew) {
         ConnectionInfo ci = connectionInfo;
-        //TCPÔ¶³ÌÊı¾İ¿â
+        //TCPè¿œç¨‹æ•°æ®åº“
         if (ci.isRemote()) {
             connectServer(ci);
             return this;
         }
-        //ÏÂÃæµÄ´úÂëÊÇÓÃÓÚÇ¶ÈëÊ½»òÄÚ´æÊı¾İ¿âµÄ³¡¾°
+        //ä¸‹é¢çš„ä»£ç æ˜¯ç”¨äºåµŒå…¥å¼æˆ–å†…å­˜æ•°æ®åº“çš„åœºæ™¯
         // create the session using reflection,
         // so that the JDBC layer can be compiled without it
         boolean autoServerMode = Boolean.parseBoolean(ci.getProperty("AUTO_SERVER", "false"));
@@ -331,20 +331,20 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     }
 
     private void connectServer(ConnectionInfo ci) {
-        String name = ci.getName(); //ÀıÈç: "//localhost:9092/mydb"
+        String name = ci.getName(); //ä¾‹å¦‚: "//localhost:9092/mydb"
         if (name.startsWith("//")) {
-            name = name.substring("//".length()); //±ä³É"localhost:9092/mydb"
+            name = name.substring("//".length()); //å˜æˆ"localhost:9092/mydb"
         }
         int idx = name.indexOf('/');
         if (idx < 0) {
             throw ci.getFormatException();
         }
-        databaseName = name.substring(idx + 1); //ÊÇ"mydb"
-        String server = name.substring(0, idx); //ÊÇ"localhost:9092"
+        databaseName = name.substring(idx + 1); //æ˜¯"mydb"
+        String server = name.substring(0, idx); //æ˜¯"localhost:9092"
         traceSystem = new TraceSystem(null);
-        //²»ÊÇ¸ú×Ù¼¶±ğÎÄ¼ş£¬ÊÇÎÄ¼ş¸ú×Ù¼¶±ğ
-        //¸úÏÂÃæµÄtraceLevelSystemOut¶ÔÓ¦(SystemOut¸ú×Ù¼¶±ğ)
-        //Á½Õß¶¼ÊÇÒ»¸öÊı×Ö£¬Èç:
+        //ä¸æ˜¯è·Ÿè¸ªçº§åˆ«æ–‡ä»¶ï¼Œæ˜¯æ–‡ä»¶è·Ÿè¸ªçº§åˆ«
+        //è·Ÿä¸‹é¢çš„traceLevelSystemOutå¯¹åº”(SystemOutè·Ÿè¸ªçº§åˆ«)
+        //ä¸¤è€…éƒ½æ˜¯ä¸€ä¸ªæ•°å­—ï¼Œå¦‚:
         //-------------------------------
         //prop.setProperty("TRACE_LEVEL_FILE", "10");
         //prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
@@ -352,11 +352,11 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         String traceLevelFile = ci.getProperty(SetTypes.TRACE_LEVEL_FILE, null);
         if (traceLevelFile != null) {
             int level = Integer.parseInt(traceLevelFile);
-            String prefix = getFilePrefix(SysProperties.CLIENT_TRACE_DIRECTORY); //Èç: "trace.db//mydb"
+            String prefix = getFilePrefix(SysProperties.CLIENT_TRACE_DIRECTORY); //å¦‚: "trace.db//mydb"
             try {
                 traceSystem.setLevelFile(level);
                 if (level > 0 && level < 4) {
-                	//Èç: E:/H2/eclipse-workspace-client/trace.db/mydb.1647ee04bd9fa205.0.trace.db
+                	//å¦‚: E:/H2/eclipse-workspace-client/trace.db/mydb.1647ee04bd9fa205.0.trace.db
                     String file = FileUtils.createTempFile(prefix, Constants.SUFFIX_TRACE_FILE, false, false);
                     traceSystem.setFileName(file);
                 }
@@ -387,19 +387,19 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             if (className != null) {
                 className = StringUtils.trim(className, true, true, "'");
                 try {
-                	//ÔÚserver¶Ë»¹»áÖØĞÂnew³öÊµÀı
-                	//ÕâÀïµÄÊµÀıÖ»ÊÇÔÚclient¶ËÓÃ
+                	//åœ¨serverç«¯è¿˜ä¼šé‡æ–°newå‡ºå®ä¾‹
+                	//è¿™é‡Œçš„å®ä¾‹åªæ˜¯åœ¨clientç«¯ç”¨
                     eventListener = (DatabaseEventListener) Utils.loadUserClass(className).newInstance();
                 } catch (Throwable e) {
                     throw DbException.convert(e);
                 }
             }
         }
-        //Í¬Ò»¸öÊı¾İ¿âµÚÒ»´Î´ò¿ªÊ±Èç¹ûÃ»Ê¹ÓÃCIPHER£¬ÄÇÃ´½ÓÏÂÀ´´ò¿ªÒ²²»ÄÜÓÃCIPHERÁË£¬
-		//Èç¹ûµÚÒ»´ÎÓÃÁËCIPHER£¬ÄÇÃ´¾ÍÒ»Ö±ÒªÓÃCIPHERÁ¬Ëü
-        cipher = ci.getProperty("CIPHER"); //Ö»Ö§³ÖXTEA¡¢AES¡¢FOG
+        //åŒä¸€ä¸ªæ•°æ®åº“ç¬¬ä¸€æ¬¡æ‰“å¼€æ—¶å¦‚æœæ²¡ä½¿ç”¨CIPHERï¼Œé‚£ä¹ˆæ¥ä¸‹æ¥æ‰“å¼€ä¹Ÿä¸èƒ½ç”¨CIPHERäº†ï¼Œ
+		//å¦‚æœç¬¬ä¸€æ¬¡ç”¨äº†CIPHERï¼Œé‚£ä¹ˆå°±ä¸€ç›´è¦ç”¨CIPHERè¿å®ƒ
+        cipher = ci.getProperty("CIPHER"); //åªæ”¯æŒXTEAã€AESã€FOG
         if (cipher != null) {
-            fileEncryptionKey = MathUtils.secureRandomBytes(32); //Ö»ÊÇÔÚclient¶ËÓÃ
+            fileEncryptionKey = MathUtils.secureRandomBytes(32); //åªæ˜¯åœ¨clientç«¯ç”¨
         }
         String[] servers = StringUtils.arraySplit(server, ',', true);
         int len = servers.length;
@@ -420,12 +420,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                     switchOffCluster = true;
                 }
             }
-            //Èç¹ûÃ»ÓĞÒ»Ì¨server³õÊ¼»¯³É¹¦£¬ÄÇÃ´ÕâÀïÖ±½ÓÅ×Òì³£ÁË
+            //å¦‚æœæ²¡æœ‰ä¸€å°serveråˆå§‹åŒ–æˆåŠŸï¼Œé‚£ä¹ˆè¿™é‡Œç›´æ¥æŠ›å¼‚å¸¸äº†
             checkClosed();
-            if (switchOffCluster) { //¼¯ÈºÖĞÖ»ÒªÓĞÒ»Ì¨server³õÊ¼»¯Ê§°Ü¾Í¹Øµô¼¯Èº
+            if (switchOffCluster) { //é›†ç¾¤ä¸­åªè¦æœ‰ä¸€å°serveråˆå§‹åŒ–å¤±è´¥å°±å…³æ‰é›†ç¾¤
                 switchOffCluster();
             }
-            //Èç¹ûÊÇ¼¯Èº£¬ÕâÀïÍ·»á°ÑËùÓĞserver¶ÔÓ¦µÄsessionµÄautoCommitÉèÎªfalse
+            //å¦‚æœæ˜¯é›†ç¾¤ï¼Œè¿™é‡Œå¤´ä¼šæŠŠæ‰€æœ‰serverå¯¹åº”çš„sessionçš„autoCommitè®¾ä¸ºfalse
             checkClusterDisableAutoCommit(serverList);
         } catch (DbException e) {
             traceSystem.close();
@@ -468,19 +468,19 @@ public class SessionRemote extends SessionWithState implements DataHandler {
      * @return true if reconnected
      */
     private boolean autoReconnect(int count) {
-    	//Èç¹ûÃ»ÓĞ¹Ø±ÕÔò²»ÖØÁ¬
+    	//å¦‚æœæ²¡æœ‰å…³é—­åˆ™ä¸é‡è¿
         if (!isClosed()) {
             return false;
         }
-        //Èç¹ûAUTO_RECONNECT²ÎÊıÊÇfalseÔò²»ÖØÁ¬
+        //å¦‚æœAUTO_RECONNECTå‚æ•°æ˜¯falseåˆ™ä¸é‡è¿
         if (!autoReconnect) {
             return false;
         }
-        //·Ç¼¯Èº»·¾³£¬²¢ÇÒÊÇ·Ç×Ô¶¯Ìá½»Ä£Ê½£¬Ôò²»ÖØÁ¬
+        //éé›†ç¾¤ç¯å¢ƒï¼Œå¹¶ä¸”æ˜¯éè‡ªåŠ¨æäº¤æ¨¡å¼ï¼Œåˆ™ä¸é‡è¿
         if (!cluster && !autoCommit) {
             return false;
         }
-        //ÖØÁ¬´ÎÊı´óÓÚh2.maxReconnect(Ä¬ÈÏÈı´Î)£¬Ôò²»ÔÙÖØÁ¬
+        //é‡è¿æ¬¡æ•°å¤§äºh2.maxReconnect(é»˜è®¤ä¸‰æ¬¡)ï¼Œåˆ™ä¸å†é‡è¿
         if (count > SysProperties.MAX_RECONNECT) {
             return false;
         }
@@ -529,7 +529,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
     }
     
-    //¹Ø±ÕÁ¬½ÓÊ±²Å¹Øsession£¬µ÷ÓÃĞ©·½·¨»áÊ¹ÓÃserver¶ËÊÍ·ÅsessionÏà¹ØµÄ×ÊÔ´£¬±ÈÈçÏß³Ì½áÊø
+    //å…³é—­è¿æ¥æ—¶æ‰å…³sessionï¼Œè°ƒç”¨äº›æ–¹æ³•ä¼šä½¿ç”¨serverç«¯é‡Šæ”¾sessionç›¸å…³çš„èµ„æºï¼Œæ¯”å¦‚çº¿ç¨‹ç»“æŸ
     public void close() {
         RuntimeException closeError = null;
         if (transferList != null) {

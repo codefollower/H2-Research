@@ -25,7 +25,7 @@ import org.h2.message.DbException;
  */
 public class PageStreamTrunk extends Page {
 	/*
-		Í·²¿Õ¼17×Ö½Ú
+		å¤´éƒ¨å 17å­—èŠ‚
 		data.writeByte((byte) Page.TYPE_STREAM_TRUNK);
 	    data.writeShortInt(0);
 	    data.writeInt(parent);
@@ -146,8 +146,8 @@ public class PageStreamTrunk extends Page {
      * @param pageSize the page size
      * @return the number of pages
      */
-    //Ò»¸öPageStreamTrunkÄÜ·Å¶àÉÙ¸öPageStreamDataµÄpageId(ÓÃ4×Ö½Ú±íÊ¾)
-    //(pageSize-17)/4 (Ò»¸öPageStreamTrunkÍ·¾ÍÕ¼ÁË17×Ö½Ú)
+    //ä¸€ä¸ªPageStreamTrunkèƒ½æ”¾å¤šå°‘ä¸ªPageStreamDataçš„pageId(ç”¨4å­—èŠ‚è¡¨ç¤º)
+    //(pageSize-17)/4 (ä¸€ä¸ªPageStreamTrunkå¤´å°±å äº†17å­—èŠ‚)
     static int getPagesAddressed(int pageSize) {
         return (pageSize - DATA_START) / 4;
     }

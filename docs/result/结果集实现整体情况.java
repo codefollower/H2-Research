@@ -1,7 +1,7 @@
-Ö÷Òª½Ó¿Ú:
+ä¸»è¦æ¥å£:
 org.h2.result.ResultInterface
 
-ËüµÄÁ½¸öÊµÏÖÀàÊÇ:
-org.h2.result.ResultRemote (ÔÚJDBC¶ËÊ¹ÓÃ£¬Ò²¾ÍÊÇClient¶Ë)
-org.h2.result.LocalResult  (ÔÚServer¶ËÊ¹ÓÃ£¬LocalÕâ¸ö´ÊÊÇÏà¶ÔÓÚServer×ÔÉíÀ´½²µÄ£¬ÒòÎª½á¹û¼¯¾ÍÔÚServer±¾µØ£¬ËùÒÔÓÃLocal)
+å®ƒçš„ä¸¤ä¸ªå®ç°ç±»æ˜¯:
+org.h2.result.ResultRemote (åœ¨JDBCç«¯ä½¿ç”¨ï¼Œä¹Ÿå°±æ˜¯Clientç«¯)
+org.h2.result.LocalResult  (åœ¨Serverç«¯ä½¿ç”¨ï¼ŒLocalè¿™ä¸ªè¯æ˜¯ç›¸å¯¹äºServerè‡ªèº«æ¥è®²çš„ï¼Œå› ä¸ºç»“æœé›†å°±åœ¨Serveræœ¬åœ°ï¼Œæ‰€ä»¥ç”¨Local)
 

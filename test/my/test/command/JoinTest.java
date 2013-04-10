@@ -10,10 +10,10 @@ public class JoinTest extends TestBase {
 	@Override
 	public void init() throws Exception {
 		//prop.setProperty("DATABASE_TO_UPPER", "false");
-		//prop.setProperty("NESTED_JOINS", "false"); //²»Ê¹ÓÃÇ¶Ì×join
+		//prop.setProperty("NESTED_JOINS", "false"); //ä¸ä½¿ç”¨åµŒå¥—join
 
-		//¼ûorg.h2.table.TableFilter.fullConditionµÄ×¢ÊÍ
-		//ºÍorg.h2.table.Plan.removeUnusableIndexConditions()µÄ×¢ÊÍ
+		//è§org.h2.table.TableFilter.fullConditionçš„æ³¨é‡Š
+		//å’Œorg.h2.table.Plan.removeUnusableIndexConditions()çš„æ³¨é‡Š
 		prop.setProperty("EARLY_FILTER", "true");
 
 		prop.setProperty("OPTIMIZE_IS_NULL", "false");
@@ -77,7 +77,7 @@ public class JoinTest extends TestBase {
 		sql = "SELECT t1.id, t1.b FROM JoinTest1 t1 NATURAL JOIN JoinTest4 t2";
 
 		//org.h2.table.TableFilter.next()
-		//´ò¶Ïµã:table.getName().equalsIgnoreCase("JoinTest1") || table.getName().equalsIgnoreCase("JoinTest2")
+		//æ‰“æ–­ç‚¹:table.getName().equalsIgnoreCase("JoinTest1") || table.getName().equalsIgnoreCase("JoinTest2")
 		sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON id>30";
 		sql = "SELECT rownum, * FROM JoinTest1 RIGHT OUTER JOIN JoinTest2 ON id2>70";
 		sql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";
@@ -164,7 +164,7 @@ public class JoinTest extends TestBase {
         sql = "SELECT t1.id, t1.b FROM JoinTest1 t1 NATURAL JOIN JoinTest4 t2";
 
         //org.h2.table.TableFilter.next()
-        //´ò¶Ïµã:table.getName().equalsIgnoreCase("JoinTest1") || table.getName().equalsIgnoreCase("JoinTest2")
+        //æ‰“æ–­ç‚¹:table.getName().equalsIgnoreCase("JoinTest1") || table.getName().equalsIgnoreCase("JoinTest2")
         sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON id>30";
         sql = "SELECT rownum, * FROM JoinTest1 RIGHT OUTER JOIN JoinTest2 ON id2>70";
         sql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";

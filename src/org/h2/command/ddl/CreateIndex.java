@@ -52,11 +52,11 @@ public class CreateIndex extends SchemaCommand {
     }
 
     public int update() {
-    	//µ±Ö´ĞĞÕâÑùµÄSQLÊ±: create TEMPORARY table myTable(name varchar(500),CONSTRAINT myindex INDEX (name)) TRANSACTIONAL
-        //transactionalÎªtrue
-    	//ÔÚorg.h2.command.Parser.parseAlterTableAddConstraintIf(String, Schema)ÖĞÎªINDEX (name)¹¹½¨Ò»¸öCreateIndex
-    	//È»ºóÖ´ĞĞorg.h2.command.ddl.CreateTable.update()Ê±
-    	//ÔÚ"for (DefineCommand command : constraintCommands)"ÄÇÀï´¥·¢´Ë·½·¨
+    	//å½“æ‰§è¡Œè¿™æ ·çš„SQLæ—¶: create TEMPORARY table myTable(name varchar(500),CONSTRAINT myindex INDEX (name)) TRANSACTIONAL
+        //transactionalä¸ºtrue
+    	//åœ¨org.h2.command.Parser.parseAlterTableAddConstraintIf(String, Schema)ä¸­ä¸ºINDEX (name)æ„å»ºä¸€ä¸ªCreateIndex
+    	//ç„¶åæ‰§è¡Œorg.h2.command.ddl.CreateTable.update()æ—¶
+    	//åœ¨"for (DefineCommand command : constraintCommands)"é‚£é‡Œè§¦å‘æ­¤æ–¹æ³•
     	if (!transactional) {
             session.commit(true);
         }

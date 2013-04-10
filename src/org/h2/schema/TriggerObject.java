@@ -105,7 +105,7 @@ public class TriggerObject extends SchemaObjectBase {
      * @param beforeAction if this method is called before applying the changes
      */
     public void fire(Session session, int type, boolean beforeAction) {
-    	//rowBased=trueËµÃ÷ÊÇÒ»¸öFOR EACH ROW´¥·¢Æ÷£¬Õâ¸ö·½·¨ÊÇÔÚActionÇ°ºóµ÷ÓÃµÄ£¬¶ÔFOR EACH ROW´¥·¢Æ÷ÎŞĞ§
+    	//rowBased=trueè¯´æ˜æ˜¯ä¸€ä¸ªFOR EACH ROWè§¦å‘å™¨ï¼Œè¿™ä¸ªæ–¹æ³•æ˜¯åœ¨Actionå‰åè°ƒç”¨çš„ï¼Œå¯¹FOR EACH ROWè§¦å‘å™¨æ— æ•ˆ
         if (rowBased || before != beforeAction || (typeMask & type) == 0) {
             return;
         }
@@ -156,7 +156,7 @@ public class TriggerObject extends SchemaObjectBase {
      * @return true if no further action is required (for 'instead of' triggers)
      */
     public boolean fireRow(Session session, Row oldRow, Row newRow, boolean beforeAction, boolean rollback) {
-    	//rowBased=falseËµÃ÷ÊÇÒ»¸ö·ÇFOR EACH ROW´¥·¢Æ÷£¬Õâ¸ö·½·¨ÊÇÔÚÔö¼Ó¡¢É¾³ı¡¢ĞŞ¸Äµ¥ĞĞµÄÇ°ºóµ÷ÓÃµÄ£¬¶Ô·ÇFOR EACH ROW´¥·¢Æ÷ÎŞĞ§
+    	//rowBased=falseè¯´æ˜æ˜¯ä¸€ä¸ªéFOR EACH ROWè§¦å‘å™¨ï¼Œè¿™ä¸ªæ–¹æ³•æ˜¯åœ¨å¢åŠ ã€åˆ é™¤ã€ä¿®æ”¹å•è¡Œçš„å‰åè°ƒç”¨çš„ï¼Œå¯¹éFOR EACH ROWè§¦å‘å™¨æ— æ•ˆ
         if (!rowBased || before != beforeAction) {
             return false;
         }
@@ -261,7 +261,7 @@ public class TriggerObject extends SchemaObjectBase {
         return null;
     }
 
-    public String getCreateSQLForCopy(Table targetTable, String quotedName) { //Èç: quotedName = PUBLIC.MYTRIGGER1
+    public String getCreateSQLForCopy(Table targetTable, String quotedName) { //å¦‚: quotedName = PUBLIC.MYTRIGGER1
         StringBuilder buff = new StringBuilder("CREATE FORCE TRIGGER ");
         buff.append(quotedName);
         if (insteadOf) {

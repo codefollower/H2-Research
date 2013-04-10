@@ -16,7 +16,7 @@ public class IndexTest {
 		prop.setProperty("user", "sa");
 		prop.setProperty("password", "");
 
-		//prop.setProperty("MODE", "DB2"); //支持SYSDUMMY1
+		//prop.setProperty("MODE", "DB2"); //鏀寔SYSDUMMY1
 
 		int len = 256;
 		StringBuilder s = new StringBuilder(len);
@@ -53,12 +53,12 @@ public class IndexTest {
 		//		stmt.executeUpdate("insert into IndexTestTable(id, name) values(" + 110 + ", '"+110 +"abcdef1234')");
 		//		stmt.executeUpdate("insert into IndexTestTable(id, name) values(" + 130 + ", '"+110 +"abcdef1234')");
 		
-		//测试TreeIndex
+		//娴嬭瘯TreeIndex
 		//stmt.executeUpdate("create LOCAL TEMPORARY table IF NOT EXISTS IndexTestTable(id int not null, name varchar(500) not null) NOT PERSISTENT");
 		//stmt.executeUpdate("CREATE index idx_name ON IndexTestTable(id)");
 		
-		//测试PageBtreeIndex
-		//找断点条件indexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
+		//娴嬭瘯PageBtreeIndex
+		//鎵炬柇鐐规潯浠秈ndexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
 		//index.getName().equalsIgnoreCase("idx_name");
 		stmt.executeUpdate("create table IF NOT EXISTS IndexTestTable(id int not null, name varchar(500) not null, address varchar(500) not null)");
 		stmt.executeUpdate("CREATE index IF NOT EXISTS idx_name ON IndexTestTable(name)");

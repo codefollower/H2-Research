@@ -426,7 +426,7 @@ public class DateTimeUtils {
             }
             int value = c.get(field);
             if (field == Calendar.MONTH) {
-                return value + 1; //ÔÂ·İÊÇ´Ó0¿ªÊ¼µÄ£¬ËùÒÔÒª¼Ó1
+                return value + 1; //æœˆä»½æ˜¯ä»0å¼€å§‹çš„ï¼Œæ‰€ä»¥è¦åŠ 1
             }
             return value;
         }

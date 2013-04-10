@@ -778,8 +778,8 @@ public class StringUtils {
      * @param s the text
      * @return the double quoted text
      */
-    //¸ø×Ö·û´®¼ÓË«ÒýºÅ£¬×Ö·û´®ÖÐµÄË«ÒýºÅÓÃÁ½¸öË«ÒýºÅ±íÊ¾
-    //Èç: abc => "abc"
+    //ç»™å­—ç¬¦ä¸²åŠ åŒå¼•å·ï¼Œå­—ç¬¦ä¸²ä¸­çš„åŒå¼•å·ç”¨ä¸¤ä¸ªåŒå¼•å·è¡¨ç¤º
+    //å¦‚: abc => "abc"
     // ab"c   => "ab""c"
     public static String quoteIdentifier(String s) {
         int length = s.length();

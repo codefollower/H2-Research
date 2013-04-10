@@ -292,7 +292,7 @@ public class ConstraintReferential extends Constraint {
     }
 
     public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
-        if (!database.getReferentialIntegrity()) { //ÉèÖÃREFERENTIAL_INTEGRITY¶¯Ì¬²ÎÊı¿É½ûÓÃ¼ì²é
+        if (!database.getReferentialIntegrity()) { //è®¾ç½®REFERENTIAL_INTEGRITYåŠ¨æ€å‚æ•°å¯ç¦ç”¨æ£€æŸ¥
             return;
         }
         if (!table.getCheckForeignKeyConstraints() || !refTable.getCheckForeignKeyConstraints()) {

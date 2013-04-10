@@ -16,13 +16,13 @@ public class FunctionTest extends TestBase {
 
 	@Override
 	public void init() throws Exception {
-		prop.setProperty("MODE", "PostgreSQL"); //Ö»ÓÐPostgreSQL²Å°ÑLOGºÍLN¿´³ÉÒ»Ñù£¬ÆäËûÊý¾Ý¿â°Ñ°ÑLOGºÍLOG10
+		prop.setProperty("MODE", "PostgreSQL"); //åªæœ‰PostgreSQLæ‰æŠŠLOGå’ŒLNçœ‹æˆä¸€æ ·ï¼Œå…¶ä»–æ•°æ®åº“æŠŠæŠŠLOGå’ŒLOG10
 	}
 
 	void soundex_index() {
 		// SOUNDEX_INDEX
-		// 34¸ö×Ö·û(26¸ö´óÐ´×ÖÄ¸¼Ó1µ½8Õâ8¸öÊý×Ö)
-		// 7: AEIOUY ¼°ËüÃÇµÄÐ¡Ð´(ÏÂÍ¬)
+		// 34ä¸ªå­—ç¬¦(26ä¸ªå¤§å†™å­—æ¯åŠ 1åˆ°8è¿™8ä¸ªæ•°å­—)
+		// 7: AEIOUY åŠå®ƒä»¬çš„å°å†™(ä¸‹åŒ)
 		// 8: HW
 		// 1: BFPV
 		// 2: CGJKQSXZ
@@ -62,9 +62,9 @@ public class FunctionTest extends TestBase {
 				System.out.print(o);
 				if (last != null) {
 					if (!last.equals(o))
-						System.out.print(" ÓëÇ°Ãæ²»Í¬  ");
+						System.out.print(" ä¸Žå‰é¢ä¸åŒ  ");
 					else
-						System.out.print(" ÓëÇ°ÃæÏàÍ¬  ");
+						System.out.print(" ä¸Žå‰é¢ç›¸åŒ  ");
 
 					//System.out.println(last);
 					//System.out.println(o);
@@ -78,7 +78,7 @@ public class FunctionTest extends TestBase {
 		}
 	}
 
-	//²âÊÔorg.h2.expression.Function
+	//æµ‹è¯•org.h2.expression.Function
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS myschema AUTHORIZATION sa");
@@ -102,7 +102,7 @@ public class FunctionTest extends TestBase {
 	}
 
 	void numericFunctions() throws Exception {
-		sql = "SELECT ROUND(12.234, 2)"; //12.23,  4Éá5Èë£¬Ð¡Êý±£ÁôÁ½Î»
+		sql = "SELECT ROUND(12.234, 2)"; //12.23,  4èˆ5å…¥ï¼Œå°æ•°ä¿ç•™ä¸¤ä½
 		sql = "SELECT ROUND(12.235, 2)"; //12.24
 		sql = "SELECT ROUND(12.236, 2)"; //12.24
 
@@ -112,15 +112,15 @@ public class FunctionTest extends TestBase {
 
 		sql = "SELECT ABS(null)";
 		sql = "SELECT CEILING(1.22)"; //2.0
-		sql = "SELECT CEILING(0.22)"; //1.0 //Ìì»¨°å
+		sql = "SELECT CEILING(0.22)"; //1.0 //å¤©èŠ±æ¿
 
 		sql = "SELECT FLOOR(1.22)"; //1.0
-		sql = "SELECT FLOOR(0.22)"; //0.0 //µØ°å
+		sql = "SELECT FLOOR(0.22)"; //0.0 //åœ°æ¿
 
-		sql = "SELECT LN(100)"; //4.605170185988092,  ¼´eµÄ4.605170185988092´ÎÃÝÊÇ100
-		//µ±org.h2.engine.Mode.logIsLogBase10ÊÇtrueÊ±ÓëLOGÓëLNÒ»Ñù£¬ÊÇfalseÓëLOG10Ò»Ñù£¬Ä¬ÈÏÊÇfalse
-		sql = "SELECT LOG(100)"; //4.605170185988092,  ¼´eµÄ4.605170185988092´ÎÃÝÊÇ100
-		sql = "SELECT LOG10(100)"; //2.0,  ¼´10µÄ2´ÎÃÝÊÇ100
+		sql = "SELECT LN(100)"; //4.605170185988092,  å³eçš„4.605170185988092æ¬¡å¹‚æ˜¯100
+		//å½“org.h2.engine.Mode.logIsLogBase10æ˜¯trueæ—¶ä¸ŽLOGä¸ŽLNä¸€æ ·ï¼Œæ˜¯falseä¸ŽLOG10ä¸€æ ·ï¼Œé»˜è®¤æ˜¯false
+		sql = "SELECT LOG(100)"; //4.605170185988092,  å³eçš„4.605170185988092æ¬¡å¹‚æ˜¯100
+		sql = "SELECT LOG10(100)"; //2.0,  å³10çš„2æ¬¡å¹‚æ˜¯100
 
 		sql = "SELECT RAND()";
 		sql = "SELECT RAND(10), RAND(10), RAND(10)";
@@ -128,7 +128,7 @@ public class FunctionTest extends TestBase {
 		sql = "SELECT ROUNDMAGIC(0.199933)";
 		sql = "SELECT ROUNDMAGIC(0.1999333455444444444444444444444)";
 
-		sql = "SELECT EXPAND(x'1234')"; //½âÑ¹£¬Ö»ÄÜ½ÓCOMPRESSº¯Êý
+		sql = "SELECT EXPAND(x'1234')"; //è§£åŽ‹ï¼Œåªèƒ½æŽ¥COMPRESSå‡½æ•°
 		sql = "SELECT UTF8TOSTRING(EXPAND(COMPRESS(STRINGTOUTF8('Test'))))";
 
 		sql = "SELECT RANDOM_UUID()";
@@ -143,8 +143,8 @@ public class FunctionTest extends TestBase {
 		sql = "SELECT HEXTORAW('abcd1234')";
 		sql = "SELECT HEXTORAW(RAWTOHEX('abc'))='abc'";
 
-		// 34¸ö×Ö·û(26¸ö´óÐ´×ÖÄ¸¼Ó1µ½8Õâ8¸öÊý×Ö)
-		// 7: AEIOUY ¼°ËüÃÇµÄÐ¡Ð´(ÏÂÍ¬)
+		// 34ä¸ªå­—ç¬¦(26ä¸ªå¤§å†™å­—æ¯åŠ 1åˆ°8è¿™8ä¸ªæ•°å­—)
+		// 7: AEIOUY åŠå®ƒä»¬çš„å°å†™(ä¸‹åŒ)
 		// 8: HW
 		// 1: BFPV
 		// 2: CGJKQSXZ
@@ -152,10 +152,10 @@ public class FunctionTest extends TestBase {
 		// 4: L
 		// 5: MN
 		// 6: R
-		//Ëã·¨ÊÇ: ºöÂÔËùÓÐµÄ·Ç×Ö·û£¬È»ºó±£ÁôµÚÒ»¸ö×Ö·û£¬ºöÂÔ¶ÔÓ¦7ºÍ8µÄ×Ö·û£¬ÆäËûµÄ×ª³É¶ÔÓ¦µÄÊý×Ö£¬ÖØ¸´µÄ²»Ëã£¬²»¹»4Î»µÄ²¹0
-		sql = "SELECT SOUNDEX('1aaa')"; //1±»È¥µô£¬±£ÁôµÚÒ»¸öa£¬µÚ¶þºÍµÚÈý¸öa¶ÔÓ¦7±»ºöÂÔ£¬ËùÒÔ×îºóÊÇa000
+		//ç®—æ³•æ˜¯: å¿½ç•¥æ‰€æœ‰çš„éžå­—ç¬¦ï¼Œç„¶åŽä¿ç•™ç¬¬ä¸€ä¸ªå­—ç¬¦ï¼Œå¿½ç•¥å¯¹åº”7å’Œ8çš„å­—ç¬¦ï¼Œå…¶ä»–çš„è½¬æˆå¯¹åº”çš„æ•°å­—ï¼Œé‡å¤çš„ä¸ç®—ï¼Œä¸å¤Ÿ4ä½çš„è¡¥0
+		sql = "SELECT SOUNDEX('1aaa')"; //1è¢«åŽ»æŽ‰ï¼Œä¿ç•™ç¬¬ä¸€ä¸ªaï¼Œç¬¬äºŒå’Œç¬¬ä¸‰ä¸ªaå¯¹åº”7è¢«å¿½ç•¥ï¼Œæ‰€ä»¥æœ€åŽæ˜¯a000
 
-		//B±£Áô£¬HÈ¥µô£¬C×ª³É2£¬WÈ¥µô£¬D×ª³É3£¬HÈ¥µô£¬AÈ¥µô£¬×îºóÊÇB23ÒòÎªÊÇ3Î»£¬ËùÒÔ²»¹»4Î»£¬×îºóÊÇB230
+		//Bä¿ç•™ï¼ŒHåŽ»æŽ‰ï¼ŒCè½¬æˆ2ï¼ŒWåŽ»æŽ‰ï¼ŒDè½¬æˆ3ï¼ŒHåŽ»æŽ‰ï¼ŒAåŽ»æŽ‰ï¼Œæœ€åŽæ˜¯B23å› ä¸ºæ˜¯3ä½ï¼Œæ‰€ä»¥ä¸å¤Ÿ4ä½ï¼Œæœ€åŽæ˜¯B230
 		sql = "SELECT SOUNDEX('BHCWDHA')";
 
 		sql = "SELECT 'ab'||SPACE(10)||'cd'";
@@ -165,66 +165,66 @@ public class FunctionTest extends TestBase {
 
 	void timeAndDateFunctions() throws Exception {
 
-		//ÒÔÏÂÓÐ21¸öÊ±¼äÓëÈÕÆÚº¯Êý, 
-		//ÔÚÕâ¸ö·½·¨ÖÐorg.h2.expression.Function.getSimpleValue(Session, Value, Expression[], Value[])
+		//ä»¥ä¸‹æœ‰21ä¸ªæ—¶é—´ä¸Žæ—¥æœŸå‡½æ•°, 
+		//åœ¨è¿™ä¸ªæ–¹æ³•ä¸­org.h2.expression.Function.getSimpleValue(Session, Value, Expression[], Value[])
 		//----------------------------------------------------------------------------------------
 		sql = "SELECT DAYNAME(DATE '2000-01-01')";
 		sql = "SELECT DAY_OF_MONTH(CURRENT_DATE),DAY_OF_WEEK(CURRENT_DATE),DAY_OF_YEAR(CURRENT_DATE)";
 
 		sql = "SELECT HOUR(CURRENT_TIMESTAMP),MINUTE(CURRENT_TIMESTAMP)";
 
-		sql = "SELECT MONTH(CURRENT_DATE)"; //¼ÓÀ¨ºÅÒ²¿ÉÒÔSELECT MONTH(CURRENT_DATE())
+		sql = "SELECT MONTH(CURRENT_DATE)"; //åŠ æ‹¬å·ä¹Ÿå¯ä»¥SELECT MONTH(CURRENT_DATE())
 
-		sql = "SELECT MONTHNAME(CURRENT_DATE)"; //²»ÊÇMONTH_NAME£¬Ã»ÓÐÏÂ»®Ïß
+		sql = "SELECT MONTHNAME(CURRENT_DATE)"; //ä¸æ˜¯MONTH_NAMEï¼Œæ²¡æœ‰ä¸‹åˆ’çº¿
 
-		sql = "SELECT QUARTER(CURRENT_DATE)"; //µÚ¼¸¸ö¼¾¶È£¬ÓÃ1¡¢2¡¢3¡¢4±íÊ¾
+		sql = "SELECT QUARTER(CURRENT_DATE)"; //ç¬¬å‡ ä¸ªå­£åº¦ï¼Œç”¨1ã€2ã€3ã€4è¡¨ç¤º
 
 		sql = "SELECT SECOND(CURRENT_TIMESTAMP)";
 
 		sql = "SELECT WEEK(CURRENT_DATE),YEAR(CURRENT_DATE)";
 
-		//ISO_DAY_OF_WEEKÕâ¸ö¾ÍÕý³£ÁË£¬ÖÜ1ÓÃÊý×Ö1±íÊ¾£¬¸úDAY_OF_WEEK²»Ò»Ñù
+		//ISO_DAY_OF_WEEKè¿™ä¸ªå°±æ­£å¸¸äº†ï¼Œå‘¨1ç”¨æ•°å­—1è¡¨ç¤ºï¼Œè·ŸDAY_OF_WEEKä¸ä¸€æ ·
 		sql = "SELECT ISO_YEAR(CURRENT_DATE),ISO_WEEK(CURRENT_DATE),ISO_DAY_OF_WEEK(CURRENT_DATE)";
 
-		//NOW(1)±íÊ¾ºÁÃëÊýÖ»±£ÁôÒ»Î»£¬ÈçNOW()="2012-12-03 22:03:44.647" ÔòNOW(1)="2012-12-03 22:03:44.6"
-		//ºÁÃëÊýÒ»°ãÊÇ3Î»£¬Èç¹ûNOW(100)£¬100>3ÁË£¬ËùÒÔNOW(100)¸úNOW()Ò»Ñù
+		//NOW(1)è¡¨ç¤ºæ¯«ç§’æ•°åªä¿ç•™ä¸€ä½ï¼Œå¦‚NOW()="2012-12-03 22:03:44.647" åˆ™NOW(1)="2012-12-03 22:03:44.6"
+		//æ¯«ç§’æ•°ä¸€èˆ¬æ˜¯3ä½ï¼Œå¦‚æžœNOW(100)ï¼Œ100>3äº†ï¼Œæ‰€ä»¥NOW(100)è·ŸNOW()ä¸€æ ·
 		sql = "SELECT CURDATE(),CURRENT_DATE(),CURTIME(),CURRENT_TIME(),NOW(),CURRENT_TIMESTAMP(),NOW(1),NOW(100)";
 
 		//CURDATE=CURRENT_DATE, CURTIME=CURRENT_TIME, NOW=CURRENT_TIMESTAMP
-		//Õâ¸ö²»¼ÓÀ¨ºÅ¿ÉÒÔ
+		//è¿™ä¸ªä¸åŠ æ‹¬å·å¯ä»¥
 		sql = "SELECT CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP";
-		//Õâ¸ö¾Í²»ÐÐ
+		//è¿™ä¸ªå°±ä¸è¡Œ
 		//sql = "SELECT CURDATE, CURTIME, NOW";
 		//
 		//
 		//
-		//ÒÔÏÂÓÐ5¸öÊ±¼äÓëÈÕÆÚº¯Êý, 
-		//ÔÚÕâ¸ö·½·¨ÖÐorg.h2.expression.Function.getValueWithArgs(Session, Expression[])
+		//ä»¥ä¸‹æœ‰5ä¸ªæ—¶é—´ä¸Žæ—¥æœŸå‡½æ•°, 
+		//åœ¨è¿™ä¸ªæ–¹æ³•ä¸­org.h2.expression.Function.getValueWithArgs(Session, Expression[])
 		//----------------------------------------------------------------------------------------
 
-		//ÔÂ·Ý¼Ó1£¬½á¹ûÊÇ2001-02-28 00:00:00.0 
+		//æœˆä»½åŠ 1ï¼Œç»“æžœæ˜¯2001-02-28 00:00:00.0 
 		sql = "SELECT DATEADD('MONTH', 1, DATE '2001-01-31')";
 
-		//ÓÃºóÃæµÄYEAR¼õÈ¥Ç°ÃæµÄYEAR£¬1999-2001=-2
+		//ç”¨åŽé¢çš„YEARå‡åŽ»å‰é¢çš„YEARï¼Œ1999-2001=-2
 		sql = "SELECT DATEDIFF('YEAR', DATE '2001-01-31', DATE '1999-01-31')";
 
-		//³éÈ¡ÈÕÆÚºÍÄê·Ý CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 
+		//æŠ½å–æ—¥æœŸå’Œå¹´ä»½ CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 
 		sql = "SELECT CURRENT_TIMESTAMP, EXTRACT(DAY FROM CURRENT_TIMESTAMP), EXTRACT(YEAR FROM CURRENT_TIMESTAMP)";
 
-		//format datetime ¸ñÊ½»¯ÈÕÆÚÊ±¼ä
+		//format datetime æ ¼å¼åŒ–æ—¥æœŸæ—¶é—´
 		//timestamp = TIMESTAMP '2001-02-03 04:05:06' , 
 		//formatString = 'EEE, d MMM yyyy HH:mm:ss z'
 		//localeString = 'en'
 		//timeZoneString = 'GMT'
-		//½á¹û Fri, 2 Feb 2001 20:05:06 GMT 
+		//ç»“æžœ Fri, 2 Feb 2001 20:05:06 GMT 
 		sql = "SELECT FORMATDATETIME(TIMESTAMP '2001-02-03 04:05:06', 'EEE, d MMM yyyy HH:mm:ss z', 'en', 'GMT')";
-		//Ö»ÒªtimestampºÍformatStringÆäÖÐÖ®Ò»Îªnull£¬½á¹ûÎªnull
+		//åªè¦timestampå’ŒformatStringå…¶ä¸­ä¹‹ä¸€ä¸ºnullï¼Œç»“æžœä¸ºnull
 		sql = "SELECT FORMATDATETIME(null, 'EEE, d MMM yyyy HH:mm:ss z')"; //null
 		sql = "SELECT FORMATDATETIME(TIMESTAMP '2001-02-03 04:05:06', null)"; //null
 		
-		//parse datetime½âÎöÈÕÆÚÊ±¼ä
-		//°´ºóÃæÈý¸ö²ÎÊýÖ¸¶¨µÄ¸ñÊ½½âÎöµÚÒ»¸ö²ÎÊý£¬µÃµ½Ò»¸öjava.util.Date
-		//½á¹û: 2001-02-03 11:05:06.0 
+		//parse datetimeè§£æžæ—¥æœŸæ—¶é—´
+		//æŒ‰åŽé¢ä¸‰ä¸ªå‚æ•°æŒ‡å®šçš„æ ¼å¼è§£æžç¬¬ä¸€ä¸ªå‚æ•°ï¼Œå¾—åˆ°ä¸€ä¸ªjava.util.Date
+		//ç»“æžœ: 2001-02-03 11:05:06.0 
 		sql = "SELECT PARSEDATETIME('Sat, 3 Feb 2001 03:05:06 GMT', 'EEE, d MMM yyyy HH:mm:ss z', 'en', 'GMT')";
 	}
 
@@ -238,16 +238,16 @@ public class FunctionTest extends TestBase {
 
 		sql = "SELECT DECODE(0, 0, 'v1', 0,/'v2', 1, 'v3', 1, 'v4')";
 
-		//ROW_NUMBERº¯ÊýËäÈ»¶¨ÒåÁË£¬µ«ROW_NUMBER()º¯ÊýÎÞÐ§£¬²»Ö§³ÖÕâÑùµÄÓï·¨
+		//ROW_NUMBERå‡½æ•°è™½ç„¶å®šä¹‰äº†ï¼Œä½†ROW_NUMBER()å‡½æ•°æ— æ•ˆï¼Œä¸æ”¯æŒè¿™æ ·çš„è¯­æ³•
 		sql = "SELECT ROW_NUMBER()";
-		//ROWNUMº¯ÊýËäÈ»Ã»ÓÐ¶¨Òå£¬µ«ROWNUM()ÊÇÓÐÐ§£¬ParserÔÚ½âÎöÊ±°ÑËûµ±³ÉROWNUMÎ±×Ö¶Î´¦Àí
-		//µ±³ÉÁËorg.h2.expression.Rownum£¬¼ûorg.h2.command.Parser.readTerm()
+		//ROWNUMå‡½æ•°è™½ç„¶æ²¡æœ‰å®šä¹‰ï¼Œä½†ROWNUM()æ˜¯æœ‰æ•ˆï¼ŒParseråœ¨è§£æžæ—¶æŠŠä»–å½“æˆROWNUMä¼ªå­—æ®µå¤„ç†
+		//å½“æˆäº†org.h2.expression.Rownumï¼Œè§org.h2.command.Parser.readTerm()
 		sql = "SELECT ROWNUM()";
-		//ÕâÑù¾ÍÃ»ÎÊÌâÁË,ÔÚÕâ¸ö·½·¨ÖÐorg.h2.command.Parser.readFunction(Schema, String)
-		//°ÑROW_NUMBER×ª³Éorg.h2.expression.RownumÁË
+		//è¿™æ ·å°±æ²¡é—®é¢˜äº†,åœ¨è¿™ä¸ªæ–¹æ³•ä¸­org.h2.command.Parser.readFunction(Schema, String)
+		//æŠŠROW_NUMBERè½¬æˆorg.h2.expression.Rownumäº†
 		sql = "SELECT ROW_NUMBER()OVER()";
 
-		//ÏàµÈ·µ»Ønull£¬²»ÏàµÈ·µ»Øv0
+		//ç›¸ç­‰è¿”å›žnullï¼Œä¸ç›¸ç­‰è¿”å›žv0
 		sql = "SELECT NULLIF(1,2)"; //1
 		sql = "SELECT NULLIF(1,1)"; //null
 
@@ -262,7 +262,7 @@ public class FunctionTest extends TestBase {
 		sql = "SELECT ARRAY_GET(('Hello', 'World'), 2), ARRAY_LENGTH(('Hello', 'World')), "
 				+ "ARRAY_CONTAINS(('Hello', 'World'), 'Hello')";
 
-		//sql = "SELECT CASE(1>0, 1, b<0, 2)"; //²»ÄÜÕâÑùÓÃ
+		//sql = "SELECT CASE(1>0, 1, b<0, 2)"; //ä¸èƒ½è¿™æ ·ç”¨
 
 		sql = "SELECT SET(@v, 1), CASE @v WHEN 0 THEN 'No' WHEN 1 THEN 'One' ELSE 'Some' END";
 		sql = "SELECT SET(@v, 11), CASE WHEN @v<10 THEN 'Low' ELSE 'High' END";

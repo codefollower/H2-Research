@@ -63,25 +63,25 @@ public class PageOutputStream {
     void reserve(int minBuffer) {
         if (reserved < minBuffer) {
             int pageSize = store.getPageSize();
-            //Ò»¸öPageStreamDataµÄÈÝÁ¿: pageSize-11(ÒòÎªÒ»¸öPageStreamDataµÄÍ·¾ÍÕ¼ÁË11×Ö½Ú)
+            //ä¸€ä¸ªPageStreamDataçš„å®¹é‡: pageSize-11(å› ä¸ºä¸€ä¸ªPageStreamDataçš„å¤´å°±å äº†11å­—èŠ‚)
             int capacityPerPage = PageStreamData.getCapacity(pageSize);
-            //Ò»¸öPageStreamTrunkÄÜ·Å¶àÉÙ¸öPageStreamDataµÄpageId(ÓÃ4×Ö½Ú±íÊ¾)
-            //(pageSize-17)/4 (Ò»¸öPageStreamTrunkÍ·¾ÍÕ¼ÁË17×Ö½Ú)
+            //ä¸€ä¸ªPageStreamTrunkèƒ½æ”¾å¤šå°‘ä¸ªPageStreamDataçš„pageId(ç”¨4å­—èŠ‚è¡¨ç¤º)
+            //(pageSize-17)/4 (ä¸€ä¸ªPageStreamTrunkå¤´å°±å äº†17å­—èŠ‚)
             int pages = PageStreamTrunk.getPagesAddressed(pageSize);
             int pagesToAllocate = 0, totalCapacity = 0;
             do {
                 // allocate x data pages plus one trunk page
-                pagesToAllocate += pages + 1; //Òª·ÖÅä¶àÉÙ¸öÒ³£¬¼Ó1ÊÇ°üº¬PageStreamTrunk×ÔÉí
+                pagesToAllocate += pages + 1; //è¦åˆ†é…å¤šå°‘ä¸ªé¡µï¼ŒåŠ 1æ˜¯åŒ…å«PageStreamTrunkè‡ªèº«
                 totalCapacity += pages * capacityPerPage;
             } while (totalCapacity < minBuffer);
-            //´Óorg.h2.store.PageStore.openNew()µ÷ÓÃ¹ýÀ´Ê±£¬atEndÎªfalse£¬
-            //ÒòÎªÔÚorg.h2.store.PageStore.openNew()ÖÐÒÑÎªlogFirstTrunkPage(¾ÍÊÇtrunkPageId)·ÖÅäÒ»¸öpageIdÁË
-            //firstPageToUseÓÃÔÚorg.h2.store.PageFreeList.allocate(BitField, int)ÖÐ£¬´ÓÀ´±íÊ¾´ÓÄÄ¸öbit¿ªÊ¼²éÕÒ
+            //ä»Žorg.h2.store.PageStore.openNew()è°ƒç”¨è¿‡æ¥æ—¶ï¼ŒatEndä¸ºfalseï¼Œ
+            //å› ä¸ºåœ¨org.h2.store.PageStore.openNew()ä¸­å·²ä¸ºlogFirstTrunkPage(å°±æ˜¯trunkPageId)åˆ†é…ä¸€ä¸ªpageIdäº†
+            //firstPageToUseç”¨åœ¨org.h2.store.PageFreeList.allocate(BitField, int)ä¸­ï¼Œä»Žæ¥è¡¨ç¤ºä»Žå“ªä¸ªbitå¼€å§‹æŸ¥æ‰¾
             int firstPageToUse = atEnd ? trunkPageId : 0;
             
-            //·ÖÅäpagesToAllocate¸öpageIdµ½reservedPagesÖÐ£¬exclude°üÀ¨ÅÅ³ýµÄbit
+            //åˆ†é…pagesToAllocateä¸ªpageIdåˆ°reservedPagesä¸­ï¼ŒexcludeåŒ…æ‹¬æŽ’é™¤çš„bit
             store.allocatePages(reservedPages, pagesToAllocate, exclude, firstPageToUse);
-            reserved += totalCapacity; //×ÜÈÝÁ¿
+            reserved += totalCapacity; //æ€»å®¹é‡
             if (data == null) {
                 initNextData();
             }
@@ -89,7 +89,7 @@ public class PageOutputStream {
     }
 
     private void initNextData() {
-    	//ÕÒÏÂÒ»¸öPageStreamDataµÄpageId
+    	//æ‰¾ä¸‹ä¸€ä¸ªPageStreamDataçš„pageId
         int nextData = trunk == null ? -1 : trunk.getPageData(trunkIndex++);
         if (nextData == -1) {
             int parent = trunkPageId;
@@ -101,20 +101,20 @@ public class PageOutputStream {
             for (int i = 0; i < len; i++) {
                 pageIds[i] = reservedPages.get(i);
             }
-            //ÔÚÉÏÃæµÄorg.h2.store.PageOutputStream.reserve(int)ÖÐÒÑ¶à·ÖÅäÁËÒ»¸öpageId
-            trunkNext = reservedPages.get(len); //ÏÂÒ»¸öPageStreamTrunkµÄpageId
+            //åœ¨ä¸Šé¢çš„org.h2.store.PageOutputStream.reserve(int)ä¸­å·²å¤šåˆ†é…äº†ä¸€ä¸ªpageId
+            trunkNext = reservedPages.get(len); //ä¸‹ä¸€ä¸ªPageStreamTrunkçš„pageId
             logKey++;
-            //µÚÒ»¸öPageStreamTrunkµÄparentºÍtrunkPageIdÒ»Ñù
+            //ç¬¬ä¸€ä¸ªPageStreamTrunkçš„parentå’ŒtrunkPageIdä¸€æ ·
             trunk = PageStreamTrunk.create(store, parent, trunkPageId, trunkNext, logKey, pageIds);
-            trunkIndex = 0; //ÖØÐÂÖÃ0£¬ÒòÎªÊÇÐÂµÄPageStreamTrunkÁË
-            pageCount++; //ÕâÀïpageCount¼Ó1ÊÇ¶ÔÓ¦ÐÂµÄPageStreamTrunk
-            trunk.write(); //ÍêÕûµÄÐ´PageStreamTrunkÁË£¬Ð´µ½storeÖÐ
-            reservedPages.removeRange(0, len + 1); //É¾³ýPageStreamTrunk¶ÔÓ¦µÄidºÍËüµÄËùÓÐpageIds
+            trunkIndex = 0; //é‡æ–°ç½®0ï¼Œå› ä¸ºæ˜¯æ–°çš„PageStreamTrunkäº†
+            pageCount++; //è¿™é‡ŒpageCountåŠ 1æ˜¯å¯¹åº”æ–°çš„PageStreamTrunk
+            trunk.write(); //å®Œæ•´çš„å†™PageStreamTrunkäº†ï¼Œå†™åˆ°storeä¸­
+            reservedPages.removeRange(0, len + 1); //åˆ é™¤PageStreamTrunkå¯¹åº”çš„idå’Œå®ƒçš„æ‰€æœ‰pageIds
             nextData = trunk.getPageData(trunkIndex++);
         }
         data = PageStreamData.create(store, nextData, trunk.getPos(), logKey);
-        pageCount++; //ÕâÀïpageCount¼Ó1ÊÇ¶ÔÓ¦ÐÂµÄPageStreamData
-        data.initWrite(); //Ö»Ð´Í·Êý¾Ý
+        pageCount++; //è¿™é‡ŒpageCountåŠ 1æ˜¯å¯¹åº”æ–°çš„PageStreamData
+        data.initWrite(); //åªå†™å¤´æ•°æ®
     }
 
     /**

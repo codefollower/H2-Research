@@ -9,10 +9,10 @@ package org.h2.util;
 /**
  * A list of bits.
  */
-//ÏÂ±ê¶¼ÊÇ´Ó0¿ªÊ¼¼ÆÊýµÄ£¬data[0]±íÊ¾0µ½63£¬data[1]±íÊ¾64µ½127¡£¡£¡£
+//ä¸‹æ ‡éƒ½æ˜¯ä»Ž0å¼€å§‹è®¡æ•°çš„ï¼Œdata[0]è¡¨ç¤º0åˆ°63ï¼Œdata[1]è¡¨ç¤º64åˆ°127ã€‚ã€‚ã€‚
 public final class BitField {
 
-    private static final int ADDRESS_BITS = 6; //±íÊ¾2µÄ6´Î·½£¬¸ÕºÃµÈÓÚ64, i >> ADDRESS_BITSÊ±ÄÜÈ·¶¨ÊÇÔÚdataÖÐÄÇ¸öÏÂ±ê
+    private static final int ADDRESS_BITS = 6; //è¡¨ç¤º2çš„6æ¬¡æ–¹ï¼Œåˆšå¥½ç­‰äºŽ64, i >> ADDRESS_BITSæ—¶èƒ½ç¡®å®šæ˜¯åœ¨dataä¸­é‚£ä¸ªä¸‹æ ‡
     private static final int BITS = 64;
     private static final int ADDRESS_MASK = BITS - 1;
     private long[] data;
@@ -22,12 +22,12 @@ public final class BitField {
         this(64);
     }
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public String toString() {
 		return stringArray2(data);
 	}
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public static String stringArray2(long[] array) {
 		if (array == null) {
 			return "null";
@@ -42,12 +42,12 @@ public final class BitField {
 		return buff.toString();
 	}
     
-    //capacity±íÊ¾×ÜÎ»Êý
+    //capacityè¡¨ç¤ºæ€»ä½æ•°
     public BitField(int capacity) {
-    	//Èç¹ûcapacityÐ¡ÓÚ8(2µÄÈý´Î·½)£¬ÄÇÃ´²»Ô¤ÏÈ·ÖÅädata
-    	//capacity>8Ê±£¬·ÖÅäcapacity >>> 3¸ölong,Ò»¸ölongÄÜ±íÊ¾64±¶£¬
-    	//ËùÒÔcapacity>8Ê±Ô¤·ÖÅäµÄdataÄÜ±íÊ¾µÄÎ»ÊýÊÇ: (capacity >>> 3) *64 Ô¼µÈÓÚ (capacity/8)*64 = capacity*8
-    	//¼´ÊÇÔ­À´capacityµÄ8±¶(Ô¼µÈÓÚ)
+    	//å¦‚æžœcapacityå°äºŽ8(2çš„ä¸‰æ¬¡æ–¹)ï¼Œé‚£ä¹ˆä¸é¢„å…ˆåˆ†é…data
+    	//capacity>8æ—¶ï¼Œåˆ†é…capacity >>> 3ä¸ªlong,ä¸€ä¸ªlongèƒ½è¡¨ç¤º64å€ï¼Œ
+    	//æ‰€ä»¥capacity>8æ—¶é¢„åˆ†é…çš„dataèƒ½è¡¨ç¤ºçš„ä½æ•°æ˜¯: (capacity >>> 3) *64 çº¦ç­‰äºŽ (capacity/8)*64 = capacity*8
+    	//å³æ˜¯åŽŸæ¥capacityçš„8å€(çº¦ç­‰äºŽ)
     	
         data = new long[capacity >>> 3];
     }
@@ -62,7 +62,7 @@ public final class BitField {
         int i = fromIndex >> ADDRESS_BITS;
         int max = data.length;
         for (; i < max; i++) {
-            if (data[i] == -1) { //longµÄËùÓÐÎ»¶¼ÊÇ1Ê±£¬ÖµÊ±-1
+            if (data[i] == -1) { //longçš„æ‰€æœ‰ä½éƒ½æ˜¯1æ—¶ï¼Œå€¼æ—¶-1
                 continue;
             }
             int j = Math.max(fromIndex, i << ADDRESS_BITS);
@@ -147,10 +147,10 @@ public final class BitField {
         data[addr] &= ~getBitMask(i);
     }
     
-    //±ÈÈç£¬Èç¹ûiÊÇ63£¬·µ»ØµÄlongÖµµÄµÚ64(ÒòÎªi´Ó0¿ªÊ¼£¬ËùÒÔÊÇi+1)Î»ÊÇ1£¬
-    //Èç¹ûiÊÇ65£¬°´63È¡Ä£ºóÊÇ1£¬·µ»ØµÄlongÖµµÄµÚ2Î»ÊÇ1£¬
+    //æ¯”å¦‚ï¼Œå¦‚æžœiæ˜¯63ï¼Œè¿”å›žçš„longå€¼çš„ç¬¬64(å› ä¸ºiä»Ž0å¼€å§‹ï¼Œæ‰€ä»¥æ˜¯i+1)ä½æ˜¯1ï¼Œ
+    //å¦‚æžœiæ˜¯65ï¼ŒæŒ‰63å–æ¨¡åŽæ˜¯1ï¼Œè¿”å›žçš„longå€¼çš„ç¬¬2ä½æ˜¯1ï¼Œ
     private static long getBitMask(int i) {
-        return 1L << (i & ADDRESS_MASK); //(i & ADDRESS_MASK)Ïàµ±ÓÚ°´63È¡Ä£(µÃµ½µÄÖµÊÇ0µ½63)
+        return 1L << (i & ADDRESS_MASK); //(i & ADDRESS_MASK)ç›¸å½“äºŽæŒ‰63å–æ¨¡(å¾—åˆ°çš„å€¼æ˜¯0åˆ°63)
     }
 
     private void checkCapacity(int size) {

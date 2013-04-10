@@ -55,7 +55,7 @@ public class Delete extends Prepared {
         Table table = tableFilter.getTable();
         session.getUser().checkRight(table, Right.DELETE);
         table.fire(session, Trigger.DELETE, true);
-        //Ö±µ½ÊÂÎñcommit»òrollbackÊ±²Å½âËö£¬¼ûorg.h2.engine.Session.unlockAll()
+        //ç›´åˆ°äº‹åŠ¡commitæˆ–rollbackæ—¶æ‰è§£çï¼Œè§org.h2.engine.Session.unlockAll()
         table.lock(session, true, false);
         RowList rows = new RowList(session);
         int limitRows = -1;
@@ -68,13 +68,13 @@ public class Delete extends Prepared {
         try {
             setCurrentRowNumber(0);
             int count = 0;
-            //±ÈÈçdelete from DeleteTest limit 0£¬
-            //´ËÊ±limitRowsÎª0£¬²»É¾³ıÈÎºÎĞĞ
+            //æ¯”å¦‚delete from DeleteTest limit 0ï¼Œ
+            //æ­¤æ—¶limitRowsä¸º0ï¼Œä¸åˆ é™¤ä»»ä½•è¡Œ
             while (limitRows != 0 && tableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
-                //condition.getBooleanValue(session)ÄÚ²¿»áÈ¡µ±Ç°ĞĞÓëÖ®±È½Ï£¬
-                //±ÈÈç£¬Èç¹ûÊÇExpressionColumn£¬ÄÇÃ´¾ÍÓÉËü¶ÔÓ¦µÄÁĞ£¬È¡µÃÁĞid£¬
-                //È»ºóÔÚ´Óµ±Ç°ĞĞÖĞ°´ÁĞidÈ¡µ±Ç°ĞĞvalueÊı×éÖĞ¶ÔÓ¦ÔªËØ
+                //condition.getBooleanValue(session)å†…éƒ¨ä¼šå–å½“å‰è¡Œä¸ä¹‹æ¯”è¾ƒï¼Œ
+                //æ¯”å¦‚ï¼Œå¦‚æœæ˜¯ExpressionColumnï¼Œé‚£ä¹ˆå°±ç”±å®ƒå¯¹åº”çš„åˆ—ï¼Œå–å¾—åˆ—idï¼Œ
+                //ç„¶ååœ¨ä»å½“å‰è¡Œä¸­æŒ‰åˆ—idå–å½“å‰è¡Œvalueæ•°ç»„ä¸­å¯¹åº”å…ƒç´ 
                 if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
                     Row row = tableFilter.get();
                     boolean done = false;
@@ -125,8 +125,8 @@ public class Delete extends Prepared {
         return buff.toString();
     }
     
-    //limitExprÔÚorg.h2.command.Parser.parseDelete()ÖĞµ÷ÓÃ¹ıoptimizeÁË£¬ËùÒÔÔÚÕâÀï²»ÓÃÔÙµ÷ÓÃ
-    //ÒòÎªlimitExpr²»»áÉæ¼°µ½ÁĞ£¬ËùÒÔÒ²²»ĞèÒªµ÷ÓÃmapColumns
+    //limitExpråœ¨org.h2.command.Parser.parseDelete()ä¸­è°ƒç”¨è¿‡optimizeäº†ï¼Œæ‰€ä»¥åœ¨è¿™é‡Œä¸ç”¨å†è°ƒç”¨
+    //å› ä¸ºlimitExprä¸ä¼šæ¶‰åŠåˆ°åˆ—ï¼Œæ‰€ä»¥ä¹Ÿä¸éœ€è¦è°ƒç”¨mapColumns
     public void prepare() {
         if (condition != null) {
             condition.mapColumns(tableFilter, 0);

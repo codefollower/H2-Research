@@ -1,17 +1,17 @@
-ÒÔÏÂÊÇ¸ñÊ½·ÖÎö
+ä»¥ä¸‹æ˜¯æ ¼å¼åˆ†æ
 ------------------------------------------------------------------
 
-×Ö½ÚÊı   ´ú±íÊ²Ã´
+å­—èŠ‚æ•°   ä»£è¡¨ä»€ä¹ˆ
 
-Í·
+å¤´
 =======================
-1        type ¹Ì¶¨ÊÇPage.TYPE_STREAM_DATA (ÖµÊÇ8)
-2        checksum Ô¤ÏÈĞ´0£¬ÔÚĞ´Íêpageºó»ØÌî(¼ûorg.h2.store.PageStore.writePage(int, Data))
-4        trunk PageStreamTrunkµÄpageId
+1        type å›ºå®šæ˜¯Page.TYPE_STREAM_DATA (å€¼æ˜¯8)
+2        checksum é¢„å…ˆå†™0ï¼Œåœ¨å†™å®Œpageåå›å¡«(è§org.h2.store.PageStore.writePage(int, Data))
+4        trunk PageStreamTrunkçš„pageId
 4        logKey
 
-(Í·²¿Õ¼11×Ö½Ú)
+(å¤´éƒ¨å 11å­—èŠ‚)
 
-Ìå:
+ä½“:
 =======================
 pageSize-11  data

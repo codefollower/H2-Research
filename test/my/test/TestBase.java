@@ -27,7 +27,7 @@ public abstract class TestBase {
         prop.setProperty("PAGE_SIZE", "128");
         //prop.setProperty("MVCC", "true");
 
-        //prop.setProperty("MODE", "DB2"); //÷ß≥÷SYSDUMMY1
+        //prop.setProperty("MODE", "DB2"); //ÊîØÊåÅSYSDUMMY1
 
     }
 

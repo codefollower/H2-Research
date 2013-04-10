@@ -19,11 +19,11 @@ public class JdbcConnectionTest {
 		
 		System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
 		
-		//TRACE_LEVEL_FILE²ÎÊı·ÅSystemÖĞÎŞĞ§£¬·ÅÔÚurlÖĞ·Ç·¨£¬Ö»ÄÜ·ÅÔÚpropÖĞ
+		//TRACE_LEVEL_FILEå‚æ•°æ”¾Systemä¸­æ— æ•ˆï¼Œæ”¾åœ¨urlä¸­éæ³•ï¼Œåªèƒ½æ”¾åœ¨propä¸­
 		//System.setProperty("TRACE_LEVEL_FILE", "E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE");
 		//url +="; TRACE_LEVEL_FILE=E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE";
 		
-		//prop.setProperty("TRACE_LEVEL_FILE", "E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE.txt"); //Ö»ÄÜÊÇÊı×Ö
+		//prop.setProperty("TRACE_LEVEL_FILE", "E:\\H2\\baseDir\\MY_TRACE_LEVEL_FILE.txt"); //åªèƒ½æ˜¯æ•°å­—
 		
 		//prop.setProperty("TRACE_LEVEL_FILE", "10");
 		
@@ -33,7 +33,7 @@ public class JdbcConnectionTest {
 		url = "jdbc:h2:tcp://localhost:9092,localhost:9093/test9";
 		url = "jdbc:h2:mem:memdb";
 		
-		//prop.setProperty("AUTO_SERVER", "true"); //AUTO_SERVERÎªtrueÊ±urlÖĞ²»ÄÜÖ¸¶¨¶à¸öserver
+		//prop.setProperty("AUTO_SERVER", "true"); //AUTO_SERVERä¸ºtrueæ—¶urlä¸­ä¸èƒ½æŒ‡å®šå¤šä¸ªserver
 		
 		prop.setProperty("AUTO_RECONNECT", "true");
 		

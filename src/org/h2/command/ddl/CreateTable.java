@@ -94,7 +94,7 @@ public class CreateTable extends SchemaCommand {
     }
 
     public int update() {
-        if (!transactional) {  //只有临时表TRANSACTIONAL才会为true
+        if (!transactional) {  //鍙湁涓存椂琛═RANSACTIONAL鎵嶄細涓簍rue
             session.commit(true);
         }
         Database db = session.getDatabase();
@@ -124,7 +124,7 @@ public class CreateTable extends SchemaCommand {
                 }
             }
         }
-        data.id = getObjectId(); //第一次新建时会分配一个id
+        data.id = getObjectId(); //绗竴娆℃柊寤烘椂浼氬垎閰嶄竴涓猧d
         data.create = create;
         data.session = session;
         boolean isSessionTemporary = data.temporary && !data.globalTemporary;
@@ -163,8 +163,8 @@ public class CreateTable extends SchemaCommand {
             for (Sequence sequence : sequences) {
                 table.addSequence(sequence);
             }
-            //这里不会存在AlterTableAlterColumn
-            //只有AlterTableAddConstraint和CreateIndex
+            //杩欓噷涓嶄細瀛樺湪AlterTableAlterColumn
+            //鍙湁AlterTableAddConstraint鍜孋reateIndex
             for (DefineCommand command : constraintCommands) {
                 command.setTransactional(transactional);
                 command.update();
@@ -238,7 +238,7 @@ public class CreateTable extends SchemaCommand {
                 throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);
             }
             for (int i = 0; i < len; i++) {
-            	//如CREATE TABLE IF NOT EXISTS mytable3 
+            	//濡侰REATE TABLE IF NOT EXISTS mytable3 
             	//(f1 int, CONSTRAINT c1 PRIMARY KEY(f1), f2 int, CONSTRAINT c2 PRIMARY KEY(f2))
                 if (!columns[i].columnName.equals(pkColumns[i].columnName)) {
                     throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);

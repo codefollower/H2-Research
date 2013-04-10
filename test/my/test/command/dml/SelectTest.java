@@ -10,7 +10,7 @@ public class SelectTest extends TestBase {
 	}
 
 	public void init() throws Exception {
-		prop.setProperty("MODE", "DB2"); //Ö§³ÖSYSDUMMY1¡¢supportOffsetFetch
+		prop.setProperty("MODE", "DB2"); //æ”¯æŒSYSDUMMY1ã€supportOffsetFetch
 		prop.setProperty("PAGE_SIZE", "128");
 		//		prop.setProperty("TRACE_LEVEL_FILE", "10");
 		//		prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
@@ -61,15 +61,15 @@ public class SelectTest extends TestBase {
 		parseEndOfQuery();
 		parseSelectSimpleFromPart();
 
-		//²âÊÔorg.h2.command.dml.Select.queryGroup(int, LocalResult)
+		//æµ‹è¯•org.h2.command.dml.Select.queryGroup(int, LocalResult)
 		sql = "SELECT DISTINCT count(*),max(id),min(id),sum(id) FROM mytable ";
 
-		//²âÊÔorg.h2.command.dml.Select.queryQuick(int, ResultTarget)
+		//æµ‹è¯•org.h2.command.dml.Select.queryQuick(int, ResultTarget)
 		//sql = "SELECT DISTINCT count(*) FROM mytable ";
 
 		//sql = "SELECT DISTINCT LENGTH(NAME) FROM mytable ";
 
-		//²âÊÔorg.h2.command.dml.Select.queryDistinct(ResultTarget, long)
+		//æµ‹è¯•org.h2.command.dml.Select.queryDistinct(ResultTarget, long)
 		sql = "select distinct name from mytable";
 
 		select_init();
@@ -94,7 +94,7 @@ public class SelectTest extends TestBase {
 
 	}
 
-	//²âÊÔÊÔorg.h2.command.Parser.parseSelectSimpleSelectPart(Select)
+	//æµ‹è¯•è¯•org.h2.command.Parser.parseSelectSimpleSelectPart(Select)
 	void parseSelectSimpleSelectPart() {
 
 		sql = "select 2";
@@ -123,7 +123,7 @@ public class SelectTest extends TestBase {
 		//		sql = "select distinct name from mytable as t where id>199  order by id desc";
 		//		sql = "select distinct name from mytable order by id desc";
 		//		sql = "select name from mytable order by id desc";
-		//		sql = "SELECT 1 AS A FROM DUAL ORDER BY -A"; //ÓĞ´í Column "A" not found; SQL statement:
+		//		sql = "SELECT 1 AS A FROM DUAL ORDER BY -A"; //æœ‰é”™ Column "A" not found; SQL statement:
 		//		sql = "SELECT 1 AS A FROM DUAL ORDER BY A";
 
 		sql = "select * from mytable1 t1 LEFT OUTER JOIN mytable2 t2 on t1.id1=t2.id2 where t1.id1>100 group by t1.id1 having t1.id1>150 order by t1.id1 desc";
@@ -137,7 +137,7 @@ public class SelectTest extends TestBase {
 		sql = "select distinct name from mytable";
 	}
 
-	//²âÊÔorg.h2.command.Parser.readTableFilter(boolean)
+	//æµ‹è¯•org.h2.command.Parser.readTableFilter(boolean)
 	void readTableFilter() {
 		sql = "FROM (select 1, 2) SELECT * ";
 		sql = "FROM ((select 1, 2)) SELECT * ";
@@ -150,15 +150,15 @@ public class SelectTest extends TestBase {
 
 		sql = "FROM SYSTEM_RANGE(1,100) SELECT * ";
 		sql = "FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * ";
-		//sql = "FROM USER() SELECT * "; //º¯Êı·µ»ØÖµÀàĞÍ±ØĞëÊÇRESULT_SET
+		//sql = "FROM USER() SELECT * "; //å‡½æ•°è¿”å›å€¼ç±»å‹å¿…é¡»æ˜¯RESULT_SET
 		sql = "FROM DUAL SELECT * ";
-		sql = "FROM SYSDUMMY1 SELECT * "; //Òª¼Óprop.setProperty("MODE", "DB2")
+		sql = "FROM SYSDUMMY1 SELECT * "; //è¦åŠ prop.setProperty("MODE", "DB2")
 
 		sql = "FROM mytable SELECT * ";
 
 	}
 
-	//ÒÔÏÂ²¿·Ö²âÊÔorg.h2.command.Parser.parseEndOfQuery(Query)
+	//ä»¥ä¸‹éƒ¨åˆ†æµ‹è¯•org.h2.command.Parser.parseEndOfQuery(Query)
 	void parseEndOfQuery() {
 
 		sql = "select name from mytable order by id";
@@ -172,10 +172,10 @@ public class SelectTest extends TestBase {
 		//		ps.setString(3, "abc");
 		//		rs = ps.executeQuery();
 
-		//unionÊ±LIMIT¡¢ordey by¡¢FOR UPDATE²»ÄÜ·ÅÔÚ×Ó¾äÖĞ£¬Òª·ÅÔÚ×îºó
-		//±ÈÈçÕâÌõÊÇ´íÎóµÄ:
+		//unionæ—¶LIMITã€ordey byã€FOR UPDATEä¸èƒ½æ”¾åœ¨å­å¥ä¸­ï¼Œè¦æ”¾åœ¨æœ€å
+		//æ¯”å¦‚è¿™æ¡æ˜¯é”™è¯¯çš„:
 		//sql = "select name1 from mytable1 order by name1 union select name2 from mytable2";
-		//Òª¸Ä³ÉÕâÑù:
+		//è¦æ”¹æˆè¿™æ ·:
 		sql = "select name1 from mytable1 union select name2 from mytable2 order by name1";
 
 		sql = "select id,name from mytable order by id DESC";
@@ -186,55 +186,55 @@ public class SelectTest extends TestBase {
 		//		ps.setInt(1, -1);
 		//		rs = ps.executeQuery();
 		sql = "select id,name from mytable order by =-1 DESC";
-		sql = "select id,name from mytable order by -1 DESC"; //¸ºÊı±íÊ¾½µĞò£¬ÔÙ¼ÓDESC¾Í±íÊ¾½µĞòµÄ½µĞò£¬Êµ¼Ê¾ÍÊÇÉıĞò
+		sql = "select id,name from mytable order by -1 DESC"; //è´Ÿæ•°è¡¨ç¤ºé™åºï¼Œå†åŠ DESCå°±è¡¨ç¤ºé™åºçš„é™åºï¼Œå®é™…å°±æ˜¯å‡åº
 		sql = "select id,name from mytable order by -2 NULLS FIRST";
 		sql = "select id,name from mytable order by -2 NULLS LAST";
 
-		//OFFSET Òª¸úROW»òROWS£¬²»ÄÜÉÙ
+		//OFFSET è¦è·ŸROWæˆ–ROWSï¼Œä¸èƒ½å°‘
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROW";
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROWS";
 
-		//ÏÂÃæÁ½ĞĞµÈ¼Û FETCH FIRST ROW ONLYºÍFETCH NEXT ROW ONLYÒ»Ñù
+		//ä¸‹é¢ä¸¤è¡Œç­‰ä»· FETCH FIRST ROW ONLYå’ŒFETCH NEXT ROW ONLYä¸€æ ·
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROWS FETCH FIRST ROW ONLY";
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROWS FETCH NEXT ROW ONLY";
 
-		//ÏÂÃæÁ½ĞĞµÈ¼Û
+		//ä¸‹é¢ä¸¤è¡Œç­‰ä»·
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROWS FETCH NEXT 1 ROW ONLY";
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROWS FETCH NEXT 4 ROWS ONLY";
 
-		//ÏÂÃæÁ½ĞĞµÈ¼Û
+		//ä¸‹é¢ä¸¤è¡Œç­‰ä»·
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROWS FETCH FIRST 1 ROW ONLY";
 		sql = "select id,name from mytable order by -2 NULLS LAST OFFSET 2 ROWS FETCH FIRST 4 ROWS ONLY";
 
-		sql = "select id,name from mytable order by id LIMIT 2 OFFSET 3"; //OFFSET°´0Ëã£¬OFFSET 3¾ÍÊÇ´ÓµÚ4Ìõ¼ÇÂ¼¿ªÊ¼
+		sql = "select id,name from mytable order by id LIMIT 2 OFFSET 3"; //OFFSETæŒ‰0ç®—ï¼ŒOFFSET 3å°±æ˜¯ä»ç¬¬4æ¡è®°å½•å¼€å§‹
 
-		sql = "select id,name from mytable order by id LIMIT 3, 2"; //¸úÉÏÃæĞ§¹ûÒ»Ñù"3, 2"±íÊ¾OFFSET 3 LIMIT 2
-		sql = "select id,name from mytable order by id LIMIT 3, 5 SAMPLE_SIZE 2"; //SAMPLE_SIZE 2Ê±²»Êä³ö¼ÇÂ¼
-		sql = "select id,name from mytable order by id LIMIT 3, 5 SAMPLE_SIZE 6"; //SAMPLE_SIZE 6Ê±Êä³ö¼ÇÂ¼ÁË
+		sql = "select id,name from mytable order by id LIMIT 3, 2"; //è·Ÿä¸Šé¢æ•ˆæœä¸€æ ·"3, 2"è¡¨ç¤ºOFFSET 3 LIMIT 2
+		sql = "select id,name from mytable order by id LIMIT 3, 5 SAMPLE_SIZE 2"; //SAMPLE_SIZE 2æ—¶ä¸è¾“å‡ºè®°å½•
+		sql = "select id,name from mytable order by id LIMIT 3, 5 SAMPLE_SIZE 6"; //SAMPLE_SIZE 6æ—¶è¾“å‡ºè®°å½•äº†
 		sql = "select id,name from mytable FOR UPDATE";
-		sql = "select id,name from mytable FOR READ ONLY WITH RS"; //"FOR READ ONLY WITH RS"¿ÉÓĞ¿ÉÎŞ
+		sql = "select id,name from mytable FOR READ ONLY WITH RS"; //"FOR READ ONLY WITH RS"å¯æœ‰å¯æ— 
 	}
 
-	//²âÊÔorg.h2.command.Parser.parseSelectSimpleFromPart(Select)
+	//æµ‹è¯•org.h2.command.Parser.parseSelectSimpleFromPart(Select)
 	//org.h2.command.Parser.parseJoinTableFilter(TableFilter, Select)
 	//org.h2.command.Parser.readJoin(TableFilter, Select, boolean, boolean)
 	void parseSelectSimpleFromPart() {
 		sql = "SELECT * FROM mytable1 RIGHT OUTER JOIN mytable2 ON mytable1.id1 = mytable2.id2";
 		sql = "SELECT * FROM mytable1 LEFT OUTER JOIN mytable2 ON mytable1.id1 = mytable2.id2";
-		//²»Ö§³ÖFULL JOIN
+		//ä¸æ”¯æŒFULL JOIN
 		//sql = "SELECT * FROM mytable1 FULL JOIN mytable2 ON mytable1.id1 = mytable2.id2";
 
-		//INNER JOINºÍJOINÒ»Ñù
+		//INNER JOINå’ŒJOINä¸€æ ·
 		sql = "SELECT * FROM mytable1 INNER JOIN mytable2 ON mytable1.id1 = mytable2.id2";
 		sql = "SELECT * FROM mytable1 JOIN mytable2 ON mytable1.id1 = mytable2.id2";
 
 		sql = "SELECT * FROM mytable1 JOIN mytable2";
 
-		//CROSS JOIN²»ÄÜ¸úON
+		//CROSS JOINä¸èƒ½è·ŸON
 		//sql = "SELECT * FROM mytable1 CROSS JOIN mytable2 ON mytable1.id1 = mytable2.id2";
 		//sql = "SELECT * FROM mytable1 CROSS JOIN mytable2";
 
-		//NATURAL JOIN²»ÄÜ¸úON
+		//NATURAL JOINä¸èƒ½è·ŸON
 		//sql = "SELECT * FROM mytable1 NATURAL JOIN mytable2 ON mytable1.id1 = mytable2.id2";
 		//sql = "SELECT * FROM natural_join_test_table1 NATURAL JOIN natural_join_test_table2";
 
@@ -247,7 +247,7 @@ public class SelectTest extends TestBase {
 		//				+ " ON mytable7.id7 = mytable6.id6 ON mytable6.id6 = mytable5.id5 ON mytable5.id5 = mytable4.id4"
 		//				+ " ON mytable4.id4 = mytable3.id3 ON mytable3.id3 = mytable2.id2 ON mytable2.id2 = mytable1.id1";
 		//
-		//		//ONÔÚ×îÍâÃæÊÇ²»¶ÔµÄ
+		//		//ONåœ¨æœ€å¤–é¢æ˜¯ä¸å¯¹çš„
 		//		sql = "SELECT * FROM mytable1 RIGHT OUTER JOIN mytable2 LEFT OUTER JOIN mytable3 INNER JOIN mytable4 "
 		//				+ "JOIN mytable5 CROSS JOIN mytable6" //
 		//				+ " ON mytable5.id5 = mytable4.id4" //
@@ -261,7 +261,7 @@ public class SelectTest extends TestBase {
 		//				+ "JOIN mytable5 CROSS JOIN mytable6 NATURAL JOIN mytable7 " + " ON mytable5.id5 = mytable4.id4"
 		//				+ " ON mytable4.id4 = mytable3.id3 ON mytable3.id3 = mytable2.id2 ON mytable2.id2 = mytable1.id1";
 		//
-		//		//ONÔÚ×îÀïÃæ¾ÍÃ»ÎÊÌâ
+		//		//ONåœ¨æœ€é‡Œé¢å°±æ²¡é—®é¢˜
 		//		sql = "SELECT * FROM mytable1"//
 		//				+ " RIGHT OUTER JOIN mytable2 ON mytable2.id2 = mytable1.id1"//
 		//				+ " LEFT OUTER JOIN mytable3 ON mytable3.id3 = mytable2.id2"//
@@ -275,9 +275,9 @@ public class SelectTest extends TestBase {
 	void select_init() {
 		sql = "select public.mytable.*, name from mytable";
 		sql = "select public.mytable.*, name from mytable as t";
-		//¶ÔÓÚmyschema.t.*ÕâÑùµÄÓï·¨£¬¼´Ê¹myschema²»´æÔÚ£¬ÔÚparserÖĞÒ²Ã»ÓĞ±¨´íµÄ
-		//¶øÊÇÔÚorg.h2.command.dml.Select.expandColumnList()ÖĞ±¨´í
-		//ÒòÎªmytableÃ»ÓĞÖ¸¶¨schema×÷ÎªÇ°×º£¬ËùÒÔÄ¬ÈÏÊÇpublic£¬Õâ¸úmyschema²»Í¬£¬ËùÒÔÈÏÎªTable "T" not found;
+		//å¯¹äºmyschema.t.*è¿™æ ·çš„è¯­æ³•ï¼Œå³ä½¿myschemaä¸å­˜åœ¨ï¼Œåœ¨parserä¸­ä¹Ÿæ²¡æœ‰æŠ¥é”™çš„
+		//è€Œæ˜¯åœ¨org.h2.command.dml.Select.expandColumnList()ä¸­æŠ¥é”™
+		//å› ä¸ºmytableæ²¡æœ‰æŒ‡å®šschemaä½œä¸ºå‰ç¼€ï¼Œæ‰€ä»¥é»˜è®¤æ˜¯publicï¼Œè¿™è·Ÿmyschemaä¸åŒï¼Œæ‰€ä»¥è®¤ä¸ºTable "T" not found;
 		sql = "select DISTINCT myschema.t.*, name from mytable as t";
 
 		sql = "select * from mytable1, mytable2";
@@ -288,7 +288,7 @@ public class SelectTest extends TestBase {
 	}
 
 	void Query_initOrder() throws SQLException {
-		//ÁĞÃû²»´æÔÚµÄ¼ì²éÊÇ·ÅÔÚorg.h2.expression.ExpressionColumn.optimize(Session)Àï×ö
+		//åˆ—åä¸å­˜åœ¨çš„æ£€æŸ¥æ˜¯æ”¾åœ¨org.h2.expression.ExpressionColumn.optimize(Session)é‡Œåš
 		//Column "ID3" not found;
 		sql = "select name,id3 from mytable order by 1*1";
 
@@ -336,10 +336,10 @@ public class SelectTest extends TestBase {
 
 		sql = "select id,count(id) from mytable where id>2  group by id having id=3";
 
-		//sql = "select count(id) from mytable where id>2 order by id"; //²»»á´¥·¢queryGroupSorted
+		//sql = "select count(id) from mytable where id>2 order by id"; //ä¸ä¼šè§¦å‘queryGroupSorted
 		sql = "select id,count(id) from mytable where id>2 group by id having id=3 order by id";
 
-		//ÏÂÃæ¼¸¸ö¶¼²»ÄÜ´¥·¢
+		//ä¸‹é¢å‡ ä¸ªéƒ½ä¸èƒ½è§¦å‘
 		//		sql = "select id,count(id) from mytable where id>2 group by name,id having id=3 order by id";
 		//		sql = "select id,count(id) from mytable where id>2 group by name,id having id=3 order by id,name";
 		//		sql = "select id,count(id) from mytable where id>2 group by name,id having id=3 order by name,id";
@@ -348,7 +348,7 @@ public class SelectTest extends TestBase {
 	}
 
 	void queryQuick() throws SQLException {
-		//ÕâÑù²»ĞĞ£¬ÒòÎªid×Ö¶Î¿ÉÒÔÎªnull
+		//è¿™æ ·ä¸è¡Œï¼Œå› ä¸ºidå­—æ®µå¯ä»¥ä¸ºnull
 		sql = "select count(id),min(id),max(id) from mytable";
 
 		stmt.executeUpdate("ALTER TABLE mytable ALTER COLUMN id SET NOT NULL");

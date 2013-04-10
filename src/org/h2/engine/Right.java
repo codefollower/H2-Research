@@ -14,7 +14,7 @@ import org.h2.table.Table;
  * An access right. Rights are regular database objects, but have generated
  * names.
  */
-//Ò»¸öRightÊµÀı¶ÔÓ¦Ò»ÌõGRANT ROLE»òGRANT RIGHTÓï¾ä
+//ä¸€ä¸ªRightå®ä¾‹å¯¹åº”ä¸€æ¡GRANT ROLEæˆ–GRANT RIGHTè¯­å¥
 public class Right extends DbObjectBase {
 
     /**
@@ -48,18 +48,18 @@ public class Right extends DbObjectBase {
     private Table grantedTable;
     private RightOwner grantee;
 
-    //½«½ÇÉ« ÊÚÓèRightOwner
-    //Ò²¾ÍÊÇ½«grantedRole½ÇÉ« ÊÚÓègrantee(¿ÉÒÔÊÇÏµÍ³Ô¤¶¨ÒåµÄpublic½ÇÉ«£¬Ò²¿ÉÒÔÊÇ×Ô¶¨ÒåµÄ½ÇÉ«£¬»¹¿ÉÒÔÊÇÓÃ»§)
-    //¶ÔÓ¦GRANT ROLEÓï¾ä
+    //å°†è§’è‰² æˆäºˆRightOwner
+    //ä¹Ÿå°±æ˜¯å°†grantedRoleè§’è‰² æˆäºˆgrantee(å¯ä»¥æ˜¯ç³»ç»Ÿé¢„å®šä¹‰çš„publicè§’è‰²ï¼Œä¹Ÿå¯ä»¥æ˜¯è‡ªå®šä¹‰çš„è§’è‰²ï¼Œè¿˜å¯ä»¥æ˜¯ç”¨æˆ·)
+    //å¯¹åº”GRANT ROLEè¯­å¥
     public Right(Database db, int id, RightOwner grantee, Role grantedRole) {
         initDbObjectBase(db, id, "RIGHT_"+id, Trace.USER);
         this.grantee = grantee;
         this.grantedRole = grantedRole;
     }
     
-    //½«È¨ÏŞ ÊÚÓèRightOwner
-    //Ò²¾ÍÊÇ½«grantedRightOnTable±íµÄgrantedRightÈ¨ÏŞ ÊÚgrantee
-    //¶ÔÓ¦GRANT RIGHTÓï¾ä
+    //å°†æƒé™ æˆäºˆRightOwner
+    //ä¹Ÿå°±æ˜¯å°†grantedRightOnTableè¡¨çš„grantedRightæƒé™ æˆgrantee
+    //å¯¹åº”GRANT RIGHTè¯­å¥
     public Right(Database db, int id, RightOwner grantee, int grantedRight, Table grantedRightOnTable) {
         initDbObjectBase(db, id, "" + id, Trace.USER);
         this.grantee = grantee;
@@ -153,7 +153,7 @@ public class Right extends DbObjectBase {
         return grantedRight;
     }
 
-	// ÎÒ¼ÓÉÏµÄ
+	// æˆ‘åŠ ä¸Šçš„
 	public String toString() {
 		return getCreateSQL();
 	}

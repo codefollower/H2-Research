@@ -37,7 +37,7 @@ public class FilePathDisk extends FilePath {
 
     public FilePathDisk getPath(String path) {
         FilePathDisk p = new FilePathDisk();
-        //nameÊÇ¸¸ÀàFilePathµÄ×Ö¶Î
+        //nameæ˜¯çˆ¶ç±»FilePathçš„å­—æ®µ
         p.name = translateFileName(path);
         return p;
     }
@@ -53,7 +53,7 @@ public class FilePathDisk extends FilePath {
      * @param fileName the file name
      * @return the native file name
      */
-    //È¥µôfileÕâ¸öÄ£Ê½Ç°×º£¬²¢ÇÒÌæ»»\µ½/£¬Ìæ»»~µ½USER_HOME
+    //å»æ‰fileè¿™ä¸ªæ¨¡å¼å‰ç¼€ï¼Œå¹¶ä¸”æ›¿æ¢\åˆ°/ï¼Œæ›¿æ¢~åˆ°USER_HOME
     protected static String translateFileName(String fileName) {
         fileName = fileName.replace('\\', '/');
         if (fileName.startsWith("file:")) {
@@ -69,13 +69,13 @@ public class FilePathDisk extends FilePath {
      * @param fileName the file name
      * @return the native file name
      */
-    //ÀıÈçSystem.setProperty("user.home", "E:/H2/tmp");
+    //ä¾‹å¦‚System.setProperty("user.home", "E:/H2/tmp");
 	//fileName = "file:~/FileStoreTest/my.txt";
-    //Ôò·µ»ØµÄÊÇE:/H2/tmp/FileStoreTest/my.txt
+    //åˆ™è¿”å›çš„æ˜¯E:/H2/tmp/FileStoreTest/my.txt
     public static String expandUserHomeDirectory(String fileName) {
-    	//ÒªÃ´ÊÇµ¥¸ö~£¬ÒªÃ´ÊÇÒÔ~/¿ªÍ·
+    	//è¦ä¹ˆæ˜¯å•ä¸ª~ï¼Œè¦ä¹ˆæ˜¯ä»¥~/å¼€å¤´
         if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
-            String userDir = SysProperties.USER_HOME; //Ä¬ÈÏÊÇC:\Users\Administrator
+            String userDir = SysProperties.USER_HOME; //é»˜è®¤æ˜¯C:\Users\Administrator
             fileName = userDir + fileName.substring(1);
         }
         return fileName;
@@ -150,7 +150,7 @@ public class FilePathDisk extends FilePath {
         throw DbException.get(ErrorCode.FILE_DELETE_FAILED_1, name);
     }
     
-    //ÎÄ¼şºÍÄ¿Â¼Ãû¶¼»áÁĞ³öÀ´
+    //æ–‡ä»¶å’Œç›®å½•åéƒ½ä¼šåˆ—å‡ºæ¥
     public List<FilePath> newDirectoryStream() {
         ArrayList<FilePath> list = New.arrayList();
         File f = new File(name);
@@ -275,7 +275,7 @@ public class FilePathDisk extends FilePath {
         if (index > 1 && index < 20) {
             // if the ':' is in position 1, a windows file access is assumed: C:.. or D:
             // if the ':' is not at the beginning, assume its a file name with a colon
-        	//Èç"classpath:my/test/store/fs/FileUtilsTest.class"
+        	//å¦‚"classpath:my/test/store/fs/FileUtilsTest.class"
             if (name.startsWith(CLASSPATH_PREFIX)) {
                 String fileName = name.substring(CLASSPATH_PREFIX.length());
                 if (!fileName.startsWith("/")) {

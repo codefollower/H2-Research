@@ -2,14 +2,14 @@ package my.test.index;
 
 import my.test.TestBase;
 
-//ÕÒ¶ÏµãÌõ¼þ
+//æ‰¾æ–­ç‚¹æ¡ä»¶
 //table.getName().equalsIgnoreCase("IndexCursorTest");
 public class IndexCursorTest extends TestBase {
 	public static void main(String[] args) throws Exception {
 		new IndexCursorTest().start();
 	}
 
-	//ÖØµã²âÊÔfind
+	//é‡ç‚¹æµ‹è¯•find
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("DROP TABLE IF EXISTS IndexCursorTest");
@@ -34,17 +34,17 @@ public class IndexCursorTest extends TestBase {
 		sql = "select * from IndexCursorTest where 2>3";
 		sql = "select * from IndexCursorTest where name in ('1000000004', '1000000006')";
 		sql = "select * from IndexCursorTest where name in (select '1000000004')";
-		sql = "select * from IndexCursorTest where name > address"; //²»»á½¨Á¢Ë÷ÒýÌõ¼þ£¬ÒòÎªÁ½±ß¶¼ÊÇ×Ö¶Î
+		sql = "select * from IndexCursorTest where name > address"; //ä¸ä¼šå»ºç«‹ç´¢å¼•æ¡ä»¶ï¼Œå› ä¸ºä¸¤è¾¹éƒ½æ˜¯å­—æ®µ
 		sql = "select * from IndexCursorTest where name>='1000000004'";
-		//ÏÂÃæÕâÁ½ÌõÒ»Ñù
+		//ä¸‹é¢è¿™ä¸¤æ¡ä¸€æ ·
 		sql = "select * from IndexCursorTest where name>='1000000004' and name<='1000000006'";
 		sql = "select * from IndexCursorTest where name between '1000000004' and '1000000006'";
 
-		//Ë÷ÒýÌõ¼þÖ»ÓÐÒ»¸öname<='1000000006'
-		//Ç°ÃæµÄÒòÎªÊÇor£¬ËùÒÔ²»½¨Á¢Ë÷ÒýÌõ¼þ
+		//ç´¢å¼•æ¡ä»¶åªæœ‰ä¸€ä¸ªname<='1000000006'
+		//å‰é¢çš„å› ä¸ºæ˜¯orï¼Œæ‰€ä»¥ä¸å»ºç«‹ç´¢å¼•æ¡ä»¶
 		sql = "select * from IndexCursorTest where (name>='1000000004' or name>'1000000002') and name<='1000000006'";
 
-		//Õâ¸ö¾ÍÓÐÈý¸öË÷ÒýÌõ¼þ£¬²»¹ýÇ°Á½¸öºÏ²¢³Éname>'1000000004'
+		//è¿™ä¸ªå°±æœ‰ä¸‰ä¸ªç´¢å¼•æ¡ä»¶ï¼Œä¸è¿‡å‰ä¸¤ä¸ªåˆå¹¶æˆname>'1000000004'
 		sql = "select * from IndexCursorTest where name>='1000000002' and name>'1000000004' and name<='1000000006'";
 
 		sql = "select * from IndexCursorTest where id in (10, 20)";

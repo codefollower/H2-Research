@@ -58,31 +58,31 @@ public class BackupCommand extends Prepared {
         }
         try {
             MVTableEngine.flush(db);
-            String name = db.getName(); //·µ»ØE:/H2/baseDir/mydb
-            name = FileUtils.getName(name); //·µ»Ømydb(Ò²¾ÍÊÇÖ»È¡¼òµ¥ÎÄ¼şÃû
-            //Éú³ÉfileName±íÊ¾µÄÎÄ¼ş£¬Èç¹ûÒÑ´æÔÚÔò¸²¸ÇÔ­ÓĞµÄ£¬Ò²¾ÍÊÇÎÄ¼şÎª¿Õ
+            String name = db.getName(); //è¿”å›E:/H2/baseDir/mydb
+            name = FileUtils.getName(name); //è¿”å›mydb(ä¹Ÿå°±æ˜¯åªå–ç®€å•æ–‡ä»¶å
+            //ç”ŸæˆfileNameè¡¨ç¤ºçš„æ–‡ä»¶ï¼Œå¦‚æœå·²å­˜åœ¨åˆ™è¦†ç›–åŸæœ‰çš„ï¼Œä¹Ÿå°±æ˜¯æ–‡ä»¶ä¸ºç©º
             OutputStream zip = FileUtils.newOutputStream(fileName, false);
             ZipOutputStream out = new ZipOutputStream(zip);
             db.flush();
-            String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //·µ»ØE:/H2/baseDir/mydb.h2.db
+            String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //è¿”å›E:/H2/baseDir/mydb.h2.db
             backupPageStore(out, fn, db.getPageStore());
             // synchronize on the database, to avoid concurrent temp file
             // creation / deletion / backup
             String base = FileUtils.getParent(fn);
             synchronized (db.getLobSyncObject()) {
-                String prefix = db.getDatabasePath(); //·µ»ØE:/H2/baseDir/mydb
-                String dir = FileUtils.getParent(prefix); //·µ»ØE:/H2/baseDir
-                dir = FileLister.getDir(dir); //·µ»ØE:/H2/baseDir
+                String prefix = db.getDatabasePath(); //è¿”å›E:/H2/baseDir/mydb
+                String dir = FileUtils.getParent(prefix); //è¿”å›E:/H2/baseDir
+                dir = FileLister.getDir(dir); //è¿”å›E:/H2/baseDir
                 ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
                 
-                //".lob.db"ºÍ".mv.db"ÎÄ¼şÒ²±¸·İµ½fileName±íÊ¾µÄÎÄ¼şÖĞ£¬
-                //Ò²¾ÍÊÇËµBACKUP TO 'E:/H2/baseDir/myBackup'ÕâÑùµÄSQL³ıÁË°Ñ»ù±¾µÄ¡°.h2.db¡±±¸·İÍâ£¬
-                //»¹±¸·İ".lob.db"ºÍ".mv.db"ÎÄ¼ş
+                //".lob.db"å’Œ".mv.db"æ–‡ä»¶ä¹Ÿå¤‡ä»½åˆ°fileNameè¡¨ç¤ºçš„æ–‡ä»¶ä¸­ï¼Œ
+                //ä¹Ÿå°±æ˜¯è¯´BACKUP TO 'E:/H2/baseDir/myBackup'è¿™æ ·çš„SQLé™¤äº†æŠŠåŸºæœ¬çš„â€œ.h2.dbâ€å¤‡ä»½å¤–ï¼Œ
+                //è¿˜å¤‡ä»½".lob.db"å’Œ".mv.db"æ–‡ä»¶
                 for (String n : fileList) {
-                    if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //±¸·İ".lob.db"ÎÄ¼ş
+                    if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //å¤‡ä»½".lob.db"æ–‡ä»¶
                         backupFile(out, base, n);
                     }
-                    if (n.endsWith(Constants.SUFFIX_MV_FILE)) { //±¸·İ".mv.db"ÎÄ¼ş
+                    if (n.endsWith(Constants.SUFFIX_MV_FILE)) { //å¤‡ä»½".mv.db"æ–‡ä»¶
                         backupFile(out, base, n);
                     }
                 }
@@ -96,13 +96,13 @@ public class BackupCommand extends Prepared {
 
     private void backupPageStore(ZipOutputStream out, String fileName, PageStore store) throws IOException {
         Database db = session.getDatabase();
-        fileName = FileUtils.getName(fileName); //fileName = E:/H2/baseDir/mydb.h2.db£¬È»ºó±ä³É"mydb.h2.db"
+        fileName = FileUtils.getName(fileName); //fileName = E:/H2/baseDir/mydb.h2.dbï¼Œç„¶åå˜æˆ"mydb.h2.db"
         out.putNextEntry(new ZipEntry(fileName));
         int pos = 0;
         try {
             store.setBackup(true);
             while (true) {
-                pos = store.copyDirect(pos, out); //Ò»Ò³Ò»Ò³µÄcopy
+                pos = store.copyDirect(pos, out); //ä¸€é¡µä¸€é¡µçš„copy
                 if (pos < 0) {
                     break;
                 }
@@ -116,13 +116,13 @@ public class BackupCommand extends Prepared {
     }
 
     private static void backupFile(ZipOutputStream out, String base, String fn) throws IOException {
-        String f = FileUtils.toRealPath(fn); //·µ»ØE:/H2/baseDir/mydb.mv.db
-        base = FileUtils.toRealPath(base); //·µ»ØE:/H2/baseDir
+        String f = FileUtils.toRealPath(fn); //è¿”å›E:/H2/baseDir/mydb.mv.db
+        base = FileUtils.toRealPath(base); //è¿”å›E:/H2/baseDir
         if (!f.startsWith(base)) {
             DbException.throwInternalError(f + " does not start with " + base);
         }
-        f = f.substring(base.length()); //·µ»Ø/mydb.mv.db
-        f = correctFileName(f); //·µ»Ømydb.mv.db
+        f = f.substring(base.length()); //è¿”å›/mydb.mv.db
+        f = correctFileName(f); //è¿”å›mydb.mv.db
         out.putNextEntry(new ZipEntry(f));
         InputStream in = FileUtils.newInputStream(fn);
         IOUtils.copyAndCloseInput(in, out);

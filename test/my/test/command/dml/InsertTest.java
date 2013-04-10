@@ -5,7 +5,7 @@ import java.sql.SQLException;
 
 import my.test.TestBase;
 
-//ÕÒ¶ÏµãÌõ¼ş
+//æ‰¾æ–­ç‚¹æ¡ä»¶
 //table.getName().equalsIgnoreCase("InsertTest");
 public class InsertTest extends TestBase {
 	public static void main(String[] args) throws Exception {
@@ -38,7 +38,7 @@ public class InsertTest extends TestBase {
 
 	}
 
-	//²âÊÔorg.h2.command.Parser.parseInsert()ºÍorg.h2.command.dml.Insert
+	//æµ‹è¯•org.h2.command.Parser.parseInsert()å’Œorg.h2.command.dml.Insert
 	@Override
 	public void startInternal() throws Exception {
 		conn.setAutoCommit(false);
@@ -55,49 +55,49 @@ public class InsertTest extends TestBase {
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS tmpSelectTest(id int, name varchar(500))");
 		stmt.executeUpdate("INSERT INTO tmpSelectTest VALUES(DEFAULT, DEFAULT),(10, 'a'),(20, 'b')");
 
-		//´ÓÁíÒ»±í²éÊı¾İ£¬È»ºó²åÈë´Ë±í
+		//ä»å¦ä¸€è¡¨æŸ¥æ•°æ®ï¼Œç„¶åæ’å…¥æ­¤è¡¨
 		sql = "INSERT INTO InsertTest(SELECT * FROM tmpSelectTest)";
-		//sql = "INSERT INTO InsertTest(FROM tmpSelectTest SELECT *)"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
+		//sql = "INSERT INTO InsertTest(FROM tmpSelectTest SELECT *)"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
 
-		//DEFAULT VALUESÕâÖÖÓï·¨²»ÊÊºÏÓÃÓÚnot null×Ö¶Î
+		//DEFAULT VALUESè¿™ç§è¯­æ³•ä¸é€‚åˆç”¨äºnot nullå­—æ®µ
 		//sql = "INSERT INTO InsertTest DIRECT SORTED DEFAULT VALUES";
-		//DEFAULT VALUESÕâÖÖÓï·¨²»ÄÜÔÚ±íÃûÖ®ºóÓÖÖ¸¶¨×Ö¶ÎÁĞ±í
+		//DEFAULT VALUESè¿™ç§è¯­æ³•ä¸èƒ½åœ¨è¡¨åä¹‹ååˆæŒ‡å®šå­—æ®µåˆ—è¡¨
 		//sql = "INSERT INTO InsertTest(name) DIRECT SORTED DEFAULT VALUES");
 
-		//ÕâÖÖÓï·¨¿É²éÈë¶àÌõ¼ÇÂ¼
+		//è¿™ç§è¯­æ³•å¯æŸ¥å…¥å¤šæ¡è®°å½•
 		//null null
 		//10 a
 		//20 b
 		//sql = "INSERT INTO InsertTest VALUES(DEFAULT, DEFAULT),(10, 'a'),(20, 'b')";
 
-		//SETÓï·¨²»ÄÜÔÚ±íÃûÖ®ºóÓÖÖ¸¶¨×Ö¶ÎÁĞ±í
+		//SETè¯­æ³•ä¸èƒ½åœ¨è¡¨åä¹‹ååˆæŒ‡å®šå­—æ®µåˆ—è¡¨
 		//sql = "INSERT INTO InsertTest(name) SET name='xyz')";
-		//ËäÈ»ÔÚÓï·¨ÉÏ¿ÉÒÔÖØ¸´ÏàÍ¬µÄ×Ö¶Î£¬±¾ÒâÊÇÏë²åÈë¶àÌõ¼ÇÂ¼£¬µ«ÊÇÊµ¼ÊÉÏÖ»ÓĞÒ»Ìõ£¬¾ÍÊÇ×îºóÒ»¸öidºÍname
+		//è™½ç„¶åœ¨è¯­æ³•ä¸Šå¯ä»¥é‡å¤ç›¸åŒçš„å­—æ®µï¼Œæœ¬æ„æ˜¯æƒ³æ’å…¥å¤šæ¡è®°å½•ï¼Œä½†æ˜¯å®é™…ä¸Šåªæœ‰ä¸€æ¡ï¼Œå°±æ˜¯æœ€åä¸€ä¸ªidå’Œname
 		//sql = "INSERT INTO InsertTest SET id=DEFAULT, name=DEFAULT, id=10, name='a', id=20, name='b'");
 
-		//ÁĞ±ØĞëÒ»Ñù¶à£¬·ñÔò:
+		//åˆ—å¿…é¡»ä¸€æ ·å¤šï¼Œå¦åˆ™:
 		//Exception in thread "main" org.h2.jdbc.JdbcSQLException: Column count does not match; SQL statement:
 		//INSERT INTO InsertTest(name) (SELECT * FROM tmpSelectTest) [21002-169]
 		//sql = "INSERT INTO InsertTest(name) (SELECT * FROM tmpSelectTest)";
-		//sql = "INSERT INTO InsertTest(name) (FROM tmpSelectTest SELECT *)"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
+		//sql = "INSERT INTO InsertTest(name) (FROM tmpSelectTest SELECT *)"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
 		//
 		//		sql = "INSERT INTO InsertTest(name) (SELECT name FROM tmpSelectTest)";
-		//		sql = "INSERT INTO InsertTest(name) (FROM tmpSelectTest SELECT name)"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
+		//		sql = "INSERT INTO InsertTest(name) (FROM tmpSelectTest SELECT name)"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
 
-		//SELECTÓï¾ä²»´øÀ¨ºÅÒ²ÊÇÔÊĞíµÄ
+		//SELECTè¯­å¥ä¸å¸¦æ‹¬å·ä¹Ÿæ˜¯å…è®¸çš„
 		//		sql = "INSERT INTO InsertTest(name) SELECT name FROM tmpSelectTest";
-		//		sql = "INSERT INTO InsertTest(name) FROM tmpSelectTest SELECT name"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
+		//		sql = "INSERT INTO InsertTest(name) FROM tmpSelectTest SELECT name"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
 		//
-		//		sql = "INSERT INTO InsertTest(name) DIRECT FROM tmpSelectTest SELECT name"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
+		//		sql = "INSERT INTO InsertTest(name) DIRECT FROM tmpSelectTest SELECT name"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
 
-		sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,'abc')"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
-		sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,DEFAULT)"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
+		sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,'abc')"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
+		sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,DEFAULT)"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
 		
 		stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS myschema AUTHORIZATION sa");
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS myschema.InsertTest2(id int, name varchar(500) as '123')");
 		stmt.executeUpdate("SET SCHEMA_SEARCH_PATH INFORMATION_SCHEMA, PUBLIC, myschema");
 		
-		sql = "INSERT INTO InsertTest2(id, name) SORTED VALUES(100,DEFAULT)"; //FROM¿ªÍ·ÏÈÒ²ÊÇÖ§³ÖµÄ
+		sql = "INSERT INTO InsertTest2(id, name) SORTED VALUES(100,DEFAULT)"; //FROMå¼€å¤´å…ˆä¹Ÿæ˜¯æ”¯æŒçš„
 		stmt.executeUpdate(sql);
 
 		//		ps = conn.prepareStatement("INSERT INTO InsertTest(id, name) VALUES(?, ?)");

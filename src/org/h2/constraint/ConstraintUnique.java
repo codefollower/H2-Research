@@ -102,7 +102,7 @@ public class ConstraintUnique extends Constraint {
     public void removeChildrenAndResources(Session session) {
         table.removeConstraint(this);
         if (indexOwner) {
-            table.removeIndexOrTransferOwnership(session, index); //如果此index没在其他地方使用就删除，否则改变Owner
+            table.removeIndexOrTransferOwnership(session, index); //濡傛灉姝ndex娌″湪鍏朵粬鍦版柟浣跨敤灏卞垹闄わ紝鍚﹀垯鏀瑰彉Owner
         }
         database.removeMeta(session, getId());
         index = null;
@@ -111,7 +111,7 @@ public class ConstraintUnique extends Constraint {
         invalidate();
     }
 
-    //因为建立了Index，在Index加记录时已检查是否重复了，见org.h2.command.ddl.AlterTableAddConstraint.tryUpdate()
+    //鍥犱负寤虹珛浜咺ndex锛屽湪Index鍔犺褰曟椂宸叉鏌ユ槸鍚﹂噸澶嶄簡锛岃org.h2.command.ddl.AlterTableAddConstraint.tryUpdate()
     public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
         // unique index check is enough
     }

@@ -18,20 +18,20 @@ public abstract class CacheObject implements Comparable<CacheObject> {
      * The previous element in the LRU linked list. If the previous element is
      * the head, then this element is the most recently used object.
      */
-    public CacheObject cachePrevious; //Èç¹ûcachePreviousÊÇhead£¬ÄÇÃ´ËµÃ´µ±Ç°CacheObjectÊÇ×î½ü×î³£Ê¹ÓÃµÄ¶ÔÏó
+    public CacheObject cachePrevious; //å¦‚æœcachePreviousæ˜¯headï¼Œé‚£ä¹ˆè¯´ä¹ˆå½“å‰CacheObjectæ˜¯æœ€è¿‘æœ€å¸¸ä½¿ç”¨çš„å¯¹è±¡
 
     /**
      * The next element in the LRU linked list. If the next element is the head,
      * then this element is the least recently used object.
      */
-    public CacheObject cacheNext; //Èç¹ûcacheNextÊÇhead£¬ÄÇÃ´ËµÃ´µ±Ç°CacheObjectÊÇ×î½ü×î²»³£Ê¹ÓÃµÄ¶ÔÏó
+    public CacheObject cacheNext; //å¦‚æœcacheNextæ˜¯headï¼Œé‚£ä¹ˆè¯´ä¹ˆå½“å‰CacheObjectæ˜¯æœ€è¿‘æœ€ä¸å¸¸ä½¿ç”¨çš„å¯¹è±¡
 
     /**
      * The next element in the hash chain.
      */
-    public CacheObject cacheChained; //LRUÁ´±íÖĞµÄÏÂÒ»¸öCacheObject
+    public CacheObject cacheChained; //LRUé“¾è¡¨ä¸­çš„ä¸‹ä¸€ä¸ªCacheObject
 
-    private int pos; //µ±×ÓÀàÊÇorg.h2.store.PageµÄ×ÓÀàÊ±£¬Êµ¼ÊÉÏ¾ÍÊÇpageId£¬ÈçPageBtreeLeafµÄpageId
+    private int pos; //å½“å­ç±»æ˜¯org.h2.store.Pageçš„å­ç±»æ—¶ï¼Œå®é™…ä¸Šå°±æ˜¯pageIdï¼Œå¦‚PageBtreeLeafçš„pageId
     private boolean changed;
 
     /**
@@ -49,7 +49,7 @@ public abstract class CacheObject implements Comparable<CacheObject> {
      */
     public abstract int getMemory();
 
-    public void setPos(int pos) { //Ã»ÓĞ×ÓÀà¸²¸Ç
+    public void setPos(int pos) { //æ²¡æœ‰å­ç±»è¦†ç›–
         if (SysProperties.CHECK) {
             if (cachePrevious != null || cacheNext != null || cacheChained != null) {
                 DbException.throwInternalError("setPos too late");
@@ -58,7 +58,7 @@ public abstract class CacheObject implements Comparable<CacheObject> {
         this.pos = pos;
     }
 
-    public int getPos() {  //Ã»ÓĞ×ÓÀà¸²¸Ç
+    public int getPos() {  //æ²¡æœ‰å­ç±»è¦†ç›–
         return pos;
     }
 
@@ -68,21 +68,21 @@ public abstract class CacheObject implements Comparable<CacheObject> {
      *
      * @return if it has been changed
      */
-    public boolean isChanged() { //Ã»ÓĞ×ÓÀà¸²¸Ç
+    public boolean isChanged() { //æ²¡æœ‰å­ç±»è¦†ç›–
         return changed;
     }
 
-    public void setChanged(boolean b) { //Ã»ÓĞ×ÓÀà¸²¸Ç
+    public void setChanged(boolean b) { //æ²¡æœ‰å­ç±»è¦†ç›–
         changed = b;
     }
     
-    //±È½ÏpageId£¬ÏàµÈÎª0£¬µ±Ç°CacheObjectĞ¡ÓÚotherÊ±·µ»Ø-1£¬´óÓÚÊ±·µ»Ø1
-    public int compareTo(CacheObject other) { //Ã»ÓĞ×ÓÀà¸²¸Ç
+    //æ¯”è¾ƒpageIdï¼Œç›¸ç­‰ä¸º0ï¼Œå½“å‰CacheObjectå°äºotheræ—¶è¿”å›-1ï¼Œå¤§äºæ—¶è¿”å›1
+    public int compareTo(CacheObject other) { //æ²¡æœ‰å­ç±»è¦†ç›–
         return MathUtils.compareInt(getPos(), other.getPos());
     }
     
-    //×ÓÀàorg.h2.index.PageDataLeafºÍorg.h2.index.PageDataOverflow¸²¸ÇÁË´Ë·½·¨£¬
-    //ËµÃ÷ÊÇÓÃÓÚÒç³öÒ³µÄ
+    //å­ç±»org.h2.index.PageDataLeafå’Œorg.h2.index.PageDataOverflowè¦†ç›–äº†æ­¤æ–¹æ³•ï¼Œ
+    //è¯´æ˜æ˜¯ç”¨äºæº¢å‡ºé¡µçš„
     public boolean isStream() {
         return false;
     }

@@ -13,7 +13,7 @@ import org.h2.result.ResultInterface;
 /**
  * Represents a SQL statement.
  */
-//ÓĞ8¸ö»ù±¾·½·¨£¬×îÖ÷ÒªÊÇexecuteQuery¡¢executeUpdate
+//æœ‰8ä¸ªåŸºæœ¬æ–¹æ³•ï¼Œæœ€ä¸»è¦æ˜¯executeQueryã€executeUpdate
 public interface CommandInterface {
 
     /**
@@ -448,7 +448,7 @@ public interface CommandInterface {
      */
     int SHUTDOWN_DEFRAG = 84;
     
-    //ÓĞ8¸ö»ù±¾·½·¨£¬×îÖ÷ÒªÊÇexecuteQuery¡¢executeUpdate
+    //æœ‰8ä¸ªåŸºæœ¬æ–¹æ³•ï¼Œæœ€ä¸»è¦æ˜¯executeQueryã€executeUpdate
 
     /**
      * Get command type.

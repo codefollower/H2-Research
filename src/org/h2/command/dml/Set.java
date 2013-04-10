@@ -31,7 +31,7 @@ import org.h2.value.ValueInt;
  * This class represents the statement
  * SET
  */
-//Ö»´¦ÀíSetTypesÀàÖĞ¶¨ÒåµÄ²ÎÊı
+//åªå¤„ç†SetTypesç±»ä¸­å®šä¹‰çš„å‚æ•°
 public class Set extends Prepared {
 
     private final int type;
@@ -48,7 +48,7 @@ public class Set extends Prepared {
         this.stringValue = v;
     }
     
-    //Èç¹û·µ»Øtrue£¬ÄÇÃ´ÔÚorg.h2.command.Command.stop()ÖĞ²»»á×Ô¶¯Ìá½»ÊÂÎñ£¬ĞèÓÃ»§´¥·¢
+    //å¦‚æœè¿”å›trueï¼Œé‚£ä¹ˆåœ¨org.h2.command.Command.stop()ä¸­ä¸ä¼šè‡ªåŠ¨æäº¤äº‹åŠ¡ï¼Œéœ€ç”¨æˆ·è§¦å‘
     public boolean isTransactional() {
         switch (type) {
         case SetTypes.CLUSTER:
@@ -69,7 +69,7 @@ public class Set extends Prepared {
     public int update() {
         Database database = session.getDatabase();
         String name = SetTypes.getTypeName(type);
-        //switch type³ıÁËREADONLYÖ®Íâ£¬×Ü¹²35¸ö
+        //switch typeé™¤äº†READONLYä¹‹å¤–ï¼Œæ€»å…±35ä¸ª
         switch (type) {
         case SetTypes.ALLOW_LITERALS: {
             session.getUser().checkAdmin();
@@ -428,7 +428,7 @@ public class Set extends Prepared {
         this.expression = expression;
     }
 
-    //sºÍv¶şÑ¡Ò»£¬s´ú±í×Ö·û´®ÀàĞÍµÄÖµ£¬v´úÂëintÀàĞÍµÄÖµ
+    //så’ŒväºŒé€‰ä¸€ï¼Œsä»£è¡¨å­—ç¬¦ä¸²ç±»å‹çš„å€¼ï¼Œvä»£ç intç±»å‹çš„å€¼
     private void addOrUpdateSetting(String name, String s, int v) {
         addOrUpdateSetting(session, name, s, v);
     }

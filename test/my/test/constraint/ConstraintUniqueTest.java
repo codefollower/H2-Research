@@ -19,7 +19,7 @@ public class ConstraintUniqueTest extends TestBase {
 				"UNIQUE KEY INDEX myunique(f1) NOCHECK";
         stmt.executeUpdate(sql);
 		
-		//ÔÚEclipse´ò¶Ïµã:constraintName.equalsIgnoreCase("mypk")
+		//åœ¨Eclipseæ‰“æ–­ç‚¹:constraintName.equalsIgnoreCase("mypk")
 		stmt.executeUpdate("ALTER TABLE ConstraintUniqueTest ADD CONSTRAINT mypk PRIMARY KEY HASH (f1)");
 		stmt.executeUpdate("insert into ConstraintUniqueTest(f1) values(1)");
 	}

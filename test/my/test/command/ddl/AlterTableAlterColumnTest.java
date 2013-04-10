@@ -18,8 +18,8 @@ public class AlterTableAlterColumnTest extends TestBase {
     }
 
     void parseAlterTable() throws Exception {
-        //ALTER TABLEÃüÁî¾Í·ÖÏÂÃæ5´óÀà: 
-        //Ôö¼ÓÔ¼Êø¡¢Ôö¼ÓÁĞ¡¢ÖØÃüÃû±í¡¢DROPÔ¼ÊøºÍÁĞ¡¢ĞŞ¸ÄÁĞ
+        //ALTER TABLEå‘½ä»¤å°±åˆ†ä¸‹é¢5å¤§ç±»: 
+        //å¢åŠ çº¦æŸã€å¢åŠ åˆ—ã€é‡å‘½åè¡¨ã€DROPçº¦æŸå’Œåˆ—ã€ä¿®æ”¹åˆ—
         parseAlterTableAddConstraintIf();
         //parseAlterTableAddColumn();
         //renameTest();
@@ -56,10 +56,10 @@ public class AlterTableAlterColumnTest extends TestBase {
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f0 int BEFORE f1";
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int AFTER f2";
         //sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f1 int";
-        //ADD COLUMNÊ±²»ÄÜ¼ÓÔ¼Êø£¬±ÈÈçÕâ¸öÊÇ´íµÄ:
+        //ADD COLUMNæ—¶ä¸èƒ½åŠ çº¦æŸï¼Œæ¯”å¦‚è¿™ä¸ªæ˜¯é”™çš„:
         //ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int PRIMARY KEY
 
-        //µ«ÊÇÒª±íÊ¾ÌØÊâµÄPRIMARY KEYÔ¼Êø¿ÉÒÔ¼ÓIDENTITY
+        //ä½†æ˜¯è¦è¡¨ç¤ºç‰¹æ®Šçš„PRIMARY KEYçº¦æŸå¯ä»¥åŠ IDENTITY
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int IDENTITY AFTER f2";
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int AUTO_INCREMENT AFTER f2";
         stmt.executeUpdate(sql);
@@ -144,10 +144,10 @@ public class AlterTableAlterColumnTest extends TestBase {
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f0 int BEFORE f1";
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int AFTER f2";
         //sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f1 int";
-        //ADD COLUMNÊ±²»ÄÜ¼ÓÔ¼Êø£¬±ÈÈçÕâ¸öÊÇ´íµÄ:
+        //ADD COLUMNæ—¶ä¸èƒ½åŠ çº¦æŸï¼Œæ¯”å¦‚è¿™ä¸ªæ˜¯é”™çš„:
         //ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int PRIMARY KEY
 
-        //µ«ÊÇÒª±íÊ¾ÌØÊâµÄPRIMARY KEYÔ¼Êø¿ÉÒÔ¼ÓIDENTITY
+        //ä½†æ˜¯è¦è¡¨ç¤ºç‰¹æ®Šçš„PRIMARY KEYçº¦æŸå¯ä»¥åŠ IDENTITY
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int IDENTITY AFTER f2";
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int AUTO_INCREMENT AFTER f2";
         stmt.executeUpdate(sql);
@@ -159,16 +159,16 @@ public class AlterTableAlterColumnTest extends TestBase {
         sql = "ALTER TABLE mytable DROP f2";
         stmt.executeUpdate(sql);
         
-        sql = "ALTER TABLE mytable DROP ch"; //²»ÄÜÉ¾³ı×îºóÒ»ÁĞ
+        sql = "ALTER TABLE mytable DROP ch"; //ä¸èƒ½åˆ é™¤æœ€åä¸€åˆ—
         stmt.executeUpdate(sql);
     }
     
     void ALTER_TABLE_ALTER_COLUMN_SELECTIVITY() throws Exception {
-        sql = "ALTER TABLE mytable ALTER COLUMN f2 SELECTIVITY -10"; //Ğ¡ÓÚ0Ê±»¹ÊÇ0
+        sql = "ALTER TABLE mytable ALTER COLUMN f2 SELECTIVITY -10"; //å°äº0æ—¶è¿˜æ˜¯0
         stmt.executeUpdate(sql);
         sql = "ALTER TABLE mytable ALTER COLUMN f2 SELECTIVITY 20";
         stmt.executeUpdate(sql);
-        sql = "ALTER TABLE mytable ALTER COLUMN f2 SELECTIVITY 120"; //´óÓÚ100Ê±»¹ÊÇ100
+        sql = "ALTER TABLE mytable ALTER COLUMN f2 SELECTIVITY 120"; //å¤§äº100æ—¶è¿˜æ˜¯100
         stmt.executeUpdate(sql);
     }
 }

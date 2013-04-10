@@ -15,16 +15,16 @@ public abstract class PageIndex extends BaseIndex {
     /**
      * The root page of this index.
      */
-	//Ã¿´ÎÔö¼Ó¼ÇÂ¼Ê±¶¼»á°´rootPageIdÕÒ³öµÚÒ»¸öÒ³Ãæ£¬È»ºó´Ó´ËÒ³Ãæ±È½Ïrow key£¬ÔÚÊÊµ±Î»ÖÃ²åÈë´ËĞĞ£¬
-	//Õâ¸öÊÊµ±Î»ÖÃÓĞºÜ¶àÖÖÇé¿ö£¬Í¨³£×î¿ªÊ¼Ê±rootPageIdÖ¸ÏòµÄÊÇÒ»¸öPageBtreeLeaf£¬ËùÒÔ¼ÇÂ¼»á·ÅÔÚPageBtreeLeafÖĞ£¬
-	//µ±¼Çµ±Ô½À´Ô½¶à£¬Ò»¸öPageBtreeLeaf·Å²»ÏÂÊ±£¬»á°Ñ´ËPageBtreeLeafÇĞ¸î£¬Ò»·ÖÎª¶ş£¬ÔÙĞÂ½¨Ò»¸öPageBtreeNode×÷ÎªËüÃÇÁ©µÄ¸¸½áµã£¬
-	//´ËÊ±rootPageId¾Í´ú±í´Ë¸¸½áµãµÄÒ³Ãæid£¬Í¬Ê±´ËPageBtreeNode»á¼ÇÏÂÒ»¸ö·Ö¸ôkey£¬ÓÃÀ´Ê¶±ğËüÏÂÃæµÄ×Ö½ÚµãÄÄĞ©¼ÇÂ¼ÔÚÄÄ¸ö×Ó½Úµã£¬
-	//µ±ÏÂ´ÎÔÙÔö¼ÓĞÂ¼ÇÂ¼Ê±£¬»á°´´Ë¼ÇÂ¼µÄrow keyÓë·Ö¸ôkey±È½Ï£¬È·¶¨´ËĞÂ¼ÇÂ¼·Åµ½ÄÄ¸ö×Ó½ÚµãÖĞ£¬Èç¹û×Ó½ÚµãÓÖÊÇÒ»¸öPageBtreeNode£¬
-	//ÄÇÃ´Ö´ĞĞÍ¬ÑùµÄ²Ù×÷£¬Ö±µ½ÕÒµ½Ò»¸öPageBtreeLeafÎªÖ¹
+	//æ¯æ¬¡å¢åŠ è®°å½•æ—¶éƒ½ä¼šæŒ‰rootPageIdæ‰¾å‡ºç¬¬ä¸€ä¸ªé¡µé¢ï¼Œç„¶åä»æ­¤é¡µé¢æ¯”è¾ƒrow keyï¼Œåœ¨é€‚å½“ä½ç½®æ’å…¥æ­¤è¡Œï¼Œ
+	//è¿™ä¸ªé€‚å½“ä½ç½®æœ‰å¾ˆå¤šç§æƒ…å†µï¼Œé€šå¸¸æœ€å¼€å§‹æ—¶rootPageIdæŒ‡å‘çš„æ˜¯ä¸€ä¸ªPageBtreeLeafï¼Œæ‰€ä»¥è®°å½•ä¼šæ”¾åœ¨PageBtreeLeafä¸­ï¼Œ
+	//å½“è®°å½“è¶Šæ¥è¶Šå¤šï¼Œä¸€ä¸ªPageBtreeLeafæ”¾ä¸ä¸‹æ—¶ï¼Œä¼šæŠŠæ­¤PageBtreeLeafåˆ‡å‰²ï¼Œä¸€åˆ†ä¸ºäºŒï¼Œå†æ–°å»ºä¸€ä¸ªPageBtreeNodeä½œä¸ºå®ƒä»¬ä¿©çš„çˆ¶ç»“ç‚¹ï¼Œ
+	//æ­¤æ—¶rootPageIdå°±ä»£è¡¨æ­¤çˆ¶ç»“ç‚¹çš„é¡µé¢idï¼ŒåŒæ—¶æ­¤PageBtreeNodeä¼šè®°ä¸‹ä¸€ä¸ªåˆ†éš”keyï¼Œç”¨æ¥è¯†åˆ«å®ƒä¸‹é¢çš„å­—èŠ‚ç‚¹å“ªäº›è®°å½•åœ¨å“ªä¸ªå­èŠ‚ç‚¹ï¼Œ
+	//å½“ä¸‹æ¬¡å†å¢åŠ æ–°è®°å½•æ—¶ï¼Œä¼šæŒ‰æ­¤è®°å½•çš„row keyä¸åˆ†éš”keyæ¯”è¾ƒï¼Œç¡®å®šæ­¤æ–°è®°å½•æ”¾åˆ°å“ªä¸ªå­èŠ‚ç‚¹ä¸­ï¼Œå¦‚æœå­èŠ‚ç‚¹åˆæ˜¯ä¸€ä¸ªPageBtreeNodeï¼Œ
+	//é‚£ä¹ˆæ‰§è¡ŒåŒæ ·çš„æ“ä½œï¼Œç›´åˆ°æ‰¾åˆ°ä¸€ä¸ªPageBtreeLeafä¸ºæ­¢
     protected int rootPageId;
     
-    //Ö»ÔÚorg.h2.index.PageDataLeafÖĞÓÃµ½£¬
-    //Èçinsert into IndexTestTable(id, name, address) SORTED values(...)
+    //åªåœ¨org.h2.index.PageDataLeafä¸­ç”¨åˆ°ï¼Œ
+    //å¦‚insert into IndexTestTable(id, name, address) SORTED values(...)
     private boolean sortedInsertMode; 
 
     /**
@@ -39,7 +39,7 @@ public abstract class PageIndex extends BaseIndex {
     /**
      * Write back the row count if it has changed.
      */
-    public abstract void writeRowCount(); //Ö»ÓĞPageDataNode¡¢PageBtreeNode²Å´ærowCount
+    public abstract void writeRowCount(); //åªæœ‰PageDataNodeã€PageBtreeNodeæ‰å­˜rowCount
 
     public void setSortedInsertMode(boolean sortedInsertMode) {
         this.sortedInsertMode = sortedInsertMode;

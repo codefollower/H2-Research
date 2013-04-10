@@ -51,10 +51,10 @@ public abstract class FilePath {
         path = path.replace('\\', '/');
         int index = path.indexOf(':');
 
-        //ÈçE:\\H2\\tmp\\FileStoreTest\\my.txt
-        //´ËÊ±indexÎª1£¬ËùÒÔÒªÓÃFilePathDisk
-        //¶ømemFS:E:\\H2\\tmp\\FileStoreTest\\my.txt
-        //indexÊÇ5£¬ËùÒÔÓÃFilePathMem
+        //å¦‚E:\\H2\\tmp\\FileStoreTest\\my.txt
+        //æ­¤æ—¶indexä¸º1ï¼Œæ‰€ä»¥è¦ç”¨FilePathDisk
+        //è€ŒmemFS:E:\\H2\\tmp\\FileStoreTest\\my.txt
+        //indexæ˜¯5ï¼Œæ‰€ä»¥ç”¨FilePathMem
         registerDefaultProviders();
         if (index < 2) {
             // use the default provider if no prefix or
@@ -73,11 +73,11 @@ public abstract class FilePath {
     private static void registerDefaultProviders() {
         if (providers == null || defaultProvider == null) {
             Map<String, FilePath> map = Collections.synchronizedMap(New.<String, FilePath>hashMap());
-            //Ä¬ÈÏÊÇorg.h2.store.fs.FilePathDisk, ËùÒÔÕâÀï²»°üº¬Ëü
-            //µ«ÊÇÉÙÁËorg.h2.store.fs.FilePathRec¡¢org.h2.mvstore.cache.FilePathCache
-            //²»¹ıorg.h2.store.fs.FilePathRecÊÇÍ¨¹ıorg.h2.store.fs.FilePath.register(FilePath)Õâ¸ö·½·¨×¢²á
-            //¼ûorg.h2.store.fs.FilePathRec.register(),
-            //ÔÚorg.h2.engine.ConnectionInfo.ConnectionInfo(String, Properties)µ÷ÓÃËüÁË
+            //é»˜è®¤æ˜¯org.h2.store.fs.FilePathDisk, æ‰€ä»¥è¿™é‡Œä¸åŒ…å«å®ƒ
+            //ä½†æ˜¯å°‘äº†org.h2.store.fs.FilePathRecã€org.h2.mvstore.cache.FilePathCache
+            //ä¸è¿‡org.h2.store.fs.FilePathRecæ˜¯é€šè¿‡org.h2.store.fs.FilePath.register(FilePath)è¿™ä¸ªæ–¹æ³•æ³¨å†Œ
+            //è§org.h2.store.fs.FilePathRec.register(),
+            //åœ¨org.h2.engine.ConnectionInfo.ConnectionInfo(String, Properties)è°ƒç”¨å®ƒäº†
             for (String c : new String[] {
                     "org.h2.store.fs.FilePathDisk",
                     "org.h2.store.fs.FilePathMem",

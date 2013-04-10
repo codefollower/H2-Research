@@ -25,7 +25,7 @@ public class BackupCommandTest extends TestBase {
 		stmt.executeUpdate("insert into BackupCommandTest(id, name, b) values(3, 'a3', false)");
 		stmt.executeUpdate("insert into BackupCommandTest(id, name, b) values(3, 'b3', true)");
 
-		sql = "BACKUP TO E:/H2/baseDir/myBackup"; //文件名要加单引号
+		sql = "BACKUP TO E:/H2/baseDir/myBackup"; //鏂囦欢鍚嶈鍔犲崟寮曞彿
 		sql = "BACKUP TO 'E:/H2/baseDir/myBackup'";
 		stmt.executeUpdate(sql);
 

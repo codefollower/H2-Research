@@ -99,17 +99,17 @@ public class PageLog {
     /**
      * The recovery stage to undo changes (re-apply the backup).
      */
-    static final int RECOVERY_STAGE_UNDO = 0; //³·Ïû¸Ä±ä
+    static final int RECOVERY_STAGE_UNDO = 0; //æ’¤æ¶ˆæ”¹å˜
 
     /**
      * The recovery stage to allocate pages used by the transaction log.
      */
-    static final int RECOVERY_STAGE_ALLOCATE = 1; //·ÖÅäÒ³Ãæ
+    static final int RECOVERY_STAGE_ALLOCATE = 1; //åˆ†é…é¡µé¢
 
     /**
      * The recovery stage to redo operations.
      */
-    static final int RECOVERY_STAGE_REDO = 2; //ÖØ×ö
+    static final int RECOVERY_STAGE_REDO = 2; //é‡åš
 
     private static final boolean COMPRESS_UNDO = true;
 
@@ -122,9 +122,9 @@ public class PageLog {
     private int firstDataPage;
     private final Data dataBuffer;
     private int logKey;
-    //logPosÖ»ÓÐÔÚlogAddOrRemoveRowºÍlogTruncateÊ±²ÅÔö¼Ó
-    //checkpointÖÐÖØÐÂÖÃÎª0
-    //¶ølogSectionIdÖ»ÓÐÔÚcheckpointÖÐ²ÅÔö¼Ó
+    //logPosåªæœ‰åœ¨logAddOrRemoveRowå’ŒlogTruncateæ—¶æ‰å¢žåŠ 
+    //checkpointä¸­é‡æ–°ç½®ä¸º0
+    //è€ŒlogSectionIdåªæœ‰åœ¨checkpointä¸­æ‰å¢žåŠ 
     private int logSectionId, logPos;
     private int firstSectionId;
 
@@ -170,7 +170,7 @@ public class PageLog {
         dataBuffer = store.createData();
         trace = store.getTrace();
         compress = new CompressLZF();
-        compressBuffer = new byte[store.getPageSize() * 2]; //pageSizeµÄÁ½±¶
+        compressBuffer = new byte[store.getPageSize() * 2]; //pageSizeçš„ä¸¤å€
     }
 
     /**
@@ -187,9 +187,9 @@ public class PageLog {
         pageOut = new PageOutputStream(store, newFirstTrunkPage, undoAll, logKey, atEnd);
         pageOut.reserve(1);
         // pageBuffer = new BufferedOutputStream(pageOut, 8 * 1024);
-        //¸üÐÂVariableHeader£¬Ò»¿ªÊ¼logKeyÎª1£¬newFirstTrunkPageÎª5£¬pageOut.getCurrentDataPageId()Îª6
-        //newFirstTrunkPage±íÊ¾µÚÒ»¸öPageStreamTrunkµÄpageId£¬
-        //pageOut.getCurrentDataPageId()±íÊ¾µÚÒ»¸öPageStreamDataµÄpageId.
+        //æ›´æ–°VariableHeaderï¼Œä¸€å¼€å§‹logKeyä¸º1ï¼ŒnewFirstTrunkPageä¸º5ï¼ŒpageOut.getCurrentDataPageId()ä¸º6
+        //newFirstTrunkPageè¡¨ç¤ºç¬¬ä¸€ä¸ªPageStreamTrunkçš„pageIdï¼Œ
+        //pageOut.getCurrentDataPageId()è¡¨ç¤ºç¬¬ä¸€ä¸ªPageStreamDataçš„pageId.
         store.setLogFirstPage(logKey, newFirstTrunkPage, pageOut.getCurrentDataPageId());
         writeBuffer = store.createData();
     }
@@ -256,7 +256,7 @@ public class PageLog {
      * @param stage the recovery stage
      * @return whether the transaction log was empty
      */
-    //Ë³ÐòÊÇRECOVERY_STAGE_UNDO => RECOVERY_STAGE_ALLOCATE => RECOVERY_STAGE_REDO
+    //é¡ºåºæ˜¯RECOVERY_STAGE_UNDO => RECOVERY_STAGE_ALLOCATE => RECOVERY_STAGE_REDO
     boolean recover(int stage) {
         if (trace.isDebugEnabled()) {
             trace.debug("log recover stage: " + stage);
@@ -392,7 +392,7 @@ public class PageLog {
                     int count = in.readVarInt();
                     for (int i = 0; i < count; i++) {
                         int pageId = in.readVarInt();
-                        if (stage == RECOVERY_STAGE_REDO) { //ÖØÐÂÊÍ·ÅpageId¶ÔÓ¦µÄÒ³Ãæ
+                        if (stage == RECOVERY_STAGE_REDO) { //é‡æ–°é‡Šæ”¾pageIdå¯¹åº”çš„é¡µé¢
                             if (!usedLogPages.get(pageId)) {
                                 store.free(pageId, false);
                             }
@@ -497,11 +497,11 @@ public class PageLog {
         Data buffer = getBuffer();
         buffer.writeByte((byte) UNDO);
         buffer.writeVarInt(pageId);
-        if (page.getBytes()[0] == 0) { //pageµÄµÚÒ»¸ö×Ö½ÚÊÇpageÀàÐÍ£¬Èç¹ûÊÇ0£¬ËµÃ÷ÊÇorg.h2.store.Page.TYPE_EMPTY
+        if (page.getBytes()[0] == 0) { //pageçš„ç¬¬ä¸€ä¸ªå­—èŠ‚æ˜¯pageç±»åž‹ï¼Œå¦‚æžœæ˜¯0ï¼Œè¯´æ˜Žæ˜¯org.h2.store.Page.TYPE_EMPTY
             buffer.writeVarInt(1);
         } else {
             int pageSize = store.getPageSize();
-            //COMPRESS_UNDOÊÇfinalµÄ£¬²¢ÇÒ×ÜÊÇtrue
+            //COMPRESS_UNDOæ˜¯finalçš„ï¼Œå¹¶ä¸”æ€»æ˜¯true
             if (COMPRESS_UNDO) {
                 int size = compress.compress(page.getBytes(), pageSize, compressBuffer, 0);
                 if (size < pageSize) {
@@ -536,7 +536,7 @@ public class PageLog {
         write(buffer);
     }
     
-    //Ð´dataµ½PageStreamData£¬Èç¹ûPageStreamDataÂúÁË»á×Ô¶¯ÇÐ»»µ½ÏÂÒ»¸öPageStreamData
+    //å†™dataåˆ°PageStreamDataï¼Œå¦‚æžœPageStreamDataæ»¡äº†ä¼šè‡ªåŠ¨åˆ‡æ¢åˆ°ä¸‹ä¸€ä¸ªPageStreamData
     private void write(Data data) {
         pageOut.write(data.getBytes(), 0, data.length());
         data.reset();
@@ -581,7 +581,7 @@ public class PageLog {
         // store it on a separate log page
         int pageSize = store.getPageSize();
         pageOut.flush();
-        pageOut.fillPage(); //Ë¢ÐÂÇ°ÃæµÄPageStreamData£¬Ê¹µÃprepareCommitµÄÊý¾Ý·Åµ½Ò»¸öÐÂµÄPageStreamData
+        pageOut.fillPage(); //åˆ·æ–°å‰é¢çš„PageStreamDataï¼Œä½¿å¾—prepareCommitçš„æ•°æ®æ”¾åˆ°ä¸€ä¸ªæ–°çš„PageStreamData
         Data buffer = getBuffer();
         buffer.writeByte((byte) PREPARE_COMMIT);
         buffer.writeVarInt(session.getId());
@@ -592,9 +592,9 @@ public class PageLog {
         write(buffer);
         // store it on a separate log page
         flushOut();
-        //Ë¢ÐÂprepareCommitµÄPageStreamData£¬µÃµ½Ò»¸öÐÂµÄPageStreamData£¬
-        //ÕâÑù½ÓÏÂÀ´µÄÈÕÖ¾²»¸úprepareCommit¹²ÓÃÒ»¸öPageStreamData
-        //Ò²¾ÍÊÇËµprepareCommitÒª¶ÀÕ¼Ò»¸öPageStreamData
+        //åˆ·æ–°prepareCommitçš„PageStreamDataï¼Œå¾—åˆ°ä¸€ä¸ªæ–°çš„PageStreamDataï¼Œ
+        //è¿™æ ·æŽ¥ä¸‹æ¥çš„æ—¥å¿—ä¸è·ŸprepareCommitå…±ç”¨ä¸€ä¸ªPageStreamData
+        //ä¹Ÿå°±æ˜¯è¯´prepareCommitè¦ç‹¬å ä¸€ä¸ªPageStreamData
         pageOut.fillPage();
         if (store.getDatabase().getFlushOnEachCommit()) {
             flush();
@@ -628,7 +628,7 @@ public class PageLog {
             for (int i = 0; i < columns; i++) {
                 Value v = row.getValue(i);
                 if (v.getType() == Value.BYTES) {
-                    data.writeValue(ValueNull.INSTANCE); //×Ö½ÚÀàÐÍÐ´nullÖµ
+                    data.writeValue(ValueNull.INSTANCE); //å­—èŠ‚ç±»åž‹å†™nullå€¼
                 } else {
                     data.writeValue(v);
                 }
@@ -686,7 +686,7 @@ public class PageLog {
         logSectionId++;
         logPos = 0;
         pageOut.flush();
-        pageOut.fillPage(); //ÇÐ»»ÐÂµÄPageStreamData
+        pageOut.fillPage(); //åˆ‡æ¢æ–°çš„PageStreamData
         int currentDataPage = pageOut.getCurrentDataPageId();
         logSectionPageMap.put(logSectionId, currentDataPage);
     }
@@ -731,10 +731,10 @@ public class PageLog {
      * @param firstDataPageToKeep the first data page to keep
      * @return the trunk page of the data page to keep
      */
-    //°ÑÔÚfirstDataPageToKeepÖ®Ç°µÄ(Ð¡ÓÚfirstDataPageToKeepµÄ)Ò³ÃæÉ¾³ýÁË
-    //·µ»ØfirstDataPageToKeepËùÔÚµÄPageStreamTrunkµÄpageId£¬
-    //Õâ¸öPageStreamTrunkÖÐµÄPageStreamData²»»á±»É¾³ý£¬ÄÄÅÂÕâÐ©PageStreamDataµÄpageIdÐ¡ÓÚfirstDataPageToKeep
-    //Ö»ÊÇÉ¾³ýÔÚ´ËPageStreamTrunkÇ°µÄPageStreamTrunkºÍÕâÐ©PageStreamTrunkÖÐµÄPageStreamData
+    //æŠŠåœ¨firstDataPageToKeepä¹‹å‰çš„(å°äºŽfirstDataPageToKeepçš„)é¡µé¢åˆ é™¤äº†
+    //è¿”å›žfirstDataPageToKeepæ‰€åœ¨çš„PageStreamTrunkçš„pageIdï¼Œ
+    //è¿™ä¸ªPageStreamTrunkä¸­çš„PageStreamDataä¸ä¼šè¢«åˆ é™¤ï¼Œå“ªæ€•è¿™äº›PageStreamDataçš„pageIdå°äºŽfirstDataPageToKeep
+    //åªæ˜¯åˆ é™¤åœ¨æ­¤PageStreamTrunkå‰çš„PageStreamTrunkå’Œè¿™äº›PageStreamTrunkä¸­çš„PageStreamData
     private int removeUntil(int trunkPage, int firstDataPageToKeep) {
         trace.debug("log.removeUntil " + trunkPage + " " + firstDataPageToKeep);
         int last = trunkPage;

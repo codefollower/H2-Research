@@ -70,7 +70,7 @@ public class Insert extends Prepared implements ResultTarget {
      *
      * @param expr the list of values
      */
-    public void addRow(Expression[] expr) { //Ò»ÐÐµÄ¸÷×Ö¶ÎÖµ×é³ÉµÄÊý×é
+    public void addRow(Expression[] expr) { //ä¸€è¡Œçš„å„å­—æ®µå€¼ç»„æˆçš„æ•°ç»„
         list.add(expr);
     }
 
@@ -78,7 +78,7 @@ public class Insert extends Prepared implements ResultTarget {
         Index index = null;
         if (sortedInsertMode) {
             index = table.getScanIndex(session);
-            index.setSortedInsertMode(true); //ÔÚorg.h2.index.PageDataLeaf.addRowTry(Row)ÖÐÓÐÓÃµ½
+            index.setSortedInsertMode(true); //åœ¨org.h2.index.PageDataLeaf.addRowTry(Row)ä¸­æœ‰ç”¨åˆ°
         }
         try {
             return insertRows();
@@ -98,12 +98,12 @@ public class Insert extends Prepared implements ResultTarget {
         if (listSize > 0) {
             int columnLen = columns.length;
             for (int x = 0; x < listSize; x++) {
-                Row newRow = table.getTemplateRow(); //newRowµÄ³¤¶ÈÊÇÈ«±í×Ö¶ÎµÄ¸öÊýÊÇ£¬»á>=columnsµÄ³¤¶È
+                Row newRow = table.getTemplateRow(); //newRowçš„é•¿åº¦æ˜¯å…¨è¡¨å­—æ®µçš„ä¸ªæ•°æ˜¯ï¼Œä¼š>=columnsçš„é•¿åº¦
                 Expression[] expr = list.get(x);
                 setCurrentRowNumber(x + 1);
                 for (int i = 0; i < columnLen; i++) {
                     Column c = columns[i];
-                    int index = c.getColumnId(); //´Ó0¿ªÊ¼
+                    int index = c.getColumnId(); //ä»Ž0å¼€å§‹
                     Expression e = expr[i];
                     if (e != null) {
                         // e can be null (DEFAULT)
@@ -118,24 +118,24 @@ public class Insert extends Prepared implements ResultTarget {
                 }
                 rowNumber++;
                 table.validateConvertUpdateSequence(session, newRow);
-                boolean done = table.fireBeforeRow(session, null, newRow); //INSTEAD OF´¥·¢Æ÷»á·µ»Øtrue
+                boolean done = table.fireBeforeRow(session, null, newRow); //INSTEAD OFè§¦å‘å™¨ä¼šè¿”å›žtrue
                 if (!done) {
-                	//Ö±µ½ÊÂÎñcommit»òrollbackÊ±²Å½âËö£¬¼ûorg.h2.engine.Session.unlockAll()
+                	//ç›´åˆ°äº‹åŠ¡commitæˆ–rollbackæ—¶æ‰è§£çï¼Œè§org.h2.engine.Session.unlockAll()
                     table.lock(session, true, false);
                     table.addRow(session, newRow);
-                    //ÔÚorg.h2.index.PageDataIndex.addTry(Session, Row)ÖÐÊÂÏÈ¼ÇÁËÒ»´ÎPageLog
-                    //Ò²¾ÍÊÇorg.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
-                    //ÕâÀïÓÖ¼ÇÁËÒ»´ÎUndoLog
-                    //UndoLogÔÚorg.h2.engine.Session.commit(boolean)Ê±¾ÍÇå³ýÁË
+                    //åœ¨org.h2.index.PageDataIndex.addTry(Session, Row)ä¸­äº‹å…ˆè®°äº†ä¸€æ¬¡PageLog
+                    //ä¹Ÿå°±æ˜¯org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
+                    //è¿™é‡Œåˆè®°äº†ä¸€æ¬¡UndoLog
+                    //UndoLogåœ¨org.h2.engine.Session.commit(boolean)æ—¶å°±æ¸…é™¤äº†
                     session.log(table, UndoLogRecord.INSERT, newRow);
                     table.fireAfterRow(session, null, newRow, false);
                 }
             }
         } else {
             table.lock(session, true, false);
-            //ÕâÖÖ·½Ê½Ö÷ÒªÊÇ±ÜÃâÑ­»·Á½´Î£¬ÒòÎªqueryÄÚ²¿¼ºÑ­»·Ò»´ÎÁË£¬µÃµ½¼ÇÂ¼ºóÏñelseÖÐµÄ·ÇinsertFromSelectÒ»Ñù£¬»¹ÒªÑ­»·Ò»´Î
+            //è¿™ç§æ–¹å¼ä¸»è¦æ˜¯é¿å…å¾ªçŽ¯ä¸¤æ¬¡ï¼Œå› ä¸ºqueryå†…éƒ¨å·±å¾ªçŽ¯ä¸€æ¬¡äº†ï¼Œå¾—åˆ°è®°å½•åŽåƒelseä¸­çš„éžinsertFromSelectä¸€æ ·ï¼Œè¿˜è¦å¾ªçŽ¯ä¸€æ¬¡
             if (insertFromSelect) {
-                query.query(0, this); //Ã¿±éÀúÒ»ÐÐ»á»Øµ÷ÏÂÃæµÄaddRow·½·¨
+                query.query(0, this); //æ¯éåŽ†ä¸€è¡Œä¼šå›žè°ƒä¸‹é¢çš„addRowæ–¹æ³•
             } else {
                 ResultInterface rows = query.query(0);
                 while (rows.next()) {
@@ -219,11 +219,11 @@ public class Insert extends Prepared implements ResultTarget {
 
     public void prepare() {
         if (columns == null) {
-        	//ÈçINSERT INTO InsertTest DEFAULT VALUES
+        	//å¦‚INSERT INTO InsertTest DEFAULT VALUES
             if (list.size() > 0 && list.get(0).length == 0) {
                 // special case where table is used as a sequence
                 columns = new Column[0];
-            } else { //ÈçINSERT INTO InsertTest(SELECT * FROM tmpSelectTest)
+            } else { //å¦‚INSERT INTO InsertTest(SELECT * FROM tmpSelectTest)
                 columns = table.getColumns();
             }
         }

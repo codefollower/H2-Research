@@ -7,7 +7,7 @@ public class CompareLikeTest extends TestBase {
 		new CompareLikeTest().start();
 	}
 
-	//²âÊÔorg.h2.expression.CompareLike
+	//æµ‹è¯•org.h2.expression.CompareLike
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("drop table IF EXISTS CompareLikeTest");
@@ -20,7 +20,7 @@ public class CompareLikeTest extends TestBase {
 		stmt.executeUpdate("insert into CompareLikeTest(id, name) values(3, 'a3')");
 		stmt.executeUpdate("insert into CompareLikeTest(id, name) values(3, 'b3')");
 		
-		//ESCAPEºóÖ»ÄÜ½ÓÒ»¸ö×Ö·û
+		//ESCAPEååªèƒ½æ¥ä¸€ä¸ªå­—ç¬¦
 		//org.h2.jdbc.JdbcSQLException: Error in LIKE ESCAPE: "%kk";
 		sql = "SELECT id,name FROM CompareLikeTest where name like '%2%' ESCAPE '%kk'";
 		

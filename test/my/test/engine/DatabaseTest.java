@@ -17,7 +17,7 @@ public class DatabaseTest extends TestBase {
 
 		//prop.setProperty("ACCESS_MODE_DATA", "r");
 
-		//PAGE_SIZE²ÎÊı±ØĞëÔÚ64µ½32768(32K)Ö®¼ä£¬¼´64<=PAGE_SIZE<=32768£¬²¢ÇÒÊÇ2µÄn´ÎÃİ(n>=0)
+		//PAGE_SIZEå‚æ•°å¿…é¡»åœ¨64åˆ°32768(32K)ä¹‹é—´ï¼Œå³64<=PAGE_SIZE<=32768ï¼Œå¹¶ä¸”æ˜¯2çš„næ¬¡å¹‚(n>=0)
 		//prop.setProperty("PAGE_SIZE", "32769");
 		//prop.setProperty("PAGE_SIZE", "1024");
 

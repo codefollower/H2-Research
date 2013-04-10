@@ -40,7 +40,7 @@ public class DropSchema extends DefineCommand {
                 throw DbException.get(ErrorCode.SCHEMA_NOT_FOUND_1, schemaName);
             }
         } else {
-            if (!schema.canDrop()) { //比如public模式不能drop
+            if (!schema.canDrop()) { //姣斿public妯″紡涓嶈兘drop
                 throw DbException.get(ErrorCode.SCHEMA_CAN_NOT_BE_DROPPED_1, schemaName);
             }
             db.removeDatabaseObject(session, schema);

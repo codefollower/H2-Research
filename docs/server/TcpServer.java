@@ -1,26 +1,26 @@
-´ËÀàÓÉorg.h2.tools.Server´¥·¢
+æ­¤ç±»ç”±org.h2.tools.Serverè§¦å‘
 
-´ËÀàÖÐµÄ·½·¨µ÷ÓÃË³ÐòÊÇ:
+æ­¤ç±»ä¸­çš„æ–¹æ³•è°ƒç”¨é¡ºåºæ˜¯:
 
 init => start => listen => isRunning
 
-listenºÍisRunning¼¸ºõÊÇÍ¬Ê±Ö´ÐÐ£¬isRunningÓÃÓÚ²âÊÔÊÇ·ñÔÚ±¾µØÁ¬µÃÉÏTcpServer
+listenå’ŒisRunningå‡ ä¹Žæ˜¯åŒæ—¶æ‰§è¡Œï¼ŒisRunningç”¨äºŽæµ‹è¯•æ˜¯å¦åœ¨æœ¬åœ°è¿žå¾—ä¸ŠTcpServer
 
 
-//Ã¿½¨Á¢Ò»¸öÐÂµÄSession¶ÔÏóÊ±£¬°ÑËü±£´æµ½ÄÚ´æÊý¾Ý¿âmanagement_db_9092µÄSESSIONS±í
+//æ¯å»ºç«‹ä¸€ä¸ªæ–°çš„Sessionå¯¹è±¡æ—¶ï¼ŒæŠŠå®ƒä¿å­˜åˆ°å†…å­˜æ•°æ®åº“management_db_9092çš„SESSIONSè¡¨
 stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS(ID INT PRIMARY KEY, URL VARCHAR, USER VARCHAR, CONNECTED TIMESTAMP)");
 managementDbAdd = conn.prepareStatement("INSERT INTO SESSIONS VALUES(?, ?, ?, NOW())");
 managementDbRemove = conn.prepareStatement("DELETE FROM SESSIONS WHERE ID=?");
 
 
-server¶ËÓÐÒ»¸ölistenÏß³Ì£¬
+serverç«¯æœ‰ä¸€ä¸ªlistençº¿ç¨‹ï¼Œ
 org.h2.server.TcpServer.listen()
 
-Ò»Ö±ÔÚ¼àÌý¿Í»§¶ËÁ¬½Ó£¬
-Ò»µ«ÊÕµ½¿Í»§¶ËÁ¬½ÓÇëÇó¾Í¿ªÒ»¸öÐÂµÄÏß³Ì´¦ÀíËü(²¢Î´Ê¹ÓÃÏß³Ì³Ø¡¢Ã¿Á¬½ÓÃ¿Ïß³Ì)
+ä¸€ç›´åœ¨ç›‘å¬å®¢æˆ·ç«¯è¿žæŽ¥ï¼Œ
+ä¸€ä½†æ”¶åˆ°å®¢æˆ·ç«¯è¿žæŽ¥è¯·æ±‚å°±å¼€ä¸€ä¸ªæ–°çš„çº¿ç¨‹å¤„ç†å®ƒ(å¹¶æœªä½¿ç”¨çº¿ç¨‹æ± ã€æ¯è¿žæŽ¥æ¯çº¿ç¨‹)
 
-Ð­ÒéÈçÏÂ:
-clientÏÈ·¢Êý¾Ý:(¼û: org.h2.engine.SessionRemote.initTransfer(ConnectionInfo, String, String))
+åè®®å¦‚ä¸‹:
+clientå…ˆå‘æ•°æ®:(è§: org.h2.engine.SessionRemote.initTransfer(ConnectionInfo, String, String))
 int     minClientVersion
 int     maxClientVersion
 String  db
@@ -30,14 +30,14 @@ byte[]  userPasswordHash
 byte[]  filePasswordHash
 int     keys length
 
-keys length¸ö
+keys lengthä¸ª
 {
 	String key
 	String value
 }
 
-»¹ÓÐÁ½ÖÖÌØÊâÇé¿ö:
-ÔÚorg.h2.server.TcpServerThread.run()ÖÐÌØÊâÇéÀí£¬¶ÔÓ¦if (db == null && originalURL == null)Õâ¸öÓï¾ä
+è¿˜æœ‰ä¸¤ç§ç‰¹æ®Šæƒ…å†µ:
+åœ¨org.h2.server.TcpServerThread.run()ä¸­ç‰¹æ®Šæƒ…ç†ï¼Œå¯¹åº”if (db == null && originalURL == null)è¿™ä¸ªè¯­å¥
 
 SessionRemote.SESSION_CANCEL_STATEMENT
 ====================================
@@ -49,7 +49,7 @@ String  sessionId
 int     SessionRemote.SESSION_CANCEL_STATEMENT(13)
 int     statement id
 ====================================
-¼û: org.h2.engine.SessionRemote.cancelStatement(int)
+è§: org.h2.engine.SessionRemote.cancelStatement(int)
 
 SessionRemote.SESSION_CHECK_KEY
 ====================================
@@ -60,12 +60,12 @@ String  null
 String  sessionId
 int     SessionRemote.SESSION_CHECK_KEY(14)
 ====================================
-¼û: org.h2.store.FileLock.checkServer()
+è§: org.h2.store.FileLock.checkServer()
 
 
 
 
-serverÏìÓ¦:
+serverå“åº”:
 
 STATUS_OK:
 ====================================
@@ -83,24 +83,24 @@ String  sql
 int     errorCode 
 String  trace
 ====================================
-¼ûorg.h2.server.TcpServerThread.sendError(Throwable)
+è§org.h2.server.TcpServerThread.sendError(Throwable)
 
 
 
-µÚÒ»¸öÎÕÊÖ°ü´¦ÀíÍêÖ®ºó£¬¾Í¿ÉÒÔÒ»Ö±Ê¹ÓÃ³¤Á¬½ÓÀ´·¢ÃüÁîÁË:
+ç¬¬ä¸€ä¸ªæ¡æ‰‹åŒ…å¤„ç†å®Œä¹‹åŽï¼Œå°±å¯ä»¥ä¸€ç›´ä½¿ç”¨é•¿è¿žæŽ¥æ¥å‘å‘½ä»¤äº†:
 
-ÃüÁîÐ­Òé°ü:
+å‘½ä»¤åè®®åŒ…:
 
 int     operation
-Ã¿¸öÃüÁî¶¼ÓÐ×Ô¼ºµÄ¸ñÊ½
+æ¯ä¸ªå‘½ä»¤éƒ½æœ‰è‡ªå·±çš„æ ¼å¼
 
-¾ßÌå¼û: org.h2.server.TcpServerThread.process()
+å…·ä½“è§: org.h2.server.TcpServerThread.process()
 
-client¶Ë·¢µÄµÚÒ»¸öÃüÁîÒ»°ãÊÇSessionRemote.SESSION_PREPARE_READ_PARAMS/SESSION_PREPARE
-¾ßÌå¼û: org.h2.command.CommandRemote.prepare(SessionRemote, boolean)
+clientç«¯å‘çš„ç¬¬ä¸€ä¸ªå‘½ä»¤ä¸€èˆ¬æ˜¯SessionRemote.SESSION_PREPARE_READ_PARAMS/SESSION_PREPARE
+å…·ä½“è§: org.h2.command.CommandRemote.prepare(SessionRemote, boolean)
 
 
-Á÷³Ì:
+æµç¨‹:
 
 org.h2.server.TcpServer.listen()
 	=> org.h2.server.TcpServerThread.run()

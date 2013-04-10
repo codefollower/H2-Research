@@ -20,7 +20,7 @@ public class MyServer {
 		// list.add("-tcpPort");
 		// list.add("9092");
 
-		// ²âÊÔorg.h2.server.TcpServer.checkKeyAndGetDatabaseName(String)
+		// æµ‹è¯•org.h2.server.TcpServer.checkKeyAndGetDatabaseName(String)
 		// list.add("-key");
 		// list.add("mydb");
 		// list.add("mydatabase");

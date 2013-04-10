@@ -6,16 +6,16 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Properties;
 
-//找断点条件indexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
+//鎵炬柇鐐规潯浠秈ndexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
 //index.getName().equalsIgnoreCase("idx_name");
 public class PageBtreeNodeTest {
-	//重点测试find
+	//閲嶇偣娴嬭瘯find
 	public static void main(String[] args) throws Exception {
 		Properties prop = new Properties();
 		prop.setProperty("user", "sa");
 		prop.setProperty("password", "");
 
-		//prop.setProperty("MODE", "DB2"); //支持SYSDUMMY1
+		//prop.setProperty("MODE", "DB2"); //鏀寔SYSDUMMY1
 
 		int len = 256;
 		StringBuilder s = new StringBuilder(len);

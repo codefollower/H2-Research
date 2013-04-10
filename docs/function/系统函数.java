@@ -1,42 +1,42 @@
-ÏµÍ³º¯Êı41¸ö
+ç³»ç»Ÿå‡½æ•°41ä¸ª
 
-ÔÚÏÂÃæÁ½¸ö·½·¨ÖĞ
+åœ¨ä¸‹é¢ä¸¤ä¸ªæ–¹æ³•ä¸­
 org.h2.expression.Function.getValueWithArgs(Session, Expression[])
 org.h2.expression.Function.getSimpleValue(Session, Value, Expression[], Value[])
 
-		ÉÙÁË3¸öº¯Êı: ROW_NUMBER¡¢TABLE¡¢TABLE_DISTINCT
-        //ROW_NUMBERº¯ÊıËäÈ»¶¨ÒåÁË£¬µ«ROW_NUMBER()º¯ÊıÎŞĞ§£¬²»Ö§³ÖÕâÑùµÄÓï·¨
+		å°‘äº†3ä¸ªå‡½æ•°: ROW_NUMBERã€TABLEã€TABLE_DISTINCT
+        //ROW_NUMBERå‡½æ•°è™½ç„¶å®šä¹‰äº†ï¼Œä½†ROW_NUMBER()å‡½æ•°æ— æ•ˆï¼Œä¸æ”¯æŒè¿™æ ·çš„è¯­æ³•
 		//sql = "SELECT ROW_NUMBER()"; 
-		//ROWNUMº¯ÊıËäÈ»Ã»ÓĞ¶¨Òå£¬µ«ROWNUM()ÊÇÓĞĞ§£¬ParserÔÚ½âÎöÊ±°ÑËûµ±³ÉROWNUMÎ±×Ö¶Î´¦Àí
-		//µ±³ÉÁËorg.h2.expression.Rownum£¬¼ûorg.h2.command.Parser.readTerm()
+		//ROWNUMå‡½æ•°è™½ç„¶æ²¡æœ‰å®šä¹‰ï¼Œä½†ROWNUM()æ˜¯æœ‰æ•ˆï¼ŒParseråœ¨è§£ææ—¶æŠŠä»–å½“æˆROWNUMä¼ªå­—æ®µå¤„ç†
+		//å½“æˆäº†org.h2.expression.Rownumï¼Œè§org.h2.command.Parser.readTerm()
 		//sql = "SELECT ROWNUM()";
 
-		//ÕâÑù¾ÍÃ»ÎÊÌâÁË,ÔÚÕâ¸ö·½·¨ÖĞorg.h2.command.Parser.readFunction(Schema, String)
-		//°ÑROW_NUMBER×ª³Éorg.h2.expression.RownumÁË
+		//è¿™æ ·å°±æ²¡é—®é¢˜äº†,åœ¨è¿™ä¸ªæ–¹æ³•ä¸­org.h2.command.Parser.readFunction(Schema, String)
+		//æŠŠROW_NUMBERè½¬æˆorg.h2.expression.Rownumäº†
 		//sql = "SELECT ROW_NUMBER()OVER()"; 
 		
-ÔÚÕâ¸ö·½·¨ÖĞ
+åœ¨è¿™ä¸ªæ–¹æ³•ä¸­
 org.h2.command.Parser.readFunction(Schema, String)
-°ÑTABLE¡¢TABLE_DISTINCT×ª³ÉTableFunctionÁË¡£
+æŠŠTABLEã€TABLE_DISTINCTè½¬æˆTableFunctionäº†ã€‚
 
 
-º¯ÊıÃû            º¯ÊıÖÖÀà    ·µ»ØÖµµÄÀàĞÍ  ²ÎÊı¸öÊı(-1±íÊ¾¿É±ä²ÎÊı)   nullIfParameterIsNull   deterministic    fast  
+å‡½æ•°å            å‡½æ•°ç§ç±»    è¿”å›å€¼çš„ç±»å‹  å‚æ•°ä¸ªæ•°(-1è¡¨ç¤ºå¯å˜å‚æ•°)   nullIfParameterIsNull   deterministic    fast  
 ------------------------------------------------------------------------------------
 DATABASE            150       VARCHAR        0     true    false   false   
 USER                151       VARCHAR        0     true    false   false   
 CURRENT_USER        152       VARCHAR        0     true    false   false   
-IDENTITY            153       BIGINT         0     true    false   false   IDENTITY_VAL_LOCAL  153       BIGINT         0     true    false   false    ÓëÇ°ÃæÏàÍ¬  LAST_INSERT_ID      153       BIGINT         0     true    false   false    ÓëÇ°ÃæÏàÍ¬  LASTVAL             153       BIGINT         0     true    false   false    ÓëÇ°ÃæÏàÍ¬  
+IDENTITY            153       BIGINT         0     true    false   false   IDENTITY_VAL_LOCAL  153       BIGINT         0     true    false   false    ä¸å‰é¢ç›¸åŒ  LAST_INSERT_ID      153       BIGINT         0     true    false   false    ä¸å‰é¢ç›¸åŒ  LASTVAL             153       BIGINT         0     true    false   false    ä¸å‰é¢ç›¸åŒ  
 SCOPE_IDENTITY      154       BIGINT         0     true    false   false   
 AUTOCOMMIT          155       BOOLEAN        0     true    false   false   
 READONLY            156       BOOLEAN        0     true    false   false   
 DATABASE_PATH       157       VARCHAR        0     true    true    false   
 LOCK_TIMEOUT        158       INTEGER        0     true    false   false   
-IFNULL              200       NULL           2     false   true    false   ISNULL              200       NULL           2     false   true    false    ÓëÇ°ÃæÏàÍ¬  
+IFNULL              200       NULL           2     false   true    false   ISNULL              200       NULL           2     false   true    false    ä¸å‰é¢ç›¸åŒ  
 CASEWHEN            201       NULL           3     false   true    false   
 CONVERT             202       NULL           1     false   true    false   
 CAST                203       NULL           1     false   true    false   
 TRUNCATE_VALUE      227       NULL           3     false   true    false   
-COALESCE            204       NULL           -1    false   true    false   NVL                 204       NULL           -1    false   true    false    ÓëÇ°ÃæÏàÍ¬  
+COALESCE            204       NULL           -1    false   true    false   NVL                 204       NULL           -1    false   true    false    ä¸å‰é¢ç›¸åŒ  
 NVL2                228       NULL           3     false   true    false   
 NULLIF              205       NULL           2     false   true    false   
 CASE                206       NULL           -1    false   true    false   

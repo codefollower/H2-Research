@@ -1,6 +1,6 @@
-Ê±¼äÓëÈÕÆÚº¯Êı26¸ö
+æ—¶é—´ä¸æ—¥æœŸå‡½æ•°26ä¸ª
 
-º¯ÊıÃû            º¯ÊıÖÖÀà    ·µ»ØÖµµÄÀàĞÍ  ²ÎÊı¸öÊı(-1±íÊ¾¿É±ä²ÎÊı)   nullIfParameterIsNull   deterministic    fast  
+å‡½æ•°å            å‡½æ•°ç§ç±»    è¿”å›å€¼çš„ç±»å‹  å‚æ•°ä¸ªæ•°(-1è¡¨ç¤ºå¯å˜å‚æ•°)   nullIfParameterIsNull   deterministic    fast  
 ------------------------------------------------------------------------------------
 CURRENT_DATE        117       DATE           0     true    false   false   
 CURDATE             100       DATE           0     true    false   false   
@@ -8,12 +8,12 @@ CURRENT_TIME        118       TIME           0     true    false   false
 CURTIME             101       TIME           0     true    false   false   
 CURRENT_TIMESTAMP   119       TIMESTAMP      -1    true    false   false   
 NOW                 112       TIMESTAMP      -1    true    false   false   
-DATEADD             102       TIMESTAMP      3     true    true    false   TIMESTAMPADD        102       BIGINT         3     true    true    false    ÓëÇ°Ãæ²»Í¬  
-DATEDIFF            103       BIGINT         3     true    true    false   TIMESTAMPDIFF       103       BIGINT         3     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+DATEADD             102       TIMESTAMP      3     true    true    false   TIMESTAMPADD        102       BIGINT         3     true    true    false    ä¸å‰é¢ä¸åŒ  
+DATEDIFF            103       BIGINT         3     true    true    false   TIMESTAMPDIFF       103       BIGINT         3     true    true    false    ä¸å‰é¢ç›¸åŒ  
 DAYNAME             104       VARCHAR        1     true    true    false   
-DAY                 105       INTEGER        1     true    true    false   DAY_OF_MONTH        105       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  DAYOFMONTH          105       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
-DAY_OF_WEEK         106       INTEGER        1     true    true    false   DAYOFWEEK           106       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
-DAY_OF_YEAR         107       INTEGER        1     true    true    false   DAYOFYEAR           107       INTEGER        1     true    true    false    ÓëÇ°ÃæÏàÍ¬  
+DAY                 105       INTEGER        1     true    true    false   DAY_OF_MONTH        105       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  DAYOFMONTH          105       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
+DAY_OF_WEEK         106       INTEGER        1     true    true    false   DAYOFWEEK           106       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
+DAY_OF_YEAR         107       INTEGER        1     true    true    false   DAYOFYEAR           107       INTEGER        1     true    true    false    ä¸å‰é¢ç›¸åŒ  
 HOUR                108       INTEGER        1     true    true    false   
 MINUTE              109       INTEGER        1     true    true    false   
 MONTH               110       INTEGER        1     true    true    false   

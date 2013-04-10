@@ -11,9 +11,9 @@ public class VariableTest extends TestBase {
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("SET @topVariableName=3");
 		sql = "select @topVariableName";
-		sql = "select @topVariableName:=2"; //ÕâÑù¾Í±ä³ÉSETº¯ÊıÁË
+		sql = "select @topVariableName:=2"; //è¿™æ ·å°±å˜æˆSETå‡½æ•°äº†
 		
-		sql = "select @nullVariableName"; //²»´æÔÚµÄ±äÁ¿Ãû£¬´ËÊ±ÖµÎªnull
+		sql = "select @nullVariableName"; //ä¸å­˜åœ¨çš„å˜é‡åï¼Œæ­¤æ—¶å€¼ä¸ºnull
 		executeQuery();
 	}
 }

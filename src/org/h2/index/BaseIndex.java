@@ -126,7 +126,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @param rowCount the number of rows in the index
      * @return the estimated cost
      */
-    protected long getCostRangeIndex(int[] masks, long rowCount, SortOrder sortOrder) { //ÎŞ×ÓÀà¸²¸Ç
+    protected long getCostRangeIndex(int[] masks, long rowCount, SortOrder sortOrder) { //æ— å­ç±»è¦†ç›–
         rowCount += Constants.COST_ROW_OFFSET;
         long cost = rowCount;
         long rows = rowCount;
@@ -150,7 +150,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
                 }
                 rows = Math.max(rowCount / distinctRows, 1);
                 cost = 2 + rows;
-            } else if ((mask & IndexCondition.RANGE) == IndexCondition.RANGE) { //¼ûTableFilter.getBestPlanItemÖĞµÄ×¢ÊÍ
+            } else if ((mask & IndexCondition.RANGE) == IndexCondition.RANGE) { //è§TableFilter.getBestPlanItemä¸­çš„æ³¨é‡Š
                 cost = 2 + rows / 4;
                 break;
             } else if ((mask & IndexCondition.START) == IndexCondition.START) {
@@ -194,14 +194,14 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return cost;
     }
 
-    public int compareRows(SearchRow rowData, SearchRow compare) { //Ö»±È½ÏË÷Òı×Ö¶Î£¬²¢²»Ò»¶¨ÊÇËùÓĞ×Ö¶Î
+    public int compareRows(SearchRow rowData, SearchRow compare) { //åªæ¯”è¾ƒç´¢å¼•å­—æ®µï¼Œå¹¶ä¸ä¸€å®šæ˜¯æ‰€æœ‰å­—æ®µ
         if (rowData == compare) {
             return 0;
         }
         for (int i = 0, len = indexColumns.length; i < len; i++) {
             int index = columnIds[i];
             Value v = compare.getValue(index);
-            if (v == null) { //Ö»ÒªcompareÖĞÓĞnullÖµ¾ÍÈÏÎªÎŞ·¨±È½Ï£¬Ö±½ÓÈÏÎªrowDataºÍcompareÏàµÈ(Í¨³£ÔÚ²éÑ¯Ê±ÔÚwhereÖĞÔÙ±È½Ï)
+            if (v == null) { //åªè¦compareä¸­æœ‰nullå€¼å°±è®¤ä¸ºæ— æ³•æ¯”è¾ƒï¼Œç›´æ¥è®¤ä¸ºrowDataå’Œcompareç›¸ç­‰(é€šå¸¸åœ¨æŸ¥è¯¢æ—¶åœ¨whereä¸­å†æ¯”è¾ƒ)
                 // can't compare further
                 return 0;
             }
@@ -224,22 +224,22 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      */
     protected boolean containsNullAndAllowMultipleNull(SearchRow newRow) {
         Mode mode = database.getMode();
-        //1. ¶ÔÓÚÎ¨Ò»Ë÷Òı£¬±ØĞëÍêÈ«Î¨Ò»£¬ÊÊÓÃÓÚDerby/HSQLDB/MSSQLServer
+        //1. å¯¹äºå”¯ä¸€ç´¢å¼•ï¼Œå¿…é¡»å®Œå…¨å”¯ä¸€ï¼Œé€‚ç”¨äºDerby/HSQLDB/MSSQLServer
         if (mode.uniqueIndexSingleNull) {
-        	//²»ÔÊĞí³öÏÖ:
+        	//ä¸å…è®¸å‡ºç°:
         	//(x, null)
         	//(x, null)
-        	//Ò²²»ÔÊĞí³öÏÖ:
+        	//ä¹Ÿä¸å…è®¸å‡ºç°:
         	//(null, null)
         	//(null, null)
             return false;
         } else if (mode.uniqueIndexSingleNullExceptAllColumnsAreNull) {
-        	//2. ¶ÔÓÚÎ¨Ò»Ë÷Òı£¬Ë÷Òı¼ÇÂ¼¿ÉÒÔÈ«Îªnull£¬ÊÊÓÃÓÚOracle
+        	//2. å¯¹äºå”¯ä¸€ç´¢å¼•ï¼Œç´¢å¼•è®°å½•å¯ä»¥å…¨ä¸ºnullï¼Œé€‚ç”¨äºOracle
         	
-        	//²»ÔÊĞí³öÏÖ:
+        	//ä¸å…è®¸å‡ºç°:
         	//(x, null)
         	//(x, null)
-        	//µ«ÊÇÔÊĞí³öÏÖ:
+        	//ä½†æ˜¯å…è®¸å‡ºç°:
         	//(null, null)
         	//(null, null)
             for (int index : columnIds) {
@@ -250,16 +250,16 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             }
             return true;
         }
-        //3. ¶ÔÓÚÎ¨Ò»Ë÷Òı£¬Ö»ÒªÒ»¸öÎªnull£¬¾ÍÊÇºÏ·¨µÄ£¬ÊÊÓÃÓÚREGULAR(¼´H2)/DB2/MySQL/PostgreSQL
+        //3. å¯¹äºå”¯ä¸€ç´¢å¼•ï¼Œåªè¦ä¸€ä¸ªä¸ºnullï¼Œå°±æ˜¯åˆæ³•çš„ï¼Œé€‚ç”¨äºREGULAR(å³H2)/DB2/MySQL/PostgreSQL
         
-        //¼´ÔÊĞí³öÏÖ:
+        //å³å…è®¸å‡ºç°:
     	//(x, null)
     	//(x, null)
-    	//Ò²ÔÊĞí³öÏÖ:
+    	//ä¹Ÿå…è®¸å‡ºç°:
     	//(null, null)
     	//(null, null)
         
-        //Ò²¾ÍÊÇËµ£¬Ö»ÒªÏàÍ¬µÄÁ½ÌõË÷Òı¼ÇÂ¼°üº¬null¼´¿É
+        //ä¹Ÿå°±æ˜¯è¯´ï¼Œåªè¦ç›¸åŒçš„ä¸¤æ¡ç´¢å¼•è®°å½•åŒ…å«nullå³å¯
         for (int index : columnIds) {
             Value v = newRow.getValue(index);
             if (v == ValueNull.INSTANCE) {
@@ -267,7 +267,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             }
         }
         
-        //4. ¶ÔÓÚÎ¨Ò»Ë÷Òı£¬Ã»ÓĞnullÊ±ÊÇ²»ÔÊĞí³öÏÖÁ½ÌõÏàÍ¬µÄË÷Òı¼ÇÂ¼µÄ
+        //4. å¯¹äºå”¯ä¸€ç´¢å¼•ï¼Œæ²¡æœ‰nullæ—¶æ˜¯ä¸å…è®¸å‡ºç°ä¸¤æ¡ç›¸åŒçš„ç´¢å¼•è®°å½•çš„
         return false;
     }
 
@@ -301,13 +301,13 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             return SortOrder.compareNull(aNull, sortType);
         }
         int comp = table.compareTypeSave(a, b);
-        if ((sortType & SortOrder.DESCENDING) != 0) { //½µĞòÊ±£¬°Ñ±È½Ï½á¹û·´¹ıÀ´
+        if ((sortType & SortOrder.DESCENDING) != 0) { //é™åºæ—¶ï¼ŒæŠŠæ¯”è¾ƒç»“æœåè¿‡æ¥
             comp = -comp;
         }
         return comp;
     }
 
-    public int getColumnIndex(Column col) { //²¢²»ÊÇ·µ»ØÁĞid£¬¶øÊÇË÷Òı×Ö¶ÎÁĞ±íÖĞµÄÎ»ÖÃ
+    public int getColumnIndex(Column col) { //å¹¶ä¸æ˜¯è¿”å›åˆ—idï¼Œè€Œæ˜¯ç´¢å¼•å­—æ®µåˆ—è¡¨ä¸­çš„ä½ç½®
         for (int i = 0, len = columns.length; i < len; i++) {
             if (columns[i].equals(col)) {
                 return i;
@@ -386,7 +386,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return table.isHidden();
     }
 
-    public boolean isRowIdIndex() { //Ö»ÓĞorg.h2.mvstore.db.MVPrimaryIndexºÍorg.h2.index.PageDataIndex·µ»Øtrue
+    public boolean isRowIdIndex() { //åªæœ‰org.h2.mvstore.db.MVPrimaryIndexå’Œorg.h2.index.PageDataIndexè¿”å›true
         return false;
     }
 
@@ -394,7 +394,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return true;
     }
 
-    public void setSortedInsertMode(boolean sortedInsertMode) { //Ö»ÓĞorg.h2.index.PageIndex¸²¸Ç
+    public void setSortedInsertMode(boolean sortedInsertMode) { //åªæœ‰org.h2.index.PageIndexè¦†ç›–
         // ignore
     }
 

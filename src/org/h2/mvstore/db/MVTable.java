@@ -97,7 +97,7 @@ public class MVTable extends TableBase {
         indexes.add(primaryIndex);
     }
     
-    //ÓĞ¹ØËöµÄ´úÂë¸úorg.h2.table.RegularTableµÄÍêÈ«Ò»Ñù
+    //æœ‰å…³ççš„ä»£ç è·Ÿorg.h2.table.RegularTableçš„å®Œå…¨ä¸€æ ·
     @Override
     public void lock(Session session, boolean exclusive, boolean force) {
         int lockMode = database.getLockMode();

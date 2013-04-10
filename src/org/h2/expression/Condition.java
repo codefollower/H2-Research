@@ -13,7 +13,7 @@ import org.h2.value.ValueBoolean;
  * Represents a condition returning a boolean value, or NULL.
  */
 abstract class Condition extends Expression {
-	//所有Condition的子类都默认使用如下4个方法的返回值，没有子类覆盖
+	//鎵�鏈塁ondition鐨勫瓙绫婚兘榛樿浣跨敤濡備笅4涓柟娉曠殑杩斿洖鍊硷紝娌℃湁瀛愮被瑕嗙洊
     public int getType() {
         return Value.BOOLEAN;
     }

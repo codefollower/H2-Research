@@ -164,12 +164,12 @@ public class PageBtreeIndexTest extends TestBase {
 		//		stmt.executeUpdate("insert into IndexTestTable(id, name) values(" + 110 + ", '"+110 +"abcdef1234')");
 		//		stmt.executeUpdate("insert into IndexTestTable(id, name) values(" + 130 + ", '"+110 +"abcdef1234')");
 
-		//≤‚ ‘TreeIndex
+		//ÊµãËØïTreeIndex
 		//stmt.executeUpdate("create LOCAL TEMPORARY table IF NOT EXISTS IndexTestTable(id int not null, name varchar(500) not null) NOT PERSISTENT");
 		//stmt.executeUpdate("CREATE index idx_name ON IndexTestTable(id)");
 
-		//≤‚ ‘PageBtreeIndex
-		//’“∂œµ„Ãıº˛indexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
+		//ÊµãËØïPageBtreeIndex
+		//ÊâæÊñ≠ÁÇπÊù°‰ª∂indexName.equalsIgnoreCase("idx_name"); getName().equalsIgnoreCase("idx_name");
 		//index.getName().equalsIgnoreCase("idx_name");
 		stmt.executeUpdate("create table IF NOT EXISTS IndexTestTable(id int not null, name varchar(500) not null, address varchar(500) not null)");
 		stmt.executeUpdate("CREATE index IF NOT EXISTS idx_name ON IndexTestTable(name asc)");

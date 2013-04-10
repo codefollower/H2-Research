@@ -101,24 +101,24 @@ public abstract class Page extends CacheObject {
      */
     @SuppressWarnings("unchecked")
     public static <T> T[] insert(T[] old, int oldSize, int pos, T x) {
-    	//ÒÔÏÂold²»ÏñÆäËûÁ½¸öinsertµÄ´úÂëÖĞÄÇÑùÅĞ¶ÏÊÇ·ñÎªnull£¬Ö÷ÒªÊÇÒòÎª´Ë·½·¨µÄoldÊÇSearchRow[] rowsºÍRow[] rows;
-    	//ÕâÁ½¸ö×Ö¶ÎÔÚcreate·½·¨ÖĞ¶¼¸³ÖµÁË£¬ËùÒÔÎÊÌâ²»´ó
+    	//ä»¥ä¸‹oldä¸åƒå…¶ä»–ä¸¤ä¸ªinsertçš„ä»£ç ä¸­é‚£æ ·åˆ¤æ–­æ˜¯å¦ä¸ºnullï¼Œä¸»è¦æ˜¯å› ä¸ºæ­¤æ–¹æ³•çš„oldæ˜¯SearchRow[] rowså’ŒRow[] rows;
+    	//è¿™ä¸¤ä¸ªå­—æ®µåœ¨createæ–¹æ³•ä¸­éƒ½èµ‹å€¼äº†ï¼Œæ‰€ä»¥é—®é¢˜ä¸å¤§
         T[] result;
         if (old.length > oldSize) {
-        	//old»á¶àÉêÇëCOPY_THRESHOLD=4¸öÔªËØ£¬oldSizeÊÇÕæÊµµÄÓĞĞ§ÔªËØ¸öÊı£¬ËùÒÔold.length > oldSizeÊ±£¬
-        	//ËµÃ÷»¹ÓĞ×ã¹»µÄ¿Õ¼ä
+        	//oldä¼šå¤šç”³è¯·COPY_THRESHOLD=4ä¸ªå…ƒç´ ï¼ŒoldSizeæ˜¯çœŸå®çš„æœ‰æ•ˆå…ƒç´ ä¸ªæ•°ï¼Œæ‰€ä»¥old.length > oldSizeæ—¶ï¼Œ
+        	//è¯´æ˜è¿˜æœ‰è¶³å¤Ÿçš„ç©ºé—´
             result = old;
         } else {
             // according to a test, this is as fast as "new Row[..]"
             result = (T[]) Array.newInstance(old.getClass().getComponentType(), oldSize + 1 + COPY_THRESHOLD);
-            //µ±posµÈÓÚ0Ê±¾Í²»¸´ÖÆÁË£¬ÊÇÒòÎªÏÂÃæSystem.arraycopy(old, pos, result, pos + 1, oldSize - pos);
-            //»áÎªresultÔ¤ÁôÒ»¸öÎ»ÖÃ(pos+1)ËµÃ÷µ±posÊÇ0ÊÇ£¬resultÊı½ã´ÓÏÂ±ê1µÄµØ·½¸´ÖÆ£¬
-            //½ô½Ó×Åresult[pos] = x;¾Í°Ñx·ÅÎ»ÏÂ±êÎªoµÄÎ»ÖÃ´¦ÁË¡£
+            //å½“posç­‰äº0æ—¶å°±ä¸å¤åˆ¶äº†ï¼Œæ˜¯å› ä¸ºä¸‹é¢System.arraycopy(old, pos, result, pos + 1, oldSize - pos);
+            //ä¼šä¸ºresulté¢„ç•™ä¸€ä¸ªä½ç½®(pos+1)è¯´æ˜å½“posæ˜¯0æ˜¯ï¼Œresultæ•°å§ä»ä¸‹æ ‡1çš„åœ°æ–¹å¤åˆ¶ï¼Œ
+            //ç´§æ¥ç€result[pos] = x;å°±æŠŠxæ”¾ä½ä¸‹æ ‡ä¸ºoçš„ä½ç½®å¤„äº†ã€‚
             if (pos > 0) {
-                System.arraycopy(old, 0, result, 0, pos); //¸´ÖÆposÎ»ÖÃÇ°µÄÔªËØ
+                System.arraycopy(old, 0, result, 0, pos); //å¤åˆ¶posä½ç½®å‰çš„å…ƒç´ 
             }
         }
-        if (oldSize - pos > 0) {  //°ÑposÎ»ÖÃ¿ªÊ¼µÄÔªËØÏòºóÒÆ
+        if (oldSize - pos > 0) {  //æŠŠposä½ç½®å¼€å§‹çš„å…ƒç´ å‘åç§»
             System.arraycopy(old, pos, result, pos + 1, oldSize - pos);
         }
         result[pos] = x;
@@ -165,7 +165,7 @@ public abstract class Page extends CacheObject {
             result = old;
         } else {
             result = new long[oldSize + 1 + COPY_THRESHOLD];
-            //Î´Ïñinsert(int[], int, int, int)ÄÇÑùÅĞ¶ÏoldÊÇ·ñÎªnull
+            //æœªåƒinsert(int[], int, int, int)é‚£æ ·åˆ¤æ–­oldæ˜¯å¦ä¸ºnull
             if (pos > 0) {
                 System.arraycopy(old, 0, result, 0, pos);
             }
@@ -216,7 +216,7 @@ public abstract class Page extends CacheObject {
                 System.arraycopy(old, 0, result, 0, pos);
             }
         }
-        if (old != null && oldSize - pos > 0) { //°ÑposÎ»ÖÃ¿ªÊ¼µÄÔªËØÏòºóÒÆ
+        if (old != null && oldSize - pos > 0) { //æŠŠposä½ç½®å¼€å§‹çš„å…ƒç´ å‘åç§»
             System.arraycopy(old, pos, result, pos + 1, oldSize - pos);
         }
         result[pos] = x;
@@ -264,7 +264,7 @@ public abstract class Page extends CacheObject {
      *
      * @return true if moving is allowed
      */
-    //ÒÔÏÂÈı¸ö×ÓÀà¸²¸ÇÁËĞ©·½·¨£¬ËµÃ÷ÕâÈıÖÖÒ³Ãæ²»ÄÜÒÆ¶¯
+    //ä»¥ä¸‹ä¸‰ä¸ªå­ç±»è¦†ç›–äº†äº›æ–¹æ³•ï¼Œè¯´æ˜è¿™ä¸‰ç§é¡µé¢ä¸èƒ½ç§»åŠ¨
     //6. TYPE_FREE_LIST      org.h2.store.PageFreeList
     //7. TYPE_STREAM_TRUNK   org.h2.store.PageStreamTrunk
     //8. TYPE_STREAM_DATA    org.h2.store.PageStreamData

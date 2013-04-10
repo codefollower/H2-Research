@@ -11,14 +11,14 @@ org.h2.command.dml.Insert.update()
 
 	=> org.h2.table.RegularTable.addRow(Session, Row)
 
-¼ÙÉè:
+å‡è®¾:
 CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255))
 
-¶ÔÓÚinsert sql
+å¯¹äºinsert sql
 INSERT INTO TEST(ID, NAME) VALUES(3000, 'aaa')
 
-µÚ1²½
-//½âÎöinsert sql£¬µÃµ½ÁĞÃû£¬Èç£º[ID, NAME]
+ç¬¬1æ­¥
+//è§£æinsert sqlï¼Œå¾—åˆ°åˆ—åï¼Œå¦‚ï¼š[ID, NAME]
 org.h2.command.dml.Insert.setColumns(Column[])
 java.lang.Error
 	at org.h2.command.dml.Insert.setColumns(Insert.java:62)
@@ -32,8 +32,8 @@ java.lang.Error
 	at org.h2.server.TcpServerThread.run(TcpServerThread.java:149)
 	at java.lang.Thread.run(Unknown Source)
 
-µÚ2²½
-//½âÎöinsert sql£¬µÃµ½ÁĞÖµ£¬Èç£º[3000, 'aaa']
+ç¬¬2æ­¥
+//è§£æinsert sqlï¼Œå¾—åˆ°åˆ—å€¼ï¼Œå¦‚ï¼š[3000, 'aaa']
 org.h2.command.dml.Insert.addRow(Expression[])
 java.lang.Error
 	at org.h2.command.dml.Insert.addRow(Insert.java:75)
@@ -47,7 +47,7 @@ java.lang.Error
 	at org.h2.server.TcpServerThread.run(TcpServerThread.java:149)
 	at java.lang.Thread.run(Unknown Source)
 
-µÚ3²½
+ç¬¬3æ­¥
 org.h2.command.dml.Insert.prepare()
 java.lang.Error
 	at org.h2.command.dml.Insert.prepare(Insert.java:215)
@@ -57,7 +57,7 @@ java.lang.Error
 	at org.h2.server.TcpServerThread.run(TcpServerThread.java:149)
 	at java.lang.Thread.run(Unknown Source)
 
-µÚ4²½
+ç¬¬4æ­¥
 org.h2.command.dml.Insert.update()
 java.lang.Error
 	at org.h2.command.dml.Insert.update(Insert.java:79)
@@ -74,11 +74,11 @@ org.h2.index.PageDataIndex.addTry(Session, Row)
 
 org.h2.index.PageDataLeaf.addRowTry(Row)
 
-ÔÚPageDataLeafÖĞµÄorg.h2.index.PageData.keys ´æ·Åkey
-ÔÚorg.h2.index.PageDataLeaf.rowsÖĞ´æ·Å¶àĞĞÊı¾İ
+åœ¨PageDataLeafä¸­çš„org.h2.index.PageData.keys å­˜æ”¾key
+åœ¨org.h2.index.PageDataLeaf.rowsä¸­å­˜æ”¾å¤šè¡Œæ•°æ®
 
-Ã¿¸öPageDataLeaf±»·ÅÈëorg.h2.store.PageStore.cacheÖĞ
-ÔÚorg.h2.store.PageStore.writeBack()ÖĞ°ÑÃ¿¸öPageDataLeafµÄÄÚÈİĞ´»ØÓ²ÅÌ¡£
+æ¯ä¸ªPageDataLeafè¢«æ”¾å…¥org.h2.store.PageStore.cacheä¸­
+åœ¨org.h2.store.PageStore.writeBack()ä¸­æŠŠæ¯ä¸ªPageDataLeafçš„å†…å®¹å†™å›ç¡¬ç›˜ã€‚
 
 java.lang.Error
 	at org.h2.util.CacheLRU.addToFront(CacheLRU.java:225)
@@ -126,15 +126,15 @@ java.lang.Error
 
 
 
-µÚÒ»´Î½¨Íê±íºó»áÊ×Ñ¡´´½¨Ò»¸öroot PageDataLeaf
-¼ûorg.h2.index.PageDataIndex.PageDataIndex(RegularTable, int, IndexColumn[], IndexType, boolean, Session)
+ç¬¬ä¸€æ¬¡å»ºå®Œè¡¨åä¼šé¦–é€‰åˆ›å»ºä¸€ä¸ªroot PageDataLeaf
+è§org.h2.index.PageDataIndex.PageDataIndex(RegularTable, int, IndexColumn[], IndexType, boolean, Session)
 		if (create) {
             rootPageId = store.allocatePage();
             store.addMeta(this, session);
             PageDataLeaf root = PageDataLeaf.create(this, rootPageId, PageData.ROOT);
             store.update(root);
 
-½¨Á¢PageDataLeafÊ±»áÏÈĞ´Í·£¬´ËÊ±checksum»¹Ã»ÓĞ£¬»¹ÊÇ0
-PageDataLeaf·ÅÈëorg.h2.store.PageStore.cache
+å»ºç«‹PageDataLeafæ—¶ä¼šå…ˆå†™å¤´ï¼Œæ­¤æ—¶checksumè¿˜æ²¡æœ‰ï¼Œè¿˜æ˜¯0
+PageDataLeafæ”¾å…¥org.h2.store.PageStore.cache
 
 

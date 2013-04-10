@@ -5,7 +5,7 @@ import java.sql.SQLException;
 
 import my.test.TestBase;
 
-//ÕÒ¶ÏµãÌõ¼ş
+//æ‰¾æ–­ç‚¹æ¡ä»¶
 //table.getName().equalsIgnoreCase("CreateTriggerTest");
 //getName().equalsIgnoreCase("MyTrigger1")
 public class CreateTriggerTest extends TestBase {
@@ -45,8 +45,8 @@ public class CreateTriggerTest extends TestBase {
 		//prop.setProperty("MVCC", "true");
 	}
 
-	//²âÊÔorg.h2.command.Parser.parseCreateTrigger(boolean)ºÍorg.h2.command.ddl.CreateTrigger
-	//ºÍorg.h2.schema.TriggerObject
+	//æµ‹è¯•org.h2.command.Parser.parseCreateTrigger(boolean)å’Œorg.h2.command.ddl.CreateTrigger
+	//å’Œorg.h2.schema.TriggerObject
 	@Override
 	public void startInternal() throws Exception {
 		conn.setAutoCommit(false);
@@ -54,8 +54,8 @@ public class CreateTriggerTest extends TestBase {
 		stmt.executeUpdate("DROP TABLE IF EXISTS CreateTriggerTest");
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateTriggerTest(id int, name varchar(500))");
 		
-		//Èç¹ûÊÇCREATE FORCE TRIGGER£¬ÄÇÃ´ÔÚ¼ÓÔØ´¥·¢Æ÷Àà³ö´íÊ±²»Å×Òì³££¬
-	    //¼ûorg.h2.schema.TriggerObject.setTriggerClassName(Session, String, boolean)
+		//å¦‚æœæ˜¯CREATE FORCE TRIGGERï¼Œé‚£ä¹ˆåœ¨åŠ è½½è§¦å‘å™¨ç±»å‡ºé”™æ—¶ä¸æŠ›å¼‚å¸¸ï¼Œ
+	    //è§org.h2.schema.TriggerObject.setTriggerClassName(Session, String, boolean)
 		stmt.executeUpdate("CREATE FORCE TRIGGER IF NOT EXISTS MyTrigger1"
 				+ " BEFORE INSERT,UPDATE,DELETE,SELECT,ROLLBACK ON CreateTriggerTest"
 				+ " QUEUE 10 NOWAIT CALL \"my.test.command.ddl.CreateTriggerTest$MyTrigger\"");
@@ -64,12 +64,12 @@ public class CreateTriggerTest extends TestBase {
 				+ " AFTER INSERT,UPDATE,DELETE,SELECT,ROLLBACK ON CreateTriggerTest FOR EACH ROW"
 				+ " QUEUE 10 NOWAIT CALL \"my.test.command.ddl.CreateTriggerTest$MyTrigger\"");
 		
-		//INSTEAD OFÒ²ÊÇBEFOREÀàĞÍ
+		//INSTEAD OFä¹Ÿæ˜¯BEFOREç±»å‹
 		stmt.executeUpdate("CREATE TRIGGER IF NOT EXISTS MyTrigger3"
 				+ " INSTEAD OF INSERT,UPDATE,DELETE,SELECT,ROLLBACK ON CreateTriggerTest FOR EACH ROW"
 				+ " QUEUE 10 NOWAIT CALL \"my.test.command.ddl.CreateTriggerTest$MyTrigger\"");
 
-		//ÕâÖÖÓï·¨¿É²éÈë¶àÌõ¼ÇÂ¼
+		//è¿™ç§è¯­æ³•å¯æŸ¥å…¥å¤šæ¡è®°å½•
 		//null null
 		//10 a
 		//20 b

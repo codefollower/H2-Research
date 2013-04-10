@@ -7,7 +7,7 @@ public class ConditionInSelectTest extends TestBase {
 		new ConditionInSelectTest().start();
 	}
 
-	//²âÊÔorg.h2.expression.ConditionInSelect
+	//æµ‹è¯•org.h2.expression.ConditionInSelect
 	@Override
 	public void startInternal() throws Exception {
 		stmt.executeUpdate("drop table IF EXISTS ConditionInSelectTest");
@@ -22,20 +22,20 @@ public class ConditionInSelectTest extends TestBase {
 		stmt.executeUpdate("insert into ConditionInSelectTest(id, name) values(3, 'b3')");
 
 		sql = "delete top 3 from ConditionInSelectTest where id in(select id from ConditionInSelectTest where id=3)";
-		//×Ó²éÑ¯²»ÄÜ¶àÓÚ1¸öÁÐ
+		//å­æŸ¥è¯¢ä¸èƒ½å¤šäºŽ1ä¸ªåˆ—
 		//sql = "delete from ConditionInSelectTest where id in(select id,name from ConditionInSelectTest where id=3)";
 		sql = "delete from ConditionInSelectTest where id in(select id from ConditionInSelectTest where id>2)";
 
 		//sql = "delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)";
-		//ANYºÍSOMEÒ»Ñù
+		//ANYå’ŒSOMEä¸€æ ·
 		//sql = "delete from ConditionInSelectTest where id > ANY(select id from ConditionInSelectTest where id>1)";
 		//sql = "delete from ConditionInSelectTest where id > SOME(select id from ConditionInSelectTest where id>10)";
 		
-		//ÑÏ¸ñÀ´ËµÕâÖÖsql²ÅËãSubquery£¬ÉÏÃæµÄin£¬ALL£¬ANY£¬SOME¶¼Ö»ÊÇÆÕÍ¨µÄselect
-		//Subquery°üº¬µÄÐÐÊý²»ÄÜ´óÓÚ1£¬¶øin£¬ALL£¬ANY£¬SOMEÃ»ÏÞÖÆ£¬
-		//ÏëÒ»ÏÂÒ²Àí½â£¬±ÈÈçid> (select id from ConditionInSelectTest where id>1)Èç¹ûÕâ¸öSubquery´óÓÚ1ÐÐ£¬ÄÇÃ´id¾Í²»ÖªµÀºÍË­±È½Ï
+		//ä¸¥æ ¼æ¥è¯´è¿™ç§sqlæ‰ç®—Subqueryï¼Œä¸Šé¢çš„inï¼ŒALLï¼ŒANYï¼ŒSOMEéƒ½åªæ˜¯æ™®é€šçš„select
+		//SubqueryåŒ…å«çš„è¡Œæ•°ä¸èƒ½å¤§äºŽ1ï¼Œè€Œinï¼ŒALLï¼ŒANYï¼ŒSOMEæ²¡é™åˆ¶ï¼Œ
+		//æƒ³ä¸€ä¸‹ä¹Ÿç†è§£ï¼Œæ¯”å¦‚id> (select id from ConditionInSelectTest where id>1)å¦‚æžœè¿™ä¸ªSubqueryå¤§äºŽ1è¡Œï¼Œé‚£ä¹ˆidå°±ä¸çŸ¥é“å’Œè°æ¯”è¾ƒ
 		//sql = "delete from ConditionInSelectTest where id > (select id from ConditionInSelectTest where id>1)";
-	    //µ«ÊÇSubquery¿ÉÒÔÓÐ¶àÀý
+	    //ä½†æ˜¯Subqueryå¯ä»¥æœ‰å¤šä¾‹
 		//sql = "delete from ConditionInSelectTest where id > (select id, name from ConditionInSelectTest where id=1 and name='a1')";
 		stmt.executeUpdate(sql);
 

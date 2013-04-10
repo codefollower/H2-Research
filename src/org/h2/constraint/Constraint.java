@@ -22,7 +22,7 @@ import org.h2.table.Table;
 /**
  * The base class for constraint checking.
  */
-//由org.h2.table.Table.fireConstraints(Session, Row, Row, boolean)触发checkRow
+//鐢眔rg.h2.table.Table.fireConstraints(Session, Row, Row, boolean)瑙﹀彂checkRow
 public abstract class Constraint extends SchemaObjectBase implements Comparable<Constraint> {
 
     /**
@@ -117,7 +117,7 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
      *
      * @param session the session
      */
-    public abstract void checkExistingData(Session session); //通常是在构建约束对象之后马上根据CHECK和NOCHECK调用与不调用
+    public abstract void checkExistingData(Session session); //閫氬父鏄湪鏋勫缓绾︽潫瀵硅薄涔嬪悗椹笂鏍规嵁CHECK鍜孨OCHECK璋冪敤涓庝笉璋冪敤
 
     /**
      * This method is called after a related table has changed

@@ -35,7 +35,7 @@ public class BitFieldTest {
 	}
 
 	private static long getBitMask(int i) {
-		return 1L << (i & ADDRESS_MASK); //(i & ADDRESS_MASK)Ïàµ±ÓÚ°´63È¡Ä£(µÃµ½µÄÖµÊÇ0µ½63)
+		return 1L << (i & ADDRESS_MASK); //(i & ADDRESS_MASK)ç›¸å½“äºŽæŒ‰63å–æ¨¡(å¾—åˆ°çš„å€¼æ˜¯0åˆ°63)
 	}
 
 	private static final int BITS = 64;

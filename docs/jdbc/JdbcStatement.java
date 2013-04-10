@@ -1,46 +1,46 @@
 
 1.executeUpdate
 
-Íê³ÉÒ»¸öexecuteUpdate²Ù×÷£¬client·¢ËÍÈý¸öÊý¾Ý°ü
-(org.h2.jdbc.JdbcPreparedStatement.executeUpdate()Ö»ÒªÁ½¸ö£¬
-ÒòÎªÒ»¸öJdbcPreparedStatementÊµÀýÖ»¶ÔÓ¦Ò»¸öCommandInterfaceÊµÀý£¬ËùÒÔÖ»ÓÐÔÚ¹Ø±ÕJdbcPreparedStatementÊ±²Å·¢COMMAND_CLOSEÊý¾Ý°ü)
+å®Œæˆä¸€ä¸ªexecuteUpdateæ“ä½œï¼Œclientå‘é€ä¸‰ä¸ªæ•°æ®åŒ…
+(org.h2.jdbc.JdbcPreparedStatement.executeUpdate()åªè¦ä¸¤ä¸ªï¼Œ
+å› ä¸ºä¸€ä¸ªJdbcPreparedStatementå®žä¾‹åªå¯¹åº”ä¸€ä¸ªCommandInterfaceå®žä¾‹ï¼Œæ‰€ä»¥åªæœ‰åœ¨å…³é—­JdbcPreparedStatementæ—¶æ‰å‘COMMAND_CLOSEæ•°æ®åŒ…)
 
-executeUpdateÁ÷³Ì:
+executeUpdateæµç¨‹:
 
 org.h2.jdbc.JdbcStatement.executeUpdate(String)
 	=> org.h2.jdbc.JdbcStatement.executeUpdateInternal(String)
-		=> org.h2.jdbc.JdbcConnection.translateSQL(String, boolean) (×ª»»JDBCÌØÓÐµÄSQLÓï·¨)
-		=> org.h2.jdbc.JdbcConnection.prepareCommand(String, int) (µÃµ½Ò»¸öorg.h2.command.CommandRemote£¬¶ÔÓ¦µ¥¸öSQL)
+		=> org.h2.jdbc.JdbcConnection.translateSQL(String, boolean) (è½¬æ¢JDBCç‰¹æœ‰çš„SQLè¯­æ³•)
+		=> org.h2.jdbc.JdbcConnection.prepareCommand(String, int) (å¾—åˆ°ä¸€ä¸ªorg.h2.command.CommandRemoteï¼Œå¯¹åº”å•ä¸ªSQL)
 			=> org.h2.engine.SessionRemote.prepareCommand(String, int)
 				=> org.h2.command.CommandRemote
-					=> org.h2.command.CommandRemote.prepare(SessionRemote, boolean) (·¢³öÒ»¸öSESSION_PREPARE_READ_PARAMSÊý¾Ý°ü)
-		=> org.h2.command.CommandRemote.executeUpdate() (·¢³öÒ»¸öCOMMAND_EXECUTE_UPDATEÊý¾Ý°ü)
-		=> org.h2.command.CommandRemote.close() (·¢³öÒ»¸öCOMMAND_CLOSEÊý¾Ý°ü)
+					=> org.h2.command.CommandRemote.prepare(SessionRemote, boolean) (å‘å‡ºä¸€ä¸ªSESSION_PREPARE_READ_PARAMSæ•°æ®åŒ…)
+		=> org.h2.command.CommandRemote.executeUpdate() (å‘å‡ºä¸€ä¸ªCOMMAND_EXECUTE_UPDATEæ•°æ®åŒ…)
+		=> org.h2.command.CommandRemote.close() (å‘å‡ºä¸€ä¸ªCOMMAND_CLOSEæ•°æ®åŒ…)
 
 
 
 2.executeQuery
 
-Íê³ÉÒ»¸öexecuteQuery²Ù×÷£¬client·¢ËÍÈý¸öÊý¾Ý°ü
-(JdbcPreparedStatementÍ¬ÉÏ£¬Ò²²»ÓÃ·¢COMMAND_CLOSEÊý¾Ý°ü£¬¹Ø±ÕJdbcPreparedStatementÊ±²Å·¢)
+å®Œæˆä¸€ä¸ªexecuteQueryæ“ä½œï¼Œclientå‘é€ä¸‰ä¸ªæ•°æ®åŒ…
+(JdbcPreparedStatementåŒä¸Šï¼Œä¹Ÿä¸ç”¨å‘COMMAND_CLOSEæ•°æ®åŒ…ï¼Œå…³é—­JdbcPreparedStatementæ—¶æ‰å‘)
 
-executeQueryÁ÷³Ì:
+executeQueryæµç¨‹:
 
 org.h2.jdbc.JdbcStatement.executeQuery(String)
-	=> org.h2.jdbc.JdbcConnection.translateSQL(String, boolean) (×ª»»JDBCÌØÓÐµÄSQLÓï·¨)
-	=> org.h2.jdbc.JdbcConnection.prepareCommand(String, int) (µÃµ½Ò»¸öorg.h2.command.CommandRemote£¬¶ÔÓ¦µ¥¸öSQL)
+	=> org.h2.jdbc.JdbcConnection.translateSQL(String, boolean) (è½¬æ¢JDBCç‰¹æœ‰çš„SQLè¯­æ³•)
+	=> org.h2.jdbc.JdbcConnection.prepareCommand(String, int) (å¾—åˆ°ä¸€ä¸ªorg.h2.command.CommandRemoteï¼Œå¯¹åº”å•ä¸ªSQL)
 		=> org.h2.engine.SessionRemote.prepareCommand(String, int)
 			=> org.h2.command.CommandRemote
-				=> org.h2.command.CommandRemote.prepare(SessionRemote, boolean) (·¢³öÒ»¸öSESSION_PREPARE_READ_PARAMSÊý¾Ý°ü)
-	=> org.h2.command.CommandRemote.executeQuery(int, boolean) (·¢³öÒ»¸öCOMMAND_EXECUTE_QUERYÊý¾Ý°ü)
-	=> org.h2.command.CommandRemote.close() (·¢³öÒ»¸öCOMMAND_CLOSEÊý¾Ý°ü)
+				=> org.h2.command.CommandRemote.prepare(SessionRemote, boolean) (å‘å‡ºä¸€ä¸ªSESSION_PREPARE_READ_PARAMSæ•°æ®åŒ…)
+	=> org.h2.command.CommandRemote.executeQuery(int, boolean) (å‘å‡ºä¸€ä¸ªCOMMAND_EXECUTE_QUERYæ•°æ®åŒ…)
+	=> org.h2.command.CommandRemote.close() (å‘å‡ºä¸€ä¸ªCOMMAND_CLOSEæ•°æ®åŒ…)
 	=> org.h2.jdbc.JdbcResultSet
 
 
 
 
-JdbcStatementºÍJdbcPreparedStatement¶¼µ÷ÓÃÍ¬ÑùµÄorg.h2.command.CommandRemote.executeQuery£¬
-µ«ÊÇJdbcStatementµÄParameters×ÜÊÇ0¸ö£¬JdbcPreparedStatementÊÇ>=0¸ö¡£
+JdbcStatementå’ŒJdbcPreparedStatementéƒ½è°ƒç”¨åŒæ ·çš„org.h2.command.CommandRemote.executeQueryï¼Œ
+ä½†æ˜¯JdbcStatementçš„Parametersæ€»æ˜¯0ä¸ªï¼ŒJdbcPreparedStatementæ˜¯>=0ä¸ªã€‚
 
 
 

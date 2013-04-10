@@ -64,7 +64,7 @@ public class ValueString extends Value {
     }
 
     public int getMemory() {
-    	//Ò»¸ö×Ö·ûÕ¼Á½¸ö×Ö½ÚËùÒÔÒª³ËÒÔ2
+    	//ä¸€ä¸ªå­—ç¬¦å ä¸¤ä¸ªå­—èŠ‚æ‰€ä»¥è¦ä¹˜ä»¥2
         return value.length() * 2 + 48;
     }
 
@@ -122,7 +122,7 @@ public class ValueString extends Value {
             return EMPTY;
         }
         ValueString obj = new ValueString(StringUtils.cache(s));
-        //×Ö·û´®³¤¶ÈÌ«´óÊ±¾Í²»»º´æÁË
+        //å­—ç¬¦ä¸²é•¿åº¦å¤ªå¤§æ—¶å°±ä¸ç¼“å­˜äº†
         if (s.length() > SysProperties.OBJECT_CACHE_MAX_PER_ELEMENT_SIZE) {
             return obj;
         }
