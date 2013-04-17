@@ -35,6 +35,7 @@ import org.h2.value.ValueNull;
 /**
  * Represents a union SELECT statement.
  */
+//调用顺序 init=>prepare->query
 public class SelectUnion extends Query {
 
     /**
@@ -103,6 +104,8 @@ public class SelectUnion extends Query {
     private Value[] convert(Value[] values, int columnCount) {
         for (int i = 0; i < columnCount; i++) {
             Expression e = expressions.get(i);
+            //如果两表的列类型不一样，在这里会转换错误:
+            //如: select id from SelectUnionTest1 UNION select name from SelectUnionTest2
             values[i] = values[i].convertTo(e.getType());
         }
         return values;
@@ -201,6 +204,8 @@ public class SelectUnion extends Query {
             break;
         }
         case INTERSECT: {
+        	//先把左边表记录放到临时的LocalResult，然后遍厉右边表时看它是否在临时的LocalResult里，
+        	//如果在，加到最终的result里。
             LocalResult temp = new LocalResult(session, expressionArray, columnCount);
             temp.setDistinct();
             temp.setRandomAccess();
@@ -249,7 +254,7 @@ public class SelectUnion extends Query {
         if (len != right.getColumnCount()) {
             throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
         }
-        ArrayList<Expression> le = left.getExpressions();
+        ArrayList<Expression> le = left.getExpressions(); //以左边的表为准
         // set the expressions to get the right column count and names,
         // but can't validate at this time
         expressions = New.arrayList();
@@ -278,6 +283,7 @@ public class SelectUnion extends Query {
         for (int i = 0; i < len; i++) {
             Expression l = le.get(i);
             Expression r = re.get(i);
+            //当两个值需要发生转换时，order数字小的要转到数字大的，比如a是int，b是long，int是23，long是24，那么在做运算时a要转成long
             int type = Value.getHigherOrder(l.getType(), r.getType());
             long prec = Math.max(l.getPrecision(), r.getPrecision());
             int scale = Math.max(l.getScale(), r.getScale());
@@ -286,6 +292,10 @@ public class SelectUnion extends Query {
             Expression e = new ExpressionColumn(session.getDatabase(), col);
             expressions.add(e);
         }
+        //排序列必须是左边的select字段列表中的
+		//这两条sql都不对
+		//sql = "select id, name from SelectUnionTest1 INTERSECT select id2, name from SelectUnionTest2 order by id2";
+		//sql = "select id, name from SelectUnionTest1 INTERSECT select id, name from SelectUnionTest2 order by id2";
         if (orderList != null) {
             initOrder(session, expressions, null, orderList, getColumnCount(), true, null);
             sort = prepareOrder(orderList, expressions.size());

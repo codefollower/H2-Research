@@ -303,7 +303,11 @@ public class MVTable extends TableBase {
     public boolean isLockedExclusively() {
         return lockExclusive != null;
     }
-
+    
+    public boolean isLockedExclusivelyBy(Session session) {
+        return lockExclusive == session;
+    }
+    
     public void unlock(Session s) {
         if (database != null) {
             traceLock(s, lockExclusive == s, "unlock");
@@ -486,26 +490,16 @@ public class MVTable extends TableBase {
     @Override
     public void removeRow(Session session, Row row) {
         lastModificationId = database.getNextModificationDataId();
-        int i = indexes.size() - 1;
+        Transaction t = getTransaction(session);
+        long savepoint = t.setSavepoint();
         try {
-            for (; i >= 0; i--) {
+            for (int i = indexes.size() - 1; i >= 0; i--) {
                 Index index = indexes.get(i);
                 index.remove(session, row);
             }
             rowCount--;
         } catch (Throwable e) {
-            try {
-                while (++i < indexes.size()) {
-                    Index index = indexes.get(i);
-                    index.add(session, row);
-                }
-            } catch (DbException e2) {
-                // this could happen, for example on failure in the storage
-                // but if that is not the case it means there is something wrong
-                // with the database
-                trace.error(e2, "could not undo operation");
-                throw e2;
-            }
+            t.rollbackToSavepoint(savepoint);
             throw DbException.convert(e);
         }
         analyzeIfRequired(session);
@@ -521,30 +515,20 @@ public class MVTable extends TableBase {
         rowCount = 0;
         changesSinceAnalyze = 0;
     }
-   
+
     @Override
     public void addRow(Session session, Row row) {
         lastModificationId = database.getNextModificationDataId();
-        int i = 0;
+        Transaction t = getTransaction(session);
+        long savepoint = t.setSavepoint();
         try {
-            for (int size = indexes.size(); i < size; i++) {
+            for (int i = 0, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 index.add(session, row);
             }
             rowCount++;
         } catch (Throwable e) {
-            try {
-                while (--i >= 0) {
-                    Index index = indexes.get(i);
-                    index.remove(session, row);
-                }
-            } catch (DbException e2) {
-                // this could happen, for example on failure in the storage
-                // but if that is not the case it means there is something wrong
-                // with the database
-                trace.error(e2, "could not undo operation");
-                throw e2;
-            }
+            t.rollbackToSavepoint(savepoint);
             DbException de = DbException.convert(e);
             if (de.getErrorCode() == ErrorCode.DUPLICATE_KEY_1) {
                 for (int j = 0; j < indexes.size(); j++) {
@@ -687,10 +671,6 @@ public class MVTable extends TableBase {
         return session.getTransaction(store);
     }
 
-    public TransactionStore getStore() {
-        return store;
-    }
-
     public Column getRowIdColumn() {
         if (rowIdColumn == null) {
             rowIdColumn = new Column(Column.ROWID, Value.LONG);
@@ -702,7 +682,7 @@ public class MVTable extends TableBase {
     public String toString() {
         return getSQL();
     }
-    
+
     public boolean isMVStore() {
         return true;
     }

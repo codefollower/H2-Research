@@ -33,6 +33,7 @@ import org.h2.value.ValueNull;
 /**
  * Represents a SELECT statement (simple, or union).
  */
+//调用顺序 init=>prepare->query
 public abstract class Query extends Prepared {
 
     /**
@@ -58,7 +59,7 @@ public abstract class Query extends Prepared {
     /**
      * Whether the result needs to support random access.
      */
-    protected boolean randomAccessResult;
+    protected boolean randomAccessResult; //在ConditionInSelect时会设为true
 
     private boolean noCache;
     private int lastLimit;
@@ -169,7 +170,7 @@ public abstract class Query extends Prepared {
      * @param columnId the column index (0 meaning the first column)
      * @param comparisonType the comparison type
      */
-    public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType);
+    public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType); //在ViewIndex中用使用
 
     /**
      * Check whether adding condition to the query is allowed. This is not
@@ -178,7 +179,7 @@ public abstract class Query extends Prepared {
      *
      * @return true if adding global conditions is allowed
      */
-    public abstract boolean allowGlobalConditions();
+    public abstract boolean allowGlobalConditions(); //在ViewIndex中用使用
 
     /**
      * Check if this expression and all sub-expressions can fulfill a criteria.
@@ -219,7 +220,7 @@ public abstract class Query extends Prepared {
      *
      * @param b the new value
      */
-    public void setRandomAccessResult(boolean b) {
+    public void setRandomAccessResult(boolean b) { //在ConditionInSelect时会设为true
         randomAccessResult = b;
     }
 
@@ -234,7 +235,7 @@ public abstract class Query extends Prepared {
     /**
      * Disable caching of result sets.
      */
-    public void disableCache() {
+    public void disableCache() { //在ViewIndex中用使用
         this.noCache = true;
     }
 
@@ -248,7 +249,7 @@ public abstract class Query extends Prepared {
             return false;
         }
         Database db = s.getDatabase();
-        for (int i = 0; i < params.length; i++) {
+        for (int i = 0; i < params.length; i++) { //检查当前参数与上一次的参数是否相等
             Value a = lastParams[i], b = params[i];
             if (a.getType() != b.getType() || !db.areEqual(a, b)) {
                 return false;
@@ -257,6 +258,7 @@ public abstract class Query extends Prepared {
         if (!isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR) || !isEverything(ExpressionVisitor.INDEPENDENT_VISITOR)) {
             return false;
         }
+        //数据有变时不使用缓存
         if (db.getModificationDataId() > lastEval && getMaxDataModificationId() > lastEval) {
             return false;
         }
@@ -288,9 +290,9 @@ public abstract class Query extends Prepared {
      * @param target the target result (null will return the result)
      * @return the result set (if the target is not set).
      */
-    LocalResult query(int limit, ResultTarget target) {
+    LocalResult query(int limit, ResultTarget target) { //子类SelectUnion覆盖了此方法
         fireBeforeSelectTriggers();
-        if (noCache || !session.getDatabase().getOptimizeReuseResults()) {
+        if (noCache || !session.getDatabase().getOptimizeReuseResults()) { //不使用缓存
             return queryWithoutCache(limit, target);
         }
         Value[] params = getParameterValues();

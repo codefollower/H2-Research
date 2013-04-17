@@ -42,7 +42,6 @@ public class MVTableEngine implements TableEngine {
             if (store == null) {
                 return;
             }
-            // TODO this stores uncommitted transactions as well
             store(store.getStore());
         }
     }
@@ -115,8 +114,11 @@ public class MVTableEngine implements TableEngine {
      * @param store the store
      */
     static void store(MVStore store) {
-        store.compact(50);
-        store.store();
+        if (!store.isReadOnly()) {
+            store.commit();
+            store.compact(50);
+            store.store();
+        }
     }
 
     /**
@@ -147,7 +149,7 @@ public class MVTableEngine implements TableEngine {
         public Store(Database db, MVStore store) {
             this.db = db;
             this.store = store;
-            this.transactionStore = new TransactionStore(store, 
+            this.transactionStore = new TransactionStore(store,
                     new ValueDataType(null, null, null));
         }
 

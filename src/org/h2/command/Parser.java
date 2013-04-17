@@ -4982,7 +4982,7 @@ public class Parser {
         }
         throw DbException.getInvalidValueException("BINARY_COLLATION", name);
     }
-    
+
     private RunScriptCommand parseRunScript() {
         RunScriptCommand command = new RunScriptCommand(session);
         read("FROM");

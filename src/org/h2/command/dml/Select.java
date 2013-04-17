@@ -60,6 +60,7 @@ import org.h2.value.ValueNull;
  * @author Thomas Mueller
  * @author Joel Turkel (Group sorted query)
  */
+//调用顺序 init=>prepare->query
 public class Select extends Query {
     private TableFilter topTableFilter;
     private final ArrayList<TableFilter> filters = New.arrayList();
@@ -1390,13 +1391,13 @@ public class Select extends Query {
             return true;
         }
         return false;
-    }
+	}
+
+	public SortOrder getSortOrder() {
+		return sort;
+	}
 
 	public String toString() { //我加上的
 		return getPlanSQL();
 	}
-    public SortOrder prepareOrder() {
-        return sort;
-    }
-
 }
