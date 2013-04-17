@@ -248,7 +248,7 @@ public abstract class Value {
      * @return the order number
      */
     static int getOrder(int type) {
-    	//当两个值需要发生转换时，order数字小到要转到数字大的，比如a是int，b是long，int是23，long是24，那么在做运算时a要转成long
+    	//当两个值需要发生转换时，order数字小的要转到数字大的，比如a是int，b是long，int是23，long是24，那么在做运算时a要转成long
         switch(type) {
         case UNKNOWN:
             return 1;
@@ -619,7 +619,6 @@ public abstract class Value {
                 break;
             }
             case DECIMAL: {
-                // convert to string is required for JDK 1.4
                 switch (getType()) {
                 case BOOLEAN:
                     return ValueDecimal.get(BigDecimal.valueOf(getBoolean().booleanValue() ? 1 : 0));
@@ -643,7 +642,7 @@ public abstract class Value {
                     if (Float.isInfinite(f) || Float.isNaN(f)) {
                         throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, "" + f);
                     }
-                    return ValueDecimal.get(new BigDecimal(Float.toString(f)));
+                    return ValueDecimal.get(BigDecimal.valueOf(f));
                 }
                 }
                 break;

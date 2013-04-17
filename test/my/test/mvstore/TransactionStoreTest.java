@@ -16,7 +16,8 @@ public class TransactionStoreTest {
 		Transaction tx;
 		TransactionMap<String, String> m;
 		long startUpdate;
-		long version;
+		@SuppressWarnings("unused")
+        long version;
 
 		tx = ts.begin();
 
@@ -29,7 +30,7 @@ public class TransactionStoreTest {
 		// insert into test(id, name) values(1, 'Hello'), (2, 'World')
 		startUpdate = tx.setSavepoint();
 		version = s.getCurrentVersion();
-		m = tx.openMap("test", version);
+		m = tx.openMap("test");
 		System.out.println(m.trySet("1", "Hello", true));
 		System.out.println(m.trySet("2", "World", true));
 		// not seen yet (within the same statement)
@@ -40,7 +41,7 @@ public class TransactionStoreTest {
 		startUpdate = tx.setSavepoint();
 		version = s.getCurrentVersion();
 		// now we see the newest version
-		m = tx.openMap("test", version);
+		m = tx.openMap("test");
 		System.out.println("Hello=" + m.get("1"));
 		System.out.println("World=" + m.get("2"));
 		// update test set primaryKey = primaryKey + 1
@@ -62,7 +63,7 @@ public class TransactionStoreTest {
 		// start of statement
 		startUpdate = tx.setSavepoint();
 		version = s.getCurrentVersion();
-		m = tx.openMap("test", version);
+		m = tx.openMap("test");
 		// select * from test
 		System.out.println(m.get("1"));
 		System.out.println("Hello=" + m.get("2"));
@@ -71,7 +72,7 @@ public class TransactionStoreTest {
 		// start of statement
 		startUpdate = tx.setSavepoint();
 		version = s.getCurrentVersion();
-		m = tx.openMap("test", version);
+		m = tx.openMap("test");
 		// update test set id = 1
 		// should fail: duplicate key
 		System.out.println(m.trySet("2", null, true));
@@ -81,7 +82,7 @@ public class TransactionStoreTest {
 		tx.rollbackToSavepoint(startUpdate);
 
 		version = s.getCurrentVersion();
-		m = tx.openMap("test", version);
+		m = tx.openMap("test");
 		System.out.println(m.get("1"));
 		System.out.println("Hello=" + m.get("2"));
 		System.out.println("World=" + m.get("3"));
