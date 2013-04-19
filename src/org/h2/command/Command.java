@@ -227,7 +227,7 @@ public abstract class Command implements CommandInterface {
             }
         }
         synchronized (sync) {
-            int rollback = session.getUndoLogPos(); //记下日志位置，以变失败时回退
+            int rollback = session.getUndoLogPos(); //记下日志位置，以便失败时回退
             session.setCurrentCommand(this);
             try {
                 while (true) {

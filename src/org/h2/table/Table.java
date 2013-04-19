@@ -262,7 +262,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @return true if it is
      */
-    public abstract boolean isDeterministic();
+    public abstract boolean isDeterministic(); //表TableLink是false，FunctionTable、TableView要看具体情况，其他子类返回true
 
     /**
      * Check if the row count can be retrieved quickly.

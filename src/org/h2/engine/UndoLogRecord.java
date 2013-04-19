@@ -150,7 +150,7 @@ public class UndoLogRecord {
             buff.checkCapacity(buff.getValueLen(v));
             buff.writeValue(v);
         }
-        buff.fillAligned();
+        buff.fillAligned(); //按2的最小倍数对齐
         buff.setInt(p, (buff.length() - p) / Constants.FILE_BLOCK_SIZE);
     }
 
@@ -164,7 +164,7 @@ public class UndoLogRecord {
     void save(Data buff, FileStore file, UndoLog log) {
         buff.reset();
         append(buff, log);
-        filePos = (int) (file.getFilePointer() / Constants.FILE_BLOCK_SIZE);
+        filePos = (int) (file.getFilePointer() / Constants.FILE_BLOCK_SIZE); //file.getFilePointer()是文件长度，除以Constants.FILE_BLOCK_SIZE后就是有多个少块
         file.write(buff.getBytes(), 0, buff.length());
         row = null;
         state = STORED;

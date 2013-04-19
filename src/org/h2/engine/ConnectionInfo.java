@@ -143,7 +143,7 @@ public class ConnectionInfo implements Cloneable {
             name = name.substring("file:".length());
             persistent = true;
         } else {
-            persistent = true; //等同于"file:name"
+            persistent = true; //等同于"file:name"，在ConnectionInfo(String name)传过来时就是数据库名，没有前缀，在client端是tcp
         }
         if (persistent && !remote) {
             if ("/".equals(SysProperties.FILE_SEPARATOR)) {
