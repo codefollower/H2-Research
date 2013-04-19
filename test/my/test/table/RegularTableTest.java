@@ -1,6 +1,7 @@
 package my.test.table;
 
 import java.sql.Connection;
+import java.sql.Statement;
 
 import my.test.TestBase;
 
@@ -13,8 +14,10 @@ public class RegularTableTest extends TestBase {
 	public void init() throws Exception {
 		//prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
 		
-		prop.setProperty("MVCC", "true");
+		//prop.setProperty("MVCC", "true");
 		//prop.setProperty("ANALYZE_AUTO", "3");
+		
+		//url = "jdbc:h2:mem:mydb";
 	}
 
 	//测试org.h2.result.LocalResult
@@ -22,8 +25,8 @@ public class RegularTableTest extends TestBase {
 	//org.h2.command.dml.Select.queryWithoutCache(int, ResultTarget)
 	@Override
 	public void startInternal() throws Exception {
-		test();
-		//lock();
+		//test();
+		lock();
 	}
 
 	void test() throws Exception {
@@ -62,8 +65,9 @@ public class RegularTableTest extends TestBase {
 	}
 
 	void lock() throws Exception {
-		//stmt.executeUpdate("SET MULTI_THREADED 1");
+		stmt.executeUpdate("SET MULTI_THREADED 1");
 		new MyThread().start();
+		//new MyThread().start();
 		new MyThread2().start();
 	}
 
@@ -72,7 +76,9 @@ public class RegularTableTest extends TestBase {
 			Connection conn;
 			try {
 				conn = getConnection();
-				conn.createStatement().executeUpdate("insert into RegularTableTest(id, name, b) values(70, 'b3', true)");
+				Statement stmt = conn.createStatement();
+				stmt.executeUpdate("SET MULTI_THREADED 1");
+				stmt.executeUpdate("insert into RegularTableTest(id, name, b) values(70, 'b3', true)");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -85,7 +91,9 @@ public class RegularTableTest extends TestBase {
 			Connection conn;
 			try {
 				conn = getConnection();
-				conn.createStatement().executeQuery("select * from RegularTableTest");
+				Statement stmt = conn.createStatement();
+				stmt.executeUpdate("SET MULTI_THREADED 1");
+				stmt.executeQuery("select * from RegularTableTest");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
