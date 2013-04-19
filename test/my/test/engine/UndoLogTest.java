@@ -12,11 +12,16 @@ public class UndoLogTest extends TestBase {
 	@Override
 	public void init() throws Exception {
 		//prop.setProperty("LARGE_TRANSACTIONS", "false");
+		
+		//当MVCC为true时，哪怕memoryUndo > database.getMaxMemoryUndo()了，也不把undo日志存到临时文件
+		//见org.h2.engine.UndoLog.add(UndoLogRecord)
+		prop.setProperty("MVCC", "true");
 	}
 
 	@Override
 	public void startInternal() throws Exception {
-		stmt.executeUpdate("SET MAX_MEMORY_UNDO 20"); //10K
+		stmt.executeUpdate("SET MAX_MEMORY_UNDO 20");
+		//stmt.executeUpdate("SET UNDO_LOG 0"); //禁用撤消日志，此时所有rollback都无效
 		conn.setAutoCommit(false);
 		//stmt.executeUpdate("SET DB_CLOSE_DELAY -1");
 		stmt.executeUpdate("DROP TABLE IF EXISTS UndoLogTest");

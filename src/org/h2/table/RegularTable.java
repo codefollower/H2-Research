@@ -50,15 +50,15 @@ import org.h2.value.Value;
  */
 public class RegularTable extends TableBase {
 
-    private Index scanIndex;
+    private Index scanIndex; //要么是PageDataIndex，要么是ScanIndex
     private long rowCount;
     private volatile Session lockExclusive;
     private HashSet<Session> lockShared = New.hashSet();
     private final Trace traceLock;
     private final ArrayList<Index> indexes = New.arrayList();
-    private long lastModificationId;
+    private long lastModificationId; //在addRow、commit、removeRow、truncate时改变
     private boolean containsLargeObject;
-    private final PageDataIndex mainIndex;
+    private final PageDataIndex mainIndex; //这个字段用来选主索引列时有用
     private int changesSinceAnalyze;
     private int nextAnalyze;
     private Column rowIdColumn;
@@ -79,6 +79,9 @@ public class RegularTable extends TableBase {
                 containsLargeObject = true;
             }
         }
+        //如果database.isPersistent()是false，说明是内存数据库
+        //如果data.persistData是false，说明是内存临时表
+        //当是内存数据库时，不管data.persistData是false还是true都使用ScanIndex(也就是内存索引)
         if (data.persistData && database.isPersistent()) {
             mainIndex = new PageDataIndex(this, data.id,
                     IndexColumn.wrap(getColumns()),
@@ -90,7 +93,7 @@ public class RegularTable extends TableBase {
             scanIndex = new ScanIndex(this, data.id, IndexColumn.wrap(getColumns()), IndexType.createScan(data.persistData));
         }
         indexes.add(scanIndex);
-        traceLock = database.getTrace(Trace.LOCK);
+        traceLock = database.getTrace(Trace.LOCK); //在起用debug时，其实就是用来输出debug日志，在lock/unlock时记录debug日志
     }
 
     public void close(Session session) {
@@ -106,7 +109,7 @@ public class RegularTable extends TableBase {
      * @param key unique key
      * @return the row
      */
-    public Row getRow(Session session, long key) {
+    public Row getRow(Session session, long key) { //从索引那里过来的，索引那里记录了主表记录的key，按key获取主表的完整记录
         return scanIndex.getRow(session, key);
     }
 
@@ -117,6 +120,7 @@ public class RegularTable extends TableBase {
         }
         int i = 0;
         try {
+        	//truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
             for (int size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 index.add(session, row);
@@ -157,6 +161,7 @@ public class RegularTable extends TableBase {
 
     public void commit(short operation, Row row) {
         lastModificationId = database.getNextModificationDataId();
+        //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
         for (int i = 0, size = indexes.size(); i < size; i++) {
             Index index = indexes.get(i);
             index.commit(operation, row);
@@ -353,7 +358,7 @@ public class RegularTable extends TableBase {
 
     public void removeRow(Session session, Row row) {
         if (database.isMultiVersion()) {
-            if (row.isDeleted()) {
+            if (row.isDeleted()) { //用org.h2.test.rowlock.TestRowLocks可测试这里
                 throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, getName());
             }
             int old = row.getSessionId();
@@ -367,7 +372,7 @@ public class RegularTable extends TableBase {
         lastModificationId = database.getNextModificationDataId();
         int i = indexes.size() - 1;
         try {
-            for (; i >= 0; i--) {
+            for (; i >= 0; i--) { //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
                 Index index = indexes.get(i);
                 index.remove(session, row);
                 checkRowCount(session, index, -1);
@@ -394,6 +399,7 @@ public class RegularTable extends TableBase {
 
     public void truncate(Session session) {
         lastModificationId = database.getNextModificationDataId();
+        //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
         for (int i = indexes.size() - 1; i >= 0; i--) {
             Index index = indexes.get(i);
             index.truncate(session);
@@ -425,18 +431,18 @@ public class RegularTable extends TableBase {
     //比如DDL相关的SQL通常把force设为true，此时不管MVCC，META表都是把force设为true，
     //Select的isForUpdate变种在非MVCC下也把force设为true，
     //Insert、Update之类的才设为false
-    public void lock(Session session, boolean exclusive, boolean force) {
+    public void lock(Session session, boolean exclusive, boolean force) { //琐粒度太大，每insert一行都琐表
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) { //禁用锁
             return;
         }
-        if (!force && database.isMultiVersion()) {
+        if (!force && database.isMultiVersion()) { //如果使用了MVCC，并且不是强制的，则 不使用排它琐
             // MVCC: update, delete, and insert use a shared lock.
             // Select doesn't lock except when using FOR UPDATE and
             // the system property h2.selectForUpdateMvcc
             // is not enabled
             if (exclusive) {
-                exclusive = false;
+                exclusive = false; //禁用排它琐
             } else {
                 if (lockExclusive == null) {
                     return;
@@ -454,7 +460,6 @@ public class RegularTable extends TableBase {
             }
         }
     }
-
     private void doLock(Session session, int lockMode, boolean exclusive) {
         traceLock(session, exclusive, "requesting for");
         // don't get the current time unless necessary
@@ -471,7 +476,7 @@ public class RegularTable extends TableBase {
                         session.addLock(this);
                         lockExclusive = session;
                         return;
-                    //如果前面有一个读锁，此时并是相同的session，那么insert之类的操作也必须等待
+                    //如果前面有一个读锁，并且是相同的session，那么insert之类的操作不须等待
                     } else if (lockShared.size() == 1 && lockShared.contains(session)) {
                         traceLock(session, exclusive, "add (upgraded) for ");
                         lockExclusive = session;
@@ -480,7 +485,7 @@ public class RegularTable extends TableBase {
                 }
             } else {
             	//如果lockExclusive不为null，说明前面有一个排它锁，不管当前操作是查询还是更新，都必须等待，
-            	//如果lockExclusive为null，那面当前操作可顺利进行
+            	//如果lockExclusive为null，那么当前操作可顺利进行
                 if (lockExclusive == null) {
                     if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
                         if (!database.isMultiThreaded() && !database.isMultiVersion()) {
@@ -571,7 +576,22 @@ public class RegularTable extends TableBase {
         }
         return buff.toString();
     }
-
+    
+    //参见org.h2.test.db.TestDeadlock类(此例使用内存数据库的方式测试)
+    
+	//    #2 (user: SA) 占用 PUBLIC.TEST_A
+	//    #3 (user: SA) 占用 PUBLIC.TEST_B
+	//    #4 (user: SA) 占用 PUBLIC.TEST_C
+	//
+	//    #2 (user: SA) 想要 PUBLIC.TEST_B，但是PUBLIC.TEST_B已被#3 (user: SA) 占用
+	//
+	//    #3 (user: SA) 想要 PUBLIC.TEST_C，但是PUBLIC.TEST_C已被#4 (user: SA) 占用
+	//
+	//    #4 (user: SA) 想要 PUBLIC.TEST_A，但是PUBLIC.TEST_A已被#2 (user: SA) 占用
+	//
+	//    Session #3 (user: SA) is waiting to lock PUBLIC.TEST_C while locking PUBLIC.TEST_B (exclusive).
+	//    Session #2 (user: SA) is waiting to lock PUBLIC.TEST_B while locking PUBLIC.TEST_A (exclusive).
+	//    Session #4 (user: SA) is waiting to lock PUBLIC.TEST_A while locking PUBLIC.TEST_C (exclusive).
     public ArrayList<Session> checkDeadlock(Session session, Session clash, Set<Session> visited) {
         // only one deadlock check at any given time
         synchronized (RegularTable.class) {
@@ -699,7 +719,7 @@ public class RegularTable extends TableBase {
         invalidate();
     }
 
-    public String toString() {
+    public String toString() { //模式名.表名
         return getSQL();
     }
 
@@ -752,11 +772,13 @@ public class RegularTable extends TableBase {
     }
 
     public long getRowCountApproximation() {
-        return scanIndex.getRowCountApproximation();
+        return scanIndex.getRowCountApproximation(); //ScanIndex和PageDataIndex都是返回rowCount
     }
 
     @Override
-    public long getDiskSpaceUsed() {
+    public long getDiskSpaceUsed() { //用于DISK_SPACE_USED函数
+    	//如果是ScanIndex，因为ScanIndex只是个内存索引，所以返回0，
+    	//如果么是PageDataIndex，那么就是leaf节点个数*pageSize。
         return scanIndex.getDiskSpaceUsed();
     }
 
@@ -768,7 +790,7 @@ public class RegularTable extends TableBase {
         return true;
     }
 
-    public Column getRowIdColumn() {
+    public Column getRowIdColumn() { //ROWID伪列，columnId是-1
         if (rowIdColumn == null) {
             rowIdColumn = new Column(Column.ROWID, Value.LONG);
             rowIdColumn.setTable(this, -1);

@@ -546,7 +546,7 @@ public class Session extends SessionWithState {
      * @param index the position to which should be rolled back
      * @param trimToSize if the list should be trimmed
      */
-    public void rollbackTo(int index, boolean trimToSize) {
+    public void rollbackTo(int index, boolean trimToSize) { //"SET UNDO_LOG 0"禁用撤消日志，此时所有rollback都无效
         while (undoLog.size() > index) {
             UndoLogRecord entry = undoLog.getLast();
             entry.undo(this);
@@ -642,7 +642,7 @@ public class Session extends SessionWithState {
                     Index index = indexes.get(i);
                     index.commit(operation, row);
                 }
-                row.commit();
+                row.commit(); //把Row中的sessionId设为0
             }
         }
     }
@@ -805,7 +805,7 @@ public class Session extends SessionWithState {
      *
      * @param name the savepoint name
      */
-    public void rollbackToSavepoint(String name) {
+    public void rollbackToSavepoint(String name) { //"SET UNDO_LOG 0"禁用撤消日志，此时所有rollback都无效
         checkCommitRollback();
         if (savepoints == null) {
             throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, name);
