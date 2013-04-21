@@ -3,31 +3,33 @@ package my.test.mvstore;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 
-public class MVStoreTest {
-
-	/**
-	 * @param args
-	 */
+public class MVMapTest {
 	public static void main(String[] args) {
-		MVStore.Builder builder = new MVStore.Builder();
-		builder.cacheSize(10).compressData().readOnly().writeDelay(2000);
+		MVStore store = MVStore.open(null);
 
-		String str = builder.toString();
-
-		System.out.println(str);
-		builder = MVStore.Builder.fromString(str);
-
-		// open the store (in-memory if fileName is null)
-		String fileName = null;
-		fileName = "E:/H2/baseDir/MVStoreTest333";
-		MVStore store = MVStore.open(fileName);
-
-		// create/get the map named "data"
-		MVMap<Integer, String> map = store.openMap("data");
+		MVMap<Integer, String> map = store.openMap("MVMapTest");
+		System.out.println(map.asString("test"));
 
 		// add some data
 		map.put(1, "Hello");
 		map.put(2, "World");
+		map.put(3, "33");
+		map.put(2, "4422");
+		map.put(5, "55");
+		map.put(6, "66");
+		
+		System.out.println(map.ceilingKey(6));
+		System.out.println(map.floorKey(2));
+		
+		System.out.println(map.getKeyIndex(2));
+		
+		System.out.println(map.getName());
+		System.out.println(map.getSize());
+		
+		System.out.println(map.higherKey(2));
+		
+		map.renameMap("MVMapTest22");
+		System.out.println(map.getName());
 
 		// get the current version, for later use
 		long oldVersion = store.getCurrentVersion();
@@ -35,11 +37,18 @@ public class MVStoreTest {
 		// from now on, the old version is read-only
 		store.incrementVersion();
 
+		System.out.println(map.asString("test"));
+
 		// more changes, in the new version
 		// changes can be rolled back if required
 		// changes always go into "head" (the newest version)
 		map.put(1, "Hi");
 		map.remove(2);
+
+		System.out.println(map.asString("test"));
+
+		MVMap<Integer, String> map2 = store.openMap("MVMapTest2");
+		System.out.println(map2.asString("test"));
 
 		// access the old data (before incrementVersion)
 		MVMap<Integer, String> oldMap = map.openVersion(oldVersion);
@@ -62,5 +71,4 @@ public class MVStoreTest {
 		// close the store - this doesn't write to disk
 		store.close();
 	}
-
 }
