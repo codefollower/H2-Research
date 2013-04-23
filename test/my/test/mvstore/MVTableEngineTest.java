@@ -9,7 +9,7 @@ public class MVTableEngineTest extends TestBase {
 
 	@Override
 	public void startInternal() throws Exception {
-		stmt.executeUpdate("DROP TABLE IF EXISTS MVTableEngineTest CASCADE");
+		//stmt.executeUpdate("DROP TABLE IF EXISTS MVTableEngineTest CASCADE");
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS MVTableEngineTest(id int, name varchar(500), b boolean) "
 				+ "ENGINE \"org.h2.mvstore.db.MVTableEngine\"");
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS MVTableEngineTestIndex ON MVTableEngineTest(name)");

@@ -24,7 +24,7 @@ import org.h2.util.New;
  * A table engine that internally uses the MVStore.
  */
 public class MVTableEngine implements TableEngine {
-	//key是数所库名，Database、Store、TransactionStore、MVStore的实例个数是一对一的
+	//key是数据库名，Database、Store、TransactionStore、MVStore的实例个数是一对一的
     static final Map<String, Store> STORES = new WeakHashMap<String, Store>();
 
     /**
