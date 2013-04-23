@@ -9,6 +9,7 @@ package org.h2.value;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.lang.ref.SoftReference;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -18,14 +19,15 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+
 import org.h2.constant.ErrorCode;
 import org.h2.constant.SysProperties;
+import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
 import org.h2.store.LobStorage;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.DateTimeUtils;
-import org.h2.util.IOUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
@@ -427,7 +429,7 @@ public abstract class Value {
     }
 
     public Reader getReader() {
-        return IOUtils.getReaderFromString(getString());
+        return new StringReader(getString());
     }
 
     /**
@@ -642,7 +644,8 @@ public abstract class Value {
                     if (Float.isInfinite(f) || Float.isNaN(f)) {
                         throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, "" + f);
                     }
-                    return ValueDecimal.get(BigDecimal.valueOf(f));
+                    // better rounding behavior than BigDecimal.valueOf(f)
+                    return ValueDecimal.get(new BigDecimal(Float.toString(f)));
                 }
                 }
                 break;
@@ -832,7 +835,7 @@ public abstract class Value {
             case FLOAT:
                 return ValueFloat.get(Float.parseFloat(s.trim()));
             case CLOB:
-                return LobStorage.createSmallLob(CLOB, StringUtils.utf8Encode(s));
+                return LobStorage.createSmallLob(CLOB, s.getBytes(Constants.UTF8));
             case BLOB:
                 return LobStorage.createSmallLob(BLOB, StringUtils.convertHexToBytes(s.trim()));
             case ARRAY:

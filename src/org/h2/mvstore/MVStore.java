@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.h2.compress.CompressLZF;
 import org.h2.compress.Compressor;
+import org.h2.engine.Constants;
 import org.h2.mvstore.cache.CacheLongKeyLIRS;
 import org.h2.mvstore.cache.FilePathCache;
 import org.h2.mvstore.type.StringDataType;
@@ -343,6 +344,9 @@ public class MVStore {
             c.put("createVersion", Long.toString(currentVersion));
             map = builder.create();
             map.init(this, c);
+            //有意反过来的
+            //id=>name
+            //name=>id
             meta.put("map." + id, map.asString(name));
             meta.put("name." + name, Integer.toString(id));
             markMetaChanged();
@@ -434,9 +438,10 @@ public class MVStore {
         c.put("id", "0");
         c.put("createVersion", Long.toString(currentVersion));
         meta.init(this, c);
-        if (fileName == null) {
+        if (fileName == null) { //内存模式，不用读文件
             return;
         }
+        //以下是打开文件
         FilePath parent = FilePath.get(fileName).getParent();
         if (!parent.exists()) {
             throw DataUtils.newIllegalArgumentException("Directory does not exist: {0}", parent);
@@ -491,9 +496,9 @@ public class MVStore {
                 byte[] password = FilePathCrypt.getPasswordBytes(filePassword);
                 file = new FilePathCrypt.FileCrypt(fileName, password, file);
             }
-            file = FilePathCache.wrap(file);
+            file = FilePathCache.wrap(file); //内部有ByteBuffer缓存
             if (readOnly) {
-                fileLock = file.tryLock(0, Long.MAX_VALUE, true);
+                fileLock = file.tryLock(0, Long.MAX_VALUE, true); //共享琐
                 if (fileLock == null) {
                     throw new IOException("The file is locked: " + fileName);
                 }
@@ -504,7 +509,7 @@ public class MVStore {
                 }
             }
             fileSize = file.size();
-            if (fileSize == 0) {
+            if (fileSize == 0) { //第一次打开时为0，当成新文件
                 creationTime = 0;
                 creationTime = getTime();
                 lastStoreTime = creationTime;
@@ -599,8 +604,8 @@ public class MVStore {
         buff.position(BLOCK_SIZE);
         fileReadCount++;
         DataUtils.readFully(file, 0, buff);
-        for (int i = 0; i < 3 * BLOCK_SIZE; i += BLOCK_SIZE) {
-            String s = DataUtils.utf8Decode(buff.array(), i, BLOCK_SIZE)
+        for (int i = 0; i < 3 * BLOCK_SIZE; i += BLOCK_SIZE) { //检查冗余块
+            String s = new String(buff.array(), i, BLOCK_SIZE, Constants.UTF8)
                     .trim();
             HashMap<String, String> m = DataUtils.parseMap(s);
             String f = m.remove("fletcher");
@@ -613,8 +618,8 @@ public class MVStore {
             } catch (NumberFormatException e) {
                 check = -1;
             }
-            s = s.substring(0, s.lastIndexOf("fletcher") - 1) + " ";
-            byte[] bytes = DataUtils.utf8Encode(s);
+            s = s.substring(0, s.lastIndexOf("fletcher") - 1);
+            byte[] bytes = s.getBytes(Constants.UTF8);
             int checksum = DataUtils.getFletcher32(bytes, bytes.length / 2 * 2);
             if (check != checksum) {
                 continue;
@@ -640,10 +645,10 @@ public class MVStore {
         fileHeader.put("rootChunk", "" + rootChunkStart);
         fileHeader.put("version", "" + currentVersion);
         DataUtils.appendMap(buff, fileHeader);
-        byte[] bytes = DataUtils.utf8Encode(buff.toString() + " ");
+        byte[] bytes = buff.toString().getBytes(Constants.UTF8);
         int checksum = DataUtils.getFletcher32(bytes, bytes.length / 2 * 2);
         DataUtils.appendMap(buff, "fletcher", Integer.toHexString(checksum));
-        bytes = DataUtils.utf8Encode(buff.toString());
+        bytes = buff.toString().getBytes(Constants.UTF8);
         DataUtils.checkArgument(bytes.length <= BLOCK_SIZE,
                 "File header too large: {0}", buff);
         return bytes;

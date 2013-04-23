@@ -9,6 +9,7 @@ package org.h2.command.dml;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.Constants;
@@ -30,7 +31,7 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
      */
     private static final char UTF8_BOM = '\uFEFF';
 
-    private String charset = Constants.UTF8;
+    private Charset charset = Constants.UTF8;
 
     public RunScriptCommand(Session session) {
         super(session);
@@ -84,7 +85,7 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
         }
     }
 
-    public void setCharset(String charset) {
+    public void setCharset(Charset charset) {
         this.charset = charset;
     }
 
