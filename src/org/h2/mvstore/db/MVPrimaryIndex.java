@@ -53,10 +53,12 @@ public class MVPrimaryIndex extends BaseIndex {
                 null, null, null);
         ValueDataType valueType = new ValueDataType(
                 db.getCompareMode(), db, sortTypes);
-        mapName = getName() + "_" + getId();
+        mapName = getName() + "_" + getId(); //如MVTABLEENGINETEST_DATA_14
         MVMap.Builder<Value, Value> mapBuilder = new MVMap.Builder<Value, Value>().
                 keyType(keyType).
                 valueType(valueType);
+        //mvTable.getTransaction(null)会创建一个新的Transaction对象，
+        //不过创建新的Transaction对象并不会对以后的事务有什么影响，这个新的Transaction对象是临时的，并不需要commit或rollback
         dataMap = mvTable.getTransaction(null).openMap(mapName, mapBuilder);
         Value k = dataMap.lastKey();
         lastKey = k == null ? 0 : k.getLong();
@@ -68,7 +70,7 @@ public class MVPrimaryIndex extends BaseIndex {
      * @param newName the new name
      */
     public void renameTable(String newName) {
-        TransactionMap<Value, Value> map = getMap(null);
+        TransactionMap<Value, Value> map = getMap(null); //getMap(null)返回的其实就是dataMap
         rename(newName + "_DATA");
         String newMapName = newName + "_DATA_" + getId();
         map.renameMap(newMapName);
@@ -76,14 +78,14 @@ public class MVPrimaryIndex extends BaseIndex {
     }
 
     public String getCreateSQL() {
-        return null;
+        return null; //第个表默认都有个MVPrimaryIndex，并不需要显示创建，所以也不需要Create SQL
     }
 
     public String getPlanSQL() {
         return table.getSQL() + ".tableScan";
     }
 
-    public void setMainIndexColumn(int mainIndexColumn) {
+    public void setMainIndexColumn(int mainIndexColumn) { //跟org.h2.index.PageDataIndex.mainIndexColumn一样
         this.mainIndexColumn = mainIndexColumn;
     }
 
@@ -98,11 +100,11 @@ public class MVPrimaryIndex extends BaseIndex {
 
     @Override
     public void add(Session session, Row row) {
-        if (mainIndexColumn == -1) {
+        if (mainIndexColumn == -1) { //没有mainIndexColumn时自动生成记录唯一行key
             if (row.getKey() == 0) {
                 row.setKey(++lastKey);
             }
-        } else {
+        } else { //否则使用mainIndexColumn的值
             Long c = row.getValue(mainIndexColumn).getLong();
             row.setKey(c);
         }
@@ -133,16 +135,19 @@ public class MVPrimaryIndex extends BaseIndex {
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
         long min, max;
+        //当mainIndexColumn < 0时说明没有设PRIMARY KEY，此时用自动生成的key，
+        //所以最小值不能精确指定，用Long.MIN_VALUE更合适
         if (first == null || mainIndexColumn < 0) {
             min = Long.MIN_VALUE;
-        } else {
+        } else { //只有first != && || mainIndexColumn >= 0时才转到else分枝
             Value v = first.getValue(mainIndexColumn);
             if (v == null) {
                 min = 0;
             } else {
-                min = v.getLong();
+                min = v.getLong(); //不管PRIMARY KEY是byte、short、int都转到long
             }
         }
+        //同上
         if (last == null || mainIndexColumn < 0) {
             max = Long.MAX_VALUE;
         } else {
@@ -154,6 +159,7 @@ public class MVPrimaryIndex extends BaseIndex {
             }
         }
         TransactionMap<Value, Value> map = getMap(session);
+        //map.keyIterator(ValueLong.get(min))得到的是一个从min开始的key列表，不是值
         return new MVStoreCursor(session, map.keyIterator(
                 ValueLong.get(min)), max);
     }
@@ -292,9 +298,9 @@ public class MVPrimaryIndex extends BaseIndex {
         if (session == null) {
             return dataMap;
         }
-        Transaction t = mvTable.getTransaction(session);
+        Transaction t = mvTable.getTransaction(session); //会使用Session中的Transaction对象
         long savepoint = session.getStatementSavepoint();
-        return dataMap.getInstance(t, savepoint);
+        return dataMap.getInstance(t, savepoint); //会得到一个dataMap在savepoint时的Map，但是并不会对dataMap进行复制
     }
 
     /**
