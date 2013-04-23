@@ -84,7 +84,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         if (p.getVersion() == writeVersion) {
             return p;
         }
-        return p.copy(writeVersion);
+        return p.copy(writeVersion); //得到的新page的keys, values, children, childrenPages与p中的一样，不会真的copy，只是引用
     }
 
     /**
@@ -100,7 +100,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         beforeWrite();
         try {
             long writeVersion = store.getCurrentVersion();
-            Page p = copyOnWrite(root, writeVersion);
+            Page p = copyOnWrite(root, writeVersion); //root最开始时的version是-1
             p = splitRootIfNeeded(p, writeVersion);
             Object result = put(p, writeVersion, key, value);
             newRoot(p);
@@ -118,6 +118,8 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @return the new sibling
      */
     protected Page splitRootIfNeeded(Page p, long writeVersion) {
+    	//如果page占用的内存小于6K或者page的key个数小于等于1都不切割此page
+    	//也就是说可能存在page占用的内存大于6k，但是key个数只有一个的情况(比如此key对应的value值很大)，这种情况不进行切割
         if (p.getMemory() <= store.getPageSize() || p.getKeyCount() <= 1) {
             return p;
         }
@@ -129,6 +131,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         long[] children = { p.getPos(), split.getPos() };
         Page[] childrenPages = { p, split };
         long[] counts = { p.getTotalCount(), split.getTotalCount() };
+        //Node是没有Values的，所以为null
         p = Page.create(this, writeVersion, 1,
                 keys, null, children, childrenPages, counts, totalCount, 0, 0);
         return p;
@@ -146,12 +149,12 @@ public class MVMap<K, V> extends AbstractMap<K, V>
     protected Object put(Page p, long writeVersion, Object key, Object value) {
         int index = p.binarySearch(key);
         if (p.isLeaf()) {
-            if (index < 0) {
+            if (index < 0) { //新key
                 index = -index - 1;
                 p.insertLeaf(index, key, value);
-                return null;
+                return null; //新key时返回null
             }
-            return p.setValue(index, value);
+            return p.setValue(index, value); //原来已存在，只需覆盖即可，从这里看出MVMap是不存放重复key的
         }
         // p is a node
         if (index < 0) {
@@ -930,7 +933,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
     /**
      * Check that no write operation is in progress.
      */
-    protected void checkConcurrentWrite() {
+    protected void checkConcurrentWrite() { //子类MVMapConcurrent覆盖了此方法并屏蔽检查
         if (writing) {
             // try to detect concurrent modification
             // on a best-effort basis
@@ -966,7 +969,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         return this == o;
     }
 
-    public int size() {
+    public int size() { //不能超过Integer.MAX_VALUE
         long size = getSize();
         return size > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) size;
     }

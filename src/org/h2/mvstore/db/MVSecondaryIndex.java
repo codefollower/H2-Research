@@ -131,7 +131,7 @@ public class MVSecondaryIndex extends BaseIndex {
         return new MVStoreCursor(session, map.keyIterator(min), last);
     }
 
-    private ValueArray getKey(SearchRow r) {
+    private ValueArray getKey(SearchRow r) { //把key也放到ValueArray最后了
         if (r == null) {
             return null;
         }

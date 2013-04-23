@@ -11,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -66,7 +67,7 @@ import org.h2.value.ValueString;
  */
 public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此命令返回结果集，所以要用executeQuery，与RUNSCRIPT相反
 
-    private String charset = Constants.UTF8;
+    private Charset charset = Constants.UTF8;
     private Set<String> schemaNames;
     private Collection<Table> tables;
     private boolean passwords;
@@ -625,12 +626,8 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
     private void reset() {
         result = null;
         buffer = null;
-        try {
-            lineSeparatorString = SysProperties.LINE_SEPARATOR;
-            lineSeparator = lineSeparatorString.getBytes(charset);
-        } catch (IOException e) {
-            throw DbException.convertIOException(e, null);
-        }
+        lineSeparatorString = SysProperties.LINE_SEPARATOR;
+        lineSeparator = lineSeparatorString.getBytes(charset);
     }
 
     private boolean excludeSchema(Schema schema) {
@@ -691,7 +688,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
         this.simple = simple;
     }
 
-    public void setCharset(String charset) {
+    public void setCharset(Charset charset) {
         this.charset = charset;
     }
 
