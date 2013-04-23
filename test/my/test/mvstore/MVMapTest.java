@@ -49,9 +49,19 @@ public class MVMapTest {
 
 		MVMap<Integer, String> map2 = store.openMap("MVMapTest2");
 		System.out.println(map2.asString("test"));
+		
+		//map.openVersion(-1);
 
 		// access the old data (before incrementVersion)
 		MVMap<Integer, String> oldMap = map.openVersion(oldVersion);
+		
+		//oldMap.removeMap();
+		
+		//map.openVersion(0);
+
+		
+		map2.removeMap();
+		map.openVersion(2);
 
 		// mark the changes as committed
 		store.commit();
