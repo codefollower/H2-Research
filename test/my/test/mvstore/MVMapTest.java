@@ -5,10 +5,42 @@ import org.h2.mvstore.MVStore;
 
 public class MVMapTest {
 	public static void main(String[] args) {
+		//		String fileName = null;
+		//		fileName = "E:/H2/baseDir/MVStoreTest333";
+		//		MVStore store = MVStore.open(fileName);
 		MVStore store = MVStore.open(null);
+		store.setPageSize(512);
 
 		MVMap<Integer, String> map = store.openMap("MVMapTest");
 		System.out.println(map.asString("test"));
+
+		int n = 100;
+		for (int i = 0; i < n; i++) {
+			map.put(i, "Hello" + i);
+
+			if (i % 20 == 0)
+				store.incrementVersion();
+		}
+
+		System.out.println(map.getRoot());
+
+		System.out.println(map.openVersion(0).getRoot());
+
+		System.out.println(map.openVersion(1).getRoot());
+
+		System.out.println(map.openVersion(2).getRoot());
+
+		System.out.println(map.getKey(10));
+
+		map.remove(0);
+		map.remove(1);
+		map.remove(2);
+		
+		for (int i = 0; i < 18; i++) {
+			map.remove(i);
+		}
+
+		System.out.println(map.getRoot());
 
 		// add some data
 		map.put(1, "Hello");
@@ -17,17 +49,17 @@ public class MVMapTest {
 		map.put(2, "4422");
 		map.put(5, "55");
 		map.put(6, "66");
-		
+
 		System.out.println(map.ceilingKey(6));
 		System.out.println(map.floorKey(2));
-		
+
 		System.out.println(map.getKeyIndex(2));
-		
+
 		System.out.println(map.getName());
 		System.out.println(map.getSize());
-		
+
 		System.out.println(map.higherKey(2));
-		
+
 		map.renameMap("MVMapTest22");
 		System.out.println(map.getName());
 
@@ -49,17 +81,16 @@ public class MVMapTest {
 
 		MVMap<Integer, String> map2 = store.openMap("MVMapTest2");
 		System.out.println(map2.asString("test"));
-		
+
 		//map.openVersion(-1);
 
 		// access the old data (before incrementVersion)
 		MVMap<Integer, String> oldMap = map.openVersion(oldVersion);
-		
+
 		//oldMap.removeMap();
-		
+
 		//map.openVersion(0);
 
-		
 		map2.removeMap();
 		map.openVersion(2);
 

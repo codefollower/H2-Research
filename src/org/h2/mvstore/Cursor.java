@@ -50,7 +50,7 @@ public class Cursor<K> implements Iterator<K> {
      *
      * @param n the number of entries to skip
      */
-    public void skip(long n) {
+    public void skip(long n) { //只在test中用到
         if (!hasNext()) {
             return;
         }
@@ -94,7 +94,7 @@ public class Cursor<K> implements Iterator<K> {
             } else {
                 x++;
             }
-            pos = new CursorPos(p, x + 1, pos);
+            pos = new CursorPos(p, x + 1, pos); //父Node，这里为pos赋值，当p是Leaf时，pos.parent就不为null了
             p = p.getChildPage(x);
         }
     }

@@ -27,6 +27,7 @@ public class MVDelegateIndex extends BaseIndex {
     public MVDelegateIndex(MVTable table, int id, String name,
             MVPrimaryIndex mainIndex,
             IndexType indexType) {
+    	//只有一列
         IndexColumn[] cols = IndexColumn.wrap(new Column[] { table.getColumn(mainIndex.getMainIndexColumn())});
         this.initBaseIndex(table, id, name, cols, indexType);
         this.mainIndex = mainIndex;

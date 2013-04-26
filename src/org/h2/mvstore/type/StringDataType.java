@@ -12,7 +12,7 @@ import org.h2.mvstore.DataUtils;
 /**
  * A string type.
  */
-public class StringDataType implements DataType {
+public class StringDataType implements DataType { //注意与org.h2.mvstore.type.ObjectDataType.StringType两者的用法与区别
 
     public static final StringDataType INSTANCE = new StringDataType();
 

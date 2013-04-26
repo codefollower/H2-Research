@@ -66,6 +66,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param config the configuration
      */
     protected void init(MVStore store, HashMap<String, String> config) {
+    	//这三个字段只在这里赋值
         this.store = store;
         this.id = Integer.parseInt(config.get("id"));
         String x = config.get("createVersion");
@@ -100,10 +101,12 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         beforeWrite();
         try {
             long writeVersion = store.getCurrentVersion();
-            Page p = copyOnWrite(root, writeVersion); //root最开始时的version是-1
+            //root最开始时的version是-1，每次put前都判断一下当前写版本是否与root的版本一样，不一样就copy一分root的引用
+            Page p = copyOnWrite(root, writeVersion);
             p = splitRootIfNeeded(p, writeVersion);
             Object result = put(p, writeVersion, key, value);
             newRoot(p);
+            //System.out.println(p);
             return (V) result;
         } finally {
             afterWrite();
@@ -150,6 +153,10 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         int index = p.binarySearch(key);
         if (p.isLeaf()) {
             if (index < 0) { //新key
+            	//index从binarySearch返回时是index=-(low + 1), 
+            	//所以-index - 1 = -(-(low + 1)) - 1 = (low + 1) - 1 = low
+            	//这里最后得到的就是low，但是binarySearch为了用正数区分找到key值，
+            	//用负数表示没找到key但又想用此负数来暗示适合新key的位置，所以用了这种迂回的办法
                 index = -index - 1;
                 p.insertLeaf(index, key, value);
                 return null; //新key时返回null
@@ -160,10 +167,10 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         if (index < 0) {
             index = -index - 1;
         } else {
-            index++;
+            index++; //Node节点中的分隔key个数等于ChildPage的个数-1，并且>=key的在右边，所以这里的index要加1
         }
         Page c = copyOnWrite(p.getChildPage(index), writeVersion);
-        if (c.getMemory() > store.getPageSize() && c.getKeyCount() > 1) {
+        if (c.getMemory() > store.getPageSize() && c.getKeyCount() > 1) { //切割Node或Leaf节点
             // split on the way down
             int at = c.getKeyCount() / 2;
             Object k = c.getKey(at);
@@ -207,7 +214,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @return the key
      */
     @SuppressWarnings("unchecked")
-    public K getKey(long index) {
+    public K getKey(long index) { //类似于取index号下标的数组元素的操作，index从0开始
         checkOpen();
         if (index < 0 || index >= size()) {
             return null;
@@ -442,7 +449,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @return the value or null
      */
     protected Object binarySearch(Page p, Object key) {
-        int x = p.binarySearch(key);
+        int x = p.binarySearch(key); //binarySearch的结果分析见put(Page, long, Object, Object)
         if (!p.isLeaf()) {
             if (x < 0) {
                 x = -x - 1;
@@ -674,6 +681,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         if (c.getTotalCount() == 0) {
             // this child was deleted
             if (p.getKeyCount() == 0) {
+            	//当p是Node时不马上删除p，因为此时必是递归调用remove方法的，所以返回到上一层时在父节点删除p
                 p.setChild(index, c);
                 p.setCounts(index, c);
                 removePage(p.getPos());
@@ -835,7 +843,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      *
      * @param version the version
      */
-    void rollbackTo(long version) {
+    void rollbackTo(long version) { //删除oldRoots中>version的old root，然后把root切换到<=version的第一个old root
         beforeWrite();
         try {
             removeUnusedOldVersions();
@@ -957,7 +965,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      */
     protected void waitUntilWritten(Page root) {
         while (writing && root == this.root) {
-            Thread.yield();
+            Thread.yield(); //暂停，让其他线程执行
         }
     }
 
@@ -1038,7 +1046,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      *
      * @return the opened map
      */
-    protected MVMap<K, V> openReadOnly() {
+    protected MVMap<K, V> openReadOnly() { //不复制数据，还是从root节点开始，新生成一个Map只是把readOnly设为true
         MVMap<K, V> m = new MVMap<K, V>(keyType, valueType);
         m.readOnly = true;
         HashMap<String, String> config = New.hashMap();
