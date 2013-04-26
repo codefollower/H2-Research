@@ -244,25 +244,27 @@ public class Page {
     }
 
     public String toString() {
-        StringBuilder buff = new StringBuilder();
-        buff.append("id: ").append(System.identityHashCode(this)).append('\n');
-        buff.append("pos: ").append(pos).append("\n");
-        for (int i = 0; i <= keyCount; i++) {
-            if (i > 0) {
-                buff.append(" ");
-            }
-            if (children != null) {
-                buff.append("[" + children[i] + "] ");
-            }
-            if (i < keyCount) {
-                buff.append(keys[i]);
-                if (values != null) {
-                    buff.append(':');
-                    buff.append(values[i]);
-                }
-            }
-        }
-        return buff.toString();
+//        StringBuilder buff = new StringBuilder();
+//        buff.append("id: ").append(System.identityHashCode(this)).append('\n');
+//        buff.append("pos: ").append(pos).append("\n");
+//        for (int i = 0; i <= keyCount; i++) {
+//            if (i > 0) {
+//                buff.append(" ");
+//            }
+//            if (children != null) {
+//                buff.append("[" + children[i] + "] ");
+//            }
+//            if (i < keyCount) {
+//                buff.append(keys[i]);
+//                if (values != null) {
+//                    buff.append(':');
+//                    buff.append(values[i]);
+//                }
+//            }
+//        }
+//        return buff.toString();
+//        
+        return tree("", this);
     }
 
     /**
@@ -923,6 +925,62 @@ public class Page {
 
     void setVersion(long version) {
         this.version = version;
-    }
+	}
+
+	public String tree(String p, Page page) {
+		StringBuilder s = new StringBuilder(200);
+
+		if (page.isLeaf())
+			s.append(p + "PageLeaf{\r\n");
+		else
+			s.append(p + "PageNode{\r\n");
+		s.append(p + "\t" + "id = " + System.identityHashCode(page) + "\r\n");
+		s.append(p + "\t" + "pos = " + page.pos + "\r\n");
+		s.append(p + "\t" + "version = " + page.version + "\r\n");
+		s.append(p + "\t" + "keyCount = " + page.keyCount + "\r\n");
+		if (page.isLeaf())
+			s.append("\r\n");
+		if (!page.isLeaf()) {
+			s.append(p + "\t" + "totalCount = " + page.totalCount + "\r\n");
+			s.append("\r\n");
+			s.append(p + "\t");
+			for (int i = 0; i <= page.keyCount; i++) {
+
+				if (i > 0) {
+					s.append(" ");
+				}
+				if (page.children != null) {
+					s.append("[" + page.children[i] + "] ");
+				}
+				if (i < page.keyCount) {
+					s.append(page.keys[i]);
+					if (page.values != null) {
+						s.append(':');
+						s.append(page.values[i]);
+					}
+				}
+
+			}
+			s.append("\r\n");
+		} else {
+			for (int i = 0; i < page.keyCount; i++) {
+				s.append(p + "\t");
+				s.append(page.keys[i]);
+				if (page.values != null) {
+					s.append(':');
+					s.append(page.values[i]);
+				}
+				s.append("\r\n");
+			}
+		}
+		if (page.children != null) {
+			for (int i = 0; i <= page.keyCount; i++) {
+				s.append(tree(p + "\t", page.childrenPages[i]));
+			}
+		}
+
+		s.append(p + "}\r\n");
+		return s.toString();
+	}
 
 }

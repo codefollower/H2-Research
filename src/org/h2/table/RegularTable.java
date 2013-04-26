@@ -109,7 +109,7 @@ public class RegularTable extends TableBase {
      * @param key unique key
      * @return the row
      */
-    public Row getRow(Session session, long key) { //从索引那里过来的，索引那里记录了主表记录的key，按key获取主表的完整记录
+    public Row getRow(Session session, long key) { //从辅助索引那里过来的，索引那里记录了主表记录的key，按key获取主表的完整记录
         return scanIndex.getRow(session, key);
     }
 

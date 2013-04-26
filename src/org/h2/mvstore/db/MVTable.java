@@ -328,7 +328,7 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public boolean canTruncate() {
+    public boolean canTruncate() { //同org.h2.table.RegularTable.canTruncate()
         // TODO copy & pasted source code from RegularTable
         if (getCheckForeignKeyConstraints() && database.getReferentialIntegrity()) {
             ArrayList<Constraint> constraints = getConstraints();
@@ -349,7 +349,7 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public void close(Session session) {
+    public void close(Session session) { //并不需要像RegularTable一样关闭所有表上的索引
         MVTableEngine.closeTable(storeName, this);
     }
 
@@ -360,10 +360,11 @@ public class MVTable extends TableBase {
      * @param key the primary key
      * @return the row
      */
-    Row getRow(Session session, long key) {
+    Row getRow(Session session, long key) { //从辅助索引那里过来的，索引那里记录了主表记录的key，按key获取主表的完整记录
         return primaryIndex.getRow(session, key);
     }
-
+    
+    //参考RegularTable.addIndex中的注释
     @Override
     public Index addIndex(Session session, String indexName, int indexId,
             IndexColumn[] cols, IndexType indexType, boolean create,
@@ -528,7 +529,7 @@ public class MVTable extends TableBase {
             }
             rowCount++;
         } catch (Throwable e) {
-            t.rollbackToSavepoint(savepoint);
+            t.rollbackToSavepoint(savepoint); //RegularTable不需要rollback，而是直接index.remove，两者是相等的
             DbException de = DbException.convert(e);
             if (de.getErrorCode() == ErrorCode.DUPLICATE_KEY_1) {
                 for (int j = 0; j < indexes.size(); j++) {

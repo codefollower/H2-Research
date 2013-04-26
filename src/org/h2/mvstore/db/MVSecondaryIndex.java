@@ -49,17 +49,18 @@ public class MVSecondaryIndex extends BaseIndex {
         this.mvTable = table;
         initBaseIndex(table, id, indexName, columns, indexType);
         if (!database.isStarting()) {
-            checkIndexColumnTypes(columns);
+            checkIndexColumnTypes(columns); //不能在CLOB、BLOG列上建索引
         }
         // always store the row key in the map key,
         // even for unique indexes, as some of the index columns could be null
-        keyColumns = columns.length + 1;
+        keyColumns = columns.length + 1; //比MVPrimaryIndex多加了一列，最后一列对应行key
         int[] sortTypes = new int[keyColumns];
         for (int i = 0; i < columns.length; i++) {
             sortTypes[i] = columns[i].sortType;
         }
         sortTypes[keyColumns - 1] = SortOrder.ASCENDING;
         mapName = getName() + "_" + getId();
+        //keyType和valueType与MVPrimaryIndex刚好相反，MVPrimaryIndex的keyType是new ValueDataType(null, null, null)
         ValueDataType keyType = new ValueDataType(
                 db.getCompareMode(), db, sortTypes);
         ValueDataType valueType = new ValueDataType(null, null, null);
@@ -94,9 +95,9 @@ public class MVSecondaryIndex extends BaseIndex {
     @Override
     public void add(Session session, Row row) {
         TransactionMap<Value, Value> map = getMap(session);
-        ValueArray array = getKey(row);
+        ValueArray array = getKey(row); //把所有索引列和行key组合成map的key
         if (indexType.isUnique()) {
-            array.getList()[keyColumns - 1] = ValueLong.get(0);
+            array.getList()[keyColumns - 1] = ValueLong.get(0); //如果是唯一索引，把行key清0
             ValueArray key = (ValueArray) map.ceilingKey(array);
             if (key != null) {
                 SearchRow r2 = getRow(key.getList());
@@ -107,17 +108,17 @@ public class MVSecondaryIndex extends BaseIndex {
                 }
             }
         }
-        array.getList()[keyColumns - 1] = ValueLong.get(row.getKey());
-        map.put(array, ValueLong.get(0));
+        array.getList()[keyColumns - 1] = ValueLong.get(row.getKey()); //在唯一索引时会改变为0，所以这里重新设置回来
+        map.put(array, ValueLong.get(0)); //值都是0
     }
 
     @Override
     public void remove(Session session, Row row) {
-        ValueArray array = getKey(row);
+        ValueArray array = getKey(row); //把所有索引列和行key组合成map的key
         TransactionMap<Value, Value> map = getMap(session);
         Value old = map.remove(array);
         if (old == null) {
-            if (old == null) {
+            if (old == null) { //为什么要比较两次？
                 throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
                         getSQL() + ": " + row.getKey());
             }
@@ -217,11 +218,14 @@ public class MVSecondaryIndex extends BaseIndex {
 
     @Override
     public boolean needRebuild() {
-        return getMap(null).getSize() == 0;
+        return getMap(null).getSize() == 0; //Map中没有记录时才要重建
     }
 
     @Override
     public long getRowCount(Session session) {
+    	//getMap(session)与getMap(null)的差别是，getMap(session)会以当前事务的savepoint为准，
+    	//而getMap(null)没有限制，因为getRowCountApproximation()是求近似值，所以用getMap(null)合适
+    	//getMap(null)得到的值有可能大于getMap(session)
         TransactionMap<Value, Value> map = getMap(session);
         return map.getSize();
     }
@@ -247,7 +251,7 @@ public class MVSecondaryIndex extends BaseIndex {
      * @param session the session
      * @return the map
      */
-    TransactionMap<Value, Value> getMap(Session session) {
+    TransactionMap<Value, Value> getMap(Session session) { //与MVPrimaryIndex中的一样
         if (session == null) {
             return dataMap;
         }
@@ -267,7 +271,9 @@ public class MVSecondaryIndex extends BaseIndex {
         private Value current;
         private SearchRow searchRow;
         private Row row;
-
+        
+        //与MVPrimaryIndex.MVStoreCursor不同，这里的Iterator<Value> it就是Key值，但是因为Key值已经完整包括索引列值和行key了，
+        //所以不需要再从Map中get值了
         public MVStoreCursor(Session session, Iterator<Value> it, SearchRow last) {
             this.session = session;
             this.it = it;
