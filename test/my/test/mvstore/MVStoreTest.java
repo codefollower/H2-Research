@@ -2,6 +2,7 @@ package my.test.mvstore;
 
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
+import org.h2.store.fs.FileUtils;
 
 public class MVStoreTest {
 
@@ -20,10 +21,28 @@ public class MVStoreTest {
 		// open the store (in-memory if fileName is null)
 		String fileName = null;
 		fileName = "E:/H2/baseDir/MVStoreTest333";
-		MVStore store = MVStore.open(fileName);
+		MVStore store = null;
+		FileUtils.deleteRecursive(fileName, true);
+
+		//store = MVStore.open(fileName);
+
+		builder = new MVStore.Builder();
+		builder.writeDelay(0).fileName(fileName);
+
+		store = builder.open();
 
 		// create/get the map named "data"
 		MVMap<Integer, String> map = store.openMap("data");
+
+		int n = 100;
+		for (int i = 0; i < n; i++) {
+			map.put(i, "Hello" + i);
+
+			if (i % 20 == 0)
+				store.incrementVersion();
+		}
+
+		store.commit();
 
 		// add some data
 		map.put(1, "Hello");

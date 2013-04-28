@@ -119,7 +119,7 @@ public class Chunk {
      *
      * @param buff the target buffer
      */
-    void writeHeader(ByteBuffer buff) {
+    void writeHeader(ByteBuffer buff) { //此类问共11字段，不包含start、pageCountLive、collectPriority、version、time这5个字段
         buff.put((byte) 'c');
         buff.putInt(length);
         buff.putInt(id);
@@ -135,7 +135,7 @@ public class Chunk {
      * @param s the string
      * @return the block
      */
-    public static Chunk fromString(String s) {
+    public static Chunk fromString(String s) { //此类问共11字段，这里不包含collectPriority字段
         HashMap<String, String> map = DataUtils.parseMap(s);
         int id = Integer.parseInt(map.get("id"));
         Chunk c = new Chunk(id);
@@ -168,7 +168,7 @@ public class Chunk {
      *
      * @return the string
      */
-    public String asString() {
+    public String asString() { //此类问共11字段，这里不包含collectPriority字段
         return
                 "id:" + id + "," +
                 "length:" + length + "," +
