@@ -160,6 +160,7 @@ public class MVStore {
      * value is the map of chunks. The maps of chunks contains the number of
      * freed entries per chunk. Access is synchronized.
      */
+    //HashMap<版本, HashMap<chunk.id, Chunk>>
     private final HashMap<Long, HashMap<Integer, Chunk>> freedPages = New.hashMap();
 
     private MVMapConcurrent<String, String> meta;
@@ -190,7 +191,7 @@ public class MVStore {
     private long lastStoredVersion;
     private int fileReadCount;
     private int fileWriteCount;
-    private int unsavedPageCount;
+    private int unsavedPageCount; //每次调用完store方法后都改变它的值
     private int maxUnsavedPages;
 
     /**
@@ -199,7 +200,7 @@ public class MVStore {
     private long creationTime;
     private int retentionTime = 45000;
 
-    private long lastStoreTime;
+    private long lastStoreTime; //存放的是一个与creationTime之间的差值
 
     /**
      * To which version to roll back when opening the store after a crash.
@@ -209,7 +210,7 @@ public class MVStore {
     /**
      * The earliest chunk to retain, if any.
      */
-    private Chunk retainChunk;
+    private Chunk retainChunk; //所有chunks中version最小的那个
 
     private Thread backgroundThread;
 
@@ -249,6 +250,9 @@ public class MVStore {
             o = config.get("writeBufferSize");
             mb = o == null ? 4 : (Integer) o;
             int writeBufferSize =  mb * 1024 * 1024;
+            
+            //pageSize默认是6K，因为在此构造函数中先访问pageSize，
+            //所以后面调用setPageSize调整pageSize时也无法改变maxUnsavedPages了
             maxUnsavedPages = writeBufferSize / pageSize;
             o = config.get("writeDelay");
             writeDelay = o == null ? 1000 : (Integer) o;
@@ -792,12 +796,16 @@ public class MVStore {
      *        should be rolled back after a crash
      * @return the new version (incremented if there were changes)
      */
+    //调用close和store方法时temp是false
+    //而调用commit、beforeWrite、storeInBackground方法时temp是true
     private synchronized long store(boolean temp) {
         if (closed) {
             return currentVersion;
         }
         if (currentStoreVersion >= 0) {
             // store is possibly called within store, if the meta map changed
+        	//意思是其他Map触发store方法时，因为在store方法里也要往meta map里放东西，导致meta map也再次触发store方法，
+        	//这时因为currentStoreVersion >= 0了，所以不需要再做其他事。
             return currentVersion;
         }
         if (!hasUnsavedChanges()) {
@@ -806,16 +814,19 @@ public class MVStore {
         if (readOnly) {
             throw DataUtils.newIllegalStateException("This store is read-only");
         }
-        int currentUnsavedPageCount = unsavedPageCount;
+        int currentUnsavedPageCount = unsavedPageCount; //每次调用完store方法后都改变它的值
+        //先设置一下currentStoreVersion，调用完store后再赋值为-1
+        //这样在其他方法中(比如beforeWrite方法)只要判断currentStoreVersion不是-1，就不用做其他事，
+        //currentStoreVersion不是-1时说明正在调用store方法
         long storeVersion = currentStoreVersion = currentVersion;
-        long version = incrementVersion();
+        long version = incrementVersion(); //currentVersion的值加1
 
         if (file == null) {
             return version;
         }
-        long time = getTime();
-        lastStoreTime = time;
-        if (temp) {
+        long time = getTime(); //当前时间减去creationTime
+        lastStoreTime = time; //lastStoreTime存放的是一个与creationTime之间的差值
+        if (temp) { //temp为true，说明所有page都未保存到硬盘
             meta.put("rollbackOnOpen", Long.toString(lastCommittedVersion));
             // find the oldest chunk to retain
             long minVersion = Long.MAX_VALUE;
@@ -827,7 +838,7 @@ public class MVStore {
                 }
             }
             retainChunk = minChunk;
-        } else {
+        } else { //temp为false表示page都保存到硬盘了
             lastCommittedVersion = version;
             meta.remove("rollbackOnOpen");
             retainChunk = null;
@@ -857,6 +868,7 @@ public class MVStore {
         for (MVMap<?, ?> m : list) {
             if (m != meta) {
                 long v = m.getVersion();
+                //查看当前的maps中的每个version是否>=上一次调用store方法时的版本
                 if (v >= 0 && m.getVersion() >= lastStoredVersion) {
                     MVMap<?, ?> r = m.openVersion(storeVersion);
                     r.waitUntilWritten(r.getRoot());
@@ -866,6 +878,7 @@ public class MVStore {
                 }
             }
         }
+        //先在meta记下root.[id]的值
         for (MVMap<?, ?> m : changed) {
             Page p = m.getRoot();
             if (p.getTotalCount() == 0) {
@@ -880,15 +893,15 @@ public class MVStore {
             buff = writeBuffer;
             buff.clear();
         } else {
-            buff = ByteBuffer.allocate(1024 * 1024);
+            buff = ByteBuffer.allocate(1024 * 1024); //1M大小
         }
         // need to patch the header later
-        c.writeHeader(buff);
+        c.writeHeader(buff); //1. 先写chunk头(注: 后面会重写)
         c.maxLength = 0;
         c.maxLengthLive = 0;
         for (MVMap<?, ?> m : changed) {
             Page p = m.getRoot();
-            if (p.getTotalCount() > 0) {
+            if (p.getTotalCount() > 0) { //2. 再写Page，writeUnsavedRecursive里会改变c中的字段值
                 buff = p.writeUnsavedRecursive(c, buff);
                 long root = p.getPos();
                 meta.put("root." + m.getId(), "" + root);
@@ -905,10 +918,13 @@ public class MVStore {
 
         // this will modify maxLengthLive, but
         // the correct value is written in the chunk header
-        buff = meta.getRoot().writeUnsavedRecursive(c, buff);
+        buff = meta.getRoot().writeUnsavedRecursive(c, buff); //3. 接着写meta
 
-        int chunkLength = buff.position();
-
+        int chunkLength = buff.position(); //此时的buff.position()就表示前面3步往buff中写了多少字节
+        
+        //roundUpInt(chunkLength, BLOCK_SIZE)会把chunkLength转到BLOCK_SIZE的倍数
+        //如chunkLength<BLOCK_SIZE时，roundUpInt返回BLOCK_SIZE
+        //chunkLength>BLOCK_SIZE时，roundUpInt返回的值满足chunkLength<BLOCK_SIZE*x(x是适当的倍数)
         int length = MathUtils.roundUpInt(chunkLength, BLOCK_SIZE) + BLOCK_SIZE;
         if (length > buff.capacity()) {
             buff = DataUtils.ensureCapacity(buff, length - buff.capacity());
@@ -932,12 +948,14 @@ public class MVStore {
         c.writeHeader(buff);
         rootChunkStart = filePos;
         revertTemp(storeVersion);
-
+        
+        //前面的length = MathUtils.roundUpInt(chunkLength, BLOCK_SIZE) + BLOCK_SIZE加了LOCK_SIZE
+        //就是想在之里的buff最后留一下block，目的是为了写FileHeader
         buff.position(buff.limit() - BLOCK_SIZE);
         byte[] header = getFileHeaderBytes();
         buff.put(header);
         // fill the header with zeroes
-        buff.put(new byte[BLOCK_SIZE - header.length]);
+        buff.put(new byte[BLOCK_SIZE - header.length]); //用0填充block中的剩余字节
 
         buff.position(0);
         fileWriteCount++;
@@ -993,9 +1011,10 @@ public class MVStore {
      */
     private Set<Chunk> applyFreedPages(long storeVersion, long time) {
         Set<Chunk> removedChunks = New.hashSet();
-        synchronized (freedPages) {
+        synchronized (freedPages) { //freedPages的类型: 是HashMap<版本, HashMap<chunk.id, Chunk>>
             while (true) {
                 ArrayList<Chunk> modified = New.arrayList();
+                //只关注<=storeVersion的Chunk
                 for (Iterator<Long> it = freedPages.keySet().iterator(); it.hasNext();) {
                     long v = it.next();
                     if (v > storeVersion) {
@@ -1101,7 +1120,7 @@ public class MVStore {
         for (MVMap<?, ?> m : maps.values()) {
             if (!m.isClosed()) {
                 long v = m.getVersion();
-                if (v >= 0 && v >= lastStoredVersion) {
+                if (v >= 0 && v >= lastStoredVersion) { //只要一个map的version>=lastStoredVersion就返回true啦
                     return true;
                 }
             }
@@ -1603,6 +1622,7 @@ public class MVStore {
 
     private void revertTemp(long storeVersion) {
         synchronized (freedPages) {
+        	//删除freedPages中<=storeVersion的chunks
             for (Iterator<Long> it = freedPages.keySet().iterator(); it.hasNext();) {
                 long v = it.next();
                 if (v > storeVersion) {
@@ -1740,6 +1760,7 @@ public class MVStore {
             return;
         }
         long time = getTime();
+        //sleep的值只是writeDelay的10分之一，所以要看一下间隔时间是否超过writeDelay
         if (time <= lastStoreTime + writeDelay) {
             return;
         }
@@ -1756,7 +1777,7 @@ public class MVStore {
     private static class Writer implements Runnable {
 
         private final MVStore store;
-        private final int sleep;
+        private final int sleep; //sleep的值只是writeDelay的10分之一
 
         Writer(MVStore store, int sleep) {
             this.store = store;
@@ -1924,6 +1945,9 @@ public class MVStore {
             return builder;
         }
 
+        public Builder pageSize(int mb) { //我加上的
+            return set("pageSize", mb);
+        }
     }
 
 }
