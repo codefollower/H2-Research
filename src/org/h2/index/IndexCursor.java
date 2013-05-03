@@ -53,7 +53,7 @@ public class IndexCursor implements Cursor {
         this.index = index;
         this.table = index.getTable();
         Column[] columns = table.getColumns();
-        //把表中的所有字段字段做一下标记，如果是索引字段，那么对应indexColumns数组中的元素不为null
+        //把表中的所有字段做一下标记，如果是索引字段，那么对应indexColumns数组中的元素不为null
         indexColumns = new IndexColumn[columns.length];
         IndexColumn[] idxCols = index.getIndexColumns();
         if (idxCols != null) {
@@ -209,6 +209,8 @@ public class IndexCursor implements Cursor {
             }
         }
         if (!bigger) {
+        	//对于END的场景，比如假设a=10，b=20，所以a.compareTo(b)<0，即comp=-1，所以comp = -comp = 1
+        	//对于f < 10 and f < 20的场景，显然只要f<10就够了，所以comp>0时还是返回a
             comp = -comp;
         }
         return comp > 0 ? a : b;

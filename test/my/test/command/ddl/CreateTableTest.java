@@ -12,8 +12,16 @@ public class CreateTableTest extends TestBase {
         stmt.executeUpdate("DROP TABLE IF EXISTS mytable3");
         stmt.executeUpdate("DROP TABLE IF EXISTS mytable2");
         stmt.executeUpdate("DROP TABLE IF EXISTS mytable1");
+        
+        sql = "CREATE MEMORY LOCAL TEMPORARY TABLE IF NOT EXISTS t1";
+        //以下三者等价
+        sql = "CREATE MEMORY GLOBAL TEMPORARY TABLE IF NOT EXISTS t2";
+        sql = "CREATE MEMORY TEMP TABLE IF NOT EXISTS t3";
+        sql = "CREATE MEMORY TEMPORARY TABLE IF NOT EXISTS t4";
+        
+        stmt.executeUpdate(sql);
 
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable1 (f1 int,PRIMARY KEY(f1), f2 int not null)");
+        //stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable1 (f1 int,PRIMARY KEY(f1), f2 int not null)");
         //		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS myindex ON mytable1(f2)");
         //
         //		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int REFERENCES(f1))");
@@ -21,7 +29,7 @@ public class CreateTableTest extends TestBase {
         //		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable3 (f1 int REFERENCES mytable1(f2) INDEX myindex ON DELETE CASCADE)");
 
         //parseAlterTableAddConstraintIf();
-        parseColumnForTable();
+        //parseColumnForTable();
 
         sql = "CREATE TABLE IF NOT EXISTS mytable3 (" + "f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10), " + //此时CONSTRAINT名无用
                 "f2 int CONSTRAINT c2 UNIQUE, " + //

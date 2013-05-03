@@ -224,7 +224,7 @@ public class Aggregate extends Expression {
             int order = o.descending ? SortOrder.DESCENDING : SortOrder.ASCENDING;
             sortType[i] = order;
         }
-        return new SortOrder(session.getDatabase(), index, sortType);
+        return new SortOrder(session.getDatabase(), index, null, sortType);
     }
 
     public void updateAggregate(Session session) {

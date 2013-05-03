@@ -871,6 +871,16 @@ public class Select extends Query {
             if (condition != null) {
                 condition.mapColumns(f, 0);
             }
+            
+			if (orderList != null) {
+				for (SelectOrderBy o : orderList) {
+					Expression e = o.expression;
+					if (e == null) {
+						continue;
+					}
+					e.mapColumns(f, 0);
+				}
+			}
         }
         if (havingIndex >= 0) {
             Expression expr = expressions.get(havingIndex);

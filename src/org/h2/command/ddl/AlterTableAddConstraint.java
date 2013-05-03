@@ -98,6 +98,9 @@ public class AlterTableAddConstraint extends SchemaCommand {
         switch (type) {
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY: {
             IndexColumn.mapColumns(indexColumns, table);
+            //虽然像这样ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 PRIMARY KEY HASH(f1,f2) INDEX myindex
+            //批定了myindex做为索引，但是其实是无用的，虽然此时index不为null，
+            //但是下面这行代码又把之前index变量的值覆盖了
             index = table.findPrimaryKey();
             ArrayList<Constraint> constraints = table.getConstraints();
             for (int i = 0; constraints != null && i < constraints.size(); i++) {
@@ -140,10 +143,11 @@ public class AlterTableAddConstraint extends SchemaCommand {
         }
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_UNIQUE: {
             IndexColumn.mapColumns(indexColumns, table);
-            boolean isOwner = false;
-            //如果没有为约束字段指定索引，那么会自动为这些约束字段创建索引，此索引归属于约束对象，比不属于表，但是也加到表中
+            boolean isOwner = false; //使用已存在的索引并且不显示加INDEX子句时isOwner为false，其他情况下为true
+            
+            //如果没有为约束字段指定索引，那么会自动为这些约束字段创建索引，此索引归属于约束对象，并不属于表，但是也加到表中
             //假设在f1和f2上建立了索引，并且是唯一索引，现在indexColumns列多加了一列f3，
-            //因为f1和f2能保证唯一了，所以直接用些索引当成当前唯一约束的索引即可
+            //因为f1和f2能保证唯一了，所以直接用此索引当成当前唯一约束的索引即可
             if (index != null && canUseUniqueIndex(index, table, indexColumns)) {
                 isOwner = true;
                 index.getIndexType().setBelongsToConstraint(true);

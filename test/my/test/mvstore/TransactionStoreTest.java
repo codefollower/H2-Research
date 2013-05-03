@@ -5,19 +5,23 @@ import org.h2.mvstore.db.TransactionStore;
 import org.h2.mvstore.db.TransactionStore.Transaction;
 import org.h2.mvstore.db.TransactionStore.TransactionMap;
 
+//import org.h2.store.fs.FileUtils;
+
 public class TransactionStoreTest {
 
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args) {
-		MVStore s = MVStore.open(null);
+		String fileName = null;
+		fileName = "E:/H2/baseDir/TransactionStoreTest";
+		MVStore s = null;
+		//FileUtils.deleteRecursive(fileName, true);
+
+		s = MVStore.open(fileName);
 		TransactionStore ts = new TransactionStore(s);
 		Transaction tx;
 		TransactionMap<String, String> m;
 		long startUpdate;
 		@SuppressWarnings("unused")
-        long version;
+		long version;
 
 		tx = ts.begin();
 
@@ -31,6 +35,24 @@ public class TransactionStoreTest {
 		startUpdate = tx.setSavepoint();
 		version = s.getCurrentVersion();
 		m = tx.openMap("test");
+
+		int n = 100;
+		for (int i = 0; i < n; i++) {
+			m.put(i + "", "Hello" + i);
+
+			if (i % 20 == 0)
+				s.incrementVersion();
+		}
+
+		long savepoint = tx.setSavepoint();
+		m.put(2 + "", "Hello22");
+
+		System.out.println(m.get("2"));
+
+		m.setSavepoint(savepoint);
+
+		System.out.println(m.get("2"));
+
 		System.out.println(m.trySet("1", "Hello", true));
 		System.out.println(m.trySet("2", "World", true));
 		// not seen yet (within the same statement)

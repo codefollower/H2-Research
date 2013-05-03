@@ -238,6 +238,10 @@ public class IndexCondition {
                     // insert into test values(1, 10), (2, 20);
                     // select * from (select * from test)
                     // where a=1 and b in(10, 20);
+                	
+                	//这里(select * from test)被当成一个视图了，b字段是属于(select * from test)的，
+                	//因为(select * from test)是属于第一个select的from子句
+                	//同样a字段也是属于视图中的列
                     return 0;
                 }
             }

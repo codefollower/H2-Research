@@ -721,7 +721,7 @@ public class Parser {
         return command;
     }
 
-    private TableFilter readSimpleTableFilter() {
+    private TableFilter readSimpleTableFilter() { //只用于Delete和Update，Delete和Update只允许单表
         Table table = readTableOrView();
         String alias = null;
         if (readIf("AS")) {
@@ -4067,7 +4067,7 @@ public class Parser {
             return parseCreateLinkedTable(false, false, force);
         }
         // tables or linked tables or 索引(最后一个else部份的代码)
-        boolean memory = false, cached = false;
+        boolean memory = false, cached = false; //这两个变量对索引无用
         if (readIf("MEMORY")) {
             memory = true;
         } else if (readIf("CACHED")) {
@@ -4095,6 +4095,8 @@ public class Parser {
             return parseCreateTable(true, true, cached);
         } else if (readIf("TABLE")) {
             if (!cached && !memory) {
+            	//默认就是TYPE_CACHED，所以cached为true，也就是传给parseCreateTable方法时，persistIndexes为true
+            	//可通过SET DEFAULT_TABLE_TYPE xxx修改
                 cached = database.getDefaultTableType() == Table.TYPE_CACHED;
             }
             return parseCreateTable(false, false, cached);
@@ -5551,7 +5553,7 @@ public class Parser {
         command.setIfNotExists(ifNotExists);
         command.setTableName(tableName);
         command.setComment(readCommentIf());
-        if (readIf("(")) {
+        if (readIf("(")) { //可以没有列
             if (!readIf(")")) {
                 do {
                 	//约束和字段可以分开

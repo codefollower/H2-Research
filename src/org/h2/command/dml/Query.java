@@ -453,12 +453,16 @@ public abstract class Query extends Prepared {
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];
+        int[] columnIndexes = new int[size];
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
-            SelectOrderBy o = orderList.get(i);
-            int idx;
-            boolean reverse = false;
-            Expression expr = o.columnIndexExpr;
+			SelectOrderBy o = orderList.get(i);
+			int idx;
+			boolean reverse = false;
+			if (o.expression instanceof ExpressionColumn) {
+				columnIndexes[i] = ((ExpressionColumn) o.expression).getColumn().getColumnId();
+			}
+			Expression expr = o.columnIndexExpr;
             Value v = expr.getValue(null);
             if (v == ValueNull.INSTANCE) {
                 // parameter not yet set - order by first column
@@ -487,7 +491,7 @@ public abstract class Query extends Prepared {
             }
             sortType[i] = type;
         }
-        return new SortOrder(session.getDatabase(), index, sortType);
+		return new SortOrder(session.getDatabase(), index, columnIndexes, sortType);
     }
 
     public void setOffset(Expression offset) {

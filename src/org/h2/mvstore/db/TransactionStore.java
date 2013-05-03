@@ -234,6 +234,9 @@ public class TransactionStore {
      * @param maxLogId the last log id
      */
     void commit(Transaction t, long maxLogId) {
+        if (store.isClosed()) {
+            return;
+        }
         for (long logId = 0; logId < maxLogId; logId++) {
             long[] undoKey = new long[] {
                     t.getId(), logId };
@@ -534,11 +537,11 @@ public class TransactionStore {
          * The map used for writing (the latest version).
          * <p>
          * Key: key the key of the data.
-         * Value: { transactionId, oldVersion, value }
+         * Value: { transactionId, oldVersion, value } //oldVersion实际上就是logId，logId在Transaction.log方法中递增
          */
         final MVMap<K, Object[]> map;
-        
-        private Transaction transaction;
+
+        private Transaction transaction; //这个字段也适合加final
 
         private final int mapId;
 
@@ -548,11 +551,13 @@ public class TransactionStore {
          * is so that changes are not immediately visible, to support statement
          * processing (for example "update test set id = id + 1").
          */
-        private long readLogId = Long.MAX_VALUE;
+        private long readLogId = Long.MAX_VALUE; //只能读到logId比readLogId小的记录
 
         TransactionMap(Transaction transaction, String name, DataType keyType,
                 DataType valueType) {
             this.transaction = transaction;
+            //对应Value: { transactionId, oldVersion, value }
+            //第一个ObjectDataType对应transactionId，第二个ObjectDataType对应oldVersion, valueType对应value
             ArrayType arrayType = new ArrayType(new DataType[] {
                     new ObjectDataType(), new ObjectDataType(), valueType
             });
@@ -574,7 +579,7 @@ public class TransactionStore {
          * 
          * @param savepoint the savepoint
          */
-        public void setSavepoint(long savepoint) {
+        public void setSavepoint(long savepoint) { //只能读到logId比savepoint小的记录
             this.readLogId = savepoint;
         }
         
@@ -634,6 +639,7 @@ public class TransactionStore {
          *
          * @param key the key
          * @param value the new value (not null)
+         * @return the old value
          * @throws IllegalStateException if a lock timeout occurs
          */
         public V put(K key, V value) {
@@ -712,10 +718,13 @@ public class TransactionStore {
          *            this or another transaction) since the map was opened
          * @return true if the value was set
          */
-        public boolean trySet(K key, V value, boolean onlyIfUnchanged) {
+        public boolean trySet(K key, V value, boolean onlyIfUnchanged) { //只有在测试例子中看到设置onlyIfUnchanged为true
             Object[] current = map.get(key);
             if (onlyIfUnchanged) {
+            	//值是:Value: { transactionId, oldVersion, value } oldVersion实际上就是logId，logId在Transaction.log方法中递增
                 Object[] old = getArray(key, readLogId);
+                //onlyIfUnchanged的意思是current(注意不是参数value)与原先的值相等时才设置，
+                //所以如果current与原先的值不相等，那么就可以快速确定返回值
                 if (!map.areValuesEqual(old, current)) {
                     long tx = (Long) current[0];
                     if (tx == transaction.transactionId) {
@@ -833,6 +842,9 @@ public class TransactionStore {
             return data == null ? null : (V) data[2];
         }
         
+        //见org.h2.test.store.TestTransactionStore.testKeyIterator()里的测试
+        //当执行到第三个tx = ts.begin()时tx != transaction.transactionId
+        //所以就从第二个tx = ts.begin()对应的undoLog中取出value
         private Object[] getArray(K key, long maxLog) {
             Object[] data = map.get(key);
             while (true) {
@@ -843,7 +855,7 @@ public class TransactionStore {
                 }
                 tx = (Long) data[0];
                 long logId = (Long) data[1];
-                if (tx == transaction.transactionId) {
+                if (tx == transaction.transactionId) { //是map对应的transactionId
                     // added by this transaction
                     if (logId < maxLog) {
                         return data;
@@ -851,10 +863,11 @@ public class TransactionStore {
                 }
                 // added or updated by another transaction
                 boolean open = transaction.store.openTransactions.containsKey(tx);
-                if (!open) {
+                if (!open) { //如果对应的事务id不在当前的事务列表中，说明此事务已提交了
                     // it is committed
                     return data;
                 }
+                //否则从undoLog中取
                 // get the value before the uncommitted transaction
                 long[] x = new long[] { tx, logId };
                 data = transaction.store.undoLog.get(x);
