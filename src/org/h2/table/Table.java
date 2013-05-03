@@ -651,6 +651,7 @@ public abstract class Table extends SchemaObjectBase {
         item.cost = item.getIndex().getCost(session, null, null);
         ArrayList<Index> indexes = getIndexes();
         if (indexes != null && masks != null) {
+        	//indexes[0]是ScanIndex，所以可以跳过，从1开始
             for (int i = 1, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 double cost = index.getCost(session, masks, sortOrder);

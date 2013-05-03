@@ -417,7 +417,7 @@ public class ConstraintReferential extends Constraint {
     }
 
     private void checkRowRefTable(Session session, Row oldRow, Row newRow) {
-        if (oldRow == null) {
+        if (oldRow == null) { //引用表在插入一条新记录时不需要检查
             // this is an insert
             return;
         }
@@ -506,9 +506,11 @@ public class ConstraintReferential extends Constraint {
         if (deleteAction == CASCADE) {
             buff.append("DELETE FROM ").append(table.getSQL());
         } else {
-            appendUpdate(buff);
+            appendUpdate(buff); //如UPDATE PUBLIC.MYTABLE SET F1=?
         }
         appendWhere(buff);
+        //ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
+        //ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
         deleteSQL = buff.toString();
     }
 
@@ -547,6 +549,8 @@ public class ConstraintReferential extends Constraint {
         StatementBuilder buff = new StatementBuilder();
         appendUpdate(buff);
         appendWhere(buff);
+        //ON DELETE CASCADE和ON DELETE SET DEFAULT都是一样
+        //都是UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
         updateSQL = buff.toString();
     }
 
@@ -617,7 +621,11 @@ public class ConstraintReferential extends Constraint {
     public boolean isBefore() {
         return false;
     }
-
+    
+    //样例:
+    //SELECT 1 
+    //  FROM (SELECT F1 FROM PUBLIC.MYTABLE WHERE F1 IS NOT NULL  ORDER BY F1) C 
+    //  WHERE NOT EXISTS(SELECT 1 FROM PUBLIC.MYTABLE2 P WHERE C.F1=P.F1)
     public void checkExistingData(Session session) {
         if (session.getDatabase().isStarting()) {
             // don't check at startup

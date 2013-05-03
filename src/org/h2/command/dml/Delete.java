@@ -133,6 +133,7 @@ public class Delete extends Prepared {
             condition = condition.optimize(session);
             condition.createIndexConditions(session, tableFilter);
         }
+        //为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
         PlanItem item = tableFilter.getBestPlanItem(session, 1);
         tableFilter.setPlanItem(item);
         tableFilter.prepare();

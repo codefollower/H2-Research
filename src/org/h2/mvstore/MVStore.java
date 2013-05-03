@@ -843,7 +843,6 @@ public class MVStore {
             meta.remove("rollbackOnOpen");
             retainChunk = null;
         }
-
         // the last chunk was not completely correct in the last store()
         // this needs to be updated now (it's better not to update right after
         // storing, because that would modify the meta map again)
@@ -1769,6 +1768,10 @@ public class MVStore {
 
     public boolean isReadOnly() {
         return readOnly;
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 
     /**

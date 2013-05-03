@@ -52,6 +52,7 @@ public class SortOrder implements Comparator<Value[]> {
 
     private final Database database;
     private final int[] indexes;
+    private final int[] columnIndexes;
     private final int[] sortTypes;
 
     /**
@@ -61,9 +62,10 @@ public class SortOrder implements Comparator<Value[]> {
      * @param index the column index list
      * @param sortType the sort order bit masks
      */
-    public SortOrder(Database database, int[] index, int[] sortType) {
+    public SortOrder(Database database, int[] index, int[] columnIndexes, int[] sortType) {
         this.database = database;
         this.indexes = index;
+        this.columnIndexes = columnIndexes;
         this.sortTypes = sortType;
     }
 
@@ -190,14 +192,18 @@ public class SortOrder implements Comparator<Value[]> {
      * @return the list
      */
     public int[] getIndexes() {
-        return indexes;
-    }
+		return indexes;
+	}
 
-    /**
-     * Get the sort order bit masks.
-     *
-     * @return the list
-     */
+	public int[] getColumnIndexes() {
+		return columnIndexes;
+	}
+
+	/**
+	 * Get the sort order bit masks.
+	 *
+	 * @return the list
+	 */
     public int[] getSortTypes() {
         return sortTypes;
     }

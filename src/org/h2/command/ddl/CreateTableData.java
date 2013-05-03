@@ -51,12 +51,12 @@ public class CreateTableData {
     /**
      * Whether the indexes should be persisted.
      */
-    public boolean persistIndexes;
+    public boolean persistIndexes; //在CreateTable类的构造函数中默认设为true
 
     /**
      * Whether the data should be persisted.
      */
-    public boolean persistData;
+    public boolean persistData; //在CreateTable类的构造函数中默认设为true
 
     /**
      * Whether to create a new table.

@@ -173,15 +173,23 @@ public class TableFilter implements ColumnResolver {
     //而Select要prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
     public PlanItem getBestPlanItem(Session s, int level) {
         PlanItem item;
-        if (indexConditions.size() == 0) { //没有索引条件时直接走扫描索引
+        //没有索引条件时直接走扫描索引(RegularTable是PageDataIndex和ScanIndex，而MVTable是MVPrimaryIndex)
+        if (indexConditions.size() == 0) {
             item = new PlanItem();
             item.setIndex(table.getScanIndex(s));
             item.cost = item.getIndex().getCost(s, null, null);
         } else {
             int len = table.getColumns().length;
-            int[] masks = new int[len];
+            int[] masks = new int[len]; //对应表的所有字段，只有其中的索引字段才有值，其他的不设置，默认为0
             for (IndexCondition condition : indexConditions) {
+            	//如果IndexCondition是expression或expressionList，只有ExpressionColumn类型有可能返回false
+            	//如果IndexCondition是expressionQuery，expressionQuery是Select、SelectUnion类型有可能返回false
+            	//其他都返回true
                 if (condition.isEvaluatable()) {
+                	//对于ConditionAndOr的场景才会出现indexConditions.size>1
+                	//而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
+                	//所以当多个indexCondition通过AND组合时，只有其中一个是false，显然就没有必要再管其他的indexCondition
+                	//这时把masks设为null
                     if (condition.isAlwaysFalse()) {
                         masks = null;
                         break;
@@ -279,6 +287,7 @@ public class TableFilter implements ColumnResolver {
     	//delete from DeleteTest where b
     	//按字段b删除，实际上就是删除b=true的记录
     	//如果没有为字段b建立索引，就在这里删除这个无用条件
+    	//这样在org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)中就不会计算无用的索引
         for (int i = 0; i < indexConditions.size(); i++) {
             IndexCondition condition = indexConditions.get(i);
             if (!condition.isAlwaysFalse()) {
