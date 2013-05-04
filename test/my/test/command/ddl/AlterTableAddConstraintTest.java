@@ -93,6 +93,9 @@ public class AlterTableAddConstraintTest extends TestBase {
 	}
 
 	void ALTER_TABLE_ADD_CONSTRAINT_REFERENTIAL() throws Exception {
+		stmt.executeUpdate("DROP TABLE IF EXISTS mytable");
+		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable (f1 int default 10, f2 int not null, f3 int, ch varchar(10))");
+
 		stmt.executeUpdate("DROP TABLE IF EXISTS mytable2");
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int not null)");
 
@@ -118,7 +121,9 @@ public class AlterTableAddConstraintTest extends TestBase {
 		sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE CASCADE CHECK";
 		sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE SET DEFAULT CHECK";
 
-		//sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE RESTRICT";
+		sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE RESTRICT";
+
+		//sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES(f2)";
 
 		stmt.executeUpdate(sql);
 
@@ -127,6 +132,22 @@ public class AlterTableAddConstraintTest extends TestBase {
 		stmt.executeUpdate("insert into mytable2(f1, f2) values(3,3)");
 
 		stmt.executeUpdate("insert into mytable(f1, f2) values(2,2)");
+		stmt.executeUpdate("insert into mytable(f1, f2) values(3,3)");
+		
+		//注意: 为引用字段建立了唯一索引，所以f2是三时，如果是自引用，就抛异常
+		//stmt.executeUpdate("insert into mytable(f1, f2) values(2,3)");
+		
+		stmt.executeUpdate("insert into mytable(f1, f2) values(2,4)");
+
+		//Referential integrity constraint violation
+		stmt.executeUpdate("update mytable set f1=20 where f1=2");
+
+		stmt.executeUpdate("insert into mytable(f1, f2) values(null,2)");
+
+		stmt.executeUpdate("update mytable set f1=null where f1=2");
+		stmt.executeUpdate("update mytable set f2=30 where f1=3");
+
+		stmt.executeUpdate("delete from mytable where f1 = 2");
 
 		//stmt.executeUpdate("update mytable2 set f2=10 where f1=1");
 
@@ -135,6 +156,8 @@ public class AlterTableAddConstraintTest extends TestBase {
 		//如果是ON UPDATE SET DEFAULT，可以为mytable的f1指定一个默认值，比如10，
 		//虽然10不出现在mytable2中，但这是允许的
 		stmt.executeUpdate("update mytable2 set f1=20 where f1=2");
+		
+		stmt.executeUpdate("update mytable2 set f2=30 where f1=3");
 
 		sql = "select * from mytable";
 
@@ -143,7 +166,7 @@ public class AlterTableAddConstraintTest extends TestBase {
 		//这是允许的，因为在mytable中不存在3
 		//stmt.executeUpdate("update mytable2 set f1=30 where f1=3");
 
-		//		sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c5 COMMENT IS 'haha5' FOREIGN KEY(f1) REFERENCES(f2)";
+		//		
 		//		sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c6 COMMENT IS 'haha6' FOREIGN KEY(f1) REFERENCES mytable(f2)"
 		//				+ "ON DELETE CASCADE ON UPDATE RESTRICT ON DELETE NO ACTION ON UPDATE SET NULL ON DELETE SET DEFAULT NOT DEFERRABLE";
 
