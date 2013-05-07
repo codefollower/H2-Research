@@ -25,6 +25,9 @@ public class MVTableEngineTest extends TestBase {
 
 		//conn.commit();
 		sql = "select * from MVTableEngineTest";
+
+		//见org.h2.index.Index.findNext(Session, SearchRow, SearchRow)中的注释
+		sql = "select distinct name from MVTableEngineTest";
 		executeQuery();
 	}
 }
