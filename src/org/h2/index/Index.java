@@ -19,6 +19,8 @@ import org.h2.table.TableFilter;
 /**
  * An index. Indexes are used to speed up searching data.
  */
+//此类的提供的查找方法并没有直接提供模糊查询之类的功能，只有范围查询，
+//更高级的功能都是通过范围查询获得记录后再在Select那一层通过where条件一一比较和过滤
 public interface Index extends SchemaObject {
 
     /**
@@ -26,7 +28,7 @@ public interface Index extends SchemaObject {
      *
      * @return the plan
      */
-    String getPlanSQL(); //是"模式名.索引名"，跟getCreateSQL()不一样，getCreateSQL()是完整的"CREATE INDEX"
+    String getPlanSQL(); //用于EXPLAIN语句，是"模式名.索引名"，跟getCreateSQL()不一样，getCreateSQL()是完整的"CREATE INDEX"
 
     /**
      * Close this index.
@@ -70,7 +72,7 @@ public interface Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor to iterate over the results
      */
-    Cursor find(TableFilter filter, SearchRow first, SearchRow last);
+    Cursor find(TableFilter filter, SearchRow first, SearchRow last); //默认是调用前一个find(filter.getSession(), first, last);
 
     /**
      * Estimate the cost to search for rows given the search mask.
@@ -123,6 +125,9 @@ public interface Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor
      */
+    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化
+    //比如这样的SQL: select distinct name from test
+    //就算为name字段建立了索引也不行
     Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //只有org.h2.index.PageBtreeIndex实现了
 
     /**
@@ -181,7 +186,9 @@ public interface Index extends SchemaObject {
      * @param col the column
      * @return the index (0 meaning first column)
      */
-    int getColumnIndex(Column col); //并不是返回列id，而是索引字段列表中的位置
+    //并不是返回列id，而是索引字段列表中的位置，
+    //PageDataIndex、MVPrimaryIndex直接返回-1，因为这两个类严格说不是索引，而是存放主表的原始记录的
+    int getColumnIndex(Column col);
 
     /**
      * Get the indexed columns as index columns (with ordering information).
@@ -228,7 +235,8 @@ public interface Index extends SchemaObject {
      * @param key the unique key
      * @return the row
      */
-    Row getRow(Session session, long key); //按key获取主表的完整记录
+    //MVSecondaryIndex类没实现，而是在org.h2.mvstore.db.MVSecondaryIndex.MVStoreCursor.get()中调用MVPrimaryIndex的
+    Row getRow(Session session, long key); //按key获取主表的完整记录，PageDataIndex、MVPrimaryIndex才有效
 
     /**
      * Does this index support lookup by row id?

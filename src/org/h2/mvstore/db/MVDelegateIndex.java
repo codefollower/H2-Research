@@ -20,6 +20,9 @@ import org.h2.table.IndexColumn;
 /**
  * An index that delegates indexing to another index.
  */
+//如果创建一个只有一个字段的primary key索引，在适当的时候并不需要构造一个新的MVSecondaryIndex实例，
+//这时用这个类来表示一个假的primary key，委派给org.h2.mvstore.db.MVTable.primaryIndex即可
+//此类只负责查询类的方法转发，更新类的方法直接忽略，因为在MVPrimaryIndex时己做了。
 public class MVDelegateIndex extends BaseIndex {
 
     private final MVPrimaryIndex mainIndex;
@@ -52,6 +55,8 @@ public class MVDelegateIndex extends BaseIndex {
         long min = mainIndex.getKey(first, Long.MIN_VALUE, Long.MIN_VALUE);
         // ifNull is MIN_VALUE as well, because the column is never NULL
         // so avoid returning all rows (returning one row is OK)
+        //如果last是null，就相当于没有last限制，所以用Long.MAX_VALUE
+        //如果last中的key值是ValueNull.INSTANCE，显然是不合理的，设为Long.MIN_VALUE，什么值都不返回
         long max = mainIndex.getKey(last, Long.MAX_VALUE, Long.MIN_VALUE);
         return mainIndex.find(session, min, max);
     }
@@ -67,6 +72,7 @@ public class MVDelegateIndex extends BaseIndex {
         return -1;
     }
 
+    //跟MVSecondaryIndex的一样，因为本身就相当于一个primary key的MVSecondaryIndex
     public double getCost(Session session, int[] masks, SortOrder sortOrder) {
         return 10 * getCostRangeIndex(masks, mainIndex.getRowCount(session), sortOrder);
     }

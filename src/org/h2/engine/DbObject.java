@@ -157,7 +157,7 @@ public interface DbObject {
      * @param quotedName the quoted name
      * @return the SQL statement
      */
-    String getCreateSQLForCopy(Table table, String quotedName);
+    String getCreateSQLForCopy(Table table, String quotedName); //用在AlterTableAlterColumn
 
     /**
      * Construct the original CREATE ... SQL statement for this object.

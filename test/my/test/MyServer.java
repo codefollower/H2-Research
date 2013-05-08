@@ -8,8 +8,8 @@ public class MyServer {
 		// System.setProperty("DATABASE_TO_UPPER", "false");
 		System.setProperty("h2.lobInDatabase", "false");
 		System.setProperty("h2.lobClientMaxSizeMemory", "1024");
-		System.setProperty("java.io.tmpdir", "E:\\H2\\tmp");
-		System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
+		//System.setProperty("java.io.tmpdir", "E:\\H2\\tmp");
+		//System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
 
 		ArrayList<String> list = new ArrayList<String>();
 		// list.add("-tcp");

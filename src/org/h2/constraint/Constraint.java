@@ -109,7 +109,7 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
      *
      * @return true if it must be checked before updating
      */
-    public abstract boolean isBefore();
+    public abstract boolean isBefore(); //只有ConstraintReferential是false
 
     /**
      * Check the existing data. This method is called if the constraint is added
@@ -145,7 +145,7 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
         return table;
     }
 
-    public Table getRefTable() {
+    public Table getRefTable() { //只有ConstraintReferential覆盖
         return table;
     }
 

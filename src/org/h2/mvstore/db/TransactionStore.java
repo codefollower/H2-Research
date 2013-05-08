@@ -46,7 +46,7 @@ public class TransactionStore {
      * The map of open transaction objects.
      * Key: transactionId, value: transaction object.
      */
-    final HashMap<Long, Transaction> openTransactionMap = New.hashMap();
+    final HashMap<Long, Transaction> openTransactionMap = New.hashMap(); //注意，这个是HashMap，并不会持久化
 
     /**
      * The undo log.
@@ -57,12 +57,12 @@ public class TransactionStore {
     /**
      * The lock timeout in milliseconds. 0 means timeout immediately.
      */
-    long lockTimeout;
+    long lockTimeout; //没有看到在哪里有赋值，就是默认值0
 
     /**
      * The transaction settings. "lastTransaction" the last transaction id.
      */
-    private final MVMap<String, String> settings;
+    private final MVMap<String, String> settings; //只有一个lastTransactionId作为key，没有其他key了
 
     private long lastTransactionIdStored;
 
@@ -116,6 +116,7 @@ public class TransactionStore {
         if (lastKey != null && lastKey.longValue() > lastTransactionId) {
             throw DataUtils.newIllegalStateException("Last transaction not stored");
         }
+        //重新把上次已持久化但是未提交的事务读到内存，并重新构建openTransactionMap
         Cursor<Long> cursor = openTransactions.keyIterator(null);
         while (cursor.hasNext()) {
             long id = cursor.next();
@@ -127,7 +128,7 @@ public class TransactionStore {
             if (last == null) {
                 // no entry
             } else if (last[0] == id) {
-                Transaction t = new Transaction(this, id, status, name, last[1]);
+                Transaction t = new Transaction(this, id, status, name, last[1]); //last[1]是logId
                 t.setStored(true);
                 openTransactionMap.put(id, t);
             }
@@ -164,9 +165,10 @@ public class TransactionStore {
         int status = Transaction.STATUS_OPEN;
         return new Transaction(this, transactionId, status, null, 0);
     }
-
+    
+    //最主要的功能就是把Transaction状态和对象本身放到openTransactions、openTransactionMap
     private void storeTransaction(Transaction t) {
-        if (store.getUnsavedPageCount() > MAX_UNSAVED_PAGES) {
+        if (store.getUnsavedPageCount() > MAX_UNSAVED_PAGES) { //未保存的页面大于MAX_UNSAVED_PAGES时，触发一次commit，存盘。
             store.commit();
         }
         if (t.isStored()) {
@@ -177,6 +179,8 @@ public class TransactionStore {
         Object[] v = { t.getStatus(), null };
         openTransactions.put(transactionId, v);
         openTransactionMap.put(transactionId, t);
+        //每隔32次写一下lastTransactionId，
+        //lastTransactionId不要求一定连续，可以跳过一些中间的数字，只要保证递增即可
         if (lastTransactionId > lastTransactionIdStored) {
             lastTransactionIdStored += 32;
             settings.put(LAST_TRANSACTION_ID, "" + lastTransactionIdStored);
