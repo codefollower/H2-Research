@@ -16,8 +16,13 @@ public class TestRollbackToSavepoint {
 		Statement stmt = conn.createStatement();
 
 		stmt.executeUpdate("DROP TABLE IF EXISTS mvstore_test CASCADE");
-		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mvstore_test(id int, name varchar(500), b boolean) "
-				+ "ENGINE \"org.h2.mvstore.db.MVTableEngine\"");
+
+		String sql = "CREATE TABLE IF NOT EXISTS mvstore_test(id int, name varchar(500), b boolean) "
+				+ "ENGINE \"org.h2.mvstore.db.MVTableEngine\"";
+
+		//sql = "CREATE TABLE IF NOT EXISTS mvstore_test(id int, name varchar(500), b boolean) ";
+
+		stmt.executeUpdate(sql);
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS mvstore_test_index ON mvstore_test(name)");
 
 		stmt.executeUpdate("insert into mvstore_test(id, name, b) values(10, 'a1', true)");
@@ -32,7 +37,7 @@ public class TestRollbackToSavepoint {
 		stmt.executeUpdate("insert into mvstore_test(id, name, b) values(70, 'b3', true)");
 
 		conn.rollback(sp); //不支持保存点
-		conn.commit();
+		//conn.commit();
 
 		ResultSet rs = stmt.executeQuery("select * from mvstore_test");
 		int n = rs.getMetaData().getColumnCount();

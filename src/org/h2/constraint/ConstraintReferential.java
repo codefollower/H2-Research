@@ -307,25 +307,37 @@ public class ConstraintReferential extends Constraint {
             checkRowRefTable(session, oldRow, newRow);
         }
     }
-
+    
+    //newRow不为null有两种情况：insert和update
+    //oldRow不为null有两种情况：delete和update
+    
+    //DML      oldRow    newRow
+    //============================
+    //insert   null      not null
+    //update   not null  not null
+    //delete   not null  null      (不检查)
+    
+    //此方法只处理insert、update
     private void checkRowOwnTable(Session session, Row oldRow, Row newRow) {
-        if (newRow == null) {
+        if (newRow == null) { //主表删除记录无须检查
             return;
         }
         boolean constraintColumnsEqual = oldRow != null;
         for (IndexColumn col : columns) {
             int idx = col.column.getColumnId();
             Value v = newRow.getValue(idx);
-            if (v == ValueNull.INSTANCE) {
+            if (v == ValueNull.INSTANCE) { //外键字段中只要有一个是null，就不再检查
                 // return early if one of the columns is NULL
                 return;
             }
+            //对于insert，因为oldRow为null，所以下面是争对update的
             if (constraintColumnsEqual) {
                 if (!database.areEqual(v, oldRow.getValue(idx))) {
                     constraintColumnsEqual = false;
                 }
             }
         }
+        //对于update，如果外键字段的值没变就不需要进一步检查了
         if (constraintColumnsEqual) {
             // return early if the key columns didn't change
             return;
@@ -349,6 +361,7 @@ public class ConstraintReferential extends Constraint {
                 return;
             }
         }
+        //检查在引用表中是否存在外键字段中指定的字段值
         Row check = refTable.getTemplateRow();
         for (int i = 0, len = columns.length; i < len; i++) {
             int idx = columns[i].column.getColumnId();
@@ -395,7 +408,8 @@ public class ConstraintReferential extends Constraint {
     private boolean isEqual(Row oldRow, Row newRow) {
         return refIndex.compareRows(oldRow, newRow) == 0;
     }
-
+    
+    //检查在主表中是否存在oldRow，如果存在则不允许进行操作，在RESTRICT模式下会触发这个方法
     private void checkRow(Session session, Row oldRow) {
         SearchRow check = table.getTemplateSimpleRow(false);
         for (int i = 0, len = columns.length; i < len; i++) {
@@ -416,6 +430,13 @@ public class ConstraintReferential extends Constraint {
         }
     }
 
+    //DML      oldRow    newRow
+    //============================
+    //insert   null      not null  (不检查)
+    //update   not null  not null
+    //delete   not null  null      
+    
+    //此方法只处理update、delete
     private void checkRowRefTable(Session session, Row oldRow, Row newRow) {
         if (oldRow == null) { //引用表在插入一条新记录时不需要检查
             // this is an insert
@@ -430,8 +451,10 @@ public class ConstraintReferential extends Constraint {
             if (deleteAction == RESTRICT) {
                 checkRow(session, oldRow);
             } else {
+            	//ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
+                //ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
                 int i = deleteAction == CASCADE ? 0 : columns.length;
-                Prepared deleteCommand = getDelete(session);
+                Prepared deleteCommand = getDelete(session); //如果不是CASCADE，在此方法中已设置了WHERE之前的参数(null或默认值)
                 setWhere(deleteCommand, i, oldRow);
                 updateWithSkipCheck(deleteCommand);
             }
@@ -440,8 +463,10 @@ public class ConstraintReferential extends Constraint {
             if (updateAction == RESTRICT) {
                 checkRow(session, oldRow);
             } else {
+            	//ON DELETE CASCADE和ON DELETE SET DEFAULT都是一样
+                //都是UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
                 Prepared updateCommand = getUpdate(session);
-                if (updateAction == CASCADE) {
+                if (updateAction == CASCADE) { //getUpdate(session)中会跳过CASCADE的情形，所以这里补上
                     ArrayList<Parameter> params = updateCommand.getParameters();
                     for (int i = 0, len = columns.length; i < len; i++) {
                         Parameter param = params.get(i);

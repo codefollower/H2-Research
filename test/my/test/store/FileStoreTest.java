@@ -5,7 +5,7 @@ import java.sql.Connection;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
-import org.h2.store.LobStorage;
+import org.h2.store.LobStorageInterface;
 import org.h2.util.MathUtils;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.TempFileDeleter;
@@ -108,8 +108,7 @@ public class FileStoreTest {
 		}
 
 		@Override
-		public LobStorage getLobStorage() {
-
+		public LobStorageInterface getLobStorage() {
 			return null;
 		}
 

@@ -22,7 +22,8 @@ import org.h2.message.Trace;
 import org.h2.message.TraceSystem;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
-import org.h2.store.LobStorage;
+import org.h2.store.LobStorageFrontend;
+import org.h2.store.LobStorageInterface;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.NetUtils;
@@ -85,7 +86,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     private int lastReconnect;
     private SessionInterface embedded;
     private DatabaseEventListener eventListener;
-    private LobStorage lobStorage;
+    private LobStorageFrontend lobStorage;
     private boolean cluster;
 
     public SessionRemote(ConnectionInfo ci) {
@@ -707,9 +708,9 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         // nothing to do
     }
 
-    public LobStorage getLobStorage() {
+    public LobStorageInterface getLobStorage() {
         if (lobStorage == null) {
-            lobStorage = new LobStorage(this);
+            lobStorage = new LobStorageFrontend(this);
         }
         return lobStorage;
     }

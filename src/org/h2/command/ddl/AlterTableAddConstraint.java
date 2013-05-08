@@ -222,7 +222,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
             if (refIndex == null) {
                 refIndex = getIndex(refTable, refIndexColumns);
                 if (refIndex == null) {
-                    refIndex = createIndex(refTable, refIndexColumns, true);
+                    refIndex = createIndex(refTable, refIndexColumns, true); //注意: 为引用字段建立了唯一索引
                     isRefOwner = true;
                 }
             }

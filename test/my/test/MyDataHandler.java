@@ -6,7 +6,7 @@ import org.h2.constant.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
-import org.h2.store.LobStorage;
+import org.h2.store.LobStorageInterface;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.TempFileDeleter;
@@ -74,11 +74,6 @@ public class MyDataHandler implements DataHandler {
 		return null;
 	}
 
-	@Override
-	public LobStorage getLobStorage() {
-		// TODO Auto-generated method stub
-		return null;
-	}
 
 	@Override
 	public Connection getLobConnection() {
@@ -91,5 +86,11 @@ public class MyDataHandler implements DataHandler {
 			int off, int length) {
 		// TODO Auto-generated method stub
 		return 0;
+	}
+
+	@Override
+	public LobStorageInterface getLobStorage() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

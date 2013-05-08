@@ -3786,12 +3786,12 @@ public class Parser {
         Column column;
         boolean isIdentity = false; //无用，没有被设为true，一直是false
         //IDENTITY和SERIAL相当于字段类型名，是两个特殊的列类型
-        if (readIf("IDENTITY") || readIf("SERIAL")) { //如: CREATE TABLE IF NOT EXISTS mytable (f1 IDENTITY(1,10))
+        if (readIf("IDENTITY") || readIf("BIGSERIAL")) { //如: CREATE TABLE IF NOT EXISTS mytable (f1 IDENTITY(1,10))
             column = new Column(columnName, Value.LONG);
             column.setOriginalSQL("IDENTITY");
             parseAutoIncrement(column);
             // PostgreSQL compatibility
-            if (!database.getMode().serialColumnIsNotPK) {
+            if (!database.getMode().serialColumnIsNotPK) { //只有PostgreSQL的serialColumnIsNotPK是true
                 column.setPrimaryKey(true);
             }
         } else if (readIf("SERIAL")) {
@@ -3799,7 +3799,7 @@ public class Parser {
             column.setOriginalSQL("SERIAL");
             parseAutoIncrement(column);
             // PostgreSQL compatibility
-            if (!database.getMode().serialColumnIsNotPK) {
+            if (!database.getMode().serialColumnIsNotPK) { //只有PostgreSQL的serialColumnIsNotPK是true
                 column.setPrimaryKey(true);
             }
         } else {
@@ -3812,6 +3812,7 @@ public class Parser {
             column.setNullable(true);
         } else {
             // domains may be defined as not nullable
+        	//在上面调用过parseAutoIncrement时，column.isNullable()是false
             column.setNullable(defaultNullable & column.isNullable());
         }
         if (readIf("AS")) { //与DEFAULT有点相似
@@ -5439,7 +5440,7 @@ public class Parser {
             read("(");
             command.setIndexColumns(parseIndexColumnList());
             //同前面的PRIMARY KEY
-            if (readIf("INDEX")) {
+            if (readIf("INDEX")) { //指定主表索引
                 String indexName = readIdentifierWithSchema();
                 command.setIndex(schema.findIndex(session, indexName));
             }
@@ -5478,11 +5479,11 @@ public class Parser {
             }
         }
         //如CREATE TABLE IF NOT EXISTS mytable3 (f1 int REFERENCES mytable1(f2) INDEX myindex ON DELETE CASCADE
-        if (readIf("INDEX")) {
+        if (readIf("INDEX")) { //指定引用表索引
             String indexName = readIdentifierWithSchema();
             command.setRefIndex(getSchema().findIndex(session, indexName));
         }
-        while (readIf("ON")) {
+        while (readIf("ON")) { //如果有多个ON DELETE或UPDATE，只有最后一个有效
             if (readIf("DELETE")) {
                 command.setDeleteAction(parseAction());
             } else {
@@ -5557,6 +5558,10 @@ public class Parser {
             if (!readIf(")")) {
                 do {
                 	//约束和字段可以分开
+                	//在parseAlterTableAddConstraintIf里头，如果指定的约束字段在字段定义之前也是可以的，
+                	//因为执行AlterTableAddConstraint时，字段已有了
+                	//如CREATE TABLE IF NOT EXISTS mytable3 (f1 int, PRIMARY KEY(f2), f2 int not null)是无错的，
+                	//虽然PRIMARY KEY(f2)在f2字段的定义之前
                     DefineCommand c = parseAlterTableAddConstraintIf(tableName, schema); //定义约束
                     if (c != null) {
                         command.addConstraintCommand(c);

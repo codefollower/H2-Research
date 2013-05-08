@@ -523,6 +523,8 @@ public class MVTable extends TableBase {
         Transaction t = getTransaction(session);
         long savepoint = t.setSavepoint();
         try {
+        	//如果indexes.size()>0，这些index都是用同一个Transaction，所以事务id相同，但是logId在调用每个index.add时都增加
+        	//相当于多个index使用同一个logId记数器
             for (int i = 0, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 index.add(session, row);

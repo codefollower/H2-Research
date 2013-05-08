@@ -81,8 +81,9 @@ public class ConstraintCheck extends Constraint {
         table = null;
         invalidate();
     }
-
-    public void checkRow(Session session, Table t, Row oldRow, Row newRow) { //比如用于insert时
+    
+    //只用于insert和update
+    public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
         if (newRow == null) {
             return;
         }
