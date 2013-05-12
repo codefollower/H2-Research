@@ -16,8 +16,8 @@ public class MVTableTest extends TestBase {
 		//sql = "CREATE TABLE IF NOT EXISTS MVTableTest(id int, name varchar(500), b boolean) ";
 
 		stmt.executeUpdate(sql);
-		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_MVTableTest_name ON MVTableTest(name)");
-		stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_MVTableTest_id ON MVTableTest(id)");
+//		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_MVTableTest_name ON MVTableTest(name)");
+//		stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_MVTableTest_id ON MVTableTest(id)");
 
 		conn.setAutoCommit(false);
 		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(10, 'a1', true)");

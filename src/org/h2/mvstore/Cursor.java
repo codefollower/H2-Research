@@ -60,6 +60,7 @@ public class Cursor<K> implements Iterator<K> {
             }
             return;
         }
+        pos = null; //我加上的，见my.test.mvstore.bugs.TestCursorSkip
         long index = map.getKeyIndex(current);
         K k = map.getKey(index + n);
         min(root, k);

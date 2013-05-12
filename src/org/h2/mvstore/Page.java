@@ -29,15 +29,16 @@ import org.h2.mvstore.type.DataType;
  * leaf: values (one for each key)
  * node: children (1 more than keys)
  */
+//13个字段
 public class Page {
-
+	//为什么没有对应Page[] childrenPages的，因为有了SHARED_CHILDREN了，根据pagePos就能取出子Page了
     private static final int SHARED_KEYS = 1, SHARED_VALUES = 2, SHARED_CHILDREN = 4, SHARED_COUNTS = 8;
 
     private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
 
     private final MVMap<?, ?> map;
     private long version;
-    private long pos;
+    private long pos; //只有在写page数据时才能确定pos的值
 
     /**
      * The total entry count of this page and all children.
@@ -52,7 +53,7 @@ public class Page {
     /**
      * The last result of a find operation is cached.
      */
-    private int cachedCompare;
+    private int cachedCompare; //用于折半查找时
 
     /**
      * Which arrays are shared with another version of this page.
@@ -76,14 +77,14 @@ public class Page {
      * <p>
      * The array might be larger than needed, to avoid frequent re-sizing.
      */
-    private Object[] values;
+    private Object[] values; //只有Leaf才有values，Node的values为null
 
     /**
      * The child page ids.
      * <p>
      * The array might be larger than needed, to avoid frequent re-sizing.
      */
-    private long[] children;
+    private long[] children; //就是子Page的pagePos
 
     /**
      * The child pages.
@@ -112,7 +113,7 @@ public class Page {
     public static Page createEmpty(MVMap<?, ?> map, long version) {
         return create(map, version, 0,
                 EMPTY_OBJECT_ARRAY, EMPTY_OBJECT_ARRAY,
-                null, null, null, 0, 0, DataUtils.PAGE_MEMORY);
+                null, null, null, 0, 0, DataUtils.PAGE_MEMORY); //memory默认128字节
     }
 
     /**
@@ -131,6 +132,8 @@ public class Page {
      * @param memory the memory used in bytes
      * @return the page
      */
+    //11个参数
+    //只有cachedCompare和pos没有，cachedCompare和pos默认都是0
     public static Page create(MVMap<?, ?> map, long version,
             int keyCount, Object[] keys,
             Object[] values, long[] children, Page[] childrenPages, long[] counts,
@@ -148,7 +151,7 @@ public class Page {
         p.memory = memory == 0 ? p.calculateMemory() : memory;
         MVStore store = map.store;
         if (store != null) {
-            store.registerUnsavedPage();
+            store.registerUnsavedPage(); //仅仅是store的unsavedPageCount字段加1
         }
         return p;
     }
@@ -274,7 +277,7 @@ public class Page {
      * @return a page with the given version
      */
     public Page copy(long version) {
-        map.removePage(pos);
+        map.removePage(pos); //注意这里会删除原来的
         Page newPage = create(map, version,
                 keyCount, keys, values, children, childrenPages,
                 counts, totalCount,
@@ -563,7 +566,9 @@ public class Page {
      * @param value the value
      */
     public void insertLeaf(int index, Object key, Object value) {
+    	//keys.length > keyCount + 1时说明原来很有空间，不需要扩展keys的长度
         if (((sharedFlags & SHARED_KEYS) == 0) && keys.length > keyCount + 1) {
+        	//index在中间时，index后面的往后移，挪出一个空位
             if (index < keyCount) {
                 System.arraycopy(keys, index, keys, index + 1, keyCount - index);
                 System.arraycopy(values, index, values, index + 1, keyCount - index);
@@ -627,6 +632,7 @@ public class Page {
      *
      * @param index the index
      */
+    //如果page中的元素都删完了，在这个方法里也不会把page删除，而是在调用者那里，见MVMap.remove(Page, long, Object)
     public void remove(int index) {
         int keyIndex = index >= keyCount ? index - 1 : index;
         Object old = keys[keyIndex];
@@ -646,8 +652,9 @@ public class Page {
         if (values != null) {
             old = values[index];
             memory -= map.getValueType().getMemory(old);
+            //不共享，且values中的空闲元素个数不到4个时
             if ((sharedFlags & SHARED_VALUES) == 0 && values.length > keyCount - 4) {
-                if (index < keyCount - 1) {
+                if (index < keyCount - 1) { //不是最后一个元素时，index后面的要向前移
                     System.arraycopy(values, index + 1, values, index, keyCount - index - 1);
                 }
                 values[keyCount - 1] = null;
@@ -660,7 +667,7 @@ public class Page {
             totalCount--;
         }
         keyCount--;
-        if (children != null) {
+        if (children != null) { //针对node的情况
             memory -= DataUtils.PAGE_MEMORY_CHILD;
             long countOffset = counts[index];
 
@@ -722,10 +729,11 @@ public class Page {
         if (compressed) {
             Compressor compressor = map.getStore().getCompressor();
             int lenAdd = DataUtils.readVarInt(buff);
+            //pageLength + start得到page的最大位置，减去buff.position()，就相当于page在buff中剩下的字节长度是多少
             int compLen = pageLength + start - buff.position();
             byte[] comp = DataUtils.newBytes(compLen);
             buff.get(comp);
-            int l = compLen + lenAdd;
+            int l = compLen + lenAdd; //实际没压缩的长度
             buff = ByteBuffer.allocate(l);
             compressor.expand(comp, 0, compLen, buff.array(), 0, l);
         }
@@ -767,6 +775,7 @@ public class Page {
      * @param buff the target buffer
      * @return the target buffer
      */
+    //chunk的maxLength、maxLengthLive、pageCount、pageCountLive这4个字段会被修改
     private ByteBuffer write(Chunk chunk, ByteBuffer buff) {
         buff = DataUtils.ensureCapacity(buff, 1024);
         int start = buff.position();
@@ -849,7 +858,7 @@ public class Page {
                 Page p = childrenPages[i];
                 if (p != null) {
                     buff = p.writeUnsavedRecursive(chunk, buff);
-                    children[i] = p.getPos();
+                    children[i] = p.getPos(); //保存写完后得到的pagePos
                 }
             }
         }
@@ -859,7 +868,7 @@ public class Page {
     /**
      * Unlink the children recursively after all data is written.
      */
-    void writeEnd() {
+    void writeEnd() { //就是把每个node的childrenPages数组的每个元素设为null
         if (!isLeaf()) {
             int len = children.length;
             for (int i = 0; i < len; i++) {
@@ -888,7 +897,7 @@ public class Page {
             if (pos != 0 && ((Page) other).pos == pos) {
                 return true;
             }
-            return this == other;
+            return this == other; //多余的
         }
         return false;
     }
@@ -905,7 +914,9 @@ public class Page {
         }
         return memory;
     }
-
+    
+    //leaf是: 128 + keyCount * key.getMemory + keyCount * value.getMemory
+    //node是: 128 + keyCount * key.getMemory + 16 * childPageCount
     private int calculateMemory() {
         int mem = DataUtils.PAGE_MEMORY;
         DataType keyType = map.getKeyType();

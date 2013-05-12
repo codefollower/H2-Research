@@ -188,7 +188,7 @@ public class MVStore {
     /**
      * The version of the last stored chunk.
      */
-    private long lastStoredVersion;
+    private long lastStoredVersion; //lastStoredVersion比lastCommittedVersion小1
     private int fileReadCount;
     private int fileWriteCount;
     private int unsavedPageCount; //每次调用完store方法后都改变它的值
@@ -322,12 +322,12 @@ public class MVStore {
      */
     public <M extends MVMap<K, V>, K, V> M openMap(String name, MVMap.MapBuilder<M, K, V> builder) {
         checkOpen();
-        String x = meta.get("name." + name);
+        String x = meta.get("name." + name); //x就是mapId
         int id;
         long root;
         HashMap<String, String> c;
         M map;
-        if (x != null) {
+        if (x != null) { //打开已有的MVMap
             id = Integer.parseInt(x);
             @SuppressWarnings("unchecked")
             M old = (M) maps.get(id);
@@ -341,20 +341,19 @@ public class MVStore {
             map.init(this, c);
             String r = meta.get("root." + id);
             root = r == null ? 0 : Long.parseLong(r);
-        } else {
+        } else { //新建一个MVMap
             c = New.hashMap();
-            id = ++lastMapId;
+            id = ++lastMapId; //新的map的mapId是从1开始的，mapId=0是留给meta map的
             c.put("id", Integer.toString(id));
             c.put("createVersion", Long.toString(currentVersion));
             map = builder.create();
             map.init(this, c);
-            //有意反过来的
-            //id=>name
-            //name=>id
+            //map.{mapId}=>{map metadata}
+            //name.{mapName}=>{mapId}
             meta.put("map." + id, map.asString(name));
             meta.put("name." + name, Integer.toString(id));
             markMetaChanged();
-            root = 0;
+            root = 0; //root page的pagePos默认是0
         }
         map.setRootPos(root, -1);
         maps.put(id, map);
@@ -439,7 +438,7 @@ public class MVStore {
     void open() {
         meta = new MVMapConcurrent<String, String>(StringDataType.INSTANCE, StringDataType.INSTANCE);
         HashMap<String, String> c = New.hashMap();
-        c.put("id", "0");
+        c.put("id", "0"); //meta map的mapId是0
         c.put("createVersion", Long.toString(currentVersion));
         meta.init(this, c);
         if (fileName == null) { //内存模式，不用读文件
@@ -1129,9 +1128,11 @@ public class MVStore {
 
     private Chunk readChunkHeader(long start) {
         fileReadCount++;
+        //一个chunk占37字节，但是这里分配了40个，并且全读满，
+        //这没有关系的，因为在别处对file的读取并不是严格按先后顺序，可以随机读
         ByteBuffer buff = ByteBuffer.allocate(40);
         DataUtils.readFully(file, start, buff);
-        buff.rewind();
+        buff.rewind(); //readFully里已rewind一次了，这里是多余的
         return Chunk.fromHeader(buff, start);
     }
 
@@ -1531,7 +1532,7 @@ public class MVStore {
      *
      * @param version the new store version
      */
-    public void setStoreVersion(int version) {
+    public void setStoreVersion(int version) { //测试中用到
         checkOpen();
         markMetaChanged();
         meta.put("setting.storeVersion", Integer.toString(version));
@@ -1545,7 +1546,7 @@ public class MVStore {
      *
      * @param version the version to revert to
      */
-    public synchronized void rollbackTo(long version) {
+    public synchronized void rollbackTo(long version) { //>=version的都被撤消，注意这里是">="，而不是">"
         checkOpen();
         if (version == 0) {
             // special case: remove all data
@@ -1802,6 +1803,15 @@ public class MVStore {
         }
 
     }
+    
+//    MVStore.Builder可配置的参数(7个):
+//    	fileName
+//    	encrypt
+//    	readOnly
+//    	cacheSize
+//    	compress
+//    	writeBufferSize
+//    	writeDelay
 
     /**
      * A builder for an MVStore.
@@ -1931,6 +1941,7 @@ public class MVStore {
             return s;
         }
 
+        //例如: cacheSize:10,compress:1,readOnly:1,writeDelay:2000
         public String toString() {
             return DataUtils.appendMap(new StringBuilder(), config).toString();
         }

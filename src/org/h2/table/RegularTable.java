@@ -418,7 +418,8 @@ public class RegularTable extends TableBase {
         if (n > 0) {
             nextAnalyze = n;
         }
-        int rows = session.getDatabase().getSettings().analyzeSample; //抽样是1万行
+        int rows = session.getDatabase().getSettings().analyzeSample / 10; //抽样是1万行/10
+
         Analyze.analyzeTable(session, this, rows, false);
     }
 

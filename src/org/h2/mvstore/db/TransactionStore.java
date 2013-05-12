@@ -8,7 +8,6 @@ package org.h2.mvstore.db;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,7 @@ public class TransactionStore {
 
     private static final String LAST_TRANSACTION_ID = "lastTransactionId";
 
+    // TODO should not be hardcoded
     private static final int MAX_UNSAVED_PAGES = 4 * 1024;
 
     /**
@@ -37,16 +37,10 @@ public class TransactionStore {
     final MVStore store;
 
     /**
-     * The persisted map of open transaction.
+     * The persisted map of prepared transactions.
      * Key: transactionId, value: [ status, name ].
      */
-    final MVMap<Long, Object[]> openTransactions;
-
-    /**
-     * The map of open transaction objects.
-     * Key: transactionId, value: transaction object.
-     */
-    final HashMap<Long, Transaction> openTransactionMap = New.hashMap(); //注意，这个是HashMap，并不会持久化
+    final MVMap<Long, Object[]> preparedTransactions;
 
     /**
      * The undo log.
@@ -60,13 +54,16 @@ public class TransactionStore {
     long lockTimeout; //没有看到在哪里有赋值，就是默认值0
 
     /**
-     * The transaction settings. "lastTransaction" the last transaction id.
+     * The transaction settings. The entry "lastTransaction" contains the last
+     * transaction id.
      */
     private final MVMap<String, String> settings; //只有一个lastTransactionId作为key，没有其他key了
 
     private long lastTransactionIdStored;
 
     private long lastTransactionId;
+    
+    private long firstOpenTransaction = -1;
 
     /**
      * Create a new transaction store.
@@ -86,14 +83,11 @@ public class TransactionStore {
     public TransactionStore(MVStore store, DataType keyType) {
         this.store = store;
         settings = store.openMap("settings");
-        openTransactions = store.openMap("openTransactions",
+        preparedTransactions = store.openMap("openTransactions",
                 new MVMap.Builder<Long, Object[]>());
-        // commit could be faster if we have one undo log per transaction,
-        // or a range delete operation for maps
-        ArrayType oldValueType = new ArrayType(new DataType[]{
-                new ObjectDataType(), new ObjectDataType(),
-                keyType
-        });
+        // TODO commit of larger transaction could be faster if we have one undo
+        // log per transaction, or a range delete operation for maps
+        VersionedValueType oldValueType = new VersionedValueType(keyType);
         ArrayType valueType = new ArrayType(new DataType[]{
                 new ObjectDataType(), new ObjectDataType(), keyType,
                 oldValueType
@@ -112,37 +106,43 @@ public class TransactionStore {
             lastTransactionId = Long.parseLong(s);
             lastTransactionIdStored = lastTransactionId;
         }
-        Long lastKey = openTransactions.lastKey();
+        Long lastKey = preparedTransactions.lastKey();
         if (lastKey != null && lastKey.longValue() > lastTransactionId) {
             throw DataUtils.newIllegalStateException("Last transaction not stored");
         }
-        //重新把上次已持久化但是未提交的事务读到内存，并重新构建openTransactionMap
-        Cursor<Long> cursor = openTransactions.keyIterator(null);
-        while (cursor.hasNext()) {
-            long id = cursor.next();
-            Object[] data = openTransactions.get(id);
-            int status = (Integer) data[0];
-            String name = (String) data[1];
-            long[] next = { id + 1, -1 };
-            long[] last = undoLog.floorKey(next);
-            if (last == null) {
-                // no entry
-            } else if (last[0] == id) {
-                Transaction t = new Transaction(this, id, status, name, last[1]); //last[1]是logId
-                t.setStored(true);
-                openTransactionMap.put(id, t);
-            }
+        if (undoLog.size() > 0) {
+            long[] key = undoLog.firstKey();
+            firstOpenTransaction = key[0];
         }
     }
 
     /**
-     * Get the list of currently open transactions that have pending writes.
+     * Get the list of unclosed transactions that have pending writes.
      *
-     * @return the list of transactions
+     * @return the list of transactions (sorted by id)
      */
-    public synchronized List<Transaction> getOpenTransactions() {
+    public synchronized List<Transaction> getOpenTransactions() { //只在测试中用到
         ArrayList<Transaction> list = New.arrayList();
-        list.addAll(openTransactionMap.values());
+        long[] key = undoLog.firstKey();
+        while (key != null) {
+            long transactionId = key[0];
+            long[] end = { transactionId, Long.MAX_VALUE };
+            key = undoLog.floorKey(end);
+            long logId = key[1] + 1;
+            Object[] data = preparedTransactions.get(transactionId);
+            int status;
+            String name;
+            if (data == null) {
+                status = Transaction.STATUS_OPEN;
+                name = null;
+            } else {
+                status = (Integer) data[0];
+                name = (String) data[1];
+            }
+            Transaction t = new Transaction(this, transactionId, status, name, logId);
+            list.add(t);
+            key = undoLog.higherKey(end);
+        }
         return list;
     }
 
@@ -162,44 +162,33 @@ public class TransactionStore {
      */
     public synchronized Transaction begin() {
         long transactionId = lastTransactionId++;
+        if (lastTransactionId > lastTransactionIdStored) {
+            lastTransactionIdStored += 64;
+            settings.put(LAST_TRANSACTION_ID, "" + lastTransactionIdStored);
+        }
         int status = Transaction.STATUS_OPEN;
         return new Transaction(this, transactionId, status, null, 0);
     }
-    
-    //最主要的功能就是把Transaction状态和对象本身放到openTransactions、openTransactionMap
-    private void storeTransaction(Transaction t) {
-        if (store.getUnsavedPageCount() > MAX_UNSAVED_PAGES) { //未保存的页面大于MAX_UNSAVED_PAGES时，触发一次commit，存盘。
+
+    private void commitIfNeeded() {
+        if (store.getUnsavedPageCount() > MAX_UNSAVED_PAGES) {
             store.commit();
-        }
-        if (t.isStored()) {
-            return;
-        }
-        t.setStored(true);
-        long transactionId = t.getId();
-        Object[] v = { t.getStatus(), null };
-        openTransactions.put(transactionId, v);
-        openTransactionMap.put(transactionId, t);
-        //每隔32次写一下lastTransactionId，
-        //lastTransactionId不要求一定连续，可以跳过一些中间的数字，只要保证递增即可
-        if (lastTransactionId > lastTransactionIdStored) {
-            lastTransactionIdStored += 32;
-            settings.put(LAST_TRANSACTION_ID, "" + lastTransactionIdStored);
+            store.store();
         }
     }
 
     /**
-     * Prepare a transaction.
+     * Store a transaction.
      *
-     * @param transactionId the transaction id
+     * @param t the transaction
      */
-    void prepare(Transaction t) {
-        storeTransaction(t);
-        Object[] old = openTransactions.get(t.getId());
-        Object[] v = { Transaction.STATUS_PREPARED, old[1] };
-        openTransactions.put(t.getId(), v);
-        store.commit();
+    void storeTransaction(Transaction t) {
+        if (t.getStatus() == Transaction.STATUS_PREPARED || t.getName() != null) {
+            Object[] v = { t.getStatus(), t.getName() };
+            preparedTransactions.put(t.getId(), v);
+        }
     }
-
+    
     /**
      * Log an entry.
      *
@@ -212,23 +201,13 @@ public class TransactionStore {
      */
     void log(Transaction t, long logId, int opType, int mapId,
             Object key, Object oldValue) {
-        storeTransaction(t);
+        commitIfNeeded();
         long[] undoKey = { t.getId(), logId };
         Object[] log = new Object[] { opType, mapId, key, oldValue };
         undoLog.put(undoKey, log);
-    }
-
-    /**
-     * Set the name of a transaction.
-     *
-     * @param t the transaction
-     * @param name the new name
-     */
-    void setTransactionName(Transaction t, String name) {
-        storeTransaction(t);
-        Object[] old = openTransactions.get(t.getId());
-        Object[] v = { old[0], name };
-        openTransactions.put(t.getId(), v);
+        if (firstOpenTransaction == -1 || t.getId() < firstOpenTransaction) {
+            firstOpenTransaction = t.getId();
+        }
     }
 
     /**
@@ -244,6 +223,7 @@ public class TransactionStore {
         for (long logId = 0; logId < maxLogId; logId++) {
             long[] undoKey = new long[] {
                     t.getId(), logId };
+            commitIfNeeded();            
             Object[] op = undoLog.get(undoKey);
             int opType = (Integer) op[0];
             if (opType == Transaction.OP_REMOVE) {
@@ -251,12 +231,12 @@ public class TransactionStore {
                 Map<String, String> meta = store.getMetaMap();
                 String m = meta.get("map." + mapId);
                 String mapName = DataUtils.parseMap(m).get("name");
-                MVMap<Object, Object[]> map = store.openMap(mapName);
+                MVMap<Object, VersionedValue> map = store.openMap(mapName);
                 Object key = op[2];
-                Object[] value = map.get(key);
+                VersionedValue value = map.get(key);
                 // possibly the entry was added later on
                 // so we have to check
-                if (value[2] == null) {
+                if (value.value == null) {
                     // remove the value
                     map.remove(key);
                 }
@@ -277,9 +257,33 @@ public class TransactionStore {
         endTransaction(t);
     }
     
+    boolean isTransactionOpen(long transactionId) {
+//      if (transactionId < firstOpenTransaction) {
+//          return false;
+//      }
+      if (firstOpenTransaction == -1) {
+          if (undoLog.size() == 0) {
+              return false;
+          }
+          long[] key = undoLog.firstKey();
+          firstOpenTransaction = key[0];
+      }
+      if (firstOpenTransaction == transactionId) {
+          return true;
+      }
+      long[] key = { transactionId, -1 };
+      key = undoLog.higherKey(key);
+      return key != null && key[0] == transactionId;
+  }
+    
     private void endTransaction(Transaction t) {
-        openTransactions.remove(t.getId());
-        openTransactionMap.remove(t.getId());
+        if (t.getStatus() == Transaction.STATUS_PREPARED) {
+            preparedTransactions.remove(t.getId());
+        }
+        t.setStatus(Transaction.STATUS_CLOSED);
+        if (t.getId() == firstOpenTransaction) {
+            firstOpenTransaction = -1;
+        }
     }
 
     /**
@@ -291,15 +295,16 @@ public class TransactionStore {
      */
     void rollbackTo(Transaction t, long maxLogId, long toLogId) {
         for (long logId = maxLogId - 1; logId >= toLogId; logId--) {
+            commitIfNeeded();            
             Object[] op = undoLog.get(new long[] {
                     t.getId(), logId });
             int mapId = ((Integer) op[1]).intValue();
             Map<String, String> meta = store.getMetaMap();
             String m = meta.get("map." + mapId);
             String mapName = DataUtils.parseMap(m).get("name");
-            MVMap<Object, Object[]> map = store.openMap(mapName);
+            MVMap<Object, VersionedValue> map = store.openMap(mapName);
             Object key = op[2];
-            Object[] oldValue = (Object[]) op[3];
+            VersionedValue oldValue = (VersionedValue) op[3];
             if (oldValue == null) {
                 // this transaction added the value
                 map.remove(key);
@@ -349,15 +354,13 @@ public class TransactionStore {
         /**
          * The transaction id.
          */
-        final Long transactionId;
+        final long transactionId;
 
         long logId;
         
         private int status;
 
         private String name;
-        
-        private boolean stored;
 
         Transaction(TransactionStore store, long transactionId, int status, String name, long logId) {
             this.store = store;
@@ -368,48 +371,24 @@ public class TransactionStore {
             this.logId = logId;
         }
 
-        boolean isStored() {
-            return stored;
-        }
-
-        void setStored(boolean stored) {
-            this.stored = stored;
-        }
-
-        /**
-         * Get the transaction id.
-         *
-         * @return the transaction id
-         */
-        public Long getId() {
+        public long getId() {
             return transactionId;
         }
 
-        /**
-         * Get the transaction status.
-         *
-         * @return the status
-         */
         public int getStatus() {
             return status;
         }
-
-        /**
-         * Set the name of the transaction.
-         *
-         * @param name the new name
-         */
-        public void setName(String name) {
-            checkOpen();
-            store.setTransactionName(this, name);
-            this.name = name;
+        
+        void setStatus(int status) {
+            this.status = status;
         }
 
-        /**
-         * Get the name of the transaction.
-         *
-         * @return name the name
-         */
+        public void setName(String name) {
+            checkOpen();
+            this.name = name;
+            store.storeTransaction(this);
+        }
+
         public String getName() {
             return name;
         }
@@ -490,8 +469,8 @@ public class TransactionStore {
          */
         public void prepare() {
             checkOpen();
-            store.prepare(this);
             status = STATUS_PREPARED;
+            store.storeTransaction(this);
         }
 
         /**
@@ -500,7 +479,6 @@ public class TransactionStore {
         public void commit() {
             if (status != STATUS_CLOSED) {
                 store.commit(this, logId);
-                status = STATUS_CLOSED;
             }
         }
 
@@ -510,7 +488,6 @@ public class TransactionStore {
         public void rollback() {
             if (status != STATUS_CLOSED) {
                 store.rollback(this, logId);
-                status = STATUS_CLOSED;
             }
         }
 
@@ -543,7 +520,7 @@ public class TransactionStore {
          * Key: key the key of the data.
          * Value: { transactionId, oldVersion, value } //oldVersion实际上就是logId，logId在Transaction.log方法中递增
          */
-        final MVMap<K, Object[]> map;
+        final MVMap<K, VersionedValue> map;
 
         private Transaction transaction; //这个字段也适合加final
 
@@ -560,18 +537,14 @@ public class TransactionStore {
         TransactionMap(Transaction transaction, String name, DataType keyType,
                 DataType valueType) {
             this.transaction = transaction;
-            //对应Value: { transactionId, oldVersion, value }
-            //第一个ObjectDataType对应transactionId，第二个ObjectDataType对应oldVersion, valueType对应value
-            ArrayType arrayType = new ArrayType(new DataType[] {
-                    new ObjectDataType(), new ObjectDataType(), valueType
-            });
-            MVMap.Builder<K, Object[]> builder = new MVMap.Builder<K, Object[]>()
-                    .keyType(keyType).valueType(arrayType);
+            VersionedValueType vt = new VersionedValueType(valueType);
+            MVMap.Builder<K, VersionedValue> builder = new MVMap.Builder<K, VersionedValue>()
+                    .keyType(keyType).valueType(vt);
             map = transaction.store.store.openMap(name, builder);
             mapId = map.getId();
         }
         
-        private TransactionMap(Transaction transaction, MVMap<K, Object[]> map, int mapId) {
+        private TransactionMap(Transaction transaction, MVMap<K, VersionedValue> map, int mapId) {
             this.transaction = transaction;
             this.map = map;
             this.mapId = mapId;
@@ -618,10 +591,6 @@ public class TransactionStore {
             return size;
         }
 
-        private void checkOpen() {
-            transaction.checkOpen();
-        }
-
         /**
          * Remove an entry.
          * <p>
@@ -652,7 +621,7 @@ public class TransactionStore {
         }
 
         private V set(K key, V value) {
-            checkOpen();
+            transaction.checkOpen();
             long start = 0;
             while (true) {
                 V old = get(key);
@@ -692,7 +661,7 @@ public class TransactionStore {
          * @param key the key
          * @return whether the entry could be removed
          */
-        public boolean tryRemove(K key) {
+        public boolean tryRemove(K key) { //tryRemove、tryPut与remove、put的差别是try开头的会等待琐超时
             return trySet(key, null, false);
         }
 
@@ -723,21 +692,21 @@ public class TransactionStore {
          * @return true if the value was set
          */
         public boolean trySet(K key, V value, boolean onlyIfUnchanged) { //只有在测试例子中看到设置onlyIfUnchanged为true
-            Object[] current = map.get(key);
+            VersionedValue current = map.get(key);
             if (onlyIfUnchanged) {
             	//值是:Value: { transactionId, oldVersion, value } oldVersion实际上就是logId，logId在Transaction.log方法中递增
-                Object[] old = getArray(key, readLogId);
+                VersionedValue old = getValue(key, readLogId);
                 //onlyIfUnchanged的意思是current(注意不是参数value)与原先的值相等时才设置，
                 //所以如果current与原先的值不相等，那么就可以快速确定返回值
                 if (!map.areValuesEqual(old, current)) {
-                    long tx = (Long) current[0];
+                    long tx = current.transactionId;
                     if (tx == transaction.transactionId) {
                         if (value == null) {
                             // ignore removing an entry
                             // if it was added or changed
                             // in the same statement
                             return true;
-                        } else if (current[2] == null) {
+                        } else if (current.value == null) {
                             // add an entry that was removed
                             // in the same statement
                         } else {
@@ -749,7 +718,7 @@ public class TransactionStore {
                 }
             }
             int opType;
-            if (current == null || current[2] == null) {
+            if (current == null || current.value == null) {
                 if (value == null) {
                     // remove a removed value
                     opType = Transaction.OP_SET;
@@ -763,20 +732,21 @@ public class TransactionStore {
                     opType = Transaction.OP_SET;
                 }
             }
-            Object[] newValue = { 
-                    transaction.transactionId, 
-                    transaction.logId, value };
-            if (current == null) {
+            VersionedValue newValue = new VersionedValue();
+            newValue.transactionId = transaction.transactionId;
+            newValue.logId = transaction.logId;
+            newValue.value = value;
+            if (current == null) { //指的是原来的map中没有值
                 // a new value
-                Object[] old = map.putIfAbsent(key, newValue);
+                VersionedValue old = map.putIfAbsent(key, newValue);
                 if (old == null) {
-                    transaction.log(opType, mapId, key, current);
+                    transaction.log(opType, mapId, key, current); //在undo log中记录下之前的值
                     return true;
                 }
-                return false;
+                return false; //被其他线程抢先设置了
             }
-            long tx = (Long) current[0];
-            if (tx == transaction.transactionId) {
+            long tx = current.transactionId;
+            if (tx == transaction.transactionId) { //同一事务内先后修改相同的key
                 // added or updated by this transaction
                 if (map.replace(key, current, newValue)) {
                     transaction.log(opType, mapId, key, current);
@@ -784,11 +754,11 @@ public class TransactionStore {
                 }
                 // strange, somebody overwrite the value
                 // even thought the change was not committed
-                return false;
+                return false; //被其他线程抢先修改了
             }
             // added or updated by another transaction
-            boolean open = transaction.store.openTransactions.containsKey(tx);
-            if (!open) {
+            boolean open = transaction.store.isTransactionOpen(tx);
+            if (!open) { //前一次的事务已提交
                 // the transaction is committed:
                 // overwrite the value
                 if (map.replace(key, current, newValue)) {
@@ -799,7 +769,7 @@ public class TransactionStore {
                 return false;
             }
             // the transaction is not yet committed
-            return false;
+            return false; //前面的事务未提交，当前事务必须等待，然后才能修改相同的key
         }
 
         /**
@@ -841,24 +811,24 @@ public class TransactionStore {
          */
         @SuppressWarnings("unchecked")
         public V get(K key, long maxLogId) {
-            checkOpen();
-            Object[] data = getArray(key, maxLogId);
-            return data == null ? null : (V) data[2];
+            transaction.checkOpen();
+            VersionedValue data = getValue(key, maxLogId);
+            return data == null ? null : (V) data.value;
         }
-        
+
         //见org.h2.test.store.TestTransactionStore.testKeyIterator()里的测试
         //当执行到第三个tx = ts.begin()时tx != transaction.transactionId
         //所以就从第二个tx = ts.begin()对应的undoLog中取出value
-        private Object[] getArray(K key, long maxLog) {
-            Object[] data = map.get(key);
+        private VersionedValue getValue(K key, long maxLog) {
+            VersionedValue data = map.get(key);
             while (true) {
                 long tx;
                 if (data == null) {
                     // doesn't exist or deleted by a committed transaction
                     return null;
                 }
-                tx = (Long) data[0];
-                long logId = (Long) data[1];
+                tx = data.transactionId;
+                long logId = data.logId;
                 if (tx == transaction.transactionId) { //是map对应的transactionId
                     // added by this transaction
                     if (logId < maxLog) {
@@ -866,7 +836,7 @@ public class TransactionStore {
                     }
                 }
                 // added or updated by another transaction
-                boolean open = transaction.store.openTransactions.containsKey(tx);
+                boolean open = transaction.store.isTransactionOpen(tx);
                 if (!open) { //如果对应的事务id不在当前的事务列表中，说明此事务已提交了
                     // it is committed
                     return data;
@@ -874,8 +844,8 @@ public class TransactionStore {
                 //否则从undoLog中取
                 // get the value before the uncommitted transaction
                 long[] x = new long[] { tx, logId };
-                data = transaction.store.undoLog.get(x);
-                data = (Object[]) data[3];
+                Object[] d = transaction.store.undoLog.get(x);
+                data = (VersionedValue) d[3];
             }
         }
 
@@ -986,7 +956,7 @@ public class TransactionStore {
          * @param key the key (may not be null)
          * @return the result
          */
-        public K ceilingKey(K key) {
+        public K ceilingKey(K key) { //>=key的最小的那一个
             // TODO transactional ceilingKey
             return map.ceilingKey(key);
         }
@@ -998,7 +968,7 @@ public class TransactionStore {
          * @param key the key (may not be null)
          * @return the result
          */
-        public K higherKey(K key) {
+        public K higherKey(K key) { //>key的最小的那一个(注:上面的ceilingKey没有等于)
             // TODO transactional higherKey
             return map.higherKey(key);
         }
@@ -1010,7 +980,7 @@ public class TransactionStore {
          * @param key the key (may not be null)
          * @return the result
          */
-        public K lowerKey(K key) {
+        public K lowerKey(K key) { //<key的最大那一个
             // TODO Auto-generated method stub
             return map.lowerKey(key);
         }
@@ -1019,6 +989,68 @@ public class TransactionStore {
             return transaction;
         }
 
+    }
+    
+    /**
+     * A versioned value (possibly null). It contains a pointer to the old
+     * value, and the value itself.
+     */
+    static class VersionedValue {
+        public long transactionId, logId;
+        public Object value;
+    }
+    
+    /**
+     * The value type for a versioned value.
+     */
+    public static class VersionedValueType implements DataType {
+        
+        private final DataType valueType;
+        
+        VersionedValueType(DataType valueType) {
+            this.valueType = valueType;
+        }
+        
+        @Override
+        public int getMemory(Object obj) {
+            VersionedValue v = (VersionedValue) obj;
+            return valueType.getMemory(v.value) + 16;
+        }
+
+        @Override
+        public int compare(Object aObj, Object bObj) {
+            if (aObj == bObj) {
+                return 0;
+            }
+            VersionedValue a = (VersionedValue) aObj;
+            VersionedValue b = (VersionedValue) bObj;
+            long comp = a.transactionId - b.transactionId;
+            if (comp == 0) {
+                comp = a.logId - b.logId;
+                if (comp == 0) {
+                    return valueType.compare(a.value, b.value);
+                }
+            }
+            return Long.signum(comp);
+        }
+
+        @Override
+        public ByteBuffer write(ByteBuffer buff, Object obj) {
+            VersionedValue v = (VersionedValue) obj;
+            DataUtils.writeVarLong(buff, v.transactionId);
+            DataUtils.writeVarLong(buff, v.logId);
+            return valueType.write(buff, v.value);
+        }
+
+        @Override
+        public Object read(ByteBuffer buff) {
+            VersionedValue v = new VersionedValue();
+            v.transactionId = DataUtils.readVarLong(buff);
+            v.logId = DataUtils.readVarLong(buff);
+            v.value = valueType.read(buff);
+            return v;
+        }        
+        
     }
 
     /**

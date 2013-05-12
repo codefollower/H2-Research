@@ -24,7 +24,7 @@ public abstract class TestBase {
 		//		prop.setProperty("PAGE_SIZE", "1024");
 		//		prop.setProperty("FILE_LOCK", "FS");
 
-		prop.setProperty("PAGE_SIZE", "128");
+		//prop.setProperty("PAGE_SIZE", "128");
 		//prop.setProperty("MVCC", "true");
 
 		//prop.setProperty("MODE", "DB2"); //支持SYSDUMMY1

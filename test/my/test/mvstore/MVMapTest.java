@@ -1,18 +1,90 @@
 package my.test.mvstore;
 
+import org.h2.mvstore.Cursor;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 
 public class MVMapTest {
+	public static void p(Object o) {
+		System.out.println(o);
+	}
+
+	public static void p() {
+		System.out.println();
+	}
+
 	public static void main(String[] args) {
+		MVStore store = MVStore.open(null);
+		store.setPageSize(512);
+
+		MVMap<Integer, String> map = store.openMap("MVMapTest");
+
+		int n = 100;
+		for (int i = 1; i <= n; i++) {
+			map.put(i, "Hello" + i);
+		}
+
+		p(map.getRoot());
+
+		Integer key = 3;
+		key = null;
+
+		key = -2;
+
+		key = 101;
+
+		p(map.higherKey(key));
+		p(map.ceilingKey(key));
+
+		p(map.lowerKey(key));
+		p(map.floorKey(key));
+
+		p();
+		Cursor<Integer> c = map.keyIterator(50);
+		c.skip(40);
+		//c.skip(30);
+		//c.skip(6);
+		while (c.hasNext()) {
+			p(c.next());
+		}
+	}
+
+	public static void main2(String[] args) {
 		//		String fileName = null;
 		//		fileName = "E:/H2/baseDir/MVStoreTest333";
 		//		MVStore store = MVStore.open(fileName);
 		MVStore store = MVStore.open(null);
 		store.setPageSize(512);
 
+		//store.incrementVersion();
+		//store.incrementVersion();
+
 		MVMap<Integer, String> map = store.openMap("MVMapTest");
-		System.out.println(map.asString("test"));
+
+		p(map.toString());
+		p(map.asString("test"));
+
+		//map.put(1, null);
+
+		map.renameMap("MVMapTest2");
+
+		map.put(1, "1");
+		store.incrementVersion();
+		store.incrementVersion();
+
+		map.put(2, "2");
+		store.incrementVersion();
+		store.incrementVersion();
+
+		map.put(3, "3");
+
+		p(map.firstKey());
+		p(map.lastKey());
+
+		p(store.getCurrentVersion());
+		//map.openVersion(-1);
+
+		p(map.getVersion());
 
 		int n = 100;
 		for (int i = 0; i < n; i++) {
@@ -22,25 +94,30 @@ public class MVMapTest {
 				store.incrementVersion();
 		}
 
-		System.out.println(map.getRoot());
+		p(map.firstKey());
+		p(map.lastKey());
 
-		System.out.println(map.openVersion(0).getRoot());
+		map.openVersion(1);
 
-		System.out.println(map.openVersion(1).getRoot());
+		p(map.getRoot());
 
-		System.out.println(map.openVersion(2).getRoot());
+		p(map.openVersion(0).getRoot());
 
-		System.out.println(map.getKey(10));
+		p(map.openVersion(1).getRoot());
+
+		p(map.openVersion(2).getRoot());
+
+		p(map.getKey(10));
 
 		map.remove(0);
 		map.remove(1);
 		map.remove(2);
-		
+
 		for (int i = 0; i < 18; i++) {
 			map.remove(i);
 		}
 
-		System.out.println(map.getRoot());
+		p(map.getRoot());
 
 		// add some data
 		map.put(1, "Hello");
@@ -50,18 +127,18 @@ public class MVMapTest {
 		map.put(5, "55");
 		map.put(6, "66");
 
-		System.out.println(map.ceilingKey(6));
-		System.out.println(map.floorKey(2));
+		p(map.ceilingKey(6));
+		p(map.floorKey(2));
 
-		System.out.println(map.getKeyIndex(2));
+		p(map.getKeyIndex(2));
 
-		System.out.println(map.getName());
-		System.out.println(map.getSize());
+		p(map.getName());
+		p(map.getSize());
 
-		System.out.println(map.higherKey(2));
+		p(map.higherKey(2));
 
 		map.renameMap("MVMapTest22");
-		System.out.println(map.getName());
+		p(map.getName());
 
 		// get the current version, for later use
 		long oldVersion = store.getCurrentVersion();
@@ -69,7 +146,7 @@ public class MVMapTest {
 		// from now on, the old version is read-only
 		store.incrementVersion();
 
-		System.out.println(map.asString("test"));
+		p(map.asString("test"));
 
 		// more changes, in the new version
 		// changes can be rolled back if required
@@ -77,10 +154,10 @@ public class MVMapTest {
 		map.put(1, "Hi");
 		map.remove(2);
 
-		System.out.println(map.asString("test"));
+		p(map.asString("test"));
 
 		MVMap<Integer, String> map2 = store.openMap("MVMapTest2");
-		System.out.println(map2.asString("test"));
+		p(map2.asString("test"));
 
 		//map.openVersion(-1);
 
@@ -100,14 +177,14 @@ public class MVMapTest {
 		// print the old version (can be done
 		// concurrently with further modifications)
 		// this will print "Hello" and "World":
-		System.out.println(oldMap.get(1));
-		System.out.println(oldMap.get(2));
+		p(oldMap.get(1));
+		p(oldMap.get(2));
 		oldMap.close();
 
 		// print the newest version ("Hi")
-		System.out.println(map.get(1));
+		p(map.get(1));
 
-		System.out.println(map.get(2));
+		p(map.get(2));
 
 		// close the store - this doesn't write to disk
 		store.close();
