@@ -29,8 +29,9 @@ public class PerformanceTest extends TestBase {
 		stmt.executeUpdate(sql);
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_PerformanceTest_id ON PerformanceTest(id)");
 
+		int count = 5000;
 		long t1 = System.currentTimeMillis();
-		for (int i = 0; i < 200; i++) {
+		for (int i = 0, size = count / 5; i < size; i++) {
 			stmt.executeUpdate("insert into PerformanceTest(id, name, b) values(10, 'a1', true)");
 			stmt.executeUpdate("insert into PerformanceTest(id, name, b) values(20, 'b1', true)");
 			stmt.executeUpdate("insert into PerformanceTest(id, name, b) values(30, 'a2', false)");
@@ -44,8 +45,8 @@ public class PerformanceTest extends TestBase {
 
 		t1 = System.currentTimeMillis();
 		Random r = new Random();
-		for (int i = 0; i < 1000; i++) {
-			stmt.executeQuery("select * from PerformanceTest where id=" + r.nextInt(1000));
+		for (int i = 0; i < count; i++) {
+			stmt.executeQuery("select * from PerformanceTest where id=" + r.nextInt(count));
 		}
 		t2 = System.currentTimeMillis();
 		System.out.println(engine + " select: " + (t2 - t1) + " ms");

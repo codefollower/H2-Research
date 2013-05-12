@@ -5,11 +5,112 @@ import org.h2.mvstore.MVStore;
 import org.h2.store.fs.FileUtils;
 
 public class MVStoreTest {
-
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		new MVStoreTest().run();
+	}
+
+	void run() {
+		storeTest();
+		//rollbackToTest();
+	}
+	
+	void storeTest() {
+		MVStore store = getMVStore();
+
+		MVMap<Integer, String> map = store.openMap("data");
+		MVMap<Integer, String> map2 = store.openMap("data2");
+
+		System.out.println(store.getCurrentVersion());
+
+		int n = 100;
+		for (int i = 0; i < n; i++) {
+			map.put(i, "Hello" + i);
+			map2.put(i, "Hello" + i);
+		}
+
+		long oldVersion = store.getCurrentVersion();
+
+		System.out.println(map.getSize());
+
+		store.incrementVersion();
+
+		map.put(101, "Hello101");
+		map.put(102, "Hello102");
+
+		store.rollbackTo(0);
+		store.rollbackTo(oldVersion + 1);
+
+		store.commit();
+
+		map = store.openMap("data");
+		System.out.println(map.getSize());
+
+		store.close();
+	}
+
+	void rollbackToTest() {
+		MVStore store = getMVStore();
+
+		MVMap<Integer, String> map = store.openMap("data");
+		MVMap<Integer, String> map2 = store.openMap("data2");
+
+		System.out.println(store.getCurrentVersion());
+
+		int n = 100;
+		for (int i = 0; i < n; i++) {
+			map.put(i, "Hello" + i);
+			map2.put(i, "Hello" + i);
+		}
+
+		long oldVersion = store.getCurrentVersion();
+
+		System.out.println(map.getSize());
+
+		store.incrementVersion();
+
+		map.put(101, "Hello101");
+		map.put(102, "Hello102");
+
+		store.rollbackTo(0);
+		store.rollbackTo(oldVersion + 1);
+
+		store.commit();
+
+		map = store.openMap("data");
+		System.out.println(map.getSize());
+
+		store.close();
+	}
+
+	MVStore getMVStore() {
+		MVStore.Builder builder = new MVStore.Builder();
+		builder.cacheSize(10).compressData().readOnly().writeDelay(2000);
+
+		String str = builder.toString();
+
+		//System.out.println(str);
+		builder = MVStore.Builder.fromString(str);
+
+		// open the store (in-memory if fileName is null)
+		String fileName = null;
+		fileName = "E:/H2/baseDir/MVStoreTest333";
+		MVStore store = null;
+		FileUtils.deleteRecursive(fileName, true);
+
+		//store = MVStore.open(fileName);
+
+		builder = new MVStore.Builder();
+		builder.writeDelay(0).fileName(fileName);
+
+		store = builder.open();
+
+		return store;
+	}
+
+	public static void main2(String[] args) {
 		MVStore.Builder builder = new MVStore.Builder();
 		builder.cacheSize(10).compressData().readOnly().writeDelay(2000);
 
@@ -30,6 +131,12 @@ public class MVStoreTest {
 		builder.writeDelay(0).fileName(fileName);
 
 		store = builder.open();
+
+		System.out.println(store.getRetainVersion());
+		System.out.println(store.getRetentionTime());
+		System.out.println(store.getReuseSpace());
+		System.out.println(store.getStoreVersion());
+		System.out.println(store.getUnsavedPageCount());
 
 		// create/get the map named "data"
 		MVMap<Integer, String> map = store.openMap("data");

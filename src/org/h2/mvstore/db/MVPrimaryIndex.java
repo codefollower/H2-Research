@@ -106,14 +106,14 @@ public class MVPrimaryIndex extends BaseIndex {
     }
 
     @Override
-    public void add(Session session, Row row) {
+    public void add(Session session, Row row) {        
         if (mainIndexColumn == -1) { //没有mainIndexColumn时自动生成记录唯一行key
         	//TODO 没看到哪里把rowKey设为非值
             if (row.getKey() == 0) {
                 row.setKey(++lastKey); //当更新记录时，会删除原来的记录，再插入新记录，但是新记录的rowKey是0，不会沿用原来的rowKey
             }
         } else { //否则使用mainIndexColumn的值
-            Long c = row.getValue(mainIndexColumn).getLong(); //因为主键列不会为null，所以这里肯定能取到非null值
+            long c = row.getValue(mainIndexColumn).getLong(); //因为主键列不会为null，所以这里肯定能取到非null值
             row.setKey(c);
         }
 

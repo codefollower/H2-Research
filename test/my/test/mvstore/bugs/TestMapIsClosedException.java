@@ -1,4 +1,4 @@
-package my.test.mvstore;
+package my.test.mvstore.bugs;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

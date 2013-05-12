@@ -97,8 +97,9 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      */
     @SuppressWarnings("unchecked")
     public V put(K key, V value) {
+    	//如果条件不为true，则抛异常
         DataUtils.checkArgument(value != null, "The value may not be null");
-        beforeWrite();
+        beforeWrite(); //writing设为true，有可能触发MVStore的store方法，此时就需要把内存中的数据刷到硬盘
         try {
             long writeVersion = store.getCurrentVersion();
             //root最开始时的version是-1，每次put前都判断一下当前写版本是否与root的版本一样，不一样就copy一分root的引用
@@ -109,7 +110,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
             //System.out.println(p);
             return (V) result;
         } finally {
-            afterWrite();
+            afterWrite(); //writing设为false
         }
     }
 
@@ -337,7 +338,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param key the key (may not be null)
      * @return the result
      */
-    public K higherKey(K key) {
+    public K higherKey(K key) { //>key的第一个key
         return getMinMax(key, false, true);
     }
 
@@ -347,7 +348,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param key the key (may not be null)
      * @return the result
      */
-    public K ceilingKey(K key) {
+    public K ceilingKey(K key) { //>=key的第一个key
         return getMinMax(key, false, false);
     }
 
@@ -357,7 +358,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param key the key (may not be null)
      * @return the result
      */
-    public K floorKey(K key) {
+    public K floorKey(K key) { //<=key的第一个key
         return getMinMax(key, true, false);
     }
 
@@ -368,7 +369,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param key the key (may not be null)
      * @return the result
      */
-    public K lowerKey(K key) {
+    public K lowerKey(K key) { //<key的第一个key
         return getMinMax(key, true, true);
     }
 
@@ -407,7 +408,8 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         }
         int x;
         if (key == null) {
-            x = min ? 0 : p.getKeyCount() - 1;
+        	//x = min ? 0 : p.getKeyCount() - 1; //这里应是p.getKeyCount()
+            x = min ? 0 : p.getKeyCount(); //这里
         } else {
             x = p.binarySearch(key);
             if (x < 0) {
@@ -1112,7 +1114,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         if (createVersion != 0) {
             DataUtils.appendMap(buff, "createVersion", createVersion);
         }
-        String type = getType();
+        String type = getType(); //MVRTreeMap实现了getType()
         if (type != null) {
             DataUtils.appendMap(buff, "type", type);
         }
