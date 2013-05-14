@@ -19,6 +19,7 @@ public class MVStoreTest {
 	
 	void storeTest() {
 		MVStore store = getMVStore();
+		store.setReuseSpace(false);
 
 		MVMap<Integer, String> map = store.openMap("data");
 		MVMap<Integer, String> map2 = store.openMap("data2");
@@ -30,23 +31,38 @@ public class MVStoreTest {
 			map.put(i, "Hello" + i);
 			map2.put(i, "Hello" + i);
 		}
-
-		long oldVersion = store.getCurrentVersion();
-
-		System.out.println(map.getSize());
-
-		store.incrementVersion();
-
-		map.put(101, "Hello101");
-		map.put(102, "Hello102");
-
-		store.rollbackTo(0);
-		store.rollbackTo(oldVersion + 1);
-
 		store.commit();
+		store.store();
+		
 
-		map = store.openMap("data");
+		for (int i = 100; i < 150; i++) {
+			map.put(i, "Hello" + i);
+			map2.put(i, "Hello" + i);
+		}
+		
 		System.out.println(map.getSize());
+		
+		store.commit();
+		store.store();
+		
+		System.out.println(map.getSize());
+
+//		long oldVersion = store.getCurrentVersion();
+//
+//		System.out.println(map.getSize());
+//
+//		store.incrementVersion();
+//
+//		map.put(101, "Hello101");
+//		map.put(102, "Hello102");
+//
+//		store.rollbackTo(0);
+//		store.rollbackTo(oldVersion + 1);
+//
+//		store.commit();
+//
+//		map = store.openMap("data");
+//		System.out.println(map.getSize());
 
 		store.close();
 	}
@@ -98,7 +114,7 @@ public class MVStoreTest {
 		String fileName = null;
 		fileName = "E:/H2/baseDir/MVStoreTest333";
 		MVStore store = null;
-		FileUtils.deleteRecursive(fileName, true);
+		//FileUtils.deleteRecursive(fileName, true);
 
 		//store = MVStore.open(fileName);
 

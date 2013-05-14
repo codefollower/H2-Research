@@ -1,8 +1,11 @@
 package my.test.mvstore;
 
+import java.util.Set;
+
 import org.h2.mvstore.Cursor;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
+import org.h2.store.fs.FileUtils;
 
 public class MVMapTest {
 	public static void p(Object o) {
@@ -14,6 +17,102 @@ public class MVMapTest {
 	}
 
 	public static void main(String[] args) {
+		//testKeyIterator();
+		//testRemove();
+		testOpenVersion();
+	}
+
+	public static void testOpenVersion() {
+		String fileName = null;
+		fileName = "E:/H2/baseDir/MVStoreTest333";
+		FileUtils.deleteRecursive(fileName, true);
+
+		MVStore.Builder builder = new MVStore.Builder();
+		builder.writeDelay(100).fileName(fileName);
+
+		MVStore store = builder.open();
+		store.setPageSize(512);
+
+		MVMap<Integer, String> map = store.openMap("MVMapTest");
+
+		//store.incrementVersion();
+		//store.incrementVersion();
+
+		//p(map.openVersion(3).getRoot());
+
+		//p(map.openVersion(4).getRoot());
+
+		p(map.size());
+		p(map.getRoot());
+		p(map.openVersion(0).getRoot());
+
+		map.put(1, "1");
+
+		p(map.openVersion(0).getRoot());
+
+		store.incrementVersion();
+		store.incrementVersion();
+
+		map.put(2, "2");
+		store.incrementVersion();
+
+		map.put(3, "3");
+		store.incrementVersion();
+		map.put(4, "4");
+
+		p(map.openVersion(0).getRoot());
+		p(map.openVersion(1).getRoot());
+		p(map.openVersion(2).getRoot());
+		p(map.openVersion(3).getRoot());
+		p(map.openVersion(4).getRoot());
+		store.commit();
+		store.close(); //老的版本在close后就不能打开了，自动清掉
+
+	}
+
+	static MVStore getMVStore(String fileName) {
+		MVStore.Builder builder = new MVStore.Builder();
+		builder.writeDelay(0).fileName(fileName);
+
+		MVStore store = builder.open();
+		store.setPageSize(512);
+
+		return store;
+	}
+
+	public static void testRemove() {
+		MVStore store = MVStore.open(null);
+		store.setPageSize(512);
+
+		MVMap<Integer, String> map = store.openMap("MVMapTest");
+
+		int n = 10;
+		for (int i = 1; i <= n; i++) {
+			map.put(i, "Hello" + i);
+		}
+
+		p(map.getRoot());
+
+		//map.clear();
+		//map.removeMap();
+
+		map.remove(1);
+		map.remove(2);
+		map.remove(3);
+
+		for (int i = 1; i <= n; i++) {
+			map.remove(i);
+		}
+
+		p(map.getRoot());
+
+		map.put(1, "a");
+
+		p(map.getRoot());
+
+	}
+
+	public static void testKeyIterator() {
 		MVStore store = MVStore.open(null);
 		store.setPageSize(512);
 
@@ -41,12 +140,21 @@ public class MVMapTest {
 
 		p();
 		Cursor<Integer> c = map.keyIterator(50);
-		c.skip(40);
+		//c.skip(40);
 		//c.skip(30);
-		//c.skip(6);
+		c.skip(6);
 		while (c.hasNext()) {
 			p(c.next());
 		}
+
+		Set<Integer> set = map.keySet();
+		for (Integer k : set) {
+			p(k);
+		}
+
+		//		for (Integer k : map.keyIterator(98)) {
+		//			p(k);
+		//		}
 	}
 
 	public static void main2(String[] args) {
