@@ -56,41 +56,99 @@ writeBufferSize
 writeDelay
 
 
-Page格式
+=================================
+MVStore格式
 
-int     page length(包含这4字节)
-short   check value(并不是校验和，不用计算所有字节)，check value的值取决于当前page所在chunk的chunkId、start位置(或称offset)、page length
-varInt  map id
-varInt  key count
-byte    page type(0: leaf, 1: node)
-
-接下来分两种情况:
-===========================
-1. 如果不需压缩: {
-	key count {
-		Object  key
+	MVStore {
+		4096字节  FileHeader
+		4096字节  FileHeader
+		[ Chunk ] *
 	}
-	if (type == leaf) {
-		key count {
-			Object  value
-		}
+
+	FileHeader {
+		4096字节是一个块的大小，上面两个是一样的，防止块损坏，
+		一个FileHeader的大小不固定，取决于具体的值，但是不会超过4096字节，
+		FileHeader有8个属性:
+		H:3,
+		blockSize:4096,
+		creationTime:1368493299954,
+		format:1,
+		lastMapId:0,
+		rootChunk:0,
+		version:0,
+		fletcher:3bde3c9a (使用Fletcher32算法得到的checksum，是对前面7个属性求checksum)
 	}
-	if (type == node) {
-		key count + 1 {
-			long     child page pos
-		}
 
-		key count + 1 {
-			varLong  child key count
-		}
+	Chunk {
+		[ ChunkHeader MVMapPage MetaMapPage FileHeader] *
 	}
-}
 
-2. 如果需要压缩，先按1的方式写入buffer，计算1的字节长度，然后尝试压缩buffer中的字节，
-如果"压缩后的长度+(压缩后的长度-buffer长度)的差的VarIntLen < buffer长度"那么就进行压缩:
-重写page type
-byte         page type(2: leaf+compressed, 3: node+compressed)
-varInt       buffer长度-压缩后的长度
-压缩后的长度 压缩后的字节
+	ChunkHeader {
+		byte    固定是'c'
+		int     length
+		int     id
+		int     pageCount
+		long    metaRootPos
+		long    maxLength
+		long    maxLengthLive
+	}
 
+	MVMapPage = Page
+	MetaMapPage = Page
 
+	Page {
+		int     page length(包含这4字节)
+		short   check value(并不是校验和，不用计算所有字节)，check value的值取决于当前page所在chunk的chunkId、start位置(或称offset)、page length
+		varInt  map id
+		varInt  key count
+		byte    page type(0: leaf, 1: node)
+
+		接下来分两种情况:
+		===========================
+		1. 如果不需压缩: {
+			key count {
+				Object  key
+			}
+			if (type == leaf) {
+				key count {
+					Object  value
+				}
+			}
+			if (type == node) {
+				key count + 1 {
+					long     child page pos
+				}
+
+				key count + 1 {
+					varLong  child key count
+				}
+			}
+		}
+
+		2. 如果需要压缩，先按1的方式写入buffer，计算1的字节长度，然后尝试压缩buffer中的字节，
+		如果"压缩后的长度+(压缩后的长度-buffer长度)的差的VarIntLen < buffer长度"那么就进行压缩:
+		重写page type
+		byte         page type(2: leaf+compressed, 3: node+compressed)
+		varInt       buffer长度-压缩后的长度
+		压缩后的长度 压缩后的字节
+	}
+
+	meta map样例:
+
+	PageLeaf{
+		id = 23191477
+		pos = 1099511630162
+		version = -1
+		keyCount = 10
+
+		chunk.1:id:1,length:2352,maxLength:3008,maxLengthLive:1024,metaRoot:274878040014,pageCount:7,pageCountLive:2,start:8192,time:16,version:1
+		chunk.2:id:2,length:426,maxLength:512,maxLengthLive:512,metaRoot:549755816272,pageCount:1,pageCountLive:1,start:16384,time:16,version:2
+		chunk.3:id:3,length:2865,maxLength:3424,maxLengthLive:2656,metaRoot:824633869138,pageCount:7,pageCountLive:6,start:24576,time:16,version:3
+		chunk.4:id:4,length:2147483647,maxLength:0,maxLengthLive:0,metaRoot:0,pageCount:0,pageCountLive:0,start:9223372036854775807,time:16,version:4
+		map.1:name:data
+		map.2:name:data2
+		name.data:1
+		name.data2:2
+		root.1:824633866563
+		root.2:824633793603
+	}
