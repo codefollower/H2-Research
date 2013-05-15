@@ -13,7 +13,7 @@ import java.util.Iterator;
  *
  * @param <K> the key type
  */
-public class Cursor<K> implements Iterator<K> {
+public class Cursor<K> implements Iterator<K>, Iterable<K> { //Iterable 我加上的，这样可用于foreach语句
 
     protected final MVMap<K, ?> map;
     protected final K from;
@@ -79,7 +79,7 @@ public class Cursor<K> implements Iterator<K> {
      * @param p the page to start
      * @param from the key to search
      */
-    protected void min(Page p, K from) {
+    protected void min(Page p, K from) { //用CursorPos来摹拟ROOT Node->Node->Leaf这样的层次结构
         while (true) {
             if (p.isLeaf()) {
                 int x = from == null ? 0 : p.binarySearch(from);
@@ -120,5 +120,10 @@ public class Cursor<K> implements Iterator<K> {
         }
         current = null;
     }
+
+	@Override
+	public Iterator<K> iterator() { //我加上的，这样可用于foreach语句
+		return this;
+	}
 
 }

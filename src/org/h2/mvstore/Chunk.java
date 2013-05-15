@@ -119,6 +119,7 @@ public class Chunk {
      *
      * @param buff the target buffer
      */
+    //37字节
     void writeHeader(ByteBuffer buff) { //此类问共11字段，不包含start、pageCountLive、collectPriority、version、time这5个字段
         buff.put((byte) 'c');
         buff.putInt(length);

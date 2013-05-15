@@ -88,7 +88,7 @@ public class ValueLobTest {
 		}
 
 		
-		ValueLob.open(Value.BLOB,handler, 1, 2, 10,true);
+		ValueLob.openLinked(Value.BLOB,handler, 1, 2, 10,true);
 	}
 
 	static String getFileNamePrefix(String path, int objectId) {
