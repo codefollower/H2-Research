@@ -539,7 +539,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
     /**
      * Close the map, making it read only and release the memory.
      */
-    public void close() {
+    public void close() { //老的版本在close后就不能打开了，自动清掉
         closed = true;
         readOnly = true;
         removeAllOldVersions();

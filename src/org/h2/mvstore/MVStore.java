@@ -439,7 +439,7 @@ public class MVStore {
         meta = new MVMapConcurrent<String, String>(StringDataType.INSTANCE, StringDataType.INSTANCE);
         HashMap<String, String> c = New.hashMap();
         c.put("id", "0"); //meta map的mapId是0
-        c.put("createVersion", Long.toString(currentVersion));
+        c.put("createVersion", Long.toString(currentVersion)); //currentVersion在这一步总是0
         meta.init(this, c);
         if (fileName == null) { //内存模式，不用读文件
             return;
@@ -462,7 +462,7 @@ public class MVStore {
             }
         }
         lastStoreTime = getTime();
-        String r = meta.get("rollbackOnOpen");
+        String r = meta.get("rollbackOnOpen"); //上一次没有完全提交，这里要rollback
         if (r != null) {
             long rollback = Long.parseLong(r);
             rollbackTo(rollback);
@@ -524,7 +524,7 @@ public class MVStore {
             } else {
                 readFileHeader();
                 int formatWrite = Integer.parseInt(fileHeader.get("format"));
-                String x = fileHeader.get("formatRead");
+                String x = fileHeader.get("formatRead"); //并未使用"formatRead"属性，所以总是null
                 int formatRead = x == null ? formatWrite : Integer.parseInt(x);
                 if (formatRead > FORMAT_READ) {
                     throw DataUtils.newIllegalStateException(
@@ -599,14 +599,19 @@ public class MVStore {
         // we don't have a valid header yet
         currentVersion = -1;
         // read the last block of the file, and then two first blocks
+        //buff中是先放最后一个trunk的FileHeader和最开始的两个FileHeader
         ByteBuffer buff = ByteBuffer.allocate(3 * BLOCK_SIZE);
-        buff.limit(BLOCK_SIZE);
+        buff.limit(BLOCK_SIZE); //最多允许读BLOCK_SIZE个字节
         fileReadCount++;
-        DataUtils.readFully(file, fileSize - BLOCK_SIZE, buff);
-        buff.limit(3 * BLOCK_SIZE);
+        //fileSize - BLOCK_SIZE就表示最后一个块的开始位置
+        //readFully内部会对buff进行rewind
+        DataUtils.readFully(file, fileSize - BLOCK_SIZE, buff); //每个trunk最后都跟一个FileHeader,先读最后一个trunk的FileHeader
+        buff.limit(3 * BLOCK_SIZE); //最多允许读3 * BLOCK_SIZE个字节
         buff.position(BLOCK_SIZE);
         fileReadCount++;
-        DataUtils.readFully(file, 0, buff);
+        DataUtils.readFully(file, 0, buff); //再读每个文件最开始的两个FileHeader(默认是一样的)
+        //三个文件头正常情况都一样
+        //这个for循环，每次按块遍厉
         for (int i = 0; i < 3 * BLOCK_SIZE; i += BLOCK_SIZE) { //检查冗余块
             String s = new String(buff.array(), i, BLOCK_SIZE, Constants.UTF8)
                     .trim();
@@ -621,6 +626,7 @@ public class MVStore {
             } catch (NumberFormatException e) {
                 check = -1;
             }
+            //FileHeader的前面7个属性
             s = s.substring(0, s.lastIndexOf("fletcher") - 1);
             byte[] bytes = s.getBytes(Constants.UTF8);
             int checksum = DataUtils.getFletcher32(bytes, bytes.length / 2 * 2);
@@ -642,6 +648,16 @@ public class MVStore {
         lastStoredVersion = -1;
     }
 
+	//  一个FileHeader的大小不固定，取决于具体的值，但是不会超过4096字节，
+	//	FileHeader有8个属性:
+	//	H:3,
+	//	blockSize:4096,
+	//	creationTime:1368493299954,
+	//	format:1,
+	//	lastMapId:0,
+	//	rootChunk:0,
+	//	version:0,
+	//	fletcher:3bde3c9a (使用Fletcher32算法得到的checksum，是对前面7个属性求checksum)
     private byte[] getFileHeaderBytes() {
         StringBuilder buff = new StringBuilder();
         fileHeader.put("lastMapId", "" + lastMapId);
@@ -656,7 +672,8 @@ public class MVStore {
                 "File header too large: {0}", buff);
         return bytes;
     }
-
+    
+    //有两个FileHeader，固定放在文件最开始的地方，占用2 * BLOCK_SIZE = 2 * 4096 = 8192字节
     private void writeFileHeader() {
         byte[] bytes = getFileHeaderBytes();
         ByteBuffer header = ByteBuffer.allocate(2 * BLOCK_SIZE);
@@ -797,6 +814,10 @@ public class MVStore {
      */
     //调用close和store方法时temp是false
     //而调用commit、beforeWrite、storeInBackground方法时temp是true
+    //temp为true时，在meta map中记下rollbackOnOpen对应的lastCommittedVersion，
+    //这样可以rollback，这个有点难理解，所以作者在TODO中想把'rollback' 改名为 'revert'
+    //temp为false时就从meta map中清除rollbackOnOpen
+    //commit、store、close、rollback这几个方法有点混乱
     private synchronized long store(boolean temp) {
         if (closed) {
             return currentVersion;
@@ -825,7 +846,7 @@ public class MVStore {
         }
         long time = getTime(); //当前时间减去creationTime
         lastStoreTime = time; //lastStoreTime存放的是一个与creationTime之间的差值
-        if (temp) { //temp为true，说明所有page都未保存到硬盘
+        if (temp) {
             meta.put("rollbackOnOpen", Long.toString(lastCommittedVersion));
             // find the oldest chunk to retain
             long minVersion = Long.MAX_VALUE;
@@ -837,7 +858,7 @@ public class MVStore {
                 }
             }
             retainChunk = minChunk;
-        } else { //temp为false表示page都保存到硬盘了
+        } else { //temp为false表示page都保存到硬盘了，都已正常提交，这样在重新open时不用再rollback
             lastCommittedVersion = version;
             meta.remove("rollbackOnOpen");
             retainChunk = null;
@@ -858,19 +879,19 @@ public class MVStore {
         c.start = Long.MAX_VALUE;
         c.length = Integer.MAX_VALUE;
         c.time = time;
-        c.version = version;
+        c.version = version; //调用incrementVersion()后的版本，比storeVersion、currentStoreVersion都大1
         chunks.put(c.id, c);
         meta.put("chunk." + c.id, c.asString());
         ArrayList<MVMap<?, ?>> list = New.arrayList(maps.values());
         ArrayList<MVMap<?, ?>> changed = New.arrayList();
         for (MVMap<?, ?> m : list) {
-            if (m != meta) {
+            if (m != meta) { //TODO maps中会包含meta map吗?
                 long v = m.getVersion();
                 //查看当前的maps中的每个version是否>=上一次调用store方法时的版本
                 if (v >= 0 && m.getVersion() >= lastStoredVersion) {
-                    MVMap<?, ?> r = m.openVersion(storeVersion);
+                    MVMap<?, ?> r = m.openVersion(storeVersion); //打开按storeVersion指定的版本
                     r.waitUntilWritten(r.getRoot());
-                    if (r.getRoot().getPos() == 0) {
+                    if (r.getRoot().getPos() == 0) { //pos为0时就表示些page还未写
                         changed.add(r);
                     }
                 }
@@ -894,12 +915,13 @@ public class MVStore {
             buff = ByteBuffer.allocate(1024 * 1024); //1M大小
         }
         // need to patch the header later
-        c.writeHeader(buff); //1. 先写chunk头(注: 后面会重写)
+        c.writeHeader(buff); //1. 先写chunk头(注: 后面会重写)，总共37字节
         c.maxLength = 0;
         c.maxLengthLive = 0;
         for (MVMap<?, ?> m : changed) {
             Page p = m.getRoot();
             if (p.getTotalCount() > 0) { //2. 再写Page，writeUnsavedRecursive里会改变c中的字段值
+            	//chunk的maxLength、maxLengthLive、pageCount、pageCountLive这4个字段会被修改
                 buff = p.writeUnsavedRecursive(c, buff);
                 long root = p.getPos();
                 meta.put("root." + m.getId(), "" + root);
@@ -946,9 +968,10 @@ public class MVStore {
         c.writeHeader(buff);
         rootChunkStart = filePos;
         revertTemp(storeVersion);
-        
-        //前面的length = MathUtils.roundUpInt(chunkLength, BLOCK_SIZE) + BLOCK_SIZE加了LOCK_SIZE
-        //就是想在之里的buff最后留一下block，目的是为了写FileHeader
+
+        //4. 最后写FileHeader，每个chunk都有一个FileHeader
+        //前面的length = MathUtils.roundUpInt(chunkLength, BLOCK_SIZE) + BLOCK_SIZE加了BLOCK_SIZE
+        //就是想为buff在最后留一个block，目的是为了写FileHeader
         buff.position(buff.limit() - BLOCK_SIZE);
         byte[] header = getFileHeaderBytes();
         buff.put(header);
@@ -964,9 +987,11 @@ public class MVStore {
         }
 
         // overwrite the header if required
+        //如果chunk是在文件中间写入，需要重写文件最开始的两个文件头
+        //如果是在文件末尾写入则不需要
         if (!storeAtEndOfFile) {
-            writeFileHeader();
-            shrinkFileIfPossible(1);
+            writeFileHeader(); //重写文件最开始的两个文件头
+            shrinkFileIfPossible(1); //如果收缩比大于1%则进行文件收缩
         }
 
         for (MVMap<?, ?> m : changed) {
@@ -1067,7 +1092,7 @@ public class MVStore {
      *
      * @param minPercent the minimum percentage to save
      */
-    private void shrinkFileIfPossible(int minPercent) {
+    private void shrinkFileIfPossible(int minPercent) { //收缩文件
         long used = getFileSizeUsed();
         if (used >= fileSize) {
             return;
@@ -1110,7 +1135,7 @@ public class MVStore {
      *
      * @return if there are any changes
      */
-    public boolean hasUnsavedChanges() {
+    public boolean hasUnsavedChanges() { //只要meta map发生改变了，或者有一个MVMap的版本大于lastStoredVersion都返回true
         checkOpen();
         if (metaChanged) {
             return true;

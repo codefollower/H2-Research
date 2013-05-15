@@ -107,7 +107,7 @@ public class MVStoreTest {
 
 		String str = builder.toString();
 
-		//System.out.println(str);
+		System.out.println(str);
 		builder = MVStore.Builder.fromString(str);
 
 		// open the store (in-memory if fileName is null)
