@@ -64,6 +64,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
         return constraintName;
     }
 
+    @Override
     public int update() {
         try {
             return tryUpdate();
@@ -356,6 +357,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
         this.type = type;
     }
 
+    @Override
     public int getType() {
         return type;
     }

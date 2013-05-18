@@ -96,6 +96,7 @@ public class PageBtreeLeaf extends PageBtree {
         writtenData = true;
     }
 
+    @Override
     int addRowTry(SearchRow row) {
         int x = addRow(row, true);
         memoryChange();
@@ -208,6 +209,7 @@ public class PageBtreeLeaf extends PageBtree {
         return entryCount;
     }
 
+    @Override
     PageBtree split(int splitPoint) {
         int newPageId = index.getPageStore().allocatePage();
         PageBtreeLeaf p2 = PageBtreeLeaf.create(index, newPageId, parentPageId);
@@ -220,14 +222,17 @@ public class PageBtreeLeaf extends PageBtree {
         return p2;
     }
 
+    @Override
     PageBtreeLeaf getFirstLeaf() {
         return this;
     }
 
+    @Override
     PageBtreeLeaf getLastLeaf() {
         return this;
     }
 
+    @Override
     SearchRow remove(SearchRow row) {
         int at = find(row, false, false, true);
         SearchRow delete = getRow(at);
@@ -250,19 +255,23 @@ public class PageBtreeLeaf extends PageBtree {
         return null;
     }
 
+    @Override
     void freeRecursive() {
         index.getPageStore().logUndo(this, data);
         index.getPageStore().free(getPos());
     }
 
+    @Override
     int getRowCount() {
         return entryCount;
     }
 
+    @Override
     void setRowCountStored(int rowCount) {
         // ignore
     }
 
+    @Override
     public void write() {
         writeData();
         index.getPageStore().writePage(getPos(), data);
@@ -298,6 +307,7 @@ public class PageBtreeLeaf extends PageBtree {
         memoryChange();
     }
 
+    @Override
     void find(PageBtreeCursor cursor, SearchRow first, boolean bigger) {
         int i = find(first, bigger, false, false); //这里返回的i怎么会>entryCount
         if (i > entryCount) { //什么情况下才会使得i > entryCount? 
@@ -311,10 +321,12 @@ public class PageBtreeLeaf extends PageBtree {
         cursor.setCurrent(this, i);
     }
 
+    @Override
     void last(PageBtreeCursor cursor) {
         cursor.setCurrent(this, entryCount - 1);
     }
 
+    @Override
     void remapChildren() {
         // nothing to do
     }
@@ -347,11 +359,13 @@ public class PageBtreeLeaf extends PageBtree {
         next.previousPage(cursor, getPos());
     }
 
+    @Override
     public String toString() {
     	return tree();
         //return "page[" + getPos() + "] b-tree leaf table:" + index.getId() + " entries:" + entryCount;
     }
 
+    @Override
     public void moveTo(Session session, int newPos) {
         PageStore store = index.getPageStore();
         readAllRows();
@@ -375,6 +389,7 @@ public class PageBtreeLeaf extends PageBtree {
         store.free(getPos());
     }
 
+    @Override
     protected void memoryChange() {
         if (!PageBtreeIndex.isMemoryChangeRequired()) {
             return;

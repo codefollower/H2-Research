@@ -123,6 +123,7 @@ public abstract class Table extends SchemaObjectBase {
         compareMode = schema.getDatabase().getCompareMode();
     }
 
+    @Override
     public void rename(String newName) {
         super.rename(newName);
         if (constraints != null) {
@@ -313,6 +314,7 @@ public abstract class Table extends SchemaObjectBase {
         return null;
     }
 
+    @Override
     public String getCreateSQLForCopy(Table table, String quotedName) { //只有TableView覆盖了
         throw DbException.throwInternalError();
     }
@@ -345,6 +347,7 @@ public abstract class Table extends SchemaObjectBase {
     }
     
     //Table的children有6种: index、constraint、trigger、sequence、view、right
+    @Override
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = New.arrayList();
         ArrayList<Index> indexes = getIndexes();
@@ -432,7 +435,7 @@ public abstract class Table extends SchemaObjectBase {
      */
     public void updateRows(Prepared prepared, Session session, RowList rows) {
         // in case we need to undo the update
-        int rollback = session.getUndoLogPos();
+        Session.Savepoint rollback = session.setSavepoint();
         // remove the old rows
         int rowScanCount = 0;
         for (rows.reset(); rows.hasNext();) {
@@ -474,6 +477,7 @@ public abstract class Table extends SchemaObjectBase {
         return views;
     }
 
+    @Override
     public void removeChildrenAndResources(Session session) {
         while (views != null && views.size() > 0) {
             TableView view = views.get(0);
@@ -597,6 +601,7 @@ public abstract class Table extends SchemaObjectBase {
         return columns;
     }
 
+    @Override
     public int getType() {
         return DbObject.TABLE_OR_VIEW;
     }
@@ -1098,6 +1103,7 @@ public abstract class Table extends SchemaObjectBase {
         return column.convert(v);
     }
 
+    @Override
     public boolean isHidden() {
         return isHidden;
     }

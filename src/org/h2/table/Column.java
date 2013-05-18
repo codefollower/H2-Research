@@ -104,6 +104,7 @@ public class Column {
         this.displaySize = displaySize;
     }
 
+    @Override
     public boolean equals(Object o) {
         if (o == this) {
             return true;
@@ -120,6 +121,7 @@ public class Column {
         return name.equals(other.name);
     }
 
+    @Override
     public int hashCode() {
         if (table == null || name == null) {
             return 0;
@@ -646,6 +648,7 @@ public class Column {
         return primaryKey;
     }
 
+    @Override
     public String toString() {
         return name;
     }

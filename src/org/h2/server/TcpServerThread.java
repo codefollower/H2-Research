@@ -70,6 +70,7 @@ public class TcpServerThread implements Runnable {
         server.trace(this + " " + s);
     }
 
+    @Override
     public void run() {
         try {
             transfer.init();
@@ -415,9 +416,9 @@ public class TcpServerThread implements Runnable {
             transfer.writeInt(SessionRemote.STATUS_OK).flush();
             break;
         }
-        case SessionRemote.SESSION_UNDO_LOG_POS: {
+        case SessionRemote.SESSION_HAS_PENDING_TRANSACTION: {
             transfer.writeInt(SessionRemote.STATUS_OK).
-                writeInt(session.getUndoLogPos()).flush();
+                writeInt(session.hasPendingTransaction() ? 1 : 0).flush();
             break;
         }
         case SessionRemote.LOB_READ: {
@@ -541,6 +542,7 @@ public class TcpServerThread implements Runnable {
             }
         }
 
+        @Override
         public int read(byte[] buff, int off, int len) throws IOException {
             len = super.read(buff, off, len);
             if (len > 0) {
@@ -549,6 +551,7 @@ public class TcpServerThread implements Runnable {
             return len;
         }
 
+        @Override
         public int read() throws IOException {
             int x = in.read();
             if (x >= 0) {
@@ -557,6 +560,7 @@ public class TcpServerThread implements Runnable {
             return x;
         }
 
+        @Override
         public long skip(long n) throws IOException {
             n = super.skip(n);
             if (n > 0) {

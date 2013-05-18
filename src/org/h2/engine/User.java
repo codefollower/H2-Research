@@ -76,14 +76,17 @@ public class User extends RightOwner {
         }
     }
 
+    @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public String getCreateSQL() {
         return getCreateSQL(true);
     }
 
+    @Override
     public String getDropSQL() {
         return null;
     }
@@ -206,10 +209,12 @@ public class User extends RightOwner {
         }
     }
 
+    @Override
     public int getType() {
         return DbObject.USER;
     }
 
+    @Override
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = New.arrayList();
         for (Right right : database.getAllRights()) {
@@ -229,6 +234,7 @@ public class User extends RightOwner {
     //dorp table时会调用
     //不管是直接把权限授予给此user还是把角色授予给些user都会得到一个Right，
     //所以只要取出所有权限，判断一下Grantee是不是user自己就可以了
+    @Override
     public void removeChildrenAndResources(Session session) {
     	//授予给此user自己的权限要删除
         for (Right right : database.getAllRights()) {
@@ -243,6 +249,7 @@ public class User extends RightOwner {
         invalidate();
     }
 
+    @Override
     public void checkRename() {
         // ok
     }

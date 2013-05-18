@@ -15,6 +15,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+
 import org.h2.constant.ErrorCode;
 import org.h2.constant.SysProperties;
 import org.h2.message.DbException;
@@ -23,7 +24,7 @@ import org.h2.mvstore.type.DataType;
 import org.h2.result.SortOrder;
 import org.h2.store.Data;
 import org.h2.store.DataHandler;
-import org.h2.store.LobStorageBackend;
+import org.h2.store.LobStorageFrontend;
 import org.h2.store.LobStorageInterface;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.DateTimeUtils;
@@ -88,6 +89,7 @@ public class ValueDataType implements DataType {
         this.sortTypes = sortTypes;
     }
 
+    @Override
     public int compare(Object a, Object b) {
         if (a == b) {
             return 0;
@@ -139,6 +141,7 @@ public class ValueDataType implements DataType {
         return a.compareTypeSave(b, compareMode);
     }
 
+    @Override
     public int getMemory(Object obj) {
         return getMemory((Value) obj);
     }
@@ -147,10 +150,12 @@ public class ValueDataType implements DataType {
         return v == null ? 0 : v.getMemory();
     }
 
+    @Override
     public Value read(ByteBuffer buff) {
         return readValue(buff);
     }
 
+    @Override
     public ByteBuffer write(ByteBuffer buff, Object obj) {
         Value x = (Value) obj;
         buff = DataUtils.ensureCapacity(buff, 0);
@@ -593,7 +598,7 @@ public class ValueDataType implements DataType {
             if (smallLen >= 0) {
                 byte[] small = DataUtils.newBytes(smallLen);
                 buff.get(small, 0, smallLen);
-                return LobStorageBackend.createSmallLob(type, small);
+                return LobStorageFrontend.createSmallLob(type, small);
             } else if (smallLen == -3) {
                 int tableId = readVarInt(buff);
                 long lobId = readVarLong(buff);
@@ -614,12 +619,10 @@ public class ValueDataType implements DataType {
                 }
                 if (smallLen == -2) {
                     String filename = readString(buff);
-                    ValueLob lob = ValueLob.openUnlinked(type, handler, tableId, objectId, precision, compression, filename);
-                    return lob;
-                } else {
-                    ValueLob lob = ValueLob.openLinked(type, handler, tableId, objectId, precision, compression);
-                    return lob;
+                    return ValueLob.openUnlinked(type, handler, tableId, objectId, precision, compression, filename);
                 }
+                ValueLob lob = ValueLob.openLinked(type, handler, tableId, objectId, precision, compression);
+                return lob;
             }
         }
         case Value.ARRAY: {

@@ -31,11 +31,14 @@ public abstract class DefineCommand extends Prepared {
         super(session);
     }
 
+    @Override
     public boolean isReadOnly() { //无子类覆盖
         return false;
     }
 
+    @Override
     public ResultInterface queryMeta() { //无子类覆盖
+
         return null;
     }
 
@@ -43,6 +46,7 @@ public abstract class DefineCommand extends Prepared {
         this.transactional = transactional;
     }
 
+    @Override
     public boolean isTransactional() {
         return transactional;
     }

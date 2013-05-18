@@ -77,6 +77,7 @@ public abstract class CacheObject implements Comparable<CacheObject> {
     }
     
     //比较pageId，相等为0，当前CacheObject小于other时返回-1，大于时返回1
+    @Override
     public int compareTo(CacheObject other) { //没有子类覆盖
         return MathUtils.compareInt(getPos(), other.getPos());
     }

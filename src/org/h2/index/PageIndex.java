@@ -41,6 +41,7 @@ public abstract class PageIndex extends BaseIndex {
      */
     public abstract void writeRowCount(); //只有PageDataNode、PageBtreeNode才存rowCount
 
+    @Override
     public void setSortedInsertMode(boolean sortedInsertMode) {
         this.sortedInsertMode = sortedInsertMode;
     }

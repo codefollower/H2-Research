@@ -224,10 +224,12 @@ public abstract class Query extends Prepared {
         randomAccessResult = b;
     }
 
+    @Override
     public boolean isQuery() {
         return true;
     }
 
+    @Override
     public boolean isTransactional() {
         return true;
     }
@@ -279,6 +281,7 @@ public abstract class Query extends Prepared {
         return params;
     }
 
+    @Override
     public LocalResult query(int maxrows) {
         return query(maxrows, null);
     }

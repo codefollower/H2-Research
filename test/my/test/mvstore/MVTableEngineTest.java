@@ -6,6 +6,10 @@ public class MVTableEngineTest extends TestBase {
 	public static void main(String[] args) throws Exception {
 		new MVTableEngineTest().start();
 	}
+	
+	public void init() throws Exception {
+		//url = "jdbc:h2:mem:mydb";
+	}
 
 	@Override
 	public void startInternal() throws Exception {

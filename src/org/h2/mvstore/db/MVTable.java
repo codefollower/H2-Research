@@ -47,8 +47,6 @@ import org.h2.value.Value;
  */
 public class MVTable extends TableBase {
 
-    private final String storeName;
-    private final TransactionStore store;
     private MVPrimaryIndex primaryIndex;
     private ArrayList<Index> indexes = New.arrayList();
     private long lastModificationId;
@@ -61,6 +59,8 @@ public class MVTable extends TableBase {
     private boolean containsLargeObject;
     private Column rowIdColumn;
 
+    private final TransactionStore store;
+
     /**
      * True if one thread ever was waiting to lock this table. This is to avoid
      * calling notifyAll if no session was ever waiting to lock this table. If
@@ -68,11 +68,10 @@ public class MVTable extends TableBase {
      */
     private boolean waitForLock;
 
-    public MVTable(CreateTableData data, String storeName, TransactionStore store) {
+    public MVTable(CreateTableData data, MVTableEngine.Store store) {
         super(data);
         nextAnalyze = database.getSettings().analyzeAuto;
-        this.storeName = storeName;
-        this.store = store;
+        this.store = store.getTransactionStore();
         this.isHidden = data.isHidden;
         for (Column col : getColumns()) {
             if (DataType.isLargeObject(col.getType())) {
@@ -96,7 +95,11 @@ public class MVTable extends TableBase {
         rowCount = primaryIndex.getRowCount(session);
         indexes.add(primaryIndex);
     }
-    
+
+    public String getMapName() {
+        return primaryIndex.getMapName();
+    }
+
     //有关琐的代码跟org.h2.table.RegularTable的完全一样
     @Override
     public void lock(Session session, boolean exclusive, boolean force) {
@@ -129,6 +132,7 @@ public class MVTable extends TableBase {
         }
     }
 
+    @Override
     public void rename(String newName) {
         super.rename(newName);
         primaryIndex.renameTable(newName);
@@ -248,6 +252,7 @@ public class MVTable extends TableBase {
         return buff.toString();
     }
 
+    @Override
     public ArrayList<Session> checkDeadlock(Session session, Session clash, Set<Session> visited) {
         // only one deadlock check at any given time
         synchronized (RegularTable.class) {
@@ -300,14 +305,17 @@ public class MVTable extends TableBase {
         }
     }
 
+    @Override
     public boolean isLockedExclusively() {
         return lockExclusive != null;
     }
-    
+
+    @Override
     public boolean isLockedExclusivelyBy(Session session) {
         return lockExclusive == session;
     }
-    
+
+    @Override
     public void unlock(Session s) {
         if (database != null) {
             traceLock(s, lockExclusive == s, "unlock");
@@ -350,7 +358,7 @@ public class MVTable extends TableBase {
 
     @Override
     public void close(Session session) { //并不需要像RegularTable一样关闭所有表上的索引
-        MVTableEngine.closeTable(storeName, this);
+    	session.getDatabase().getMvStore().getTables().remove(this); //我加上的
     }
 
     /**
@@ -478,6 +486,7 @@ public class MVTable extends TableBase {
     private static void addRowsToIndex(Session session, ArrayList<Row> list, Index index) {
         final Index idx = index;
         Collections.sort(list, new Comparator<Row>() {
+            @Override
             public int compare(Row r1, Row r2) {
                 return idx.compareRows(r1, r2);
             }
@@ -611,6 +620,7 @@ public class MVTable extends TableBase {
         return true;
     }
 
+    @Override
     public void removeChildrenAndResources(Session session) {
         if (containsLargeObject) {
             // unfortunately, the data is gone on rollback
@@ -651,6 +661,7 @@ public class MVTable extends TableBase {
         return primaryIndex.getRowCountApproximation();
     }
 
+    @Override
     public long getDiskSpaceUsed() {
         return primaryIndex.getDiskSpaceUsed();
     }
@@ -671,9 +682,10 @@ public class MVTable extends TableBase {
             // TODO need to commit/rollback the transaction
             return store.begin();
         }
-        return session.getTransaction(store);
+        return session.getTransaction();
     }
 
+    @Override
     public Column getRowIdColumn() {
         if (rowIdColumn == null) {
             rowIdColumn = new Column(Column.ROWID, Value.LONG);
@@ -682,10 +694,12 @@ public class MVTable extends TableBase {
         return rowIdColumn;
     }
 
+    @Override
     public String toString() {
         return getSQL();
     }
 
+    @Override
     public boolean isMVStore() {
         return true;
     }

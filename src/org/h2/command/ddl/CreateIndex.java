@@ -51,6 +51,7 @@ public class CreateIndex extends SchemaCommand {
         this.indexColumns = columns;
     }
 
+    @Override
     public int update() {
     	//当执行这样的SQL时: create TEMPORARY table myTable(name varchar(500),CONSTRAINT myindex INDEX (name)) TRANSACTIONAL
         //transactional为true
@@ -114,6 +115,7 @@ public class CreateIndex extends SchemaCommand {
         this.comment = comment;
     }
 
+    @Override
     public int getType() {
         return CommandInterface.CREATE_INDEX;
     }

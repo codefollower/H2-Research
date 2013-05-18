@@ -77,6 +77,7 @@ public class Update extends Prepared {
         }
     }
 
+    @Override
     public int update() {
         tableFilter.startQuery(session);
         tableFilter.reset();
@@ -163,6 +164,7 @@ public class Update extends Prepared {
         }
     }
 
+    @Override
     public String getPlanSQL() {
         StatementBuilder buff = new StatementBuilder("UPDATE ");
         buff.append(tableFilter.getPlanSQL(false)).append("\nSET\n    ");
@@ -183,6 +185,7 @@ public class Update extends Prepared {
         return buff.toString();
     }
 
+    @Override
     public void prepare() { //跟org.h2.command.dml.Delete.prepare()一样，只是多了中间的for
         if (condition != null) {
             condition.mapColumns(tableFilter, 0);
@@ -202,14 +205,17 @@ public class Update extends Prepared {
         tableFilter.prepare();
     }
 
+    @Override
     public boolean isTransactional() {
         return true;
     }
 
+    @Override
     public ResultInterface queryMeta() {
         return null;
     }
 
+    @Override
     public int getType() {
         return CommandInterface.UPDATE;
     }
@@ -218,6 +224,7 @@ public class Update extends Prepared {
         this.limitExpr = limit;
     }
 
+    @Override
     public boolean isCacheable() {
         return true;
     }

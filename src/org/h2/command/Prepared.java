@@ -366,6 +366,7 @@ public abstract class Prepared {
      *
      * @return the SQL statement
      */
+    @Override
     public String toString() {
         return sqlStatement;
     }

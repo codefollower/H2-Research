@@ -39,6 +39,7 @@ import org.h2.store.FileLister;
 import org.h2.store.FileStore;
 import org.h2.store.FileStoreInputStream;
 import org.h2.store.LobStorageBackend;
+import org.h2.store.LobStorageFrontend;
 import org.h2.store.LobStorageInterface;
 import org.h2.store.Page;
 import org.h2.store.PageFreeList;
@@ -149,6 +150,7 @@ public class Recover extends Tool implements DataHandler {
      *
      * @param args the command line arguments
      */
+    @Override
     public void runTool(String... args) throws SQLException {
         String dir = ".";
         String db = null;
@@ -194,7 +196,7 @@ public class Recover extends Tool implements DataHandler {
     public static Value.ValueBlob readBlobDb(Connection conn, long lobId, long precision) {
         DataHandler h = ((JdbcConnection) conn).getSession().getDataHandler();
         LobStorageInterface lobStorage = h.getLobStorage();
-        return ValueLobDb.create(Value.BLOB, lobStorage, LobStorageBackend.TABLE_TEMP, lobId, null, precision);
+        return ValueLobDb.create(Value.BLOB, lobStorage, LobStorageFrontend.TABLE_TEMP, lobId, null, precision);
     }
 
     /**
@@ -203,7 +205,7 @@ public class Recover extends Tool implements DataHandler {
     public static Value.ValueClob readClobDb(Connection conn, long lobId, long precision) {
         DataHandler h = ((JdbcConnection) conn).getSession().getDataHandler();
         LobStorageInterface lobStorage = h.getLobStorage();
-        return ValueLobDb.create(Value.CLOB, lobStorage, LobStorageBackend.TABLE_TEMP, lobId, null, precision);
+        return ValueLobDb.create(Value.CLOB, lobStorage, LobStorageFrontend.TABLE_TEMP, lobId, null, precision);
     }
 
     private void trace(String message) {
@@ -430,6 +432,7 @@ public class Recover extends Tool implements DataHandler {
                     "/" + logFirstDataPage);
 
             PrintWriter devNull = new PrintWriter(new OutputStream() {
+                @Override
                 public void write(int b) {
                     // ignore
                 }
@@ -788,16 +791,19 @@ public class Recover extends Tool implements DataHandler {
             page = Data.create(handler, pageSize);
         }
 
+        @Override
         public int read() {
             byte[] b = { 0 };
             int len = read(b);
             return len < 0 ? -1 : (b[0] & 255);
         }
 
+        @Override
         public int read(byte[] b) {
             return read(b, 0, b.length);
         }
 
+        @Override
         public int read(byte[] b, int off, int len) {
             if (len == 0) {
                 return 0;
@@ -1230,7 +1236,7 @@ public class Recover extends Tool implements DataHandler {
                     writer.println("DELETE FROM " + name + ";");
                     writer.println("INSERT INTO " + name + " SELECT * FROM " + storageName + ";");
                     if (name.startsWith("INFORMATION_SCHEMA.LOBS")) {
-                        writer.println("UPDATE " + name + " SET TABLE = " + LobStorageBackend.TABLE_TEMP + ";");
+                        writer.println("UPDATE " + name + " SET TABLE = " + LobStorageFrontend.TABLE_TEMP + ";");
                         deleteLobs = true;
                     }
                 }
@@ -1256,7 +1262,7 @@ public class Recover extends Tool implements DataHandler {
         writer.println("DROP ALIAS READ_BLOB_DB;");
         writer.println("DROP ALIAS READ_CLOB_DB;");
         if (deleteLobs) {
-            writer.println("DELETE FROM INFORMATION_SCHEMA.LOBS WHERE TABLE = " + LobStorageBackend.TABLE_TEMP + ";");
+            writer.println("DELETE FROM INFORMATION_SCHEMA.LOBS WHERE TABLE = " + LobStorageFrontend.TABLE_TEMP + ";");
         }
         for (MetaRecord m : schema) {
             if (isSchemaObjectTypeDelayed(m)) {
@@ -1347,6 +1353,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public String getDatabasePath() {
         return databaseName;
     }
@@ -1354,6 +1361,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public FileStore openFile(String name, String mode, boolean mustExist) {
         return FileStore.open(this, name, "rw");
     }
@@ -1361,6 +1369,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public void checkPowerOff() {
         // nothing to do
     }
@@ -1368,6 +1377,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public void checkWritingAllowed() {
         // nothing to do
     }
@@ -1375,6 +1385,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public int getMaxLengthInplaceLob() {
         throw DbException.throwInternalError();
     }
@@ -1382,6 +1393,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public String getLobCompressionAlgorithm(int type) {
         return null;
     }
@@ -1389,6 +1401,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public Object getLobSyncObject() {
         return this;
     }
@@ -1396,6 +1409,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public SmallLRUCache<String, String[]> getLobFileListCache() {
         return null;
     }
@@ -1403,6 +1417,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public TempFileDeleter getTempFileDeleter() {
         return TempFileDeleter.getInstance();
     }
@@ -1410,6 +1425,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public LobStorageBackend getLobStorage() {
         return null;
     }
@@ -1417,6 +1433,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public Connection getLobConnection() {
         return null;
     }
@@ -1424,6 +1441,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
+    @Override
     public int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length) {
         throw DbException.throwInternalError();
     }

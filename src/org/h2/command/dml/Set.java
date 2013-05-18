@@ -49,6 +49,7 @@ public class Set extends Prepared {
     }
     
     //如果返回true，那么在org.h2.command.Command.stop()中不会自动提交事务，需用户触发
+    @Override
     public boolean isTransactional() {
         switch (type) {
         case SetTypes.CLUSTER:
@@ -66,6 +67,7 @@ public class Set extends Prepared {
         return false;
     }
 
+    @Override
     public int update() {
         Database database = session.getDatabase();
         String name = SetTypes.getTypeName(type);
@@ -463,10 +465,12 @@ public class Set extends Prepared {
         }
     }
 
+    @Override
     public boolean needRecompile() {
         return false;
     }
 
+    @Override
     public ResultInterface queryMeta() {
         return null;
     }
@@ -475,6 +479,7 @@ public class Set extends Prepared {
         this.stringValueList = list;
     }
 
+    @Override
     public int getType() {
         return CommandInterface.SET;
     }

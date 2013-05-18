@@ -56,7 +56,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     public static final int SESSION_CANCEL_STATEMENT = 13;
     public static final int SESSION_CHECK_KEY = 14;
     public static final int SESSION_SET_AUTOCOMMIT = 15;
-    public static final int SESSION_UNDO_LOG_POS = 16;
+    public static final int SESSION_HAS_PENDING_TRANSACTION = 16;
     public static final int LOB_READ = 17;
 
     public static final int STATUS_ERROR = 0;
@@ -126,24 +126,26 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         return trans;
     }
 
-    public int getUndoLogPos() {
+    @Override
+    public boolean hasPendingTransaction() {
         if (clientVersion < Constants.TCP_PROTOCOL_VERSION_10) {
-            return 1;
+            return true;
         }
         for (int i = 0, count = 0; i < transferList.size(); i++) {
             Transfer transfer = transferList.get(i);
             try {
-                traceOperation("SESSION_UNDO_LOG_POS", 0);
-                transfer.writeInt(SessionRemote.SESSION_UNDO_LOG_POS);
+                traceOperation("SESSION_HAS_PENDING_TRANSACTION", 0);
+                transfer.writeInt(SessionRemote.SESSION_HAS_PENDING_TRANSACTION);
                 done(transfer);
-                return transfer.readInt();
+                return transfer.readInt() != 0;
             } catch (IOException e) {
                 removeServer(e, i--, ++count);
             }
         }
-        return 1;
+        return true;
     }
 
+    @Override
     public void cancel() {
         // this method is called when closing the connection
         // the statement that is currently running is not canceled in this case
@@ -186,10 +188,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
     }
 
+    @Override
     public boolean getAutoCommit() {
         return autoCommit;
     }
 
+    @Override
     public void setAutoCommit(boolean autoCommit) {
         if (!cluster) {
             setAutoCommitSend(autoCommit);
@@ -273,10 +277,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         return buff.toString();
     }
 
+    @Override
     public int getPowerOffCount() {
         return 0;
     }
 
+    @Override
     public void setPowerOffCount(int count) {
         throw DbException.getUnsupportedException("remote");
     }
@@ -301,8 +307,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         ConnectionInfo backup = null;
         try {
             if (autoServerMode) {
-                backup = (ConnectionInfo) ci.clone();
-                connectionInfo = (ConnectionInfo) ci.clone();
+                backup = ci.clone();
+                connectionInfo = ci.clone();
             }
             if (openNew) {
                 ci.setProperty("OPEN_NEW", "true");
@@ -457,6 +463,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         switchOffCluster();
     }
 
+    @Override
     public synchronized CommandInterface prepareCommand(String sql, int fetchSize) {
         checkClosed();
         return new CommandRemote(this, transferList, sql, fetchSize);
@@ -531,6 +538,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     }
     
     //关闭连接时才关session，调用些方法会使用server端释放session相关的资源，比如线程结束
+    @Override
     public void close() {
         RuntimeException closeError = null;
         if (transferList != null) {
@@ -561,6 +569,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
     }
 
+    @Override
     public Trace getTrace() {
         return traceSystem.getTrace(Trace.JDBC);
     }
@@ -620,6 +629,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         return cluster;
     }
 
+    @Override
     public boolean isClosed() {
         return transferList == null || transferList.size() == 0;
     }
@@ -636,26 +646,32 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
     }
 
+    @Override
     public void checkPowerOff() {
         // ok
     }
 
+    @Override
     public void checkWritingAllowed() {
         // ok
     }
 
+    @Override
     public String getDatabasePath() {
         return "";
     }
 
+    @Override
     public String getLobCompressionAlgorithm(int type) {
         return null;
     }
 
+    @Override
     public int getMaxLengthInplaceLob() {
         return SysProperties.LOB_CLIENT_MAX_SIZE_MEMORY;
     }
 
+    @Override
     public FileStore openFile(String name, String mode, boolean mustExist) {
         if (mustExist && !FileUtils.exists(name)) {
             throw DbException.get(ErrorCode.FILE_NOT_FOUND_1, name);
@@ -676,14 +692,17 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         return store;
     }
 
+    @Override
     public DataHandler getDataHandler() {
         return this;
     }
 
+    @Override
     public Object getLobSyncObject() {
         return lobSyncObject;
     }
 
+    @Override
     public SmallLRUCache<String, String[]> getLobFileListCache() {
         return null;
     }
@@ -692,22 +711,27 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         return lastReconnect;
     }
 
+    @Override
     public TempFileDeleter getTempFileDeleter() {
         return TempFileDeleter.getInstance();
     }
 
+    @Override
     public boolean isReconnectNeeded(boolean write) {
         return false;
     }
 
+    @Override
     public SessionInterface reconnect(boolean write) {
         return this;
     }
 
+    @Override
     public void afterWriting() {
         // nothing to do
     }
 
+    @Override
     public LobStorageInterface getLobStorage() {
         if (lobStorage == null) {
             lobStorage = new LobStorageFrontend(this);
@@ -715,10 +739,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         return lobStorage;
     }
 
+    @Override
     public Connection getLobConnection() {
         return null;
     }
 
+    @Override
     public synchronized int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length) {
         for (int i = 0, count = 0; i < transferList.size(); i++) {
             Transfer transfer = transferList.get(i);

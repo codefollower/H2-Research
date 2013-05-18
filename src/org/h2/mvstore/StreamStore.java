@@ -289,7 +289,7 @@ public class StreamStore {
      * @param id the id
      * @return if the id contains the data
      */
-    public boolean isInPlace(byte[] id) {
+    public boolean isInPlace(byte[] id) { //都小于minBlockSize的情况
         ByteBuffer idBuffer = ByteBuffer.wrap(id);
         while (idBuffer.hasRemaining()) {
             if (idBuffer.get() != 0) {

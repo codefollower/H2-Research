@@ -33,6 +33,7 @@ public class Analyze extends DefineCommand {
         sampleRows = session.getDatabase().getSettings().analyzeSample;
     }
 
+    @Override
     public int update() {
         session.commit(true);
         session.getUser().checkAdmin();
@@ -106,14 +107,14 @@ public class Analyze extends DefineCommand {
         if (manual) {
             db.update(session, table);
         } else {
-            Session s = db.getSystemSession();
-            if (s != session) {
+            Session sysSession = db.getSystemSession();
+            if (sysSession != session) {
                 // if the current session is the system session
                 // (which is the case if we are within a trigger)
                 // then we can't update the statistics because
                 // that would unlock all locked objects
-                db.update(s, table);
-                s.commit(true);
+                db.update(sysSession, table);
+                sysSession.commit(true);
             }
         }
     }
@@ -122,6 +123,7 @@ public class Analyze extends DefineCommand {
         this.sampleRows = top;
     }
 
+    @Override
     public int getType() {
         return CommandInterface.ANALYZE;
     }

@@ -46,6 +46,7 @@ public class Subquery extends Expression {
 	//sql = "delete from ConditionInSelectTest where id > (select id from ConditionInSelectTest where id>1)";
     //但是Subquery可以有多例
 	//sql = "delete from ConditionInSelectTest where id > (select id, name from ConditionInSelectTest where id=1 and name='a1')";
+    @Override
     public Value getValue(Session session) {
         query.setSession(session);
         //getValue虽然在主查询有多条记录的情况下都会被调用，但是query内部是有缓存的，只是一个浅拷贝，所以对性能影响不大
@@ -80,39 +81,48 @@ public class Subquery extends Expression {
         }
     }
 
+    @Override
     public int getType() {
         return getExpression().getType();
     }
 
+    @Override
     public void mapColumns(ColumnResolver resolver, int level) {
         query.mapColumns(resolver, level + 1);
     }
 
+    @Override
     public Expression optimize(Session session) {
         query.prepare();
         return this;
     }
 
+    @Override
     public void setEvaluatable(TableFilter tableFilter, boolean b) {
         query.setEvaluatable(tableFilter, b);
     }
 
+    @Override
     public int getScale() {
         return getExpression().getScale();
     }
 
+    @Override
     public long getPrecision() {
         return getExpression().getPrecision();
     }
 
+    @Override
     public int getDisplaySize() {
         return getExpression().getDisplaySize();
     }
 
+    @Override
     public String getSQL() {
         return "(" + query.getPlanSQL() + ")";
     }
 
+    @Override
     public void updateAggregate(Session session) {
         query.updateAggregate(session);
     }
@@ -134,6 +144,7 @@ public class Subquery extends Expression {
         return expression;
     }
 
+    @Override
     public boolean isEverything(ExpressionVisitor visitor) {
         return query.isEverything(visitor);
     }
@@ -142,10 +153,12 @@ public class Subquery extends Expression {
         return query;
     }
 
+    @Override
     public int getCost() {
         return query.getCostAsExpression();
     }
 
+    @Override
     public Expression[] getExpressionColumns(Session session) {
         return getExpression().getExpressionColumns(session);
     }

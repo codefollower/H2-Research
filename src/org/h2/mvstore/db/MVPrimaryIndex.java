@@ -36,7 +36,7 @@ import org.h2.value.ValueNull;
 //每个MVTable只对应一个MVPrimaryIndex的实例，MVPrimaryIndex用来存放表的所有记录
 //MVPrimaryIndex这个名字起得有点误导性，它的作用跟PageDataIndex一样，
 //并不是完全对应primary key，只有当primary key只有一个字段，并且此字段是byte、short、int、long类型时，
-//且最初的MVPrimaryIndex用还没有加入记录，才通过MVDelegateIndex指向MVPrimaryIndex
+//且最初的MVPrimaryIndex还没有加入记录，才通过MVDelegateIndex指向MVPrimaryIndex
 //其它的primary key都是用MVSecondaryIndex实现
 public class MVPrimaryIndex extends BaseIndex {
 
@@ -84,10 +84,12 @@ public class MVPrimaryIndex extends BaseIndex {
         mapName = newMapName;
     }
 
+    @Override
     public String getCreateSQL() {
         return null; //每个表默认都有个MVPrimaryIndex，并不需要显示创建，所以也不需要Create SQL
     }
 
+    @Override
     public String getPlanSQL() {
         return table.getSQL() + ".tableScan";
     }
@@ -129,7 +131,7 @@ public class MVPrimaryIndex extends BaseIndex {
                 }
             }
         }
-        
+
         TransactionMap<Value, Value> map = getMap(session);
         Value key = ValueLong.get(row.getKey());
         Value old = map.getLatest(key);
@@ -157,7 +159,6 @@ public class MVPrimaryIndex extends BaseIndex {
             }
         }
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         Value old = map.remove(ValueLong.get(row.getKey()));
         if (old == null) {
             throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
@@ -192,19 +193,19 @@ public class MVPrimaryIndex extends BaseIndex {
             }
         }
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         //map.keyIterator(ValueLong.get(min))得到的是一个从min开始的key列表，不是值
         return new MVStoreCursor(session, map.keyIterator(
                 ValueLong.get(min)), max);
     }
 
+    @Override
     public MVTable getTable() {
         return mvTable;
     }
 
+    @Override
     public Row getRow(Session session, long key) {
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         ValueArray array = (ValueArray) map.get(ValueLong.get(key));
         Row row = new Row(array.getList(), 0);
         row.setKey(key);
@@ -217,6 +218,7 @@ public class MVPrimaryIndex extends BaseIndex {
         return cost;
     }
 
+    @Override
     public int getColumnIndex(Column col) {
         // can not use this index - use the delegate index instead
         return -1;
@@ -248,7 +250,6 @@ public class MVPrimaryIndex extends BaseIndex {
     @Override
     public Cursor findFirstOrLast(Session session, boolean first) {
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         Value v = first ? map.firstKey() : map.lastKey();
         if (v == null) {
             return new MVStoreCursor(session, Collections.<Value>emptyList().iterator(), 0);
@@ -268,7 +269,6 @@ public class MVPrimaryIndex extends BaseIndex {
     @Override
     public long getRowCount(Session session) {
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         return map.getSize();
     }
 
@@ -277,9 +277,14 @@ public class MVPrimaryIndex extends BaseIndex {
         return dataMap.map.getSize();
     }
 
+    @Override
     public long getDiskSpaceUsed() {
         // TODO estimate disk space usage
         return 0;
+    }
+
+    public String getMapName() {
+        return mapName;
     }
 
     @Override
@@ -319,10 +324,10 @@ public class MVPrimaryIndex extends BaseIndex {
      */
     Cursor find(Session session, long first, long last) {
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         return new MVStoreCursor(session, map.keyIterator(ValueLong.get(first)), last);
     }
-    
+
+    @Override
     public boolean isRowIdIndex() {
         return true;
     }

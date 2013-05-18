@@ -542,23 +542,28 @@ public class MetaTable extends Table {
         return cols;
     }
 
+    @Override
     public String getDropSQL() {
         return null;
     }
 
+    @Override
     public String getCreateSQL() {
         return null;
     }
 
+    @Override
     public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
             boolean create, String indexComment) {
         throw DbException.getUnsupportedException("META");
     }
 
+    @Override
     public void lock(Session session, boolean exclusive, boolean force) {
         // nothing to do
     }
 
+    @Override
     public boolean isLockedExclusively() {
         return false;
     }
@@ -582,19 +587,17 @@ public class MetaTable extends Table {
             return true;
         }
         Database db = session.getDatabase();
+        Value v;
         if (database.getMode().lowerCaseIdentifiers) {
-            Value v = ValueStringIgnoreCase.get(value);
-            if (indexFrom.equals(indexTo) && db.compare(v, indexFrom) != 0) {
-                return false;
-            }
+            v = ValueStringIgnoreCase.get(value);
         } else {
-            Value v = ValueString.get(value);
-            if (indexFrom != null && db.compare(v, indexFrom) < 0) {
-                return false;
-            }
-            if (indexTo != null && db.compare(v, indexTo) > 0) {
-                return false;
-            }
+            v = ValueString.get(value);
+        }
+        if (indexFrom != null && db.compare(v, indexFrom) < 0) {
+            return false;
+        }
+        if (indexTo != null && db.compare(v, indexTo) > 0) {
+            return false;
         }
         return true;
     }
@@ -1629,22 +1632,27 @@ public class MetaTable extends Table {
         }
     }
 
+    @Override
     public void removeRow(Session session, Row row) {
         throw DbException.getUnsupportedException("META");
     }
 
+    @Override
     public void addRow(Session session, Row row) {
         throw DbException.getUnsupportedException("META");
     }
 
+    @Override
     public void removeChildrenAndResources(Session session) {
         throw DbException.getUnsupportedException("META");
     }
 
+    @Override
     public void close(Session session) {
         // nothing to do
     }
 
+    @Override
     public void unlock(Session s) {
         // nothing to do
     }
@@ -1728,38 +1736,47 @@ public class MetaTable extends Table {
         rows.add(row);
     }
 
+    @Override
     public void checkRename() {
         throw DbException.getUnsupportedException("META");
     }
 
+    @Override
     public void checkSupportAlter() {
         throw DbException.getUnsupportedException("META");
     }
 
+    @Override
     public void truncate(Session session) {
         throw DbException.getUnsupportedException("META");
     }
 
+    @Override
     public long getRowCount(Session session) {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public boolean canGetRowCount() {
         return false;
     }
 
+    @Override
     public boolean canDrop() {
         return false;
     }
 
+    @Override
     public String getTableType() {
         return Table.SYSTEM_TABLE;
     }
 
+    @Override
     public Index getScanIndex(Session session) {
         return new MetaIndex(this, IndexColumn.wrap(columns), true);
     }
 
+    @Override
     public ArrayList<Index> getIndexes() {
         ArrayList<Index> list = New.arrayList();
         if (metaIndex == null) {
@@ -1771,6 +1788,7 @@ public class MetaTable extends Table {
         return list;
     }
 
+    @Override
     public long getMaxDataModificationId() {
         switch (type) {
         case SETTINGS:
@@ -1783,6 +1801,7 @@ public class MetaTable extends Table {
         return database.getModificationDataId();
     }
 
+    @Override
     public Index getUniqueIndex() {
         return null;
     }
@@ -1797,18 +1816,22 @@ public class MetaTable extends Table {
         return META_TABLE_TYPE_COUNT;
     }
 
+    @Override
     public long getRowCountApproximation() {
         return ROW_COUNT_APPROXIMATION;
     }
 
+    @Override
     public long getDiskSpaceUsed() {
         return 0;
     }
 
+    @Override
     public boolean isDeterministic() {
         return true;
     }
 
+    @Override
     public boolean canReference() {
         return false;
     }

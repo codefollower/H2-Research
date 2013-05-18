@@ -91,6 +91,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @return the result set
      * @throws SQLException if this object is closed or invalid
      */
+    @Override
     public ResultSet executeQuery() throws SQLException {
         try {
             int id = getNextId(TraceObject.RESULT_SET);
@@ -133,6 +134,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      *         commit or rollback)
      * @throws SQLException if this object is closed or invalid
      */
+    @Override
     public int executeUpdate() throws SQLException {
         try {
             debugCodeCall("executeUpdate");
@@ -169,6 +171,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @return true if a result set is available, false if not
      * @throws SQLException if this object is closed or invalid
      */
+    @Override
     public boolean execute() throws SQLException {
         try {
             int id = getNextId(TraceObject.RESULT_SET);
@@ -210,6 +213,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      *
      * @throws SQLException if this object is closed or invalid
      */
+    @Override
     public void clearParameters() throws SQLException {
         try {
             debugCodeCall("clearParameters");
@@ -231,6 +235,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param sql ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         try {
             debugCodeCall("executeQuery", sql);
@@ -246,6 +251,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param sql ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public void addBatch(String sql) throws SQLException {
         try {
             debugCodeCall("addBatch", sql);
@@ -261,6 +267,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param sql ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public int executeUpdate(String sql) throws SQLException {
         try {
             debugCodeCall("executeUpdate", sql);
@@ -276,6 +283,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param sql ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public boolean execute(String sql) throws SQLException {
         try {
             debugCodeCall("execute", sql);
@@ -294,6 +302,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param sqlType the data type (Types.x)
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -312,6 +321,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setInt(int parameterIndex, int x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -330,6 +340,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setString(int parameterIndex, String x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -350,6 +361,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -369,6 +381,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setDate(int parameterIndex, java.sql.Date x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -388,6 +401,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setTime(int parameterIndex, java.sql.Time x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -407,6 +421,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setTimestamp(int parameterIndex, java.sql.Timestamp x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -427,6 +442,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setObject(int parameterIndex, Object x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -453,6 +469,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param targetSqlType the type as defined in java.sql.Types
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -481,6 +498,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param scale is ignored
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setObject(int parameterIndex, Object x, int targetSqlType, int scale) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -499,6 +517,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBoolean(int parameterIndex, boolean x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -517,6 +536,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setByte(int parameterIndex, byte x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -535,6 +555,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setShort(int parameterIndex, short x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -553,6 +574,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setLong(int parameterIndex, long x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -571,6 +593,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setFloat(int parameterIndex, float x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -589,6 +612,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setDouble(int parameterIndex, double x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -603,6 +627,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * [Not supported] Sets the value of a column as a reference.
      */
+    @Override
     public void setRef(int parameterIndex, Ref x) throws SQLException {
         throw unsupported("ref");
     }
@@ -616,6 +641,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param calendar the calendar
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setDate(int parameterIndex, java.sql.Date x, Calendar calendar) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -640,6 +666,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param calendar the calendar
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setTime(int parameterIndex, java.sql.Time x, Calendar calendar) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -664,6 +691,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param calendar the calendar
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setTimestamp(int parameterIndex, java.sql.Timestamp x, Calendar calendar) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -684,6 +712,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      *
      * @deprecated since JDBC 2.0, use setCharacterStream
      */
+    @Override
     public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
         throw unsupported("unicodeStream");
     }
@@ -696,6 +725,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param typeName this parameter is ignored
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -714,6 +744,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBlob(int parameterIndex, Blob x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -745,6 +776,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBlob(int parameterIndex, InputStream x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -769,6 +801,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setClob(int parameterIndex, Clob x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -800,6 +833,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setClob(int parameterIndex, Reader x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -825,6 +859,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * [Not supported] Sets the value of a parameter as a Array.
      */
+    @Override
     public void setArray(int parameterIndex, Array x) throws SQLException {
         throw unsupported("setArray");
     }
@@ -836,6 +871,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBytes(int parameterIndex, byte[] x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -858,6 +894,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of bytes
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -885,6 +922,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of bytes
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
         setBinaryStream(parameterIndex, x, (long) length);
     }
@@ -898,6 +936,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
         setBinaryStream(parameterIndex, x, -1);
     }
@@ -912,6 +951,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of bytes
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
         setAsciiStream(parameterIndex, x, (long) length);
     }
@@ -926,6 +966,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of bytes
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -952,6 +993,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
         setAsciiStream(parameterIndex, x, -1);
     }
@@ -966,6 +1008,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of characters
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setCharacterStream(int parameterIndex, Reader x, int length) throws SQLException {
         setCharacterStream(parameterIndex, x, (long) length);
     }
@@ -979,6 +1022,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setCharacterStream(int parameterIndex, Reader x) throws SQLException {
         setCharacterStream(parameterIndex, x, -1);
     }
@@ -993,6 +1037,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of characters
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setCharacterStream(int parameterIndex, Reader x, long length) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -1013,6 +1058,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * [Not supported]
      */
+    @Override
     public void setURL(int parameterIndex, URL x) throws SQLException {
         throw unsupported("url");
     }
@@ -1024,6 +1070,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @return the meta data or null if this is not a query
      * @throws SQLException if this object is closed
      */
+    @Override
     public ResultSetMetaData getMetaData() throws SQLException {
         try {
             debugCodeCall("getMetaData");
@@ -1047,6 +1094,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * Clears the batch.
      */
+    @Override
     public void clearBatch() throws SQLException {
         try {
             debugCodeCall("clearBatch");
@@ -1062,6 +1110,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * All result sets that where created by this statement
      * become invalid after calling this method.
      */
+    @Override
     public void close() throws SQLException {
         try {
             super.close();
@@ -1081,6 +1130,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      *
      * @return the array of update counts
      */
+    @Override
     public int[] executeBatch() throws SQLException {
         try {
             debugCodeCall("executeBatch");
@@ -1133,6 +1183,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * Adds the current settings to the batch.
      */
+    @Override
     public void addBatch() throws SQLException {
         try {
             debugCodeCall("addBatch");
@@ -1165,6 +1216,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param autoGeneratedKeys ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
         try {
             debugCode("executeUpdate("+quote(sql)+", "+autoGeneratedKeys+");");
@@ -1182,6 +1234,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param columnIndexes ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
         try {
             debugCode("executeUpdate(" + quote(sql) + ", " + quoteIntArray(columnIndexes) + ");");
@@ -1198,6 +1251,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param columnNames ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public int executeUpdate(String sql, String[] columnNames) throws SQLException {
         try {
             debugCode("executeUpdate(" + quote(sql) + ", " + quoteArray(columnNames) + ");");
@@ -1214,6 +1268,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param autoGeneratedKeys ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
         try {
             debugCode("execute(" + quote(sql) + ", " + autoGeneratedKeys + ");");
@@ -1230,6 +1285,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param columnIndexes ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public boolean execute(String sql, int[] columnIndexes) throws SQLException {
         try {
             debugCode("execute(" + quote(sql) + ", " + quoteIntArray(columnIndexes) + ");");
@@ -1246,6 +1302,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param columnNames ignored
      * @throws SQLException Unsupported Feature
      */
+    @Override
     public boolean execute(String sql, String[] columnNames) throws SQLException {
         try {
             debugCode("execute(" + quote(sql) + ", " + quoteArray(columnNames) + ");");
@@ -1260,6 +1317,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      *
      * @return the meta data
      */
+    @Override
     public ParameterMetaData getParameterMetaData() throws SQLException {
         try {
             int id = getNextId(TraceObject.PARAMETER_META_DATA);
@@ -1291,6 +1349,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * [Not supported] Sets the value of a parameter as a row id.
      */
+    @Override
     public void setRowId(int parameterIndex, RowId x) throws SQLException {
         throw unsupported("rowId");
     }
@@ -1302,6 +1361,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNString(int parameterIndex, String x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -1324,6 +1384,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of characters
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNCharacterStream(int parameterIndex, Reader x, long length)
             throws SQLException {
         try {
@@ -1352,6 +1413,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNCharacterStream(int parameterIndex, Reader x)
             throws SQLException {
         setNCharacterStream(parameterIndex, x, -1);
@@ -1364,6 +1426,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNClob(int parameterIndex, NClob x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -1391,6 +1454,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param x the value
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNClob(int parameterIndex, Reader x) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -1418,6 +1482,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of characters
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setClob(int parameterIndex, Reader x, long length) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -1445,6 +1510,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of bytes
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setBlob(int parameterIndex, InputStream x, long length) throws SQLException {
         try {
             if (isDebugEnabled()) {
@@ -1472,6 +1538,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
      * @param length the maximum number of characters
      * @throws SQLException if this object is closed
      */
+    @Override
     public void setNClob(int parameterIndex, Reader x, long length)
             throws SQLException {
         try {
@@ -1493,6 +1560,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * [Not supported] Sets the value of a parameter as a SQLXML object.
      */
+    @Override
     public void setSQLXML(int parameterIndex, SQLXML x) throws SQLException {
         throw unsupported("SQLXML");
     }
@@ -1500,10 +1568,12 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     /**
      * INTERNAL
      */
+    @Override
     public String toString() {
         return getTraceObjectName() + ": " + command;
     }
 
+    @Override
     protected boolean checkClosed(boolean write) {
         if (super.checkClosed(write)) {
             // if the session was re-connected, re-prepare the statement

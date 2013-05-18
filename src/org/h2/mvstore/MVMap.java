@@ -95,6 +95,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param value the value (may not be null)
      * @return the old value if the key existed, or null otherwise
      */
+    @Override
     @SuppressWarnings("unchecked")
     public V put(K key, V value) {
     	//如果条件不为true，则抛异常
@@ -255,14 +256,17 @@ public class MVMap<K, V> extends AbstractMap<K, V>
     public List<K> keyList() {
         return new AbstractList<K>() {
 
+            @Override
             public K get(int index) {
                 return getKey(index);
             }
 
+            @Override
             public int size() {
                 return MVMap.this.size();
             }
 
+            @Override
             @SuppressWarnings("unchecked")
             public int indexOf(Object key) {
                 return (int) getKeyIndex((K) key);
@@ -335,7 +339,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * Get the smallest key that is larger than the given key, or null if no
      * such key exists.
      *
-     * @param key the key (may not be null)
+     * @param key the key
      * @return the result
      */
     public K higherKey(K key) { //>key的第一个key
@@ -345,7 +349,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
     /**
      * Get the smallest key that is larger or equal to this key.
      *
-     * @param key the key (may not be null)
+     * @param key the key
      * @return the result
      */
     public K ceilingKey(K key) { //>=key的第一个key
@@ -355,7 +359,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
     /**
      * Get the largest key that is smaller or equal to this key.
      *
-     * @param key the key (may not be null)
+     * @param key the key
      * @return the result
      */
     public K floorKey(K key) { //<=key的第一个key
@@ -366,7 +370,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * Get the largest key that is smaller than the given key, or null if no
      * such key exists.
      *
-     * @param key the key (may not be null)
+     * @param key the key
      * @return the result
      */
     public K lowerKey(K key) { //<key的第一个key
@@ -379,22 +383,16 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param key the key
      * @param min whether to retrieve the smallest key
      * @param excluding if the given upper/lower bound is exclusive
-     * @return the key, or null if the map is empty
+     * @return the key, or null if no such key exists
      */
     protected K getMinMax(K key, boolean min, boolean excluding) {
         checkOpen();
-        if (size() == 0) {
-            return null;
-        }
         return getMinMax(root, key, min, excluding);
     }
 
     @SuppressWarnings("unchecked")
     private K getMinMax(Page p, K key, boolean min, boolean excluding) {
         if (p.isLeaf()) {
-            if (key == null) {
-                return (K) p.getKey(min ? 0 : p.getKeyCount() - 1);
-            }
             int x = p.binarySearch(key);
             if (x < 0) {
                 x = -x - (min ? 2 : 1);
@@ -406,17 +404,11 @@ public class MVMap<K, V> extends AbstractMap<K, V>
             }
             return (K) p.getKey(x);
         }
-        int x;
-        if (key == null) {
-        	//x = min ? 0 : p.getKeyCount() - 1; //这里应是p.getKeyCount()
-            x = min ? 0 : p.getKeyCount(); //这里
+        int x = p.binarySearch(key);
+        if (x < 0) {
+            x = -x - 1;
         } else {
-            x = p.binarySearch(key);
-            if (x < 0) {
-                x = -x - 1;
-            } else {
-                x++;
-            }
+            x++;
         }
         while (true) {
             if (x < 0 || x >= p.getChildPageCount()) {
@@ -437,6 +429,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param key the key
      * @return the value, or null if not found
      */
+    @Override
     @SuppressWarnings("unchecked")
     public V get(Object key) {
         checkOpen();
@@ -467,6 +460,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         return null;
     }
 
+    @Override
     public boolean containsKey(Object key) {
         return get(key) != null;
     }
@@ -508,6 +502,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
     /**
      * Remove all entries.
      */
+    @Override
     public void clear() {
         beforeWrite();
         try {
@@ -556,6 +551,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param key the key (may not be null)
      * @return the old value if the key existed, or null otherwise
      */
+    @Override
     public V remove(Object key) {
         beforeWrite();
         try {
@@ -577,6 +573,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param value the new value
      * @return the old value if the key existed, or null otherwise
      */
+    @Override
     public synchronized V putIfAbsent(K key, V value) {
         V old = get(key);
         if (old == null) {
@@ -592,6 +589,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param value the expected value
      * @return true if the item was removed
      */
+    @Override
     public synchronized boolean remove(Object key, Object value) {
         V old = get(key);
         if (areValuesEqual(old, value)) {
@@ -625,6 +623,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param newValue the new value
      * @return true if the value was replaced
      */
+    @Override
     public synchronized boolean replace(K key, V oldValue, V newValue) {
         V old = get(key);
         if (areValuesEqual(old, oldValue)) {
@@ -641,6 +640,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * @param value the new value
      * @return the old value, if the value was replaced, or null
      */
+    @Override
     public synchronized V replace(K key, V value) {
         V old = get(key);
         if (old != null) {
@@ -782,6 +782,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         return new Cursor<K>(this, root, from);
     }
 
+    @Override
     public Set<Map.Entry<K, V>> entrySet() {
         HashMap<K, V> map = new HashMap<K, V>();
         for (K k : keySet()) {
@@ -790,6 +791,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         return map.entrySet();
     }
 
+    @Override
     public Set<K> keySet() {
         checkOpen();
         final MVMap<K, V> map = this;
@@ -971,14 +973,17 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         }
     }
 
+    @Override
     public int hashCode() {
         return id;
     }
 
+    @Override
     public boolean equals(Object o) {
         return this == o;
     }
 
+    @Override
     public int size() { //不能超过Integer.MAX_VALUE
         long size = getSize();
         return size > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) size;
@@ -1135,6 +1140,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         }
     }
 
+    @Override
     public String toString() {
         return asString(null);
     }

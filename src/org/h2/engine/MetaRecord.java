@@ -89,6 +89,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
      * @param other the other record
      * @return -1, 0, or 1
      */
+    @Override
     public int compareTo(MetaRecord other) { //createOrder越小表示优先级越高，同等优先级的按id先后顺序
         int c1 = getCreateOrder();
         int c2 = other.getCreateOrder();

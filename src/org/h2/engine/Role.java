@@ -24,10 +24,12 @@ public class Role extends RightOwner {
         this.system = system;
     }
 
+    @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public String getDropSQL() {
         return null;
     }
@@ -50,16 +52,19 @@ public class Role extends RightOwner {
         return buff.toString();
     }
 
+    @Override
     public String getCreateSQL() {
         return getCreateSQL(false);
     }
 
+    @Override
     public int getType() {
         return DbObject.ROLE;
     }
     
     //dorp role时会调用
     //删除权限(类似于调用revoke命令)
+    @Override
     public void removeChildrenAndResources(Session session) {
     	//与一个此role相关的权限有三种
     	//前两种是此role被动授予给其他RightOwner的(包括用户和其他角色)
@@ -94,6 +99,7 @@ public class Role extends RightOwner {
         invalidate();
     }
 
+    @Override
     public void checkRename() {
         // ok
     }

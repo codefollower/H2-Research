@@ -35,6 +35,7 @@ public class FilePathDisk extends FilePath {
 
     private static final String CLASSPATH_PREFIX = "classpath:";
 
+    @Override
     public FilePathDisk getPath(String path) {
         FilePathDisk p = new FilePathDisk();
         //name是父类FilePath的字段
@@ -42,6 +43,7 @@ public class FilePathDisk extends FilePath {
         return p;
     }
 
+    @Override
     public long size() {
         return new File(name).length();
     }
@@ -81,6 +83,7 @@ public class FilePathDisk extends FilePath {
         return fileName;
     }
 
+    @Override
     public void moveTo(FilePath newName) {
         File oldFile = new File(name);
         File newFile = new File(newName.name);
@@ -120,6 +123,7 @@ public class FilePathDisk extends FilePath {
         }
     }
 
+    @Override
     public boolean createFile() {
         File file = new File(name);
         for (int i = 0; i < SysProperties.MAX_FILE_RETRY; i++) {
@@ -133,10 +137,12 @@ public class FilePathDisk extends FilePath {
         return false;
     }
 
+    @Override
     public boolean exists() {
         return new File(name).exists();
     }
 
+    @Override
     public void delete() {
         File file = new File(name);
         for (int i = 0; i < SysProperties.MAX_FILE_RETRY; i++) {
@@ -151,6 +157,7 @@ public class FilePathDisk extends FilePath {
     }
     
     //文件和目录名都会列出来
+    @Override
     public List<FilePath> newDirectoryStream() {
         ArrayList<FilePath> list = New.arrayList();
         File f = new File(name);
@@ -171,15 +178,18 @@ public class FilePathDisk extends FilePath {
         }
     }
 
+    @Override
     public boolean canWrite() {
         return canWriteInternal(new File(name));
     }
 
+    @Override
     public boolean setReadOnly() {
         File f = new File(name);
         return f.setReadOnly();
     }
 
+    @Override
     public FilePathDisk toRealPath() {
         try {
             String fileName = new File(name).getCanonicalPath();
@@ -189,19 +199,23 @@ public class FilePathDisk extends FilePath {
         }
     }
 
+    @Override
     public FilePath getParent() {
         String p = new File(name).getParent();
         return p == null ? null : getPath(p);
     }
 
+    @Override
     public boolean isDirectory() {
         return new File(name).isDirectory();
     }
 
+    @Override
     public boolean isAbsolute() {
         return new File(name).isAbsolute();
     }
 
+    @Override
     public long lastModified() {
         return new File(name).lastModified();
     }
@@ -236,6 +250,7 @@ public class FilePathDisk extends FilePath {
         }
     }
 
+    @Override
     public void createDirectory() {
         File f = new File(name);
         if (f.exists()) {
@@ -254,6 +269,7 @@ public class FilePathDisk extends FilePath {
         throw DbException.get(ErrorCode.FILE_CREATION_FAILED_1, name);
     }
 
+    @Override
     public OutputStream newOutputStream(boolean append) throws IOException {
         try {
             File file = new File(name);
@@ -270,6 +286,7 @@ public class FilePathDisk extends FilePath {
         }
     }
 
+    @Override
     public InputStream newInputStream() throws IOException {
         int index = name.indexOf(':');
         if (index > 1 && index < 20) {
@@ -319,6 +336,7 @@ public class FilePathDisk extends FilePath {
         }
     }
 
+    @Override
     public FileChannel open(String mode) throws IOException {
         FileDisk f;
         try {
@@ -335,10 +353,12 @@ public class FilePathDisk extends FilePath {
         return f;
     }
 
+    @Override
     public String getScheme() {
         return "file";
     }
 
+    @Override
     public FilePath createTempFile(String suffix, boolean deleteOnExit, boolean inTempDir)
             throws IOException {
         String fileName = name + ".";
@@ -385,6 +405,7 @@ class FileDisk extends FileBase {
         this.name = fileName;
     }
 
+    @Override
     public void force(boolean metaData) throws IOException {
         String m = SysProperties.SYNC_METHOD;
         if ("".equals(m)) {
@@ -400,6 +421,7 @@ class FileDisk extends FileBase {
         }
     }
 
+    @Override
     public FileChannel truncate(long newLength) throws IOException {
         if (newLength < file.length()) {
             file.setLength(newLength);
@@ -407,22 +429,27 @@ class FileDisk extends FileBase {
         return this;
     }
 
+    @Override
     public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
         return file.getChannel().tryLock(position, size, shared);
     }
 
+    @Override
     public void implCloseChannel() throws IOException {
         file.close();
     }
 
+    @Override
     public long position() throws IOException {
         return file.getFilePointer();
     }
 
+    @Override
     public long size() throws IOException {
         return file.length();
     }
 
+    @Override
     public int read(ByteBuffer dst) throws IOException {
         int len = file.read(dst.array(), dst.position(), dst.remaining());
         if (len > 0) {
@@ -431,11 +458,13 @@ class FileDisk extends FileBase {
         return len;
     }
 
+    @Override
     public FileChannel position(long pos) throws IOException {
         file.seek(pos);
         return this;
     }
 
+    @Override
     public int write(ByteBuffer src) throws IOException {
         int len = src.remaining();
         file.write(src.array(), src.position(), len);
@@ -443,6 +472,7 @@ class FileDisk extends FileBase {
         return len;
     }
 
+    @Override
     public String toString() {
         return name;
     }

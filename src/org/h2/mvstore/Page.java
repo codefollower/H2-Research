@@ -246,6 +246,7 @@ public class Page {
         return pos;
     }
 
+    @Override
     public String toString() {
 //        StringBuilder buff = new StringBuilder();
 //        buff.append("id: ").append(System.identityHashCode(this)).append('\n');
@@ -889,6 +890,7 @@ public class Page {
         return children.length;
     }
 
+    @Override
     public boolean equals(Object other) {
         if (other == this) {
             return true;
@@ -902,6 +904,7 @@ public class Page {
         return false;
     }
 
+    @Override
     public int hashCode() {
         return pos != 0 ? (int) (pos | (pos >>> 32)) : super.hashCode();
     }
