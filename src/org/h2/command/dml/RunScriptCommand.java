@@ -37,6 +37,7 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
         super(session);
     }
 
+    @Override
     public int update() {
         session.getUser().checkAdmin();
         int count = 0;
@@ -89,10 +90,12 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
         this.charset = charset;
     }
 
+    @Override
     public ResultInterface queryMeta() {
         return null;
     }
 
+    @Override
     public int getType() {
         return CommandInterface.RUNSCRIPT;
     }

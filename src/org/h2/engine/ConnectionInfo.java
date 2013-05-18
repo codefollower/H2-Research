@@ -115,7 +115,8 @@ public class ConnectionInfo implements Cloneable {
         return KNOWN_SETTINGS.contains(s);
     }
 
-    public Object clone() throws CloneNotSupportedException {
+    @Override
+    public ConnectionInfo clone() throws CloneNotSupportedException {
         ConnectionInfo clone = (ConnectionInfo) super.clone();
         clone.prop = (Properties) prop.clone();
         clone.filePasswordHash = Utils.cloneByteArray(filePasswordHash);

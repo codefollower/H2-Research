@@ -14,9 +14,9 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
 import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
-import org.h2.engine.Database;
 import org.h2.message.DbException;
 import org.h2.mvstore.DataUtils;
 import org.h2.store.DataHandler;
@@ -142,13 +142,14 @@ public class ValueLob extends Value {
      * @param objectId the object id
      * @param precision the precision (length in elements)
      * @param compression if compression is used
+     * @param fileName the file name
      * @return the value object
      */
     public static ValueLob openUnlinked(int type, DataHandler handler,
             int tableId, int objectId, long precision, boolean compression, String fileName) {
         return new ValueLob(type, handler, fileName, tableId, objectId, false/*linked*/, precision, compression);
     }
-    
+
     /**
      * Create a CLOB value from a stream.
      *
@@ -442,6 +443,7 @@ public class ValueLob extends Value {
      * @param t the new type
      * @return the converted value
      */
+    @Override
     public Value convertTo(int t) {
         if (t == type) {
             return this;
@@ -455,6 +457,7 @@ public class ValueLob extends Value {
         return super.convertTo(t);
     }
 
+    @Override
     public boolean isLinked() {
         return linked;
     }
@@ -468,6 +471,7 @@ public class ValueLob extends Value {
         return fileName;
     }
 
+    @Override
     public void close() {
         if (fileName != null) {
             if (tempFile != null) {
@@ -477,7 +481,8 @@ public class ValueLob extends Value {
         }
     }
 
-    public void unlink() {
+    @Override
+    public void unlink(DataHandler handler) {
         if (linked && fileName != null) {
             String temp;
             // synchronize on the database, to avoid concurrent temp file
@@ -495,6 +500,7 @@ public class ValueLob extends Value {
         }
     }
 
+    @Override
     public Value link(DataHandler h, int tabId) {
         if (fileName == null) {
             this.tableId = tabId;
@@ -529,6 +535,7 @@ public class ValueLob extends Value {
      *
      * @return the table id
      */
+    @Override
     public int getTableId() {
         return tableId;
     }
@@ -542,14 +549,17 @@ public class ValueLob extends Value {
         return objectId;
     }
 
+    @Override
     public int getType() {
         return type;
     }
 
+    @Override
     public long getPrecision() {
         return precision;
     }
 
+    @Override
     public String getString() {
         int len = precision > Integer.MAX_VALUE || precision == 0 ? Integer.MAX_VALUE : (int) precision;
         try {
@@ -571,6 +581,7 @@ public class ValueLob extends Value {
         }
     }
 
+    @Override
     public byte[] getBytes() {
         if (type == CLOB) {
             // convert hex to string
@@ -580,6 +591,7 @@ public class ValueLob extends Value {
         return Utils.cloneByteArray(data);
     }
 
+    @Override
     public byte[] getBytesNoCopy() {
         if (type == CLOB) {
             // convert hex to string
@@ -595,6 +607,7 @@ public class ValueLob extends Value {
         }
     }
 
+    @Override
     public int hashCode() {
         if (hash == 0) {
             if (precision > 4096) {
@@ -611,6 +624,7 @@ public class ValueLob extends Value {
         return hash;
     }
 
+    @Override
     protected int compareSecure(Value v, CompareMode mode) {
         if (type == Value.CLOB) {
             return Integer.signum(getString().compareTo(v.getString()));
@@ -619,6 +633,7 @@ public class ValueLob extends Value {
         return Utils.compareNotNullSigned(getBytes(), v2);
     }
 
+    @Override
     public Object getObject() {
         if (type == Value.CLOB) {
             return getReader();
@@ -626,10 +641,12 @@ public class ValueLob extends Value {
         return getInputStream();
     }
 
+    @Override
     public Reader getReader() {
         return IOUtils.getBufferedReader(getInputStream());
     }
 
+    @Override
     public InputStream getInputStream() {
         if (fileName == null) {
             return new ByteArrayInputStream(small);
@@ -640,6 +657,7 @@ public class ValueLob extends Value {
                 Constants.IO_BUFFER_SIZE);
     }
 
+    @Override
     public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
         long p = getPrecision();
         if (p > Integer.MAX_VALUE || p <= 0) {
@@ -652,6 +670,7 @@ public class ValueLob extends Value {
         }
     }
 
+    @Override
     public String getSQL() {
         String s;
         if (type == Value.CLOB) {
@@ -663,6 +682,7 @@ public class ValueLob extends Value {
         return "X'" + s + "'";
     }
 
+    @Override
     public String getTraceSQL() {
         if (small != null && getPrecision() <= SysProperties.MAX_TRACE_DATA_LENGTH) {
             return getSQL();
@@ -682,14 +702,17 @@ public class ValueLob extends Value {
      *
      * @return the data
      */
+    @Override
     public byte[] getSmall() {
         return small;
     }
 
+    @Override
     public int getDisplaySize() {
         return MathUtils.convertLongToInt(getPrecision());
     }
 
+    @Override
     public boolean equals(Object other) {
         return other instanceof ValueLob && compareSecure((Value) other, null) == 0;
     }
@@ -718,29 +741,6 @@ public class ValueLob extends Value {
             }
         } catch (IOException e) {
             throw DbException.convertIOException(e, null);
-        }
-    }
-
-    /**
-     * Remove all lobs for a given table id.
-     *
-     * @param database the database
-     * @param tableId the table id
-     */
-    public static void removeAllForTable(Database database, int tableId) {
-        String dir = getFileNamePrefix(database.getDatabasePath(), 0);
-        removeAllForTable(database, dir, tableId);
-    }
-
-    private static void removeAllForTable(Database database, String dir, int tableId) {
-        for (String name : FileUtils.newDirectoryStream(dir)) {
-            if (FileUtils.isDirectory(name)) {
-                removeAllForTable(database, name, tableId);
-            } else {
-                if (name.endsWith(".t" + tableId + Constants.SUFFIX_LOB_FILE)) {
-                    deleteFile(database, name);
-                }
-            }
         }
     }
 
@@ -778,6 +778,7 @@ public class ValueLob extends Value {
         }
     }
 
+    @Override
     public int getMemory() {
         if (small != null) {
             return small.length + 104;
@@ -786,11 +787,35 @@ public class ValueLob extends Value {
     }
 
     /**
+     * Remove all lobs for a given table id.
+     *
+     * @param handler the data handler
+     * @param tableId the table id
+     */
+    public static void removeAllForTable(DataHandler handler, int tableId) {
+        String dir = ValueLob.getFileNamePrefix(handler.getDatabasePath(), 0);
+        removeAllForTable(handler, dir, tableId);
+    }
+
+    private static void removeAllForTable(DataHandler handler, String dir, int tableId) {
+        for (String name : FileUtils.newDirectoryStream(dir)) {
+            if (FileUtils.isDirectory(name)) {
+                removeAllForTable(handler, name, tableId);
+            } else {
+                if (name.endsWith(".t" + tableId + Constants.SUFFIX_LOB_FILE)) {
+                    ValueLob.deleteFile(handler, name);
+                }
+            }
+        }
+    }
+
+    /**
      * Create an independent copy of this temporary value.
      * The file will not be deleted automatically.
      *
      * @return the value
      */
+    @Override
     public ValueLob copyToTemp() {
         ValueLob lob;
         if (type == CLOB) {
@@ -801,6 +826,7 @@ public class ValueLob extends Value {
         return lob;
     }
 
+    @Override
     public Value convertPrecision(long precision, boolean force) {
         if (this.precision <= precision) {
             return this;

@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
+
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
@@ -23,7 +25,7 @@ import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.message.TraceSystem;
-import org.h2.mvstore.db.TransactionStore;
+import org.h2.mvstore.db.MVTable;
 import org.h2.mvstore.db.TransactionStore.Transaction;
 import org.h2.result.ResultInterface;
 import org.h2.result.Row;
@@ -31,6 +33,7 @@ import org.h2.schema.Schema;
 import org.h2.store.DataHandler;
 import org.h2.store.InDoubtTransaction;
 import org.h2.store.LobStorageBackend;
+import org.h2.store.LobStorageFrontend;
 import org.h2.table.Table;
 import org.h2.util.New;
 import org.h2.util.SmallLRUCache;
@@ -72,7 +75,7 @@ public class Session extends SessionWithState {
     private Value lastScopeIdentity = ValueLong.get(0);
     private int firstUncommittedLog = Session.LOG_WRITTEN;
     private int firstUncommittedPos = Session.LOG_WRITTEN;
-    private HashMap<String, Integer> savepoints;
+    private HashMap<String, Savepoint> savepoints;
     private HashMap<String, Table> localTempTables;
     private HashMap<String, Index> localTempTableIndexes;
     private HashMap<String, Constraint> localTempTableConstraints;
@@ -104,6 +107,7 @@ public class Session extends SessionWithState {
     private int objectId;
     private final int queryCacheSize;
     private SmallLRUCache<String, Command> queryCache;
+
     private Transaction transaction;
     private long startStatement = -1;
 
@@ -145,12 +149,12 @@ public class Session extends SessionWithState {
             old = variables.remove(name);
         } else {
             // link LOB values, to make sure we have our own object
-            value = value.link(database, LobStorageBackend.TABLE_ID_SESSION_VARIABLE);
+            value = value.link(database, LobStorageFrontend.TABLE_ID_SESSION_VARIABLE);
             old = variables.put(name, value);
         }
         if (old != null) {
             // close the old value (in case it is a lob)
-            old.unlink();
+            old.unlink(database);
             old.close();
         }
     }
@@ -343,6 +347,7 @@ public class Session extends SessionWithState {
         }
     }
 
+    @Override
     public boolean getAutoCommit() {
         return autoCommit;
     }
@@ -351,6 +356,7 @@ public class Session extends SessionWithState {
         return user;
     }
 
+    @Override
     public void setAutoCommit(boolean b) {
         autoCommit = b;
     }
@@ -365,6 +371,7 @@ public class Session extends SessionWithState {
 
     //4个prepare方法要么生成CommandInterface(Command)要么生成Prepared
     //并且都调用org.h2.command.Prepared.prepare()方法
+    @Override
     public synchronized CommandInterface prepareCommand(String sql, int fetchSize) {
         return prepareLocal(sql);
     }
@@ -439,10 +446,12 @@ public class Session extends SessionWithState {
         return database;
     }
 
+    @Override
     public int getPowerOffCount() {
         return database.getPowerOffCount();
     }
 
+    @Override
     public void setPowerOffCount(int count) {
         database.setPowerOffCount(count);
     }
@@ -500,7 +509,7 @@ public class Session extends SessionWithState {
             // commit record is not written
             database.flush();
             for (Value v : unlinkLobMap.values()) {
-                v.unlink();
+                v.unlink(database);
                 v.close();
             }
             unlinkLobMap = null;
@@ -520,13 +529,19 @@ public class Session extends SessionWithState {
     public void rollback() {
         checkCommitRollback();
         if (transaction != null) {
+            Set<String> changed = transaction.getChangedMaps(0);
+            for (MVTable t : database.getMvStore().getTables()) {
+                if (changed.contains(t.getMapName())) {
+                    t.setModified();
+                }
+            }
             transaction.rollback();
             transaction = null;
         }
         currentTransactionName = null;
         boolean needCommit = false;
         if (undoLog.size() > 0) {
-            rollbackTo(0, false);
+            rollbackTo(null, false);
             needCommit = true;
         }
         if (locks.size() > 0 || needCommit) {
@@ -543,41 +558,67 @@ public class Session extends SessionWithState {
     /**
      * Partially roll back the current transaction.
      *
-     * @param index the position to which should be rolled back
+     * @param savepoint the savepoint to which should be rolled back
      * @param trimToSize if the list should be trimmed
      */
-    public void rollbackTo(int index, boolean trimToSize) { //"SET UNDO_LOG 0"禁用撤消日志，此时所有rollback都无效
+    public void rollbackTo(Savepoint savepoint, boolean trimToSize) { //"SET UNDO_LOG 0"禁用撤消日志，此时所有rollback都无效
+        int index = savepoint == null ? 0 : savepoint.logIndex;
         while (undoLog.size() > index) {
             UndoLogRecord entry = undoLog.getLast();
             entry.undo(this);
             undoLog.removeLast(trimToSize);
         }
+        if (transaction != null) {
+            Set<String> changed = transaction.getChangedMaps(savepoint.transactionSavepoint);
+            for (MVTable t : database.getMvStore().getTables()) {
+                if (changed.contains(t.getMapName())) {
+                    t.setModified();
+                }
+            }
+            transaction.rollbackToSavepoint(savepoint.transactionSavepoint);
+        }
         if (savepoints != null) {
             String[] names = new String[savepoints.size()];
             savepoints.keySet().toArray(names);
             for (String name : names) {
-                Integer savepointIndex = savepoints.get(name);
-                if (savepointIndex.intValue() > index) {
+                Savepoint sp = savepoints.get(name);
+                int savepointIndex = sp.logIndex;
+                if (savepointIndex > index) {
                     savepoints.remove(name);
                 }
             }
         }
-        if (transaction != null)
-        	transaction.rollbackToSavepoint(index);
     }
 
-    public int getUndoLogPos() {
-        return undoLog.size();
+    @Override
+    public boolean hasPendingTransaction() {
+        return undoLog.size() > 0;
+    }
+
+    /**
+     * Create a savepoint to allow rolling back to this state.
+     *
+     * @return the savepoint
+     */
+    public Savepoint setSavepoint() {
+        Savepoint sp = new Savepoint();
+        sp.logIndex = undoLog.size();
+        if (database.getMvStore() != null) {
+            sp.transactionSavepoint = getStatementSavepoint();
+        }
+        return sp;
     }
 
     public int getId() {
         return id;
     }
 
+    @Override
     public void cancel() {
         cancelAt = System.currentTimeMillis();
     }
 
+    @Override
     public void close() {
         if (!closed) {
             try {
@@ -729,6 +770,7 @@ public class Session extends SessionWithState {
         return random;
     }
 
+    @Override
     public Trace getTrace() {
         if (trace != null && !closed) {
             return trace;
@@ -798,11 +840,13 @@ public class Session extends SessionWithState {
     public void addSavepoint(String name) {
         if (savepoints == null) {
             savepoints = database.newStringMap();
-		}
-		if (transaction != null)
-			savepoints.put(name, (int) transaction.setSavepoint());
-		else
-			savepoints.put(name, getUndoLogPos());
+        }
+        Savepoint sp = new Savepoint();
+        sp.logIndex = undoLog.size();
+        if (database.getMvStore() != null) {
+            sp.transactionSavepoint = getStatementSavepoint();
+        }
+        savepoints.put(name, sp);
     }
 
     /**
@@ -815,12 +859,11 @@ public class Session extends SessionWithState {
         if (savepoints == null) {
             throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, name);
         }
-        Integer savepointIndex = savepoints.get(name);
-        if (savepointIndex == null) {
+        Savepoint savepoint = savepoints.get(name);
+        if (savepoint == null) {
             throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, name);
         }
-        int i = savepointIndex.intValue();
-        rollbackTo(i, false);
+        rollbackTo(savepoint, false);
     }
 
     /**
@@ -869,6 +912,7 @@ public class Session extends SessionWithState {
         }
     }
 
+    @Override
     public boolean isClosed() {
         return closed;
     }
@@ -983,6 +1027,7 @@ public class Session extends SessionWithState {
         return new JdbcConnection(this, getUser().getName(), url);
     }
 
+    @Override
     public DataHandler getDataHandler() {
         return database;
     }
@@ -990,7 +1035,7 @@ public class Session extends SessionWithState {
     public LobStorageBackend getLobStorageBackend() {
         return database.getLobStorage();
     }
-    
+
     /**
      * Remember that the given LOB value must be un-linked (disconnected from
      * the table) at commit.
@@ -1079,10 +1124,12 @@ public class Session extends SessionWithState {
         return schemaSearchPath;
     }
 
+    @Override
     public int hashCode() {
         return serialId;
     }
 
+    @Override
     public String toString() {
         return "#" + serialId + " (user: " + user.getName() + ")";
     }
@@ -1176,11 +1223,7 @@ public class Session extends SessionWithState {
         }
     }
 
-    /**
-     * Close all temporary result set. This also deletes all temporary files
-     * held by the result sets.
-     */
-    public void closeTemporaryResults() {
+    private void closeTemporaryResults() {
         if (temporaryResults != null) {
             for (ResultInterface result : temporaryResults) {
                 result.close();
@@ -1217,6 +1260,7 @@ public class Session extends SessionWithState {
         return modificationId;
     }
 
+    @Override
     public boolean isReconnectNeeded(boolean write) {
         while (true) {
             boolean reconnect = database.isReconnectNeeded();
@@ -1233,10 +1277,12 @@ public class Session extends SessionWithState {
         }
     }
 
+    @Override
     public void afterWriting() {
         database.afterWriting();
     }
 
+    @Override
     public SessionInterface reconnect(boolean write) {
         readSessionState();
         close();
@@ -1278,12 +1324,11 @@ public class Session extends SessionWithState {
     /**
      * Get the transaction to use for this session.
      *
-     * @param store the store
      * @return the transaction
      */
-    public Transaction getTransaction(TransactionStore store) {
+    public Transaction getTransaction() {
         if (transaction == null) {
-            transaction = store.begin();
+            transaction = database.getMvStore().getTransactionStore().begin();
             startStatement = -1;
         }
         return transaction;
@@ -1291,9 +1336,35 @@ public class Session extends SessionWithState {
 
     public long getStatementSavepoint() {
         if (startStatement == -1) {
-            startStatement = transaction.setSavepoint();
+            startStatement = getTransaction().setSavepoint();
         }
         return startStatement;
+    }
+
+    /**
+     * Mark the statement as completed. This also close all temporary result
+     * set, and deletes all temporary files held by the result sets.
+     */
+    public void endStatement() {
+        startStatement = -1;
+        closeTemporaryResults();
+    }
+
+    /**
+     * Represents a savepoint (a position in a transaction to where one can roll
+     * back to).
+     */
+    public static class Savepoint {
+
+        /**
+         * The undo log index.
+         */
+        int logIndex;
+
+        /**
+         * The transaction savepoint id.
+         */
+        long transactionSavepoint;
     }
 
 }

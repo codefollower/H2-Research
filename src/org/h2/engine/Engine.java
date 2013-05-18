@@ -127,6 +127,7 @@ public class Engine implements SessionFactory {
      * @return the session
      */
     //调用顺序: 2
+    @Override
     public Session createSession(ConnectionInfo ci) {
         return INSTANCE.createSessionAndValidate(ci);
     }
@@ -142,7 +143,7 @@ public class Engine implements SessionFactory {
                 // In serialized mode, database instance sharing is not possible
                 ci.setProperty("OPEN_NEW", "TRUE");
                 try {
-                    backup = (ConnectionInfo) ci.clone();
+                    backup = ci.clone();
                 } catch (CloneNotSupportedException e) {
                     throw DbException.convert(e);
                 }

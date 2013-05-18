@@ -30,6 +30,7 @@ import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.message.TraceSystem;
+import org.h2.mvstore.db.MVTableEngine;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
 import org.h2.schema.Schema;
@@ -41,6 +42,7 @@ import org.h2.store.FileLock;
 import org.h2.store.FileStore;
 import org.h2.store.InDoubtTransaction;
 import org.h2.store.LobStorageBackend;
+import org.h2.store.LobStorageFrontend;
 import org.h2.store.PageStore;
 import org.h2.store.WriterThread;
 import org.h2.store.fs.FileUtils;
@@ -173,6 +175,7 @@ public class Database implements DataHandler {
     private final DbSettings dbSettings;
     private final int reconnectCheckDelay;
     private int logMode;
+    private MVTableEngine.Store mvStore;
 
     public Database(ConnectionInfo ci, String cipher) {
         String name = ci.getName();
@@ -262,6 +265,14 @@ public class Database implements DataHandler {
             return;
         }
         powerOffCount = count;
+    }
+
+    public MVTableEngine.Store getMvStore() {
+        return mvStore;
+    }
+
+    public void setMvStore(MVTableEngine.Store mvStore) {
+        this.mvStore = mvStore;
     }
 
     /**
@@ -394,6 +405,7 @@ public class Database implements DataHandler {
         return powerOffCount;
     }
 
+    @Override
     public void checkPowerOff() {
         if (powerOffCount == 0) {
             return;
@@ -406,6 +418,9 @@ public class Database implements DataHandler {
             try {
                 powerOffCount = -1;
                 stopWriter();
+                if (mvStore != null) {
+                    mvStore.closeImmediately();
+                }
                 if (pageStore != null) {
                     try {
                         pageStore.close();
@@ -453,6 +468,7 @@ public class Database implements DataHandler {
         return traceSystem.getTrace(module);
     }
 
+    @Override
     public FileStore openFile(String name, String openMode, boolean mustExist) {
         if (mustExist && !FileUtils.exists(name)) {
             throw DbException.get(ErrorCode.FILE_NOT_FOUND_1, name);
@@ -1121,7 +1137,7 @@ public class Database implements DataHandler {
             if (lobStorageIsUsed) {
                 try {
                     getLobStorage();
-                    lobStorage.removeAllForTable(LobStorageBackend.TABLE_ID_SESSION_VARIABLE);
+                    lobStorage.removeAllForTable(LobStorageFrontend.TABLE_ID_SESSION_VARIABLE);
                 } catch (DbException e) {
                     trace.error(e, "close");
                 }
@@ -1209,7 +1225,7 @@ public class Database implements DataHandler {
                 try {
                     pageStore.checkpoint();
                     if (!readOnly) {
-                        lockMeta(pageStore.getSystemSession());
+                        lockMeta(pageStore.getPageStoreSession());
                         pageStore.compact(compactMode);
                     }
                 } catch (DbException e) {
@@ -1231,6 +1247,9 @@ public class Database implements DataHandler {
             }
         }
         reconnectModified(false);
+        if (mvStore != null) {
+            mvStore.close();
+        }
         closeFiles();
         if (persistent && lock == null && fileLockMethod != FileLock.LOCK_NO && fileLockMethod != FileLock.LOCK_FS) {
             // everything already closed (maybe in checkPowerOff)
@@ -1264,6 +1283,9 @@ public class Database implements DataHandler {
 
     private synchronized void closeFiles() {
         try {
+            if (mvStore != null) {
+                mvStore.closeImmediately();
+            }
             if (pageStore != null) {
                 pageStore.close();
                 pageStore = null;
@@ -1395,6 +1417,7 @@ public class Database implements DataHandler {
         return compareMode;
     }
 
+    @Override
     public String getDatabasePath() {
         if (persistent) {
             return FileUtils.toRealPath(databaseName);
@@ -1713,6 +1736,7 @@ public class Database implements DataHandler {
         this.cluster = cluster;
     }
 
+    @Override
     public void checkWritingAllowed() {
         if (readOnly) {
             throw DbException.get(ErrorCode.DATABASE_IS_READ_ONLY);
@@ -1920,6 +1944,7 @@ public class Database implements DataHandler {
         this.maxLengthInplaceLob = value;
     }
 
+    @Override
     public int getMaxLengthInplaceLob() {
         return persistent ? maxLengthInplaceLob : Integer.MAX_VALUE;
     }
@@ -1940,6 +1965,7 @@ public class Database implements DataHandler {
         this.deleteFilesOnDisconnect = b;
     }
 
+    @Override
     public String getLobCompressionAlgorithm(int type) {
         return lobCompressionAlgorithm;
     }
@@ -1966,6 +1992,7 @@ public class Database implements DataHandler {
         optimizeReuseResults = b;
     }
 
+    @Override
     public Object getLobSyncObject() {
         return lobSyncObject;
     }
@@ -2068,6 +2095,7 @@ public class Database implements DataHandler {
         }
     }
 
+    @Override
     public SmallLRUCache<String, String[]> getLobFileListCache() {
         if (lobFileListCache == null) {
             lobFileListCache = SmallLRUCache.newInstance(128);
@@ -2100,6 +2128,7 @@ public class Database implements DataHandler {
         return TableLinkConnection.open(linkConnections, driver, url, user, password, dbSettings.shareLinkedConnections);
     }
 
+    @Override
     public String toString() {
         return databaseShortName + ":" + super.toString();
     }
@@ -2117,6 +2146,7 @@ public class Database implements DataHandler {
         closeFiles();
     }
 
+    @Override
     public TempFileDeleter getTempFileDeleter() {
         return tempFileDeleter;
     }
@@ -2334,6 +2364,7 @@ public class Database implements DataHandler {
         return compiler;
     }
 
+    @Override
     public LobStorageBackend getLobStorage() {
         if (lobStorage == null) {
             lobStorage = new LobStorageBackend(this);
@@ -2341,6 +2372,7 @@ public class Database implements DataHandler {
         return lobStorage;
     }
 
+    @Override
     public Connection getLobConnection() {
         String url = Constants.CONN_URL_INTERNAL;
         JdbcConnection conn = new JdbcConnection(systemSession, systemUser.getName(), url);
@@ -2418,6 +2450,7 @@ public class Database implements DataHandler {
         return false;
     }
 
+    @Override
     public int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length) {
         throw DbException.throwInternalError();
     }

@@ -787,7 +787,7 @@ public class Data {
             if (smallLen >= 0) {
                 byte[] small = DataUtils.newBytes(smallLen);
                 read(small, 0, smallLen);
-                return LobStorageBackend.createSmallLob(type, small);
+                return LobStorageFrontend.createSmallLob(type, small);
             } else if (smallLen == -3) {
                 int tableId = readVarInt();
                 long lobId = readVarLong();
@@ -808,12 +808,9 @@ public class Data {
                 }
                 if (smallLen == -2) {
                     String filename = readString();
-                    ValueLob lob = ValueLob.openUnlinked(type, handler, tableId, objectId, precision, compression, filename);
-                    return lob;
-                } else {
-                    ValueLob lob = ValueLob.openLinked(type, handler, tableId, objectId, precision, compression);
-                    return lob;
+                    return ValueLob.openUnlinked(type, handler, tableId, objectId, precision, compression, filename);
                 }
+                return ValueLob.openLinked(type, handler, tableId, objectId, precision, compression);
             }
         }
         case Value.ARRAY: {

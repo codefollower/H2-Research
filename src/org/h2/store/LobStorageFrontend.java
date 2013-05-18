@@ -22,6 +22,16 @@ import org.h2.value.ValueLobDb;
  */
 public class LobStorageFrontend implements LobStorageInterface {
 
+    /**
+     * The table id for session variables (LOBs not assigned to a table).
+     */
+    public static final int TABLE_ID_SESSION_VARIABLE = -1;
+
+    /**
+     * The table id for temporary objects (not assigned to any object).
+     */
+    public static final int TABLE_TEMP = -2;
+
     private final DataHandler handler;
 
     public LobStorageFrontend(DataHandler handler) {
@@ -33,10 +43,12 @@ public class LobStorageFrontend implements LobStorageInterface {
      *
      * @param lob the lob id
      */
+    @Override
     public void removeLob(long lob) {
-        // TODO ideally, this should not be called at all, but that's a refactoring for another day
+        // TODO this should not be called at all,
+        // but that's a refactoring for another day
     }
-    
+
     /**
      * Get the input stream for the given lob.
      *
@@ -45,6 +57,7 @@ public class LobStorageFrontend implements LobStorageInterface {
      * @param byteCount the number of bytes to read, or -1 if not known
      * @return the stream
      */
+    @Override
     public InputStream getInputStream(long lobId, byte[] hmac, long byteCount) throws IOException {
         if (byteCount < 0) {
             byteCount = Long.MAX_VALUE;
@@ -52,28 +65,17 @@ public class LobStorageFrontend implements LobStorageInterface {
         return new BufferedInputStream(new LobStorageRemoteInputStream(handler, lobId, hmac, byteCount));
     }
 
-    /**
-     * Copy a lob.
-     *
-     * @param type the type
-     * @param oldLobId the old lob id
-     * @param tableId the new table id
-     * @param length the length
-     * @return the new lob
-     */
+    @Override
     public ValueLobDb copyLob(int type, long oldLobId, int tableId, long length) {
-        // TODO ideally, this should not be called at all, but that's a refactoring for another day
-        // this should never be called
         throw new UnsupportedOperationException();
     }
 
-    /**
-     * Create a BLOB object.
-     *
-     * @param in the input stream
-     * @param maxLength the maximum length (-1 if not known)
-     * @return the LOB
-     */
+    @Override
+    public void setTable(long lobId, int tableIdSessionVariable) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Value createBlob(InputStream in, long maxLength) {
         if (SysProperties.LOB_IN_DATABASE) {
             // need to use a temp file, because the input stream could come from
@@ -91,6 +93,7 @@ public class LobStorageFrontend implements LobStorageInterface {
      * @param maxLength the maximum length (-1 if not known)
      * @return the LOB
      */
+    @Override
     public Value createClob(Reader reader, long maxLength) {
         if (SysProperties.LOB_IN_DATABASE) {
             // need to use a temp file, because the input stream could come from
@@ -101,16 +104,25 @@ public class LobStorageFrontend implements LobStorageInterface {
         return ValueLob.createClob(reader, maxLength, handler);
     }
 
+
     /**
-     * Set the table reference of this lob.
+     * Create a LOB object that fits in memory.
      *
-     * @param lobId the lob
-     * @param table the table
+     * @param type the value type
+     * @param small the byte array
+     * @return the LOB
      */
-    public void setTable(long lobId, int table) {
-        // TODO ideally, this should not be called at all, but that's a refactoring for another day
-        // this should never be called
-        throw new UnsupportedOperationException();
+    public static Value createSmallLob(int type, byte[] small) {
+        if (SysProperties.LOB_IN_DATABASE) {
+            int precision;
+            if (type == Value.CLOB) {
+                precision = new String(small, Constants.UTF8).length();
+            } else {
+                precision = small.length;
+            }
+            return ValueLobDb.createSmallLob(type, small, precision);
+        }
+        return ValueLob.createSmallLob(type, small);
     }
 
 }

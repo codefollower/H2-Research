@@ -40,6 +40,7 @@ public class ConditionInSelect extends Condition {
         this.compareType = compareType;
     }
 
+    @Override
     public Value getValue(Session session) {
         query.setSession(session);
         LocalResult rows = query.query(0);
@@ -112,12 +113,14 @@ public class ConditionInSelect extends Condition {
         return ValueBoolean.get(result);
     }
 
+    @Override
     public void mapColumns(ColumnResolver resolver, int level) {
         left.mapColumns(resolver, level);
         query.mapColumns(resolver, level + 1);
         this.queryLevel = Math.max(level, this.queryLevel); //没看到用处
     }
 
+    @Override
     public Expression optimize(Session session) {
         left = left.optimize(session);
         query.setRandomAccessResult(true);
@@ -132,11 +135,13 @@ public class ConditionInSelect extends Condition {
         return this;
     }
 
+    @Override
     public void setEvaluatable(TableFilter tableFilter, boolean b) {
         left.setEvaluatable(tableFilter, b);
         query.setEvaluatable(tableFilter, b);
     }
 
+    @Override
     public String getSQL() {
         StringBuilder buff = new StringBuilder();
         buff.append('(').append(left.getSQL()).append(' ');
@@ -151,19 +156,23 @@ public class ConditionInSelect extends Condition {
         return buff.toString();
     }
 
+    @Override
     public void updateAggregate(Session session) {
         left.updateAggregate(session);
         query.updateAggregate(session);
     }
 
+    @Override
     public boolean isEverything(ExpressionVisitor visitor) {
         return left.isEverything(visitor) && query.isEverything(visitor);
     }
 
+    @Override
     public int getCost() {
         return left.getCost() + query.getCostAsExpression();
     }
 
+    @Override
     public void createIndexConditions(Session session, TableFilter filter) {
         if (!session.getDatabase().getSettings().optimizeInList) {
             return;

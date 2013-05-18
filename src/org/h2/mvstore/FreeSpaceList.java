@@ -66,8 +66,8 @@ public class FreeSpaceList {
         int chunkStart = (int) (c.start / MVStore.BLOCK_SIZE);
         //实际上就是: (c.length / MVStore.BLOCK_SIZE) + 2，
         //那为什么在markFree中又是加1? 之所以加1，是为了方便判断
-        //int required = (int) ((c.start + c.length) / MVStore.BLOCK_SIZE) + 2 - chunkStart;
-        int required = (c.length / MVStore.BLOCK_SIZE) + 1;
+        int required = (int) ((c.start + c.length) / MVStore.BLOCK_SIZE) + 2 - chunkStart;
+        //int required = (c.length / MVStore.BLOCK_SIZE) + 1;
         PageRange found = null;
         int i = 0;
         for (PageRange pr : freeSpaceList) {
@@ -160,8 +160,8 @@ public class FreeSpaceList {
         //C=[14, 15] = found
         //Chunk = [12, 13] (chunkStart=12, required=1)
         //那么chunkStart + required + 1 == found.start = 12 + 1 + 1 = 14
-        //if (chunkStart + required + 1 == found.start) {
-        if (chunkStart + required == found.start) {
+        if (chunkStart + required + 1 == found.start) {
+        //if (chunkStart + required == found.start) {
             // if the used-chunk is adjacent to the beginning of a
             // free-space-range
             found.start = chunkStart;
@@ -173,8 +173,8 @@ public class FreeSpaceList {
             	//假设有A、C，这里相当于Chunk和C紧邻，所以Chunk和C要合并得到C1，同时A又和Chunk紧邻，
             	//所以A和C1要合并，并且删除原来C所在的位置
                 PageRange previous = freeSpaceList.get(i - 1);
-                //if (previous.start + previous.length + 1 == found.start) { //不需要加1
-                if (previous.start + previous.length == found.start) {
+                if (previous.start + previous.length + 1 == found.start) { //不需要加1
+                //if (previous.start + previous.length == found.start) {
                     previous.length += found.length;
                     freeSpaceList.remove(i);
                 }
@@ -185,8 +185,8 @@ public class FreeSpaceList {
         if (i > 0) {
             // if the used-chunk is adjacent to the end of a free-space-range
             PageRange previous = freeSpaceList.get(i - 1);
-            //if (previous.start + previous.length + 1 == chunkStart) {
-            if (previous.start + previous.length == chunkStart) {
+            if (previous.start + previous.length + 1 == chunkStart) {
+            //if (previous.start + previous.length == chunkStart) {
                 previous.length += required;
                 // compact: merge the next entry into this one if
                 // they are now adjacent
@@ -208,6 +208,7 @@ public class FreeSpaceList {
         freeSpaceList.add(i, newRange);
     }
 
+    @Override
     public String toString() {
         StringBuilder buff = new StringBuilder();
         boolean first = true;

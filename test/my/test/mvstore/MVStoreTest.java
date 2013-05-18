@@ -2,6 +2,7 @@ package my.test.mvstore;
 
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
+import org.h2.mvstore.MVStoreTool;
 import org.h2.store.fs.FileUtils;
 
 public class MVStoreTest {
@@ -11,12 +12,48 @@ public class MVStoreTest {
 	public static void main(String[] args) {
 		new MVStoreTest().run();
 	}
-
-	void run() {
-		storeTest();
-		//rollbackToTest();
+	public static void p(Object o) {
+		System.out.println(o);
 	}
-	
+
+	public static void p() {
+		System.out.println();
+	}
+	void run() {
+		//storeTest();
+		//rollbackToTest();
+
+		testInMemoryStore();
+	}
+
+	void testInMemoryStore() {
+		MVStore store = MVStore.open(null);
+
+		MVMap<Integer, String> map = store.openMap("data");
+
+		int n = 100;
+		for (int i = 0; i < n; i++) {
+			map.put(i, "Hello" + i);
+		}
+		store.compact(50);
+		store.commit();
+		
+		store.store();
+		
+		long v = store.incrementVersion();
+
+		map.put(200, "200");
+		map.put(300, "300");
+		
+		store.rollbackTo(v);
+
+		p(map.getSize());
+		
+		store.store();
+		
+		
+	}
+
 	void storeTest() {
 		MVStore store = getMVStore();
 		store.setReuseSpace(false);
@@ -33,38 +70,39 @@ public class MVStoreTest {
 		}
 		store.commit();
 		store.store();
-		
 
 		for (int i = 100; i < 150; i++) {
 			map.put(i, "Hello" + i);
 			map2.put(i, "Hello" + i);
 		}
-		
+
 		System.out.println(map.getSize());
-		
+
 		store.commit();
 		store.store();
-		
+
 		System.out.println(map.getSize());
 
-//		long oldVersion = store.getCurrentVersion();
-//
-//		System.out.println(map.getSize());
-//
-//		store.incrementVersion();
-//
-//		map.put(101, "Hello101");
-//		map.put(102, "Hello102");
-//
-//		store.rollbackTo(0);
-//		store.rollbackTo(oldVersion + 1);
-//
-//		store.commit();
-//
-//		map = store.openMap("data");
-//		System.out.println(map.getSize());
+		//		long oldVersion = store.getCurrentVersion();
+		//
+		//		System.out.println(map.getSize());
+		//
+		//		store.incrementVersion();
+		//
+		//		map.put(101, "Hello101");
+		//		map.put(102, "Hello102");
+		//
+		//		store.rollbackTo(0);
+		//		store.rollbackTo(oldVersion + 1);
+		//
+		//		store.commit();
+		//
+		//		map = store.openMap("data");
+		//		System.out.println(map.getSize());
 
 		store.close();
+
+		MVStoreTool.main(new String[] { "-dump", "E:/H2/baseDir/MVStoreTest333" });
 	}
 
 	void rollbackToTest() {

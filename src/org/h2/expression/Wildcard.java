@@ -38,52 +38,64 @@ public class Wildcard extends Expression {
         this.table = table;
     }
 
+    @Override
     public boolean isWildcard() {
         return true;
     }
 
+    @Override
     public Value getValue(Session session) {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public int getType() {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public void mapColumns(ColumnResolver resolver, int level) {
         throw DbException.get(ErrorCode.SYNTAX_ERROR_1, table);
     }
 
+    @Override
     public Expression optimize(Session session) {
         throw DbException.get(ErrorCode.SYNTAX_ERROR_1, table);
     }
 
+    @Override
     public void setEvaluatable(TableFilter tableFilter, boolean b) {
         DbException.throwInternalError();
     }
 
+    @Override
     public int getScale() {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public long getPrecision() {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public int getDisplaySize() {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public String getTableAlias() {
         return table;
     }
 
+    @Override
     public String getSchemaName() {
         return schema;
     }
     
     //对于select WildcardTest.* from WildcardTest
     //此时table=WildcardTest
+    @Override
     public String getSQL() {
         if (table == null) {
             return "*";
@@ -91,14 +103,17 @@ public class Wildcard extends Expression {
         return StringUtils.quoteIdentifier(table) + ".*"; //此时返回: "WildcardTest".*
     }
 
+    @Override
     public void updateAggregate(Session session) {
         DbException.throwInternalError();
     }
 
+    @Override
     public boolean isEverything(ExpressionVisitor visitor) {
         throw DbException.throwInternalError();
     }
 
+    @Override
     public int getCost() {
         throw DbException.throwInternalError();
     }

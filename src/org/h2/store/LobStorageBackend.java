@@ -17,6 +17,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+
 import org.h2.constant.ErrorCode;
 import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
@@ -36,16 +37,6 @@ import org.h2.value.ValueLobDb;
  * This is the back-end i.e. the server side of the LOB storage.
  */
 public class LobStorageBackend implements LobStorageInterface {
-
-    /**
-     * The table id for session variables (LOBs not assigned to a table).
-     */
-    public static final int TABLE_ID_SESSION_VARIABLE = -1;
-
-    /**
-     * The table id for temporary objects (not assigned to any object).
-     */
-    public static final int TABLE_TEMP = -2;
 
     /**
      * The name of the lob data table. If this table exists, then lob storage is
@@ -68,7 +59,7 @@ public class LobStorageBackend implements LobStorageInterface {
      * bytes), therefore, the size 4096 means 64 KB.
      */
     private static final int HASH_CACHE_SIZE = 4 * 1024;
-    
+
     private Connection conn;
     private final HashMap<String, PreparedStatement> prepared = New.hashMap();
     private long nextBlock;
@@ -183,33 +174,13 @@ public class LobStorageBackend implements LobStorageInterface {
             } catch (SQLException e) {
                 throw DbException.convert(e);
             }
-            if (tableId == TABLE_ID_SESSION_VARIABLE) {
-                removeAllForTable(TABLE_TEMP);
+            if (tableId == LobStorageFrontend.TABLE_ID_SESSION_VARIABLE) {
+                removeAllForTable(LobStorageFrontend.TABLE_TEMP);
             }
             // remove both lobs in the database as well as in the file system
             // (compatibility)
         }
         ValueLob.removeAllForTable(database, tableId);
-    }
-
-    /**
-     * Create a LOB object that fits in memory.
-     *
-     * @param type the value type
-     * @param small the byte array
-     * @return the LOB
-     */
-    public static Value createSmallLob(int type, byte[] small) {
-        if (SysProperties.LOB_IN_DATABASE) {
-            int precision;
-            if (type == Value.CLOB) {
-                precision = new String(small, Constants.UTF8).length();
-            } else {
-                precision = small.length;
-            }
-            return ValueLobDb.createSmallLob(type, small, precision);
-        }
-        return ValueLob.createSmallLob(type, small);
     }
 
     /**
@@ -270,140 +241,6 @@ public class LobStorageBackend implements LobStorageInterface {
         }
     }
 
-    /**
-     * An input stream that reads from a LOB.
-     */
-    public class LobInputStream extends InputStream {
-
-        /**
-         * The size of the lob.
-         */
-        private final long length;
-
-        /**
-         * The remaining bytes in the lob.
-         */
-        private long remainingBytes;
-
-        /**
-         * The temporary buffer.
-         */
-        private byte[] buffer;
-
-        /**
-         * The position within the buffer.
-         */
-        private int pos;
-
-        /**
-         * The lob id.
-         */
-        private final long lob;
-
-        /**
-         * The lob sequence id.
-         */
-        private int seq;
-
-        public LobInputStream(long lob, long byteCount) {
-            this.lob = lob;
-            remainingBytes = byteCount;
-            this.length = byteCount;
-        }
-
-        public int read() throws IOException {
-            fillBuffer();
-            if (remainingBytes <= 0) {
-                return -1;
-            }
-            remainingBytes--;
-            return buffer[pos++] & 255;
-        }
-
-        public long skip(long n) throws IOException {
-            long remaining = n;
-            remaining -= skipSmall(remaining);
-            if (remaining > BLOCK_LENGTH) {
-                long toPos = length - remainingBytes + remaining;
-                try {
-                    long[] seqPos = skipBuffer(lob, toPos);
-                    if (seqPos == null) {
-                        remaining -= super.skip(remaining);
-                        return n - remaining;
-                    }
-                    seq = (int) seqPos[0];
-                    long p = seqPos[1];
-                    remainingBytes = length - p;
-                    remaining = toPos - p;
-                } catch (SQLException e) {
-                    throw DbException.convertToIOException(e);
-                }
-                pos = 0;
-                buffer = null;
-            }
-            fillBuffer();
-            remaining -= skipSmall(remaining);
-            remaining -= super.skip(remaining);
-            return n - remaining;
-        }
-
-        private int skipSmall(long n) {
-            if (n > 0 && buffer != null && pos < buffer.length) {
-                int x = MathUtils.convertLongToInt(Math.min(n, buffer.length - pos));
-                pos += x;
-                remainingBytes -= x;
-                return x;
-            }
-            return 0;
-        }
-
-        public int read(byte[] buff) throws IOException {
-            return readFully(buff, 0, buff.length);
-        }
-
-        public int read(byte[] buff, int off, int length) throws IOException {
-            return readFully(buff, off, length);
-        }
-
-        private int readFully(byte[] buff, int off, int length) throws IOException {
-            if (length == 0) {
-                return 0;
-            }
-            int read = 0;
-            while (length > 0) {
-                fillBuffer();
-                if (remainingBytes <= 0) {
-                    break;
-                }
-                int len = (int) Math.min(length, remainingBytes);
-                len = Math.min(len, buffer.length - pos);
-                System.arraycopy(buffer, pos, buff, off, len);
-                pos += len;
-                read += len;
-                remainingBytes -= len;
-                off += len;
-                length -= len;
-            }
-            return read == 0 ? -1 : read;
-        }
-
-        private void fillBuffer() throws IOException {
-            if (buffer != null && pos < buffer.length) {
-                return;
-            }
-            if (remainingBytes <= 0) {
-                return;
-            }
-            try {
-                buffer = readBlock(lob, seq++);
-                pos = 0;
-            } catch (SQLException e) {
-                throw DbException.convertToIOException(e);
-            }
-        }
-
-    }
-
     private PreparedStatement prepare(String sql) throws SQLException {
         if (SysProperties.CHECK2) {
             if (!Thread.holdsLock(database)) {
@@ -426,11 +263,7 @@ public class LobStorageBackend implements LobStorageInterface {
         prepared.put(sql, prep);
     }
 
-    /**
-     * Delete a LOB from the database.
-     *
-     * @param lob the lob id
-     */
+    @Override
     public void removeLob(long lob) {
         try {
             synchronized (database) {
@@ -474,14 +307,7 @@ public class LobStorageBackend implements LobStorageInterface {
         }
     }
 
-    /**
-     * Get the input stream for the given lob.
-     *
-     * @param lobId the lob id
-     * @param hmac the message authentication code (for remote input streams)
-     * @param byteCount the number of bytes to read, or -1 if not known
-     * @return the stream
-     */
+    @Override
     public InputStream getInputStream(long lobId, byte[] hmac, long byteCount) throws IOException {
         init();
         if (byteCount == -1) {
@@ -551,7 +377,7 @@ public class LobStorageBackend implements LobStorageInterface {
                     ValueLobDb v = ValueLobDb.createSmallLob(type, small, small.length);
                     return v;
                 }
-                return registerLob(type, lobId, TABLE_TEMP, length);
+                return registerLob(type, lobId, LobStorageFrontend.TABLE_TEMP, length);
             } catch (IOException e) {
                 if (lobId != -1) {
                     removeLob(lobId);
@@ -581,15 +407,7 @@ public class LobStorageBackend implements LobStorageInterface {
         }
     }
 
-    /**
-     * Copy a lob.
-     *
-     * @param type the type
-     * @param oldLobId the old lob id
-     * @param tableId the new table id
-     * @param length the length
-     * @return the new lob
-     */
+    @Override
     public ValueLobDb copyLob(int type, long oldLobId, int tableId, long length) {
         synchronized (database) {
             try {
@@ -703,6 +521,183 @@ public class LobStorageBackend implements LobStorageInterface {
         }
     }
 
+    @Override
+    public Value createBlob(InputStream in, long maxLength) {
+        if (SysProperties.LOB_IN_DATABASE) {
+            init();
+            return addLob(in, maxLength, Value.BLOB);
+        }
+        return ValueLob.createBlob(in, maxLength, database);
+    }
+
+    @Override
+    public Value createClob(Reader reader, long maxLength) {
+        if (SysProperties.LOB_IN_DATABASE) {
+            init();
+            long max = maxLength == -1 ? Long.MAX_VALUE : maxLength;
+            CountingReaderInputStream in = new CountingReaderInputStream(reader, max);
+            ValueLobDb lob = addLob(in, Long.MAX_VALUE, Value.CLOB);
+            lob.setPrecision(in.getLength());
+            return lob;
+        }
+        return ValueLob.createClob(reader, maxLength, database);
+    }
+
+    @Override
+    public void setTable(long lobId, int table) {
+        synchronized (database) {
+            try {
+                init();
+                String sql = "UPDATE " + LOBS + " SET TABLE = ? WHERE ID = ?";
+                PreparedStatement prep = prepare(sql);
+                prep.setInt(1, table);
+                prep.setLong(2, lobId);
+                prep.executeUpdate();
+                reuse(sql, prep);
+            } catch (SQLException e) {
+                throw DbException.convert(e);
+            }
+        }
+    }
+
+    /**
+     * An input stream that reads from a LOB.
+     */
+    public class LobInputStream extends InputStream {
+
+        /**
+         * The size of the lob.
+         */
+        private final long length;
+
+        /**
+         * The remaining bytes in the lob.
+         */
+        private long remainingBytes;
+
+        /**
+         * The temporary buffer.
+         */
+        private byte[] buffer;
+
+        /**
+         * The position within the buffer.
+         */
+        private int pos;
+
+        /**
+         * The lob id.
+         */
+        private final long lob;
+
+        /**
+         * The lob sequence id.
+         */
+        private int seq;
+
+        public LobInputStream(long lob, long byteCount) {
+            this.lob = lob;
+            remainingBytes = byteCount;
+            this.length = byteCount;
+        }
+
+        @Override
+        public int read() throws IOException {
+            fillBuffer();
+            if (remainingBytes <= 0) {
+                return -1;
+            }
+            remainingBytes--;
+            return buffer[pos++] & 255;
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            long remaining = n;
+            remaining -= skipSmall(remaining);
+            if (remaining > BLOCK_LENGTH) {
+                long toPos = length - remainingBytes + remaining;
+                try {
+                    long[] seqPos = skipBuffer(lob, toPos);
+                    if (seqPos == null) {
+                        remaining -= super.skip(remaining);
+                        return n - remaining;
+                    }
+                    seq = (int) seqPos[0];
+                    long p = seqPos[1];
+                    remainingBytes = length - p;
+                    remaining = toPos - p;
+                } catch (SQLException e) {
+                    throw DbException.convertToIOException(e);
+                }
+                pos = 0;
+                buffer = null;
+            }
+            fillBuffer();
+            remaining -= skipSmall(remaining);
+            remaining -= super.skip(remaining);
+            return n - remaining;
+        }
+
+        private int skipSmall(long n) {
+            if (n > 0 && buffer != null && pos < buffer.length) {
+                int x = MathUtils.convertLongToInt(Math.min(n, buffer.length - pos));
+                pos += x;
+                remainingBytes -= x;
+                return x;
+            }
+            return 0;
+        }
+
+        @Override
+        public int read(byte[] buff) throws IOException {
+            return readFully(buff, 0, buff.length);
+        }
+
+        @Override
+        public int read(byte[] buff, int off, int length) throws IOException {
+            return readFully(buff, off, length);
+        }
+
+        private int readFully(byte[] buff, int off, int length) throws IOException {
+            if (length == 0) {
+                return 0;
+            }
+            int read = 0;
+            while (length > 0) {
+                fillBuffer();
+                if (remainingBytes <= 0) {
+                    break;
+                }
+                int len = (int) Math.min(length, remainingBytes);
+                len = Math.min(len, buffer.length - pos);
+                System.arraycopy(buffer, pos, buff, off, len);
+                pos += len;
+                read += len;
+                remainingBytes -= len;
+                off += len;
+                length -= len;
+            }
+            return read == 0 ? -1 : read;
+        }
+
+        private void fillBuffer() throws IOException {
+            if (buffer != null && pos < buffer.length) {
+                return;
+            }
+            if (remainingBytes <= 0) {
+                return;
+            }
+            try {
+                buffer = readBlock(lob, seq++);
+                pos = 0;
+            } catch (SQLException e) {
+                throw DbException.convertToIOException(e);
+            }
+        }
+
+    }
+
     /**
      * An input stream that reads the data from a reader.
      */
@@ -721,6 +716,7 @@ public class LobStorageBackend implements LobStorageInterface {
             buffer = Utils.EMPTY_BYTES;
         }
 
+        @Override
         public int read(byte[] buff, int offset, int len) throws IOException {
             if (buffer == null) {
                 return -1;
@@ -737,6 +733,7 @@ public class LobStorageBackend implements LobStorageInterface {
             return len;
         }
 
+        @Override
         public int read() throws IOException {
             if (buffer == null) {
                 return -1;
@@ -771,66 +768,11 @@ public class LobStorageBackend implements LobStorageInterface {
             return length;
         }
 
+        @Override
         public void close() throws IOException {
             reader.close();
         }
 
-    }
-
-    /**
-     * Create a BLOB object.
-     *
-     * @param in the input stream
-     * @param maxLength the maximum length (-1 if not known)
-     * @return the LOB
-     */
-    public Value createBlob(InputStream in, long maxLength) {
-        if (SysProperties.LOB_IN_DATABASE) {
-            init();
-            return addLob(in, maxLength, Value.BLOB);
-        }
-        return ValueLob.createBlob(in, maxLength, database);
-    }
-
-    /**
-     * Create a CLOB object.
-     *
-     * @param reader the reader
-     * @param maxLength the maximum length (-1 if not known)
-     * @return the LOB
-     */
-    public Value createClob(Reader reader, long maxLength) {
-        if (SysProperties.LOB_IN_DATABASE) {
-            init();
-            long max = maxLength == -1 ? Long.MAX_VALUE : maxLength;
-            CountingReaderInputStream in = new CountingReaderInputStream(reader, max);
-            ValueLobDb lob = addLob(in, Long.MAX_VALUE, Value.CLOB);
-            lob.setPrecision(in.getLength());
-            return lob;
-        }
-        return ValueLob.createClob(reader, maxLength, database);
-    }
-
-    /**
-     * Set the table reference of this lob.
-     *
-     * @param lobId the lob
-     * @param table the table
-     */
-    public void setTable(long lobId, int table) {
-        synchronized (database) {
-            try {
-                init();
-                String sql = "UPDATE " + LOBS + " SET TABLE = ? WHERE ID = ?";
-                PreparedStatement prep = prepare(sql);
-                prep.setInt(1, table);
-                prep.setLong(2, lobId);
-                prep.executeUpdate();
-                reuse(sql, prep);
-            } catch (SQLException e) {
-                throw DbException.convert(e);
-            }
-        }
     }
 
 }

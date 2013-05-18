@@ -8,9 +8,11 @@ package org.h2.mvstore.db;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.h2.mvstore.Cursor;
 import org.h2.mvstore.DataUtils;
@@ -28,7 +30,7 @@ public class TransactionStore {
 
     private static final String LAST_TRANSACTION_ID = "lastTransactionId";
 
-    // TODO should not be hardcoded
+    // TODO should not be hard-coded
     private static final int MAX_UNSAVED_PAGES = 4 * 1024;
 
     /**
@@ -62,7 +64,7 @@ public class TransactionStore {
     private long lastTransactionIdStored;
 
     private long lastTransactionId;
-    
+
     private long firstOpenTransaction = -1;
 
     /**
@@ -149,7 +151,7 @@ public class TransactionStore {
     /**
      * Close the transaction store.
      */
-    public synchronized void close() {
+    public synchronized void close() { //只见到在测试中使用
         // to avoid losing transaction ids
         settings.put(LAST_TRANSACTION_ID, "" + lastTransactionId);
         store.commit();
@@ -188,7 +190,7 @@ public class TransactionStore {
             preparedTransactions.put(t.getId(), v);
         }
     }
-    
+
     /**
      * Log an entry.
      *
@@ -223,7 +225,7 @@ public class TransactionStore {
         for (long logId = 0; logId < maxLogId; logId++) {
             long[] undoKey = new long[] {
                     t.getId(), logId };
-            commitIfNeeded();            
+            commitIfNeeded();
             Object[] op = undoLog.get(undoKey);
             int opType = (Integer) op[0];
             if (opType == Transaction.OP_REMOVE) {
@@ -247,36 +249,37 @@ public class TransactionStore {
     }
 
     /**
-     * Roll a transaction back.
+     * Check whether the given transaction id is still open and contains log
+     * entries.
+     *
+     * @param transactionId the transaction id
+     * @return true if it is open
+     */
+    boolean isTransactionOpen(long transactionId) {
+        if (transactionId < firstOpenTransaction) {
+            return false;
+        }
+        if (firstOpenTransaction == -1) {
+            if (undoLog.size() == 0) {
+                return false;
+            }
+            long[] key = undoLog.firstKey();
+            firstOpenTransaction = key[0];
+        }
+        if (firstOpenTransaction == transactionId) {
+            return true;
+        }
+        long[] key = { transactionId, -1 };
+        key = undoLog.higherKey(key);
+        return key != null && key[0] == transactionId;
+    }
+
+    /**
+     * End this transaction
      *
      * @param t the transaction
-     * @param maxLogId the last log id
      */
-    void rollback(Transaction t, long maxLogId) {
-        rollbackTo(t, maxLogId, 0);
-        endTransaction(t);
-    }
-    
-    boolean isTransactionOpen(long transactionId) {
-//      if (transactionId < firstOpenTransaction) {
-//          return false;
-//      }
-      if (firstOpenTransaction == -1) {
-          if (undoLog.size() == 0) {
-              return false;
-          }
-          long[] key = undoLog.firstKey();
-          firstOpenTransaction = key[0];
-      }
-      if (firstOpenTransaction == transactionId) {
-          return true;
-      }
-      long[] key = { transactionId, -1 };
-      key = undoLog.higherKey(key);
-      return key != null && key[0] == transactionId;
-  }
-    
-    private void endTransaction(Transaction t) {
+    void endTransaction(Transaction t) {
         if (t.getStatus() == Transaction.STATUS_PREPARED) {
             preparedTransactions.remove(t.getId());
         }
@@ -295,10 +298,11 @@ public class TransactionStore {
      */
     void rollbackTo(Transaction t, long maxLogId, long toLogId) {
         for (long logId = maxLogId - 1; logId >= toLogId; logId--) {
-            commitIfNeeded();            
+            commitIfNeeded();
             Object[] op = undoLog.get(new long[] {
                     t.getId(), logId });
             int mapId = ((Integer) op[1]).intValue();
+            // TODO open map by id if possible
             Map<String, String> meta = store.getMetaMap();
             String m = meta.get("map." + mapId);
             String mapName = DataUtils.parseMap(m).get("name");
@@ -314,6 +318,29 @@ public class TransactionStore {
             }
             undoLog.remove(op);
         }
+    }
+
+    /**
+     * Get the set of changed maps.
+     *
+     * @param t the transaction
+     * @param maxLogId the maximum log id
+     * @param toLogId the minimum log id
+     * @return the set of changed maps
+     */
+    HashSet<String> getChangedMaps(Transaction t, long maxLogId, long toLogId) {
+        HashSet<String> set = New.hashSet();
+        for (long logId = maxLogId - 1; logId >= toLogId; logId--) {
+            Object[] op = undoLog.get(new long[] {
+                    t.getId(), logId });
+            int mapId = ((Integer) op[1]).intValue();
+            // TODO open map by id if possible
+            Map<String, String> meta = store.getMetaMap();
+            String m = meta.get("map." + mapId);
+            String mapName = DataUtils.parseMap(m).get("name");
+            set.add(mapName);
+        }
+        return set;
     }
 
     /**
@@ -356,8 +383,11 @@ public class TransactionStore {
          */
         final long transactionId;
 
+        /**
+         * The log id of the last entry in the undo log map.
+         */
         long logId;
-        
+
         private int status;
 
         private String name;
@@ -378,7 +408,7 @@ public class TransactionStore {
         public int getStatus() {
             return status;
         }
-        
+
         void setStatus(int status) {
             this.status = status;
         }
@@ -452,18 +482,6 @@ public class TransactionStore {
         }
 
         /**
-         * Roll back to the given savepoint. This is only allowed if the
-         * transaction is open.
-         *
-         * @param savepointId the savepoint id
-         */
-        public void rollbackToSavepoint(long savepointId) {
-            checkOpen();
-            store.rollbackTo(this, this.logId, savepointId);
-            this.logId = savepointId;
-        }
-
-        /**
          * Prepare the transaction. Afterwards, the transaction can only be
          * committed or rolled back.
          */
@@ -477,18 +495,41 @@ public class TransactionStore {
          * Commit the transaction. Afterwards, this transaction is closed.
          */
         public void commit() {
-            if (status != STATUS_CLOSED) {
-                store.commit(this, logId);
-            }
+            checkNotClosed();
+            store.commit(this, logId);
+        }
+
+        /**
+         * Roll back to the given savepoint. This is only allowed if the
+         * transaction is open.
+         *
+         * @param savepointId the savepoint id
+         */
+        public void rollbackToSavepoint(long savepointId) {
+            checkOpen();
+            store.rollbackTo(this, logId, savepointId);
+            logId = savepointId;
         }
 
         /**
          * Roll the transaction back. Afterwards, this transaction is closed.
          */
         public void rollback() {
-            if (status != STATUS_CLOSED) {
-                store.rollback(this, logId);
-            }
+            checkNotClosed();
+            store.rollbackTo(this, logId, 0);
+            store.endTransaction(this);
+        }
+
+        /**
+         * Get the set of changed maps starting at the given savepoint up to
+         * now.
+         *
+         * @param savepointId the savepoint id, 0 meaning the beginning of the
+         *            transaction
+         * @return the set of changed maps
+         */
+        public Set<String> getChangedMaps(long savepointId) {
+            return store.getChangedMaps(this, logId, savepointId);
         }
 
         /**
@@ -500,8 +541,13 @@ public class TransactionStore {
             }
         }
 
-        public long getCurrentVersion() {
-            return store.store.getCurrentVersion();
+        /**
+         * Check whether this transaction is open or prepared.
+         */
+        void checkNotClosed() {
+            if (status == STATUS_CLOSED) {
+                throw DataUtils.newIllegalStateException("Transaction is closed");
+            }
         }
 
     }
@@ -543,26 +589,26 @@ public class TransactionStore {
             map = transaction.store.store.openMap(name, builder);
             mapId = map.getId();
         }
-        
+
         private TransactionMap(Transaction transaction, MVMap<K, VersionedValue> map, int mapId) {
             this.transaction = transaction;
             this.map = map;
             this.mapId = mapId;
         }
-        
+
         /**
          * Set the savepoint. Afterwards, reads are based on the specified
          * savepoint.
-         * 
+         *
          * @param savepoint the savepoint
          */
         public void setSavepoint(long savepoint) { //只能读到logId比savepoint小的记录
             this.readLogId = savepoint;
         }
-        
+
         /**
          * Get a clone of this map for the given transaction.
-         * 
+         *
          * @param transaction the transaction
          * @param savepoint the savepoint
          * @return the map
@@ -578,6 +624,8 @@ public class TransactionStore {
          *
          * @return the size
          */
+        //为什么不直接用map.getSize()，因为有可能其他事务同时操作map，但是没提交，
+        //所以当前事务只能看到自己提交的，所以要调用一下get(key)，而get(key)里会有readLogId
         public long getSize() {
             // TODO this method is very slow
             long size = 0;
@@ -661,7 +709,7 @@ public class TransactionStore {
          * @param key the key
          * @return whether the entry could be removed
          */
-        public boolean tryRemove(K key) { //tryRemove、tryPut与remove、put的差别是try开头的会等待琐超时
+        public boolean tryRemove(K key) { //tryRemove、tryPut与remove、put的差别是try开头的不会等待琐超时
             return trySet(key, null, false);
         }
 
@@ -915,11 +963,11 @@ public class TransactionStore {
             return new Iterator<K>() {
                 private final Cursor<K> cursor = map.keyIterator(from);
                 private K current;
-                
+
                 {
                     fetchNext();
                 }
-                
+
                 private void fetchNext() {
                     while (cursor.hasNext()) {
                         current = cursor.next();
@@ -990,27 +1038,40 @@ public class TransactionStore {
         }
 
     }
-    
+
     /**
      * A versioned value (possibly null). It contains a pointer to the old
      * value, and the value itself.
      */
     static class VersionedValue {
-        public long transactionId, logId;
+
+        /**
+         * The transaction id.
+         */
+        public long transactionId;
+
+        /**
+         * The log id.
+         */
+        public long logId;
+
+        /**
+         * The value.
+         */
         public Object value;
     }
-    
+
     /**
      * The value type for a versioned value.
      */
     public static class VersionedValueType implements DataType {
-        
+
         private final DataType valueType;
-        
+
         VersionedValueType(DataType valueType) {
             this.valueType = valueType;
         }
-        
+
         @Override
         public int getMemory(Object obj) {
             VersionedValue v = (VersionedValue) obj;
@@ -1049,8 +1110,8 @@ public class TransactionStore {
             v.logId = DataUtils.readVarLong(buff);
             v.value = valueType.read(buff);
             return v;
-        }        
-        
+        }
+
     }
 
     /**

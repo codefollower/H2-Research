@@ -28,6 +28,7 @@ public class Cursor<K> implements Iterator<K>, Iterable<K> { //Iterable 我加�
         this.from = from;
     }
 
+    @Override
     public K next() {
         hasNext();
         K c = current;
@@ -35,6 +36,7 @@ public class Cursor<K> implements Iterator<K>, Iterable<K> { //Iterable 我加�
         return c;
     }
 
+    @Override
     public boolean hasNext() {
         if (!initialized) {
             min(root, from);
@@ -60,13 +62,14 @@ public class Cursor<K> implements Iterator<K>, Iterable<K> { //Iterable 我加�
             }
             return;
         }
-        pos = null; //我加上的，见my.test.mvstore.bugs.TestCursorSkip
         long index = map.getKeyIndex(current);
         K k = map.getKey(index + n);
+        pos = null; //见my.test.mvstore.bugs.TestCursorSkip
         min(root, k);
         fetchNext();
     }
 
+    @Override
     public void remove() {
         throw DataUtils.newUnsupportedOperationException(
                 "Removing is not supported");
@@ -74,7 +77,7 @@ public class Cursor<K> implements Iterator<K>, Iterable<K> { //Iterable 我加�
 
     /**
      * Fetch the next entry that is equal or larger than the given key, starting
-     * from the given page.
+     * from the given page. This method retains the stack.
      *
      * @param p the page to start
      * @param from the key to search

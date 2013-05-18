@@ -89,10 +89,12 @@ public class CommandRemote implements CommandInterface {
         }
     }
 
+    @Override
     public boolean isQuery() {
         return isQuery;
     }
 
+    @Override
     public ArrayList<ParameterInterface> getParameters() {
         return parameters;
     }
@@ -111,6 +113,7 @@ public class CommandRemote implements CommandInterface {
     
     //这个并不是对应java.sql.ResultSetMetaData，而是在org.h2.jdbc.JdbcPreparedStatement.getMetaData()调用
     //等价于ResultSet.getMetaData()，只不过PreparedStatement.getMetaData()不需要事先执行查询
+    @Override
     public ResultInterface getMetaData() {
         synchronized (session) {
             if (!isQuery) {
@@ -144,6 +147,7 @@ public class CommandRemote implements CommandInterface {
         }
     }
 
+    @Override
     public ResultInterface executeQuery(int maxRows, boolean scrollable) {
         checkParameters();
         synchronized (session) {
@@ -191,6 +195,7 @@ public class CommandRemote implements CommandInterface {
     }
     
     //注意: transferList.size大于1时，说明是集群环境，但是并不是XA，也就是说可能有一台server更新成功了，可以允许另一台更新不成功
+    @Override
     public int executeUpdate() {
         checkParameters();
         synchronized (session) {
@@ -233,6 +238,7 @@ public class CommandRemote implements CommandInterface {
         }
     }
 
+    @Override
     public void close() {
         if (session == null || session.isClosed()) {
             return;
@@ -264,14 +270,17 @@ public class CommandRemote implements CommandInterface {
     /**
      * Cancel this current statement.
      */
+    @Override
     public void cancel() {
         session.cancelStatement(id);
     }
 
+    @Override
     public String toString() {
         return sql + Trace.formatParams(getParameters());
     }
 
+    @Override
     public int getCommandType() {
         return UNKNOWN;
     }

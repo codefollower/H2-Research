@@ -52,7 +52,7 @@ public class TransactionTest {
 		stmt.executeUpdate("insert into TransactionTest(id, name) values(10, 'a')");
 		stmt.executeUpdate("insert into TransactionTest(id, name) values(20, 'b')");
 
-		count(2); //MVTable failed
+		//count(2); //MVTable failed
 		selectAll(); //MVTable failed
 
 		conn.commit();

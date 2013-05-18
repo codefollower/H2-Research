@@ -40,6 +40,7 @@ public class PageBtreeCursor implements Cursor {
         this.i = i;
     }
 
+    @Override
     public Row get() {
         if (currentRow == null && currentSearchRow != null) {
             currentRow = index.getRow(session, currentSearchRow.getKey());
@@ -47,10 +48,12 @@ public class PageBtreeCursor implements Cursor {
         return currentRow;
     }
 
+    @Override
     public SearchRow getSearchRow() {
         return currentSearchRow;
     }
 
+    @Override
     public boolean next() {
         if (current == null) {
             return false;
@@ -73,6 +76,7 @@ public class PageBtreeCursor implements Cursor {
         return true;
     }
 
+    @Override
     public boolean previous() {
         if (current == null) {
             return false;

@@ -70,6 +70,7 @@ public class CreateView extends SchemaCommand {
         this.force = force;
     }
 
+    @Override
     public int update() {
         session.commit(true);
         Database db = session.getDatabase();
@@ -98,6 +99,8 @@ public class CreateView extends SchemaCommand {
             }
             querySQL = select.getPlanSQL();
         }
+        // The view creates a Prepared command object, which belongs to a
+        // session, so we pass the system session down.
         Session sysSession = db.getSystemSession(); //TODO 为什么一定要用system session？换成自己的session运行也没出问题?
         try {
             if (view == null) {
@@ -123,6 +126,7 @@ public class CreateView extends SchemaCommand {
         return 0;
     }
 
+    @Override
     public int getType() {
         return CommandInterface.CREATE_VIEW;
     }

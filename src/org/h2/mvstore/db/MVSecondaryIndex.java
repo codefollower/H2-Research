@@ -86,6 +86,7 @@ public class MVSecondaryIndex extends BaseIndex {
     
     ////MVPrimaryIndex没有覆盖rename方法，因为MVPrimaryIndex没有Create SQL，而MVSecondaryIndex有Create SQL，
     //有Create SQL说明就可以对索引得命名
+    @Override
     public void rename(String newName) {
         TransactionMap<Value, Value> map = getMap(null);
         String newMapName = newName + "_" + getId();
@@ -118,7 +119,6 @@ public class MVSecondaryIndex extends BaseIndex {
     public void remove(Session session, Row row) {
         ValueArray array = getKey(row); //把所有索引列和行key组合成map的key
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         Value old = map.remove(array);
         if (old == null) {
             if (old == null) { //为什么要比较两次？
@@ -132,7 +132,6 @@ public class MVSecondaryIndex extends BaseIndex {
     public Cursor find(Session session, SearchRow first, SearchRow last) {
         Value min = getKey(first);
         TransactionMap<Value, Value> map = getMap(session);
-        map.setSavepoint(map.getTransaction().setSavepoint());
         return new MVStoreCursor(session, map.keyIterator(min), last);
     }
 
@@ -171,6 +170,7 @@ public class MVSecondaryIndex extends BaseIndex {
         return searchRow;
     }
 
+    @Override
     public MVTable getTable() {
         return mvTable;
     }
@@ -238,6 +238,7 @@ public class MVSecondaryIndex extends BaseIndex {
         return dataMap.map.getSize();
     }
 
+    @Override
     public long getDiskSpaceUsed() {
         // TODO estimate disk space usage
         return 0;
@@ -247,7 +248,7 @@ public class MVSecondaryIndex extends BaseIndex {
     public void checkRename() {
         // ok
     }
-    
+
     /**
      * Get the map to store the data.
      *

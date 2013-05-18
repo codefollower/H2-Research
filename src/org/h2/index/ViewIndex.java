@@ -77,18 +77,22 @@ public class ViewIndex extends BaseIndex {
         return createSession;
     }
 
+    @Override
     public String getPlanSQL() {
         return planSQL;
     }
 
+    @Override
     public void close(Session session) {
         // nothing to do
     }
 
+    @Override
     public void add(Session session, Row row) {
         throw DbException.getUnsupportedException("VIEW");
     }
 
+    @Override
     public void remove(Session session, Row row) {
         throw DbException.getUnsupportedException("VIEW");
     }
@@ -115,6 +119,7 @@ public class ViewIndex extends BaseIndex {
     //masks的数组元素是一个view中包含的所有列，如果某一列不是查询条件，那么对应的masks[列id]这个数组元素就是0
     
     //此方法不影响些类的任何字段，只是为了计算cost
+    @Override
     public synchronized double getCost(Session session, int[] masks, SortOrder sortOrder) {
         if (recursive) { //对应WITH RECURSIVE开头之类的语句，见my.test.command.ddl.CreateViewTest
             return 1000;
@@ -179,6 +184,7 @@ public class ViewIndex extends BaseIndex {
         return cost;
     }
 
+    @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
         if (recursive) {
         	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
@@ -389,26 +395,32 @@ public class ViewIndex extends BaseIndex {
         return q;
     }
 
+    @Override
     public void remove(Session session) {
         throw DbException.getUnsupportedException("VIEW");
     }
 
+    @Override
     public void truncate(Session session) {
         throw DbException.getUnsupportedException("VIEW");
     }
 
+    @Override
     public void checkRename() {
         throw DbException.getUnsupportedException("VIEW");
     }
 
+    @Override
     public boolean needRebuild() {
         return false;
     }
 
+    @Override
     public boolean canGetFirstOrLast() {
         return false;
     }
 
+    @Override
     public Cursor findFirstOrLast(Session session, boolean first) {
         throw DbException.getUnsupportedException("VIEW");
     }
@@ -417,14 +429,17 @@ public class ViewIndex extends BaseIndex {
         this.recursive = value;
     }
 
+    @Override
     public long getRowCount(Session session) {
         return 0;
     }
 
+    @Override
     public long getRowCountApproximation() {
         return 0;
     }
 
+    @Override
     public long getDiskSpaceUsed() {
         return 0;
     }

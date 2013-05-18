@@ -104,10 +104,12 @@ public class Right extends DbObjectBase {
         return grantee;
     }
 
+    @Override
     public String getDropSQL() {
         return null;
     }
 
+    @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
         StringBuilder buff = new StringBuilder();
         buff.append("GRANT ");
@@ -120,14 +122,17 @@ public class Right extends DbObjectBase {
         return buff.toString();
     }
 
+    @Override
     public String getCreateSQL() {
         return getCreateSQLForCopy(grantedTable, null);
     }
 
+    @Override
     public int getType() {
         return DbObject.RIGHT;
     }
 
+    @Override
     public void removeChildrenAndResources(Session session) {
         if (grantedTable != null) {
             grantee.revokeRight(grantedTable);
@@ -141,6 +146,7 @@ public class Right extends DbObjectBase {
         invalidate();
     }
 
+    @Override
     public void checkRename() {
         DbException.throwInternalError();
     }

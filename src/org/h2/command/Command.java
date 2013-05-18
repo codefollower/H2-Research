@@ -66,6 +66,7 @@ public abstract class Command implements CommandInterface {
      *
      * @return true if it is
      */
+    @Override
     public abstract boolean isQuery();
 
     /**
@@ -73,6 +74,7 @@ public abstract class Command implements CommandInterface {
      *
      * @return the list of parameters
      */
+    @Override
     public abstract ArrayList<? extends ParameterInterface> getParameters();
 
     /**
@@ -110,6 +112,7 @@ public abstract class Command implements CommandInterface {
         throw DbException.get(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY);
     }
 
+    @Override
     public final ResultInterface getMetaData() {
         return queryMeta();
     }
@@ -140,7 +143,7 @@ public abstract class Command implements CommandInterface {
     }
 
     private void stop() {
-        session.closeTemporaryResults();
+        session.endStatement();
         session.setCurrentCommand(null);
         //DDL的isTransactional默认都是false，相当于每执行完一条DDL都默认提交事务
         if (!isTransactional()) {
@@ -172,6 +175,7 @@ public abstract class Command implements CommandInterface {
      * @param scrollable if the result set must be scrollable (ignored)
      * @return the result set
      */
+    @Override
     public ResultInterface executeQuery(int maxrows, boolean scrollable) {
         startTime = 0;
         long start = 0;
@@ -211,6 +215,7 @@ public abstract class Command implements CommandInterface {
         }
     }
 
+    @Override
     public int executeUpdate() {
         long start = 0;
         Database database = session.getDatabase();
@@ -227,7 +232,7 @@ public abstract class Command implements CommandInterface {
             }
         }
         synchronized (sync) {
-            int rollback = session.getUndoLogPos(); //记下日志位置，以便失败时回退
+            Session.Savepoint rollback = session.setSavepoint();
             session.setCurrentCommand(this);
             try {
                 while (true) {
@@ -301,14 +306,17 @@ public abstract class Command implements CommandInterface {
         return start == 0 ? now : start;
     }
 
+    @Override
     public void close() { //命令关闭后才可重用
         canReuse = true;
     }
 
+    @Override
     public void cancel() {
         this.cancel = true;
     }
 
+    @Override
     public String toString() {
         return sql + Trace.formatParams(getParameters());
     }

@@ -21,6 +21,7 @@ import java.util.HashMap;
  * 4 bytes: chunk id (an incrementing number)
  * 4 bytes: pageCount
  * 8 bytes: metaRootPos
+ * 8 bytes: maxLength
  * 8 bytes: maxLengthLive
  * [ Page ] *
  */
@@ -156,10 +157,12 @@ public class Chunk {
         return (int) (maxLength == 0 ? 0 : 100 * maxLengthLive / maxLength);
     }
 
+    @Override
     public int hashCode() {
         return id;
     }
 
+    @Override
     public boolean equals(Object o) {
         return o instanceof Chunk && ((Chunk) o).id == id;
     }
@@ -169,7 +172,7 @@ public class Chunk {
      *
      * @return the string
      */
-    public String asString() { //此类问共11字段，这里不包含collectPriority字段
+    public String asString() { //此类总共11字段，这里不包含collectPriority字段
         return
                 "id:" + id + "," +
                 "length:" + length + "," +
@@ -183,6 +186,7 @@ public class Chunk {
                 "version:" + version;
     }
 
+    @Override
     public String toString() {
         return asString();
     }

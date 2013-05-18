@@ -44,6 +44,12 @@ H:3,...
 
 TODO:
 
+TestMVStoreDataLoss
+
+TransactionStore:
+- support reading the undo log
+
+MVStore:
 - rolling docs review: at convert "Features" to top-level (linked) entries
 - additional test async write / read algorithm for speed and errors
 - move setters to the builder, except for setRetainVersion, setReuseSpace,
@@ -94,10 +100,12 @@ TODO:
 - to save space when persisting very small transactions,
 -- use a transaction log where only the deltas are stored
 - serialization for lists, sets, sets, sorted sets, maps, sorted maps
-- maybe rename 'rollback' to 'revert'
+- maybe rename 'rollback' to 'revert' to distinguish from transactions
 - support other compression algorithms (deflate, LZ4,...)
 - only retain the last version, unless explicitly set (setRetainVersion)
 - unit test for the FreeSpaceList; maybe find a simpler implementation
+- support opening (existing) maps by id
+- more consistent null handling (keys/values sometimes may be null)
 
 */
 
@@ -110,7 +118,8 @@ public class MVStore {
      * Whether assertions are enabled.
      */
     public static final boolean ASSERT = false;
-
+    
+    //physical sector size of the disk 硬盘物理扇区的块大小是4K
     /**
      * The block size (physical sector size) of the disk. The file header is
      * written twice, one copy in each block, to ensure it survives a crash.
@@ -188,11 +197,12 @@ public class MVStore {
     /**
      * The version of the last stored chunk.
      */
-    private long lastStoredVersion; //lastStoredVersion比lastCommittedVersion小1
+    //private long lastStoredVersion;
+    private long lastStoredVersion = -1; //要默认是-1才对，lastStoredVersion比lastCommittedVersion小1
     private int fileReadCount;
     private int fileWriteCount;
     private int unsavedPageCount; //每次调用完store方法后都改变它的值
-    private int maxUnsavedPages;
+    private int maxUnsavedPages; //只在构造函数中赋值
 
     /**
      * The time the store was created, in milliseconds since 1970.
@@ -775,18 +785,18 @@ public class MVStore {
      * Commit the changes. This method marks the changes as committed and
      * increments the version.
      * <p>
-     * Unless the write delay is disabled, this method does not write to the
+     * Unless the write delay is set to 0, this method does not write to the
      * file. Instead, data is written after the delay, manually by calling the
      * store method, when the write buffer is full, or when closing the store.
      *
      * @return the new version
      */
     public long commit() {
-        if (writeDelay == 0) {
-            return store(true);
-        }
         long v = ++currentVersion;
         lastCommittedVersion = v;
+        if (writeDelay == 0) {
+            store(false);
+        }
         return v;
     }
 
@@ -888,7 +898,8 @@ public class MVStore {
             if (m != meta) { //TODO maps中会包含meta map吗?
                 long v = m.getVersion();
                 //查看当前的maps中的每个version是否>=上一次调用store方法时的版本
-                if (v >= 0 && m.getVersion() >= lastStoredVersion) {
+                //if (v >= 0 && m.getVersion() >= lastStoredVersion) {
+                if (v >= 0 && m.getVersion() > lastStoredVersion) { //不需要>=，而是只用>
                     MVMap<?, ?> r = m.openVersion(storeVersion); //打开按storeVersion指定的版本
                     r.waitUntilWritten(r.getRoot());
                     if (r.getRoot().getPos() == 0) { //pos为0时就表示些page还未写
@@ -951,10 +962,11 @@ public class MVStore {
         }
         buff.limit(length);
 
-        long fileSizeUsed = getFileSizeUsed();
+        long fileSizeUsed = getFileSizeUsed(); //可以通过Chunk的start和length来计算文件大小
         long filePos = reuseSpace ? allocateChunk(length) : fileSizeUsed;
         boolean storeAtEndOfFile = filePos + length >= fileSizeUsed;
 
+        //TODO 为什么不在getFileSizeUsed前调用呢?
         // free up the space of unused chunks now
         for (Chunk x : removedChunks) {
             freeSpaceList.markFree(x);
@@ -1143,7 +1155,8 @@ public class MVStore {
         for (MVMap<?, ?> m : maps.values()) {
             if (!m.isClosed()) {
                 long v = m.getVersion();
-                if (v >= 0 && v >= lastStoredVersion) { //只要一个map的version>=lastStoredVersion就返回true啦
+                if (v >= 0 && v >= lastStoredVersion) { //不需要>=，而是只用>
+                //if (v >= 0 && v > lastStoredVersion) { //只要一个map的version>=lastStoredVersion就返回true啦
                     return true;
                 }
             }
@@ -1185,7 +1198,7 @@ public class MVStore {
             maxLengthSum = 1;
         }
         int percentTotal = (int) (100 * maxLengthLiveSum / maxLengthSum);
-        if (percentTotal > fillRate) {
+        if (percentTotal > fillRate) { //如果fillRate是50，意思就是只有Live数未超过一半时就压缩
             return false;
         }
 
@@ -1209,6 +1222,7 @@ public class MVStore {
 
         // sort the list, so the first entry should be collected first
         Collections.sort(old, new Comparator<Chunk>() {
+            @Override
             public int compare(Chunk o1, Chunk o2) {
                 return new Integer(o1.collectPriority).compareTo(o2.collectPriority);
             }
@@ -1233,7 +1247,7 @@ public class MVStore {
             Chunk c = it.next();
             if (move == c) {
                 remove = true;
-            } else if (remove) {
+            } else if (remove) { //小于averageMaxLength之后的Chunk都不压缩
                 it.remove();
             }
         }
@@ -1246,7 +1260,8 @@ public class MVStore {
         store();
         return true;
     }
-
+    
+    //就是把属于old chunks中的page对应的key先remove再put
     private void copyLive(Chunk chunk, ArrayList<Chunk> old) {
         ByteBuffer buff = ByteBuffer.allocate(chunk.length);
         DataUtils.readFully(file, chunk.start, buff);
@@ -1255,7 +1270,7 @@ public class MVStore {
         markMetaChanged();
         while (buff.position() < chunkLength) {
             int start = buff.position();
-            int pageLength = buff.getInt();
+            int pageLength = buff.getInt(); //开始读一个Page
             buff.getShort();
             int mapId = DataUtils.readVarInt(buff);
             @SuppressWarnings("unchecked")
@@ -1331,7 +1346,7 @@ public class MVStore {
         // to support reading old versions and rollback
         if (pos == 0) {
             // the value could be smaller than 0 because
-            // in some cases a page is allocated without a store 
+            // in some cases a page is allocated without a store
             unsavedPageCount = Math.max(0, unsavedPageCount - 1);
             return;
         }
@@ -1967,6 +1982,7 @@ public class MVStore {
         }
 
         //例如: cacheSize:10,compress:1,readOnly:1,writeDelay:2000
+        @Override
         public String toString() {
             return DataUtils.appendMap(new StringBuilder(), config).toString();
         }

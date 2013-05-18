@@ -83,8 +83,9 @@ public class SourceCompiler {
             compiled.put(packageAndClassName, clazz);
             return clazz;
         }
-        
+
         ClassLoader classLoader = new ClassLoader(getClass().getClassLoader()) {
+            @Override
             public Class<?> findClass(String name) throws ClassNotFoundException {
                 Class<?> classInstance = compiled.get(name);
                 if (classInstance == null) {
@@ -128,8 +129,8 @@ public class SourceCompiler {
         for (Method m : methods) {
             int modifiers = m.getModifiers();
             if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers)) {
-                String mname = m.getName();
-                if (!mname.startsWith("_") && !m.getName().equals("main")) {
+                String name = m.getName();
+                if (!name.startsWith("_") && !m.getName().equals("main")) {
                     return m;
                 }
             }
@@ -223,6 +224,7 @@ public class SourceCompiler {
 
     private static void copyInThread(final InputStream in, final OutputStream out) {
         new Task() {
+            @Override
             public void call() throws IOException {
                 IOUtils.copy(in, out);
             }
@@ -260,11 +262,11 @@ public class SourceCompiler {
             throw DbException.get(ErrorCode.SYNTAX_ERROR_1, err);
         }
     }
-    
-    
+
+
     /**
-     * Access the groovy compiler using reflection, so that we do not gain a compile-time dependency
-     * unnecessarily.
+     * Access the Groovy compiler using reflection, so that we do not gain a
+     * compile-time dependency unnecessarily.
      */
     private static final class GroovyCompiler {
         private static final Object LOADER;
@@ -272,29 +274,30 @@ public class SourceCompiler {
 
         static {
             Object tmpLoader = null;
-            Throwable tmpInitfailException = null;
+            Throwable tmpInitFailException = null;
             try {
-                // create an instance of ImportCustomiser
+                // create an instance of ImportCustomizer
                 Class<?> importCustomizerClass = Class.forName("org.codehaus.groovy.control.customizers.ImportCustomizer");
                 Object importCustomizer = Utils.newInstance("org.codehaus.groovy.control.customizers.ImportCustomizer");
-                // Call the method ImportCustomizer#addImports(String[])
+                // Call the method ImportCustomizer.addImports(String[])
                 String[] importsArray = new String[] { "java.sql.Connection", "java.sql.Types", "java.sql.ResultSet",
                         "groovy.sql.Sql", "org.h2.tools.SimpleResultSet" };
                 Utils.callMethod(importCustomizer, "addImports", new Object[] { importsArray });
-                
-                // Call the method CompilerConfiguration#addCompilationCustomizers(ImportCustomizer...)
+
+                // Call the method
+                // CompilerConfiguration.addCompilationCustomizers(ImportCustomizer...)
                 Object importCustomizerArray = java.lang.reflect.Array.newInstance(importCustomizerClass, 1);
                 java.lang.reflect.Array.set(importCustomizerArray, 0, importCustomizer);
                 Object configuration = Utils.newInstance("org.codehaus.groovy.control.CompilerConfiguration");
                 Utils.callMethod(configuration, "addCompilationCustomizers", new Object[] { importCustomizerArray });
-                
+
                 ClassLoader parent = GroovyCompiler.class.getClassLoader();
                 tmpLoader = Utils.newInstance("groovy.lang.GroovyClassLoader", parent, configuration);
             } catch (Exception ex) {
-                tmpInitfailException = ex;
+                tmpInitFailException = ex;
             }
             LOADER = tmpLoader;
-            INIT_FAIL_EXCEPTION = tmpInitfailException;
+            INIT_FAIL_EXCEPTION = tmpInitFailException;
         }
 
         public static Class<?> parseClass(String source, String packageAndClassName) {

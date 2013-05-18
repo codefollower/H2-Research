@@ -72,6 +72,7 @@ public class AlterUser extends DefineCommand {
         return StringUtils.convertHexToBytes(e.optimize(session).getValue(session).getString());
     }
 
+    @Override
     public int update() {
         session.commit(true);
         Database db = session.getDatabase();
@@ -111,6 +112,7 @@ public class AlterUser extends DefineCommand {
         return 0;
     }
 
+    @Override
     public int getType() {
         return type;
     }

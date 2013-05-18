@@ -19,13 +19,12 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
-
 import org.h2.constant.ErrorCode;
 import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
-import org.h2.store.LobStorageBackend;
+import org.h2.store.LobStorageFrontend;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.MathUtils;
@@ -230,6 +229,7 @@ public abstract class Value {
      */
     protected abstract int compareSecure(Value v, CompareMode mode);
 
+    @Override
     public abstract int hashCode();
 
     /**
@@ -241,6 +241,7 @@ public abstract class Value {
      * @param other the other value
      * @return true if they are equal
      */
+    @Override
     public abstract boolean equals(Object other);
 
     /**
@@ -771,8 +772,7 @@ public abstract class Value {
             case BLOB: {
                 switch(getType()) {
                 case BYTES:
-
-                    return LobStorageBackend.createSmallLob(Value.BLOB, getBytesNoCopy());
+                    return LobStorageFrontend.createSmallLob(Value.BLOB, getBytesNoCopy());
                 }
                 break;
             }
@@ -835,9 +835,9 @@ public abstract class Value {
             case FLOAT:
                 return ValueFloat.get(Float.parseFloat(s.trim()));
             case CLOB:
-                return LobStorageBackend.createSmallLob(CLOB, s.getBytes(Constants.UTF8));
+                return LobStorageFrontend.createSmallLob(CLOB, s.getBytes(Constants.UTF8));
             case BLOB:
-                return LobStorageBackend.createSmallLob(BLOB, StringUtils.convertHexToBytes(s.trim()));
+                return LobStorageFrontend.createSmallLob(BLOB, StringUtils.convertHexToBytes(s.trim()));
             case ARRAY:
                 return ValueArray.get(new Value[]{ValueString.get(s)});
             case RESULT_SET: {
@@ -991,8 +991,10 @@ public abstract class Value {
     /**
      * Mark any underlying resource as 'not linked to any table'. For values
      * that are kept fully in memory this method has no effect.
+     *
+     * @param handler the data handler
      */
-    public void unlink() { //只对ValueLob、ValueLobDb有用
+    public void unlink(DataHandler handler) { //只对ValueLob、ValueLobDb有用
         // nothing to do
     }
 
@@ -1025,6 +1027,7 @@ public abstract class Value {
         return getSQL();
     }
 
+    @Override
     public String toString() {
         return getTraceSQL();
     }

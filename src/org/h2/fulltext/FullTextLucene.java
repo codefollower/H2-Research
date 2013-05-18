@@ -522,6 +522,7 @@ public class FullTextLucene extends FullText {
         /**
          * INTERNAL
          */
+        @Override
         public void init(Connection conn, String schemaName, String triggerName,
                 String tableName, boolean before, int type) throws SQLException {
             this.schema = schemaName;
@@ -586,6 +587,7 @@ public class FullTextLucene extends FullText {
         /**
          * INTERNAL
          */
+        @Override
         public void fire(Connection conn, Object[] oldRow, Object[] newRow)
                 throws SQLException {
             if (oldRow != null) {
@@ -608,6 +610,7 @@ public class FullTextLucene extends FullText {
         /**
          * INTERNAL
          */
+        @Override
         public void close() throws SQLException {
             if (indexAccess != null) {
                 removeIndexAccess(indexAccess, indexPath);
@@ -618,6 +621,7 @@ public class FullTextLucene extends FullText {
         /**
          * INTERNAL
          */
+        @Override
         public void remove() {
             // ignore
         }

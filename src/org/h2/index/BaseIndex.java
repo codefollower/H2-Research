@@ -67,6 +67,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         }
     }
 
+    @Override
     public String getDropSQL() {
         return null;
     }
@@ -84,21 +85,25 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return e;
     }
 
+    @Override
     public String getPlanSQL() {
         return getSQL();
     }
 
+    @Override
     public void removeChildrenAndResources(Session session) {
         table.removeIndex(this);
         remove(session);
         database.removeMeta(session, getId());
     }
 
+    @Override
     public boolean canFindNext() {
         return false;
     }
 
 
+    @Override
     public Cursor find(TableFilter filter, SearchRow first, SearchRow last) {
         return find(filter.getSession(), first, last);
     }
@@ -113,6 +118,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @return the cursor
      * @throws DbException always
      */
+    @Override
     public Cursor findNext(Session session, SearchRow higherThan, SearchRow last) {
         throw DbException.throwInternalError();
     }
@@ -208,6 +214,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return cost;
     }
 
+    @Override
     public int compareRows(SearchRow rowData, SearchRow compare) { //只比较索引字段，并不一定是所有字段
         if (rowData == compare) {
             return 0;
@@ -321,6 +328,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return comp;
     }
 
+    @Override
     public int getColumnIndex(Column col) { //并不是返回列id，而是索引字段列表中的位置
         for (int i = 0, len = columns.length; i < len; i++) {
             if (columns[i].equals(col)) {
@@ -344,6 +352,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return buff.toString();
     }
 
+    @Override
     public String getCreateSQLForCopy(Table targetTable, String quotedName) {
         StringBuilder buff = new StringBuilder("CREATE ");
         buff.append(indexType.getSQL());
@@ -360,30 +369,37 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return buff.toString();
     }
 
+    @Override
     public String getCreateSQL() {
         return getCreateSQLForCopy(table, getSQL());
     }
 
+    @Override
     public IndexColumn[] getIndexColumns() {
         return indexColumns;
     }
 
+    @Override
     public Column[] getColumns() {
         return columns;
     }
 
+    @Override
     public IndexType getIndexType() {
         return indexType;
     }
 
+    @Override
     public int getType() {
         return DbObject.INDEX;
     }
 
+    @Override
     public Table getTable() {
         return table;
     }
 
+    @Override
     public void commit(int operation, Row row) {
         // nothing to do
     }
@@ -392,22 +408,27 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         this.isMultiVersion = multiVersion;
     }
 
+    @Override
     public Row getRow(Session session, long key) {
         throw DbException.getUnsupportedException(toString());
     }
 
+    @Override
     public boolean isHidden() {
         return table.isHidden();
     }
 
+    @Override
     public boolean isRowIdIndex() { //只有org.h2.mvstore.db.MVPrimaryIndex和org.h2.index.PageDataIndex返回true
         return false;
     }
 
+    @Override
     public boolean canScan() {
         return true;
     }
 
+    @Override
     public void setSortedInsertMode(boolean sortedInsertMode) { //只有org.h2.index.PageIndex覆盖
         // ignore
     }

@@ -96,6 +96,7 @@ public class PageDataIndex extends PageIndex {
         memoryPerPage = (Constants.MEMORY_PAGE_DATA + store.getPageSize()) >> 2;
     }
 
+    @Override
     public DbException getDuplicateKeyException() {
         if (fastDuplicateKeyException == null) {
             fastDuplicateKeyException = super.getDuplicateKeyException();
@@ -103,6 +104,7 @@ public class PageDataIndex extends PageIndex {
         return fastDuplicateKeyException;
     }
 
+    @Override
     public void add(Session session, Row row) {
         boolean retry = false;
         if (mainIndexColumn != -1) {
@@ -250,6 +252,7 @@ public class PageDataIndex extends PageIndex {
         return p;
     }
 
+    @Override
     public boolean canGetFirstOrLast() {
         return false;
     }
@@ -275,6 +278,7 @@ public class PageDataIndex extends PageIndex {
         return v.getLong();
     }
 
+    @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
         long from = first == null ? Long.MIN_VALUE : first.getKey();
         long to = last == null ? Long.MAX_VALUE : last.getKey();
@@ -297,6 +301,7 @@ public class PageDataIndex extends PageIndex {
         return root.find(session, first, last, multiVersion);
     }
 
+    @Override
     public Cursor findFirstOrLast(Session session, boolean first) {
         throw DbException.throwInternalError();
     }
@@ -306,15 +311,18 @@ public class PageDataIndex extends PageIndex {
         return root.getLastKey();
     }
 
+    @Override
     public double getCost(Session session, int[] masks, SortOrder sortOrder) {
         long cost = 10 * (tableData.getRowCountApproximation() + Constants.COST_ROW_OFFSET);
         return cost;
     }
 
+    @Override
     public boolean needRebuild() {
         return false;
     }
 
+    @Override
     public void remove(Session session, Row row) {
         if (tableData.getContainsLargeObject()) {
             for (int i = 0, len = row.getColumnCount(); i < len; i++) {
@@ -355,6 +363,7 @@ public class PageDataIndex extends PageIndex {
         store.logAddOrRemoveRow(session, tableData.getId(), row, false);
     }
 
+    @Override
     public void remove(Session session) {
         if (trace.isDebugEnabled()) {
             trace.debug("{0} remove", this);
@@ -364,6 +373,7 @@ public class PageDataIndex extends PageIndex {
         store.removeMeta(this, session);
     }
 
+    @Override
     public void truncate(Session session) {
         if (trace.isDebugEnabled()) {
             trace.debug("{0} truncate", this);
@@ -395,10 +405,12 @@ public class PageDataIndex extends PageIndex {
         }
     }
 
+    @Override
     public void checkRename() {
         throw DbException.getUnsupportedException("PAGE");
     }
 
+    @Override
     public Row getRow(Session session, long key) {
         return getRowWithKey(key);
     }
@@ -418,10 +430,12 @@ public class PageDataIndex extends PageIndex {
         return store;
     }
 
+    @Override
     public long getRowCountApproximation() {
         return rowCount;
     }
 
+    @Override
     public long getRowCount(Session session) {
         if (multiVersion) {
             Integer i = sessionRowCount.get(session.getId());
@@ -433,20 +447,24 @@ public class PageDataIndex extends PageIndex {
         return rowCount;
     }
 
+    @Override
     public long getDiskSpaceUsed() {
         PageData root = getPage(rootPageId, 0);
         return root.getDiskSpaceUsed();
     }
 
+    @Override
     public String getCreateSQL() {
         return null;
     }
 
+    @Override
     public int getColumnIndex(Column col) {
         // can not use this index - use the PageDelegateIndex instead
         return -1;
     }
 
+    @Override
     public void close(Session session) {
         if (trace.isDebugEnabled()) {
             trace.debug("{0} close", this);
@@ -481,6 +499,7 @@ public class PageDataIndex extends PageIndex {
         }
     }
 
+    @Override
     public void commit(int operation, Row row) {
         if (multiVersion) {
             if (delta != null) {
@@ -511,6 +530,7 @@ public class PageDataIndex extends PageIndex {
         return mainIndexColumn;
     }
 
+    @Override
     public String toString() {
         return getName();
     }
@@ -520,6 +540,7 @@ public class PageDataIndex extends PageIndex {
         root.setRowCountStored(PageData.UNKNOWN_ROWCOUNT);
     }
 
+    @Override
     public void writeRowCount() {
         if (SysProperties.MODIFY_ON_WRITE && rootPageId == 0) {
             // currently creating the index
@@ -533,6 +554,7 @@ public class PageDataIndex extends PageIndex {
         }
     }
 
+    @Override
     public String getPlanSQL() {
         return table.getSQL() + ".tableScan";
     }
@@ -555,6 +577,7 @@ public class PageDataIndex extends PageIndex {
         }
     }
 
+    @Override
     public boolean isRowIdIndex() {
         return true;
     }

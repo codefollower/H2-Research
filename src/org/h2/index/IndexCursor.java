@@ -225,6 +225,7 @@ public class IndexCursor implements Cursor {
         return alwaysFalse;
     }
 
+    @Override
     public Row get() {
         if (cursor == null) {
             return null;
@@ -232,10 +233,12 @@ public class IndexCursor implements Cursor {
         return cursor.get();
     }
 
+    @Override
     public SearchRow getSearchRow() {
         return cursor.getSearchRow();
     }
 
+    @Override
     public boolean next() {
         while (true) {
             if (cursor == null) {
@@ -287,6 +290,7 @@ public class IndexCursor implements Cursor {
         cursor = index.find(tableFilter, start, start);
     }
 
+    @Override
     public boolean previous() {
         throw DbException.throwInternalError();
     }

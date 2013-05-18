@@ -71,6 +71,7 @@ public class ConstraintReferential extends Constraint {
         super(schema, id, name, table);
     }
 
+    @Override
     public String getConstraintType() {
         return Constraint.REFERENTIAL;
     }
@@ -98,6 +99,7 @@ public class ConstraintReferential extends Constraint {
      * @param quotedName the name of this object (quoted if necessary)
      * @return the SQL statement
      */
+    @Override
     public String getCreateSQLForCopy(Table forTable, String quotedName) {
         return getCreateSQLForCopy(forTable, refTable, quotedName, true);
     }
@@ -201,10 +203,12 @@ public class ConstraintReferential extends Constraint {
         return buff.toString();
     }
 
+    @Override
     public String getCreateSQLWithoutIndexes() {
         return getCreateSQLForCopy(table, refTable, getSQL(), false);
     }
 
+    @Override
     public String getCreateSQL() {
         return getCreateSQLForCopy(table, getSQL());
     }
@@ -217,6 +221,7 @@ public class ConstraintReferential extends Constraint {
         return columns;
     }
 
+    @Override
     public HashSet<Column> getReferencedColumns(Table table) {
         HashSet<Column> result = New.hashSet();
         if (table == this.table) {
@@ -270,6 +275,7 @@ public class ConstraintReferential extends Constraint {
         this.refIndexOwner = isRefOwner;
     }
 
+    @Override
     public void removeChildrenAndResources(Session session) {
         table.removeConstraint(this);
         refTable.removeConstraint(this);
@@ -291,6 +297,7 @@ public class ConstraintReferential extends Constraint {
         invalidate();
     }
 
+    @Override
     public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
         if (!database.getReferentialIntegrity()) { //设置REFERENTIAL_INTEGRITY动态参数可禁用检查
             return;
@@ -579,6 +586,7 @@ public class ConstraintReferential extends Constraint {
         updateSQL = buff.toString();
     }
 
+    @Override
     public void rebuild() {
         buildUpdateSQL();
         buildDeleteSQL();
@@ -625,14 +633,17 @@ public class ConstraintReferential extends Constraint {
         }
     }
 
+    @Override
     public Table getRefTable() {
         return refTable;
     }
 
+    @Override
     public boolean usesIndex(Index idx) {
         return idx == index || idx == refIndex;
     }
 
+    @Override
     public void setIndexOwner(Index index) {
         if (this.index == index) {
             indexOwner = true;
@@ -643,6 +654,7 @@ public class ConstraintReferential extends Constraint {
         }
     }
 
+    @Override
     public boolean isBefore() {
         return false;
     }
@@ -651,6 +663,7 @@ public class ConstraintReferential extends Constraint {
     //SELECT 1 
     //  FROM (SELECT F1 FROM PUBLIC.MYTABLE WHERE F1 IS NOT NULL  ORDER BY F1) C 
     //  WHERE NOT EXISTS(SELECT 1 FROM PUBLIC.MYTABLE2 P WHERE C.F1=P.F1)
+    @Override
     public void checkExistingData(Session session) {
         if (session.getDatabase().isStarting()) {
             // don't check at startup
@@ -691,6 +704,7 @@ public class ConstraintReferential extends Constraint {
         }
     }
 
+    @Override
     public Index getUniqueIndex() {
         return refIndex;
     }

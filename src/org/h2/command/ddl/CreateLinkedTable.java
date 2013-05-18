@@ -63,6 +63,7 @@ public class CreateLinkedTable extends SchemaCommand {
         this.ifNotExists = ifNotExists;
     }
 
+    @Override
     public int update() {
         session.commit(true);
         Database db = session.getDatabase();
@@ -117,6 +118,7 @@ public class CreateLinkedTable extends SchemaCommand {
         this.originalSchema = originalSchema;
     }
 
+    @Override
     public int getType() {
         return CommandInterface.CREATE_LINKED_TABLE;
     }

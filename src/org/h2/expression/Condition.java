@@ -14,18 +14,22 @@ import org.h2.value.ValueBoolean;
  */
 abstract class Condition extends Expression {
 	//所有Condition的子类都默认使用如下4个方法的返回值，没有子类覆盖
+    @Override
     public int getType() {
         return Value.BOOLEAN;
     }
 
+    @Override
     public int getScale() {
         return 0;
     }
 
+    @Override
     public long getPrecision() {
         return ValueBoolean.PRECISION;
     }
 
+    @Override
     public int getDisplaySize() {
         return ValueBoolean.DISPLAY_SIZE;
     }

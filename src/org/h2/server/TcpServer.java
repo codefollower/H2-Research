@@ -175,6 +175,7 @@ public class TcpServer implements Service {
         }
     }
 
+    @Override
     public void init(String... args) {
         port = Constants.DEFAULT_TCP_PORT;
         for (int i = 0; args != null && i < args.length; i++) {
@@ -204,10 +205,12 @@ public class TcpServer implements Service {
         org.h2.Driver.load();
     }
 
+    @Override
     public String getURL() {
         return (ssl ? "ssl" : "tcp") + "://" + NetUtils.getLocalAddress() + ":" + port;
     }
 
+    @Override
     public int getPort() {
         return port;
     }
@@ -231,6 +234,7 @@ public class TcpServer implements Service {
         }
     }
 
+    @Override
     public synchronized void start() throws SQLException {
         stop = false;
         try {
@@ -247,6 +251,7 @@ public class TcpServer implements Service {
         initManagementDb();
     }
 
+    @Override
     public void listen() {
     	//在org.h2.tools.Server.start()中的service.getName() + " (" + service.getURL() + ")";
     	//listener线程名是: H2 TCP Server (tcp://localhost:9092)
@@ -275,6 +280,7 @@ public class TcpServer implements Service {
     //测试是否在本地连得上TcpServer，此时listen()已经执行了
     //这个方法会触发建立一个TcpServerThread，
     //不过很快就关掉了，因为没有建立Session对象，也没在SESSIONS表中存入记录。
+    @Override
     public synchronized boolean isRunning(boolean traceError) {
         if (serverSocket == null) {
             return false;
@@ -291,6 +297,7 @@ public class TcpServer implements Service {
         }
     }
 
+    @Override
     public void stop() {
         // TODO server: share code between web and tcp servers
         // need to remove the server first, otherwise the connection is broken
@@ -409,14 +416,17 @@ public class TcpServer implements Service {
         }
     }
 
+    @Override
     public boolean getAllowOthers() {
         return allowOthers;
     }
 
+    @Override
     public String getType() {
         return "TCP";
     }
 
+    @Override
     public String getName() {
         return "H2 TCP Server";
     }
@@ -518,6 +528,7 @@ public class TcpServer implements Service {
         throw DbException.get(ErrorCode.WRONG_USER_OR_PASSWORD);
     }
 
+    @Override
     public boolean isDaemon() {
         return isDaemon;
     }

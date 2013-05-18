@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
 import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
@@ -21,7 +22,7 @@ import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
 import org.h2.store.FileStoreInputStream;
 import org.h2.store.FileStoreOutputStream;
-import org.h2.store.LobStorageBackend;
+import org.h2.store.LobStorageFrontend;
 import org.h2.store.LobStorageInterface;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.IOUtils;
@@ -30,7 +31,8 @@ import org.h2.util.StringUtils;
 import org.h2.util.Utils;
 
 /**
- * An alternate LOB implementation, where LOB data is stored inside the database, instead of in external files.
+ * An alternate LOB implementation, where LOB data is stored inside the
+ * database, instead of in external files.
  */
 public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlob {
 
@@ -101,6 +103,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
      * @param t the new type
      * @return the converted value
      */
+    @Override
     public Value convertTo(int t) {
         if (t == type) {
             return this;
@@ -109,27 +112,29 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
                 Value copy = lobStorage.createClob(getReader(), -1);
                 return copy;
             } else if (small != null) {
-                return LobStorageBackend.createSmallLob(t, small);
+                return LobStorageFrontend.createSmallLob(t, small);
             }
         } else if (t == Value.BLOB) {
             if (lobStorage != null) {
                 Value copy = lobStorage.createBlob(getInputStream(), -1);
                 return copy;
             } else if (small != null) {
-                return LobStorageBackend.createSmallLob(t, small);
+                return LobStorageFrontend.createSmallLob(t, small);
             }
         }
         return super.convertTo(t);
     }
 
+    @Override
     public boolean isLinked() {
-        return tableId != LobStorageBackend.TABLE_ID_SESSION_VARIABLE && small == null;
+        return tableId != LobStorageFrontend.TABLE_ID_SESSION_VARIABLE && small == null;
     }
 
     public boolean isStored() {
         return small == null && fileName == null;
     }
 
+    @Override
     public void close() {
         if (fileName != null) {
             if (tempFile != null) {
@@ -147,30 +152,32 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         }
     }
 
-    public void unlink() {
-        if (small == null && tableId != LobStorageBackend.TABLE_ID_SESSION_VARIABLE) {
-            lobStorage.setTable(lobId, LobStorageBackend.TABLE_ID_SESSION_VARIABLE);
-            tableId = LobStorageBackend.TABLE_ID_SESSION_VARIABLE;
+    @Override
+    public void unlink(DataHandler database) {
+        if (small == null && tableId != LobStorageFrontend.TABLE_ID_SESSION_VARIABLE) {
+            database.getLobStorage().setTable(lobId, LobStorageFrontend.TABLE_ID_SESSION_VARIABLE);
+            tableId = LobStorageFrontend.TABLE_ID_SESSION_VARIABLE;
         }
     }
 
-    public Value link(DataHandler h, int tabId) {
+    @Override
+    public Value link(DataHandler database, int tabId) {
         if (small == null) {
-            if (tableId == LobStorageBackend.TABLE_TEMP) {
-                lobStorage.setTable(lobId, tabId);
+            if (tableId == LobStorageFrontend.TABLE_TEMP) {
+                database.getLobStorage().setTable(lobId, tabId);
                 this.tableId = tabId;
             } else {
                 return lobStorage.copyLob(type, lobId, tabId, getPrecision());
             }
-        } else if (small.length > h.getMaxLengthInplaceLob()) {
-            LobStorageInterface s = h.getLobStorage();
+        } else if (small.length > database.getMaxLengthInplaceLob()) {
+            LobStorageInterface s = database.getLobStorage();
             Value v;
             if (type == Value.BLOB) {
                 v = s.createBlob(getInputStream(), getPrecision());
             } else {
                 v = s.createClob(getReader(), getPrecision());
             }
-            return v.link(h, tabId);
+            return v.link(database, tabId);
         }
         return this;
     }
@@ -180,18 +187,22 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
      *
      * @return the table id
      */
+    @Override
     public int getTableId() {
         return tableId;
     }
 
+    @Override
     public int getType() {
         return type;
     }
 
+    @Override
     public long getPrecision() {
         return precision;
     }
 
+    @Override
     public String getString() {
         int len = precision > Integer.MAX_VALUE || precision == 0 ? Integer.MAX_VALUE : (int) precision;
         try {
@@ -213,6 +224,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         }
     }
 
+    @Override
     public byte[] getBytes() {
         if (type == CLOB) {
             // convert hex to string
@@ -222,6 +234,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         return Utils.cloneByteArray(data);
     }
 
+    @Override
     public byte[] getBytesNoCopy() {
         if (type == CLOB) {
             // convert hex to string
@@ -237,6 +250,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         }
     }
 
+    @Override
     public int hashCode() {
         if (hash == 0) {
             if (precision > 4096) {
@@ -253,6 +267,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         return hash;
     }
 
+    @Override
     protected int compareSecure(Value v, CompareMode mode) {
         if (v instanceof ValueLobDb) {
             ValueLobDb v2 = (ValueLobDb) v;
@@ -270,6 +285,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         return Utils.compareNotNullSigned(getBytes(), v2);
     }
 
+    @Override
     public Object getObject() {
         if (type == Value.CLOB) {
             return getReader();
@@ -277,10 +293,12 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         return getInputStream();
     }
 
+    @Override
     public Reader getReader() {
         return IOUtils.getBufferedReader(getInputStream());
     }
 
+    @Override
     public InputStream getInputStream() {
         if (small != null) {
             return new ByteArrayInputStream(small);
@@ -298,6 +316,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         }
     }
 
+    @Override
     public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
         long p = getPrecision();
         if (p > Integer.MAX_VALUE || p <= 0) {
@@ -310,6 +329,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         }
     }
 
+    @Override
     public String getSQL() {
         String s;
         if (type == Value.CLOB) {
@@ -321,6 +341,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         return "X'" + s + "'";
     }
 
+    @Override
     public String getTraceSQL() {
         if (small != null && getPrecision() <= SysProperties.MAX_TRACE_DATA_LENGTH) {
             return getSQL();
@@ -340,18 +361,22 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
      *
      * @return the data
      */
+    @Override
     public byte[] getSmall() {
         return small;
     }
 
+    @Override
     public int getDisplaySize() {
         return MathUtils.convertLongToInt(getPrecision());
     }
 
+    @Override
     public boolean equals(Object other) {
         return other instanceof ValueLobDb && compareSecure((Value) other, null) == 0;
     }
 
+    @Override
     public int getMemory() {
         if (small != null) {
             return small.length + 104;
@@ -365,6 +390,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
      *
      * @return the value
      */
+    @Override
     public ValueLobDb copyToTemp() {
         return this;
     }
@@ -377,6 +403,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         this.precision = precision;
     }
 
+    @Override
     public String toString() {
         return "lob: " + fileName + " table: " + tableId + " id: " + lobId;
     }
@@ -478,7 +505,8 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         }
     }
 
-    private void createTempFromStream(byte[] buff, int len, InputStream in, long remaining, DataHandler h) throws IOException {
+    private void createTempFromStream(byte[] buff, int len, InputStream in,
+            long remaining, DataHandler h) throws IOException {
         FileStoreOutputStream out = initTemp(h);
         boolean compress = h.getLobCompressionAlgorithm(Value.BLOB) != null;
         try {
@@ -539,6 +567,7 @@ public class ValueLobDb extends Value implements Value.ValueClob, Value.ValueBlo
         return (int) m;
     }
 
+    @Override
     public Value convertPrecision(long precision, boolean force) {
         if (this.precision <= precision) {
             return this;

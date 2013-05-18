@@ -96,6 +96,7 @@ public class RegularTable extends TableBase {
         traceLock = database.getTrace(Trace.LOCK); //在起用debug时，其实就是用来输出debug日志，在lock/unlock时记录debug日志
     }
 
+    @Override
     public void close(Session session) {
         for (Index index : indexes) {
             index.close(session);
@@ -113,6 +114,7 @@ public class RegularTable extends TableBase {
         return scanIndex.getRow(session, key);
     }
 
+    @Override
     public void addRow(Session session, Row row) {
         lastModificationId = database.getNextModificationDataId();
         if (database.isMultiVersion()) {
@@ -159,6 +161,7 @@ public class RegularTable extends TableBase {
         analyzeIfRequired(session);
     }
 
+    @Override
     public void commit(short operation, Row row) {
         lastModificationId = database.getNextModificationDataId();
         //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
@@ -181,10 +184,12 @@ public class RegularTable extends TableBase {
         }
     }
 
+    @Override
     public Index getScanIndex(Session session) {
         return indexes.get(0); //ScanIndex总是在最前面
     }
 
+    @Override
     public Index getUniqueIndex() {
         for (Index idx : indexes) {
             if (idx.getIndexType().isUnique()) {
@@ -194,10 +199,12 @@ public class RegularTable extends TableBase {
         return null;
     }
 
+    @Override
     public ArrayList<Index> getIndexes() {
         return indexes;
     }
 
+    @Override
     public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
             boolean create, String indexComment) {
         if (indexType.isPrimaryKey()) {
@@ -328,6 +335,7 @@ public class RegularTable extends TableBase {
         return first.column.getColumnId();
     }
 
+    @Override
     public boolean canGetRowCount() {
         return true;
     }
@@ -335,6 +343,7 @@ public class RegularTable extends TableBase {
     private static void addRowsToIndex(Session session, ArrayList<Row> list, Index index) {
         final Index idx = index;
         Collections.sort(list, new Comparator<Row>() {
+            @Override
             public int compare(Row r1, Row r2) {
                 return idx.compareRows(r1, r2);
             }
@@ -345,10 +354,12 @@ public class RegularTable extends TableBase {
         list.clear();
     }
 
+    @Override
     public boolean canDrop() {
         return true;
     }
 
+    @Override
     public long getRowCount(Session session) {
         if (database.isMultiVersion()) {
             return getScanIndex(session).getRowCount(session);
@@ -356,6 +367,7 @@ public class RegularTable extends TableBase {
         return rowCount;
     }
 
+    @Override
     public void removeRow(Session session, Row row) {
         if (database.isMultiVersion()) {
             if (row.isDeleted()) { //用org.h2.test.rowlock.TestRowLocks可测试这里
@@ -397,6 +409,7 @@ public class RegularTable extends TableBase {
         analyzeIfRequired(session);
     }
 
+    @Override
     public void truncate(Session session) {
         lastModificationId = database.getNextModificationDataId();
         //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
@@ -423,6 +436,7 @@ public class RegularTable extends TableBase {
         Analyze.analyzeTable(session, this, rows, false);
     }
 
+    @Override
     public boolean isLockedExclusivelyBy(Session session) {
         return lockExclusive == session;
     }
@@ -432,6 +446,7 @@ public class RegularTable extends TableBase {
     //比如DDL相关的SQL通常把force设为true，此时不管MVCC，META表都是把force设为true，
     //Select的isForUpdate变种在非MVCC下也把force设为true，
     //Insert、Update之类的才设为false
+    @Override
     public void lock(Session session, boolean exclusive, boolean force) { //琐粒度太大，每insert一行都琐表
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) { //禁用锁
@@ -593,6 +608,7 @@ public class RegularTable extends TableBase {
 	//    Session #3 (user: SA) is waiting to lock PUBLIC.TEST_C while locking PUBLIC.TEST_B (exclusive).
 	//    Session #2 (user: SA) is waiting to lock PUBLIC.TEST_B while locking PUBLIC.TEST_A (exclusive).
 	//    Session #4 (user: SA) is waiting to lock PUBLIC.TEST_A while locking PUBLIC.TEST_C (exclusive).
+    @Override
     public ArrayList<Session> checkDeadlock(Session session, Session clash, Set<Session> visited) {
         // only one deadlock check at any given time
         synchronized (RegularTable.class) {
@@ -645,10 +661,12 @@ public class RegularTable extends TableBase {
         }
     }
 
+    @Override
     public boolean isLockedExclusively() {
         return lockExclusive != null;
     }
 
+    @Override
     public void unlock(Session s) {
         if (database != null) {
             traceLock(s, lockExclusive == s, "unlock");
@@ -687,6 +705,7 @@ public class RegularTable extends TableBase {
         this.rowCount = count;
     }
 
+    @Override
     public void removeChildrenAndResources(Session session) {
         if (containsLargeObject) {
             // unfortunately, the data is gone on rollback
@@ -720,18 +739,22 @@ public class RegularTable extends TableBase {
         invalidate();
     }
 
+    @Override
     public String toString() { //模式名.表名
         return getSQL();
     }
 
+    @Override
     public void checkRename() { //允许重命名
         // ok
     }
 
+    @Override
     public void checkSupportAlter() { //允许使用alter命令
         // ok
     }
 
+    @Override
     public boolean canTruncate() {
 		// 例如这样是不行的:
 		// stmt.executeUpdate("create table IF NOT EXISTS RegularTableTest1(id int,  primary key(id))");
@@ -760,10 +783,12 @@ public class RegularTable extends TableBase {
         return true;
     }
 
+    @Override
     public String getTableType() {
         return Table.TABLE;
     }
 
+    @Override
     public long getMaxDataModificationId() {
         return lastModificationId;
     }
@@ -772,6 +797,7 @@ public class RegularTable extends TableBase {
         return containsLargeObject;
     }
 
+    @Override
     public long getRowCountApproximation() {
         return scanIndex.getRowCountApproximation(); //ScanIndex和PageDataIndex都是返回rowCount
     }
@@ -787,10 +813,12 @@ public class RegularTable extends TableBase {
         this.compareMode = compareMode;
     }
 
+    @Override
     public boolean isDeterministic() {
         return true;
     }
 
+    @Override
     public Column getRowIdColumn() { //ROWID伪列，columnId是-1
         if (rowIdColumn == null) {
             rowIdColumn = new Column(Column.ROWID, Value.LONG);

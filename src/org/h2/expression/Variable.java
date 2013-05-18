@@ -33,37 +33,45 @@ public class Variable extends Expression {
         lastValue = session.getVariable(name);
     }
 
+    @Override
     public int getCost() {
         return 0;
     }
 
+    @Override
     public int getDisplaySize() {
         return lastValue.getDisplaySize();
     }
 
+    @Override
     public long getPrecision() {
         return lastValue.getPrecision();
     }
 
+    @Override
     public String getSQL() {
     	//调用这个方法而不是直接调用StringUtils.quoteIdentifier性能更好，因为大多数情况就是一个普通的标识符，没有什么特殊的，
         //这时就不必要再重新构造一个加引号的字符串
         return "@" + Parser.quoteIdentifier(name);
     }
 
+    @Override
     public int getScale() {
         return lastValue.getScale();
     }
 
+    @Override
     public int getType() {
         return lastValue.getType();
     }
 
+    @Override
     public Value getValue(Session session) {
         lastValue = session.getVariable(name);
         return lastValue;
     }
 
+    @Override
     public boolean isEverything(ExpressionVisitor visitor) {
         switch(visitor.getType()) {
         case ExpressionVisitor.EVALUATABLE:
@@ -87,18 +95,22 @@ public class Variable extends Expression {
         }
     }
 
+    @Override
     public void mapColumns(ColumnResolver resolver, int level) {
         // nothing to do
     }
 
+    @Override
     public Expression optimize(Session session) {
         return this;
     }
 
+    @Override
     public void setEvaluatable(TableFilter tableFilter, boolean value) {
         // nothing to do
     }
 
+    @Override
     public void updateAggregate(Session session) {
         // nothing to do
     }

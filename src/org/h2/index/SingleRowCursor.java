@@ -27,14 +27,17 @@ public class SingleRowCursor implements Cursor {
         this.row = row;
     }
 
+    @Override
     public Row get() {
         return row;
     }
 
+    @Override
     public SearchRow getSearchRow() {
         return row;
     }
 
+    @Override
     public boolean next() {
         if (row == null || end) {
             row = null;
@@ -44,6 +47,7 @@ public class SingleRowCursor implements Cursor {
         return true;
     }
 
+    @Override
     public boolean previous() {
         throw DbException.throwInternalError();
     }
