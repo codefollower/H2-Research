@@ -1145,6 +1145,10 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         return asString(null);
     }
 
+    public ArrayList<Page> getOldRoots() { //我加上的
+        return oldRoots;
+    }
+
     /**
      * A builder for maps.
      *

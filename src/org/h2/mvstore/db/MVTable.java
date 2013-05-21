@@ -358,7 +358,7 @@ public class MVTable extends TableBase {
 
     @Override
     public void close(Session session) { //并不需要像RegularTable一样关闭所有表上的索引
-    	session.getDatabase().getMvStore().getTables().remove(this); //我加上的
+    	// ignore
     }
 
     /**
@@ -373,6 +373,8 @@ public class MVTable extends TableBase {
     }
     
     //参考RegularTable.addIndex中的注释
+    //与RegularTable的重要区别是，这里没有用MultiVersionIndex，因为MVTable并不需要，
+    //而RegularTable在database.isMultiVersion()为true时需要MultiVersionIndex
     @Override
     public Index addIndex(Session session, String indexName, int indexId,
             IndexColumn[] cols, IndexType indexType, boolean create,
@@ -646,6 +648,7 @@ public class MVTable extends TableBase {
         }
         primaryIndex.remove(session);
         database.removeMeta(session, getId());
+        database.getMvStore().removeTable(this);
         primaryIndex = null;
         close(session);
         invalidate();
