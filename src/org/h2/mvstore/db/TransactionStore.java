@@ -869,6 +869,8 @@ public class TransactionStore {
         //所以就从第二个tx = ts.begin()对应的undoLog中取出value
         private VersionedValue getValue(K key, long maxLog) {
             VersionedValue data = map.get(key);
+            //System.out.println(map.getRoot());
+            //System.out.println(map.getOldRoots());
             while (true) {
                 long tx;
                 if (data == null) {
@@ -959,7 +961,7 @@ public class TransactionStore {
          * @param from the first key to return
          * @return the iterator
          */
-        public Iterator<K> keyIterator(final K from) {
+        public Iterator<K> keyIterator(final K from) { //包含from
             return new Iterator<K>() {
                 private final Cursor<K> cursor = map.keyIterator(from);
                 private K current;
@@ -1059,6 +1061,11 @@ public class TransactionStore {
          * The value.
          */
         public Object value;
+
+		@Override
+		public String toString() { //我加上的
+			return "VersionedValue[transactionId=" + transactionId + ", logId=" + logId + ", value=" + value + "]";
+		}
     }
 
     /**

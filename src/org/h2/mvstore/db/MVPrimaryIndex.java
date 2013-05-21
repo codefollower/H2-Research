@@ -49,11 +49,14 @@ public class MVPrimaryIndex extends BaseIndex {
     public MVPrimaryIndex(Database db, MVTable table, int id, IndexColumn[] columns,
                 IndexType indexType) {
         this.mvTable = table;
+        //也可建立与table.getName() + "_DATA"同名的索引，但是不会冲突，
+        //因为内部做了特殊处理，MVPrimaryIndex是不可见的，也不放入Meta表中
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
         int[] sortTypes = new int[columns.length];
         for (int i = 0; i < columns.length; i++) {
-            sortTypes[i] = SortOrder.ASCENDING;
+            sortTypes[i] = SortOrder.ASCENDING; //默认都用升序,而MVSecondaryIndex用字段原有的排序方式
         }
+        //用于序列化时, key都是long，所以用不到db.getCompareMode(), db, sortTypes(数组类型用到)
         ValueDataType keyType = new ValueDataType(
                 null, null, null);
         ValueDataType valueType = new ValueDataType(
@@ -66,6 +69,7 @@ public class MVPrimaryIndex extends BaseIndex {
                 valueType(valueType);
         //mvTable.getTransaction(null)会创建一个新的Transaction对象，
         //不过创建新的Transaction对象并不会对以后的事务有什么影响，这个新的Transaction对象是临时的，并不需要commit或rollback
+        //此后调用getMap(Session session)时都会由此dataMap生成一个新的MVMap
         dataMap = mvTable.getTransaction(null).openMap(mapName, mapBuilder);
         Value k = dataMap.lastKey();
         lastKey = k == null ? 0 : k.getLong();
@@ -110,7 +114,7 @@ public class MVPrimaryIndex extends BaseIndex {
     @Override
     public void add(Session session, Row row) {        
         if (mainIndexColumn == -1) { //没有mainIndexColumn时自动生成记录唯一行key
-        	//TODO 没看到哪里把rowKey设为非值
+        	//TODO 没看到哪里把rowKey设为非0值
             if (row.getKey() == 0) {
                 row.setKey(++lastKey); //当更新记录时，会删除原来的记录，再插入新记录，但是新记录的rowKey是0，不会沿用原来的rowKey
             }
@@ -173,7 +177,7 @@ public class MVPrimaryIndex extends BaseIndex {
         //所以最小值不能精确指定，用Long.MIN_VALUE更合适
         if (first == null || mainIndexColumn < 0) {
             min = Long.MIN_VALUE;
-        } else { //只有first != && || mainIndexColumn >= 0时才转到else分枝
+        } else { //只有first != && mainIndexColumn >= 0时才转到else分枝
             Value v = first.getValue(mainIndexColumn);
             if (v == null) {
                 min = 0;
@@ -360,6 +364,7 @@ public class MVPrimaryIndex extends BaseIndex {
         private ValueLong current;
         private Row row;
 
+        //it是一个key列表，不是值
         public MVStoreCursor(Session session, Iterator<Value> it, long last) {
             this.session = session;
             this.it = it;
@@ -370,7 +375,7 @@ public class MVPrimaryIndex extends BaseIndex {
         public Row get() {
             if (row == null) {
                 if (current != null) {
-                    row = getRow(session, current.getLong());
+                    row = getRow(session, current.getLong()); //按key从map中取值
                 }
             }
             return row;

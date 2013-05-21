@@ -53,7 +53,7 @@ public class MVSecondaryIndex extends BaseIndex {
         }
         // always store the row key in the map key,
         // even for unique indexes, as some of the index columns could be null
-        keyColumns = columns.length + 1; //比MVPrimaryIndex多加了一列，最后一列对应行key
+        keyColumns = columns.length + 1; //多加了一列，最后一列对应行key
         int[] sortTypes = new int[keyColumns];
         for (int i = 0; i < columns.length; i++) {
             sortTypes[i] = columns[i].sortType;
@@ -63,6 +63,7 @@ public class MVSecondaryIndex extends BaseIndex {
         //keyType和valueType与MVPrimaryIndex刚好相反，MVPrimaryIndex的keyType是new ValueDataType(null, null, null)
         ValueDataType keyType = new ValueDataType(
                 db.getCompareMode(), db, sortTypes);
+        //值都是0，也就是long类型，所以用不到db.getCompareMode(), db, sortTypes(数组类型用到)
         ValueDataType valueType = new ValueDataType(null, null, null);
         MVMap.Builder<Value, Value> mapBuilder = new MVMap.Builder<Value, Value>().
                 keyType(keyType).
@@ -84,7 +85,7 @@ public class MVSecondaryIndex extends BaseIndex {
         // ok
     }
     
-    ////MVPrimaryIndex没有覆盖rename方法，因为MVPrimaryIndex没有Create SQL，而MVSecondaryIndex有Create SQL，
+    //MVPrimaryIndex没有覆盖rename方法，因为MVPrimaryIndex没有Create SQL，而MVSecondaryIndex有Create SQL，
     //有Create SQL说明就可以对索引得命名
     @Override
     public void rename(String newName) {
@@ -121,16 +122,20 @@ public class MVSecondaryIndex extends BaseIndex {
         TransactionMap<Value, Value> map = getMap(session);
         Value old = map.remove(array);
         if (old == null) {
-            if (old == null) { //为什么要比较两次？
-                throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
-                        getSQL() + ": " + row.getKey());
-            }
+            throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
+                    getSQL() + ": " + row.getKey());
         }
     }
 
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
-        Value min = getKey(first);
+    	//在查询时first其实是没主键的，所以getKey返回的ValueArray中的最后一个元素都是0
+    	//但是这并不影响查询结果，假设查name>'a1'的记录，那么在MVMap中实际上是从大于等于['a1', 0]的记录开始
+		ValueArray min = getKey(first);
+		if (min != null) {
+			min.getList()[keyColumns - 1] = ValueLong.get(Long.MIN_VALUE);
+		}
+
         TransactionMap<Value, Value> map = getMap(session);
         return new MVStoreCursor(session, map.keyIterator(min), last);
     }
@@ -143,9 +148,7 @@ public class MVSecondaryIndex extends BaseIndex {
         for (int i = 0; i < columns.length; i++) {
             Column c = columns[i];
             int idx = c.getColumnId();
-            if (r != null) {
-                array[i] = r.getValue(idx);
-            }
+            array[i] = r.getValue(idx);
         }
         array[keyColumns - 1] = ValueLong.get(r.getKey());
         return ValueArray.get(array);
@@ -210,6 +213,7 @@ public class MVSecondaryIndex extends BaseIndex {
             if (((ValueArray) key).getList()[0] != ValueNull.INSTANCE) {
                 break;
             }
+            //索引字段为null时继续比较
             key = first ? map.higherKey(key) : map.lowerKey(key);
         }
         ArrayList<Value> list = New.arrayList();
@@ -221,6 +225,8 @@ public class MVSecondaryIndex extends BaseIndex {
 
     @Override
     public boolean needRebuild() {
+    	//在数据库init时，会构造MVSecondaryIndex的实例，此时索引中可能是有记录的
+    	//这时就不需要重建，如果是通过CREATE INDEX新建立索引，此时Map中肯定没有记录。
         return dataMap.map.getSize() == 0; //Map中没有记录时才要重建
     }
 
@@ -272,9 +278,14 @@ public class MVSecondaryIndex extends BaseIndex {
         private final Session session;
         private final Iterator<Value> it;
         private final SearchRow last;
-        private Value current;
-        private SearchRow searchRow;
-        private Row row;
+        
+        //current和searchRow虽然包含的值看上去一样，但是用途不一样的
+        //例如
+        //current = ('a1', 10)
+        //searchRow = ( /* key:10 */ null, 'a1', null)
+        private Value current; //当前索引key(在后面含有行key)
+        private SearchRow searchRow; //包含行key和索引字段值
+        private Row row; //主表的完整记录
         
         //与MVPrimaryIndex.MVStoreCursor不同，这里的Iterator<Value> it就是Key值，但是因为Key值已经完整包括索引列值和行key了，
         //所以不需要再从Map中get值了
@@ -283,7 +294,10 @@ public class MVSecondaryIndex extends BaseIndex {
             this.it = it;
             this.last = last;
         }
-
+        
+        //下面三个方法的调用顺序是next => getSearchRow() => get()，其中get()会从主表中取完整记录
+        //这里的next有点像java.util.Iterator.hasNext，而get()\getSearchRow()反而像java.util.Iterator.next
+        //所以名字看上去有点怪，但它的next实现逻辑也是对的，不会一直调用Iterator.next
         @Override
         public Row get() {
             if (row == null) {
@@ -299,7 +313,7 @@ public class MVSecondaryIndex extends BaseIndex {
         public SearchRow getSearchRow() {
             if (searchRow == null) {
                 if (current != null) {
-                    searchRow = getRow(((ValueArray) current).getList());
+                    searchRow = getRow(((ValueArray) current).getList()); //current转换成searchRow
                 }
             }
             return searchRow;
