@@ -23,7 +23,7 @@ public class SelectOrderBy {
      * the first column of the select list) or a parameter (the parameter is a
      * number representing the column index number).
      */
-    public Expression columnIndexExpr; //order by字段在select字段列表中的位置索引(从1开始计数)
+    public Expression columnIndexExpr; //order by字段在select字段列表中的位置索引(从1开始计数)，是一个int类型的ValueExpression
 
     /**
      * If the column should be sorted descending.

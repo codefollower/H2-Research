@@ -159,7 +159,7 @@ public class Select extends Query {
         }
     }
     
-    //当为group by字段建立索引并按此字段排序时时就调用此方法 (聚合函数的场景不适用)
+    //当为group by字段建立索引并按此字段排序时就调用此方法 (聚合函数的场景不适用)
     //如select id,count(id) from mytable where id>2 group by id having id=3 order by id
     //此方法的代码大多数跟queryGroup类似
     private void queryGroupSorted(int columnCount, ResultTarget result) {
@@ -386,7 +386,7 @@ public class Select extends Query {
             }
         }
         //只有聚会函数，但是没有记录(可能是表本身没有记录，或没有满足条件的记录)
-        //例如假设id最大为10,用些语句测试select count(id) from mytable where id>1000
+        //例如假设id最大为10,用此语句测试select count(id) from mytable where id>1000
         if (groupIndex == null && groups.size() == 0) {
             groups.put(defaultGroup, new HashMap<Expression, Object>());
         }
@@ -479,6 +479,8 @@ public class Select extends Query {
                     // with the exact same columns
                     IndexColumn idxCol = indexCols[j];
                     Column sortCol = sortCols[j];
+
+                    //如果是多字段索引，只有当这个索引的第一个字段与order by字段相同时才使用些索引
                     if (idxCol.column != sortCol) {
                         ok = false;
                         break;
@@ -608,7 +610,7 @@ public class Select extends Query {
     }
 
     @Override
-    protected LocalResult queryWithoutCache(int maxRows, ResultTarget target) {
+    protected LocalResult queryWithoutCache(int maxRows, ResultTarget target) { //执行insert into t select时target不为null
         int limitRows = maxRows == 0 ? -1 : maxRows;
         if (limitExpr != null) {
             Value v = limitExpr.getValue(session);
@@ -624,6 +626,7 @@ public class Select extends Query {
         if (target == null || !session.getDatabase().getSettings().optimizeInsertFromSelect) {
             result = createLocalResult(result);
         }
+        //就算target不为null，如果满足下面的特殊条件还是必须建立LocalResult
         if (sort != null && (!sortUsingIndex || distinct)) {
             result = createLocalResult(result);
             result.setSortOrder(sort);
@@ -654,7 +657,7 @@ public class Select extends Query {
                 throw DbException.getUnsupportedException("FOR UPDATE && AGGREGATE");
             } else if (topTableFilter.getJoin() != null) {
                 throw DbException.getUnsupportedException("FOR UPDATE && JOIN");
-            } else if (topTableFilter.getJoin() != null) {
+            } else if (topTableFilter.getJoin() != null) { //重复了
                 throw DbException.getUnsupportedException("FOR UPDATE && JOIN");
             }
         }
@@ -667,7 +670,7 @@ public class Select extends Query {
             } else if (isGroupQuery) {
                 if (isGroupSortedQuery) {
                     queryGroupSorted(columnCount, to);
-                } else {
+                } else { //isGroupQuery为true且isGroupSortedQuery为false时，result总是为为null的，此时用to也是一样的
                     queryGroup(columnCount, result);
                 }
             } else if (isDistinctQuery) {
@@ -708,7 +711,7 @@ public class Select extends Query {
         // the expressions may change within the loop
         for (int i = 0; i < expressions.size(); i++) {
             Expression expr = expressions.get(i);
-            //select表达示中可以同时出现*和字段名
+            //select表达式中可以同时出现*和字段名
             //如select id, * from mytable as t where id>199
             //当expr是id时是一个ExpressionColumn
             //当expr是*时是一个Wildcard
@@ -721,6 +724,9 @@ public class Select extends Query {
             //不过这里的代码没问题，因为运行到这里时expr肯定是Wildcard，Wildcard有覆盖getTableAlias方法,
             //这些注释只是顺便提一下getTableAlias在超类和不同子类中的实现差别
             String tableAlias = expr.getTableAlias();
+            
+            //第1步: 把*转成"表名.*"，如果是join就会有多个"表名.*"
+            
             //如select * from mytable
             if (tableAlias == null) {
                 int temp = i;
@@ -734,6 +740,9 @@ public class Select extends Query {
                 //所以i跟上次一样)
                 i = temp - 1;
             } else {
+            	
+            	//第2步: 把"表名.*"转成"表名.字段名"
+
             	//如select public.t.* from mytable as t where id>199
             	//其中public是schemaName
             	//t是tableAlias
@@ -758,6 +767,7 @@ public class Select extends Query {
                 //AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
                 //[NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME, NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
                 for (Column c : columns) {
+                	//右边表的filter有Natural Join列，而左边没有
                     if (filter.isNaturalJoinColumn(c)) { //跳过Natural Join列
                         continue;
                     }
@@ -786,6 +796,8 @@ public class Select extends Query {
             expressionSQL = New.arrayList();
             for (int i = 0; i < visibleColumnCount; i++) {
                 Expression expr = expressions.get(i);
+                //例如: select name as n, id from mytable order id
+                //expressionSQL是[name, id]而不是[n, id], 不使用org.h2.expression.Alias的别名
                 expr = expr.getNonAliasExpression();
                 String sql = expr.getSQL();
                 expressionSQL.add(sql);
@@ -886,7 +898,7 @@ public class Select extends Query {
 				}
 			}
         }
-        if (havingIndex >= 0) {
+        if (havingIndex >= 0) { //以在对expressions进行mapColumns时map过了
             Expression expr = expressions.get(havingIndex);
             SelectListColumnResolver res = new SelectListColumnResolver(this);
             //当having不在visibleColumn的字段列表中时，mapColumns什么都不做

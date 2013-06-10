@@ -48,7 +48,7 @@ public class TransactionStore {
      * The undo log.
      * Key: [ transactionId, logId ], value: [ opType, mapId, key, oldValue ].
      */
-    final MVMap<long[], Object[]> undoLog;
+    final MVMap<long[], Object[]> undoLog; //多个事务都会往里面写，在事务commit或rollback时通过transactionId就可以区分了
 
     /**
      * The lock timeout in milliseconds. 0 means timeout immediately.
@@ -60,12 +60,14 @@ public class TransactionStore {
      * transaction id.
      */
     private final MVMap<String, String> settings; //只有一个lastTransactionId作为key，没有其他key了
+    
+    private final DataType dataType;
 
     private long lastTransactionIdStored;
 
     private long lastTransactionId;
 
-    private long firstOpenTransaction = -1;
+    private long firstOpenTransaction = -1; //第一个处于打开状态的事务的id
 
     /**
      * Create a new transaction store.
@@ -80,23 +82,40 @@ public class TransactionStore {
      * Create a new transaction store.
      *
      * @param store the store
-     * @param keyType the data type for map keys
+     * @param dataType the data type for map keys and values
      */
-    public TransactionStore(MVStore store, DataType keyType) {
+    public TransactionStore(MVStore store, DataType dataType) {
         this.store = store;
+        this.dataType = dataType;
         settings = store.openMap("settings");
         preparedTransactions = store.openMap("openTransactions",
                 new MVMap.Builder<Long, Object[]>());
         // TODO commit of larger transaction could be faster if we have one undo
         // log per transaction, or a range delete operation for maps
-        VersionedValueType oldValueType = new VersionedValueType(keyType);
-        ArrayType valueType = new ArrayType(new DataType[]{
-                new ObjectDataType(), new ObjectDataType(), keyType,
+
+        //undoLog这个MVMap的Key: [ transactionId, logId ], value: [ opType, mapId, key, oldValue ].
+        //valueType是一个ArrayType，对应4个元素[ opType, mapId, key, oldValue ]:
+        //opType: ObjectDataType
+        //mapId: ObjectDataType
+        //key: keyType
+        //oldValue: VersionedValueType
+        //但是[ transactionId, logId ]没有设置，所以在MVMap.Builder中默认还是用ObjectDataType
+        //也就是说当对[ transactionId, logId ]编码解码时用ObjectDataType
+        
+        //[ opType, mapId, key, oldValue ]中的key可以是MVPrimaryIndex、MVSecondaryIndex中的key
+        //而oldValue是VersionedValue[transactionId, logId, value](其中的value可以是MVPrimaryIndex、MVSecondaryIndex中的value)
+        //这样看来key和oldValue.value都是用keyType来编码解码
+        //在MVTableEngine.Store.Store(Database, MVStore)中传给keyType的值是new ValueDataType(null, null, null)
+        //因为undoLog刚好没有对多个[ opType, mapId, key, oldValue ]进行compare，所以ValueDataType的构造函数都是null也没问题
+
+        VersionedValueType oldValueType = new VersionedValueType(dataType);
+        ArrayType undoLogValueType = new ArrayType(new DataType[]{
+                new ObjectDataType(), new ObjectDataType(), dataType,
                 oldValueType
         });
         MVMap.Builder<long[], Object[]> builder =
                 new MVMap.Builder<long[], Object[]>().
-                valueType(valueType);
+                valueType(undoLogValueType);
         // TODO escape other map names, to avoid conflicts
         undoLog = store.openMap("undoLog", builder);
         init();
@@ -184,7 +203,7 @@ public class TransactionStore {
      *
      * @param t the transaction
      */
-    void storeTransaction(Transaction t) {
+    void storeTransaction(Transaction t) { //调用Transaction类的prepare和setName方法时会触发这个方法的调用(通常用于两阶段提交)
         if (t.getStatus() == Transaction.STATUS_PREPARED || t.getName() != null) {
             Object[] v = { t.getStatus(), t.getName() };
             preparedTransactions.put(t.getId(), v);
@@ -223,17 +242,16 @@ public class TransactionStore {
             return;
         }
         for (long logId = 0; logId < maxLogId; logId++) {
-            long[] undoKey = new long[] {
-                    t.getId(), logId };
             commitIfNeeded();
+            long[] undoKey = new long[] { t.getId(), logId };
             Object[] op = undoLog.get(undoKey);
             int opType = (Integer) op[0];
+            //在trySet方法中即使是通过remove调用trySet，也不会真的调用map.remove(key)
+            //只是把key的值用null替换(相当于data.value是null，而不是data为null)，
+            //除非事务提交后，调用TransactionStore.commit(Transaction, long)把此key真正从map中删除
             if (opType == Transaction.OP_REMOVE) {
                 int mapId = (Integer) op[1];
-                Map<String, String> meta = store.getMetaMap();
-                String m = meta.get("map." + mapId);
-                String mapName = DataUtils.parseMap(m).get("name");
-                MVMap<Object, VersionedValue> map = store.openMap(mapName);
+                MVMap<Object, VersionedValue> map = openMap(mapId);
                 Object key = op[2];
                 VersionedValue value = map.get(key);
                 // possibly the entry was added later on
@@ -246,6 +264,23 @@ public class TransactionStore {
             undoLog.remove(undoKey);
         }
         endTransaction(t);
+    }
+    
+    private MVMap<Object, VersionedValue> openMap(int mapId) {
+        // TODO open map by id if possible
+        Map<String, String> meta = store.getMetaMap();
+        String m = meta.get("map." + mapId);
+        if (m == null) {
+            // the map was removed later on
+            return null;
+        }
+        String mapName = DataUtils.parseMap(m).get("name");
+        VersionedValueType vt = new VersionedValueType(dataType);
+        MVMap.Builder<Object, VersionedValue> mapBuilder = 
+                new MVMap.Builder<Object, VersionedValue>().
+                keyType(dataType).valueType(vt);
+        MVMap<Object, VersionedValue> map = store.openMap(mapName, mapBuilder);
+        return map;
     }
 
     /**
@@ -279,13 +314,16 @@ public class TransactionStore {
      *
      * @param t the transaction
      */
-    void endTransaction(Transaction t) {
-        if (t.getStatus() == Transaction.STATUS_PREPARED) {
+    void endTransaction(Transaction t) { //commit或rollback时调用
+        if (t.getStatus() == Transaction.STATUS_PREPARED) { //这里应加上" || t.getName() != null"与storeTransaction方法对应
             preparedTransactions.remove(t.getId());
         }
         t.setStatus(Transaction.STATUS_CLOSED);
         if (t.getId() == firstOpenTransaction) {
             firstOpenTransaction = -1;
+        }
+        if (store.getWriteDelay() == 0) {
+            store.commit();
         }
     }
 
@@ -299,24 +337,22 @@ public class TransactionStore {
     void rollbackTo(Transaction t, long maxLogId, long toLogId) {
         for (long logId = maxLogId - 1; logId >= toLogId; logId--) {
             commitIfNeeded();
-            Object[] op = undoLog.get(new long[] {
-                    t.getId(), logId });
+            long[] undoKey = new long[] { t.getId(), logId };
+            Object[] op = undoLog.get(undoKey);
             int mapId = ((Integer) op[1]).intValue();
-            // TODO open map by id if possible
-            Map<String, String> meta = store.getMetaMap();
-            String m = meta.get("map." + mapId);
-            String mapName = DataUtils.parseMap(m).get("name");
-            MVMap<Object, VersionedValue> map = store.openMap(mapName);
-            Object key = op[2];
-            VersionedValue oldValue = (VersionedValue) op[3];
-            if (oldValue == null) {
-                // this transaction added the value
-                map.remove(key);
-            } else {
-                // this transaction updated the value
-                map.put(key, oldValue);
+            MVMap<Object, VersionedValue> map = openMap(mapId);
+            if (map != null) {
+                Object key = op[2];
+                VersionedValue oldValue = (VersionedValue) op[3];
+                if (oldValue == null) {
+                    // this transaction added the value
+                    map.remove(key);
+                } else {
+                    // this transaction updated the value
+                    map.put(key, oldValue);
+                }
             }
-            undoLog.remove(op);
+            undoLog.remove(undoKey);
         }
     }
 
@@ -328,7 +364,7 @@ public class TransactionStore {
      * @param toLogId the minimum log id
      * @return the set of changed maps
      */
-    HashSet<String> getChangedMaps(Transaction t, long maxLogId, long toLogId) {
+    HashSet<String> getChangedMaps(Transaction t, long maxLogId, long toLogId) { //当rollback时来用通知哪些MVTable被修改了
         HashSet<String> set = New.hashSet();
         for (long logId = maxLogId - 1; logId >= toLogId; logId--) {
             Object[] op = undoLog.get(new long[] {
@@ -337,8 +373,12 @@ public class TransactionStore {
             // TODO open map by id if possible
             Map<String, String> meta = store.getMetaMap();
             String m = meta.get("map." + mapId);
-            String mapName = DataUtils.parseMap(m).get("name");
-            set.add(mapName);
+            if (m == null) {
+                // map was removed later on
+            } else {
+                String mapName = DataUtils.parseMap(m).get("name");
+                set.add(mapName);
+            }
         }
         return set;
     }
@@ -374,11 +414,6 @@ public class TransactionStore {
         final TransactionStore store;
 
         /**
-         * The version of the store at the time the transaction was started.
-         */
-        final long startVersion;
-
-        /**
          * The transaction id.
          */
         final long transactionId;
@@ -394,7 +429,6 @@ public class TransactionStore {
 
         Transaction(TransactionStore store, long transactionId, int status, String name, long logId) {
             this.store = store;
-            this.startVersion = store.store.getCurrentVersion();
             this.transactionId = transactionId;
             this.status = status;
             this.name = name;
@@ -558,7 +592,7 @@ public class TransactionStore {
      * @param <K> the key type
      * @param <V> the value type
      */
-    public static class TransactionMap<K, V> {
+    public static class TransactionMap<K, V> { //要理解此类，最核心最关健是要理解trySet和getValue这两个方法
 
         /**
          * The map used for writing (the latest version).
@@ -677,12 +711,14 @@ public class TransactionStore {
                 if (ok) {
                     return old;
                 }
+                //两个事务并发更新相同记录时，第二个事务需要等到第一个事务提交后才能更新记录
                 // an uncommitted transaction:
                 // wait until it is committed, or until the lock timeout
                 long timeout = transaction.store.lockTimeout;
                 if (timeout == 0) {
-                    throw DataUtils.newIllegalStateException("Lock timeout");
+                    throw DataUtils.newIllegalStateException("Lock timeout"); //提示不友好，因为这里无锁，只是出现了写写冲突
                 }
+                //下面的代码目前无用，因为lockTimeout总是0
                 if (start == 0) {
                     start = System.currentTimeMillis();
                 } else {
@@ -769,7 +805,7 @@ public class TransactionStore {
             if (current == null || current.value == null) {
                 if (value == null) {
                     // remove a removed value
-                    opType = Transaction.OP_SET;
+                    opType = Transaction.OP_SET; //两个事务同时删同一行记录的情况
                 } else {
                     opType = Transaction.OP_ADD;
                 }
@@ -788,10 +824,11 @@ public class TransactionStore {
                 // a new value
                 VersionedValue old = map.putIfAbsent(key, newValue);
                 if (old == null) {
-                    transaction.log(opType, mapId, key, current); //在undo log中记录下之前的值
+                	//在undo log中记下之前的值(current其实就是null，但是要记下key的值，这样在rollback时可以按key删除新增加的记录)
+                    transaction.log(opType, mapId, key, current);
                     return true;
                 }
-                return false; //被其他线程抢先设置了
+                return false; //被其他线程抢先设置了(TODO 这种情况会发生吗, org.h2.test.store.TestTransactionStore也会测出来)
             }
             long tx = current.transactionId;
             if (tx == transaction.transactionId) { //同一事务内先后修改相同的key
@@ -802,7 +839,7 @@ public class TransactionStore {
                 }
                 // strange, somebody overwrite the value
                 // even thought the change was not committed
-                return false; //被其他线程抢先修改了
+                return false; //被其他线程抢先修改了(TODO 这种情况会发生吗, org.h2.test.store.TestTransactionStore也会测出来)
             }
             // added or updated by another transaction
             boolean open = transaction.store.isTransactionOpen(tx);
@@ -814,7 +851,7 @@ public class TransactionStore {
                     return true;
                 }
                 // somebody else was faster
-                return false;
+                return false; //(TODO 这种情况会发生吗, org.h2.test.store.TestTransactionStore也会测出来)
             }
             // the transaction is not yet committed
             return false; //前面的事务未提交，当前事务必须等待，然后才能修改相同的key
@@ -867,31 +904,40 @@ public class TransactionStore {
         //见org.h2.test.store.TestTransactionStore.testKeyIterator()里的测试
         //当执行到第三个tx = ts.begin()时tx != transaction.transactionId
         //所以就从第二个tx = ts.begin()对应的undoLog中取出value
+        
+        //从这个方法的实现可以看出，如果有多个并发事务，事务会把MVMap中的原始值更新，再写undoLog
+        //所以当另一个事务从MVMap取值时实际上是能看到另一个事务所做的修改的，只不过需要判断前一个事务的提交状态来决定
+        //是要MVMap的最新值，还是从undoLog中取原来的值
         private VersionedValue getValue(K key, long maxLog) {
             VersionedValue data = map.get(key);
             //System.out.println(map.getRoot());
             //System.out.println(map.getOldRoots());
             while (true) {
                 long tx;
+                //在trySet方法中即使是通过remove调用trySet，也不会真的调用map.remove(key)
+                //只是把key的值用null替换(相当于data.value是null，而不是data为null)，
+                //除非事务提交后，调用TransactionStore.commit(Transaction, long)把此key真正从map中删除
                 if (data == null) {
                     // doesn't exist or deleted by a committed transaction
                     return null;
                 }
                 tx = data.transactionId;
                 long logId = data.logId;
+                //1. 是不是当前事务所做的操作?
                 if (tx == transaction.transactionId) { //是map对应的transactionId
                     // added by this transaction
-                    if (logId < maxLog) {
+                    if (logId < maxLog) { //只取比maxLog小的版本
                         return data;
                     }
                 }
+                //2. 说明不是当前事务，此时判断另一个并发的事务是否提交
                 // added or updated by another transaction
                 boolean open = transaction.store.isTransactionOpen(tx);
                 if (!open) { //如果对应的事务id不在当前的事务列表中，说明此事务已提交了
                     // it is committed
                     return data;
                 }
-                //否则从undoLog中取
+                //3. 另一个并发的事务未提交，这时要从undoLog中取出原来的值
                 // get the value before the uncommitted transaction
                 long[] x = new long[] { tx, logId };
                 Object[] d = transaction.store.undoLog.get(x);
@@ -954,6 +1000,68 @@ public class TransactionStore {
             // TODO transactional lastKey
             return map.lastKey();
         }
+        
+        /**
+         * Get the most recent smallest key that is larger or equal to this key.
+         *
+         * @param key the key (may not be null)
+         * @return the result
+         */
+        public K getLatestCeilingKey(K key) {
+            Cursor<K> cursor = map.keyIterator(key);
+            while (cursor.hasNext()) {
+                key = cursor.next();
+                if (get(key, Long.MAX_VALUE) != null) {
+                    return key;
+                }
+            }
+            return null;
+        }
+        
+        /**
+         * Get the smallest key that is larger or equal to this key.
+         *
+         * @param key the key (may not be null)
+         * @return the result
+         */
+        public K ceilingKey(K key) { //>=key的最小的那一个
+            //int test;
+            // TODO this method is slow
+            Cursor<K> cursor = map.keyIterator(key);
+            while (cursor.hasNext()) {
+                key = cursor.next();
+                if (get(key) != null) {
+                    return key;
+                }
+            }
+            return null;
+            // TODO transactional ceilingKey
+//            return map.ceilingKey(key);
+        }
+
+        /**
+         * Get the smallest key that is larger than the given key, or null if no
+         * such key exists.
+         *
+         * @param key the key (may not be null)
+         * @return the result
+         */
+        public K higherKey(K key) { //>key的最小的那一个(注:上面的ceilingKey没有等于)
+            // TODO transactional higherKey
+            return map.higherKey(key);
+        }
+
+        /**
+         * Get the largest key that is smaller than the given key, or null if no
+         * such key exists.
+         *
+         * @param key the key (may not be null)
+         * @return the result
+         */
+        public K lowerKey(K key) { //<key的最大那一个
+            // TODO Auto-generated method stub
+            return map.lowerKey(key);
+        }
 
         /**
          * Iterate over all keys.
@@ -998,41 +1106,6 @@ public class TransactionStore {
                             "Removing is not supported");
                 }
             };
-        }
-
-        /**
-         * Get the smallest key that is larger or equal to this key.
-         *
-         * @param key the key (may not be null)
-         * @return the result
-         */
-        public K ceilingKey(K key) { //>=key的最小的那一个
-            // TODO transactional ceilingKey
-            return map.ceilingKey(key);
-        }
-
-        /**
-         * Get the smallest key that is larger than the given key, or null if no
-         * such key exists.
-         *
-         * @param key the key (may not be null)
-         * @return the result
-         */
-        public K higherKey(K key) { //>key的最小的那一个(注:上面的ceilingKey没有等于)
-            // TODO transactional higherKey
-            return map.higherKey(key);
-        }
-
-        /**
-         * Get the largest key that is smaller than the given key, or null if no
-         * such key exists.
-         *
-         * @param key the key (may not be null)
-         * @return the result
-         */
-        public K lowerKey(K key) { //<key的最大那一个
-            // TODO Auto-generated method stub
-            return map.lowerKey(key);
         }
 
         public Transaction getTransaction() {
@@ -1107,7 +1180,13 @@ public class TransactionStore {
             VersionedValue v = (VersionedValue) obj;
             DataUtils.writeVarLong(buff, v.transactionId);
             DataUtils.writeVarLong(buff, v.logId);
-            return valueType.write(buff, v.value);
+            if (v.value == null) {
+                buff.put((byte) 0);
+            } else {
+                buff.put((byte) 1);
+                buff = valueType.write(buff, v.value);
+            }
+            return buff;
         }
 
         @Override
@@ -1115,7 +1194,9 @@ public class TransactionStore {
             VersionedValue v = new VersionedValue();
             v.transactionId = DataUtils.readVarLong(buff);
             v.logId = DataUtils.readVarLong(buff);
-            v.value = valueType.read(buff);
+            if (buff.get() == 1) {
+                v.value = valueType.read(buff);
+            }
             return v;
         }
 

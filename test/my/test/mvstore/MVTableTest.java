@@ -20,15 +20,48 @@ public class MVTableTest extends TestBase {
 
 	@Override
 	public void startInternal() throws Exception {
-		test();
+		//test();
 
 		//testConcurrentUpdate();
+		testConcurrentUpdate2();
+
+		//testTwoPhaseCommit();
 	}
+
+	public void testTwoPhaseCommit() throws Exception {
+		//		JdbcDataSource ds = new JdbcDataSource();
+		//		ds.setURL("jdbc:h2:tcp://localhost:9092/mydb");
+		//		ds.setUser("sa");
+		//		ds.setPassword("");
+		//		
+		//		XAConnection xacon1 = ds.getXAConnection();
+		//		XAConnection xacon2 = ds.getXAConnection();
+		//		
+		//		XAResource resource1 = xacon1.getXAResource();
+		//		//resource1.
+		//		XAResource resource2 = xacon2.getXAResource();
+		stmt.executeUpdate("DROP TABLE IF EXISTS MVTableTest CASCADE");
+		sql = "CREATE TABLE IF NOT EXISTS MVTableTest(id int not null, name varchar(500), b boolean) "
+		+ "ENGINE \"org.h2.mvstore.db.MVTableEngine\"";
+
+		stmt.executeUpdate(sql);
+		conn.setAutoCommit(false);
+		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(10, 'a1', true)");
+		conn.commit();
+
+		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(20, 'b1', true)");
+		stmt.execute("PREPARE COMMIT myxa");
+		stmt.execute("COMMIT TRANSACTION myxa");
+
+		sql = "select * from MVTableTest";
+		executeQuery();
+	}
+
 
 	public void test() throws Exception {
 		stmt.executeUpdate("DROP TABLE IF EXISTS MVTableTest CASCADE");
-		sql = "CREATE TABLE IF NOT EXISTS MVTableTest(id int not null, name varchar(500), b boolean) ";
-				//+ "ENGINE \"org.h2.mvstore.db.MVTableEngine\"";
+		sql = "CREATE TABLE IF NOT EXISTS MVTableTest(id int not null, name varchar(500), b boolean) "
+		+ "ENGINE \"org.h2.mvstore.db.MVTableEngine\"";
 
 		//sql = "CREATE TABLE IF NOT EXISTS MVTableTest(id int, name varchar(500), b boolean) ";
 
@@ -40,31 +73,31 @@ public class MVTableTest extends TestBase {
 
 		//stmt.executeUpdate("CREATE INDEX IF NOT EXISTS MVTableTest_name ON MVTableTest(name desc)");
 		stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS MVTableTest_name ON MVTableTest(name desc)");
-//		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS MVTableTest_name ON MVTableTest(name, b)");
-//		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS MVTableTest_name ON MVTableTest(b, name)");
+		//		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS MVTableTest_name ON MVTableTest(name, b)");
+		//		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS MVTableTest_name ON MVTableTest(b, name)");
 		//		stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_MVTableTest_id ON MVTableTest(id)");
 
 		stmt.executeUpdate("CREATE PRIMARY KEY IF NOT EXISTS idx_MVTableTest_id ON MVTableTest(id)");
 
 		conn.setAutoCommit(false);
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(8, null, true)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(9, null, true)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(10, 'a1', true)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(20, 'b1', true)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(30, 'a2', false)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(40, 'b2', true)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(50, 'a3', false)");
-//
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(60, 'b3', true)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(70, 'b3', true)");
-//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(-1, 'a1', true)");
-		
-		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(-1, 'a1', true)");
-		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(10, 'a1', true)");
-		
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(8, null, true)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(9, null, true)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(10, 'a1', true)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(20, 'b1', true)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(30, 'a2', false)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(40, 'b2', true)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(50, 'a3', false)");
+		//
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(60, 'b3', true)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(70, 'b3', true)");
+		//		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(-1, 'a1', true)");
+
+		//stmt.executeUpdate("insert into MVTableTest(id, name, b) values(-1, 'a1', true)");
+		//stmt.executeUpdate("insert into MVTableTest(id, name, b) values(10, 'a1', true)");
+
 		//for(int i=90;i<200;i++)
 		//	stmt.executeUpdate("insert into MVTableTest(id, name, b) values("+i+", 'a1', true)");
-		//stmt.executeUpdate("insert into MVTableTest(id, name, b) values(70, 'b4', true)");
+		stmt.executeUpdate("insert into MVTableTest(id, name, b) values(70, 'b4', true)");
 
 		//测试org.h2.mvstore.db.MVTable.addRow(Session, Row)中的rollbackToSavepoint
 		//同时测org.h2.mvstore.db.TransactionStore.rollbackTo(Transaction, long, long)
@@ -78,11 +111,11 @@ public class MVTableTest extends TestBase {
 		sql = "select * from MVTableTest where id=1";
 		sql = "select * from MVTableTest where id>1";
 		sql = "select * from MVTableTest where name>'a1' and name<'b3'";
-		
+
 		sql = "select * from MVTableTest where name='a1'";
-		
+
 		sql = "select * from MVTableTest where name>='b3' and name<'a1'";
-		
+
 		sql = "select min(name) from MVTableTest";
 		sql = "select max(name) from MVTableTest";
 		sql = "select count(name) from MVTableTest"; //如果字段name的值是null，是不算在内的
@@ -113,14 +146,21 @@ public class MVTableTest extends TestBase {
 		Statement stmt1 = conn1.createStatement();
 		Statement stmt2 = conn2.createStatement();
 		try {
+			stmt.executeUpdate("delete from MVTableTest where id=80");
+			stmt.executeUpdate("insert into MVTableTest(id, name, b) values(80, 'b8', true)");
+			stmt.executeUpdate("delete from MVTableTest where id=80");
+			stmt.executeUpdate("insert into MVTableTest(id, name, b) values(80, 'b8', true)");
+			
 			conn1.setAutoCommit(false);
 			conn2.setAutoCommit(false);
 
 			//stmt1.executeUpdate("update MVTableTest set name='a' where id=70");
-			ResultSet rs = stmt1.executeQuery("select * from MVTableTest where id=70");
-			printResultSet(rs);
-			rs.close();
-			stmt2.executeUpdate("update MVTableTest set name='b3' where id=70");
+			stmt1.executeUpdate("delete from MVTableTest where id=80");
+//			ResultSet rs = stmt1.executeQuery("select * from MVTableTest where id=70");
+//			printResultSet(rs);
+//			rs.close();
+			//stmt2.executeUpdate("update MVTableTest set name='b3' where id=70");
+			stmt2.executeUpdate("delete from MVTableTest where id=80");
 
 			conn1.commit();
 			conn2.commit();

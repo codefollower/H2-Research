@@ -210,7 +210,8 @@ public class MVPrimaryIndex extends BaseIndex {
     @Override
     public Row getRow(Session session, long key) {
         TransactionMap<Value, Value> map = getMap(session);
-        ValueArray array = (ValueArray) map.get(ValueLong.get(key));
+        Value v = map.get(ValueLong.get(key));
+        ValueArray array = (ValueArray) v;
         Row row = new Row(array.getList(), 0);
         row.setKey(key);
         return row;
@@ -349,8 +350,7 @@ public class MVPrimaryIndex extends BaseIndex {
             return dataMap;
         }
         Transaction t = mvTable.getTransaction(session); //会使用Session中的Transaction对象
-        long savepoint = session.getStatementSavepoint();
-        return dataMap.getInstance(t, savepoint); //会得到一个dataMap在savepoint时的Map，但是并不会对dataMap进行复制
+        return dataMap.getInstance(t, Long.MAX_VALUE); //会得到一个dataMap，但是并不会对dataMap进行复制
     }
 
     /**

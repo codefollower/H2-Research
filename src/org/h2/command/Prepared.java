@@ -81,6 +81,7 @@ public abstract class Prepared {
      *
      * @return the result set
      */
+    //只有Call、ExecuteProcedure、Explain、Select、SelectUnion、ScriptCommand实现了此方法，其他子类都返回null
     public abstract ResultInterface queryMeta();
 
 

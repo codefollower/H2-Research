@@ -100,7 +100,9 @@ public class Insert extends Prepared implements ResultTarget {
         if (listSize > 0) {
             int columnLen = columns.length;
             for (int x = 0; x < listSize; x++) {
-                Row newRow = table.getTemplateRow(); //newRow的长度是全表字段的个数是，会>=columns的长度
+                session.startStatementWithinTransaction();
+                Row newRow = table.getTemplateRow(); //newRow的长度是全表字段的个数，会>=columns的长度
+
                 Expression[] expr = list.get(x);
                 setCurrentRowNumber(x + 1);
                 for (int i = 0; i < columnLen; i++) {

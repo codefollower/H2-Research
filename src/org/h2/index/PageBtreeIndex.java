@@ -79,15 +79,6 @@ public class PageBtreeIndex extends PageIndex {
         //System.out.println(getCreateSQL());
     }
 
-    private static void checkIndexColumnTypes(IndexColumn[] columns) {
-        for (IndexColumn c : columns) {
-            int type = c.column.getType();
-            if (type == Value.CLOB || type == Value.BLOB) {
-                throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, "Index on BLOB or CLOB column: " + c.column.getCreateSQL());
-            }
-        }
-    }
-
     @Override
     public void add(Session session, Row row) { //row是完整的记录
         if (trace.isDebugEnabled()) {

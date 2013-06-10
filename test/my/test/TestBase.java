@@ -84,6 +84,14 @@ public abstract class TestBase {
 		}
 	}
 
+	public void tryExecuteQuery() {
+		try {
+			executeQuery();
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
+	}
+
 	public void printResultSet(ResultSet rs) throws Exception {
 		int n = rs.getMetaData().getColumnCount();
 		while (rs.next()) {

@@ -79,7 +79,8 @@ public class ValueDataType implements DataType {
 
     private static final long MILLIS_PER_MINUTE = 1000 * 60;
 
-    final DataHandler handler;
+    final DataHandler handler; //用于BLOB/CLOB
+    //下面两个用于compare
     final CompareMode compareMode;
     final int[] sortTypes;
 
