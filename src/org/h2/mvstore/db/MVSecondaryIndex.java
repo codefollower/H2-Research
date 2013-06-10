@@ -71,15 +71,6 @@ public class MVSecondaryIndex extends BaseIndex {
         dataMap = mvTable.getTransaction(null).openMap(mapName, mapBuilder);
     }
 
-    private static void checkIndexColumnTypes(IndexColumn[] columns) {
-        for (IndexColumn c : columns) {
-            int type = c.column.getType();
-            if (type == Value.CLOB || type == Value.BLOB) {
-                throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, "Index on BLOB or CLOB column: " + c.column.getCreateSQL());
-            }
-        }
-    }
-
     @Override
     public void close(Session session) {
         // ok
@@ -101,8 +92,8 @@ public class MVSecondaryIndex extends BaseIndex {
         TransactionMap<Value, Value> map = getMap(session);
         ValueArray array = getKey(row); //把所有索引列和行key组合成map的key
         if (indexType.isUnique()) {
-            array.getList()[keyColumns - 1] = ValueLong.get(0); //如果是唯一索引，把行key清0
-            ValueArray key = (ValueArray) map.ceilingKey(array);
+            array.getList()[keyColumns - 1] = ValueLong.get(Long.MIN_VALUE); //如果是唯一索引，把行key设为Long.MIN_VALUE
+            ValueArray key = (ValueArray) map.getLatestCeilingKey(array);
             if (key != null) {
                 SearchRow r2 = getRow(key.getList());
                 if (compareRows(row, r2) == 0) {
@@ -132,9 +123,9 @@ public class MVSecondaryIndex extends BaseIndex {
     	//在查询时first其实是没主键的，所以getKey返回的ValueArray中的最后一个元素都是0
     	//但是这并不影响查询结果，假设查name>'a1'的记录，那么在MVMap中实际上是从大于等于['a1', 0]的记录开始
 		ValueArray min = getKey(first);
-		if (min != null) {
-			min.getList()[keyColumns - 1] = ValueLong.get(Long.MIN_VALUE);
-		}
+        if (min != null) {
+            min.getList()[keyColumns - 1] = ValueLong.get(Long.MIN_VALUE);
+        }
 
         TransactionMap<Value, Value> map = getMap(session);
         return new MVStoreCursor(session, map.keyIterator(min), last);
@@ -266,8 +257,7 @@ public class MVSecondaryIndex extends BaseIndex {
             return dataMap;
         }
         Transaction t = mvTable.getTransaction(session);
-        long savepoint = session.getStatementSavepoint();
-        return dataMap.getInstance(t, savepoint);
+        return dataMap.getInstance(t, Long.MAX_VALUE);
     }
 
     /**

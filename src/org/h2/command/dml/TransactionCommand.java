@@ -49,7 +49,7 @@ public class TransactionCommand extends Prepared {
         case CommandInterface.ROLLBACK:
             session.rollback();
             break;
-        case CommandInterface.CHECKPOINT:
+        case CommandInterface.CHECKPOINT: //能同时用于PageStore和MVStore
             session.getUser().checkAdmin();
             session.getDatabase().checkpoint();
             break;
@@ -59,7 +59,7 @@ public class TransactionCommand extends Prepared {
         case CommandInterface.ROLLBACK_TO_SAVEPOINT:
             session.rollbackToSavepoint(savepointName);
             break;
-        case CommandInterface.CHECKPOINT_SYNC:
+        case CommandInterface.CHECKPOINT_SYNC: //只用于PageStore
             session.getUser().checkAdmin();
             session.getDatabase().sync();
             break;

@@ -7,7 +7,6 @@
 package org.h2.engine;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -654,6 +653,9 @@ public class Database implements DataHandler {
         Collections.sort(records); //按升序排，算法见org.h2.engine.MetaRecord.compareTo(MetaRecord)
         for (MetaRecord rec : records) {
             rec.execute(this, systemSession, eventListener);
+        }
+        if (mvStore != null) {
+            mvStore.rollback();
         }
         recompileInvalidViews(systemSession);
         starting = false;
@@ -1759,6 +1761,9 @@ public class Database implements DataHandler {
             // TODO check if MIN_WRITE_DELAY is a good value
             flushOnEachCommit = writeDelay < Constants.MIN_WRITE_DELAY;
         }
+        if (mvStore != null) {
+            mvStore.setWriteDelay(value);
+        }
     }
 
     /**
@@ -1811,10 +1816,15 @@ public class Database implements DataHandler {
      * Flush all pending changes to the transaction log.
      */
     public synchronized void flush() {
-        if (readOnly || pageStore == null) {
+        if (readOnly) {
             return;
         }
-        pageStore.flushLog();
+        if (pageStore != null) {
+            pageStore.flushLog();
+        }
+        if (mvStore != null) {
+            mvStore.store();
+        }
     }
 
     public void setEventListener(DatabaseEventListener eventListener) {
@@ -2293,6 +2303,9 @@ public class Database implements DataHandler {
                     pageStore.checkpoint();
                 }
             }
+            if (mvStore != null) {
+                mvStore.store();
+            }
         }
         getTempFileDeleter().deleteUnused();
     }
@@ -2373,7 +2386,7 @@ public class Database implements DataHandler {
     }
 
     @Override
-    public Connection getLobConnection() {
+    public JdbcConnection getLobConnection() {
         String url = Constants.CONN_URL_INTERNAL;
         JdbcConnection conn = new JdbcConnection(systemSession, systemUser.getName(), url);
         conn.setTraceLevel(TraceSystem.OFF);

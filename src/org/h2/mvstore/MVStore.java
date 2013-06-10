@@ -130,9 +130,11 @@ public class MVStore {
     private static final int FORMAT_READ = 1;
 
     /**
-     * Whether the store is closed.
+     * The background thread, if any.
      */
-    volatile boolean closed;
+    volatile Thread backgroundThread;
+
+    private boolean closed;
 
     private final String fileName;
     private final char[] filePassword;
@@ -221,8 +223,6 @@ public class MVStore {
      * The earliest chunk to retain, if any.
      */
     private Chunk retainChunk; //所有chunks中version最小的那个
-
-    private Thread backgroundThread;
 
     /**
      * The version of the current store operation (if any).
@@ -478,15 +478,7 @@ public class MVStore {
             rollbackTo(rollback);
         }
         this.lastCommittedVersion = currentVersion;
-        // start the background thread if needed
-        if (writeDelay > 0) {
-            int sleep = Math.max(1, writeDelay / 10);
-            Writer w = new Writer(this, sleep);
-            Thread t = new Thread(w, "MVStore writer " + fileName);
-            t.setDaemon(true);
-            t.start();
-            backgroundThread = t;
-        }
+        setWriteDelay(writeDelay);
     }
 
     /**
@@ -552,7 +544,7 @@ public class MVStore {
             }
         } catch (Exception e) {
             try {
-                close(false);
+                closeFile(false);
             } catch (Exception e2) {
                 // ignore
             }
@@ -702,10 +694,6 @@ public class MVStore {
      * written but not committed, this is rolled back. All open maps are closed.
      */
     public void close() {
-        close(true);
-    }
-
-    private void close(boolean shrinkIfPossible) {
         if (closed) {
             return;
         }
@@ -715,6 +703,20 @@ public class MVStore {
                 store(false);
             }
         }
+        closeFile(true);
+    }
+    
+    /**
+     * Close the file and the store, without writing anything.
+     */
+    public void closeImmediately() {
+        closeFile(false);
+    }
+    
+    private void closeFile(boolean shrinkIfPossible) {
+        if (closed) {
+            return;
+        }
         closed = true;
         if (file == null) {
             return;
@@ -722,18 +724,7 @@ public class MVStore {
         // can not synchronize on this yet, because
         // the thread also synchronized on this, which
         // could result in a deadlock
-        if (backgroundThread != null) {
-            Thread t = backgroundThread;
-            backgroundThread = null;
-            synchronized (this) {
-                notify();
-            }
-            try {
-                t.join();
-            } catch (Exception e) {
-                // ignore
-            }
-        }
+        stopBackgroundThread();
         synchronized (this) {
             try {
                 if (shrinkIfPossible) {
@@ -1815,6 +1806,40 @@ public class MVStore {
         return closed;
     }
 
+    private void stopBackgroundThread() {
+        if (backgroundThread == null) {
+            return;
+        }
+        Thread t = backgroundThread;
+        backgroundThread = null;
+        synchronized (this) {
+            notify();
+        }
+        try {
+            t.join();
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    public void setWriteDelay(int value) {
+        writeDelay = value;
+        stopBackgroundThread();
+        // start the background thread if needed
+        if (value > 0) {
+            int sleep = Math.max(1, value / 10);
+            Writer w = new Writer(this, sleep);
+            Thread t = new Thread(w, "MVStore writer " + fileName);
+            t.setDaemon(true);
+            t.start();
+            backgroundThread = t;
+        }
+    }
+
+    public int getWriteDelay() {
+        return writeDelay;
+    }
+
     /**
      * A background writer to automatically store changes from time to time.
      */
@@ -1830,7 +1855,7 @@ public class MVStore {
 
         @Override
         public void run() {
-            while (!store.closed) {
+            while (store.backgroundThread != null) {
                 synchronized (store) {
                     try {
                         store.wait(sleep);

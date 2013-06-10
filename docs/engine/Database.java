@@ -42,7 +42,7 @@ Schema掌管7个能带Schema前缀的模式数据库对象
     private final HashMap<String, UserDataType> userDataTypes = New.hashMap(); //自定义的字段类型
     private final HashMap<String, UserAggregate> aggregates = New.hashMap(); //自定义聚合函数
 	private final HashMap<String, Comment> comments = New.hashMap(); //注释
-    private final HashMap<String, Setting> settings = New.hashMap(); //数据、Session级别的动态参数
+    private final HashMap<String, Setting> settings = New.hashMap(); //数据库、Session级别的动态参数
 
 
 1. Database对象

@@ -170,7 +170,7 @@ public abstract class Query extends Prepared {
      * @param columnId the column index (0 meaning the first column)
      * @param comparisonType the comparison type
      */
-    public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType); //在ViewIndex中用使用
+    public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType); //在ViewIndex中有使用
 
     /**
      * Check whether adding condition to the query is allowed. This is not
@@ -179,7 +179,7 @@ public abstract class Query extends Prepared {
      *
      * @return true if adding global conditions is allowed
      */
-    public abstract boolean allowGlobalConditions(); //在ViewIndex中用使用
+    public abstract boolean allowGlobalConditions(); //在ViewIndex中有使用
 
     /**
      * Check if this expression and all sub-expressions can fulfill a criteria.
@@ -237,7 +237,7 @@ public abstract class Query extends Prepared {
     /**
      * Disable caching of result sets.
      */
-    public void disableCache() { //在ViewIndex中用使用
+    public void disableCache() { //在ViewIndex中有使用
         this.noCache = true;
     }
 
@@ -346,6 +346,9 @@ public abstract class Query extends Prepared {
             ArrayList<TableFilter> filters) {
         Database db = session.getDatabase();
         for (SelectOrderBy o : orderList) {
+        	//类似这样的sql时:select name,id from mytable order by 1 desc
+        	//o.expression为null，“order by 1”表示使用select字段列表中的第一个(就是name)来排序
+        	//此时o.columnIndexExpr是1
             Expression e = o.expression;
             if (e == null) {
                 continue;
@@ -355,7 +358,7 @@ public abstract class Query extends Prepared {
             // not in having):
             // SELECT 1 AS A FROM DUAL ORDER BY -A
             boolean isAlias = false;
-            int idx = expressions.size();
+            int idx = expressions.size(); //排序列最后放在什么位置，默认是最后，除非在select字段列表中找到了
             if (e instanceof ExpressionColumn) {
                 // order by expression
                 ExpressionColumn exprCol = (ExpressionColumn) e;
@@ -456,13 +459,14 @@ public abstract class Query extends Prepared {
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];
-        int[] columnIndexes = new int[size];
+        int[] columnIndexes = new int[size]; //我加上的
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
 			SelectOrderBy o = orderList.get(i);
 			int idx;
 			boolean reverse = false;
-			if (o.expression instanceof ExpressionColumn) {
+			//我加上的
+			if (o.expression instanceof ExpressionColumn && ((ExpressionColumn) o.expression).getColumn() != null ) {
 				columnIndexes[i] = ((ExpressionColumn) o.expression).getColumn().getColumnId();
 			}
 			Expression expr = o.columnIndexExpr;

@@ -10,13 +10,13 @@ public class MyServer {
 		System.setProperty("h2.lobClientMaxSizeMemory", "1024");
 		System.setProperty("java.io.tmpdir", "E:\\H2\\tmp");
 		System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
-
+		//System.setProperty("h2.check2", "true");
 		ArrayList<String> list = new ArrayList<String>();
 		// list.add("-tcp");
 		// //list.add("-tool");
 		// org.h2.tools.Server.main(list.toArray(new String[list.size()]));
 		//
-		list.add("-tcp");
+		//list.add("-tcp");
 		// list.add("-tcpPort");
 		// list.add("9092");
 
@@ -25,6 +25,9 @@ public class MyServer {
 		// list.add("mydb");
 		// list.add("mydatabase");
 
+		//list.add("-pg");
+		list.add("-tcp");
+		//list.add("-web");
 		org.h2.tools.Server.main(list.toArray(new String[list.size()]));
 	}
 }

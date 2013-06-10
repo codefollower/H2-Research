@@ -1,7 +1,5 @@
 package my.test.command.dml;
 
-import java.sql.SQLException;
-
 import my.test.TestBase;
 
 public class SelectTest extends TestBase {
@@ -12,20 +10,20 @@ public class SelectTest extends TestBase {
 	public void init() throws Exception {
 		prop.setProperty("MODE", "DB2"); //支持SYSDUMMY1、supportOffsetFetch
 		prop.setProperty("PAGE_SIZE", "128");
+		//prop.setProperty("DEFAULT_TABLE_ENGINE", "org.h2.mvstore.db.MVTableEngine");
 		//		prop.setProperty("TRACE_LEVEL_FILE", "10");
 		//		prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
 		//		prop.setProperty("PAGE_SIZE", "1024");
 		//		prop.setProperty("FILE_LOCK", "FS");
 	}
 
-	@Override
-	public void startInternal() throws Exception {
+	void createTable() throws Exception {
 		stmt.executeUpdate("drop table IF EXISTS mytable,natural_join_test_table1,natural_join_test_table2,mytable1,mytable2");
 		//stmt.executeUpdate("create table IF NOT EXISTS mytable(id int primary key, name varchar(500))");
 		stmt.executeUpdate("create table IF NOT EXISTS mytable(id int, name varchar(500))");
 		stmt.executeUpdate("ALTER TABLE mytable ALTER COLUMN id SELECTIVITY 10");
 		stmt.executeUpdate("ALTER TABLE mytable ALTER COLUMN name SELECTIVITY 10");
-		stmt.executeUpdate("ALTER TABLE mytable ADD CONSTRAINT NAME_UNIQUE UNIQUE(name,id)");
+		//stmt.executeUpdate("ALTER TABLE mytable ADD CONSTRAINT NAME_UNIQUE UNIQUE(name,id)");
 		stmt.executeUpdate("create index IF NOT EXISTS mytable_index on mytable(id)");
 
 		stmt.executeUpdate("create table IF NOT EXISTS mytable1(id1 int primary key, name1 varchar(500))");
@@ -56,11 +54,6 @@ public class SelectTest extends TestBase {
 		stmt.executeUpdate("insert into mytable(id, name) values(" + 3 + ", '" + 5 + "abcdef1234')");
 		stmt.executeUpdate("insert into mytable(id, name) values(" + 3 + ", '" + 6 + "abcdef1234')");
 
-		parseSelectSimpleSelectPart();
-		readTableFilter();
-		parseEndOfQuery();
-		parseSelectSimpleFromPart();
-
 		//测试org.h2.command.dml.Select.queryGroup(int, LocalResult)
 		sql = "SELECT DISTINCT count(*),max(id),min(id),sum(id) FROM mytable ";
 
@@ -72,25 +65,31 @@ public class SelectTest extends TestBase {
 		//测试org.h2.command.dml.Select.queryDistinct(ResultTarget, long)
 		sql = "select distinct name from mytable";
 
-		select_init();
-		Query_initOrder();
-
 		sql = "select name from mytable where id=3";
 
 		sql = "select max(name) from mytable";
-		queryGroup();
-		queryGroupSorted();
 
-		queryQuick();
-		rs = stmt.executeQuery(sql);
-		int n = rs.getMetaData().getColumnCount();
-		while (rs.next()) {
-			for (int i = 1; i <= n; i++) {
-				System.out.print(rs.getString(i) + " ");
-			}
-			System.out.println();
-			//System.out.println(rs.getString(1) + " " + rs.getString(2) + " " + rs.getString(3) + " " + rs.getString(4));
-		}
+	}
+
+	@Override
+	public void startInternal() throws Exception {
+		createTable();
+
+		//		parseSelectSimpleSelectPart();
+		//		readTableFilter();
+		//		parseEndOfQuery();
+		//		parseSelectSimpleFromPart();
+		//
+		//		select_init();
+				queryGroup();
+		//		queryGroupSorted();
+		//
+		//		queryQuick();
+		//
+		//		queryDistinct();
+
+		//prepare();
+		//queryWithoutCache();
 
 	}
 
@@ -272,7 +271,15 @@ public class SelectTest extends TestBase {
 
 	}
 
-	void select_init() {
+	void select_init() throws Exception {
+		expandColumnList();
+		Query_initOrder();
+		init_havingIndex();
+	}
+
+	void expandColumnList() throws Exception {
+		sql = "select * from mytable";
+		executeQuery();
 		sql = "select public.mytable.*, name from mytable";
 		sql = "select public.mytable.*, name from mytable as t";
 		//对于myschema.t.*这样的语法，即使myschema不存在，在parser中也没有报错的
@@ -281,16 +288,43 @@ public class SelectTest extends TestBase {
 		sql = "select DISTINCT myschema.t.*, name from mytable as t";
 
 		sql = "select * from mytable1, mytable2";
+		executeQuery();
 
 		sql = "select id, name from natural_join_test_table1, natural_join_test_table2";
 
 		sql = "select * from natural_join_test_table1  natural join natural_join_test_table2";
+		executeQuery();
 	}
 
-	void Query_initOrder() throws SQLException {
+	void Query_initOrder() throws Exception {
+		sql = "select name as n, id from mytable order by 1*1";
+		executeQuery();
+
 		//列名不存在的检查是放在org.h2.expression.ExpressionColumn.optimize(Session)里做
 		//Column "ID3" not found;
 		sql = "select name,id3 from mytable order by 1*1";
+		tryExecuteQuery();
+
+		sql = "select distinct name from mytable order by id desc";
+		tryExecuteQuery();
+
+		sql = "select name,id from mytable t order by 1*1, t.id";
+		executeQuery();
+
+		sql = "select name,id from mytable order by 1 desc";
+		executeQuery();
+
+		sql = "select name,id as i from mytable order by i";
+		executeQuery();
+
+		sql = "select name,id as i from mytable t order by t.i";
+		tryExecuteQuery();
+
+		sql = "select name,id as i from mytable t order by mytable.i";
+		tryExecuteQuery();
+
+		sql = "select name,id as i from mytable t order by t.id";
+		executeQuery();
 
 		stmt.executeUpdate("CREATE CONSTANT IF NOT EXISTS ONE VALUE 1");
 
@@ -299,7 +333,12 @@ public class SelectTest extends TestBase {
 		sql = "select name,ONE from mytable where name = 'abc' || '123'";
 	}
 
-	void queryGroup() {
+	void init_havingIndex() throws Exception {
+		sql = "select id,count(id) from mytable where id>2  group by id having id=3";
+		executeQuery();
+	}
+
+	void queryGroup() throws Exception {
 		sql = "select id from mytable group by id";
 
 		sql = "select id from mytable group by id having id>2";
@@ -312,10 +351,21 @@ public class SelectTest extends TestBase {
 		//sql = "select id,count(id) from mytable where id>0  group by id";
 
 		//sql = "select max(id), count(id) from mytable where id>1";
+		
+		stmt.executeUpdate("delete from mytable");
+		
+		stmt.executeUpdate("insert into mytable(id, name) values(" + 1 + ", '" + 1 + "abcdef1234')");
+		stmt.executeUpdate("insert into mytable(id, name) values(" + 1 + ", '" + 1 + "abcdef1234')");
+		stmt.executeUpdate("insert into mytable(id, name) values(" + 2 + ", '" + 3 + "abcdef1234')");
+		stmt.executeUpdate("insert into mytable(id, name) values(" + 2 + ", '" + 4 + "abcdef1234')");
+		stmt.executeUpdate("insert into mytable(id, name) values(" + 3 + ", '" + 5 + "abcdef1234')");
+		stmt.executeUpdate("insert into mytable(id, name) values(" + 3 + ", '" + 6 + "abcdef1234')");
 
-		sql = "select id,name,count(id) from mytable where id>0  group by id,name";
+		sql = "select id,name,count(id),sum(id) from mytable where id>0  group by id,name  having id<3";
 
-		sql = "select id,count(id) from mytable where id>2  group by id having id=3";
+		//sql = "select id,count(id) from mytable where id>2  group by id having id=3";
+		
+		executeQuery();
 	}
 
 	void queryGroupSorted() {
@@ -347,12 +397,84 @@ public class SelectTest extends TestBase {
 		//		sql = "select id,count(id) from mytable where id>2 group by id,name having id=3 order by id,name";
 	}
 
-	void queryQuick() throws SQLException {
+	void queryQuick() throws Exception {
 		//这样不行，因为id字段可以为null
-		sql = "select count(id),min(id),max(id) from mytable";
-
+		//sql = "select count(id),min(id),max(id) from mytable";
+		//executeQuery();
+		
+		//如果先执行上面，那么由于缓存关系会直接使用前面的结果，所以并不执行Select.queryQuick()
 		stmt.executeUpdate("ALTER TABLE mytable ALTER COLUMN id SET NOT NULL");
 		sql = "select count(id),min(id),max(id) from mytable";
+		executeQuery();
+	}
 
+	void queryDistinct() throws Exception {
+		System.out.println();
+		stmt.executeUpdate("drop table IF EXISTS queryDistinct");
+		stmt.executeUpdate("create table IF NOT EXISTS queryDistinct(id int, name varchar(500))");
+		stmt.executeUpdate("ALTER TABLE queryDistinct ALTER COLUMN id SELECTIVITY 10");
+		stmt.executeUpdate("ALTER TABLE queryDistinct ALTER COLUMN name SELECTIVITY 10");
+		//stmt.executeUpdate("ALTER TABLE queryDistinct ADD CONSTRAINT NAME_UNIQUE UNIQUE(name,id)");
+		stmt.executeUpdate("create index IF NOT EXISTS queryDistinct_index on queryDistinct(name)");
+		//不会选单列的唯一索引
+		//stmt.executeUpdate("create UNIQUE index IF NOT EXISTS queryDistinct_index on queryDistinct(name)");
+		//stmt.executeUpdate("insert into queryDistinct(id, name) values(" + 1 + ", null)");
+		stmt.executeUpdate("insert into queryDistinct(id, name) values(" + 1 + ", '" + 1 + "abcdef1234')");
+		stmt.executeUpdate("insert into queryDistinct(id, name) values(" + 2 + ", '" + 2 + "abcdef1234')");
+		stmt.executeUpdate("insert into queryDistinct(id, name) values(" + 3 + ", '" + 3 + "abcdef1234')");
+		stmt.executeUpdate("insert into queryDistinct(id, name) values(" + 4 + ", '" + 4 + "abcdef1234')");
+		stmt.executeUpdate("insert into queryDistinct(id, name) values(" + 5 + ", '" + 5 + "abcdef1234')");
+
+		sql = "select LIMIT 2 2 distinct name from queryDistinct";
+		executeQuery();
+	}
+
+	void getSortIndex() throws Exception {
+		System.out.println();
+		stmt.executeUpdate("drop table IF EXISTS getSortIndex");
+		stmt.executeUpdate("create table IF NOT EXISTS getSortIndex(id int, name varchar(500))");
+		stmt.executeUpdate("ALTER TABLE getSortIndex ALTER COLUMN id SELECTIVITY 10");
+		stmt.executeUpdate("ALTER TABLE getSortIndex ALTER COLUMN name SELECTIVITY 10");
+		//stmt.executeUpdate("ALTER TABLE getSortIndex ADD CONSTRAINT NAME_UNIQUE UNIQUE(name,id)");
+		stmt.executeUpdate("create index IF NOT EXISTS getSortIndex_index on getSortIndex(name)");
+		stmt.executeUpdate("create UNIQUE index IF NOT EXISTS getSortIndex_index2 on getSortIndex(name, id)");
+		//stmt.executeUpdate("insert into getSortIndex(id, name) values(" + 1 + ", null)");
+		stmt.executeUpdate("insert into getSortIndex(id, name) values(" + 1 + ", '" + 1 + "abcdef1234')");
+		stmt.executeUpdate("insert into getSortIndex(id, name) values(" + 2 + ", '" + 2 + "abcdef1234')");
+		stmt.executeUpdate("insert into getSortIndex(id, name) values(" + 3 + ", '" + 3 + "abcdef1234')");
+		stmt.executeUpdate("insert into getSortIndex(id, name) values(" + 4 + ", '" + 4 + "abcdef1234')");
+		stmt.executeUpdate("insert into getSortIndex(id, name) values(" + 5 + ", '" + 5 + "abcdef1234')");
+
+		sql = "select LIMIT 2 2 distinct name from getSortIndex";
+
+		sql = "select name from getSortIndex order by name";
+		executeQuery();
+
+		sql = "select 3, name from getSortIndex order by name, 1";
+		executeQuery();
+		
+		sql = "select 3, name from getSortIndex order by id";
+		executeQuery();
+		
+		sql = "select id, name from getSortIndex order by _rowid_";
+		executeQuery();
+	}
+
+	void prepareOrder() throws Exception {
+		sql = "select id,name from mytable order by -1 DESC"; //负数表示降序，再加DESC就表示降序的降序，实际就是升序
+		executeQuery();
+		sql = "select id,name from mytable order by -2 NULLS FIRST";
+		sql = "select id,name from mytable order by -2 NULLS LAST";
+	}
+
+	void prepare() throws Exception {
+		prepareOrder();
+		getSortIndex();
+	}
+	
+	void queryWithoutCache() throws Exception {
+		//LIMIT 2 0 (实际上表是的是：OFFSET(2)、LIMIT(0))
+		sql = "select LIMIT 2 0 id,name from mytable";
+		executeQuery();
 	}
 }

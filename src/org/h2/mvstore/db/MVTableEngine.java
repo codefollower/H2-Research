@@ -6,8 +6,6 @@
  */
 package org.h2.mvstore.db;
 
-import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,8 +13,9 @@ import org.h2.api.TableEngine;
 import org.h2.command.ddl.CreateTableData;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
-import org.h2.message.DbException;
 import org.h2.mvstore.MVStore;
+import org.h2.mvstore.db.TransactionStore.Transaction;
+import org.h2.table.RegularTable;
 import org.h2.table.TableBase;
 import org.h2.util.New;
 
@@ -28,6 +27,9 @@ public class MVTableEngine implements TableEngine {
     @Override
     public TableBase createTable(CreateTableData data) {
         Database db = data.session.getDatabase();
+        if (!data.persistData || (data.temporary && !data.persistIndexes)) {
+            return new RegularTable(data);
+        }
         Store store = db.getMvStore();
         if (store == null) {
             byte[] key = db.getFilePasswordHash();
@@ -87,7 +89,7 @@ public class MVTableEngine implements TableEngine {
             this.db = db;
             this.store = store;
             this.transactionStore = new TransactionStore(store,
-                    new ValueDataType(null, null, null));
+                    new ValueDataType(null, db, null));
         }
 
         public MVStore getStore() {
@@ -101,7 +103,12 @@ public class MVTableEngine implements TableEngine {
         public List<MVTable> getTables() {
             return openTables;
         }
-        
+
+        /**
+         * Remove a table.
+         *
+         * @param table the table
+         */
         public void removeTable(MVTable table) {
             openTables.remove(table);
         }
@@ -109,7 +116,7 @@ public class MVTableEngine implements TableEngine {
         /**
          * Store all pending changes.
          */
-        public void store() { //在BackupCommand中用到
+        public void store() { //在BackupCommand中用到，执行CHECKPOINT时也用到
             if (!store.isReadOnly()) {
                 store.commit();
                 store.compact(50);
@@ -124,24 +131,30 @@ public class MVTableEngine implements TableEngine {
             if (store.isClosed()) {
                 return;
             }
-            FileChannel f = store.getFile();
-            if (f != null) {
-                try {
-                    f.close();
-                } catch (IOException e) {
-                    throw DbException.convertIOException(e, "Closing file");
-                }
-            }
+            store.closeImmediately();
         }
 
         /**
          * Close the store. Pending changes are persisted.
          */
         public void close() { //正常关闭数据库时调用
-            if (!store.isReadOnly()) {
-                store.store();
+            if (!store.isClosed()) {
+                if (!store.isReadOnly()) {
+                    store.store();
+                }
+                store.close();
             }
-            store.close();
+        }
+
+        public void setWriteDelay(int value) {
+            store.setWriteDelay(value);
+        }
+
+        public void rollback() {
+            List<Transaction> list = transactionStore.getOpenTransactions();
+            for (Transaction t : list) {
+                t.rollback();
+            }
         }
 
     }
