@@ -131,7 +131,7 @@ public class TcpServerThread implements Runnable {
                 //password参数的值已经转换成userPasswordHash和filePasswordHash了，
                 //不能由userPasswordHash和filePasswordHash得到原始的password
                 ci.setUserPasswordHash(transfer.readBytes());
-                ci.setFilePasswordHash(transfer.readBytes());
+                ci.setFilePasswordHash(transfer.readBytes()); //只有指定"CIPHER"参数时filePasswordHash才是非null的
                 int len = transfer.readInt();
                 for (int i = 0; i < len; i++) {
                     ci.setProperty(transfer.readString(), transfer.readString());

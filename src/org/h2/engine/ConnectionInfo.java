@@ -31,7 +31,7 @@ import org.h2.util.Utils;
 public class ConnectionInfo implements Cloneable {
     private static final HashSet<String> KNOWN_SETTINGS = New.hashSet();
 
-    private Properties prop = new Properties();
+    private Properties prop = new Properties(); //里面的key都会自动转成大写
     private String originalURL;
     private String url;
     private String user;
@@ -314,8 +314,9 @@ public class ConnectionInfo implements Cloneable {
         char[] password = removePassword();
         boolean passwordHash = removeProperty("PASSWORD_HASH", false); //如果PASSWORD_HASH参数是true那么不再进行SHA256
 
-		//如果配置了CIPHER，则秘密包含两部份，用空格分开，第一部份是filePassword，第二部份是真实密码
-		//并且使用16进制字符，字符个数是偶数，如果PASSWORD_HASH参数是true那么不再进行SHA256
+		//如果配置了CIPHER，则password包含两部份，用一个空格分开这两部份，第一部份是filePassword，第二部份是userPassword。
+		//如果PASSWORD_HASH参数是true那么不再进行SHA256，此时必须使用16进制字符，字符个数是偶数。
+        //如果PASSWORD_HASH参数是false，不必是16进制字符，会按SHA256算法进行hash
         if (getProperty("CIPHER", null) != null) {
             // split password into (filePassword+' '+userPassword)
             int space = -1;
@@ -338,7 +339,7 @@ public class ConnectionInfo implements Cloneable {
 			//filePasswordHash用"file"进行hash
             filePasswordHash = hashPassword(passwordHash, "file", filePassword);
         }
-		//filePasswordHash用用户名进行hash
+		//userPasswordHash用用户名进行hash
         userPasswordHash = hashPassword(passwordHash, user, password);
     }
 
@@ -350,6 +351,7 @@ public class ConnectionInfo implements Cloneable {
         if (userName.length() == 0 && password.length == 0) {
             return new byte[0];
         }
+        //会生成32个字节，32*8刚好是256 bit，刚好对应SHA256的名字
         return SHA256.getKeyPasswordHash(userName, password);
     }
 

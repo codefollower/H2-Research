@@ -25,9 +25,11 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
+
 import org.h2.command.CommandInterface;
 import org.h2.constant.SysProperties;
 import org.h2.engine.ConnectionInfo;
@@ -38,6 +40,7 @@ import org.h2.message.DbException;
 import org.h2.mvstore.DataUtils;
 import org.h2.util.IOUtils;
 import org.h2.util.JdbcUtils;
+import org.h2.util.MathUtils;
 import org.h2.util.ScriptReader;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
@@ -62,6 +65,8 @@ public class PgServerThread implements Runnable {
     private String userName;
     private String databaseName;
     private int processId;
+    private int secret;
+    private JdbcStatement activeRequest;
     private String clientEncoding = SysProperties.PG_DEFAULT_CLIENT_ENCODING;
     private String dateStyle = "ISO";
     private final HashMap<String, Prepared> prepared = new CaseInsensitiveMap<Prepared>();
@@ -70,6 +75,7 @@ public class PgServerThread implements Runnable {
     PgServerThread(Socket socket, PgServer server) {
         this.server = server;
         this.socket = socket;
+        this.secret = (int) MathUtils.secureRandomLong();
     }
 
     @Override
@@ -142,9 +148,20 @@ public class PgServerThread implements Runnable {
             server.trace("Init");
             int version = readInt();
             if (version == 80877102) {
-                server.trace("CancelRequest (not supported)");
-                server.trace(" pid: " + readInt());
-                server.trace(" key: " + readInt());
+                server.trace("CancelRequest");
+                int pid = readInt();
+                int key = readInt();
+                PgServerThread c = server.getThread(pid);
+                if (c != null && key == c.secret) {
+                    c.cancelRequest();
+                } else {
+                    // According to
+                    // http://www.postgresql.org/docs/9.1/static/protocol-flow.html#AEN91739,
+                    // when canceling a request, if an invalid secret is provided then no exception
+                    // should be sent back to the client.
+                    server.trace("Invalid CancelRequest: pid=" + pid + ", key=" + key);
+                }
+                close();
             } else if (version == 80877103) {
                 server.trace("SSLRequest");
                 out.write('N');
@@ -160,7 +177,7 @@ public class PgServerThread implements Runnable {
                     if ("user".equals(param)) {
                         this.userName = value;
                     } else if ("database".equals(param)) {
-                        this.databaseName = value;
+                        this.databaseName = server.checkKeyAndGetDatabaseName(value);
                     } else if ("client_encoding".equals(param)) {
                         // UTF8
                         clientEncoding = value;
@@ -246,16 +263,13 @@ public class PgServerThread implements Runnable {
                 formatCodes[i] = readShort();
             }
             int paramCount = readShort();
-            for (int i = 0; i < paramCount; i++) {
-                int paramLen = readInt();
-                byte[] d2 = DataUtils.newBytes(paramLen);
-                readFully(d2);
-                try {
-                    setParameter(prep.prep, i, d2, formatCodes);
-                } catch (Exception e) {
-                    sendErrorResponse(e);
-                    break switchBlock;
+            try {
+                for (int i = 0; i < paramCount; i++) {
+                    setParameter(prep.prep, prep.paramType[i], i, formatCodes);
                 }
+            } catch (Exception e) {
+                sendErrorResponse(e);
+                break switchBlock;
             }
             int resultCodeCount = readShort();
             portal.resultColumnFormat = new int[resultCodeCount];
@@ -328,12 +342,12 @@ public class PgServerThread implements Runnable {
             server.trace(prepared.sql);
             try {
                 prep.setMaxRows(maxRows);
+                setActiveRequest(prep);
                 boolean result = prep.execute();
                 if (result) {
                     try {
                         ResultSet rs = prep.getResultSet();
-                        ResultSetMetaData meta = rs.getMetaData();
-                        sendRowDescription(meta);
+                        // the meta-data is sent in the prior 'Describe'
                         while (rs.next()) {
                             sendDataRow(rs);
                         }
@@ -345,7 +359,13 @@ public class PgServerThread implements Runnable {
                     sendCommandComplete(prep, prep.getUpdateCount());
                 }
             } catch (Exception e) {
-                sendErrorResponse(e);
+                if (prep.wasCancelled()) {
+                    sendCancelQueryResponse();
+                } else {
+                    sendErrorResponse(e);
+                }
+            } finally {
+                setActiveRequest(null);
             }
             break;
         }
@@ -367,6 +387,7 @@ public class PgServerThread implements Runnable {
                     }
                     s = getSQL(s);
                     stat = (JdbcStatement) conn.createStatement();
+                    setActiveRequest(stat);
                     boolean result = stat.execute(s);
                     if (result) {
                         ResultSet rs = stat.getResultSet();
@@ -385,10 +406,15 @@ public class PgServerThread implements Runnable {
                         sendCommandComplete(stat, stat.getUpdateCount());
                     }
                 } catch (SQLException e) {
-                    sendErrorResponse(e);
+                    if (stat != null && stat.wasCancelled()) {
+                        sendCancelQueryResponse();
+                    } else {
+                        sendErrorResponse(e);
+                    }
                     break;
                 } finally {
                     JdbcUtils.closeSilently(stat);
+                    setActiveRequest(null);
                 }
             }
             sendReadyForQuery();
@@ -450,24 +476,70 @@ public class PgServerThread implements Runnable {
     }
 
     private void sendDataRow(ResultSet rs) throws Exception {
-        int columns = rs.getMetaData().getColumnCount();
-        String[] values = new String[columns];
-        for (int i = 0; i < columns; i++) {
-            values[i] = rs.getString(i + 1);
-        }
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columns = metaData.getColumnCount();
         startMessage('D');
         writeShort(columns);
-        for (String s : values) {
-            if (s == null) {
-                writeInt(-1);
-            } else {
-                // TODO write Binary data
-                byte[] d2 = s.getBytes(getEncoding());
-                writeInt(d2.length);
-                write(d2);
-            }
+        for (int i = 1; i <= columns; i++) {
+            writeDataColumn(rs, i, PgServer.convertType(metaData.getColumnType(i)));
         }
         sendMessage();
+    }
+
+    private void writeDataColumn(ResultSet rs, int column, int pgType) throws Exception {
+        if (formatAsText(pgType)) {
+            // plain text
+            switch (pgType) {
+            case PgServer.PG_TYPE_BOOL:
+                writeInt(1);
+                dataOut.writeByte(rs.getBoolean(column) ? 't' : 'f');
+                break;
+            default:
+                String s = rs.getString(column);
+                if (s == null) {
+                    writeInt(-1);
+                } else {
+                    byte[] data = s.getBytes(getEncoding());
+                    writeInt(data.length);
+                    write(data);
+                }
+            }
+        } else {
+            // binary
+            switch (pgType) {
+            case PgServer.PG_TYPE_INT2:
+                writeInt(2);
+                dataOut.writeShort(rs.getShort(column));
+                break;
+            case PgServer.PG_TYPE_INT4:
+                writeInt(4);
+                dataOut.writeInt(rs.getInt(column));
+                break;
+            case PgServer.PG_TYPE_INT8:
+                writeInt(8);
+                dataOut.writeLong(rs.getLong(column));
+                break;
+            case PgServer.PG_TYPE_FLOAT4:
+                writeInt(4);
+                dataOut.writeFloat(rs.getFloat(column));
+                break;
+            case PgServer.PG_TYPE_FLOAT8:
+                writeInt(8);
+                dataOut.writeDouble(rs.getDouble(column));
+                break;
+            case PgServer.PG_TYPE_BYTEA:
+                byte[] data = rs.getBytes(column);
+                if (data == null) {
+                    writeInt(-1);
+                } else {
+                    writeInt(data.length);
+                    write(data);
+                }
+                break;
+
+            default: throw new IllegalStateException("output binary format is undefined");
+            }
+        }
     }
 
     private String getEncoding() {
@@ -477,24 +549,63 @@ public class PgServerThread implements Runnable {
         return clientEncoding;
     }
 
-    private void setParameter(PreparedStatement prep, int i, byte[] d2, int[] formatCodes) throws SQLException {
+    private void setParameter(PreparedStatement prep,
+            int pgType, int i, int[] formatCodes) throws SQLException, IOException {
         boolean text = (i >= formatCodes.length) || (formatCodes[i] == 0);
-        String s;
-        try {
-            if (text) {
-                s = new String(d2, getEncoding());
-            } else {
-                server.trace("Binary format not supported");
-                s = new String(d2, getEncoding());
+        int col = i + 1;
+        int paramLen = readInt();
+        if (paramLen == -1) {
+            prep.setNull(col, Types.NULL);
+        } else if (text) {
+            // plain text
+            byte[] data = DataUtils.newBytes(paramLen);
+            readFully(data);
+            prep.setString(col, new String(data, getEncoding()));
+        } else {
+            // binary
+            switch (pgType) {
+            case PgServer.PG_TYPE_INT2:
+                if (paramLen != 4) {
+                    throw DbException.getInvalidValueException("paramLen", paramLen);
+                }
+                prep.setShort(col, dataIn.readShort());
+                break;
+            case PgServer.PG_TYPE_INT4:
+                if (paramLen != 4) {
+                    throw DbException.getInvalidValueException("paramLen", paramLen);
+                }
+                prep.setInt(col, dataIn.readInt());
+                break;
+            case PgServer.PG_TYPE_INT8:
+                if (paramLen != 8) {
+                    throw DbException.getInvalidValueException("paramLen", paramLen);
+                }
+                prep.setLong(col, dataIn.readLong());
+                break;
+            case PgServer.PG_TYPE_FLOAT4:
+                if (paramLen != 4) {
+                    throw DbException.getInvalidValueException("paramLen", paramLen);
+                }
+                prep.setFloat(col, dataIn.readFloat());
+                break;
+            case PgServer.PG_TYPE_FLOAT8:
+                if (paramLen != 8) {
+                    throw DbException.getInvalidValueException("paramLen", paramLen);
+                }
+                prep.setDouble(col, dataIn.readDouble());
+                break;
+            case PgServer.PG_TYPE_BYTEA:
+                byte[] d1 = DataUtils.newBytes(paramLen);
+                readFully(d1);
+                prep.setBytes(col, d1);
+                break;
+            default:
+                server.trace("Binary format for type: "+pgType+" is unsupported");
+                byte[] d2 = DataUtils.newBytes(paramLen);
+                readFully(d2);
+                prep.setString(col, new String(d2, getEncoding()));
             }
-        } catch (Exception e) {
-            server.traceError(e);
-            s = null;
         }
-        // if(server.getLog()) {
-        // server.log(" " + i + ": " + s);
-        // }
-        prep.setString(i + 1, s);
     }
 
     private void sendErrorResponse(Exception re) throws IOException {
@@ -509,6 +620,19 @@ public class PgServerThread implements Runnable {
         writeString(e.getMessage());
         write('D');
         writeString(e.toString());
+        write(0);
+        sendMessage();
+    }
+
+    private void sendCancelQueryResponse() throws IOException {
+        server.trace("CancelSuccessResponse");
+        startMessage('E');
+        write('S');
+        writeString("ERROR");
+        write('C');
+        writeString("57014");
+        write('M');
+        writeString("canceling statement due to user request");
         write(0);
         sendMessage();
     }
@@ -553,7 +677,7 @@ public class PgServerThread implements Runnable {
                 String name = meta.getColumnName(i + 1);
                 names[i] = name;
                 int type = meta.getColumnType(i + 1);
-                type = PgServer.convertType(type);
+                int pgType = PgServer.convertType(type);
                 // the ODBC client needs the column pg_catalog.pg_index
                 // to be of type 'int2vector'
                 // if (name.equalsIgnoreCase("indkey") &&
@@ -561,8 +685,10 @@ public class PgServerThread implements Runnable {
                 //     type = PgServer.PG_TYPE_INT2VECTOR;
                 // }
                 precision[i] = meta.getColumnDisplaySize(i + 1);
-                server.checkType(type);
-                types[i] = type;
+                if (type != Types.NULL) {
+                    server.checkType(pgType);
+                }
+                types[i] = pgType;
             }
             startMessage('T');
             writeShort(columns);
@@ -578,15 +704,31 @@ public class PgServerThread implements Runnable {
                 writeShort(getTypeSize(types[i], precision[i]));
                 // pg_attribute.atttypmod
                 writeInt(-1);
-                // text
-                writeShort(0);
+                // the format type: text = 0, binary = 1
+                writeShort(formatAsText(types[i]) ? 0 : 1);
             }
             sendMessage();
         }
     }
 
+    /**
+     * Check whether the given type should be formatted as text.
+     *
+     * @return true for binary
+     */
+    private static boolean formatAsText(int pgType) {
+        switch (pgType) {
+        // TODO: add more types to send as binary once compatibility is confirmed
+        case PgServer.PG_TYPE_BYTEA:
+            return false;
+        }
+        return true;
+    }
+
     private static int getTypeSize(int pgType, int precision) {
         switch (pgType) {
+        case PgServer.PG_TYPE_BOOL:
+            return 1;
         case PgServer.PG_TYPE_VARCHAR:
             return Math.max(255, precision + 10);
         default:
@@ -746,7 +888,7 @@ public class PgServerThread implements Runnable {
     private void sendBackendKeyData() throws IOException {
         startMessage('K');
         writeInt(processId);
-        writeInt(processId);
+        writeInt(secret);
         sendMessage();
     }
 
@@ -811,6 +953,28 @@ public class PgServerThread implements Runnable {
         this.processId = id;
     }
 
+    int getProcessId() {
+        return this.processId;
+    }
+
+    private synchronized void setActiveRequest(JdbcStatement statement) {
+        activeRequest = statement;
+    }
+
+    /**
+     * Kill a currently running query on this thread.
+     */
+    private synchronized void cancelRequest() {
+        if (activeRequest != null) {
+            try {
+                activeRequest.cancel();
+                activeRequest = null;
+            } catch (SQLException e) {
+                throw DbException.convert(e);
+            }
+        }
+    }
+
     /**
      * Represents a PostgreSQL Prepared object.
      */
@@ -857,5 +1021,4 @@ public class PgServerThread implements Runnable {
          */
         Prepared prep;
     }
-
 }

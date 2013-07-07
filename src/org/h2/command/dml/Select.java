@@ -69,6 +69,8 @@ public class Select extends Query {
     private Expression[] expressionArray;
     private Expression having; //having子句
     private Expression condition; //where子句
+    //visibleColumnCount不包含缺失的order by、GROUP BY字段，还有having表达式
+    //distinctColumnCount包含缺失的order by字段，但不包含GROUP BY字段，还有having表达式
     private int visibleColumnCount, distinctColumnCount;
     private ArrayList<SelectOrderBy> orderList; //对应order by，一个字段对应一个SelectOrderBy
     private ArrayList<Expression> group; //对应group by，一个字段对应一个Expression
@@ -552,6 +554,8 @@ public class Select extends Query {
         // limitRows must be long, otherwise we get an int overflow
         // if limitRows is at or near Integer.MAX_VALUE
         // limitRows is never 0 here
+    	//并不会按offset先跳过前面的行数，而是limitRows加上offset，读够limitRows+offset行，然后这从result中跳
+    	//因为可能需要排序，offset是相对于最后的结果来说的，而不是排序前的结果
         if (limitRows > 0 && offsetExpr != null) {
             int offset = offsetExpr.getValue(session).getInt();
             if (offset > 0) {
@@ -580,6 +584,8 @@ public class Select extends Query {
                 }
                 result.addRow(row);
                 rowNumber++;
+                //如果sort为null，说明不用排序，只要读够那么多行就可以了
+                //同样的，如果sortUsingIndex为true，那么说明当前是按索引先取的，索引是有序的，所以只要读够那么多行也可以了
                 if ((sort == null || sortUsingIndex) && limitRows > 0 && result.getRowCount() >= limitRows) {
                     break;
                 }
@@ -1004,7 +1010,7 @@ public class Select extends Query {
                 if (current.getIndexType().isScan() || current == index) {
                     topTableFilter.setIndex(index);
                     if (!topTableFilter.hasInComparisons()) {
-                        // in(select ...) and in(1,2,3) my return the key in another order
+                        // in(select ...) and in(1,2,3) may return the key in another order
                         sortUsingIndex = true;
                     }
                 } else if (index.getIndexColumns().length >= current.getIndexColumns().length) {

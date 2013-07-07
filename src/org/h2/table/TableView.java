@@ -433,6 +433,11 @@ public class TableView extends Table {
     }
 
     @Override
+    public boolean canReference() {
+        return false;
+    }
+
+    @Override
     public ArrayList<Index> getIndexes() {
         return null;
     }

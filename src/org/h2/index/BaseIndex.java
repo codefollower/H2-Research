@@ -69,14 +69,14 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
 
     /**
      * Check that the index columns are not CLOB or BLOB.
-     * 
+     *
      * @param columns the columns
      */
     protected static void checkIndexColumnTypes(IndexColumn[] columns) {
         for (IndexColumn c : columns) {
             int type = c.column.getType();
             if (type == Value.CLOB || type == Value.BLOB) {
-                throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, "Index on BLOB or CLOB column: " + c.column.getCreateSQL());
+                throw DbException.getUnsupportedException("Index on BLOB or CLOB column: " + c.column.getCreateSQL());
             }
         }
     }
@@ -90,10 +90,14 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * Create a duplicate key exception with a message that contains the index
      * name.
      *
+     * @param key the key values
      * @return the exception
      */
-    protected DbException getDuplicateKeyException() {
+    protected DbException getDuplicateKeyException(String key) {
         String sql = getName() + " ON " + table.getSQL() + "(" + getColumnListSQL() + ")";
+        if (key != null) {
+            sql += " VALUES " + key;
+        }
         DbException e = DbException.get(ErrorCode.DUPLICATE_KEY_1, sql);
         e.setSource(this);
         return e;

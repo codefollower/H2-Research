@@ -1600,36 +1600,91 @@ public class JdbcConnection extends TraceObject implements Connection {
     }
 
     /**
-     * [Not supported] Set a client property.
+     * Set a client property.
+     * This method always throws a SQLClientInfoException.
+     *
+     * @param name the name of the property (ignored)
+     * @param value the value (ignored)
      */
     @Override
     public void setClientInfo(String name, String value)
             throws SQLClientInfoException {
-        throw new SQLClientInfoException();
+        try {
+            if (isDebugEnabled()) {
+                debugCode("setClientInfo("
+                        +quote(name)+", "
+                        +quote(value)+");");
+            }
+            checkClosed();
+            // we don't have any client properties, so just throw
+            throw new SQLClientInfoException();
+        } catch (Exception e) {
+            throw convertToClientInfoException(logAndConvert(e));
+        }
+    }
+
+    private static SQLClientInfoException convertToClientInfoException(SQLException x) {
+        if (x instanceof SQLClientInfoException) {
+            return (SQLClientInfoException) x;
+        }
+        return new SQLClientInfoException(
+                x.getMessage(), x.getSQLState(), x.getErrorCode(), null, null);
     }
 
     /**
-     * [Not supported] Set the client properties.
+     * Set the client properties.
+     * This method always throws a SQLClientInfoException.
+     *
+     * @param properties the properties (ignored)
      */
     @Override
     public void setClientInfo(Properties properties) throws SQLClientInfoException {
-        throw new SQLClientInfoException();
+        try {
+            if (isDebugEnabled()) {
+                debugCode("setClientInfo(properties);");
+            }
+            checkClosed();
+            // we don't have any client properties, so just throw
+            throw new SQLClientInfoException();
+        } catch (Exception e) {
+            throw convertToClientInfoException(logAndConvert(e));
+        }
     }
 
     /**
-     * [Not supported] Get the client properties.
+     * Get the client properties.
+     * This method always returns null.
+     *
+     * @return always null
      */
     @Override
-    public Properties getClientInfo() throws SQLClientInfoException {
-        throw new SQLClientInfoException();
+    public Properties getClientInfo() throws SQLException {
+        try {
+            debugCode("getClientInfo();");
+            // we don't have any client properties, so return null
+            return null;
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
-     * [Not supported] Set a client property.
+     * Set a client property.
+     * This method always throws a SQLClientInfoException.
+     *
+     * @param name the client info name (ignored)
+     * @return this method never returns normally
      */
     @Override
     public String getClientInfo(String name) throws SQLException {
-        throw unsupported("clientInfo");
+        try {
+            debugCodeCall("getClientInfo", name);
+            checkClosed();
+            // we don't have any client properties, so just throw
+            throw new SQLClientInfoException();
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**

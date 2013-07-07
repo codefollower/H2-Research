@@ -303,7 +303,8 @@ public class PageBtreeIndex extends PageIndex {
             PageBtree root = getPage(rootPageId);
             root.freeRecursive(); //在存储中删除所有page
             root = PageBtreeLeaf.create(this, rootPageId, PageBtree.ROOT);
-            store.removeRecord(rootPageId); //在缓存中清除rootPageId对应的page
+
+            store.removeFromCache(rootPageId); //在缓存中清除rootPageId对应的page
             store.update(root);
             rowCount = 0;
         } finally {

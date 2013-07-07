@@ -21,6 +21,9 @@ import org.h2.value.Value;
  * In many cases, the complete data is kept on the client side,
  * but for large results only a subset is in-memory.
  */
+//RowList用于执行update、delete时存放先读取出来的记录
+//LocalResult用于在server端执行select时存放查询结果
+//ResultRemote用于存放client端从server端返回的结果
 public class ResultRemote implements ResultInterface {
 
     private int fetchSize;

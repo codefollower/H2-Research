@@ -52,7 +52,7 @@ public class SortOrder implements Comparator<Value[]> {
 
     private final Database database;
     private final int[] indexes;
-    private final int[] columnIndexes;
+    private final int[] columnIndexes; //我加上的
     private final int[] sortTypes;
 
     /**
@@ -67,6 +67,13 @@ public class SortOrder implements Comparator<Value[]> {
         this.indexes = index;
         this.columnIndexes = columnIndexes;
         this.sortTypes = sortType;
+    }
+
+    public SortOrder(Database database, int[] index, int[] sortType) {
+        this.database = database;
+        this.indexes = index;
+        this.sortTypes = sortType;
+        this.columnIndexes = null;
     }
 
     /**
@@ -196,7 +203,7 @@ public class SortOrder implements Comparator<Value[]> {
 		return indexes;
 	}
 
-	public int[] getColumnIndexes() {
+	public int[] getColumnIndexes() { //我加上的
 		return columnIndexes;
 	}
 

@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.zip.CRC32;
 import org.h2.compress.CompressLZF;
@@ -28,7 +29,12 @@ import org.h2.engine.DbObject;
 import org.h2.engine.MetaRecord;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
+import org.h2.mvstore.MVMap;
+import org.h2.mvstore.MVStore;
 import org.h2.mvstore.MVStoreTool;
+import org.h2.mvstore.db.TransactionStore;
+import org.h2.mvstore.db.TransactionStore.TransactionMap;
+import org.h2.mvstore.db.ValueDataType;
 import org.h2.result.Row;
 import org.h2.result.SimpleRow;
 import org.h2.security.SHA256;
@@ -58,6 +64,7 @@ import org.h2.util.TempFileDeleter;
 import org.h2.util.Tool;
 import org.h2.util.Utils;
 import org.h2.value.Value;
+import org.h2.value.ValueArray;
 import org.h2.value.ValueLob;
 import org.h2.value.ValueLobDb;
 import org.h2.value.ValueLong;
@@ -84,6 +91,7 @@ public class Recover extends Tool implements DataHandler {
     private int pageSize;
     private FileStore store;
     private int[] parents;
+    private String mvFile;
 
     private Stats stat;
 
@@ -242,11 +250,16 @@ public class Recover extends Tool implements DataHandler {
         }
         for (String fileName : list) {
             if (fileName.endsWith(Constants.SUFFIX_PAGE_FILE)) {
+                String mvFile = fileName.substring(0, fileName.length() -
+                        Constants.SUFFIX_PAGE_FILE.length()) + Constants.SUFFIX_MV_FILE;
+                if (list.contains(mvFile)) {
+                    this.mvFile = mvFile;
+                }
                 dumpPageStore(fileName);
             } else if (fileName.endsWith(Constants.SUFFIX_LOB_FILE)) {
                 dumpLob(fileName, false);
             } else if (fileName.endsWith(Constants.SUFFIX_MV_FILE)) {
-                PrintWriter writer = getWriter(fileName, ".mv.txt");
+                PrintWriter writer = getWriter(fileName, ".txt");
                 MVStoreTool.dump(fileName, writer);
                 writer.close();
             }
@@ -442,6 +455,9 @@ public class Recover extends Tool implements DataHandler {
             schema.clear();
             objectIdSet = New.hashSet();
             dumpPageStore(writer, pageCount);
+            if (mvFile != null) {
+                dumpMVStoreFile(writer, mvFile);
+            }
             writeSchema(writer);
             try {
                 dumpPageLogStream(writer, logKey, logFirstTrunkPage, logFirstDataPage, pageCount);
@@ -467,6 +483,66 @@ public class Recover extends Tool implements DataHandler {
         } finally {
             IOUtils.closeSilently(writer);
             closeSilently(store);
+        }
+    }
+
+    private void dumpMVStoreFile(PrintWriter writer, String fileName) {
+        writer.println("-- mvstore");
+        setDatabaseName(fileName.substring(0, fileName.length() - Constants.SUFFIX_MV_FILE.length()));
+        MVStore mv = new MVStore.Builder().fileName(fileName).readOnly().open();
+        TransactionStore store = new TransactionStore(mv);
+        try {
+            MVMap<String, String> meta = mv.getMetaMap();
+            Iterator<String> it = meta.keyIterator(null);
+            while (it.hasNext()) {
+                String key = it.next();
+                if (!key.startsWith("name.table.")) {
+                    continue;
+                }
+                String mapName = key.substring("name.".length());
+                String tableId = mapName.substring("table.".length());
+                ValueDataType keyType = new ValueDataType(
+                        null, this, null);
+                ValueDataType valueType = new ValueDataType(
+                        null, this, null);
+                MVMap.Builder<Value, Value> mapBuilder = new MVMap.Builder<Value, Value>().
+                        keyType(keyType).
+                        valueType(valueType);
+                TransactionMap<Value, Value> dataMap = store.begin().openMap(mapName, mapBuilder);
+                Iterator<Value> dataIt = dataMap.keyIterator(null);
+                boolean init = false;
+                while (dataIt.hasNext()) {
+                    Value rowId = dataIt.next();
+                    Value[] values = ((ValueArray) dataMap.get(rowId)).getList();
+                    recordLength = values.length;
+                    if (!init) {
+                        setStorage(Integer.parseInt(tableId));
+                        // init the column types
+                        for (valueId = 0; valueId < recordLength; valueId++) {
+                            String columnName = storageName + "." + valueId;
+                            getSQL(columnName, values[valueId]);
+                        }
+                        createTemporaryTable(writer);
+                        init = true;
+                    }
+                    StringBuilder buff = new StringBuilder();
+                    buff.append("INSERT INTO O_").append(tableId)
+                            .append(" VALUES(");
+                    for (valueId = 0; valueId < recordLength; valueId++) {
+                        if (valueId > 0) {
+                            buff.append(", ");
+                        }
+                        String columnName = storageName + "." + valueId;
+                        buff.append(getSQL(columnName, values[valueId]));
+                    }
+                    buff.append(");");
+                    writer.println(buff.toString());
+                }
+            }
+        } catch (Throwable e) {
+            writeError(writer, e);
+        } finally {
+            mv.close();
         }
     }
 

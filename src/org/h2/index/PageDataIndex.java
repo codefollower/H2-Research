@@ -97,9 +97,9 @@ public class PageDataIndex extends PageIndex {
     }
 
     @Override
-    public DbException getDuplicateKeyException() {
+    public DbException getDuplicateKeyException(String key) {
         if (fastDuplicateKeyException == null) {
-            fastDuplicateKeyException = super.getDuplicateKeyException();
+            fastDuplicateKeyException = super.getDuplicateKeyException(null);
         }
         return fastDuplicateKeyException;
     }
@@ -396,7 +396,7 @@ public class PageDataIndex extends PageIndex {
             PageData root = getPage(rootPageId, 0);
             root.freeRecursive();
             root = PageDataLeaf.create(this, rootPageId, PageData.ROOT);
-            store.removeRecord(rootPageId);
+            store.removeFromCache(rootPageId);
             store.update(root);
             rowCount = 0;
             lastKey = 0;

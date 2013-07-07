@@ -41,7 +41,7 @@ public class MVSecondaryIndex extends BaseIndex {
     final MVTable mvTable;
 
     private final int keyColumns;
-    private String mapName;
+    private final String mapName;
     private TransactionMap<Value, Value> dataMap;
 
     public MVSecondaryIndex(Database db, MVTable table, int id, String indexName,
@@ -59,7 +59,7 @@ public class MVSecondaryIndex extends BaseIndex {
             sortTypes[i] = columns[i].sortType;
         }
         sortTypes[keyColumns - 1] = SortOrder.ASCENDING;
-        mapName = getName() + "_" + getId();
+        mapName = "index." + getId();
         //keyType和valueType与MVPrimaryIndex刚好相反，MVPrimaryIndex的keyType是new ValueDataType(null, null, null)
         ValueDataType keyType = new ValueDataType(
                 db.getCompareMode(), db, sortTypes);
@@ -79,15 +79,6 @@ public class MVSecondaryIndex extends BaseIndex {
     //MVPrimaryIndex没有覆盖rename方法，因为MVPrimaryIndex没有Create SQL，而MVSecondaryIndex有Create SQL，
     //有Create SQL说明就可以对索引得命名
     @Override
-    public void rename(String newName) {
-        TransactionMap<Value, Value> map = getMap(null);
-        String newMapName = newName + "_" + getId();
-        map.renameMap(newMapName);
-        mapName = newMapName;
-        super.rename(newName);
-    }
-
-    @Override
     public void add(Session session, Row row) {
         TransactionMap<Value, Value> map = getMap(session);
         ValueArray array = getKey(row); //把所有索引列和行key组合成map的key
@@ -98,23 +89,31 @@ public class MVSecondaryIndex extends BaseIndex {
                 SearchRow r2 = getRow(key.getList());
                 if (compareRows(row, r2) == 0) {
                     if (!containsNullAndAllowMultipleNull(r2)) {
-                        throw getDuplicateKeyException();
+                        throw getDuplicateKeyException(key.toString());
                     }
                 }
             }
         }
         array.getList()[keyColumns - 1] = ValueLong.get(row.getKey()); //在唯一索引时会改变为0，所以这里重新设置回来
-        map.put(array, ValueLong.get(0)); //值都是0
+        try {
+            map.put(array, ValueLong.get(0)); //值都是0
+        } catch (IllegalStateException e) {
+            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, table.getName());
+        }
     }
 
     @Override
     public void remove(Session session, Row row) {
         ValueArray array = getKey(row); //把所有索引列和行key组合成map的key
         TransactionMap<Value, Value> map = getMap(session);
-        Value old = map.remove(array);
-        if (old == null) {
-            throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
-                    getSQL() + ": " + row.getKey());
+        try {
+            Value old = map.remove(array);
+            if (old == null) {
+                throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
+                        getSQL() + ": " + row.getKey());
+            }
+        } catch (IllegalStateException e) {
+            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, table.getName());
         }
     }
 
@@ -171,7 +170,11 @@ public class MVSecondaryIndex extends BaseIndex {
 
     @Override
     public double getCost(Session session, int[] masks, SortOrder sortOrder) {
-        return 10 * getCostRangeIndex(masks, dataMap.map.getSize(), sortOrder);
+        try {
+            return 10 * getCostRangeIndex(masks, dataMap.map.getSize(), sortOrder);
+        } catch (IllegalStateException e) {
+            throw DbException.get(ErrorCode.OBJECT_CLOSED);
+        }
     }
 
     @Override
@@ -216,9 +219,13 @@ public class MVSecondaryIndex extends BaseIndex {
 
     @Override
     public boolean needRebuild() {
-    	//在数据库init时，会构造MVSecondaryIndex的实例，此时索引中可能是有记录的
-    	//这时就不需要重建，如果是通过CREATE INDEX新建立索引，此时Map中肯定没有记录。
-        return dataMap.map.getSize() == 0; //Map中没有记录时才要重建
+        try {
+            //在数据库init时，会构造MVSecondaryIndex的实例，此时索引中可能是有记录的
+            //这时就不需要重建，如果是通过CREATE INDEX新建立索引，此时Map中肯定没有记录。
+            return dataMap.map.getSize() == 0; //Map中没有记录时才要重建
+        } catch (IllegalStateException e) {
+            throw DbException.get(ErrorCode.OBJECT_CLOSED);
+        }
     }
 
     @Override
@@ -232,7 +239,11 @@ public class MVSecondaryIndex extends BaseIndex {
 
     @Override
     public long getRowCountApproximation() {
-        return dataMap.map.getSize();
+        try {
+            return dataMap.map.getSize();
+        } catch (IllegalStateException e) {
+            throw DbException.get(ErrorCode.OBJECT_CLOSED);
+        }
     }
 
     @Override
