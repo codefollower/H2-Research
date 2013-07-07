@@ -22,7 +22,6 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
-
 import org.h2.constant.ErrorCode;
 import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
@@ -323,6 +322,11 @@ public class DataType {
                 // 80 for ValueLob, 24 for String
                 104
         );
+        add(Value.GEOMETRY, Types.OTHER, "Geometry",
+                createString(false),
+                new String[]{"GEOMETRY"},
+                32
+        );
         DataType dataType = new DataType();
         dataType.prefix = "(";
         dataType.suffix = "')";
@@ -600,6 +604,13 @@ public class DataType {
                 }
                 return ValueResultSet.get(rs);
             }
+            case Value.GEOMETRY: {
+                com.vividsolutions.jts.geom.Geometry x = (com.vividsolutions.jts.geom.Geometry) rs.getObject(columnIndex);
+                if (x == null) {
+                    return ValueNull.INSTANCE;
+                }
+                return ValueGeometry.get(x);
+            }
             default:
                 throw DbException.throwInternalError("type="+type);
             }
@@ -677,6 +688,8 @@ public class DataType {
             return Array.class.getName();
         case Value.RESULT_SET:
             return ResultSet.class.getName();
+        case Value.GEOMETRY:
+            return com.vividsolutions.jts.geom.Geometry.class.getName();
         default:
             throw DbException.throwInternalError("type="+type);
         }
@@ -838,6 +851,8 @@ public class DataType {
         } else if (Object[].class.isAssignableFrom(x)) {
             // this includes String[] and so on
             return Value.ARRAY;
+        } else if (com.vividsolutions.jts.geom.Geometry.class.isAssignableFrom(x)) {
+            return Value.GEOMETRY;
         } else {
             return Value.JAVA_OBJECT;
         }
@@ -926,6 +941,8 @@ public class DataType {
             return ValueArray.get(x.getClass().getComponentType(), v);
         } else if (x instanceof Character) {
             return ValueStringFixed.get(((Character) x).toString());
+        } else if (x instanceof com.vividsolutions.jts.geom.Geometry) {
+            return ValueGeometry.get((com.vividsolutions.jts.geom.Geometry) x);
         } else {
             return ValueJavaObject.getNoCopy(x, null);
         }

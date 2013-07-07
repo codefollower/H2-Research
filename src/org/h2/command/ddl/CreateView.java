@@ -73,6 +73,7 @@ public class CreateView extends SchemaCommand {
     @Override
     public int update() {
         session.commit(true);
+        session.getUser().checkAdmin();
         Database db = session.getDatabase();
         TableView view = null;
         Table old = getSchema().findTableOrView(session, viewName);
@@ -95,7 +96,7 @@ public class CreateView extends SchemaCommand {
     		//如:CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view (f1,f2) AS SELECT id,name FROM CreateViewTest where id=?"
             ArrayList<Parameter> params = select.getParameters();
             if (params != null && params.size() > 0) {
-                throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, "parameters in views");
+                throw DbException.getUnsupportedException("parameters in views");
             }
             querySQL = select.getPlanSQL();
         }

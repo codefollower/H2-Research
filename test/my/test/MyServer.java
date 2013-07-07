@@ -25,7 +25,7 @@ public class MyServer {
 		// list.add("mydb");
 		// list.add("mydatabase");
 
-		//list.add("-pg");
+		list.add("-pg");
 		list.add("-tcp");
 		//list.add("-web");
 		org.h2.tools.Server.main(list.toArray(new String[list.size()]));

@@ -132,12 +132,6 @@ public class MVTable extends TableBase {
         }
     }
 
-    @Override
-    public void rename(String newName) {
-        super.rename(newName);
-        primaryIndex.renameTable(newName);
-    }
-
     private void doLock(Session session, int lockMode, boolean exclusive) {
         traceLock(session, exclusive, "requesting for");
         // don't get the current time unless necessary
@@ -368,7 +362,7 @@ public class MVTable extends TableBase {
      * @param key the primary key
      * @return the row
      */
-    Row getRow(Session session, long key) { //从辅助索引那里过来的，索引那里记录了主表记录的key，按key获取主表的完整记录
+    public Row getRow(Session session, long key) { //从辅助索引那里过来的，索引那里记录了主表记录的key，按key获取主表的完整记录
         return primaryIndex.getRow(session, key);
     }
     
@@ -397,7 +391,14 @@ public class MVTable extends TableBase {
         //  if (isPersistIndexes() && indexType.isPersistent()) {
         int mainIndexColumn;
         mainIndexColumn = getMainIndexColumn(indexType, cols);
-        if (!database.isStarting() && primaryIndex.getRowCount(session) != 0) {
+        if (database.isStarting()) {
+            index = new MVSecondaryIndex(session.getDatabase(),
+                    this, indexId,
+                    indexName, cols, indexType);
+            if (index.getRowCountApproximation() != 0) {
+                mainIndexColumn = -1;
+            }
+        } else if (primaryIndex.getRowCount(session) != 0) {
             mainIndexColumn = -1;
         }
         if (mainIndexColumn != -1) {
@@ -421,10 +422,10 @@ public class MVTable extends TableBase {
                 String n = getName() + ":" + index.getName();
                 int t = MathUtils.convertLongToInt(total);
                 while (cursor.next()) {
-                    database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, n,
-                            MathUtils.convertLongToInt(i++), t);
                     Row row = cursor.get();
                     buffer.add(row);
+                    database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, n,
+                            MathUtils.convertLongToInt(i++), t);
                     if (buffer.size() >= bufferSize) {
                         addRowsToIndex(session, buffer, index);
                     }

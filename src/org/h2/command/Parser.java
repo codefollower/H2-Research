@@ -850,6 +850,11 @@ public class Parser {
         } else if (readIf("DEFAULT_TRANSACTION_ISOLATION")) {
             // for PostgreSQL compatibility
             buff.append("'read committed' AS DEFAULT_TRANSACTION_ISOLATION FROM DUAL");
+        } else if (readIf("TRANSACTION")) {
+            // for PostgreSQL compatibility
+            read("ISOLATION");
+            read("LEVEL");
+            buff.append("'read committed' AS TRANSACTION_ISOLATION FROM DUAL");
         } else if (readIf("DATESTYLE")) {
             // for PostgreSQL compatibility
             buff.append("'ISO' AS DATESTYLE FROM DUAL");
@@ -1963,6 +1968,14 @@ public class Parser {
             read(")");
             return new ConditionExists(query);
         }
+        if (readIf("INTERSECTS")) {
+            read("(");
+            Expression r1 = readConcat();
+            read(",");
+            Expression r2 = readConcat();
+            read(")");
+            return new Comparison(session, Comparison.SPATIAL_INTERSECTS, r1, r2);
+        }
         Expression r = readConcat();
         while (true) {
             // special case: NOT NULL is not part of an expression (as in CREATE
@@ -2186,10 +2199,10 @@ public class Parser {
             Aggregate agg = new Aggregate(Aggregate.GROUP_CONCAT, readExpression(), currentSelect, distinct);
             if (readIf("ORDER")) {
                 read("BY");
-                agg.setOrder(parseSimpleOrderList());
+                agg.setGroupConcatOrder(parseSimpleOrderList());
             }
             if (readIf("SEPARATOR")) {
-                agg.setSeparator(readExpression());
+                agg.setGroupConcatSeparator(readExpression());
             }
             r = agg;
         } else {
@@ -2328,13 +2341,27 @@ public class Parser {
             break;
         }
         case Function.SUBSTRING: {
+            // Different variants include:
+            // SUBSTRING(X,1)
+            // SUBSTRING(X,1,1)
+            // SUBSTRING(X FROM 1 FOR 1) -- Postgres
+            // SUBSTRING(X FROM 1) -- Postgres
+            // SUBSTRING(X FOR 1) -- Postgres
             function.setParameter(0, readExpression());
-            if (!readIf(",")) {
-                read("FROM");
-            }
-            function.setParameter(1, readExpression());
-            if (readIf("FOR") || readIf(",")) {
+            if (readIf("FROM")) {
+                function.setParameter(1, readExpression());
+                if (readIf("FOR")) {
+                    function.setParameter(2, readExpression());
+                }
+            } else if (readIf("FOR")) {
+                function.setParameter(1, ValueExpression.get(ValueInt.get(0)));
                 function.setParameter(2, readExpression());
+            } else {
+                read(",");
+                function.setParameter(1, readExpression());
+                if (readIf(",")) {
+                    function.setParameter(2, readExpression());
+                }
             }
             read(")");
             break;
@@ -2755,6 +2782,10 @@ public class Parser {
         }
         if (readIf("::")) {
             // PostgreSQL compatibility
+            if (isToken("PG_CATALOG")) {
+                read("PG_CATALOG");
+                read(".");
+            }
             if (readIf("REGCLASS")) {
             	//如下:
             	//stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS PG_GET_OID FOR \"my.test.ParserTest.testPG_GET_OID\"");
@@ -4103,7 +4134,7 @@ public class Parser {
             }
             return parseCreateTable(false, false, cached);
         } else { //这个else分枝是处理建索引语法
-            boolean hash = false, primaryKey = false, unique = false;
+            boolean hash = false, primaryKey = false, unique = false, spatial = false;
             String indexName = null;
             Schema oldSchema = null;
             boolean ifNotExists = false;
@@ -4129,6 +4160,9 @@ public class Parser {
                 if (readIf("HASH")) {
                     hash = true;
                 }
+                if (readIf("SPATIAL")) {
+                    spatial = true;
+                }
                 if (readIf("INDEX")) {
                     if (!isToken("ON")) {
                         ifNotExists = readIfNoExists();
@@ -4145,6 +4179,7 @@ public class Parser {
             CreateIndex command = new CreateIndex(session, getSchema());
             command.setIfNotExists(ifNotExists);
             command.setHash(hash);
+            command.setSpatial(spatial);
             command.setPrimaryKey(primaryKey);
             command.setTableName(tableName);
             command.setUnique(unique);
@@ -5653,10 +5688,17 @@ public class Parser {
                 if ("InnoDb".equalsIgnoreCase(tableEngine)) {
                     // ok
                 } else if (!"MyISAM".equalsIgnoreCase(tableEngine)) {
-                    throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, tableEngine);
+                    throw DbException.getUnsupportedException(tableEngine);
                 }
             } else {
                 command.setTableEngine(readUniqueIdentifier());
+                if (readIf("WITH")) {
+                    ArrayList<String> tableEngineParams = New.arrayList();
+                    do {
+                        tableEngineParams.add(readUniqueIdentifier());
+                    } while (readIf(","));
+                    command.setTableEngineParams(tableEngineParams);
+                }
             }
         } else if (database.getSettings().defaultTableEngine != null) {
             command.setTableEngine(database.getSettings().defaultTableEngine);

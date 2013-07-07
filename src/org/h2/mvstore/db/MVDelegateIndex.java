@@ -81,7 +81,7 @@ public class MVDelegateIndex extends BaseIndex {
     //跟MVSecondaryIndex的一样，因为本身就相当于一个primary key的MVSecondaryIndex
     @Override
     public double getCost(Session session, int[] masks, SortOrder sortOrder) {
-        return 10 * getCostRangeIndex(masks, mainIndex.getRowCount(session), sortOrder);
+        return 10 * getCostRangeIndex(masks, mainIndex.getRowCountApproximation(), sortOrder);
     }
 
     @Override

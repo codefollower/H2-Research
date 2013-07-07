@@ -431,11 +431,11 @@ public class PageLog {
      */
     private void setPrepareCommit(int sessionId, int pageId, String transaction) {
         SessionState state = getOrAddSessionState(sessionId);
-        InDoubtTransaction doubt;
+        PageStoreInDoubtTransaction doubt;
         if (transaction == null) {
             doubt = null;
         } else {
-            doubt = new InDoubtTransaction(store, sessionId, pageId, transaction);
+            doubt = new PageStoreInDoubtTransaction(store, sessionId, pageId, transaction);
         }
         state.inDoubtTransaction = doubt;
     }
@@ -832,7 +832,7 @@ public class PageLog {
     ArrayList<InDoubtTransaction> getInDoubtTransactions() {
         ArrayList<InDoubtTransaction> list = New.arrayList();
         for (SessionState state : sessionStates.values()) {
-            InDoubtTransaction in = state.inDoubtTransaction;
+            PageStoreInDoubtTransaction in = state.inDoubtTransaction;
             if (in != null) {
                 list.add(in);
             }

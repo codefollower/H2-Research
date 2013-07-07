@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
+
 import org.h2.api.DatabaseEventListener;
 import org.h2.command.ddl.CreateTableData;
 import org.h2.command.dml.SetTypes;
@@ -1781,6 +1782,9 @@ public class Database implements DataHandler {
      * @return the list
      */
     public ArrayList<InDoubtTransaction> getInDoubtTransactions() {
+        if (mvStore != null) {
+            return mvStore.getInDoubtTransactions();
+        }
         return pageStore == null ? null : pageStore.getInDoubtTransactions();
     }
 
@@ -1792,6 +1796,11 @@ public class Database implements DataHandler {
      */
     synchronized void prepareCommit(Session session, String transaction) {
         if (readOnly) {
+            return;
+        }
+        if (mvStore != null) {
+            mvStore.prepareCommit(session, transaction);
+            pageStore.flushLog();
             return;
         }
         pageStore.prepareCommit(session, transaction);

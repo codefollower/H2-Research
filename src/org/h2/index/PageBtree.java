@@ -131,7 +131,7 @@ public abstract class PageBtree extends Page {
             	//3. 其他情况: 如果要比较的记录含null字段，返回true，否则返回false, 抛出DuplicateKeyException
                 if (add && index.indexType.isUnique()) {
                     if (!index.containsNullAndAllowMultipleNull(compare)) {
-                        throw index.getDuplicateKeyException();
+                        throw index.getDuplicateKeyException(compare.toString());
                     }
                 }
                 if (compareKeys) {
@@ -221,7 +221,7 @@ public abstract class PageBtree extends Page {
     void setPageId(int id) {
         changeCount = index.getPageStore().getChangeCount();
         written = false;
-        index.getPageStore().removeRecord(getPos());
+        index.getPageStore().removeFromCache(getPos());
         setPos(id);
         index.getPageStore().logUndo(this, null);
         remapChildren();
