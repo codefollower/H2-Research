@@ -16,9 +16,12 @@ public class CreateUserTest extends TestBase {
 	//和org.h2.engine.User
 	@Override
 	public void startInternal() throws Exception {
+	    stmt.executeUpdate("DROP SCHEMA IF EXISTS TEST_SCHEMA2");
+	    
 		stmt.executeUpdate("DROP ROLE IF EXISTS sa1");
 		// stmt.executeUpdate("CREATE ROLE IF NOT EXISTS sa1");
 
+		stmt.executeUpdate("DROP USER IF EXISTS SA222 CASCADE");
 		stmt.executeUpdate("DROP USER IF EXISTS sa1 CASCADE");
 		//stmt.executeUpdate("DROP USER IF EXISTS SA2 CASCADE");
 		stmt.executeUpdate("DROP USER IF EXISTS SA3 CASCADE");

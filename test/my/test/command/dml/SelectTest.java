@@ -364,7 +364,11 @@ public class SelectTest extends TestBase {
 		sql = "select id,name,count(id),sum(id) from mytable where id>0  group by id,name  having id<3";
 
 		//sql = "select id,count(id) from mytable where id>2  group by id having id=3";
+
+		sql = "select id,count(id) from mytable t where id>2  group by id having t.id=3";
 		
+		//stmt.executeUpdate("set @X=6");
+		sql = "SELECT 6/3 AS A, COUNT(*) FROM SYSTEM_RANGE(1, 10) GROUP BY A HAVING A>2";
 		executeQuery();
 	}
 

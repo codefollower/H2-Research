@@ -161,7 +161,7 @@ COMMAND_EXECUTE_QUERY
 ------------------------------------
 int     COMMAND_EXECUTE_QUERY(2)
 int     id(对应prepare阶段生成的id)
-int     objectId(跟id类似，实际上就是一个递增计数器)
+int     objectId(跟id类似，实际上就是一个递增计数器，在server端缓存查询结果集时，这个objectId就是结果集的缓存key)
 int     maxRows
 int     fetchSize
 int     sql parameter size
@@ -208,7 +208,7 @@ COMMAND_GET_META_DATA
 ------------------------------------
 int     COMMAND_GET_META_DATA(10)
 int     id(对应prepare阶段生成的id)
-int     objectId(跟id类似，实际上就是一个递增计数器)
+int     objectId(跟id类似，实际上就是一个递增计数器，在server端缓存元数据结果集时，这个objectId就是结果集的缓存key)
 ------------------------------------
 
 server响应:

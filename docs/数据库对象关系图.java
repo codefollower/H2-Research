@@ -24,7 +24,6 @@ Table
 	Constraint
 	Sequence
 	TriggerObject
-	Constant
 	Right
 
 
