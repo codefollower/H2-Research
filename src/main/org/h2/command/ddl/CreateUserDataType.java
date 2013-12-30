@@ -20,6 +20,7 @@ import org.h2.value.DataType;
  * This class represents the statement
  * CREATE DOMAIN
  */
+//CREATE DOMAIN、CREATE TYPE、CREATE DATATYPE都是一样的
 public class CreateUserDataType extends DefineCommand {
 
     private String typeName;
@@ -57,8 +58,17 @@ public class CreateUserDataType extends DefineCommand {
         DataType builtIn = DataType.getTypeByName(typeName);
         if (builtIn != null) {
             if (!builtIn.hidden) {
+            	//从第二个名称开始的都是隐藏类型的，如下面的int
+                //new String[]{"INTEGER", "INT", "MEDIUMINT", "INT4", "SIGNED"}
+                //隐藏类型在用户在数据库中没有建表时可以覆盖
+                //如CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+                //但是非隐藏类型就不能覆盖
+                //如CREATE DATATYPE IF NOT EXISTS integer AS VARCHAR(255)
                 throw DbException.get(ErrorCode.USER_DATA_TYPE_ALREADY_EXISTS_1, typeName);
             }
+            
+            //如果用户在数据库中没有建表，那么自定义的字段类型可以与内置字段类型的名字一样
+            //如CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
             Table table = session.getDatabase().getFirstUserTable();
             if (table != null) {
                 throw DbException.get(ErrorCode.USER_DATA_TYPE_ALREADY_EXISTS_1, typeName + " (" + table.getSQL() + ")");

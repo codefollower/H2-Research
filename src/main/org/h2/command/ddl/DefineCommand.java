@@ -32,12 +32,13 @@ public abstract class DefineCommand extends Prepared {
     }
 
     @Override
-    public boolean isReadOnly() {
+    public boolean isReadOnly() { //无子类覆盖
         return false;
     }
 
     @Override
-    public ResultInterface queryMeta() {
+    public ResultInterface queryMeta() { //无子类覆盖
+
         return null;
     }
 

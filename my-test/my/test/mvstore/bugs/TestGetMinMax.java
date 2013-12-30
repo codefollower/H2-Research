@@ -9,7 +9,7 @@ public class TestGetMinMax {
 	@Test
 	public void testGetMinMax() throws Exception {
 		MVStore store = MVStore.open(null);
-		store.setPageSize(512);
+		//store.setPageSize(512);
 
 		MVMap<Integer, String> map = store.openMap("MVMapTest");
 

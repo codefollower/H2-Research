@@ -20,7 +20,7 @@ import org.h2.util.BitField;
  */
 public class PageFreeList extends Page {
 
-    private static final int DATA_START = 3;
+    private static final int DATA_START = 3; //头三个字节
 
     private final PageStore store;
     private final BitField used;
@@ -32,9 +32,12 @@ public class PageFreeList extends Page {
         // kept in cache, and array list in page store
         setPos(pageId);
         this.store = store;
+        //写PageFreeList这个Page到文件时，第1个字节是page type，第2和3个字节是checksum，所以实际的pageSize要减3，
+        //为什第要乘以8呢，因为1个字节占8位，
+        //BitField(pageCount)里会除以8，所以BitField实际分配了pageCount个long
         pageCount = (store.getPageSize() - DATA_START) * 8;
         used = new BitField(pageCount);
-        used.set(0);
+        used.set(0); //把BitField中的第一个long的第1位置1，相当于第1位被占用
     }
 
     /**
@@ -185,7 +188,7 @@ public class PageFreeList extends Page {
      * @return the number of pages
      */
     public static int getPagesAddressed(int pageSize) {
-        return (pageSize - DATA_START) * 8;
+        return (pageSize - DATA_START) * 8; //比如一个page的size是2K，那么减去头三个字节后就是剩下的字节数，再乘以8以表示bit位数
     }
 
     /**

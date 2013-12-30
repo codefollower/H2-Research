@@ -56,6 +56,7 @@ public class Delete extends Prepared {
         Table table = tableFilter.getTable();
         session.getUser().checkRight(table, Right.DELETE);
         table.fire(session, Trigger.DELETE, true);
+        //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
         table.lock(session, true, false);
         RowList rows = new RowList(session);
         int limitRows = -1;
@@ -68,8 +69,13 @@ public class Delete extends Prepared {
         try {
             setCurrentRowNumber(0);
             int count = 0;
+            //比如delete from DeleteTest limit 0，
+            //此时limitRows为0，不删除任何行
             while (limitRows != 0 && tableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
+                //condition.getBooleanValue(session)内部会取当前行与之比较，
+                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
+                //然后在从当前行中按列id取当前行value数组中对应元素
                 if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
                     Row row = tableFilter.get();
                     boolean done = false;
@@ -120,7 +126,9 @@ public class Delete extends Prepared {
         }
         return buff.toString();
     }
-
+    
+    //limitExpr在org.h2.command.Parser.parseDelete()中调用过optimize了，所以在这里不用再调用
+    //因为limitExpr不会涉及到列，所以也不需要调用mapColumns
     @Override
     public void prepare() {
         if (condition != null) {
@@ -128,6 +136,7 @@ public class Delete extends Prepared {
             condition = condition.optimize(session);
             condition.createIndexConditions(session, tableFilter);
         }
+        //为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
         PlanItem item = tableFilter.getBestPlanItem(session, 1);
         tableFilter.setPlanItem(item);
         tableFilter.prepare();

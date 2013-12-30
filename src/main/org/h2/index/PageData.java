@@ -101,7 +101,7 @@ abstract class PageData extends Page {
      * @param key the key (may not exist)
      * @return the matching or next index
      */
-    int find(long key) {
+    int find(long key) { //折半查找
         int l = 0, r = entryCount;
         while (l < r) {
             int i = (l + r) >>> 1;

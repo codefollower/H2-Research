@@ -57,6 +57,7 @@ public class PageDataIndex extends PageIndex {
 
     private final boolean multiVersion;
 
+    //PageDataIndex的id就是表的id，其他索引如PageBtreeIndex的id是自动分配的并不是表的id
     public PageDataIndex(RegularTable table, int id, IndexColumn[] columns,
             IndexType indexType, boolean create, Session session) {
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
@@ -82,6 +83,8 @@ public class PageDataIndex extends PageIndex {
             PageDataLeaf root = PageDataLeaf.create(this, rootPageId, PageData.ROOT);
             store.update(root);
         } else {
+        	//第一次从org.h2.store.PageStore.openMetaIndex()那转过来时，id是-1，此时取出来的rootPageId是4
+        	//是在org.h2.store.PageStore.open()那事先放入的，pageId=4的页固定是metaIndex的rootPageId
             rootPageId = store.getRootPageId(id);
             PageData root = getPage(rootPageId, 0);
             lastKey = root.getLastKey();
@@ -233,6 +236,8 @@ public class PageDataIndex extends PageIndex {
         if (pd == null) {
             PageDataLeaf empty = PageDataLeaf.create(this, id, parent);
             // could have been created before, but never committed
+            //从org.h2.store.PageStore.openNew()转到这时，因为recoveryRunning是true，所以logUndo什么都没做
+            //在store.update中才真正分配id
             store.logUndo(empty, null);
             store.update(empty);
             return empty;

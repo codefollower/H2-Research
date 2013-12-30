@@ -91,6 +91,9 @@ public class CreateView extends SchemaCommand {
         if (select == null) {
             querySQL = selectSQL;
         } else {
+        	//目前不支持参数:
+    		//org.h2.jdbc.JdbcSQLException: Feature not supported: "parameters in views"; SQL statement:
+    		//如:CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view (f1,f2) AS SELECT id,name FROM CreateViewTest where id=?"
             ArrayList<Parameter> params = select.getParameters();
             if (params != null && params.size() > 0) {
                 throw DbException.getUnsupportedException("parameters in views");
@@ -99,13 +102,15 @@ public class CreateView extends SchemaCommand {
         }
         // The view creates a Prepared command object, which belongs to a
         // session, so we pass the system session down.
-        Session sysSession = db.getSystemSession();
+        Session sysSession = db.getSystemSession(); //TODO 为什么一定要用system session？换成自己的session运行也没出问题?
         try {
             if (view == null) {
                 Schema schema = session.getDatabase().getSchema(session.getCurrentSchemaName());
                 sysSession.setCurrentSchema(schema);
+                //sysSession = session; //我加上的
                 view = new TableView(getSchema(), id, viewName, querySQL, null, columnNames, sysSession, false);
             } else {
+            	//sysSession = session; //我加上的
                 view.replace(querySQL, columnNames, sysSession, false, force);
                 view.setModified();
             }

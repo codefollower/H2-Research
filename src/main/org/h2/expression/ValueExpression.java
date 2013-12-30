@@ -83,7 +83,7 @@ public class ValueExpression extends Expression {
     public void createIndexConditions(Session session, TableFilter filter) {
         if (value.getType() == Value.BOOLEAN) {
             boolean v = ((ValueBoolean) value).getBoolean().booleanValue();
-            if (!v) {
+            if (!v) { //如delete from DeleteTest where 3<2
                 filter.addIndexCondition(IndexCondition.get(Comparison.FALSE, null, this));
             }
         }

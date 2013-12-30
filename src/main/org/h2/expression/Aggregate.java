@@ -118,11 +118,19 @@ public class Aggregate extends Expression {
 
     private static final HashMap<String, Integer> AGGREGATES = New.hashMap();
 
+    //对于select GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest
+    //type = GROUP_CONCAT
+    //select = org.h2.command.dml.Select
+    //distinct = true
+    //on = 对应name的表达式org.h2.expression.ExpressionColumn
+    //separator = 对应','的表达式
+    //orderList = ORDER BY id
     private final int type;
     private final Select select;
     private final boolean distinct;
 
     private Expression on;
+    //只有GROUP_CONCAT才有separator、orderList
     private Expression groupConcatSeparator;
     private ArrayList<SelectOrderBy> groupConcatOrderList;
     private SortOrder groupConcatSort;
@@ -212,11 +220,11 @@ public class Aggregate extends Expression {
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
             SelectOrderBy o = groupConcatOrderList.get(i);
-            index[i] = i + 1;
+            index[i] = i + 1; //为什么要从1开如呢，因为0号下标给GROUP_CONCAT中的表达式用
             int order = o.descending ? SortOrder.DESCENDING : SortOrder.ASCENDING;
             sortType[i] = order;
         }
-        return new SortOrder(session.getDatabase(), index, sortType, null);
+        return new SortOrder(session.getDatabase(), index, sortType, null, null);
     }
 
     @Override
@@ -247,6 +255,8 @@ public class Aggregate extends Expression {
         if (type == GROUP_CONCAT) {
             if (v != ValueNull.INSTANCE) {
                 v = v.convertTo(Value.STRING);
+                //对于select GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest
+                //v=name字段的值，这里是把name字段的值和排序字段id的值合成一个Value[] array
                 if (groupConcatOrderList != null) {
                     int size = groupConcatOrderList.size();
                     Value[] array = new Value[1 + size];
@@ -264,6 +274,8 @@ public class Aggregate extends Expression {
 
     @Override
     public Value getValue(Session session) {
+        //快速聚合查询，行数通过索引里的某个字段就能得到
+        //同样min、max也好得到，因为b-tree索引是有序的，只要字段是索引主键min就是第一行、max就是最后一行
         if (select.isQuickAggregateQuery()) {
             switch (type) {
             case COUNT:
@@ -293,6 +305,9 @@ public class Aggregate extends Expression {
         }
         HashMap<Expression, Object> group = select.getCurrentGroup();
         if (group == null) {
+            //比如: select ABS(SELECTIVITY(id)) from AggregateTest where max(id)>9
+            //聚合函数不能用于Where中
+            //但是可以用于having中，如: select id,count(id) from AggregateTest group by id having max(id)>9";
             throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getSQL());
         }
         AggregateData data = (AggregateData) group.get(this);
@@ -548,6 +563,7 @@ public class Aggregate extends Expression {
         return text + StringUtils.enclose(on.getSQL());
     }
 
+    //on是索引的第一个字段，且此索引能够确定第一行和最后一行记录
     private Index getColumnIndex() {
         if (on instanceof ExpressionColumn) {
             ExpressionColumn col = (ExpressionColumn) on;
@@ -564,14 +580,15 @@ public class Aggregate extends Expression {
 
     @Override
     public boolean isEverything(ExpressionVisitor visitor) {
+        //对应org.h2.command.dml.Select的isQuickAggregateQuery的情况
         if (visitor.getType() == ExpressionVisitor.OPTIMIZABLE_MIN_MAX_COUNT_ALL) {
             switch (type) {
-            case COUNT:
+            case COUNT: //count(指定字段)的情况，这种场景如果是DISTINCT或字段为null，那么不能使用OPTIMIZABLE_MIN_MAX_COUNT_ALL优化
                 if (!distinct && on.getNullable() == Column.NOT_NULLABLE) {
                     return visitor.getTable().canGetRowCount();
                 }
                 return false;
-            case COUNT_ALL:
+            case COUNT_ALL: //count(*)的情况
                 return visitor.getTable().canGetRowCount();
             case MIN:
             case MAX:

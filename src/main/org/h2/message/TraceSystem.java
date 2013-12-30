@@ -29,7 +29,7 @@ import org.h2.util.New;
  * the file will be opened and closed again (which is slower).
  */
 public class TraceSystem implements TraceWriter {
-
+	//跟踪级别数字越大，表示输入的信息就可能越多，比如设为DEBUG(3)时，如果调用info方法输出，显然INFO为2<=3，所以输出inof信息
     /**
      * The parent trace level should be used.
      */
@@ -79,8 +79,10 @@ public class TraceSystem implements TraceWriter {
     private static final int DEFAULT_MAX_FILE_SIZE = 64 * 1024 * 1024;
 
     private static final int CHECK_SIZE_EACH_WRITES = 128;
-
+    
+    //用于SystemOut的级别，默认关闭
     private int levelSystemOut = DEFAULT_TRACE_LEVEL_SYSTEM_OUT;
+    //用于写入文件的级别，默认ERROR
     private int levelFile = DEFAULT_TRACE_LEVEL_FILE;
     private int levelMax;
     private int maxFileSize = DEFAULT_MAX_FILE_SIZE;

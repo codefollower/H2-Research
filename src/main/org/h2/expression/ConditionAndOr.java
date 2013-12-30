@@ -60,7 +60,7 @@ public class ConditionAndOr extends Condition {
 
     @Override
     public void createIndexConditions(Session session, TableFilter filter) {
-        if (andOrType == AND) {
+        if (andOrType == AND) { //只处理AND的场景
             left.createIndexConditions(session, filter);
             right.createIndexConditions(session, filter);
         }
@@ -130,6 +130,7 @@ public class ConditionAndOr extends Condition {
         // http://www-cs-students.stanford.edu/~wlam/compsci/sqlnulls
         left = left.optimize(session);
         right = right.optimize(session);
+        //Cost代价少的换左边
         int lc = left.getCost(), rc = right.getCost();
         if (rc < lc) {
             Expression t = left;

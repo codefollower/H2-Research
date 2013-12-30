@@ -15,6 +15,7 @@ import org.h2.util.New;
 /**
  * The data required to create a table.
  */
+//总共12个字段，都是默认值(null、false、0等)，只有columns字段不为null
 public class CreateTableData {
 
     /**
@@ -50,12 +51,12 @@ public class CreateTableData {
     /**
      * Whether the indexes should be persisted.
      */
-    public boolean persistIndexes;
+    public boolean persistIndexes; //在CreateTable类的构造函数中默认设为true
 
     /**
      * Whether the data should be persisted.
      */
-    public boolean persistData;
+    public boolean persistData; //在CreateTable类的构造函数中默认设为true
 
     /**
      * Whether to create a new table.
@@ -81,5 +82,11 @@ public class CreateTableData {
      * The table is hidden.
      */
     public boolean isHidden;
+
+	public String toString() { // 我加上的
+		return "CreateTableData[id=" + id + ", tableName=" + tableName
+				+ ", create=" + create + ", persistIndexes=" + persistIndexes
+				+ ", persistData=" + persistData + "]";
+	}
 
 }

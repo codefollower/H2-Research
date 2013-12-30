@@ -86,13 +86,14 @@ public class ConstraintCheck extends Constraint {
         table = null;
         invalidate();
     }
-
+    
+    //只用于insert和update
     @Override
     public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
         if (newRow == null) {
             return;
         }
-        filter.set(newRow);
+        filter.set(newRow); //为了在expr.getValue能取到当前newRow
         Boolean b;
         try {
             b = expr.getValue(session).getBoolean();
@@ -136,12 +137,16 @@ public class ConstraintCheck extends Constraint {
         return true;
     }
 
+    //通常是在构建约束对象之后马上根据CHECK和NOCHECK调用与不调用
     @Override
-    public void checkExistingData(Session session) {
+    public void checkExistingData(Session session) { //比如用于alter时
         if (session.getDatabase().isStarting()) {
             // don't check at startup
             return;
         }
+        //用NOT，意思就是说只要找到一个反例就与约束冲突了
+        //比如，如果是CHECK f1 not null，
+        //如果此时表中的f1字段存在null值，那么这个约束就创建失败
         String sql = "SELECT 1 FROM " + filter.getTable().getSQL() + " WHERE NOT(" + expr.getSQL() + ")";
         ResultInterface r = session.prepare(sql).query(1);
         if (r.next()) {

@@ -43,6 +43,14 @@ import org.h2.value.ValueNull;
  * This is the base class for most tables.
  * A table contains a list of columns and a list of rows.
  */
+//目前在7个子类
+//FunctionTable
+//MetaTable
+//RangeTable
+//MVTable
+//RegularTable
+//TableLink
+//TableView
 public abstract class Table extends SchemaObjectBase {
 
     /**
@@ -216,7 +224,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @throws DbException if it is not supported
      */
-    public abstract void checkSupportAlter();
+    public abstract void checkSupportAlter(); //只有MVTable和RegularTable支持
 
     /**
      * Get the table type name
@@ -266,7 +274,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @return true if it is
      */
-    public abstract boolean isDeterministic();
+    public abstract boolean isDeterministic(); //表TableLink是false，FunctionTable、TableView要看具体情况，其他子类返回true
 
     /**
      * Check if the row count can be retrieved quickly.
@@ -318,7 +326,7 @@ public abstract class Table extends SchemaObjectBase {
     }
 
     @Override
-    public String getCreateSQLForCopy(Table table, String quotedName) {
+    public String getCreateSQLForCopy(Table table, String quotedName) { //只有TableView覆盖了
         throw DbException.throwInternalError();
     }
 
@@ -348,7 +356,8 @@ public abstract class Table extends SchemaObjectBase {
         }
         dependencies.add(this);
     }
-
+    
+    //Table的children有6种: index、constraint、trigger、sequence、view、right
     @Override
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = New.arrayList();
@@ -423,7 +432,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param session the session
      * @return true if it is
      */
-    public boolean isLockedExclusivelyBy(Session session) {
+    public boolean isLockedExclusivelyBy(Session session) { //只有RegularTable覆盖此方法
         return false;
     }
 
@@ -446,11 +455,18 @@ public abstract class Table extends SchemaObjectBase {
             }
             Row o = rows.next();
             rows.next();
+            //为什么不是先记撤消日志再删除行呢？因为如果这样的话假设删除行不成功，但是日志记成功了，当rollback时又按日志做insert操作
+            //此时就多了一条记录了，
+            //那假设记撤消日志失败了呢? 这个不会出现的，因为session.log中进一步调用了org.h2.engine.UndoLog.add(UndoLogRecord)
+            //这个UndoLog.add方法的第一行就把UndoLogRecord增加到records中，只要严格确保在出现任何异常前先加入records，
+            //那么在rollback中就能找到之前被删除的行。
             removeRow(session, o);
             session.log(this, UndoLogRecord.DELETE, o);
         }
+        //int c=0;
         // add the new rows
         for (rows.reset(); rows.hasNext();) {
+        	//if(c++>2) throw DbException.get(ErrorCode.CANNOT_DROP_2);
             if ((++rowScanCount & 127) == 0) {
                 prepared.checkCanceled();
             }
@@ -654,6 +670,7 @@ public abstract class Table extends SchemaObjectBase {
         item.cost = item.getIndex().getCost(session, null, null, null);
         ArrayList<Index> indexes = getIndexes();
         if (indexes != null && masks != null) {
+        	//indexes[0]是ScanIndex，所以可以跳过，从1开始
             for (int i = 1, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 double cost = index.getCost(session, masks, filter, sortOrder);

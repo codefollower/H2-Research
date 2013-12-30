@@ -74,18 +74,25 @@ import org.h2.value.ValueUuid;
  * This class implements most built-in functions of this database.
  */
 public class Function extends Expression implements FunctionCall {
+	//Numeric Functions: 数值函数39个(LOG和LN等价，所以算一个)
     public static final int ABS = 0, ACOS = 1, ASIN = 2, ATAN = 3, ATAN2 = 4, BITAND = 5, BITOR = 6, BITXOR = 7,
             CEILING = 8, COS = 9, COT = 10, DEGREES = 11, EXP = 12, FLOOR = 13, LOG = 14, LOG10 = 15, MOD = 16,
             PI = 17, POWER = 18, RADIANS = 19, RAND = 20, ROUND = 21, ROUNDMAGIC = 22, SIGN = 23, SIN = 24, SQRT = 25,
             TAN = 26, TRUNCATE = 27, SECURE_RAND = 28, HASH = 29, ENCRYPT = 30, DECRYPT = 31, COMPRESS = 32,
             EXPAND = 33, ZERO = 34, RANDOM_UUID = 35, COSH = 36, SINH = 37, TANH = 38, LN = 39;
-
+    
+    //String Functions: 字符串函数43个(文档只有38个)
     public static final int ASCII = 50, BIT_LENGTH = 51, CHAR = 52, CHAR_LENGTH = 53, CONCAT = 54, DIFFERENCE = 55,
             HEXTORAW = 56, INSERT = 57, INSTR = 58, LCASE = 59, LEFT = 60, LENGTH = 61, LOCATE = 62, LTRIM = 63,
             OCTET_LENGTH = 64, RAWTOHEX = 65, REPEAT = 66, REPLACE = 67, RIGHT = 68, RTRIM = 69, SOUNDEX = 70,
             SPACE = 71, SUBSTR = 72, SUBSTRING = 73, UCASE = 74, LOWER = 75, UPPER = 76, POSITION = 77, TRIM = 78,
             STRINGENCODE = 79, STRINGDECODE = 80, STRINGTOUTF8 = 81, UTF8TOSTRING = 82, XMLATTR = 83, XMLNODE = 84,
             XMLCOMMENT = 85, XMLCDATA = 86, XMLSTARTDOC = 87, XMLTEXT = 88, REGEXP_REPLACE = 89, RPAD = 90, LPAD = 91,
+
+            //CONCAT_WS 表示:concat with separator
+    
+    //Time and Date Functions: 时间与日期函数26个(文档只有20个)
+
             CONCAT_WS = 92, TO_CHAR = 93;
 
     public static final int CURDATE = 100, CURTIME = 101, DATE_ADD = 102, DATE_DIFF = 103, DAY_NAME = 104,
@@ -94,6 +101,7 @@ public class Function extends Expression implements FunctionCall {
             CURRENT_TIMESTAMP = 119, EXTRACT = 120, FORMATDATETIME = 121, PARSEDATETIME = 122,
             ISO_YEAR = 123, ISO_WEEK = 124, ISO_DAY_OF_WEEK = 125;
 
+    //下面的都是System Functions: 系统函数9+31+1=41个(文档只有38个)
     public static final int DATABASE = 150, USER = 151, CURRENT_USER = 152, IDENTITY = 153, SCOPE_IDENTITY = 154,
             AUTOCOMMIT = 155, READONLY = 156, DATABASE_PATH = 157, LOCK_TIMEOUT = 158, DISK_SPACE_USED = 159;
 
@@ -114,12 +122,20 @@ public class Function extends Expression implements FunctionCall {
      */
     public static final int H2VERSION = 231;
 
-    public static final int ROW_NUMBER = 300;
+	//ROW_NUMBER函数虽然定义了，但ROW_NUMBER()函数无效，不支持这样的语法
+	//sql = "SELECT ROW_NUMBER()"; 
+	//ROWNUM函数虽然没有定义，但ROWNUM()是有效，Parser在解析时把他当成ROWNUM伪字段处理
+	//当成了org.h2.expression.Rownum，见org.h2.command.Parser.readTerm()
+	//sql = "SELECT ROWNUM()"; 
+	//这样就没问题了,在这个方法中org.h2.command.Parser.readFunction(Schema, String)
+	//把ROW_NUMBER转成org.h2.expression.Rownum了
+	//sql = "SELECT ROW_NUMBER()OVER()";
+	public static final int ROW_NUMBER = 300;
 
     private static final int VAR_ARGS = -1;
     private static final long PRECISION_UNKNOWN = -1;
 
-    private static final HashMap<String, FunctionInfo> FUNCTIONS = New.hashMap();
+    private static final HashMap<String, FunctionInfo> FUNCTIONS = new java.util.LinkedHashMap<String, FunctionInfo>();//New.hashMap();
     private static final HashMap<String, Integer> DATE_PART = New.hashMap();
     private static final char[] SOUNDEX_INDEX = new char[128];
 
@@ -168,7 +184,16 @@ public class Function extends Expression implements FunctionCall {
         DATE_PART.put("MILLISECOND", Calendar.MILLISECOND);
         DATE_PART.put("MS", Calendar.MILLISECOND);
 
-        // SOUNDEX_INDEX
+		// SOUNDEX_INDEX
+		// 34个字符(26个大写字母加1到8这8个数字)
+		// 7: AEIOUY 及它们的小写(下同)
+		// 8: HW
+		// 1: BFPV
+		// 2: CGJKQSXZ
+		// 3: DT
+		// 4: L
+		// 5: MN
+		// 6: R
         String index = "7AEIOUY8HW1BFPV2CGJKQSXZ3DT4L5MN6R";
         char number = 0;
         for (int i = 0, length = index.length(); i < length; i++) {
@@ -388,7 +413,7 @@ public class Function extends Expression implements FunctionCall {
     }
 
     private static void addFunction(String name, int type, int parameterCount, int dataType,
-            boolean nullIfParameterIsNull, boolean deterministic, boolean bufferResultSetToLocalTemp) {
+            boolean nullIfParameterIsNull, boolean deterministic, boolean bufferResultSetToLocalTemp) { //7个字段
         FunctionInfo info = new FunctionInfo();
         info.name = name;
         info.type = type;
@@ -422,6 +447,11 @@ public class Function extends Expression implements FunctionCall {
     private static FunctionInfo getFunctionInfo(String name) {
         return FUNCTIONS.get(name);
     }
+
+	// 我加上的
+	public static java.util.Collection<FunctionInfo> getFunctionInfos() {
+		return FUNCTIONS.values();
+	}
 
     /**
      * Get an instance of the given function for this database.
@@ -479,6 +509,7 @@ public class Function extends Expression implements FunctionCall {
     private Value getSimpleValue(Session session, Value v0, Expression[] args, Value[] values) {
         Value result;
         switch (info.type) {
+        //下面是数值函数, 共28个
         case ABS:
             result = v0.getSignum() > 0 ? v0 : v0.negate();
             break;
@@ -492,6 +523,8 @@ public class Function extends Expression implements FunctionCall {
             result = ValueDouble.get(Math.atan(v0.getDouble()));
             break;
         case CEILING:
+        	//sql = "SELECT CEILING(1.22)"; //2.0
+    		//sql = "SELECT CEILING(0.22)"; //1.0 //天花板
             result = ValueDouble.get(Math.ceil(v0.getDouble()));
             break;
         case COS:
@@ -515,19 +548,21 @@ public class Function extends Expression implements FunctionCall {
             result = ValueDouble.get(Math.exp(v0.getDouble()));
             break;
         case FLOOR:
+        	//sql = "SELECT FLOOR(1.22)"; //1.0
+    		//sql = "SELECT FLOOR(0.22)"; //0.0 //地板
             result = ValueDouble.get(Math.floor(v0.getDouble()));
             break;
-        case LN:
+        case LN: //底数e的多少次幂是v0
             result = ValueDouble.get(Math.log(v0.getDouble()));
             break;
         case LOG:
-            if (database.getMode().logIsLogBase10) {
+            if (database.getMode().logIsLogBase10) { //只有PostgreSQL才把LOG和LN看成一样，其他数据库把把LOG和LOG10
                 result = ValueDouble.get(Math.log10(v0.getDouble()));
             } else {
                 result = ValueDouble.get(Math.log(v0.getDouble()));
             }
             break;
-        case LOG10:
+        case LOG10: //底数10的多少次幂是v0
             result = ValueDouble.get(log10(v0.getDouble()));
             break;
         case PI:
@@ -567,7 +602,9 @@ public class Function extends Expression implements FunctionCall {
         case SECURE_RAND:
             result = ValueBytes.getNoCopy(MathUtils.secureRandomBytes(v0.getInt()));
             break;
-        case EXPAND:
+        case EXPAND: //解压，对应COMPRESS函数
+        	//sql = "SELECT EXPAND(x'1234')"; //只能接COMPRESS函数
+    		//sql = "SELECT UTF8TOSTRING(EXPAND(COMPRESS(STRINGTOUTF8('Test'))))";
             result = ValueBytes.getNoCopy(CompressTool.getInstance().expand(v0.getBytesNoCopy()));
             break;
         case ZERO:
@@ -576,6 +613,7 @@ public class Function extends Expression implements FunctionCall {
         case RANDOM_UUID:
             result = ValueUuid.getNewRandom();
             break;
+        //下面是字符串函数, 共23个
             // string
         case ASCII: {
             String s = v0.getString();
@@ -599,7 +637,7 @@ public class Function extends Expression implements FunctionCall {
         case OCTET_LENGTH:
             result = ValueLong.get(2 * length(v0));
             break;
-        case CONCAT_WS:
+        case CONCAT_WS: //表示:concat with separator
         case CONCAT: {
             result = ValueNull.INSTANCE;
             int start = 0;
@@ -682,6 +720,7 @@ public class Function extends Expression implements FunctionCall {
         case XMLSTARTDOC:
             result = ValueString.get(StringUtils.xmlStartDoc(), database.getMode().treatEmptyStringsAsNull);
             break;
+        //下面是时间与日期函数, 共21个
         case DAY_NAME: {
             SimpleDateFormat dayName = new SimpleDateFormat("EEEE", Locale.ENGLISH);
             result = ValueString.get(dayName.format(v0.getDate()), database.getMode().treatEmptyStringsAsNull);
@@ -691,6 +730,9 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.DAY_OF_MONTH));
             break;
         case DAY_OF_WEEK:
+        	//周日，周一............................................, 周六
+        	//SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+        	//数字是1, 2, 3... , 7，所以周一对应的数字是2
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.DAY_OF_WEEK));
             break;
         case DAY_OF_YEAR:
@@ -706,11 +748,15 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH));
             break;
         case MONTH_NAME: {
+        	//sql = "SELECT MONTHNAME(CURRENT_DATE)"; //不是MONTH_NAME，没有下划线
             SimpleDateFormat monthName = new SimpleDateFormat("MMMM", Locale.ENGLISH);
             result = ValueString.get(monthName.format(v0.getDate()), database.getMode().treatEmptyStringsAsNull);
             break;
         }
         case QUARTER:
+        	//第几个季度，用1、2、3、4表示
+        	//因为DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)返回的月份加了1，所以这里要减一
+        	//0, 1, 2, 3这4个数除以3都是0，所以要加1，同样其他的月份也类似
             result = ValueInt.get((DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH) - 1) / 3 + 1);
             break;
         case SECOND:
@@ -729,6 +775,7 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(DateTimeUtils.getIsoWeek(v0.getDate()));
             break;
         case ISO_DAY_OF_WEEK:
+        	//这个就正常了，周1用数字1表示，跟DAY_OF_WEEK不一样
             result = ValueInt.get(DateTimeUtils.getIsoDayOfWeek(v0.getDate()));
             break;
         case CURDATE:
@@ -749,13 +796,30 @@ public class Function extends Expression implements FunctionCall {
         case CURRENT_TIMESTAMP: {
             long now = session.getTransactionStart();
             ValueTimestamp vt = ValueTimestamp.get(new Timestamp(now));
+            //NOW(1)表示毫秒数只保留一位，如NOW()="2012-12-03 22:03:44.647" 则NOW(1)="2012-12-03 22:03:44.6"
+    		//毫秒数一般是3位，如果NOW(100)，100>3了，所以NOW(100)跟NOW()一样
             if (v0 != null) {
                 Mode mode = database.getMode();
+                //org.h2.value.ValueTimestamp.convertScale(boolean, int)忽视convertOnlyToSmallerScale参数
+                //所以convertOnlyToSmallerScale没用的
                 vt = (ValueTimestamp) vt.convertScale(mode.convertOnlyToSmallerScale, v0.getInt());
             }
             result = vt;
             break;
         }
+        //下面是系统函数 ,共29个，少了3个: ROW_NUMBER、TABLE、TABLE_DISTINCT
+        //ROW_NUMBER函数虽然定义了，但ROW_NUMBER()函数无效，不支持这样的语法
+		//sql = "SELECT ROW_NUMBER()"; 
+		//ROWNUM函数虽然没有定义，但ROWNUM()是有效，Parser在解析时把他当成ROWNUM伪字段处理
+		//当成了org.h2.expression.Rownum，见org.h2.command.Parser.readTerm()
+		//sql = "SELECT ROWNUM()"; 
+        //这样就没问题了,在这个方法中org.h2.command.Parser.readFunction(Schema, String)
+		//把ROW_NUMBER转成org.h2.expression.Rownum了
+		//sql = "SELECT ROW_NUMBER()OVER()";
+        
+        //在这个方法中
+        //org.h2.command.Parser.readFunction(Schema, String)
+        //把TABLE、TABLE_DISTINCT转成TableFunction了。
         case DATABASE:
             result = ValueString.get(database.getShortName(), database.getMode().treatEmptyStringsAsNull);
             break;
@@ -813,6 +877,7 @@ public class Function extends Expression implements FunctionCall {
             result = ValueInt.get(session.getId());
             break;
         case IFNULL: {
+        	//如果vo不为null返回vo，否则返回v1s
             result = v0;
             if (v0 == ValueNull.INSTANCE) {
                 result = getNullOrValue(session, args, values, 1);
@@ -834,7 +899,7 @@ public class Function extends Expression implements FunctionCall {
             for (int i = 1, len = args.length - 1; i < len; i += 2) {
                 if (database.areEqual(v0, getNullOrValue(session, args, values, i))) {
                     index = i + 1;
-                    break;
+                    break; //要加break 见: E:\H2\my-h2\my-h2-docs\00 H2代码Bug\bug汇总.java中的1
                 }
             }
             if (index < 0 && args.length % 2 == 0) {
@@ -854,7 +919,7 @@ public class Function extends Expression implements FunctionCall {
             result = v.convertTo(dataType);
             break;
         }
-        case COALESCE: {
+        case COALESCE: { //返回第一个不为null的
             result = v0;
             for (int i = 0; i < args.length; i++) {
                 Value v = getNullOrValue(session, args, values, i);
@@ -865,8 +930,8 @@ public class Function extends Expression implements FunctionCall {
             }
             break;
         }
-        case GREATEST:
-        case LEAST: {
+        case GREATEST: //最大的一个
+        case LEAST: { //最小的一个
             result = ValueNull.INSTANCE;
             for (int i = 0; i < args.length; i++) {
                 Value v = getNullOrValue(session, args, values, i);
@@ -928,7 +993,7 @@ public class Function extends Expression implements FunctionCall {
         case ARRAY_GET: {
             if (v0.getType() == Value.ARRAY) {
                 Value v1 = getNullOrValue(session, args, values, 1);
-                int element = v1.getInt();
+                int element = v1.getInt(); //下标从1开始
                 Value[] list = ((ValueArray) v0).getList();
                 if (element < 1 || element > list.length) {
                     result = ValueNull.INSTANCE;
@@ -1017,6 +1082,7 @@ public class Function extends Expression implements FunctionCall {
 
     private Value getValueWithArgs(Session session, Expression[] args) {
         Value[] values = new Value[args.length];
+        //如果函数要求所有的参数非null，那么只要有一个参数是null，函数就直接返回null
         if (info.nullIfParameterIsNull) {
             for (int i = 0; i < args.length; i++) {
                 Expression e = args[i];
@@ -1027,11 +1093,14 @@ public class Function extends Expression implements FunctionCall {
                 values[i] = v;
             }
         }
+        //args参数名，values是参数值，这里是先取第0个下标的参数值(可能为null)
         Value v0 = getNullOrValue(session, args, values, 0);
+        //只需要一个参数的函数(也有少数是有多个参数的)
         Value resultSimple = getSimpleValue(session, v0, args, values);
         if (resultSimple != null) {
             return resultSimple;
         }
+        //下面是需要两个或两个以上参数的函数
         Value v1 = getNullOrValue(session, args, values, 1);
         Value v2 = getNullOrValue(session, args, values, 2);
         Value v3 = getNullOrValue(session, args, values, 3);
@@ -1039,6 +1108,7 @@ public class Function extends Expression implements FunctionCall {
         Value v5 = getNullOrValue(session, args, values, 5);
         Value result;
         switch (info.type) {
+        //下面是数值函数, 共12个
         case ATAN2:
             result = ValueDouble.get(Math.atan2(v0.getDouble(), v1.getDouble()));
             break;
@@ -1063,7 +1133,10 @@ public class Function extends Expression implements FunctionCall {
             result = ValueDouble.get(Math.pow(v0.getDouble(), v1.getDouble()));
             break;
         case ROUND: {
-            double f = v1 == null ? 1. : Math.pow(10., v1.getDouble());
+        	//sql = "SELECT ROUND(12.234, 2)"; //12.23,  4舍5入，小数保留两位
+    		//sql = "SELECT ROUND(12.235, 2)"; //12.24
+    		//sql = "SELECT ROUND(12.236, 2)"; //12.24
+            double f = v1 == null ? 1. : Math.pow(10., v1.getDouble()); //小数位是2，相当于先求10的2次方
             result = ValueDouble.get(Math.round(v0.getDouble() * f) / f);
             break;
         }
@@ -1095,7 +1168,7 @@ public class Function extends Expression implements FunctionCall {
         case DECRYPT:
             result = ValueBytes.getNoCopy(decrypt(v0.getString(), v1.getBytesNoCopy(), v2.getBytesNoCopy()));
             break;
-        case COMPRESS: {
+        case COMPRESS: {  //压缩，对应EXPAND函数
             String algorithm = null;
             if (v1 != null) {
                 algorithm = v1.getString();
@@ -1103,6 +1176,7 @@ public class Function extends Expression implements FunctionCall {
             result = ValueBytes.getNoCopy(CompressTool.getInstance().compress(v0.getBytesNoCopy(), algorithm));
             break;
         }
+        //下面是字符串函数, 共20个，这有19个，然后最下面有1个XMLTEXT
         case DIFFERENCE:
             result = ValueInt.get(getDifference(v0.getString(), v1.getString()));
             break;
@@ -1193,6 +1267,9 @@ public class Function extends Expression implements FunctionCall {
         case LPAD:
             result = ValueString.get(StringUtils.pad(v0.getString(), v1.getInt(), v2 == null ? null : v2.getString(), false), database.getMode().treatEmptyStringsAsNull);
             break;
+
+        //下面是时间与日期函数 ,共5个
+            // date
         case TO_CHAR:
             switch(v0.getType()){
             case Value.TIME:
@@ -1212,21 +1289,38 @@ public class Function extends Expression implements FunctionCall {
                 result = ValueString.get(v0.getString(), database.getMode().treatEmptyStringsAsNull);
             }
             break;
+
         case H2VERSION:
             result = ValueString.get(Constants.getVersion(), database.getMode().treatEmptyStringsAsNull);
             break;
         case DATE_ADD:
+        	//月份加1，结果是2001-02-28 00:00:00.0 
+    		//sql = "SELECT DATEADD('MONTH', 1, DATE '2001-01-31')";
             result = ValueTimestamp.get(dateadd(v0.getString(), v1.getInt(), v2.getTimestamp()));
             break;
         case DATE_DIFF:
+        	//用后面的YEAR减去前面的YEAR，1999-2001=-2
+    		//sql = "SELECT DATEDIFF('YEAR', DATE '2001-01-31', DATE '1999-01-31')";
             result = ValueLong.get(datediff(v0.getString(), v1.getTimestamp(), v2.getTimestamp()));
             break;
         case EXTRACT: {
+        	//抽取日期和年份 CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 
+    		//sql = "SELECT CURRENT_TIMESTAMP, EXTRACT(DAY FROM CURRENT_TIMESTAMP), EXTRACT(YEAR FROM CURRENT_TIMESTAMP)";
             int field = getDatePart(v0.getString());
             result = ValueInt.get(DateTimeUtils.getDatePart(v1.getTimestamp(), field));
             break;
         }
         case FORMATDATETIME: {
+        	//format datetime 格式化日期时间
+        	//sql = "SELECT FORMATDATETIME(TIMESTAMP '2001-02-03 04:05:06', 'EEE, d MMM yyyy HH:mm:ss z', 'en', 'GMT')";
+        	
+        	//v0 timestamp = TIMESTAMP '2001-02-03 04:05:06' , 
+    		//v1 formatString = 'EEE, d MMM yyyy HH:mm:ss z'
+    		//v2 localeString = 'en'
+    		//v3 timeZoneString = 'GMT'
+    		//结果 Fri, 2 Feb 2001 20:05:06 GMT
+        	
+        	//vo和v1只要一个为null，结果为null
             if (v0 == ValueNull.INSTANCE || v1 == ValueNull.INSTANCE) {
                 result = ValueNull.INSTANCE;
             } else {
@@ -1237,7 +1331,13 @@ public class Function extends Expression implements FunctionCall {
             break;
         }
         case PARSEDATETIME: {
-            if (v0 == ValueNull.INSTANCE || v1 == ValueNull.INSTANCE) {
+        	//parse datetime解析日期时间
+    		//按后面三个参数指定的格式解析第一个参数，得到一个java.util.Date
+    		//结果: 2001-02-03 11:05:06.0 
+    		//sql = "SELECT PARSEDATETIME('Sat, 3 Feb 2001 03:05:06 GMT', 'EEE, d MMM yyyy HH:mm:ss z', 'en', 'GMT')";
+            
+        	//同上
+        	if (v0 == ValueNull.INSTANCE || v1 == ValueNull.INSTANCE) {
                 result = ValueNull.INSTANCE;
             } else {
                 String locale = v2 == null ? null : v2 == ValueNull.INSTANCE ? null : v2.getString();
@@ -1247,7 +1347,9 @@ public class Function extends Expression implements FunctionCall {
             }
             break;
         }
+        //下面是系统函数 ,共9个
         case NULLIF:
+        	//相等返回null，不相等返回v0
             result = database.areEqual(v0, v1) ? ValueNull.INSTANCE : v0;
             break;
             // system
@@ -1361,6 +1463,7 @@ public class Function extends Expression implements FunctionCall {
             result = v0.convertPrecision(v1.getLong(), v2.getBoolean());
             break;
         }
+        //字符串函数
         case XMLTEXT:
             if (v1 == null) {
                 result = ValueString.get(StringUtils.xmlText(v0.getString()), database.getMode().treatEmptyStringsAsNull);
@@ -1730,6 +1833,22 @@ public class Function extends Expression implements FunctionCall {
     }
 
     private static String getSoundex(String s) {
+    	//见http://www.archives.gov/publications/general-info-leaflets/55-census.html
+    	// 34个字符(26个大写字母加1到8这8个数字)
+		// 7: AEIOUY 及它们的小写(下同)
+		// 8: HW
+		// 1: BFPV
+		// 2: CGJKQSXZ
+		// 3: DT
+		// 4: L
+		// 5: MN
+		// 6: R
+		//算法是: 忽略所有的非字符，然后保留第一个字符，忽略对应7和8的字符，其他的转成对应的数字，重复的不算，不够4位的补0
+        //sql = "SELECT SOUNDEX('1aaa')"; //1被去掉，保留第一个a，第二和第三个a对应7被忽略，所以最后是a000
+		
+		//B保留，H去掉，C转成2，W去掉，D转成3，H去掉，A去掉，最后是B23因为是3位，所以不够4位，最后是B230
+		//sql = "SELECT SOUNDEX('BHCWDHA')";
+    	
         int len = s.length();
         char[] chars = { '0', '0', '0', '0' };
         char lastDigit = '0';

@@ -19,11 +19,11 @@ import org.h2.engine.Session;
  * </ul>
  */
 public class PageStreamData extends Page {
-
+	//头部占11字节
     private static final int DATA_START = 11;
 
     private final PageStore store;
-    private int trunk;
+    private int trunk; //PageStreamTrunk的pageId
     private int logKey;
     private Data data;
     private int remaining;
@@ -112,6 +112,7 @@ public class PageStreamData extends Page {
      * @param pageSize the page size
      * @return the number of bytes
      */
+    //一个PageStreamData的容量: pageSize-11(因为一个PageStreamData的头就占了11字节)
     static int getCapacity(int pageSize) {
         return pageSize - DATA_START;
     }

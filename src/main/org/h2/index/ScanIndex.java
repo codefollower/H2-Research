@@ -32,6 +32,13 @@ import org.h2.util.New;
  * of a table. Each regular table has one such object, even if no primary key or
  * indexes are defined.
  */
+//建表时加 NOT PERSISTENT可以测试此类，
+//如: create LOCAL TEMPORARY table IF NOT EXISTS IndexTestTable(id int not null, name varchar(500) not null) NOT PERSISTENT
+//数据放在内存中，不存到硬盘
+//此类只能通过建表时触发，不能通过建索引触发
+//即：只在RegularTable(CreateTableData)中使用，不能通过RegularTable.addIndex触发
+//org.h2.index.MultiVersionIndex不会嵌套ScanIndex
+//因为MultiVersionIndex只在RegularTable.addIndex中使用，而ScanIndex不能通过RegularTable.addIndex触发
 public class ScanIndex extends BaseIndex {
     private long firstFree = -1;
     private ArrayList<Row> rows = New.arrayList();
@@ -40,7 +47,8 @@ public class ScanIndex extends BaseIndex {
     private final HashMap<Integer, Integer> sessionRowCount;
     private HashSet<Row> delta;
     private long rowCount;
-
+    
+    //跟PageDataIndex一样，id都是表id
     public ScanIndex(RegularTable table, int id, IndexColumn[] columns, IndexType indexType) {
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
         if (database.isMultiVersion()) {
@@ -94,7 +102,7 @@ public class ScanIndex extends BaseIndex {
             row.setKey(key);
             rows.add(row);
         } else {
-            long key = firstFree;
+            long key = firstFree; //使用上次删除的记录的位置
             Row free = rows.get((int) key);
             firstFree = free.getKey();
             row.setKey(key);
@@ -105,7 +113,7 @@ public class ScanIndex extends BaseIndex {
             if (delta == null) {
                 delta = New.hashSet();
             }
-            boolean wasDeleted = delta.remove(row);
+            boolean wasDeleted = delta.remove(row); //Row类没有实现hashCode方法，默认采用Objetc.hashCode方法
             if (!wasDeleted) {
                 delta.add(row);
             }
@@ -113,7 +121,9 @@ public class ScanIndex extends BaseIndex {
         }
         rowCount++;
     }
-
+    
+    //通过Connection.setAutoCommit(false)禁用自动提交事务，就不会每insert或delete一条记录就调用此方法，
+    //这样delta中就会有记录了，否则每次调用此方法清除row
     @Override
     public void commit(int operation, Row row) {
         if (database.isMultiVersion()) {
@@ -148,7 +158,7 @@ public class ScanIndex extends BaseIndex {
                 throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1, rows.size() + ": " + key);
             }
             rows.set((int) key, free);
-            firstFree = key;
+            firstFree = key; //如果连续删两次以上，能通过firstFree和free.key串接成一个未使用的空行列表，这样在add时可以一个个使用
         }
         if (database.isMultiVersion()) {
             // if storage is null, the delete flag is not yet set

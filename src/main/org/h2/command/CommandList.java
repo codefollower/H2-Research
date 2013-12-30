@@ -28,7 +28,12 @@ class CommandList extends Command {
     public ArrayList<? extends ParameterInterface> getParameters() {
         return command.getParameters();
     }
-
+    
+    //sql = "select id,name from ParserTest;select id,name from ParserTest;select id,name from ParserTest";
+    //那么先执行第一个，此时remainingCommand是CommandList(后面两个select)，然后继续CommandList.query，
+    //此时remainingCommand是CommandContainer
+    //总之路径是这样CommandList->CommandList->CommandContainer
+    //注意session.prepareLocal里是会重新new新的Parser
     private void executeRemaining() {
         Command remainingCommand = session.prepareLocal(remaining);
         if (remainingCommand.isQuery()) {

@@ -25,7 +25,7 @@ public class ConditionIn extends Condition {
     private final Database database;
     private Expression left;
     private final ArrayList<Expression> valueList;
-    private int queryLevel;
+    private int queryLevel; //没看到用处
 
     /**
      * Create a new IN(..) condition.
@@ -41,13 +41,14 @@ public class ConditionIn extends Condition {
     }
 
     @Override
-    public Value getValue(Session session) {
-        Value l = left.getValue(session);
+    public Value getValue(Session session) { //每行记录都要调用此方法判断一下
+        Value l = left.getValue(session); //如果left是字段，这里就会取这个字段在当前记录中的字段值
         if (l == ValueNull.INSTANCE) {
             return l;
         }
         boolean result = false;
         boolean hasNull = false;
+        //然后在这个for中，把valueList中的值转换成left的类型，并与left比较，如果相等，那么就返回true了
         for (Expression e : valueList) {
             Value r = e.getValue(session);
             if (r == ValueNull.INSTANCE) {
@@ -60,6 +61,8 @@ public class ConditionIn extends Condition {
                 }
             }
         }
+        //valueList中有null值，并且没有值满足left，那么返回null
+        //如delete from ConditionInTest where id in(30,40,null)，假设id在表中的值没有30、40, 此时就返回null
         if (!result && hasNull) {
             return ValueNull.INSTANCE;
         }
@@ -72,13 +75,15 @@ public class ConditionIn extends Condition {
         for (Expression e : valueList) {
             e.mapColumns(resolver, level);
         }
-        this.queryLevel = Math.max(level, this.queryLevel);
+        this.queryLevel = Math.max(level, this.queryLevel); //没看到用处
     }
 
     @Override
     public Expression optimize(Session session) {
         left = left.optimize(session);
         boolean constant = left.isConstant();
+        //如delete from ConditionInTest where null in(1,2)
+        //此时left是个constant，返回null，什么都没删除
         if (constant && left == ValueExpression.getNull()) {
             return left;
         }
@@ -96,15 +101,23 @@ public class ConditionIn extends Condition {
             }
             valueList.set(i, e);
         }
+        //如delete from ConditionInTest where 2 in(1,2)
+        //直接返回true值
         if (constant && allValuesConstant) {
             return ValueExpression.get(getValue(session));
         }
+        //如delete from ConditionInTest where id in(2)
+        //转换成delete from ConditionInTest where id = 2
         if (size == 1) {
             Expression right = valueList.get(0);
             Expression expr = new Comparison(session, Comparison.EQUAL, left, right);
             expr = expr.optimize(session);
             return expr;
         }
+
+        //如select count(*) from ConditionInTest where id in(1,2)
+        //left是id，不是常量，但是valueList全是常时且是相同的类型
+
         if (allValuesConstant && !allValuesNull) {
             int leftType = left.getType();
             if (leftType == Value.UNKNOWN) {

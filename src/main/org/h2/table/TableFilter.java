@@ -48,7 +48,7 @@ public class TableFilter implements ColumnResolver {
     private Session session;
 
     private final Table table;
-    private final Select select;
+    private final Select select; //通常只有执行select语句时不为null，update、delete时为null
     private String alias;
     private Index index;
     private int scanCount;
@@ -67,18 +67,26 @@ public class TableFilter implements ColumnResolver {
     /**
      * The index conditions used for direct index lookup (start or end).
      */
+    //由where条件生成，见org.h2.command.dml.Select.prepare()的condition.createIndexConditions(session, f);
+    //索引条件是用来快速定位索引的开始和结束位置的，比如有一个id的索引字段，值从1到10，
+    //现在有一个where id>3 and id<7的条件，那么在查找前，索引就事先定位到3和7的位置了
+    //见org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)
+    //这8种类型的表达式能建立索引条件
+    //Comparison、CompareLike、ConditionIn、ConditionInSelect、ConditionInConstantSet、
+    //ConditionAndOr、ExpressionColumn、ValueExpression
     private final ArrayList<IndexCondition> indexConditions = New.arrayList();
-
     /**
      * Additional conditions that can't be used for index lookup, but for row
      * filter for this table (ID=ID, NAME LIKE '%X%')
      */
-    private Expression filterCondition;
+    //如果是单表，那么跟fullCondition一样是整个where条件
+    //join的情况下只包含属于本表的表达式
+    private Expression filterCondition; //只在addFilterCondition方法中赋值
 
     /**
      * The complete join condition.
      */
-    private Expression joinCondition;
+    private Expression joinCondition; //on 条件, 只在addFilterCondition方法中赋值
 
     private SearchRow currentSearchRow;
     private Row current;
@@ -92,6 +100,7 @@ public class TableFilter implements ColumnResolver {
     /**
      * Whether this is an outer join.
      */
+    //也就是此表的左边是不是outer join，比如t1 left outer join t2，那么t2的joinOuter是true，但是t1的joinOuter是false
     private boolean joinOuter;
 
     /**
@@ -101,6 +110,11 @@ public class TableFilter implements ColumnResolver {
 
     private ArrayList<Column> naturalJoinColumns;
     private boolean foundOne;
+    //在org.h2.command.dml.Select.preparePlan()中设，完整的where条件
+    //这个字段只是在选择索引的过程中有用，filterCondition的值通过它传递
+    //单表时fullCondition虽然不为null，但是没有用处，单表时filterCondition为null，
+    //除非把EARLY_FILTER参数设为true，这样filterCondition就不为null了，在next中就过滤掉行，
+    //如果filterCondition计算是true的话，在Select类的queryXXX方法中又计算一次condition
     private Expression fullCondition;
     private final int hashCode;
 
@@ -156,23 +170,37 @@ public class TableFilter implements ColumnResolver {
      * @param level 1 for the first table in a join, 2 for the second, and so on
      * @return the best plan item
      */
+    //对于Delete、Update是在prepare()时直接进来，
+    //而Select要prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
     public PlanItem getBestPlanItem(Session s, int level) {
         PlanItem item;
+        //没有索引条件时直接走扫描索引(RegularTable是PageDataIndex和ScanIndex，而MVTable是MVPrimaryIndex)
         if (indexConditions.size() == 0) {
             item = new PlanItem();
             item.setIndex(table.getScanIndex(s));
             item.cost = item.getIndex().getCost(s, null, null, null);
         } else {
             int len = table.getColumns().length;
-            int[] masks = new int[len];
+            int[] masks = new int[len]; //对应表的所有字段，只有其中的索引字段才有值，其他的不设置，默认为0
             for (IndexCondition condition : indexConditions) {
+            	//如果IndexCondition是expression或expressionList，只有ExpressionColumn类型有可能返回false
+            	//如果IndexCondition是expressionQuery，expressionQuery是Select、SelectUnion类型有可能返回false
+            	//其他都返回true
                 if (condition.isEvaluatable()) {
+                	//对于ConditionAndOr的场景才会出现indexConditions.size>1
+                	//而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
+                	//所以当多个indexCondition通过AND组合时，只有其中一个是false，显然就没有必要再管其他的indexCondition
+                	//这时把masks设为null
                     if (condition.isAlwaysFalse()) {
                         masks = null;
                         break;
                     }
+                    //condition.getColumn()不可能为null，因为目的是要选合适的索引，而索引建立在字段之上
+                    //所以IndexCondition中的column变量不可能是null
                     int id = condition.getColumn().getColumnId();
                     if (id >= 0) {
+                    	//多个IndexCondition可能是同一个字段
+                    	//如id>1 and id <10，这样masks[id]最后就变成IndexCondition.RANGE了
                         masks[id] |= condition.getMask(indexConditions);
                     }
                 }
@@ -185,6 +213,7 @@ public class TableFilter implements ColumnResolver {
             // The more index conditions, the earlier the table.
             // This is to ensure joins without indexes run quickly:
             // x (x.a=10); y (x.b=y.b) - see issue 113
+            //level越大，item.cost就减去一个越小的值，所以join的cost越大
             item.cost -= item.cost * indexConditions.size() / 100 / level;
         }
         if (nestedJoin != null) {
@@ -254,6 +283,12 @@ public class TableFilter implements ColumnResolver {
     public void prepare() {
         // forget all unused index conditions
         // the indexConditions list may be modified here
+    	//如
+    	//create table IF NOT EXISTS DeleteTest(id int, name varchar(500), b boolean)
+    	//delete from DeleteTest where b
+    	//按字段b删除，实际上就是删除b=true的记录
+    	//如果没有为字段b建立索引，就在这里删除这个无用条件
+    	//这样在org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)中就不会计算无用的索引
         for (int i = 0; i < indexConditions.size(); i++) {
             IndexCondition condition = indexConditions.get(i);
             if (!condition.isAlwaysFalse()) {
@@ -321,6 +356,25 @@ public class TableFilter implements ColumnResolver {
      *
      * @return true if there are
      */
+    //在from或join后面加括号的都是nestedJoin
+    //如SELECT * FROM (JoinTest1 LEFT OUTER JOIN (JoinTest2))
+
+    //TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest1)
+    //TableFilter(SYSTEM_JOIN_xxx).join => null
+
+    //TableFilter(JoinTest1).nestedJoin => null
+    //TableFilter(JoinTest1).join => TableFilter(SYSTEM_JOIN_yyy)
+
+    //TableFilter(SYSTEM_JOIN_yyy).nestedJoin => TableFilter(JoinTest2)
+    //TableFilter(SYSTEM_JOIN_yyy).join => null
+
+    //TableFilter(JoinTest2).nestedJoin => null
+    //TableFilter(JoinTest2).join => null
+
+    //同一个TableFilter的join和nestedJoin有可能会同时不为null，如下
+    //SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30
+    //TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest1)
+    //TableFilter(SYSTEM_JOIN_xxx).join => TableFilter(JoinTest2)
     public boolean next() {
         if (state == AFTER_LAST) {
             return false;
@@ -337,7 +391,7 @@ public class TableFilter implements ColumnResolver {
         } else {
             // state == FOUND || NULL_ROW
             // the last row was ok - try next row of the join
-            if (join != null && join.next()) {
+            if (join != null && join.next()) { //join表移动，主表不动，如果join上次是NULL_ROW,那么主表要往下移
                 return true;
             }
         }
@@ -347,6 +401,9 @@ public class TableFilter implements ColumnResolver {
                 break;
             }
             if (cursor.isAlwaysFalse()) {
+            	//当OPTIMIZE_IS_NULL设为false时，cursor.isAlwaysFalse()是true
+                //对于这样的SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
+                //还是会返回JoinTest1的所有记录，JoinTest2中的全为null
                 state = AFTER_LAST;
             } else if (nestedJoin != null) {
                 if (state == BEFORE_FIRST) {
@@ -364,18 +421,33 @@ public class TableFilter implements ColumnResolver {
                     state = AFTER_LAST;
                 }
             }
+            //nestedJoin就是在表名前后加括号
+            //如sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
+        	//nestedJoin是(JoinTest2)
+            //如sql = "SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30";
+        	//nestedJoin是(JoinTest1)
             if (nestedJoin != null && state == FOUND) {
                 if (!nestedJoin.next()) {
                     state = AFTER_LAST;
                     if (joinOuter && !foundOne) {
                         // possibly null row
+                    	//如sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
+                    	//nestedJoin是(JoinTest2)，joinOuter是true
                     } else {
+                    	//如sql = "SELECT rownum, * FROM (JoinTest1) LEFT OUTER JOIN JoinTest2 ON id>30";
+                    	//nestedJoin是(JoinTest1)，joinOuter是false
                         continue;
                     }
                 }
             }
             // if no more rows found, try the null row (for outer joins only)
             if (state == AFTER_LAST) {
+            	//分两种情况:
+            	//1. 正常情况结束， 上次没有找到，且是外部连接，此时是一个悬浮记录，把右边的字段都用null表示
+            	//2. on条件总是false，使得还没有遍历表state就变成了AFTER_LAST
+            	//当OPTIMIZE_IS_NULL设为false时，cursor.isAlwaysFalse()是true
+                //对于这样的SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
+                //还是会返回JoinTest1的所有记录，JoinTest2中的全为null
                 if (joinOuter && !foundOne) {
                     setNullRow();
                 } else {
@@ -385,6 +457,10 @@ public class TableFilter implements ColumnResolver {
             if (!isOk(filterCondition)) {
                 continue;
             }
+            //对于SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON id>30
+            //id>30中的id虽然是JoinTest1的，但是这个joinCondition是加到JoinTest2对应的TableFilter中
+            //所以可以做一个优化，当判断joinCondition中不包含JoinTest2的字段时，joinConditionOk肯定是false，
+            //这样就不用一行行再去遍历JoinTest2表了，直接调用setNullRow()，然后退出循环
             boolean joinConditionOk = isOk(joinCondition);
             if (state == FOUND) {
                 if (joinConditionOk) {
@@ -515,7 +591,12 @@ public class TableFilter implements ColumnResolver {
      * @param nested if this is a nested join
      * @param on the join condition
      */
+    //没有发现outer、nested同时为true的
+    //on这个joinCondition是加到filter参数对应的TableFilter中，也就是右表，而不是左表
     public void addJoin(TableFilter filter, boolean outer, boolean nested, final Expression on) {
+    	//给on中的ExpressionColumn设置columnResolver，
+    	//TableFilter实现了ColumnResolver接口，所以ExpressionColumn的columnResolver实际上就是TableFilter对象
+    	//另外，下面的两个visit能查出多个Table之间的列是否同名
         if (on != null) {
             on.mapColumns(this, 0);
             if (session.getDatabase().getSettings().nestedJoins) {
@@ -537,6 +618,10 @@ public class TableFilter implements ColumnResolver {
             if (nestedJoin != null) {
                 throw DbException.throwInternalError();
             }
+            //很少有嵌套join，只在org.h2.command.Parser.getNested(TableFilter)看到有
+            //被一个DualTable(一个min和max都为1的RangeTable)嵌套
+            //还有一种情况是先LEFT OUTER JOIN再NATURAL JOIN
+            //如from JoinTest1 LEFT OUTER JOIN JoinTest3 NATURAL JOIN JoinTest2
             nestedJoin = filter;
             filter.joinOuter = outer;
             if (outer) {
@@ -556,6 +641,8 @@ public class TableFilter implements ColumnResolver {
                 filter.joinOuter = outer;
                 if (session.getDatabase().getSettings().nestedJoins) {
                     if (outer) {
+                    	//filter自身和filter的nestedJoin和join字段对应的filter的joinOuterIndirect都为true
+                    	//nestedJoin和join字段对应的filter继续递归所有的nestedJoin和join字段
                         filter.visit(new TableFilterVisitor() {
                             @Override
                             public void accept(TableFilter f) {
@@ -565,6 +652,7 @@ public class TableFilter implements ColumnResolver {
                     }
                 } else {
                     if (outer) {
+                        //当nestedJoins为false时，nestedJoin字段不会有值，都是join字段有值，
                         // convert all inner joins on the right hand side to outer joins
                         TableFilter f = filter.join;
                         while (f != null) {
