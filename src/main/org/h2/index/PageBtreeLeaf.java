@@ -38,7 +38,7 @@ public class PageBtreeLeaf extends PageBtree {
 
     private PageBtreeLeaf(PageBtreeIndex index, int pageId, Data data) {
         super(index, pageId, data);
-        this.optimizeUpdate = index.getDatabase().getSettings().optimizeUpdate;
+        this.optimizeUpdate = index.getDatabase().getSettings().optimizeUpdate; //默认为true
     }
 
     /**
@@ -69,7 +69,7 @@ public class PageBtreeLeaf extends PageBtree {
         p.rows = SearchRow.EMPTY_ARRAY;
         p.parentPageId = parentPageId;
         p.writeHead();
-        p.start = p.data.length();
+        p.start = p.data.length(); //PageBtreeLeaf页头部结束的位置，即写完entryCount项后的位置
         return p;
     }
 
@@ -103,10 +103,12 @@ public class PageBtreeLeaf extends PageBtree {
         return x;
     }
 
+    //假设一个块128字节，写索引记录的顺序是从块尾开始，offset从块尾开始
     private int addRow(SearchRow row, boolean tryOnly) {
         int rowLength = index.getRowSize(data, row, onlyPosition);
         int pageSize = index.getPageStore().getPageSize();
         int last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
+        //确保page剩余空间能够保存offset
         if (last - rowLength < start + OFFSET_LENGTH) {
             if (tryOnly && entryCount > 1) {
                 int x = find(row, false, true, true);
@@ -120,6 +122,7 @@ public class PageBtreeLeaf extends PageBtree {
                 int third = entryCount / 3;
                 return x < third ? third : x >= 2 * third ? 2 * third : x;
             }
+            //当索引字段值的大小超过pageSize时只存位置不存字段值
             readAllRows();
             writtenData = false;
             onlyPosition = true;
@@ -148,18 +151,25 @@ public class PageBtreeLeaf extends PageBtree {
             x = find(row, false, true, true);
         }
         start += OFFSET_LENGTH;
+        //x所在元素的值，是它前面的元素值-rowLength
         int offset = (x == 0 ? pageSize : offsets[x - 1]) - rowLength;
+        //索引或内存中已有记录的情况(第一次运行完JDBC客户端程序后不删表和索引，第2次运行JDBC客户端程序添加记录就能测试)此种情况
         if (optimizeUpdate && writtenData) {
             if (entryCount > 0) {
                 byte[] d = data.getBytes();
-                int dataStart = offsets[entryCount - 1];
+                int dataStart = offsets[entryCount - 1]; //offsets总是降序的，所以offsets[entryCount - 1]是data的最小下标
                 int dataEnd = offset;
+                //将data数组中dataStart下标开始的dataEnd - dataStart + rowLength个元素往左移到dataStart - rowLength开始处
+                //(即: 把数据移到dataStart位置的左边，因为dataStart前的位置还没写数据，所以整体往前挪rowLength, 右边挪出的空位置
+                //用来放新的row，这个row的位置就是offset)
                 System.arraycopy(d, dataStart, d, dataStart - rowLength, dataEnd - dataStart + rowLength);
             }
             index.writeRow(data, offset, row, onlyPosition);
         }
+        //offsets这个数组内的元素是由大到小的，所以在rows中的记录最先的反而写在文件的后面
         offsets = insert(offsets, entryCount, x, offset);
-        add(offsets, x + 1, entryCount + 1, -rowLength);
+        //为什么要entryCount + 1呢，因前经过前面一行代码后，offsets的实际长度已经增加1了，但是entryCount在后面才加1
+        add(offsets, x + 1, entryCount + 1, -rowLength); //x是中间位置时，从x之后的offset要减去rowLength
         rows = insert(rows, entryCount, x, row);
         entryCount++;
         index.getPageStore().update(this);
@@ -273,7 +283,7 @@ public class PageBtreeLeaf extends PageBtree {
         data.writeShortInt(0);
         data.writeInt(parentPageId);
         data.writeVarInt(index.getId());
-        data.writeShortInt(entryCount);
+        data.writeShortInt(entryCount); //最开始为0
     }
 
     private void writeData() {
@@ -299,8 +309,8 @@ public class PageBtreeLeaf extends PageBtree {
 
     @Override
     void find(PageBtreeCursor cursor, SearchRow first, boolean bigger) {
-        int i = find(first, bigger, false, false);
-        if (i > entryCount) {
+        int i = find(first, bigger, false, false); //这里返回的i怎么会>entryCount
+        if (i > entryCount) { //什么情况下才会使得i > entryCount? 
             if (parentPageId == PageBtree.ROOT) {
                 return;
             }
@@ -351,7 +361,8 @@ public class PageBtreeLeaf extends PageBtree {
 
     @Override
     public String toString() {
-        return "page[" + getPos() + "] b-tree leaf table:" + index.getId() + " entries:" + entryCount;
+    	return tree();
+        //return "page[" + getPos() + "] b-tree leaf table:" + index.getId() + " entries:" + entryCount;
     }
 
     @Override
@@ -368,9 +379,10 @@ public class PageBtreeLeaf extends PageBtree {
         p2.parentPageId = parentPageId;
         p2.start = start;
         store.update(p2);
-        if (parentPageId == ROOT) {
+        if (parentPageId == ROOT) { //最顶层的leaf，重新把rootPageId指向newPos
             index.setRootPageId(session, newPos);
         } else {
+        	//此leaf有父PageBtreeNode
             PageBtreeNode p = (PageBtreeNode) store.getPage(parentPageId);
             p.moveChild(getPos(), newPos);
         }
@@ -395,4 +407,21 @@ public class PageBtreeLeaf extends PageBtree {
         index.memoryChange(memory >> 2);
     }
 
+	// 我加上的
+	@Override
+	public String tree(String p) {
+		StringBuilder s = new StringBuilder(200);
+
+		s.append(p + "PageBtreeLeaf {\r\n");
+		s.append(p + "\t" + "indexId = " + index.getId() + "\r\n");
+		s.append(p + "\t" + "parentPageId = " + parentPageId + "\r\n");
+		s.append(p + "\t" + "pageId = " + getPos() + "\r\n");
+		s.append(p + "\t" + "start = " + start + "\r\n");
+		s.append(p + "\t" + "offsets = " + PageBtreeNode.stringArray2(offsets, entryCount) + "\r\n");
+		s.append(p + "\t" + "entryCount = " + entryCount + "\r\n");
+		s.append(p + "\t" + "rows = " + PageBtreeNode.stringArray(rows, p, entryCount));
+
+		s.append(p + "}\r\n");
+		return s.toString();
+	}
 }

@@ -9,10 +9,10 @@ import org.junit.Test;
 public class TestMVStoreDataLoss {
 	static MVStore getMVStore(String fileName) {
 		MVStore.Builder builder = new MVStore.Builder();
-		builder.writeDelay(1).fileName(fileName);
+		//builder.writeDelay(1).fileName(fileName);
 
 		MVStore store = builder.open();
-		store.setPageSize(512);
+		//store.setPageSize(512);
 
 		return store;
 	}
@@ -35,7 +35,7 @@ public class TestMVStoreDataLoss {
 //		store.commit();
 //		Assert.assertEquals(1, store.getCommittedVersion()); //ok
 //		store.commit();
-		store.store();
+		//store.store();
 		store.close();
 
 		store = getMVStore(fileName);

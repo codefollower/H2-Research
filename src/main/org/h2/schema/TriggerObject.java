@@ -105,6 +105,7 @@ public class TriggerObject extends SchemaObjectBase {
      * @param beforeAction if this method is called before applying the changes
      */
     public void fire(Session session, int type, boolean beforeAction) {
+    	//rowBased=true说明是一个FOR EACH ROW触发器，这个方法是在Action前后调用的，对FOR EACH ROW触发器无效
         if (rowBased || before != beforeAction || (typeMask & type) == 0) {
             return;
         }
@@ -155,6 +156,7 @@ public class TriggerObject extends SchemaObjectBase {
      * @return true if no further action is required (for 'instead of' triggers)
      */
     public boolean fireRow(Session session, Row oldRow, Row newRow, boolean beforeAction, boolean rollback) {
+    	//rowBased=false说明是一个非FOR EACH ROW触发器，这个方法是在增加、删除、修改单行的前后调用的，对非FOR EACH ROW触发器无效
         if (!rowBased || before != beforeAction) {
             return false;
         }
@@ -261,7 +263,7 @@ public class TriggerObject extends SchemaObjectBase {
     }
 
     @Override
-    public String getCreateSQLForCopy(Table targetTable, String quotedName) {
+    public String getCreateSQLForCopy(Table targetTable, String quotedName) { //如: quotedName = PUBLIC.MYTRIGGER1
         StringBuilder buff = new StringBuilder("CREATE FORCE TRIGGER ");
         buff.append(quotedName);
         if (insteadOf) {
@@ -272,7 +274,7 @@ public class TriggerObject extends SchemaObjectBase {
             buff.append(" AFTER ");
         }
         buff.append(getTypeNameList());
-        buff.append(" ON ").append(targetTable.getSQL());
+        buff.append(" ON ").append(targetTable.getSQL()); //ON PUBLIC.CREATETRIGGERTEST
         if (rowBased) {
             buff.append(" FOR EACH ROW");
         }
@@ -282,6 +284,8 @@ public class TriggerObject extends SchemaObjectBase {
             buff.append(" QUEUE ").append(queueSize);
         }
         buff.append(" CALL ").append(Parser.quoteIdentifier(triggerClassName));
+        //CREATE FORCE TRIGGER PUBLIC.MYTRIGGER1 BEFORE INSERT, UPDATE, DELETE, SELECT, ROLLBACK 
+        //ON PUBLIC.CREATETRIGGERTEST NOWAIT CALL "my.test.sql.CreateTriggerTest$MyTrigger"
         return buff.toString();
     }
 

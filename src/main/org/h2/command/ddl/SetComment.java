@@ -98,6 +98,10 @@ public class SetComment extends DefineCommand {
         } else {
             object.setComment(text);
         }
+        
+        //对于表、视图、索引、列、用户、约束的注释直接更新到他们的对象自身，
+        //其他的新建Comment实例
+        //如: COMMENT ON ROLE myrole IS 'role comment'
         if (column || objectType == DbObject.TABLE_OR_VIEW || objectType == DbObject.USER
                 || objectType == DbObject.INDEX || objectType == DbObject.CONSTRAINT) {
             db.update(session, object);

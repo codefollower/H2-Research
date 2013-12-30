@@ -85,7 +85,9 @@ public class Update extends Prepared {
         try {
             Table table = tableFilter.getTable();
             session.getUser().checkRight(table, Right.UPDATE);
+            //调用针对整个update动作的触发器
             table.fire(session, Trigger.UPDATE, true);
+            //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
             table.lock(session, true, false);
             int columnCount = table.getColumns().length;
             // get the old rows, compute the new rows
@@ -99,6 +101,7 @@ public class Update extends Prepared {
                     limitRows = v.getInt();
                 }
             }
+            //第一步先按where条件(如果有的话)取出所有满足条件的所有记录，如果没有where条件就是取全部记录，这些记录不超过limitRows
             while (tableFilter.next()) {
                 setCurrentRowNumber(count+1);
                 if (limitRows >= 0 && count >= limitRows) {
@@ -107,22 +110,25 @@ public class Update extends Prepared {
                 if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
                     Row oldRow = tableFilter.get();
                     Row newRow = table.getTemplateRow();
+                    //以原表中的所有字段来遍历，而不是以update中的字段
                     for (int i = 0; i < columnCount; i++) {
                         Expression newExpr = expressionMap.get(columns[i]);
                         Value newValue;
-                        if (newExpr == null) {
+                        if (newExpr == null) { //说明不是更新字段，直接用原来的值
                             newValue = oldRow.getValue(i);
-                        } else if (newExpr == ValueExpression.getDefault()) {
+                        } else if (newExpr == ValueExpression.getDefault()) { //是更新字段，但是取默认值
                             Column column = table.getColumn(i);
                             newValue = table.getDefaultValue(session, column);
-                        } else {
+                        } else { //是更新字段，并且取更新值
                             Column column = table.getColumn(i);
                             newValue = column.convert(newExpr.getValue(session));
                         }
                         newRow.setValue(i, newValue);
                     }
+                    //验证新记录(包括字段约束检查)
                     table.validateConvertUpdateSequence(session, newRow);
                     boolean done = false;
+                    //调用针对行级别的触发器
                     if (table.fireRow()) {
                         done = table.fireBeforeRow(session, oldRow, newRow);
                     }
@@ -141,6 +147,7 @@ public class Update extends Prepared {
             // we need to update all indexes) before row triggers
 
             // the cached row is already updated - we need the old values
+            //第二步更新记录(先删除记录，再增加记录)
             table.updateRows(this, session, rows);
             if (table.fireRow()) {
                 rows.invalidateCache();
@@ -170,14 +177,21 @@ public class Update extends Prepared {
         if (condition != null) {
             buff.append("\nWHERE ").append(StringUtils.unEnclose(condition.getSQL()));
         }
+
+        //作者忘了LIMIT，我加上的
+        if (limitExpr != null) {
+            buff.append("\nLIMIT (").append(StringUtils.unEnclose(limitExpr.getSQL())).append(')');
+        }
         return buff.toString();
     }
 
     @Override
-    public void prepare() {
+    public void prepare() { //跟org.h2.command.dml.Delete.prepare()一样，只是多了中间的for
         if (condition != null) {
             condition.mapColumns(tableFilter, 0);
             condition = condition.optimize(session);
+            //根据where条件建立相关的索引条件，这样可以由where条件中的字段选择合适的索引
+            //如为字段name建立了索引，如果是where name>'124'，那么此时就用name的索引。
             condition.createIndexConditions(session, tableFilter);
         }
         for (int i = 0, size = columns.size(); i < size; i++) {

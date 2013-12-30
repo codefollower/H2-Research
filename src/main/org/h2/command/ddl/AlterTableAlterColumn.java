@@ -45,6 +45,8 @@ import org.h2.util.New;
  * ALTER TABLE ALTER COLUMN SET NULL,
  * ALTER TABLE DROP COLUMN
  */
+//一次只能修改一个表
+//只有执行alter命令时会产生此类的实例，而AlterTableAddConstraint实例在alter和create table命令中都会产生
 public class AlterTableAlterColumn extends SchemaCommand {
 
     private Table table;
@@ -83,7 +85,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
         session.commit(true);
         Database db = session.getDatabase();
         session.getUser().checkRight(table, Right.ALL);
-        table.checkSupportAlter();
+        table.checkSupportAlter(); //只有MVTable和RegularTable支持
         table.lock(session, true, true);
         Sequence sequence = oldColumn == null ? null : oldColumn.getSequence();
         if (newColumn != null) {
@@ -94,13 +96,15 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 checkDefaultReferencesTable(column.getDefaultExpression());
             }
         }
+        //分7种操作: 把列设为NOT NULL、把列设为NULL、把列设为默认值、改变列类型、增加列、删除列、更改列的选择因子SELECTIVITY
+        //其中增加列、删除列需要拷贝数据到新表，改变列类型到更小范围时也要拷贝数据到新表
         switch (type) {
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_NOT_NULL: {
             if (!oldColumn.isNullable()) {
                 // no change
                 break;
             }
-            checkNoNullValues();
+            checkNoNullValues(); //如果要修改的列有NULL值，那么不允许把列修改为NOT NULL
             oldColumn.setNullable(false);
             db.update(session, table);
             break;
@@ -110,7 +114,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 // no change
                 break;
             }
-            checkNullable();
+            checkNullable(); //如果要修改的列是主键索引或hash索引的列，那么不允许把列修改为NULL
             oldColumn.setNullable(true);
             db.update(session, table);
             break;
@@ -157,7 +161,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             break;
         }
         case CommandInterface.ALTER_TABLE_DROP_COLUMN: {
-            if (table.getColumns().length == 1) {
+            if (table.getColumns().length == 1) { //不能删除最后一列
                 throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, oldColumn.getSQL());
             }
             table.dropSingleColumnConstraintsAndIndexes(session, oldColumn);
@@ -193,7 +197,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             if (c.isPrimaryKey()) {
                 c.setOriginalSQL("IDENTITY");
             } else {
-                int objId = getObjectId();
+                int objId = getObjectId(); //作为自动生成的Sequence的对象id
                 c.convertAutoIncrementToSequence(session, getSchema(), objId, table.isTemporary());
             }
         }
@@ -266,11 +270,14 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
         }
     }
-
+    
+    //columns是原先表的列，newColumns放新列，一开始为空list
+    //不仅仅是拷贝表结构，还会适当增删改列，然后拷贝数据(用create ... as select ...的方式)
     private Table cloneTableStructure(Column[] columns, Database db, String tempName, ArrayList<Column> newColumns) {
-        for (Column col : columns) {
+        for (Column col : columns) { //刚好ColumnId就是从0开始的
             newColumns.add(col.getClone());
         }
+        //调整位置
         if (type == CommandInterface.ALTER_TABLE_DROP_COLUMN) {
             int position = oldColumn.getColumnId();
             newColumns.remove(position);
@@ -319,6 +326,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
             if (type == CommandInterface.ALTER_TABLE_ADD_COLUMN && columnsToAdd.contains(nc)) {
                 Expression def = nc.getDefaultExpression();
+                //SELECT F1, F2, NULL这样的SQL也是可以的，所以用NULL表示，这样新的列默认是NULL值
                 columnList.append(def == null ? "NULL" : def.getSQL());
             } else {
                 columnList.append(nc.getSQL());
@@ -345,23 +353,27 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 continue;
             } else if (child instanceof Index) {
                 Index idx = (Index) child;
-                if (idx.getIndexType().getBelongsToConstraint()) {
+                if (idx.getIndexType().getBelongsToConstraint()) { //属于约束的索引不需要建立
                     continue;
                 }
             }
+            //Table的children有6种: index、constraint、trigger、sequence、view、right
+            //其中只有index在特殊情况下getCreateSQL返回null，比如ScanIndex
+            //返回null就表示此对象不需要建立
             String createSQL = child.getCreateSQL();
             if (createSQL == null) {
                 continue;
             }
             if (child instanceof TableView) {
                 continue;
-            } else if (child.getType() == DbObject.TABLE_OR_VIEW) {
+            } else if (child.getType() == DbObject.TABLE_OR_VIEW) { //前面的if已排除TableView，所以不可以出现Talbe的子对象是Table
                 DbException.throwInternalError();
             }
             String quotedName = Parser.quoteIdentifier(tempName + "_" + child.getName());
             String sql = null;
             if (child instanceof ConstraintReferential) {
                 ConstraintReferential r = (ConstraintReferential) child;
+                //定义约束的表有可能不等于当前talbe吗? 因为已知ConstraintReferential是table的子对象了？
                 if (r.getTable() != table) {
                     sql = r.getCreateSQLForCopy(r.getTable(), newTable, quotedName, false);
                 }
@@ -370,7 +382,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 sql = child.getCreateSQLForCopy(newTable, quotedName);
             }
             if (sql != null) {
-                if (child instanceof TriggerObject) {
+                if (child instanceof TriggerObject) { //触发器放最后执行
                     triggers.add(sql);
                 } else {
                     execute(sql, true);

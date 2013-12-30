@@ -37,6 +37,7 @@ public class UndoLog {
      */
     UndoLog(Session session) {
         this.database = session.getDatabase();
+        //默认是true，通过prop.setProperty("LARGE_TRANSACTIONS", "false")设为false
         largeTransactions = database.getSettings().largeTransactions;
     }
 
@@ -76,7 +77,7 @@ public class UndoLog {
      *
      * @return the last record
      */
-    public UndoLogRecord getLast() {
+    public UndoLogRecord getLast() { //通常在rollback时调用
         int i = records.size() - 1;
         if (largeTransactions) {
             if (i < 0 && storedEntries > 0) {
@@ -136,7 +137,7 @@ public class UndoLog {
      *
      * @param trimToSize if the undo array should shrink to conserve memory
      */
-    void removeLast(boolean trimToSize) {
+    void removeLast(boolean trimToSize) { //通常在rollback时调用
         int i = records.size() - 1;
         UndoLogRecord r = records.remove(i);
         if (!r.isStored()) {
@@ -156,6 +157,8 @@ public class UndoLog {
         records.add(entry);
         if (largeTransactions) {
             memoryUndo++;
+            //maxMemoryUndo默认是50000，可通过SET MAX_MEMORY_UNDO xxx调整
+            //当MVCC为true时，哪怕memoryUndo > database.getMaxMemoryUndo()了，也不把undo日志存到临时文件
             if (memoryUndo > database.getMaxMemoryUndo() && database.isPersistent() && !database.isMultiVersion()) {
                 if (file == null) {
                     String fileName = database.createTempFile();
@@ -194,7 +197,7 @@ public class UndoLog {
                     Data buff = rowBuff;
                     for (int i = 0; i < records.size(); i++) {
                         UndoLogRecord r = records.get(i);
-                        saveIfPossible(r, buff);
+                        saveIfPossible(r, buff); //当LARGE_TRANSACTIONS是false时，如果表里没有唯一索(或主键索引)引则不存记录到临时文件
                     }
                 } else {
                     saveIfPossible(entry, rowBuff);

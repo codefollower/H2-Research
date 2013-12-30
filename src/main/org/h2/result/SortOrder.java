@@ -65,6 +65,7 @@ public class SortOrder implements Comparator<Value[]> {
     /**
      * The sort type bit mask (DESCENDING, NULLS_FIRST, NULLS_LAST).
      */
+    private final int[] columnIndexes; //我加上的
     private final int[] sortTypes;
 
     /**
@@ -80,11 +81,13 @@ public class SortOrder implements Comparator<Value[]> {
      * @param sortType the sort order bit masks
      * @param orderList the original query order list (if this is a query)
      */
-    public SortOrder(Database database, int[] queryColumnIndexes, int[] sortType, ArrayList<SelectOrderBy> orderList) {
+
+    public SortOrder(Database database, int[] queryColumnIndexes, int[] sortType, ArrayList<SelectOrderBy> orderList, int[] columnIndexes) {
         this.database = database;
         this.queryColumnIndexes = queryColumnIndexes;
         this.sortTypes = sortType;
         this.orderList = orderList;
+        this.columnIndexes = null;
     }
 
     /**
@@ -219,6 +222,10 @@ public class SortOrder implements Comparator<Value[]> {
     public int[] getQueryColumnIndexes() {
         return queryColumnIndexes;
     }
+    
+	public int[] getColumnIndexes() { //我加上的
+		return columnIndexes;
+	}
 
     /**
      * Get the column for the given table filter, if the sort column is for this

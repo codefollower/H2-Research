@@ -15,6 +15,7 @@ import org.h2.result.SearchRow;
 import org.h2.store.Data;
 import org.h2.store.Page;
 import org.h2.store.PageStore;
+import org.h2.util.StatementBuilder;
 import org.h2.util.Utils;
 
 /**
@@ -34,7 +35,9 @@ import org.h2.util.Utils;
  */
 public class PageBtreeNode extends PageBtree {
 
-    private static final int CHILD_OFFSET_PAIR_LENGTH = 6;
+    private static final int CHILD_OFFSET_PAIR_LENGTH = 6; //4字节的child page id + 2字节的offset
+    //主表的key是long类型，可以取Long.MIN_VALUE, 用org.h2.store.Data.writeVarLong(long)写Long.MIN_VALUE时要用10个字节
+    //注:用org.h2.store.Data.writeVarLong(long)写Long.MAX_VALUE时用9个字节，因为它是正数
     private static final int MAX_KEY_LENGTH = 10;
 
     private final boolean pageStoreInternalCount;
@@ -124,6 +127,7 @@ public class PageBtreeNode extends PageBtree {
      * @return the split point of this page, or -1 if no split is required
      */
     private int addChildTry(SearchRow row) {
+    	//keys不到4个时不切割
         if (entryCount < 4) {
             return -1;
         }
@@ -133,13 +137,17 @@ public class PageBtreeNode extends PageBtree {
             // entries as there is space for keys, because the current data area
             // might get larger when _removing_ a child (if the new key needs
             // more space) - and removing a child can't split this page
-            startData = entryCount + 1 * MAX_KEY_LENGTH;
+        	
+        	//主表的key是long类型，可以取Long.MIN_VALUE, 用org.h2.store.Data.writeVarLong(long)写Long.MIN_VALUE时要用10个字节
+            //注:用org.h2.store.Data.writeVarLong(long)写Long.MAX_VALUE时用9个字节，因为它是正数
+            startData = entryCount + 1 * MAX_KEY_LENGTH; //就是MAX_KEY_LENGTH+entryCount，就是想多保留entryCount个字节
         } else {
             int rowLength = index.getRowSize(data, row, onlyPosition);
             int pageSize = index.getPageStore().getPageSize();
             int last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
             startData = last - rowLength;
         }
+        //只有剩余空间不能放下CHILD_OFFSET_PAIR_LENGTH时才切割，并且是折半
         if (startData < start + CHILD_OFFSET_PAIR_LENGTH) {
             return entryCount / 2;
         }
@@ -149,7 +157,7 @@ public class PageBtreeNode extends PageBtree {
     /**
      * Add a child at the given position.
      *
-     * @param x the position
+     * @param x the position 是指rows数组的下标，从0开始，把row变量加到rows数组的x下标位置处
      * @param childPageId the child
      * @param row the row smaller than the first row of the child and its children
      */
@@ -180,8 +188,8 @@ public class PageBtreeNode extends PageBtree {
         }
         rows = insert(rows, entryCount, x, row);
         offsets = insert(offsets, entryCount, x, offset);
-        add(offsets, x + 1, entryCount + 1, -rowLength);
-        childPageIds = insert(childPageIds, entryCount + 1, x + 1, childPageId);
+        add(offsets, x + 1, entryCount + 1, -rowLength); //如果x不是最后一个下标，那么把x之后的下标对应的元素值都减少rowLength
+        childPageIds = insert(childPageIds, entryCount + 1, x + 1, childPageId); //childPageIds的长度比rows多1，所以要加1
         start += CHILD_OFFSET_PAIR_LENGTH;
         if (pageStoreInternalCount) {
             if (rowCount != UNKNOWN_ROWCOUNT) {
@@ -199,21 +207,39 @@ public class PageBtreeNode extends PageBtree {
             int x = find(row, false, true, true);
             PageBtree page = index.getPage(childPageIds[x]);
             int splitPoint = page.addRowTry(row);
+            //1. 不需要切割的情况
             if (splitPoint == -1) {
                 break;
             }
             SearchRow pivot = page.getRow(splitPoint - 1);
             index.getPageStore().logUndo(this, data);
             int splitPoint2 = addChildTry(pivot);
+            //2. 切割PageBtreeNode的情况
+            //如果PageBtreeNode页满了，那么要把它切割
             if (splitPoint2 != -1) {
                 return splitPoint2;
             }
+            
+//            System.out.println("-----------切割Node前----------");
+//            System.out.println(this);
+//            
+            //3. 切割PageBtreeNode的最左边结点的情况(最左边结点可能是PageBtreeLeaf也可能是PageBtreeNode)
+            //继续切割最左边的子结点(假设叫P0)，切成两个(假设叫P1，P2)，P1实际上就是P0，只不过是在P0的基础上截取了一部分元素到P2中，
+            //P2继续加到当前PageBtreeNode的childPageIds中
             PageBtree page2 = page.split(splitPoint);
             readAllRows();
             addChild(x, page2.getPos(), pivot);
             index.getPageStore().update(page);
             index.getPageStore().update(page2);
             index.getPageStore().update(this);
+            
+//            System.out.println("-----------按" + pivot + "切割----------");
+//            System.out.println("-----------Node切割成两个子页面----------");
+//            System.out.println(page);
+//            System.out.println(page2);
+//            
+//            System.out.println("-----------切割Node后----------");
+//            System.out.println(this);
         }
         updateRowCount(1);
         written = false;
@@ -236,7 +262,7 @@ public class PageBtreeNode extends PageBtree {
     }
 
     @Override
-    PageBtree split(int splitPoint) {
+    PageBtree split(int splitPoint) { //从splitPoint位置(包含splitPoint)开始的元素都会移动p2中
         int newPageId = index.getPageStore().allocatePage();
         PageBtreeNode p2 = PageBtreeNode.create(index, newPageId, parentPageId);
         index.getPageStore().logUndo(this, data);
@@ -247,9 +273,14 @@ public class PageBtreeNode extends PageBtree {
         int firstChild = childPageIds[splitPoint];
         readAllRows();
         for (int i = splitPoint; i < entryCount;) {
+        	//childPageIds的长度比rows多1，所以要加1
             p2.addChild(p2.entryCount, childPageIds[splitPoint + 1], getRow(splitPoint));
             removeChild(splitPoint);
         }
+        //为什么要先记下最后一个childPageId，然后删掉再赋值回去呢?
+        //因为entryCount比childPageIds的有效长度小1，
+        //entryCount是rows中的有效分隔key的个数，
+        //removeChild(splitPoint - 1)中会把rows和offsets中最后那个无用的删了
         int lastChild = childPageIds[splitPoint - 1];
         removeChild(splitPoint - 1);
         childPageIds[splitPoint - 1] = lastChild;
@@ -260,7 +291,8 @@ public class PageBtreeNode extends PageBtree {
         p2.remapChildren();
         return p2;
     }
-
+    
+    //重新设置一下原来所有子节点的parentPageId
     @Override
     protected void remapChildren() {
         for (int i = 0; i < entryCount + 1; i++) {
@@ -405,7 +437,7 @@ public class PageBtreeNode extends PageBtree {
 
     private void check() {
         if (SysProperties.CHECK) {
-            for (int i = 0; i < entryCount + 1; i++) {
+            for (int i = 0; i < entryCount + 1; i++) { //childPageIds的长度比entryCount大1
                 int child = childPageIds[i];
                 if (child == 0) {
                     DbException.throwInternalError();
@@ -437,8 +469,8 @@ public class PageBtreeNode extends PageBtree {
         }
         readAllRows();
         writeHead();
-        data.writeInt(childPageIds[entryCount]);
-        for (int i = 0; i < entryCount; i++) {
+        data.writeInt(childPageIds[entryCount]); //childPageIds的长度比entryCount大1，所以最后一个子pageId单独写
+        for (int i = 0; i < entryCount; i++) { //这里不包含最后一个子pageId
             data.writeInt(childPageIds[i]);
             data.writeShortInt(offsets[i]);
         }
@@ -472,7 +504,7 @@ public class PageBtreeNode extends PageBtree {
         if (entryCount > i) {
             int startNext = i > 0 ? offsets[i - 1] : index.getPageStore().getPageSize();
             int rowLength = startNext - offsets[i];
-            add(offsets, i, entryCount + 1, rowLength);
+            add(offsets, i, entryCount + 1, rowLength); //i后的元素要往前移，所以offset要增加rowLength
         }
         rows = remove(rows, entryCount + 1, i);
         offsets = remove(offsets, entryCount + 1, i);
@@ -486,11 +518,16 @@ public class PageBtreeNode extends PageBtree {
      * @param cursor the cursor
      * @param pageId id of the next page
      */
+    //org.h2.index.PageBtreeLeaf.nextPage(PageBtreeCursor)会调用此方法，
+    //当在PageBtreeLeaf.nextPage找完当前PageBtreeLeaf的记录后，就会把当前PageBtreeLeaf的pageId传进来，
+    //以此pageId来遍历childPageIds，找到下一个page
     void nextPage(PageBtreeCursor cursor, int pageId) {
         int i;
         // TODO maybe keep the index in the child page (transiently)
         for (i = 0; i < entryCount + 1; i++) {
             if (childPageIds[i] == pageId) {
+            	//pageId对应的结点已经找过了，现在是要找下一个pageId
+            	//当childPageIds[i]与pageId相等时，i++之后，childPageIds[i]便是下一个page，所以此时要break
                 i++;
                 break;
             }
@@ -541,7 +578,8 @@ public class PageBtreeNode extends PageBtree {
 
     @Override
     public String toString() {
-        return "page[" + getPos() + "] b-tree node table:" + index.getId() + " entries:" + entryCount;
+    	return tree();
+        //return "page[" + getPos() + "] b-tree node table:" + index.getId() + " entries:" + entryCount;
     }
 
     @Override
@@ -599,4 +637,91 @@ public class PageBtreeNode extends PageBtree {
         throw DbException.throwInternalError();
     }
 
+	// 我加上的
+	@Override
+	public String tree(String p) {
+		StringBuilder s = new StringBuilder(200);
+
+		s.append(p + "PageBtreeNode {\r\n");
+		s.append(p + "\t" + "pageId = " + getPos() + "\r\n");
+		s.append(p + "\t" + "parentPageId = " + parentPageId + "\r\n");
+		s.append(p + "\t" + "childPageIds = " + stringArray2(childPageIds, entryCount + 1) + "\r\n");
+		s.append(p + "\t" + "childPageIds.length = " + (entryCount + 1) + "\r\n");
+		s.append(p + "\t" + "entryCount = " + entryCount + "\r\n");
+		s.append(p + "\t" + "rows = " + stringArray(rows, p, entryCount) + "\r\n");
+
+		for (int i = 0; i < entryCount + 1; i++) {
+			int child = childPageIds[i];
+			PageBtree pb = index.getPage(child);
+			//			if (pb instanceof PageBtreeNode) {
+			//				s.append(((PageBtreeNode) pb).tree(p + "\t"));
+			//			}
+
+			s.append(pb.tree(p + "\t"));
+		}
+		s.append(p + "}\r\n");
+		return s.toString();
+	}
+
+	// 我加上的
+	public static String stringArray(Object[] array, String t) {
+		if (array == null) {
+			return "null";
+		}
+		StatementBuilder buff = new StatementBuilder("{" + "\r\n");
+		for (Object a : array) {
+			//buff.appendExceptFirst(", ");
+			if (a == null) {
+				buff.append(t + "\t\t" + "null" + "\r\n");
+			} else {
+				buff.append(t + "\t\t" + a.toString() + "\r\n");
+			}
+		}
+		buff.append(t + "\t}" + "\r\n");
+		return buff.toString();
+	}
+
+	// 我加上的
+	public static String stringArray(Object[] array, String t, int entryCount) {
+		if (array == null) {
+			return "null";
+		}
+		StatementBuilder buff = new StatementBuilder("{" + "\r\n");
+		for (int i = 0; i < entryCount; i++) {
+			//buff.appendExceptFirst(", ");
+			if (array[i] == null) {
+				buff.append(t + "\t\t" + "null" + "\r\n");
+			} else {
+				buff.append(t + "\t\t" + array[i].toString() + "\r\n");
+			}
+		}
+		buff.append(t + "\t}" + "\r\n");
+		return buff.toString();
+	}
+
+	// 我加上的
+	public static String stringArray2(int[] array) {
+		if (array == null) {
+			return "null";
+		}
+		StatementBuilder buff = new StatementBuilder("");
+		for (Object a : array) {
+			buff.appendExceptFirst(", ");
+			buff.append(a.toString());
+		}
+		return buff.toString();
+	}
+
+	// 我加上的
+	public static String stringArray2(int[] array, int entryCount) {
+		if (array == null) {
+			return "null";
+		}
+		StatementBuilder buff = new StatementBuilder("");
+		for (int i = 0; i < entryCount; i++) {
+			buff.appendExceptFirst(", ");
+			buff.append(array[i]);
+		}
+		return buff.toString();
+	}
 }

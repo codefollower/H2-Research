@@ -391,6 +391,12 @@ public class DataType {
             dt.defaultScale = dataType.defaultScale;
             dt.defaultDisplaySize = dataType.defaultDisplaySize;
             dt.caseSensitive = dataType.caseSensitive;
+            //从第二个名称开始的都是隐藏类型的，如下面的int
+            //new String[]{"INTEGER", "INT", "MEDIUMINT", "INT4", "SIGNED"}
+            //隐藏类型在用户在数据库中没有建表时可以覆盖
+            //如CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+            //但是非隐藏类型就不能覆盖
+            //如CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
             dt.hidden = i > 0;
             dt.memory = memory;
             for (DataType t2 : TYPES) {

@@ -73,6 +73,7 @@ public class ValueString extends Value {
 
     @Override
     public int getMemory() {
+    	//一个字符占两个字节所以要乘以2
         return value.length() * 2 + 48;
     }
 
@@ -144,6 +145,7 @@ public class ValueString extends Value {
             return treatEmptyStringsAsNull ? ValueNull.INSTANCE : EMPTY;
         }
         ValueString obj = new ValueString(StringUtils.cache(s));
+        //字符串长度太大时就不缓存了
         if (s.length() > SysProperties.OBJECT_CACHE_MAX_PER_ELEMENT_SIZE) {
             return obj;
         }

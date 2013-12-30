@@ -39,6 +39,8 @@ public class FunctionTable extends Table {
     private LocalResult cachedResult;
     private Value cachedValue;
 
+    //在org.h2.command.Parser.parseValuesTable()和org.h2.command.Parser.readTableFilter(boolean)中有调用
+    //functionExpr和function实际上是同一个对象
     public FunctionTable(Schema schema, Session session, Expression functionExpr, FunctionCall function) {
         super(schema, 0, function.getName(), false, true);
         this.functionExpr = functionExpr;

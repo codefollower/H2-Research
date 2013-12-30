@@ -1598,6 +1598,7 @@ public class JdbcCallableStatement extends JdbcPreparedStatement implements Call
         }
     }
 
+    //没有考虑大小写的问题
     private int getIndexForName(String parameterName) throws SQLException {
         try {
             checkClosed();

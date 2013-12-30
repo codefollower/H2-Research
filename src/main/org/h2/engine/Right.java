@@ -14,6 +14,7 @@ import org.h2.table.Table;
  * An access right. Rights are regular database objects, but have generated
  * names.
  */
+//一个Right实例对应一条GRANT ROLE或GRANT RIGHT语句
 public class Right extends DbObjectBase {
 
     /**
@@ -52,12 +53,18 @@ public class Right extends DbObjectBase {
     private Table grantedTable;
     private RightOwner grantee;
 
+    //将角色 授予RightOwner
+    //也就是将grantedRole角色 授予grantee(可以是系统预定义的public角色，也可以是自定义的角色，还可以是用户)
+    //对应GRANT ROLE语句
     public Right(Database db, int id, RightOwner grantee, Role grantedRole) {
         initDbObjectBase(db, id, "RIGHT_"+id, Trace.USER);
         this.grantee = grantee;
         this.grantedRole = grantedRole;
     }
-
+    
+    //将权限 授予RightOwner
+    //也就是将grantedRightOnTable表的grantedRight权限 授grantee
+    //对应GRANT RIGHT语句
     public Right(Database db, int id, RightOwner grantee, int grantedRight, Table grantedRightOnTable) {
         initDbObjectBase(db, id, "" + id, Trace.USER);
         this.grantee = grantee;
@@ -161,4 +168,8 @@ public class Right extends DbObjectBase {
         return grantedRight;
     }
 
+	// 我加上的
+	public String toString() {
+		return getCreateSQL();
+	}
 }

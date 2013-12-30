@@ -104,11 +104,14 @@ public class CreateTrigger extends SchemaCommand {
         trigger.setTypeMask(typeMask);
         trigger.setOnRollback(onRollback);
         trigger.setTriggerClassName(triggerClassName, force);
+        //Trigger的信息放到三处:Database的Meta表、Schema对象、Table对象
         db.addSchemaObject(session, trigger);
         table.addTrigger(trigger);
         return 0;
     }
-
+    
+    //如果是CREATE FORCE TRIGGER，那么在加载触发器类出错时不抛异常，
+    //见org.h2.schema.TriggerObject.setTriggerClassName(Session, String, boolean)
     public void setForce(boolean force) {
         this.force = force;
     }

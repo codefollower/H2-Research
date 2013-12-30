@@ -31,6 +31,7 @@ import org.h2.value.ValueInt;
  * This class represents the statement
  * SET
  */
+//只处理SetTypes类中定义的参数
 public class Set extends Prepared {
 
     private final int type;
@@ -46,7 +47,8 @@ public class Set extends Prepared {
     public void setString(String v) {
         this.stringValue = v;
     }
-
+    
+    //如果返回true，那么在org.h2.command.Command.stop()中不会自动提交事务，需用户触发
     @Override
     public boolean isTransactional() {
         switch (type) {
@@ -70,6 +72,7 @@ public class Set extends Prepared {
     public int update() {
         Database database = session.getDatabase();
         String name = SetTypes.getTypeName(type);
+        //switch type除了READONLY之外，总共35个
         switch (type) {
         case SetTypes.ALLOW_LITERALS: {
             session.getUser().checkAdmin();
@@ -276,7 +279,8 @@ public class Set extends Prepared {
                 throw DbException.getInvalidValueException("MAX_LOG_SIZE", getIntValue());
             }
             session.getUser().checkAdmin();
-            database.setMaxLogSize((long) getIntValue() * 1024 * 1024);
+            //database.setMaxLogSize((long) getIntValue() * 1024 * 1024);
+            database.setMaxLogSize((long) getIntValue() * 1024);
             addOrUpdateSetting(name, null, getIntValue());
             break;
         case SetTypes.MAX_MEMORY_ROWS: {
@@ -462,6 +466,7 @@ public class Set extends Prepared {
         this.expression = expression;
     }
 
+    //s和v二选一，s代表字符串类型的值，v代码int类型的值
     private void addOrUpdateSetting(String name, String s, int v) {
         addOrUpdateSetting(session, name, s, v);
     }

@@ -44,7 +44,8 @@ class CommandContainer extends Command {
     public boolean isQuery() {
         return prepared.isQuery();
     }
-
+    
+    //重新解析并prepare
     private void recompileIfRequired() {
         if (prepared.needRecompile()) {
             // TODO test with 'always recompile'

@@ -22,6 +22,7 @@ import org.h2.value.Value;
 /**
  * A prepared statement.
  */
+//只有三个抽象方法: isTransactional、queryMeta、getType
 public abstract class Prepared {
 
     /**
@@ -37,7 +38,7 @@ public abstract class Prepared {
     /**
      * Whether to create a new object (for indexes).
      */
-    protected boolean create = true;
+    protected boolean create = true; //用于CreateTable和CreateIndex
 
     /**
      * The list of parameters.
@@ -73,13 +74,14 @@ public abstract class Prepared {
      *
      * @return true if it is
      */
-    public abstract boolean isTransactional();
+    public abstract boolean isTransactional(); //如果返回true，那么在org.h2.command.Command.stop()中不会自动提交事务，需用户触发
 
     /**
      * Get an empty result set containing the meta data.
      *
      * @return the result set
      */
+    //只有Call、ExecuteProcedure、Explain、Select、SelectUnion、ScriptCommand实现了此方法，其他子类都返回null
     public abstract ResultInterface queryMeta();
 
 
@@ -104,6 +106,12 @@ public abstract class Prepared {
      *
      * @return true if it must
      */
+    //下面5个子类覆盖了此方法，并返回false
+    //org.h2.command.dml.BackupCommand
+    //org.h2.command.dml.NoOperation
+    //org.h2.command.dml.ScriptBase
+    //org.h2.command.dml.Set
+    //org.h2.command.dml.TransactionCommand
     public boolean needRecompile() {
         Database db = session.getDatabase();
         if (db == null) {
@@ -186,7 +194,7 @@ public abstract class Prepared {
     /**
      * Prepare this statement.
      */
-    public void prepare() {
+    public void prepare() { //只有8种DML类SQL实现了它: Call、Explain、Merge、Delete、Insert、Update、Select、SelectUnion
         // nothing to do
     }
 
@@ -246,7 +254,7 @@ public abstract class Prepared {
      *
      * @return the object id
      */
-    protected int getObjectId() {
+    protected int getObjectId() { //get完之后，如果原来的objectId不为0，那么要设为0
         int id = objectId;
         if (id == 0) {
             id = session.getDatabase().allocateObjectId();
@@ -261,7 +269,7 @@ public abstract class Prepared {
      *
      * @return the execution plan
      */
-    public String getPlanSQL() {
+    public String getPlanSQL() { //只有CRUD及Merge实现了此方法
         return null;
     }
 
@@ -352,7 +360,8 @@ public abstract class Prepared {
      * Notifies query progress via the DatabaseEventListener
      */
     private void setProgress() {
-        if ((currentRowNumber & 127) == 0) {
+    	//等价于((currentRowNumber % 128) == 0)，但是(currentRowNumber & 127)性能更高
+        if ((currentRowNumber & 127) == 0) { //每过128条记录提示一次进度
             session.getDatabase().setProgress(DatabaseEventListener.STATE_STATEMENT_PROGRESS, sqlStatement, currentRowNumber, 0);
         }
     }
@@ -409,6 +418,13 @@ public abstract class Prepared {
      * @param values the values of the row
      * @return the exception
      */
+    //在子类Insert和Merge中有使用
+    //如insert into TableFilterTest(id, name, b) values(70, 'b3', true), ('o7', 'b3', true)
+    //Exception in thread "main" org.h2.jdbc.JdbcSQLException: Data conversion error converting "'o7' 
+    //(TABLEFILTERTEST: ID INT)";  SQL statement:
+    //insert into TableFilterTest(id, name, b) values(70, 'b3', true), ('o7', 'b3', true) -- row #2 ('o7', 'b3', TRUE) 
+    //[22018-171]
+    //在org.h2.command.dml.Insert.insertRows()中触发，先调用Prepared.getSQL(Expression[])
     protected DbException setRow(DbException e, int rowId, String values) {
         StringBuilder buff = new StringBuilder();
         if (sqlStatement != null) {
@@ -422,6 +438,10 @@ public abstract class Prepared {
         return e.addSQL(buff.toString());
     }
 
+    //只有DML并且是下面的这几类可缓存:
+    //Insert、Delete、Update、Merge、TransactionCommand这5个无条件可缓存
+    //Call这个当产生的结果不是结果集时可缓存，否则不可缓存
+    //Select这个当不是isForUpdate时可缓存，否则不可缓存
     public boolean isCacheable() {
         return false;
     }

@@ -63,17 +63,25 @@ public class PageOutputStream {
     void reserve(int minBuffer) {
         if (reserved < minBuffer) {
             int pageSize = store.getPageSize();
+            //一个PageStreamData的容量: pageSize-11(因为一个PageStreamData的头就占了11字节)
             int capacityPerPage = PageStreamData.getCapacity(pageSize);
+            //一个PageStreamTrunk能放多少个PageStreamData的pageId(用4字节表示)
+            //(pageSize-17)/4 (一个PageStreamTrunk头就占了17字节)
             int pages = PageStreamTrunk.getPagesAddressed(pageSize);
             int pagesToAllocate = 0, totalCapacity = 0;
             do {
                 // allocate x data pages plus one trunk page
-                pagesToAllocate += pages + 1;
+                pagesToAllocate += pages + 1; //要分配多少个页，加1是包含PageStreamTrunk自身
                 totalCapacity += pages * capacityPerPage;
             } while (totalCapacity < minBuffer);
+            //从org.h2.store.PageStore.openNew()调用过来时，atEnd为false，
+            //因为在org.h2.store.PageStore.openNew()中已为logFirstTrunkPage(就是trunkPageId)分配一个pageId了
+            //firstPageToUse用在org.h2.store.PageFreeList.allocate(BitField, int)中，从来表示从哪个bit开始查找
             int firstPageToUse = atEnd ? trunkPageId : 0;
+            
+            //分配pagesToAllocate个pageId到reservedPages中，exclude包括排除的bit
             store.allocatePages(reservedPages, pagesToAllocate, exclude, firstPageToUse);
-            reserved += totalCapacity;
+            reserved += totalCapacity; //总容量
             if (data == null) {
                 initNextData();
             }
@@ -81,6 +89,7 @@ public class PageOutputStream {
     }
 
     private void initNextData() {
+    	//找下一个PageStreamData的pageId
         int nextData = trunk == null ? -1 : trunk.getPageData(trunkIndex++);
         if (nextData == -1) {
             int parent = trunkPageId;
@@ -92,18 +101,20 @@ public class PageOutputStream {
             for (int i = 0; i < len; i++) {
                 pageIds[i] = reservedPages.get(i);
             }
-            trunkNext = reservedPages.get(len);
+            //在上面的org.h2.store.PageOutputStream.reserve(int)中已多分配了一个pageId
+            trunkNext = reservedPages.get(len); //下一个PageStreamTrunk的pageId
             logKey++;
+            //第一个PageStreamTrunk的parent和trunkPageId一样
             trunk = PageStreamTrunk.create(store, parent, trunkPageId, trunkNext, logKey, pageIds);
-            trunkIndex = 0;
-            pageCount++;
-            trunk.write();
-            reservedPages.removeRange(0, len + 1);
+            trunkIndex = 0; //重新置0，因为是新的PageStreamTrunk了
+            pageCount++; //这里pageCount加1是对应新的PageStreamTrunk
+            trunk.write(); //完整的写PageStreamTrunk了，写到store中
+            reservedPages.removeRange(0, len + 1); //删除PageStreamTrunk对应的id和它的所有pageIds
             nextData = trunk.getPageData(trunkIndex++);
         }
         data = PageStreamData.create(store, nextData, trunk.getPos(), logKey);
-        pageCount++;
-        data.initWrite();
+        pageCount++; //这里pageCount加1是对应新的PageStreamData
+        data.initWrite(); //只写头数据
     }
 
     /**

@@ -12,13 +12,15 @@ import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
+import org.h2.constant.SysProperties;
+
 /**
  * The base class for wrapping / delegating file systems such as
  * the split file system.
  */
 public abstract class FilePathWrapper extends FilePath {
 
-    private FilePath base;
+    private FilePath base; //实际上就是FilePathDisk
 
     @Override
     public FilePathWrapper getPath(String path) {
@@ -43,13 +45,30 @@ public abstract class FilePathWrapper extends FilePath {
     private FilePathWrapper create(String path, FilePath base) {
         try {
             FilePathWrapper p = getClass().newInstance();
-            p.name = path;
+            //我加上的
+            p.name = translateFileName(path); //p.name = path;
             p.base = base;
             return p;
         } catch (Exception e) {
             throw new IllegalArgumentException("Path: " + path, e);
         }
     }
+
+	private String translateFileName(String fileName) {  //我加上的
+		fileName = fileName.replace('\\', '/');
+		if (fileName.startsWith(getPrefix())) {
+			fileName = fileName.substring(getPrefix().length());
+		}
+		return getPrefix() + expandUserHomeDirectory(fileName);
+	}
+
+	private String expandUserHomeDirectory(String fileName) {  //我加上的
+		if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
+			String userDir = SysProperties.USER_HOME;
+			fileName = userDir + fileName.substring(1);
+		}
+		return fileName;
+	}
 
     protected String getPrefix() {
         return getScheme() + ":";
@@ -62,7 +81,7 @@ public abstract class FilePathWrapper extends FilePath {
      * @return the base file path
      */
     protected FilePath unwrap(String path) {
-        return FilePath.get(path.substring(getScheme().length() + 1));
+        return FilePath.get(path.substring(getScheme().length() + 1)); //去掉模式前缀，当成FilePathDisk
     }
 
     protected FilePath getBase() {

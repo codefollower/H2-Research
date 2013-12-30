@@ -33,6 +33,7 @@ import org.h2.value.ValueNull;
 /**
  * Represents a SELECT statement (simple, or union).
  */
+//调用顺序 init=>prepare->query
 public abstract class Query extends Prepared {
 
     /**
@@ -58,7 +59,7 @@ public abstract class Query extends Prepared {
     /**
      * Whether the result needs to support random access.
      */
-    protected boolean randomAccessResult;
+    protected boolean randomAccessResult; //在ConditionInSelect时会设为true
 
     private boolean noCache;
     private int lastLimit;
@@ -169,7 +170,7 @@ public abstract class Query extends Prepared {
      * @param columnId the column index (0 meaning the first column)
      * @param comparisonType the comparison type
      */
-    public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType);
+    public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType); //在ViewIndex中有使用
 
     /**
      * Check whether adding condition to the query is allowed. This is not
@@ -178,7 +179,7 @@ public abstract class Query extends Prepared {
      *
      * @return true if adding global conditions is allowed
      */
-    public abstract boolean allowGlobalConditions();
+    public abstract boolean allowGlobalConditions(); //在ViewIndex中有使用
 
     /**
      * Check if this expression and all sub-expressions can fulfill a criteria.
@@ -219,7 +220,7 @@ public abstract class Query extends Prepared {
      *
      * @param b the new value
      */
-    public void setRandomAccessResult(boolean b) {
+    public void setRandomAccessResult(boolean b) { //在ConditionInSelect时会设为true
         randomAccessResult = b;
     }
 
@@ -236,7 +237,7 @@ public abstract class Query extends Prepared {
     /**
      * Disable caching of result sets.
      */
-    public void disableCache() {
+    public void disableCache() { //在ViewIndex中有使用
         this.noCache = true;
     }
 
@@ -250,7 +251,7 @@ public abstract class Query extends Prepared {
             return false;
         }
         Database db = s.getDatabase();
-        for (int i = 0; i < params.length; i++) {
+        for (int i = 0; i < params.length; i++) { //检查当前参数与上一次的参数是否相等
             Value a = lastParams[i], b = params[i];
             if (a.getType() != b.getType() || !db.areEqual(a, b)) {
                 return false;
@@ -259,6 +260,7 @@ public abstract class Query extends Prepared {
         if (!isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR) || !isEverything(ExpressionVisitor.INDEPENDENT_VISITOR)) {
             return false;
         }
+        //数据有变时不使用缓存
         if (db.getModificationDataId() > lastEval && getMaxDataModificationId() > lastEval) {
             return false;
         }
@@ -291,9 +293,9 @@ public abstract class Query extends Prepared {
      * @param target the target result (null will return the result)
      * @return the result set (if the target is not set).
      */
-    LocalResult query(int limit, ResultTarget target) {
+    LocalResult query(int limit, ResultTarget target) { //子类SelectUnion覆盖了此方法
         fireBeforeSelectTriggers();
-        if (noCache || !session.getDatabase().getOptimizeReuseResults()) {
+        if (noCache || !session.getDatabase().getOptimizeReuseResults()) { //不使用缓存
             return queryWithoutCache(limit, target);
         }
         Value[] params = getParameterValues();
@@ -344,6 +346,9 @@ public abstract class Query extends Prepared {
             ArrayList<TableFilter> filters) {
         Database db = session.getDatabase();
         for (SelectOrderBy o : orderList) {
+        	//类似这样的sql时:select name,id from mytable order by 1 desc
+        	//o.expression为null，“order by 1”表示使用select字段列表中的第一个(就是name)来排序
+        	//此时o.columnIndexExpr是1
             Expression e = o.expression;
             if (e == null) {
                 continue;
@@ -353,7 +358,7 @@ public abstract class Query extends Prepared {
             // not in having):
             // SELECT 1 AS A FROM DUAL ORDER BY -A
             boolean isAlias = false;
-            int idx = expressions.size();
+            int idx = expressions.size(); //排序列最后放在什么位置，默认是最后，除非在select字段列表中找到了
             if (e instanceof ExpressionColumn) {
                 // order by expression
                 ExpressionColumn exprCol = (ExpressionColumn) e;
@@ -420,6 +425,13 @@ public abstract class Query extends Prepared {
                     }
                 }
             }
+            
+            //在select中加distinct时distinct变量为true
+        	//此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
+        	//比如select distinct name from mytable order by id desc是错的
+        	//错误提示:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
+        	//这样就没问题select name from mytable order by id desc
+            //会自动加order by中的字段到select字段列表中
             if (!isAlias) {
                 if (mustBeInResult) {
                     throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT, e.getSQL());
@@ -442,15 +454,22 @@ public abstract class Query extends Prepared {
      * @param expressionCount the number of columns in the query
      * @return the {@link SortOrder} object
      */
+    //order by字段列表在select字段列表中的位置索引(从0开始计数)和order by字段排序类型生成两个数组:indexes、sortTypes
+    //得到一个综合的SortOrder实例
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];
+        int[] columnIndexes = new int[size]; //我加上的
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
-            SelectOrderBy o = orderList.get(i);
-            int idx;
-            boolean reverse = false;
-            Expression expr = o.columnIndexExpr;
+			SelectOrderBy o = orderList.get(i);
+			int idx;
+			boolean reverse = false;
+			//我加上的
+			if (o.expression instanceof ExpressionColumn && ((ExpressionColumn) o.expression).getColumn() != null ) {
+				columnIndexes[i] = ((ExpressionColumn) o.expression).getColumn().getColumnId();
+			}
+			Expression expr = o.columnIndexExpr;
             Value v = expr.getValue(null);
             if (v == ValueNull.INSTANCE) {
                 // parameter not yet set - order by first column
@@ -479,7 +498,8 @@ public abstract class Query extends Prepared {
             }
             sortType[i] = type;
         }
-        return new SortOrder(session.getDatabase(), index, sortType, orderList);
+
+        return new SortOrder(session.getDatabase(), index, sortType, orderList, columnIndexes);
     }
 
     public void setOffset(Expression offset) {

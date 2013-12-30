@@ -112,6 +112,8 @@ public class Schema extends DbObjectBase {
 
     @Override
     public void removeChildrenAndResources(Session session) {
+        //删除每个SchemaObject的子类时会触发Schema.remove(SchemaObject)，此方法会在对应的map中清除SchemaObject的子类实例引用，
+        //所以XXX.values().toArray()[0]是正确的，总是取map的values中的第一个
         while (triggers != null && triggers.size() > 0) {
             TriggerObject obj = (TriggerObject) triggers.values().toArray()[0];
             database.removeSchemaObject(session, obj);
@@ -264,6 +266,7 @@ public class Schema extends DbObjectBase {
      * @param name the object name
      * @return the object or null
      */
+    //getTableOrView和findTableOrView差不多，差别是getTableOrView如果表不存在抛出异常，而findTableOrView只返回null
     public Table findTableOrView(Session session, String name) {
         Table table = tablesAndViews.get(name);
         if (table == null && session != null) {
@@ -430,6 +433,7 @@ public class Schema extends DbObjectBase {
      * @return the table or view
      * @throws DbException if no such object exists
      */
+    //getTableOrView和findTableOrView差不多，差别是getTableOrView如果表不存在抛出异常，而findTableOrView只返回null
     public Table getTableOrView(Session session, String name) {
         Table table = tablesAndViews.get(name);
         if (table == null) {

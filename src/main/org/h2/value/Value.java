@@ -260,6 +260,7 @@ public abstract class Value {
      * @return the order number
      */
     static int getOrder(int type) {
+    	//当两个值需要发生转换时，order数字小的要转到数字大的，比如a是int，b是long，int是23，long是24，那么在做运算时a要转成long
         switch(type) {
         case UNKNOWN:
             return 1;
@@ -925,6 +926,7 @@ public abstract class Value {
     }
 
     public int getScale() {
+    	//ValueDecimal、ValueDouble、ValueFloat、ValueTimestamp覆盖了，但是ValueDouble、ValueFloat还是返回0
         return 0;
     }
 
@@ -996,7 +998,7 @@ public abstract class Value {
      * @param tableId the table to link to
      * @return the new value or itself
      */
-    public Value link(DataHandler handler, int tableId) {
+    public Value link(DataHandler handler, int tableId) { //只对ValueLob、ValueLobDb有用
         return this;
     }
 
@@ -1006,7 +1008,7 @@ public abstract class Value {
      *
      * @return true if it is
      */
-    public boolean isLinked() {
+    public boolean isLinked() { //只对ValueLob、ValueLobDb有用
         return false;
     }
 
@@ -1016,7 +1018,7 @@ public abstract class Value {
      *
      * @param handler the data handler
      */
-    public void unlink(DataHandler handler) {
+    public void unlink(DataHandler handler) { //只对ValueLob、ValueLobDb有用
         // nothing to do
     }
 
@@ -1024,7 +1026,7 @@ public abstract class Value {
      * Close the underlying resource, if any. For values that are kept fully in
      * memory this method has no effect.
      */
-    public void close() {
+    public void close() { //只对ValueLob、ValueLobDb有用
         // nothing to do
     }
 
@@ -1070,7 +1072,7 @@ public abstract class Value {
      *
      * @return the table id
      */
-    public int getTableId() {
+    public int getTableId() { //只对ValueLob、ValueLobDb有用
         return 0;
     }
 
@@ -1079,7 +1081,7 @@ public abstract class Value {
      *
      * @return the byte array
      */
-    public byte[] getSmall() {
+    public byte[] getSmall() { //只对ValueLob、ValueLobDb有用
         return null;
     }
 
@@ -1088,7 +1090,7 @@ public abstract class Value {
      *
      * @return the new value
      */
-    public Value copyToTemp() {
+    public Value copyToTemp() { //只对ValueLob、ValueLobDb有用
         return this;
     }
 
@@ -1111,14 +1113,14 @@ public abstract class Value {
     /**
      * A "binary large object".
      */
-    public interface ValueClob {
+    public interface ValueClob { //只对ValueLobDb有用
         // this is a marker interface
     }
 
     /**
      * A "character large object".
      */
-    public interface ValueBlob {
+    public interface ValueBlob { //只对ValueLobDb有用
         // this is a marker interface
     }
 

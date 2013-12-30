@@ -13,6 +13,7 @@ import org.h2.result.ResultInterface;
 /**
  * Represents a SQL statement.
  */
+//有8个基本方法，最主要是executeQuery、executeUpdate
 public interface CommandInterface {
 
     /**
@@ -451,6 +452,8 @@ public interface CommandInterface {
      * The type of a SHUTDOWN DEFRAG statement.
      */
     int SHUTDOWN_DEFRAG = 84;
+    
+    //有8个基本方法，最主要是executeQuery、executeUpdate
 
     /**
      * Get command type.

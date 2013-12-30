@@ -32,6 +32,8 @@ public class User extends RightOwner {
     private byte[] passwordHash;
     private boolean admin;
 
+    //在org.h2.engine.Database.open(int, int)里建了一个系统用户 systemUser = new User(this, 0, SYSTEM_USER_NAME, true);
+    //SYSTEM_USER_NAME = DBA
     public User(Database database, int id, String userName, boolean systemUser) {
         super(database, id, userName, Trace.USER);
         this.systemUser = systemUser;
@@ -116,10 +118,12 @@ public class User extends RightOwner {
         if (admin) {
             return true;
         }
-        Role publicRole = database.getPublicRole();
+        Role publicRole = database.getPublicRole(); //先检查public角色是否有此权限
         if (publicRole.isRightGrantedRecursive(table, rightMask)) {
             return true;
         }
+        
+        //MetaTable和RangeTable都有权限
         if (table instanceof MetaTable || table instanceof RangeTable) {
             // everybody has access to the metadata information
             return true;
@@ -145,6 +149,7 @@ public class User extends RightOwner {
                 return true;
             }
         }
+
         if (isRightGrantedRecursive(table, rightMask)) {
             return true;
         }
@@ -185,6 +190,7 @@ public class User extends RightOwner {
      * @param userPasswordHash the password data (the user password hash)
      * @return true if the user password hash is correct
      */
+    //用于打开session时，验证用户提供的密码是否正确
     boolean validateUserPasswordHash(byte[] userPasswordHash) {
         if (userPasswordHash.length == 0 && passwordHash.length == 0) {
             return true;
@@ -241,8 +247,13 @@ public class User extends RightOwner {
         return children;
     }
 
+    //跟Role类的不一样，user只有被授予，而不存在把user自己授予给别人
+    //dorp table时会调用
+    //不管是直接把权限授予给此user还是把角色授予给些user都会得到一个Right，
+    //所以只要取出所有权限，判断一下Grantee是不是user自己就可以了
     @Override
     public void removeChildrenAndResources(Session session) {
+    	//授予给此user自己的权限要删除
         for (Right right : database.getAllRights()) {
             if (right.getGrantee() == this) {
                 database.removeDatabaseObject(session, right);
@@ -266,7 +277,7 @@ public class User extends RightOwner {
      *
      * @throws DbException if this user owns a schema
      */
-    public void checkOwnsNoSchemas() {
+    public void checkOwnsNoSchemas() { //此用户没有Schema对象
         for (Schema s : database.getAllSchemas()) {
             if (this == s.getOwner()) {
                 throw DbException.get(ErrorCode.CANNOT_DROP_2, getName(), s.getName());

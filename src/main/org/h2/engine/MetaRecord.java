@@ -36,7 +36,8 @@ public class MetaRecord implements Comparable<MetaRecord> {
         objectType = obj.getType();
         sql = obj.getCreateSQL();
     }
-
+    
+    //分别对应ID、HEAD、TYPE、SQL这4个字段
     void setRecord(SearchRow r) {
         r.setValue(0, ValueInt.get(id));
         r.setValue(1, ValueInt.get(0));
@@ -54,6 +55,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
     void execute(Database db, Session systemSession, DatabaseEventListener listener) {
         try {
             Prepared command = systemSession.prepare(sql);
+            //System.out.println(sql);
             command.setObjectId(id);
             command.update();
         } catch (DbException e) {
@@ -88,7 +90,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
      * @return -1, 0, or 1
      */
     @Override
-    public int compareTo(MetaRecord other) {
+    public int compareTo(MetaRecord other) { //createOrder越小表示优先级越高，同等优先级的按id先后顺序
         int c1 = getCreateOrder();
         int c2 = other.getCreateOrder();
         if (c1 != c2) {

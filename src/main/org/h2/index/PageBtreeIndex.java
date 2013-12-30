@@ -40,30 +40,32 @@ public class PageBtreeIndex extends PageIndex {
     private int memoryPerPage;
     private int memoryCount;
 
+    //PageDataIndex的id就是表的id，其他索引如PageBtreeIndex的id是自动分配的并不是表的id
     public PageBtreeIndex(RegularTable table, int id, String indexName, IndexColumn[] columns,
             IndexType indexType, boolean create, Session session) {
         initBaseIndex(table, id, indexName, columns, indexType);
         if (!database.isStarting() && create) {
-            checkIndexColumnTypes(columns);
+            checkIndexColumnTypes(columns); //索引字段不能是 BLOB or CLOB类型
         }
         // int test;
         // trace.setLevel(TraceSystem.DEBUG);
         tableData = table;
+        //内存数据库显然不能建立Btree索引，因为Btree索引要存硬盘
         if (!database.isPersistent() || id < 0) {
             throw DbException.throwInternalError("" + indexName);
         }
         this.store = database.getPageStore();
-        store.addIndex(this);
+        store.addIndex(this); //加到PageStore的metaObjects
         if (create) {
             // new index
             rootPageId = store.allocatePage();
             // TODO currently the head position is stored in the log
             // it should not for new tables, otherwise redo of other operations
             // must ensure this page is not used for other things
-            store.addMeta(this, session);
+            store.addMeta(this, session); //把此索引的元数据放到metaIndex中，metaIndex是一个PageDataIndex
             PageBtreeLeaf root = PageBtreeLeaf.create(this, rootPageId, PageBtree.ROOT);
             store.logUndo(root, null);
-            store.update(root);
+            store.update(root); //放到缓存中
         } else {
             rootPageId = store.getRootPageId(id);
             PageBtree root = getPage(rootPageId);
@@ -74,15 +76,17 @@ public class PageBtreeIndex extends PageIndex {
             trace.debug("opened {0} rows: {1}", getName() , rowCount);
         }
         memoryPerPage = (Constants.MEMORY_PAGE_BTREE + store.getPageSize()) >> 2;
+        //System.out.println(getPlanSQL());
+        //System.out.println(getCreateSQL());
     }
 
     @Override
-    public void add(Session session, Row row) {
+    public void add(Session session, Row row) { //row是完整的记录
         if (trace.isDebugEnabled()) {
             trace.debug("{0} add {1}", getName(), row);
         }
         // safe memory
-        SearchRow newRow = getSearchRow(row);
+        SearchRow newRow = getSearchRow(row); //按索引字段构建SearchRow，只取索引字段的值
         try {
             addRow(newRow);
         } finally {
@@ -97,6 +101,15 @@ public class PageBtreeIndex extends PageIndex {
             if (splitPoint == -1) {
                 break;
             }
+           
+//            System.out.println("-----------切割前----------");
+//            System.out.println(root);
+//            
+            //下面的代码是处理切割的情况
+            //一开始因为root是一个PageBtreeLeaf，所以是对PageBtreeLeaf的切割
+            //从第二次开始，都是对PageBtreeNode的切割
+            //对于PageBtreeLeaf，如果索引是升序的，那么切割后的两个节点，小于等于切割点的在左边结点，大于切割点的在右边结点，
+            //如果索引是降序的，那么切割后的两个节点，大于等于切割点的在左边结点，小于切割点的在右边结点，
             if (trace.isDebugEnabled()) {
                 trace.debug("split {0}", splitPoint);
             }
@@ -106,7 +119,12 @@ public class PageBtreeIndex extends PageIndex {
             PageBtree page2 = root.split(splitPoint);
             store.logUndo(page2, null);
             int id = store.allocatePage();
-            page1.setPageId(id);
+            page1.setPageId(id); //左结点要改变pageId，右结点在root.split(splitPoint)内部已经有新pageId了。
+            
+            //在这里进行切割操作的因为是顶层结点，所以左右子结点的parentPageId必然是rootPageId, 这两个左右子结点在B-tree的第二层，
+            //当顶层结点继续切割时，那么这两些的两个左右子结点会继续往下沉，所以他们的parentPageId就不是rootPageId了，
+            //而是新的在B-tree的第二层的结点，所以在root.split(splitPoint)内部会重新remapChildren右节点中对应的原始子节点的
+            //而 page1.setPageId(id)会重新remapChildren左节点中对应的原始子节点
             page1.setParentPageId(rootPageId);
             page2.setParentPageId(rootPageId);
             PageBtreeNode newRoot = PageBtreeNode.create(this, rootPageId, PageBtree.ROOT);
@@ -114,11 +132,23 @@ public class PageBtreeIndex extends PageIndex {
             newRoot.init(page1, pivot, page2);
             store.update(page1);
             store.update(page2);
-            store.update(newRoot);
-            root = newRoot;
-        }
-        invalidateRowCount();
-        rowCount++;
+			store.update(newRoot);
+			root = newRoot; //这行代码没用
+
+			//			System.out.println("-----------按" + pivot + "切割----------");
+			//			System.out.println("-----------Root切割成两个子页面----------");
+			//			System.out.println(page1);
+			//			System.out.println(page2);
+			//
+			//			System.out.println("-----------切割后----------");
+			//			System.out.println(root);
+		}
+		invalidateRowCount();
+		rowCount++;
+
+		//		System.out.println();
+		//		System.out.println(getPage(rootPageId));
+		//		System.out.println("---------------------");
     }
 
     /**
@@ -177,6 +207,8 @@ public class PageBtreeIndex extends PageIndex {
             throw DbException.get(ErrorCode.OBJECT_CLOSED);
         }
         PageBtree root = getPage(rootPageId);
+        //System.out.println(root);
+        //System.out.println("---------------------");
         PageBtreeCursor cursor = new PageBtreeCursor(session, this, last);
         root.find(cursor, first, bigger);
         return cursor;
@@ -246,7 +278,7 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public void remove(Session session) {
+    public void remove(Session session) { //删掉索引时会调用(删表时也会触发删索引)
         if (trace.isDebugEnabled()) {
             trace.debug("remove");
         }
@@ -256,7 +288,7 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public void truncate(Session session) {
+    public void truncate(Session session) { //TRUNCATE表时触发
         if (trace.isDebugEnabled()) {
             trace.debug("truncate");
         }
@@ -270,9 +302,10 @@ public class PageBtreeIndex extends PageIndex {
     private void removeAllRows() {
         try {
             PageBtree root = getPage(rootPageId);
-            root.freeRecursive();
+            root.freeRecursive(); //在存储中删除所有page
             root = PageBtreeLeaf.create(this, rootPageId, PageBtree.ROOT);
-            store.removeFromCache(rootPageId);
+
+            store.removeFromCache(rootPageId); //在缓存中清除rootPageId对应的page
             store.update(root);
             rowCount = 0;
         } finally {
@@ -439,6 +472,7 @@ public class PageBtreeIndex extends PageIndex {
             return;
         }
         PageBtree root = getPage(rootPageId);
+        //PageBtreeLeaf什么都不做，PageBtreeNode在头中更新rowCountStored字段值
         root.setRowCountStored(MathUtils.convertLongToInt(rowCount));
     }
 

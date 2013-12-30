@@ -12,7 +12,30 @@ import org.h2.table.Table;
 /**
  * A database object such as a table, an index, or a user.
  */
+//15个字段，16个方法
 public interface DbObject {
+	
+	//15种数据库对象(从0到14)，
+	/*
+    Schema掌管7个能带Schema前缀的模式数据库对象
+    private final HashMap<String, Table> tablesAndViews;
+    private final HashMap<String, Index> indexes;
+    private final HashMap<String, Sequence> sequences;
+    private final HashMap<String, TriggerObject> triggers;
+    private final HashMap<String, Constraint> constraints;
+    private final HashMap<String, Constant> constants;
+    private final HashMap<String, FunctionAlias> functions;
+
+          而Database类自身掌管了其他8个数据库对象，这些对象因为不是模式数据库对象，所以不能带Schema前缀
+    private final HashMap<String, Role> roles = New.hashMap();
+    private final HashMap<String, User> users = New.hashMap();
+    private final HashMap<String, Setting> settings = New.hashMap();
+    private final HashMap<String, Schema> schemas = New.hashMap();
+    private final HashMap<String, Right> rights = New.hashMap();
+    private final HashMap<String, UserDataType> userDataTypes = New.hashMap();
+    private final HashMap<String, UserAggregate> aggregates = New.hashMap();
+    private final HashMap<String, Comment> comments = New.hashMap();
+    */
 
     /**
      * The object is of the type table or view.
@@ -103,7 +126,7 @@ public interface DbObject {
      *
      * @return the list of children
      */
-    ArrayList<DbObject> getChildren();
+    ArrayList<DbObject> getChildren(); //只有Table和User有Children
 
     /**
      * Get the database.
@@ -134,7 +157,7 @@ public interface DbObject {
      * @param quotedName the quoted name
      * @return the SQL statement
      */
-    String getCreateSQLForCopy(Table table, String quotedName);
+    String getCreateSQLForCopy(Table table, String quotedName); //用在AlterTableAlterColumn
 
     /**
      * Construct the original CREATE ... SQL statement for this object.
@@ -148,7 +171,7 @@ public interface DbObject {
      *
      * @return the SQL statement
      */
-    String getDropSQL();
+    String getDropSQL(); //只看到org.h2.command.dml.ScriptCommand中有使用
 
     /**
      * Get the object type.

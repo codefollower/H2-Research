@@ -729,6 +729,9 @@ public class StringUtils {
      * @param s the text
      * @return the double quoted text
      */
+    //给字符串加双引号，字符串中的双引号用两个双引号表示
+    //如: abc => "abc"
+    // ab"c   => "ab""c"
     public static String quoteIdentifier(String s) {
         int length = s.length();
         StringBuilder buff = new StringBuilder(length + 2);

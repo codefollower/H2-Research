@@ -14,7 +14,7 @@ import org.h2.util.StringUtils;
 /**
  * The base class for objects that can print trace information about themselves.
  */
-public class TraceObject {
+public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常量就是代表其中的类
 
     /**
      * The trace type id  for callable statements.

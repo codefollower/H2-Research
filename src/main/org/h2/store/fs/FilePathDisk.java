@@ -38,6 +38,7 @@ public class FilePathDisk extends FilePath {
     @Override
     public FilePathDisk getPath(String path) {
         FilePathDisk p = new FilePathDisk();
+        //name是父类FilePath的字段
         p.name = translateFileName(path);
         return p;
     }
@@ -54,6 +55,7 @@ public class FilePathDisk extends FilePath {
      * @param fileName the file name
      * @return the native file name
      */
+    //去掉file这个模式前缀，并且替换\到/，替换~到USER_HOME
     protected static String translateFileName(String fileName) {
         fileName = fileName.replace('\\', '/');
         if (fileName.startsWith("file:")) {
@@ -69,9 +71,13 @@ public class FilePathDisk extends FilePath {
      * @param fileName the file name
      * @return the native file name
      */
+    //例如System.setProperty("user.home", "E:/H2/tmp");
+	//fileName = "file:~/FileStoreTest/my.txt";
+    //则返回的是E:/H2/tmp/FileStoreTest/my.txt
     public static String expandUserHomeDirectory(String fileName) {
+    	//要么是单个~，要么是以~/开头
         if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
-            String userDir = SysProperties.USER_HOME;
+            String userDir = SysProperties.USER_HOME; //默认是C:\Users\Administrator
             fileName = userDir + fileName.substring(1);
         }
         return fileName;
@@ -149,7 +155,8 @@ public class FilePathDisk extends FilePath {
         }
         throw DbException.get(ErrorCode.FILE_DELETE_FAILED_1, name);
     }
-
+    
+    //文件和目录名都会列出来
     @Override
     public List<FilePath> newDirectoryStream() {
         ArrayList<FilePath> list = New.arrayList();
@@ -285,6 +292,7 @@ public class FilePathDisk extends FilePath {
         if (index > 1 && index < 20) {
             // if the ':' is in position 1, a windows file access is assumed: C:.. or D:
             // if the ':' is not at the beginning, assume its a file name with a colon
+        	//如"classpath:my/test/store/fs/FileUtilsTest.class"
             if (name.startsWith(CLASSPATH_PREFIX)) {
                 String fileName = name.substring(CLASSPATH_PREFIX.length());
                 if (!fileName.startsWith("/")) {

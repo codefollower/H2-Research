@@ -205,6 +205,11 @@ public class TestTransactionStore extends TestBase {
         assertFalse(tx.getChanges(0).hasNext());
         tx.commit();
 
+    //三个ts.begin()代表三个事务A、B、C
+    //首先是A写了3条记录并提交，然后B删除key为2的记录并修改key为3的记录，新增一条key为4的记录，但是B事务不提交
+    //然后C事务开始读，因为H2数据库只支持read committed事务隔离级别，所以C只能读到A的修改，
+    //而B事务没提交，所以C不能看到，
+    //但是B事务自身是能看到自己修改的结果的。
         tx = ts.begin();
         m1 = tx.openMap("m1");
         m2 = tx.openMap("m2");
@@ -286,6 +291,7 @@ public class TestTransactionStore extends TestBase {
         assertTrue(it.hasNext());
         assertEquals("1", it.next());
         assertTrue(it.hasNext());
+        //因为tx2没有提交，所以还是能看到原来的值，也就是说新事务只能读到已提交的数据(哪怕tx2修改了，但它没提交)
         assertEquals("2", it.next());
         assertTrue(it.hasNext());
         assertEquals("3", it.next());
@@ -335,13 +341,15 @@ public class TestTransactionStore extends TestBase {
         assertTrue(m.trySet("1", "Hello", true));
         assertTrue(m.trySet("2", "World", true));
         // not seen yet (within the same statement)
+        //因为前面设了 m.setSavepoint(startUpdate)，所以m.logId很小
+        //当调用trySet时，logId增加了，而下面的两个get还是读startUpdate时的值，所以读不到，就为null
         assertNull(m.get("1"));
         assertNull(m.get("2"));
 
         // start of statement
         startUpdate = tx.setSavepoint();
         // now we see the newest version
-        m.setSavepoint(startUpdate);
+        m.setSavepoint(startUpdate); //logId变了，所以下面两个get返回的值不为null
         assertEquals("Hello", m.get("1"));
         assertEquals("World", m.get("2"));
         // update test set primaryKey = primaryKey + 1
@@ -426,7 +434,7 @@ public class TestTransactionStore extends TestBase {
         tx = ts.begin();
         assertEquals(2, tx.getId());
         m = tx.openMap("test");
-        assertEquals(null, m.get("1"));
+        assertEquals(null, m.get("1")); //因为前面的事务没有提交，如果调用tx.commit()就不会为null
         m.put("2", "Hello");
         list = ts.getOpenTransactions();
         assertEquals(2, list.size());
@@ -694,6 +702,7 @@ public class TestTransactionStore extends TestBase {
         m1.put("2", "World");
 
         assertNull(m2.get("2"));
+        //tx1事务更改了key "2"，但是它没提交，所以tryRemove、tryPut返回false
         assertFalse(m2.tryRemove("2"));
         assertFalse(m2.tryPut("2", "Welt"));
 

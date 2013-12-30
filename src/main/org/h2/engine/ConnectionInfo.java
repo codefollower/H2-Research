@@ -33,7 +33,7 @@ import org.h2.util.Utils;
 public class ConnectionInfo implements Cloneable {
     private static final HashSet<String> KNOWN_SETTINGS = New.hashSet();
 
-    private Properties prop = new Properties();
+    private Properties prop = new Properties(); //里面的key都会自动转成大写
     private String originalURL;
     private String url;
     private String user;
@@ -59,7 +59,7 @@ public class ConnectionInfo implements Cloneable {
      */
     public ConnectionInfo(String name) {
         this.name = name;
-        this.url = Constants.START_URL + name;
+        this.url = Constants.START_URL + name; //如jdbc:h2:mydb，没有tcp了，此时persistent也是true
         parseName();
     }
 
@@ -71,15 +71,18 @@ public class ConnectionInfo implements Cloneable {
      */
     public ConnectionInfo(String u, Properties info) {
         u = remapURL(u);
-        this.originalURL = u;
-        if (!u.startsWith(Constants.START_URL)) {
+        this.originalURL = u; //originalURL不会再变
+        if (!u.startsWith(Constants.START_URL)) { //"jdbc:h2:"
             throw DbException.getInvalidValueException("url", u);
         }
-        this.url = u;
+        this.url = u; //url在接下来的代码中会再变，去掉参数
         readProperties(info);
         readSettingsFromURL();
         setUserName(removeProperty("USER", ""));
         convertPasswords();
+
+		//去掉"jdbc:h2:"，比如jdbc:h2:tcp://localhost:9092/test9
+		//name = tcp://localhost:9092/test9
         name = url.substring(Constants.START_URL.length());
         parseName();
         String recoverTest = removeProperty("RECOVER_TEST", null);
@@ -145,7 +148,7 @@ public class ConnectionInfo implements Cloneable {
             name = name.substring("file:".length());
             persistent = true;
         } else {
-            persistent = true;
+            persistent = true; //等同于"file:name"，在ConnectionInfo(String name)传过来时就是数据库名，没有前缀，在client端是tcp
         }
         if (persistent && !remote) {
             if ("/".equals(SysProperties.FILE_SEPARATOR)) {
@@ -229,18 +232,22 @@ public class ConnectionInfo implements Cloneable {
         Object[] list = new Object[info.size()];
         info.keySet().toArray(list);
         DbSettings s = null;
+
+		//可在info中配三种参数，相关文档见:E:\H2\my-h2\my-h2-docs\999 可配置的参数汇总.java中的1、2、3项
         for (Object k : list) {
             String key = StringUtils.toUpperEnglish(k.toString());
             if (prop.containsKey(key)) {
                 throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
             }
             Object value = info.get(k);
+			//支持org.h2.command.dml.SetTypes中的参数和ConnectionInfo与connectionTime相关的参数
             if (isKnownSetting(key)) {
                 prop.put(key, value);
             } else {
                 if (s == null) {
                     s = getDbSettings();
                 }
+				//org.h2.constant.DbSettings中的参数
                 if (s.containsKey(key)) {
                     prop.put(key, value);
                 }
@@ -249,11 +256,15 @@ public class ConnectionInfo implements Cloneable {
     }
 
     private void readSettingsFromURL() {
+		//如url=jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false
         DbSettings dbSettings = DbSettings.getInstance(null);
-        int idx = url.indexOf(';');
+        int idx = url.indexOf(';');//用";"号来分隔参数，第一个";"号表明url和参数的分界，之后的";"号用来分隔多个参数
         if (idx >= 0) {
+			//optimize_distinct=true;early_filter=true;nested_joins=false
             String settings = url.substring(idx + 1);
+			//jdbc:h2:tcp://localhost:9092/test9
             url = url.substring(0, idx);
+			//[optimize_distinct=true, early_filter=true, nested_joins=false]
             String[] list = StringUtils.arraySplit(settings, ';', false);
             for (String setting : list) {
                 if (setting.length() == 0) {
@@ -266,9 +277,14 @@ public class ConnectionInfo implements Cloneable {
                 String value = setting.substring(equal + 1);
                 String key = setting.substring(0, equal);
                 key = StringUtils.toUpperEnglish(key);
+				//info中除了可以配三种参数外(相关文档见:E:\H2\my-h2\my-h2-docs\999 可配置的参数汇总.java中的1、2、3项)
+				//还可以配其他参数，但是被忽略
+				//但是url中只能配三种参数
                 if (!isKnownSetting(key) && !dbSettings.containsKey(key)) {
                     throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, key);
                 }
+				//不能与info中的参数重复(如果值相同就不会报错)
+				//例子见my.test.ConnectionInfoTest
                 String old = prop.getProperty(key);
                 if (old != null && !old.equals(value)) {
                     throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
@@ -283,6 +299,11 @@ public class ConnectionInfo implements Cloneable {
         if (p == null) {
             return new char[0];
         } else if (p instanceof char[]) {
+			//例如:
+			//Properties prop = new Properties();
+			//prop.put("password", new char[]{});
+			//因为Properties继承了java.util.Hashtable<K, V>
+			//可以调用java.util.Hashtable.put(Object, Object)
             return (char[]) p;
         } else {
             return p.toString().toCharArray();
@@ -295,7 +316,11 @@ public class ConnectionInfo implements Cloneable {
      */
     private void convertPasswords() {
         char[] password = removePassword();
-        boolean passwordHash = removeProperty("PASSWORD_HASH", false);
+        boolean passwordHash = removeProperty("PASSWORD_HASH", false); //如果PASSWORD_HASH参数是true那么不再进行SHA256
+
+		//如果配置了CIPHER，则password包含两部份，用一个空格分开这两部份，第一部份是filePassword，第二部份是userPassword。
+		//如果PASSWORD_HASH参数是true那么不再进行SHA256，此时必须使用16进制字符，字符个数是偶数。
+        //如果PASSWORD_HASH参数是false，不必是16进制字符，会按SHA256算法进行hash
         if (getProperty("CIPHER", null) != null) {
             // split password into (filePassword+' '+userPassword)
             int space = -1;
@@ -314,19 +339,23 @@ public class ConnectionInfo implements Cloneable {
             System.arraycopy(password, 0, filePassword, 0, space);
             Arrays.fill(password, (char) 0);
             password = np;
+			//filePasswordHash用"file"进行hash
             fileEncryptionKey = FilePathEncrypt.getPasswordBytes(filePassword);
             filePasswordHash = hashPassword(passwordHash, "file", filePassword);
         }
+		//userPasswordHash用用户名进行hash
         userPasswordHash = hashPassword(passwordHash, user, password);
     }
 
     private static byte[] hashPassword(boolean passwordHash, String userName, char[] password) {
+		//如果PASSWORD_HASH参数是true那么不再进行SHA256
         if (passwordHash) {
             return StringUtils.convertHexToBytes(new String(password));
         }
         if (userName.length() == 0 && password.length == 0) {
             return new byte[0];
         }
+        //会生成32个字节，32*8刚好是256 bit，刚好对应SHA256的名字
         return SHA256.getKeyPasswordHash(userName, password);
     }
 
@@ -631,6 +660,9 @@ public class ConnectionInfo implements Cloneable {
     }
 
     private static String remapURL(String url) {
+		//比如System.setProperty("h2.urlMap", "E:/H2/my-h2/my-h2-src/my/test/h2.urlMap.properties");
+		//假设url="my.url"，那么可以在h2.urlMap.properties中重新映射: my.url=my.url=jdbc:h2:tcp://localhost:9092/test9
+		//最后返回的url实际是jdbc:h2:tcp://localhost:9092/test9
         String urlMap = SysProperties.URL_MAP;
         if (urlMap != null && urlMap.length() > 0) {
             try {

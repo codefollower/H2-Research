@@ -375,6 +375,8 @@ public class Session extends SessionWithState {
         this.lockTimeout = lockTimeout;
     }
 
+    //4个prepare方法要么生成CommandInterface(Command)要么生成Prepared
+    //并且都调用org.h2.command.Prepared.prepare()方法
     @Override
     public synchronized CommandInterface prepareCommand(String sql, int fetchSize) {
         return prepareLocal(sql);
@@ -387,6 +389,7 @@ public class Session extends SessionWithState {
      * @param sql the SQL statement
      * @return the prepared statement
      */
+    //
     public Prepared prepare(String sql) {
         return prepare(sql, false);
     }
@@ -398,6 +401,8 @@ public class Session extends SessionWithState {
      * @param rightsChecked true if the rights have already been checked
      * @return the prepared statement
      */
+    //rightsChecked参数用来传到org.h2.table.TableFilter的构造函数中，用于检查否有Right.SELECT权限
+    //如果是true，那么就不检查了
     public Prepared prepare(String sql, boolean rightsChecked) {
         Parser parser = new Parser(this);
         parser.setRightsChecked(rightsChecked);
@@ -416,6 +421,7 @@ public class Session extends SessionWithState {
             throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "session closed");
         }
         Command command;
+        //如果允许重用那么不再做SQL解析
         if (queryCacheSize > 0) {
             if (queryCache == null) {
                 queryCache = SmallLRUCache.newInstance(queryCacheSize);
@@ -427,6 +433,7 @@ public class Session extends SessionWithState {
                     modificationMetaID = newModificationMetaID;
                 }
                 command = queryCache.get(sql);
+                //命令关闭后才可重用
                 if (command != null && command.canReuse()) {
                     command.reuse();
                     return command;
@@ -436,6 +443,10 @@ public class Session extends SessionWithState {
         Parser parser = new Parser(this);
         command = parser.prepareCommand(sql);
         if (queryCache != null) {
+            //只有DML并且是下面的这几类可缓存:
+            //Insert、Delete、Update、Merge、TransactionCommand这5个无条件可缓存
+            //Call这个当产生的结果不是结果集时可缓存，否则不可缓存
+            //Select这个当不是isForUpdate时可缓存，否则不可缓存
             if (command.isCacheable()) {
                 queryCache.put(sql, command);
             }
@@ -579,7 +590,7 @@ public class Session extends SessionWithState {
      * @param savepoint the savepoint to which should be rolled back
      * @param trimToSize if the list should be trimmed
      */
-    public void rollbackTo(Savepoint savepoint, boolean trimToSize) {
+    public void rollbackTo(Savepoint savepoint, boolean trimToSize) { //"SET UNDO_LOG 0"禁用撤消日志，此时所有rollback都无效
         int index = savepoint == null ? 0 : savepoint.logIndex;
         while (undoLog.size() > index) {
             UndoLogRecord entry = undoLog.getLast();
@@ -696,13 +707,15 @@ public class Session extends SessionWithState {
         if (table.isMVStore()) {
             return;
         }
-        if (undoLogEnabled) {
+        if (undoLogEnabled) { //undoLogEnabled默认是true
             UndoLogRecord log = new UndoLogRecord(table, operation, row);
             // called _after_ the row was inserted successfully into the table,
             // otherwise rollback will try to rollback a not-inserted row
             if (SysProperties.CHECK) {
                 int lockMode = database.getLockMode();
                 if (lockMode != Constants.LOCK_MODE_OFF && !database.isMultiVersion()) {
+                	//当要记撤消日志时，除了TABLE_LINK、EXTERNAL_TABLE_ENGINE这两种类型的表外，其他表类型必须先锁表
+                	//例如调用org.h2.table.Table.lock(Session, boolean, boolean)
                     String tableType = log.getTable().getTableType();
                     if (locks.indexOf(log.getTable()) < 0
                             && !Table.TABLE_LINK.equals(tableType)
@@ -714,13 +727,14 @@ public class Session extends SessionWithState {
             undoLog.add(log);
         } else {
             if (database.isMultiVersion()) {
+            	//调用SET UNDO_LOG 0可禁用撤消日志
                 // see also UndoLogRecord.commit
                 ArrayList<Index> indexes = table.getIndexes();
                 for (int i = 0, size = indexes.size(); i < size; i++) {
                     Index index = indexes.get(i);
                     index.commit(operation, row);
                 }
-                row.commit();
+                row.commit(); //把Row中的sessionId设为0
             }
         }
     }
@@ -842,6 +856,7 @@ public class Session extends SessionWithState {
      * @param logId the transaction log id
      * @param pos the position of the log entry in the transaction log
      */
+    //在org.h2.store.PageLog.logAddOrRemoveRow(Session, int, Row, boolean)和logTruncate时调用
     public void addLogPos(int logId, int pos) {
         if (firstUncommittedLog == Session.LOG_WRITTEN) {
             firstUncommittedLog = logId;
@@ -896,7 +911,7 @@ public class Session extends SessionWithState {
      *
      * @param name the savepoint name
      */
-    public void rollbackToSavepoint(String name) {
+    public void rollbackToSavepoint(String name) { //"SET UNDO_LOG 0"禁用撤消日志，此时所有rollback都无效
         checkCommitRollback();
         if (savepoints == null) {
             throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, name);

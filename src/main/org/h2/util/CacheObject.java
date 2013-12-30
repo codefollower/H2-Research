@@ -18,20 +18,20 @@ public abstract class CacheObject implements Comparable<CacheObject> {
      * The previous element in the LRU linked list. If the previous element is
      * the head, then this element is the most recently used object.
      */
-    public CacheObject cachePrevious;
+    public CacheObject cachePrevious; //如果cachePrevious是head，那么说么当前CacheObject是最近最常使用的对象
 
     /**
      * The next element in the LRU linked list. If the next element is the head,
      * then this element is the least recently used object.
      */
-    public CacheObject cacheNext;
+    public CacheObject cacheNext; //如果cacheNext是head，那么说么当前CacheObject是最近最不常使用的对象
 
     /**
      * The next element in the hash chain.
      */
-    public CacheObject cacheChained;
+    public CacheObject cacheChained; //LRU链表中的下一个CacheObject
 
-    private int pos;
+    private int pos; //当子类是org.h2.store.Page的子类时，实际上就是pageId，如PageBtreeLeaf的pageId
     private boolean changed;
 
     /**
@@ -49,7 +49,7 @@ public abstract class CacheObject implements Comparable<CacheObject> {
      */
     public abstract int getMemory();
 
-    public void setPos(int pos) {
+    public void setPos(int pos) { //没有子类覆盖
         if (SysProperties.CHECK) {
             if (cachePrevious != null || cacheNext != null || cacheChained != null) {
                 DbException.throwInternalError("setPos too late");
@@ -58,7 +58,7 @@ public abstract class CacheObject implements Comparable<CacheObject> {
         this.pos = pos;
     }
 
-    public int getPos() {
+    public int getPos() {  //没有子类覆盖
         return pos;
     }
 
@@ -68,19 +68,22 @@ public abstract class CacheObject implements Comparable<CacheObject> {
      *
      * @return if it has been changed
      */
-    public boolean isChanged() {
+    public boolean isChanged() { //没有子类覆盖
         return changed;
     }
 
-    public void setChanged(boolean b) {
+    public void setChanged(boolean b) { //没有子类覆盖
         changed = b;
     }
-
+    
+    //比较pageId，相等为0，当前CacheObject小于other时返回-1，大于时返回1
     @Override
-    public int compareTo(CacheObject other) {
+    public int compareTo(CacheObject other) { //没有子类覆盖
         return MathUtils.compareInt(getPos(), other.getPos());
     }
-
+    
+    //子类org.h2.index.PageDataLeaf和org.h2.index.PageDataOverflow覆盖了此方法，
+    //说明是用于溢出页的
     public boolean isStream() {
         return false;
     }
