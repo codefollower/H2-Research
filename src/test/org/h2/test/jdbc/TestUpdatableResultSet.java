@@ -7,8 +7,10 @@
 package org.h2.test.jdbc;
 
 import java.io.ByteArrayInputStream;
+import java.io.OutputStream;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -37,7 +39,7 @@ public class TestUpdatableResultSet extends TestBase {
     }
 
     @Override
-    public void test() throws SQLException {
+    public void test() throws Exception {
         testDetectUpdatable();
         testUpdateLob();
         testScroll();
@@ -155,11 +157,11 @@ public class TestUpdatableResultSet extends TestBase {
         rs.updateInt(1, 10);
         rs.updateRow();
         rs.next();
-        
+
         rs.updateString(2, "Welt");
         rs.cancelRowUpdates();
         rs.updateString(2, "Welt");
-        
+
         rs.updateRow();
         rs.beforeFirst();
         rs.next();
@@ -168,11 +170,11 @@ public class TestUpdatableResultSet extends TestBase {
         rs.next();
         assertEquals(2, rs.getInt(1));
         assertEquals("Welt", rs.getString(2));
-        
+
         assertFalse(rs.isClosed());
         rs.close();
         assertTrue(rs.isClosed());
-        
+
         conn.close();
     }
 
@@ -272,7 +274,7 @@ public class TestUpdatableResultSet extends TestBase {
         conn.close();
     }
 
-    private void testUpdateDataType() throws SQLException {
+    private void testUpdateDataType() throws Exception {
         deleteDb("updatableResultSet");
         Connection conn = getConnection("updatableResultSet");
         Statement stat = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
@@ -369,6 +371,58 @@ public class TestUpdatableResultSet extends TestBase {
         rs.updateBlob(16, new ByteArrayInputStream(new byte[] { (byte) 0xab, 0x12 }));
         rs.insertRow();
 
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 7);
+        rs.updateNClob("CL", new StringReader("\u00ef\u00f6\u00fc"));
+        Blob b = conn.createBlob();
+        OutputStream out = b.setBinaryStream(1);
+        out.write(new byte[] { (byte) 0xab, 0x12 });
+        out.close();
+        rs.updateBlob("BL", b);
+        rs.insertRow();
+
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 8);
+        rs.updateNClob(15, new StringReader("\u00ef\u00f6\u00fc"));
+        rs.updateBlob(16, b);
+        rs.insertRow();
+
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 9);
+        rs.updateNClob("CL", new StringReader("\u00ef\u00f6\u00fc"), -1);
+        rs.updateBlob("BL", b);
+        rs.insertRow();
+
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 10);
+        rs.updateNClob(15, new StringReader("\u00ef\u00f6\u00fc"), -1);
+        rs.updateBlob(16, b);
+        rs.insertRow();
+
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 11);
+        rs.updateNCharacterStream("CL", new StringReader("\u00ef\u00f6\u00fc"), -1);
+        rs.updateBlob("BL", b);
+        rs.insertRow();
+
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 12);
+        rs.updateNCharacterStream(15, new StringReader("\u00ef\u00f6\u00fc"), -1);
+        rs.updateBlob(16, b);
+        rs.insertRow();
+
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 13);
+        rs.updateNCharacterStream("CL", new StringReader("\u00ef\u00f6\u00fc"));
+        rs.updateBlob("BL", b);
+        rs.insertRow();
+
+        rs.moveToInsertRow();
+        rs.updateInt("ID", 14);
+        rs.updateNCharacterStream(15, new StringReader("\u00ef\u00f6\u00fc"));
+        rs.updateBlob(16, b);
+        rs.insertRow();
+
         rs = stat.executeQuery("SELECT * FROM TEST ORDER BY ID NULLS FIRST");
         rs.next();
         assertTrue(rs.getInt(1) == 0);
@@ -425,27 +479,14 @@ public class TestUpdatableResultSet extends TestBase {
         assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
         assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
 
-        rs.next();
-        assertTrue(rs.getInt(1) == 3);
-        assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
-        assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
-
-        rs.next();
-        assertTrue(rs.getInt(1) == 4);
-        assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
-        assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
-
-        rs.next();
-        assertTrue(rs.getInt(1) == 5);
-        assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
-        assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
-
-        rs.next();
-        assertTrue(rs.getInt(1) == 6);
-        assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
-        assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
-
+        for (int i = 3; i <= 14; i++) {
+            rs.next();
+            assertEquals(i, rs.getInt(1));
+            assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
+            assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
+        }
         assertFalse(rs.next());
+
         stat.execute("DROP TABLE TEST");
         conn.close();
     }
@@ -461,7 +502,16 @@ public class TestUpdatableResultSet extends TestBase {
         for (int i = 0; i < max; i++) {
             stat.execute("INSERT INTO TEST VALUES(" + i + ", 'Hello" + i + "')");
         }
-        ResultSet rs = stat.executeQuery("SELECT * FROM TEST");
+        ResultSet rs;
+        rs = stat.executeQuery("SELECT * FROM TEST ORDER BY ID");
+        rs.next();
+        assertEquals(0, rs.getInt(1));
+        rs.moveToInsertRow();
+        rs.updateInt(1, 100);
+        rs.moveToCurrentRow();
+        assertEquals(0, rs.getInt(1));
+
+        rs = stat.executeQuery("SELECT * FROM TEST");
         int j = max;
         while (rs.next()) {
             int id = rs.getInt(1);
@@ -480,13 +530,13 @@ public class TestUpdatableResultSet extends TestBase {
             assertFalse(rs.rowUpdated());
             assertFalse(rs.rowInserted());
             assertFalse(rs.rowDeleted());
-            
+
             rs.moveToInsertRow();
             rs.updateString(2, "Inserted " + j);
             rs.updateInt(1, j);
             j += 2;
             rs.insertRow();
-            
+
             // the driver does not detect it in any case
             assertFalse(rs.rowUpdated());
             assertFalse(rs.rowInserted());

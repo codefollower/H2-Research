@@ -113,9 +113,6 @@ public class Set extends Prepared {
         }
         case SetTypes.COLLATION: {
             session.getUser().checkAdmin();
-            
-            
-            
             final boolean binaryUnsigned = database.getCompareMode().isBinaryUnsigned();
             CompareMode compareMode;
             StringBuilder buff = new StringBuilder(stringValue);

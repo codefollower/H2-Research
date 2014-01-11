@@ -138,7 +138,7 @@ public class Mode {
      * MySQL style INSERT ... ON DUPLICATE KEY UPDATE ...
      */
     public boolean onDuplicateKeyUpdate;
-    
+
     private final String name;
 
     static {
@@ -211,7 +211,7 @@ public class Mode {
 
     /**
      * Get the mode with the given name.
-     * 
+     *
      * @param name the name of the mode
      * @return the mode object
      */

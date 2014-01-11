@@ -36,11 +36,12 @@ public class TestDrop extends TestBase {
 
         testTableDependsOnView();
         testComputedColumnDependency();
+        testInterSchemaDependency();
 
         conn.close();
         deleteDb("drop");
     }
-    
+
     private void testTableDependsOnView() throws SQLException {
         stat.execute("drop all objects");
         stat.execute("create table a(x int)");
@@ -59,5 +60,19 @@ public class TestDrop extends TestBase {
         stat.execute("CREATE TABLE TEST_SCHEMA.B (B INT AS SELECT A FROM TEST_SCHEMA.A);");
         stat.execute("DROP SCHEMA TEST_SCHEMA");
     }
-    
+
+    private void testInterSchemaDependency() throws SQLException {
+        stat.execute("drop all objects;");
+        stat.execute("create schema table_view");
+        stat.execute("set schema table_view");
+        stat.execute("create table test1 (id int, name varchar(20))");
+        stat.execute("create view test_view_1 as (select * from test1)");
+        stat.execute("set schema public");
+        stat.execute("create schema test_run");
+        stat.execute("set schema test_run");
+        stat.execute("create table test2 (id int, address varchar(20), " +
+                "constraint a_cons check (id in (select id from table_view.test1)))");
+        stat.execute("set schema public");
+        stat.execute("drop all objects");
+    }
 }

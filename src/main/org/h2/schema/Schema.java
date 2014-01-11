@@ -574,7 +574,7 @@ public class Schema extends DbObjectBase {
             }
             data.schema = this;
             if (data.tableEngine == null) {
-                if (database.getSettings().mvStore) {
+                if (database.getSettings().mvStore && database.isPersistent()) {
                     data.tableEngine = MVTableEngine.class.getName();
                 }
             }

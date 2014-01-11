@@ -125,7 +125,7 @@ public class TestMVTableEngine extends TestBase {
             stat.execute("insert into test select x, space(100) from system_range(1, 1000)");
             // this table is kept
             if (i < 10) {
-                stat.execute("create table test" + i + "(id int primary key, data varchar) " + 
+                stat.execute("create table test" + i + "(id int primary key, data varchar) " +
                         "as select x, space(10) from system_range(1, 100)");
             }
             // force writing the chunk
@@ -534,7 +534,7 @@ public class TestMVTableEngine extends TestBase {
         stat = conn.createStatement();
         stat.execute("create table test(id int)");
         conn.close();
-        FileUtils.setReadOnly(getBaseDir() + "/mvstore.h2.db");
+        FileUtils.setReadOnly(getBaseDir() + "/mvstore" + Constants.SUFFIX_MV_FILE);
         conn = getConnection(dbName);
         Database db = (Database) ((JdbcConnection) conn).getSession().getDataHandler();
         assertTrue(db.getMvStore().getStore().getFileStore().isReadOnly());

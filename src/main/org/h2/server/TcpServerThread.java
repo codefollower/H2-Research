@@ -144,8 +144,6 @@ public class TcpServerThread implements Runnable {
                 	//启动TcpServer时加"-ifExists"，限制只有数据库存在时客户端才能连接，也就是不允许在客户端创建数据库
                     ci.setProperty("IFEXISTS", "TRUE");
                 }
-                session = Engine.getInstance().createSession(ci);
-                transfer.setSession(session);
                 transfer.writeInt(SessionRemote.STATUS_OK);
                 transfer.writeInt(clientVersion);
                 transfer.flush();
@@ -155,6 +153,8 @@ public class TcpServerThread implements Runnable {
                         ci.setFileEncryptionKey(transfer.readBytes());
                     }
                 }
+                session = Engine.getInstance().createSession(ci);
+                transfer.setSession(session);
                 server.addConnection(threadId, originalURL, ci.getUserName());
                 trace("Connected");
             } catch (Throwable e) {
