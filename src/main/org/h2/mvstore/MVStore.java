@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,11 +49,10 @@ Documentation
 TestMVStoreDataLoss
 
 MVTableEngine:
+- verify tests don't use the PageStore
+- test and possibly allow MVCC & MULTI_THREADED
+- maybe enable MVCC by default (but allow to disable it)
 - use StreamStore to avoid deadlocks
-- when the MVStore was enabled before, use it again
-    (probably by checking existence of the mvstore file)
-- not use the .h2.db file
-- not use the .lock.db file
 
 TransactionStore:
 
@@ -455,6 +455,24 @@ public class MVStore {
         map.setRootPos(root, -1);
         maps.put(id, map);
         return map;
+    }
+
+    /**
+     * Get the set of all map names.
+     *
+     * @return the set of names
+     */
+    public synchronized Set<String> getMapNames() {
+        HashSet<String> set = New.hashSet();
+        checkOpen();
+        for (Iterator<String> it = meta.keyIterator("name."); it.hasNext();) {
+            String x = it.next();
+            if (!x.startsWith("name.")) {
+                break;
+            }
+            set.add(x.substring("name.".length()));
+        }
+        return set;
     }
 
     /**
@@ -1885,11 +1903,11 @@ public class MVStore {
      * Get the name of the given map.
      *
      * @param id the map id
-     * @return the name
+     * @return the name, or null if not found
      */
-    synchronized String getMapName(int id) {
+    public synchronized String getMapName(int id) {
         String m = meta.get("map." + id);
-        return DataUtils.parseMap(m).get("name");
+        return m == null ? null : DataUtils.parseMap(m).get("name");
     }
 
     /**
@@ -2010,10 +2028,10 @@ public class MVStore {
     public int getUnsavedPageCount() {
         return unsavedPageCount;
     }
-    
+
     /**
      * Put the page in the cache.
-     * 
+     *
      * @param pos the page position
      * @param page the page
      * @param memory the memory used
@@ -2023,10 +2041,10 @@ public class MVStore {
             cache.put(pos, page, memory);
         }
     }
-    
+
     /**
      * Get the amount of memory used for caching, in MB.
-     * 
+     *
      * @return the amount of memory used for caching
      */
     public int getCacheSizeUsed() {
@@ -2035,10 +2053,10 @@ public class MVStore {
         }
         return (int) (cache.getUsedMemory() / 1024 / 1024);
     }
-    
+
     /**
      * Get the maximum cache size, in MB.
-     * 
+     *
      * @return the cache size
      */
     public int getCacheSize() {

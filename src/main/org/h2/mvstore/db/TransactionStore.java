@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 
 import org.h2.mvstore.Cursor;
@@ -58,11 +57,6 @@ public class TransactionStore {
     final MVMap<Long, Object[]> undoLog;
 
     /**
-     * The lock timeout in milliseconds. 0 means timeout immediately.
-     */
-    long lockTimeout;
-
-    /**
      * The map of maps.
      */
     private HashMap<Integer, MVMap<Object, VersionedValue>> maps = New.hashMap();
@@ -72,6 +66,11 @@ public class TransactionStore {
     private int lastTransactionId;
 
     private int maxTransactionId = 0xffff;
+
+    /**
+     * The next id of a temporary map.
+     */
+    private int nextTempMapId;
 
     /**
      * Create a new transaction store.
@@ -100,8 +99,14 @@ public class TransactionStore {
         MVMap.Builder<Long, Object[]> builder =
                 new MVMap.Builder<Long, Object[]>().
                 valueType(undoLogValueType);
-        // TODO escape other map names, to avoid conflicts
         undoLog = store.openMap("undoLog", builder);
+        // remove all temporary maps
+        for (String mapName : store.getMapNames()) {
+            if (mapName.startsWith("temp.")) {
+                MVMap<Object, Integer> temp = openTempMap(mapName);
+                store.removeMap(temp);
+            }
+        }
         init();
     }
 
@@ -289,7 +294,7 @@ public class TransactionStore {
         if (store.isClosed()) {
             return;
         }
-        // TODO could synchronize on blocks
+        // TODO could synchronize on blocks (100 at a time or so)
         synchronized (undoLog) {
             t.setStatus(Transaction.STATUS_COMMITTING);
             for (long logId = 0; logId < maxLogId; logId++) {
@@ -375,14 +380,11 @@ public class TransactionStore {
         if (map != null) {
             return map;
         }
-        // TODO open map by id if possible
-        Map<String, String> meta = store.getMetaMap();
-        String m = meta.get("map." + mapId);
-        if (m == null) {
+        String mapName = store.getMapName(mapId);
+        if (mapName == null) {
             // the map was removed later on
             return null;
         }
-        String mapName = DataUtils.parseMap(m).get("name");
         VersionedValueType vt = new VersionedValueType(dataType);
         MVMap.Builder<Object, VersionedValue> mapBuilder =
                 new MVMap.Builder<Object, VersionedValue>().
@@ -390,6 +392,29 @@ public class TransactionStore {
         map = store.openMap(mapName, mapBuilder);
         maps.put(mapId, map);
         return map;
+    }
+
+    /**
+     * Create a temporary map. Such maps are removed when opening the store.
+     *
+     * @return the map
+     */
+    synchronized MVMap<Object, Integer> createTempMap() {
+        String mapName = "temp." + nextTempMapId++;
+        return openTempMap(mapName);
+    }
+
+    /**
+     * Open a temporary map.
+     *
+     * @param mapName the map name
+     * @return the map
+     */
+    MVMap<Object, Integer> openTempMap(String mapName) {
+        MVMap.Builder<Object, Integer> mapBuilder =
+                new MVMap.Builder<Object, Integer>().
+                keyType(dataType);
+        return store.openMap(mapName, mapBuilder);
     }
 
     /**
@@ -427,7 +452,7 @@ public class TransactionStore {
      * @param toLogId the log id to roll back to
      */
     void rollbackTo(Transaction t, long maxLogId, long toLogId) {
-        // TODO could synchronize on blocks
+        // TODO could synchronize on blocks (100 at a time or so)
         synchronized (undoLog) {
             for (long logId = maxLogId - 1; logId >= toLogId; logId--) {
                 Long undoKey = getOperationId(t.getId(), logId);
@@ -842,11 +867,12 @@ public class TransactionStore {
         }
 
         /**
-         * Get the size of the raw map.
+         * Get the size of the raw map. This includes uncommitted entries, and
+         * transiently removed entries, so it is the maximum number of entries.
          *
-         * @return the size
+         * @return the maximum size
          */
-        public long sizeAsLongEstimated() {
+        public long sizeAsLongMax() {
             return map.sizeAsLong();
         }
 
@@ -856,18 +882,60 @@ public class TransactionStore {
          * @return the size
          */
         public long sizeAsLong() {
-            // TODO this method is very slow
-            long size = 0;
-            Cursor<K, VersionedValue> cursor = map.cursor(null);
-            while (cursor.hasNext()) {
-                K key = cursor.next();
-                VersionedValue data = cursor.getValue();
-                data = getValue(key, readLogId, data);
-                if (data != null && data.value != null) {
-                    size++;
-                }
+            long sizeRaw = map.sizeAsLong();
+            MVMap<Long, Object[]> undo = transaction.store.undoLog;
+            long undoLogSize;
+            synchronized (undo) {
+                undoLogSize = undo.sizeAsLong();
             }
-            return size;
+            if (undoLogSize == 0) {
+                return sizeRaw;
+            }
+            if (undoLogSize > sizeRaw) {
+                // the undo log is larger than the map -
+                // count the entries of the map
+                long size = 0;
+                Cursor<K, VersionedValue> cursor = map.cursor(null);
+                while (cursor.hasNext()) {
+                    K key = cursor.next();
+                    VersionedValue data = cursor.getValue();
+                    data = getValue(key, readLogId, data);
+                    if (data != null && data.value != null) {
+                        size++;
+                    }
+                }
+                return size;
+            }
+            // the undo log is smaller than the map -
+            // scan the undo log and subtract invisible entries
+            synchronized (undo) {
+                // re-fetch in case any transaction was committed now
+                long size = map.sizeAsLong();
+                MVMap<Object, Integer> temp = transaction.store.createTempMap();
+                try {
+                    for (Entry<Long, Object[]> e : undo.entrySet()) {
+                        Object[] op = e.getValue();
+                        int m = (Integer) op[0];
+                        if (m != mapId) {
+                            // a different map - ignore
+                            continue;
+                        }
+                        @SuppressWarnings("unchecked")
+                        K key = (K) op[1];
+                        if (get(key) == null) {
+                            Integer old = temp.put(key, 1);
+                            // count each key only once
+                            // (there might be multiple changes for the same key)
+                            if (old == null) {
+                                size--;
+                            }
+                        }
+                    }
+                } finally {
+                    transaction.store.store.removeMap(temp);
+                }
+                return size;
+            }
         }
 
         /**
@@ -901,36 +969,13 @@ public class TransactionStore {
 
         private V set(K key, V value) {
             transaction.checkNotClosed();
-            long start = 0;
-            while (true) {
-                V old = get(key);
-                boolean ok = trySet(key, value, false);
-                if (ok) {
-                    return old;
-                }
-                // an uncommitted transaction:
-                // wait until it is committed, or until the lock timeout
-                long timeout = transaction.store.lockTimeout;
-                if (timeout == 0) {
-                    throw DataUtils.newIllegalStateException(
-                            DataUtils.ERROR_TRANSACTION_LOCK_TIMEOUT, "Lock timeout");
-                }
-                if (start == 0) {
-                    start = System.currentTimeMillis();
-                } else {
-                    long t = System.currentTimeMillis() - start;
-                    if (t > timeout) {
-                        throw DataUtils.newIllegalStateException(
-                                DataUtils.ERROR_TRANSACTION_LOCK_TIMEOUT, "Lock timeout");
-                    }
-                    // TODO use wait/notify instead, or remove the feature
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        // ignore
-                    }
-                }
+            V old = get(key);
+            boolean ok = trySet(key, value, false);
+            if (ok) {
+                return old;
             }
+            throw DataUtils.newIllegalStateException(
+                    DataUtils.ERROR_TRANSACTION_LOCKED, "Entry is locked");
         }
 
         /**
@@ -1027,8 +1072,8 @@ public class TransactionStore {
                 // added or updated by this transaction
                 transaction.log(mapId, key, current);
                 if (!map.replace(key, current, newValue)) {
-                    // strange, somebody overwrite the value
-                    // even thought the change was not committed
+                    // strange, somebody overwrote the value
+                    // even though the change was not committed
                     transaction.logUndo();
                     return false;
                 }
@@ -1176,7 +1221,7 @@ public class TransactionStore {
          * Clear the map.
          */
         public void clear() {
-            // TODO truncate transactionally
+            // TODO truncate transactionally?
             map.clear();
         }
 
@@ -1226,24 +1271,6 @@ public class TransactionStore {
         }
 
         /**
-         * Get the smallest key that is larger or equal to this key.
-         *
-         * @param key the key (may not be null)
-         * @return the result
-         */
-        public K ceilingKey(K key) {
-            // TODO this method is slow
-            Iterator<K> cursor = map.keyIterator(key);
-            while (cursor.hasNext()) {
-                key = cursor.next();
-                if (get(key) != null) {
-                    return key;
-                }
-            }
-            return null;
-        }
-
-        /**
          * Get the smallest key that is larger than the given key, or null if no
          * such key exists.
          *
@@ -1251,8 +1278,13 @@ public class TransactionStore {
          * @return the result
          */
         public K higherKey(K key) {
-            // TODO transactional higherKey
-            return map.higherKey(key);
+            while (true) {
+                K k = map.higherKey(key);
+                if (k == null || get(k) != null) {
+                    return k;
+                }
+                key = k;
+            }
         }
 
         /**
@@ -1263,8 +1295,13 @@ public class TransactionStore {
          * @return the result
          */
         public K lowerKey(K key) {
-            // TODO transactional lowerKey
-            return map.lowerKey(key);
+            while (true) {
+                K k = map.lowerKey(key);
+                if (k == null || get(k) != null) {
+                    return k;
+                }
+                key = k;
+            }
         }
 
         /**
@@ -1343,62 +1380,12 @@ public class TransactionStore {
         /**
          * Iterate over keys.
          *
-         * @param cursor the cursor to wrap
-         * @param includeUncommitted whether uncommitted entries should be included
-         * @return the iterator
-         */
-        public Iterator<K> wrapCursor(final Cursor<K, VersionedValue> cursor, final boolean includeUncommitted) {
-            return new Iterator<K>() {
-                private K current;
-
-                {
-                    fetchNext();
-                }
-
-                private void fetchNext() {
-                    while (cursor.hasNext()) {
-                        current = cursor.next();
-                        if (includeUncommitted) {
-                            return;
-                        }
-                        VersionedValue data = cursor.getValue();
-                        data = getValue(current, readLogId, data);
-                        if (data != null && data.value != null) {
-                            return;
-                        }
-                    }
-                    current = null;
-                }
-
-                @Override
-                public boolean hasNext() {
-                    return current != null;
-                }
-
-                @Override
-                public K next() {
-                    K result = current;
-                    fetchNext();
-                    return result;
-                }
-
-                @Override
-                public void remove() {
-                    throw DataUtils.newUnsupportedOperationException(
-                            "Removing is not supported");
-                }
-            };
-        }
-
-        /**
-         * Iterate over keys.
-         *
          * @param iterator the iterator to wrap
          * @param includeUncommitted whether uncommitted entries should be included
          * @return the iterator
          */
         public Iterator<K> wrapIterator(final Iterator<K> iterator, final boolean includeUncommitted) {
-            // TODO duplicate code for wrapCursor and wrapIterator
+            // TODO duplicate code for wrapIterator and entryIterator
             return new Iterator<K>() {
                 private K current;
 

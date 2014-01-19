@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.db.TransactionStore;
@@ -45,6 +46,8 @@ public class TestTransactionStore extends TestBase {
     @Override
     public void test() throws Exception {
         FileUtils.createDirectories(getBaseDir());
+        testCountWithOpenTransactions();
+        testConcurrentUpdate();
         testRepeatedChange();
         testTransactionAge();
         testStopWhileCommitting();
@@ -56,6 +59,66 @@ public class TestTransactionStore extends TestBase {
         testConcurrentTransactionsReadCommitted();
         testSingleConnection();
         testCompareWithPostgreSQL();
+    }
+
+    private void testCountWithOpenTransactions() {
+        MVStore s;
+        TransactionStore ts;
+        s = MVStore.open(null);
+        ts = new TransactionStore(s);
+
+        Transaction tx1 = ts.begin();
+        TransactionMap<Integer, Integer> map1 = tx1.openMap("data");
+        int size = 150;
+        for (int i = 0; i < size; i++) {
+            map1.put(i, i * 10);
+        }
+        tx1.commit();
+        tx1 = ts.begin();
+        map1 = tx1.openMap("data");
+
+        Transaction tx2 = ts.begin();
+        TransactionMap<Integer, Integer> map2 = tx2.openMap("data");
+
+        Random r = new Random(1);
+        for (int i = 0; i < size * 3; i++) {
+            assertEquals("op: " + i, size, (int) map1.sizeAsLong());
+            // keep the first 10%, and add 10%
+            int k = size / 10 + r.nextInt(size);
+            if (r.nextBoolean()) {
+                map2.remove(k);
+            } else {
+                map2.put(k, i);
+            }
+        }
+        s.close();
+    }
+
+    private void testConcurrentUpdate() {
+        MVStore s;
+        TransactionStore ts;
+        s = MVStore.open(null);
+        ts = new TransactionStore(s);
+
+        Transaction tx1 = ts.begin();
+        TransactionMap<Integer, Integer> map1 = tx1.openMap("data");
+        map1.put(1, 10);
+
+        Transaction tx2 = ts.begin();
+        TransactionMap<Integer, Integer> map2 = tx2.openMap("data");
+        try {
+            map2.put(1, 20);
+            fail();
+        } catch (IllegalStateException e) {
+            assertEquals(DataUtils.ERROR_TRANSACTION_LOCKED,
+                    DataUtils.getErrorCode(e.getMessage()));
+        }
+        assertEquals(10, map1.get(1).intValue());
+        assertNull(map2.get(1));
+        tx1.commit();
+        assertEquals(10, map2.get(1).intValue());
+
+        s.close();
     }
 
     private void testRepeatedChange() {

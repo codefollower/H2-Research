@@ -197,7 +197,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         PageStore p = database.getPageStore();
         if (p != null) {
             return p.getCache().getMaxMemory();
-        }            
+        }
         return database.getMvStore().getStore().getCacheSize() * 1024;
     }
 

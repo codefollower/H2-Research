@@ -1084,6 +1084,9 @@ public class Parser {
                 } while (readIf(","));
             }
         }
+        if (database.getMode().isolationLevelInSelectOrInsertStatement) {
+            parseIsolationClause();
+        }
         return command;
     }
 
@@ -1830,7 +1833,7 @@ public class Parser {
                 read("ONLY");
             }
         }
-        if (database.getMode().isolationLevelInSelectStatement) {
+        if (database.getMode().isolationLevelInSelectOrInsertStatement) {
             parseIsolationClause();
         }
     }

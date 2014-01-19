@@ -149,7 +149,12 @@ public class ConditionInSelect extends Condition {
             buff.append(Comparison.getCompareOperator(compareType)).
                 append(" ALL");
         } else {
-            buff.append("IN");
+            if (compareType == Comparison.EQUAL) {
+                buff.append("IN");
+            } else {
+                buff.append(Comparison.getCompareOperator(compareType)).
+                    append(" ANY");
+            }
         }
         buff.append("(\n").append(StringUtils.indent(query.getPlanSQL(), 4, false)).
             append("))");
