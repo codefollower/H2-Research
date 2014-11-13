@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -18,7 +17,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.Properties;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.tools.Server;
 
@@ -41,6 +41,9 @@ public class TestOldVersion extends TestBase {
 
     @Override
     public void test() throws Exception {
+        if (config.mvStore) {
+            return;
+        }
         cl = getClassLoader("file:ext/h2-1.2.127.jar");
         driver = getDriver(cl);
         if (driver == null) {
@@ -48,7 +51,8 @@ public class TestOldVersion extends TestBase {
             return;
         }
         Connection conn = driver.connect("jdbc:h2:mem:", null);
-        assertEquals("1.2.127 (2010-01-15)", conn.getMetaData().getDatabaseProductVersion());
+        assertEquals("1.2.127 (2010-01-15)", conn.getMetaData()
+                .getDatabaseProductVersion());
         conn.close();
         testLobInFiles();
         testOldClientNewServer();
@@ -61,7 +65,8 @@ public class TestOldVersion extends TestBase {
         conn = driver.connect("jdbc:h2:" + getBaseDir() + "/oldVersion", null);
         stat = conn.createStatement();
         stat.execute("create table test(id int primary key, b blob, c clob)");
-        PreparedStatement prep = conn.prepareStatement("insert into test values(?, ?, ?)");
+        PreparedStatement prep = conn
+                .prepareStatement("insert into test values(?, ?, ?)");
         prep.setInt(1, 0);
         prep.setNull(2, Types.BLOB);
         prep.setNull(3, Types.CLOB);
@@ -79,7 +84,8 @@ public class TestOldVersion extends TestBase {
         prep.setString(3, new String(new char[100000]));
         prep.execute();
         conn.close();
-        conn = DriverManager.getConnection("jdbc:h2:" + getBaseDir() + "/oldVersion", new Properties());
+        conn = DriverManager.getConnection("jdbc:h2:" + getBaseDir() +
+                "/oldVersion", new Properties());
         stat = conn.createStatement();
         checkResult(stat.executeQuery("select * from test order by id"));
         stat.execute("create table test2 as select * from test");
@@ -110,14 +116,15 @@ public class TestOldVersion extends TestBase {
     private void testOldClientNewServer() throws Exception {
         Server server = org.h2.tools.Server.createTcpServer("-tcpPort", "9001");
         server.start();
-        assertThrows(ErrorCode.DRIVER_VERSION_ERROR_2, driver).
-                connect("jdbc:h2:tcp://localhost:9001/mem:test", null);
+        assertThrows(ErrorCode.DRIVER_VERSION_ERROR_2, driver).connect(
+                "jdbc:h2:tcp://localhost:9001/mem:test", null);
         server.stop();
 
         Class<?> serverClass = cl.loadClass("org.h2.tools.Server");
         Method m;
         m = serverClass.getMethod("createTcpServer", String[].class);
-        Object serverOld = m.invoke(null, new Object[]{new String[]{"-tcpPort", "9001"}});
+        Object serverOld = m.invoke(null, new Object[] { new String[] {
+                "-tcpPort", "9001" } });
         m = serverOld.getClass().getMethod("start");
         m.invoke(serverOld);
         Connection conn;

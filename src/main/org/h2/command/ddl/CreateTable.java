@@ -1,17 +1,19 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.dml.Insert;
 import org.h2.command.dml.Query;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Database;
+import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
@@ -185,6 +187,28 @@ public class CreateTable extends SchemaCommand {
                     insert.update();
                 } finally {
                     session.setUndoLogEnabled(old);
+                }
+            }
+            HashSet<DbObject> set = New.hashSet();
+            set.clear();
+            table.addDependencies(set);
+            for (DbObject obj : set) {
+                if (obj == table) {
+                    continue;
+                }
+                if (obj.getType() == DbObject.TABLE_OR_VIEW) {
+                    if (obj instanceof Table) {
+                        Table t = (Table) obj;
+                        if (t.getId() > table.getId()) {
+                            throw DbException.get(
+                                    ErrorCode.FEATURE_NOT_SUPPORTED_1,
+                                    "Table depends on another table " +
+                                    "with a higher ID: " + t +
+                                    ", this is currently not supported, " +
+                                    "as it would prevent the database from " +
+                                    "being re-opened");
+                        }
+                    }
                 }
             }
         } catch (DbException e) {

@@ -1,8 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ *  * Initial Developer: H2 Group
  */
 
 addEvent(window, "load", initSort);
@@ -23,7 +22,7 @@ function addEvent(elm, evType, fn, useCapture) {
 }
 
 function initSort() {
-    if(document.getElementById('editing') != undefined) {
+    if (document.getElementById('editing') != undefined) {
         // don't allow sorting while editing
         return;
     }
@@ -47,7 +46,7 @@ function editRow(row, session, write, undo) {
     var i;
     for(i=1; i<table.rows.length; i++) {
         var cell = table.rows[i].cells[0];
-        if(i == y) {
+        if (i == y) {
             var edit = '<img width=16 height=16 src="ico_ok.gif" onclick="editOk('+row+')" onmouseover = "this.className =\'icon_hover\'" onmouseout = "this.className=\'icon\'" class="icon" alt="'+write+'" title="'+write+'" border="1"/>';
             var undo = '<img width=16 height=16 src="ico_undo.gif" onclick="editCancel('+row+')" onmouseover = "this.className =\'icon_hover\'" onmouseout = "this.className=\'icon\'" class="icon" alt="'+undo+'" title="'+undo+'" border="1"/>';
             cell.innerHTML = edit + undo;
@@ -56,7 +55,7 @@ function editRow(row, session, write, undo) {
         }
     }
     var cells = table.rows[y].cells;
-    for(i=1; i<cells.length; i++) {
+    for (i=1; i<cells.length; i++) {
         var cell = cells[i];
         var text = getInnerText(cell);
         // escape so we can edit data that contains HTML special characters
@@ -99,16 +98,16 @@ function editOk(row) {
 
 function editKeyDown(row, object, event) {
     var key=event.keyCode? event.keyCode : event.charCode;
-    if(key == 46 && event.ctrlKey) {
+    if (key == 46 && event.ctrlKey) {
         // ctrl + delete
         object.value = 'null';
         return false;
-    } else if(key == 13) {
+    } else if (key == 13) {
         if (!event.ctrlKey && !event.shiftKey && !event.altKey) {
             editOk(row);
             return false;
         }
-    } else if(key == 27) {
+    } else if (key == 27) {
         editCancel(row);
         return false;
     }
@@ -164,7 +163,7 @@ function resortTable(link) {
         var o = new Object();
         o.data = rows[i];
         o.id = i;
-        if(sortNumeric) {
+        if (sortNumeric) {
             o.sort = parseFloat(getInnerText(o.data.cells[column]));
             if (isNaN(o.sort)) o.sort = 0;
         } else {

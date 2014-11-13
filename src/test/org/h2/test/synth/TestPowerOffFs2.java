@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -13,7 +12,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Random;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.test.utils.FilePathDebug;
 import org.h2.util.New;
@@ -45,7 +45,8 @@ public class TestPowerOffFs2 extends TestBase {
     @Override
     public void test() throws Exception {
         fs = FilePathDebug.register();
-        url = "jdbc:h2:debug:memFS:powerOffFs;FILE_LOCK=NO;TRACE_LEVEL_FILE=0;WRITE_DELAY=0;CACHE_SIZE=32";
+        url = "jdbc:h2:debug:memFS:powerOffFs;FILE_LOCK=NO;" +
+                "TRACE_LEVEL_FILE=0;WRITE_DELAY=0;CACHE_SIZE=32";
         for (int i = 0;; i++) {
             test(i);
         }
@@ -105,7 +106,8 @@ public class TestPowerOffFs2 extends TestBase {
             } else if ((p -= 1) <= 0) {
                 // 1%: close connection
                 if (connections.size() > 1) {
-                    Connection conn = connections.remove(random.nextInt(connections.size()));
+                    Connection conn = connections.remove(
+                            random.nextInt(connections.size()));
                     conn.close();
                 }
             } else if ((p -= 10) <= 0) {
@@ -114,12 +116,14 @@ public class TestPowerOffFs2 extends TestBase {
             } else if ((p -= 20) <= 0) {
                 // 20% large insert, delete, or update
                 if (tables.size() > 0) {
-                    Connection conn = connections.get(random.nextInt(connections.size()));
+                    Connection conn = connections.get(
+                            random.nextInt(connections.size()));
                     Statement stat = conn.createStatement();
                     String table = tables.get(random.nextInt(tables.size()));
                     if (random.nextBoolean()) {
                         // 10% insert
-                        stat.execute("INSERT INTO " + table + "(NAME) SELECT 'Hello ' || X FROM SYSTEM_RANGE(0, 20)");
+                        stat.execute("INSERT INTO " + table +
+                                "(NAME) SELECT 'Hello ' || X FROM SYSTEM_RANGE(0, 20)");
                     } else if (random.nextBoolean()) {
                         // 5% update
                         stat.execute("UPDATE " + table + " SET NAME='Hallo Welt'");
@@ -131,7 +135,8 @@ public class TestPowerOffFs2 extends TestBase {
             } else if ((p -= 5) < 0) {
                 // 5% truncate or drop table
                 if (tables.size() > 0) {
-                    Connection conn = connections.get(random.nextInt(connections.size()));
+                    Connection conn = connections.get(
+                            random.nextInt(connections.size()));
                     Statement stat = conn.createStatement();
                     String table = tables.get(random.nextInt(tables.size()));
                     if (random.nextBoolean()) {
@@ -144,7 +149,8 @@ public class TestPowerOffFs2 extends TestBase {
             } else if ((p -= 30) <= 0) {
                 // 30% insert
                 if (tables.size() > 0) {
-                    Connection conn = connections.get(random.nextInt(connections.size()));
+                    Connection conn = connections.get(
+                            random.nextInt(connections.size()));
                     Statement stat = conn.createStatement();
                     String table = tables.get(random.nextInt(tables.size()));
                     int spaces = random.nextInt(4) * 30;
@@ -152,7 +158,8 @@ public class TestPowerOffFs2 extends TestBase {
                         spaces *= 100;
                     }
                     int name = random.nextInt(20);
-                    stat.execute("INSERT INTO " + table + "(NAME) VALUES('" + name + "' || space( " + spaces + " ))");
+                    stat.execute("INSERT INTO " + table +
+                            "(NAME) VALUES('" + name + "' || space( " + spaces + " ))");
                 }
             } else {
                 // 32% delete
@@ -160,7 +167,8 @@ public class TestPowerOffFs2 extends TestBase {
                     Connection conn = connections.get(random.nextInt(connections.size()));
                     Statement stat = conn.createStatement();
                     String table = tables.get(random.nextInt(tables.size()));
-                    stat.execute("DELETE FROM " + table + " WHERE ID = SELECT MIN(ID) FROM " + table);
+                    stat.execute("DELETE FROM " + table +
+                            " WHERE ID = SELECT MIN(ID) FROM " + table);
                 }
             }
         }

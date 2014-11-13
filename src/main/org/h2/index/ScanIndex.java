@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -12,7 +11,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
@@ -47,9 +47,15 @@ public class ScanIndex extends BaseIndex {
     private final HashMap<Integer, Integer> sessionRowCount;
     private HashSet<Row> delta;
     private long rowCount;
+<<<<<<< HEAD
     
     //跟PageDataIndex一样，id都是表id
     public ScanIndex(RegularTable table, int id, IndexColumn[] columns, IndexType indexType) {
+=======
+
+    public ScanIndex(RegularTable table, int id, IndexColumn[] columns,
+            IndexType indexType) {
+>>>>>>> remotes/git-svn
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
         if (database.isMultiVersion()) {
             sessionRowCount = New.hashMap();
@@ -130,7 +136,8 @@ public class ScanIndex extends BaseIndex {
             if (delta != null) {
                 delta.remove(row);
             }
-            incrementRowCount(row.getSessionId(), operation == UndoLogRecord.DELETE ? 1 : -1);
+            incrementRowCount(row.getSessionId(),
+                    operation == UndoLogRecord.DELETE ? 1 : -1);
         }
     }
 
@@ -155,7 +162,8 @@ public class ScanIndex extends BaseIndex {
             free.setKey(firstFree);
             long key = row.getKey();
             if (rows.size() <= key) {
-                throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1, rows.size() + ": " + key);
+                throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
+                        rows.size() + ": " + key);
             }
             rows.set((int) key, free);
             firstFree = key; //如果连续删两次以上，能通过firstFree和free.key串接成一个未使用的空行列表，这样在add时可以一个个使用
@@ -181,7 +189,8 @@ public class ScanIndex extends BaseIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
         return tableData.getRowCountApproximation() + Constants.COST_ROW_OFFSET;
     }
 

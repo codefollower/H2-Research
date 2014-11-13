@@ -1,33 +1,33 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.h2.api.DatabaseEventListener;
+import org.h2.api.ErrorCode;
 import org.h2.command.ddl.Analyze;
 import org.h2.command.ddl.CreateTableData;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.constraint.Constraint;
 import org.h2.constraint.ConstraintReferential;
 import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.index.MultiVersionIndex;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
+import org.h2.mvstore.db.MVTableEngine.Store;
 import org.h2.mvstore.db.TransactionStore.Transaction;
 import org.h2.result.Row;
 import org.h2.result.SortOrder;
@@ -48,10 +48,16 @@ import org.h2.value.Value;
 public class MVTable extends TableBase {
 
     private MVPrimaryIndex primaryIndex;
-    private ArrayList<Index> indexes = New.arrayList();
+    private final ArrayList<Index> indexes = New.arrayList();
     private long lastModificationId;
-    private volatile Session lockExclusive;
-    private HashSet<Session> lockShared = New.hashSet();
+    private volatile Session lockExclusiveSession;
+    private final HashSet<Session> lockSharedSessions = New.hashSet();
+
+    /**
+     * The queue of sessions waiting to lock the table. It is a FIFO queue to
+     * prevent starvation, since Java's synchronized locking is biased.
+     */
+    private final ArrayDeque<Session> waitingSessions = new ArrayDeque<Session>();
     private final Trace traceLock;
     private int changesSinceAnalyze;
     private int nextAnalyze;
@@ -59,13 +65,6 @@ public class MVTable extends TableBase {
     private Column rowIdColumn;
 
     private final TransactionStore store;
-
-    /**
-     * True if one thread ever was waiting to lock this table. This is to avoid
-     * calling notifyAll if no session was ever waiting to lock this table. If
-     * set, the flag stays. In theory, it could be reset, however not sure when.
-     */
-    private boolean waitForLock;
 
     public MVTable(CreateTableData data, MVTableEngine.Store store) {
         super(data);
@@ -99,12 +98,13 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public void lock(Session session, boolean exclusive, boolean force) {
+    public void lock(Session session, boolean exclusive,
+            boolean forceLockEvenInMvcc) {
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) {
             return;
         }
-        if (!force && database.isMultiVersion()) {
+        if (!forceLockEvenInMvcc && database.isMultiVersion()) {
             // MVCC: update, delete, and insert use a shared lock.
             // Select doesn't lock except when using FOR UPDATE and
             // the system property h2.selectForUpdateMvcc
@@ -112,71 +112,47 @@ public class MVTable extends TableBase {
             if (exclusive) {
                 exclusive = false;
             } else {
-                if (lockExclusive == null) {
+                if (lockExclusiveSession == null) {
                     return;
                 }
             }
         }
-        if (lockExclusive == session) {
+        if (lockExclusiveSession == session) {
             return;
         }
         synchronized (database) {
+            if (lockExclusiveSession == session) {
+                return;
+            }
+            session.setWaitForLock(this, Thread.currentThread());
+            waitingSessions.addLast(session);
             try {
-                doLock(session, lockMode, exclusive);
+                doLock1(session, lockMode, exclusive);
             } finally {
                 session.setWaitForLock(null, null);
+                waitingSessions.remove(session);
             }
         }
     }
 
-    private void doLock(Session session, int lockMode, boolean exclusive) {
+    private void doLock1(Session session, int lockMode, boolean exclusive) {
         traceLock(session, exclusive, "requesting for");
         // don't get the current time unless necessary
         long max = 0;
         boolean checkDeadlock = false;
         while (true) {
-            if (lockExclusive == session) {
-                return;
-            }
-            if (exclusive) {
-                if (lockExclusive == null) {
-                    if (lockShared.isEmpty()) {
-                        traceLock(session, exclusive, "added for");
-                        session.addLock(this);
-                        lockExclusive = session;
-                        return;
-                    } else if (lockShared.size() == 1 && lockShared.contains(session)) {
-                        traceLock(session, exclusive, "add (upgraded) for ");
-                        lockExclusive = session;
-                        return;
-                    }
-                }
-            } else {
-                if (lockExclusive == null) {
-                    if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
-                        if (!database.isMultiThreaded() && !database.isMultiVersion()) {
-                            // READ_COMMITTED: a read lock is acquired,
-                            // but released immediately after the operation
-                            // is complete.
-                            // When allowing only one thread, no lock is
-                            // required.
-                            // Row level locks work like read committed.
-                            return;
-                        }
-                    }
-                    if (!lockShared.contains(session)) {
-                        traceLock(session, exclusive, "ok");
-                        session.addLock(this);
-                        lockShared.add(session);
-                    }
+            // if I'm the next one in the queue
+            if (waitingSessions.getFirst() == session) {
+                if (doLock2(session, lockMode, exclusive)) {
                     return;
                 }
             }
-            session.setWaitForLock(this, Thread.currentThread());
             if (checkDeadlock) {
                 ArrayList<Session> sessions = checkDeadlock(session, null, null);
                 if (sessions != null) {
-                    throw DbException.get(ErrorCode.DEADLOCK_1, getDeadlockDetails(sessions));
+                    throw DbException.get(
+                            ErrorCode.DEADLOCK_1,
+                            getDeadlockDetails(sessions));
                 }
             } else {
                 // check for deadlocks from now on
@@ -187,7 +163,8 @@ public class MVTable extends TableBase {
                 // try at least one more time
                 max = now + session.getLockTimeout();
             } else if (now >= max) {
-                traceLock(session, exclusive, "timeout after " + session.getLockTimeout());
+                traceLock(session, exclusive,
+                        "timeout after " + session.getLockTimeout());
                 throw DbException.get(ErrorCode.LOCK_TIMEOUT_1, getName());
             }
             try {
@@ -207,7 +184,6 @@ public class MVTable extends TableBase {
                 if (sleep == 0) {
                     sleep = 1;
                 }
-                waitForLock = true;
                 database.wait(sleep);
             } catch (InterruptedException e) {
                 // ignore
@@ -215,9 +191,48 @@ public class MVTable extends TableBase {
         }
     }
 
+    private boolean doLock2(Session session, int lockMode, boolean exclusive) {
+        if (exclusive) {
+            if (lockExclusiveSession == null) {
+                if (lockSharedSessions.isEmpty()) {
+                    traceLock(session, exclusive, "added for");
+                    session.addLock(this);
+                    lockExclusiveSession = session;
+                    return true;
+                } else if (lockSharedSessions.size() == 1 &&
+                        lockSharedSessions.contains(session)) {
+                    traceLock(session, exclusive, "add (upgraded) for ");
+                    lockExclusiveSession = session;
+                    return true;
+                }
+            }
+        } else {
+            if (lockExclusiveSession == null) {
+                if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
+                    if (!database.isMultiThreaded() && !database.isMultiVersion()) {
+                        // READ_COMMITTED: a read lock is acquired,
+                        // but released immediately after the operation
+                        // is complete.
+                        // When allowing only one thread, no lock is
+                        // required.
+                        // Row level locks work like read committed.
+                        return true;
+                    }
+                }
+                if (!lockSharedSessions.contains(session)) {
+                    traceLock(session, exclusive, "ok");
+                    session.addLock(this);
+                    lockSharedSessions.add(session);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String getDeadlockDetails(ArrayList<Session> sessions) {
-        // We add the thread details here to make it easier for customers to match up
-        // these error messages with their own logs.
+        // We add the thread details here to make it easier for customers to
+        // match up these error messages with their own logs.
         StringBuilder buff = new StringBuilder();
         for (Session s : sessions) {
             Table lock = s.getWaitForLock();
@@ -236,7 +251,7 @@ public class MVTable extends TableBase {
                 }
                 buff.append(t.toString());
                 if (t instanceof RegularTable) {
-                    if (((MVTable) t).lockExclusive == s) {
+                    if (((MVTable) t).lockExclusiveSession == s) {
                         buff.append(" (exclusive)");
                     } else {
                         buff.append(" (shared)");
@@ -249,7 +264,8 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public ArrayList<Session> checkDeadlock(Session session, Session clash, Set<Session> visited) {
+    public ArrayList<Session> checkDeadlock(Session session, Session clash,
+            Set<Session> visited) {
         // only one deadlock check at any given time
         synchronized (RegularTable.class) {
             if (clash == null) {
@@ -267,7 +283,7 @@ public class MVTable extends TableBase {
             }
             visited.add(session);
             ArrayList<Session> error = null;
-            for (Session s : lockShared) {
+            for (Session s : lockSharedSessions) {
                 if (s == session) {
                     // it doesn't matter if we have locked the object already
                     continue;
@@ -281,10 +297,10 @@ public class MVTable extends TableBase {
                     }
                 }
             }
-            if (error == null && lockExclusive != null) {
-                Table t = lockExclusive.getWaitForLock();
+            if (error == null && lockExclusiveSession != null) {
+                Table t = lockExclusiveSession.getWaitForLock();
                 if (t != null) {
-                    error = t.checkDeadlock(lockExclusive, clash, visited);
+                    error = t.checkDeadlock(lockExclusiveSession, clash, visited);
                     if (error != null) {
                         error.add(session);
                     }
@@ -297,34 +313,33 @@ public class MVTable extends TableBase {
     private void traceLock(Session session, boolean exclusive, String s) {
         if (traceLock.isDebugEnabled()) {
             traceLock.debug("{0} {1} {2} {3}", session.getId(),
-                    exclusive ? "exclusive write lock" : "shared read lock", s, getName());
+                    exclusive ? "exclusive write lock" : "shared read lock",
+                    s, getName());
         }
     }
 
     @Override
     public boolean isLockedExclusively() {
-        return lockExclusive != null;
+        return lockExclusiveSession != null;
     }
 
     @Override
     public boolean isLockedExclusivelyBy(Session session) {
-        return lockExclusive == session;
+        return lockExclusiveSession == session;
     }
 
     @Override
     public void unlock(Session s) {
         if (database != null) {
-            traceLock(s, lockExclusive == s, "unlock");
-            if (lockExclusive == s) {
-                lockExclusive = null;
+            traceLock(s, lockExclusiveSession == s, "unlock");
+            if (lockExclusiveSession == s) {
+                lockExclusiveSession = null;
             }
-            if (lockShared.size() > 0) {
-                lockShared.remove(s);
+            if (lockSharedSessions.size() > 0) {
+                lockSharedSessions.remove(s);
             }
-            // TODO lock: maybe we need we fifo-queue to make sure nobody
-            // starves. check what other databases do
             synchronized (database) {
-                if (database.getSessionCount() > 1 && waitForLock) {
+                if (!waitingSessions.isEmpty()) {
                     database.notifyAll();
                 }
             }
@@ -333,7 +348,6 @@ public class MVTable extends TableBase {
 
     @Override
     public boolean canTruncate() {
-        // TODO copy & pasted source code from RegularTable
         if (getCheckForeignKeyConstraints() && database.getReferentialIntegrity()) {
             ArrayList<Constraint> constraints = getConstraints();
             if (constraints != null) {
@@ -370,7 +384,9 @@ public class MVTable extends TableBase {
             for (IndexColumn c : cols) {
                 Column column = c.column;
                 if (column.isNullable()) {
-                    throw DbException.get(ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1, column.getName());
+                    throw DbException.get(
+                            ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1,
+                            column.getName());
                 }
                 column.setPrimaryKey(true);
             }
@@ -379,7 +395,7 @@ public class MVTable extends TableBase {
         if (!isSessionTemporary) {
             database.lockMeta(session);
         }
-        Index index;
+        MVIndex index;
         // TODO support in-memory indexes
         //  if (isPersistIndexes() && indexType.isPersistent()) {
         int mainIndexColumn;
@@ -405,43 +421,7 @@ public class MVTable extends TableBase {
                     indexName, cols, indexType);
         }
         if (index.needRebuild()) {
-            try {
-                Index scan = getScanIndex(session);
-                long remaining = scan.getRowCount(session);
-                long total = remaining;
-                Cursor cursor = scan.find(session, null, null);
-                long i = 0;
-                int bufferSize = (int) Math.min(total, Constants.DEFAULT_MAX_MEMORY_ROWS);
-                ArrayList<Row> buffer = New.arrayList(bufferSize);
-                String n = getName() + ":" + index.getName();
-                int t = MathUtils.convertLongToInt(total);
-                while (cursor.next()) {
-                    Row row = cursor.get();
-                    buffer.add(row);
-                    database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, n,
-                            MathUtils.convertLongToInt(i++), t);
-                    if (buffer.size() >= bufferSize) {
-                        addRowsToIndex(session, buffer, index);
-                    }
-                    remaining--;
-                }
-                addRowsToIndex(session, buffer, index);
-                if (SysProperties.CHECK && remaining != 0) {
-                    DbException.throwInternalError("rowcount remaining=" + remaining + " " + getName());
-                }
-            } catch (DbException e) {
-                getSchema().freeUniqueName(indexName);
-                try {
-                    index.remove(session);
-                } catch (DbException e2) {
-                    // this could happen, for example on failure in the storage
-                    // but if that is not the case it means
-                    // there is something wrong with the database
-                    trace.error(e2, "could not remove index");
-                    throw e2;
-                }
-                throw e;
-            }
+            rebuildIndex(session, index, indexName);
         }
         index.setTemporary(isTemporary());
         if (index.getCreateSQL() != null) {
@@ -455,6 +435,110 @@ public class MVTable extends TableBase {
         indexes.add(index);
         setModified();
         return index;
+    }
+
+    private void rebuildIndex(Session session, MVIndex index, String indexName) {
+        try {
+            if (session.getDatabase().getMvStore() == null || index instanceof MVSpatialIndex) {
+                // in-memory
+                rebuildIndexBuffered(session, index);
+            } else {
+                rebuildIndexBlockMerge(session, index);
+            }
+        } catch (DbException e) {
+            getSchema().freeUniqueName(indexName);
+            try {
+                index.remove(session);
+            } catch (DbException e2) {
+                // this could happen, for example on failure in the storage
+                // but if that is not the case it means
+                // there is something wrong with the database
+                trace.error(e2, "could not remove index");
+                throw e2;
+            }
+            throw e;
+        }
+    }
+
+    private void rebuildIndexBlockMerge(Session session, MVIndex index) {
+        if (index instanceof MVSpatialIndex) {
+            // the spatial index doesn't support multi-way merge sort
+            rebuildIndexBuffered(session, index);
+        }
+        // Read entries in memory, sort them, write to a new map (in sorted
+        // order); repeat (using a new map for every block of 1 MB) until all
+        // record are read. Merge all maps to the target (using merge sort;
+        // duplicates are detected in the target). For randomly ordered data,
+        // this should use relatively few write operations.
+        // A possible optimization is: change the buffer size from "row count"
+        // to "amount of memory", and buffer index keys instead of rows.
+        Index scan = getScanIndex(session);
+        long remaining = scan.getRowCount(session);
+        long total = remaining;
+        Cursor cursor = scan.find(session, null, null);
+        long i = 0;
+        Store store = session.getDatabase().getMvStore();
+
+        int bufferSize = SysProperties.MAX_MEMORY_ROWS / 2;
+        ArrayList<Row> buffer = New.arrayList(bufferSize);
+        String n = getName() + ":" + index.getName();
+        int t = MathUtils.convertLongToInt(total);
+        ArrayList<String> bufferNames = New.arrayList();
+        while (cursor.next()) {
+            Row row = cursor.get();
+            buffer.add(row);
+            database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, n,
+                    MathUtils.convertLongToInt(i++), t);
+            if (buffer.size() >= bufferSize) {
+                sortRows(buffer, index);
+                String mapName = store.nextTemporaryMapName();
+                index.addRowsToBuffer(buffer, mapName);
+                bufferNames.add(mapName);
+                buffer.clear();
+            }
+            remaining--;
+        }
+        sortRows(buffer, index);
+        if (bufferNames.size() > 0) {
+            String mapName = store.nextTemporaryMapName();
+            index.addRowsToBuffer(buffer, mapName);
+            bufferNames.add(mapName);
+            buffer.clear();
+            index.addBufferedRows(bufferNames);
+        } else {
+            addRowsToIndex(session, buffer, index);
+        }
+        if (SysProperties.CHECK && remaining != 0) {
+            DbException.throwInternalError("rowcount remaining=" + remaining
+                    + " " + getName());
+        }
+    }
+
+    private void rebuildIndexBuffered(Session session, Index index) {
+        Index scan = getScanIndex(session);
+        long remaining = scan.getRowCount(session);
+        long total = remaining;
+        Cursor cursor = scan.find(session, null, null);
+        long i = 0;
+        int bufferSize = (int) Math.min(total, SysProperties.MAX_MEMORY_ROWS);
+        ArrayList<Row> buffer = New.arrayList(bufferSize);
+        String n = getName() + ":" + index.getName();
+        int t = MathUtils.convertLongToInt(total);
+        while (cursor.next()) {
+            Row row = cursor.get();
+            buffer.add(row);
+            database.setProgress(DatabaseEventListener.STATE_CREATE_INDEX, n,
+                    MathUtils.convertLongToInt(i++), t);
+            if (buffer.size() >= bufferSize) {
+                addRowsToIndex(session, buffer, index);
+            }
+            remaining--;
+        }
+        addRowsToIndex(session, buffer, index);
+        if (SysProperties.CHECK && remaining != 0) {
+            DbException.throwInternalError("rowcount remaining=" + remaining
+                    + " " + getName());
+        }
     }
 
     private int getMainIndexColumn(IndexType indexType, IndexColumn[] cols) {
@@ -480,18 +564,22 @@ public class MVTable extends TableBase {
         return first.column.getColumnId();
     }
 
-    private static void addRowsToIndex(Session session, ArrayList<Row> list, Index index) {
-        final Index idx = index;
-        Collections.sort(list, new Comparator<Row>() {
-            @Override
-            public int compare(Row r1, Row r2) {
-                return idx.compareRows(r1, r2);
-            }
-        });
+    private static void addRowsToIndex(Session session, ArrayList<Row> list,
+            Index index) {
+        sortRows(list, index);
         for (Row row : list) {
             index.add(session, row);
         }
         list.clear();
+    }
+
+    private static void sortRows(ArrayList<Row> list, final Index index) {
+        Collections.sort(list, new Comparator<Row>() {
+            @Override
+            public int compare(Row r1, Row r2) {
+                return index.compareRows(r1, r2);
+            }
+        });
     }
 
     @Override
@@ -537,10 +625,13 @@ public class MVTable extends TableBase {
             if (de.getErrorCode() == ErrorCode.DUPLICATE_KEY_1) {
                 for (int j = 0; j < indexes.size(); j++) {
                     Index index = indexes.get(j);
-                    if (index.getIndexType().isUnique() && index instanceof MultiVersionIndex) {
+                    if (index.getIndexType().isUnique() &&
+                            index instanceof MultiVersionIndex) {
                         MultiVersionIndex mv = (MultiVersionIndex) index;
                         if (mv.isUncommittedFromOtherSession(session, row)) {
-                            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, index.getName());
+                            throw DbException.get(
+                                    ErrorCode.CONCURRENT_UPDATE_1,
+                                    index.getName());
                         }
                     }
                 }
@@ -622,18 +713,22 @@ public class MVTable extends TableBase {
         }
         database.getMvStore().removeTable(this);
         super.removeChildrenAndResources(session);
-        // go backwards because database.removeIndex will call table.removeIndex
+        // go backwards because database.removeIndex will
+        // call table.removeIndex
         while (indexes.size() > 1) {
             Index index = indexes.get(1);
             if (index.getName() != null) {
                 database.removeSchemaObject(session, index);
             }
+            // needed for session temporary indexes
+            indexes.remove(index);
         }
         if (SysProperties.CHECK) {
             for (SchemaObject obj : database.getAllSchemaObjects(DbObject.INDEX)) {
                 Index index = (Index) obj;
                 if (index.getTable() == this) {
-                    DbException.throwInternalError("index not dropped: " + index.getName());
+                    DbException.throwInternalError(
+                            "index not dropped: " + index.getName());
                 }
             }
         }

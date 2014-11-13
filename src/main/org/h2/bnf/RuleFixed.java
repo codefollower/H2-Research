@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.bnf;
@@ -20,7 +19,8 @@ public class RuleFixed implements Rule {
     public static final int ANY_UNTIL_END = 6;
     public static final int ANY_WORD = 7;
     public static final int ANY_EXCEPT_2_DOLLAR = 8;
-    public static final int HEX_START = 10, CONCAT = 11, AZ_UNDERSCORE = 12, AF = 13, DIGIT = 14;
+    public static final int HEX_START = 10, CONCAT = 11;
+    public static final int AZ_UNDERSCORE = 12, AF = 13, DIGIT = 14;
     public static final int OPEN_BRACKET = 15, CLOSE_BRACKET = 16;
 
     private final int type;
@@ -111,7 +111,7 @@ public class RuleFixed implements Rule {
             }
             break;
         case ANY_WORD:
-            while (s.length() > 0 && !Character.isSpaceChar(s.charAt(0))) {
+            while (s.length() > 0 && !Bnf.startWithSpace(s)) {
                 s = s.substring(1);
             }
             if (s.length() == 0) {
@@ -137,7 +137,8 @@ public class RuleFixed implements Rule {
             }
             break;
         case AZ_UNDERSCORE:
-            if (s.length() > 0 && (Character.isLetter(s.charAt(0)) || s.charAt(0) == '_')) {
+            if (s.length() > 0 &&
+                    (Character.isLetter(s.charAt(0)) || s.charAt(0) == '_')) {
                 s = s.substring(1);
             }
             if (s.length() == 0) {
@@ -185,7 +186,7 @@ public class RuleFixed implements Rule {
             throw new AssertionError("type="+type);
         }
         if (!s.equals(query)) {
-            while (s.length() > 0 && Character.isSpaceChar(s.charAt(0))) {
+            while (Bnf.startWithSpace(s)) {
                 s = s.substring(1);
             }
             sentence.setQuery(s);

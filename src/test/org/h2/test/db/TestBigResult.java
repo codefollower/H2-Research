@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -53,7 +52,8 @@ public class TestBigResult extends TestBase {
         stat.execute("INSERT INTO RECOVERY " +
                 "SELECT X, CASE MOD(X, 2) WHEN 0 THEN 'commit' ELSE 'begin' END " +
                 "FROM SYSTEM_RANGE(1, "+len+")");
-        ResultSet rs = stat.executeQuery("SELECT * FROM RECOVERY WHERE SQL_STMT LIKE 'begin%' AND " +
+        ResultSet rs = stat.executeQuery("SELECT * FROM RECOVERY " +
+                "WHERE SQL_STMT LIKE 'begin%' AND " +
                 "TRANSACTION_ID NOT IN(SELECT TRANSACTION_ID FROM RECOVERY " +
                 "WHERE SQL_STMT='commit' OR SQL_STMT='rollback')");
         int count = 0, last = 1;
@@ -90,7 +90,8 @@ public class TestBigResult extends TestBase {
         // rs.close();
         conn.close();
         deleteDb("bigResult");
-        ArrayList<String> files = FileLister.getDatabaseFiles(getBaseDir(), "bigResult", true);
+        ArrayList<String> files = FileLister.getDatabaseFiles(getBaseDir(),
+                "bigResult", true);
         if (files.size() > 0) {
             fail("file not deleted: " + files.get(0));
         }
@@ -134,7 +135,8 @@ public class TestBigResult extends TestBase {
                 "Points INT," +
                 "LicenseID INT)");
         int len = getSize(10, 5000);
-        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, ?, ?, ?, ?)");
+        PreparedStatement prep = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, ?, ?, ?, ?)");
         for (int i = 0; i < len; i++) {
             prep.setInt(1, i);
             prep.setString(2, "Name " + i);
@@ -185,7 +187,8 @@ public class TestBigResult extends TestBase {
             prep.setString(2, "" + i / 200);
             prep.execute();
         }
-        Statement s2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+        Statement s2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_UPDATABLE);
         rs = s2.executeQuery("SELECT NAME FROM DATA");
         rs.last();
         conn.setAutoCommit(true);

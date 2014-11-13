@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.pg;
@@ -31,8 +30,8 @@ import java.util.HashSet;
 import java.util.Properties;
 
 import org.h2.command.CommandInterface;
-import org.h2.constant.SysProperties;
 import org.h2.engine.ConnectionInfo;
+import org.h2.engine.SysProperties;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.jdbc.JdbcPreparedStatement;
 import org.h2.jdbc.JdbcStatement;
@@ -69,8 +68,10 @@ public class PgServerThread implements Runnable {
     private JdbcStatement activeRequest;
     private String clientEncoding = SysProperties.PG_DEFAULT_CLIENT_ENCODING;
     private String dateStyle = "ISO";
-    private final HashMap<String, Prepared> prepared = new CaseInsensitiveMap<Prepared>();
-    private final HashMap<String, Portal> portals = new CaseInsensitiveMap<Portal>();
+    private final HashMap<String, Prepared> prepared =
+            new CaseInsensitiveMap<Prepared>();
+    private final HashMap<String, Portal> portals =
+            new CaseInsensitiveMap<Portal>();
 
     PgServerThread(Socket socket, PgServer server) {
         this.server = server;
@@ -155,10 +156,9 @@ public class PgServerThread implements Runnable {
                 if (c != null && key == c.secret) {
                     c.cancelRequest();
                 } else {
-                    // According to
-                    // http://www.postgresql.org/docs/9.1/static/protocol-flow.html#AEN91739,
-                    // when canceling a request, if an invalid secret is provided then no exception
-                    // should be sent back to the client.
+                    // According to the PostgreSQL documentation, when canceling
+                    // a request, if an invalid secret is provided then no
+                    // exception should be sent back to the client.
                     server.trace("Invalid CancelRequest: pid=" + pid + ", key=" + key);
                 }
                 close();
@@ -167,7 +167,8 @@ public class PgServerThread implements Runnable {
                 out.write('N');
             } else {
                 server.trace("StartupMessage");
-                server.trace(" version " + version + " (" + (version >> 16) + "." + (version & 0xff) + ")");
+                server.trace(" version " + version +
+                        " (" + (version >> 16) + "." + (version & 0xff) + ")");
                 while (true) {
                     String param = readString();
                     if (param.length() == 0) {
@@ -445,7 +446,8 @@ public class PgServerThread implements Runnable {
         return s;
     }
 
-    private void sendCommandComplete(JdbcStatement stat, int updateCount) throws IOException {
+    private void sendCommandComplete(JdbcStatement stat, int updateCount)
+            throws IOException {
         startMessage('C');
         switch (stat.getLastExecutedCommandType()) {
         case CommandInterface.INSERT:
@@ -486,7 +488,8 @@ public class PgServerThread implements Runnable {
         sendMessage();
     }
 
-    private void writeDataColumn(ResultSet rs, int column, int pgType) throws Exception {
+    private void writeDataColumn(ResultSet rs, int column, int pgType)
+            throws Exception {
         if (formatAsText(pgType)) {
             // plain text
             switch (pgType) {
@@ -677,7 +680,8 @@ public class PgServerThread implements Runnable {
                 // the ODBC client needs the column pg_catalog.pg_index
                 // to be of type 'int2vector'
                 // if (name.equalsIgnoreCase("indkey") &&
-                //         "pg_index".equalsIgnoreCase(meta.getTableName(i + 1))) {
+                //         "pg_index".equalsIgnoreCase(
+                //         meta.getTableName(i + 1))) {
                 //     type = PgServer.PG_TYPE_INT2VECTOR;
                 // }
                 precision[i] = meta.getColumnDisplaySize(i + 1);
@@ -714,7 +718,8 @@ public class PgServerThread implements Runnable {
      */
     private static boolean formatAsText(int pgType) {
         switch (pgType) {
-        // TODO: add more types to send as binary once compatibility is confirmed
+        // TODO: add more types to send as binary once compatibility is
+        // confirmed
         case PgServer.PG_TYPE_BYTEA:
             return false;
         }
@@ -930,7 +935,8 @@ public class PgServerThread implements Runnable {
         dataOut.flush();
     }
 
-    private void sendParameterStatus(String param, String value) throws IOException {
+    private void sendParameterStatus(String param, String value)
+            throws IOException {
         startMessage('S');
         writeString(param);
         writeString(value);

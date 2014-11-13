@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: Jason Brittain (jason.brittain at gmail.com)
  */
 package org.h2.mode;
@@ -113,7 +112,8 @@ public class FunctionsMySQL {
      * @return a formatted date/time String in the format "yyyy-MM-dd HH:mm:ss".
      */
     public static String fromUnixTime(int seconds) {
-        SimpleDateFormat formatter = new SimpleDateFormat(DATE_TIME_FORMAT, Locale.ENGLISH);
+        SimpleDateFormat formatter = new SimpleDateFormat(DATE_TIME_FORMAT,
+                Locale.ENGLISH);
         return formatter.format(new Date(seconds * 1000L));
     }
 

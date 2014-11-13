@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -77,9 +76,11 @@ public class IndexCondition {
     private Query expressionQuery;
 
     /**
-     * @param compareType the comparison type, see constants in {@link Comparison}
+     * @param compareType the comparison type, see constants in
+     *            {@link Comparison}
      */
-    private IndexCondition(int compareType, ExpressionColumn column, Expression expression) {
+    private IndexCondition(int compareType, ExpressionColumn column,
+            Expression expression) {
         this.compareType = compareType;
         this.column = column == null ? null : column.getColumn();
         this.expression = expression;
@@ -88,12 +89,14 @@ public class IndexCondition {
     /**
      * Create an index condition with the given parameters.
      *
-     * @param compareType the comparison type, see constants in {@link Comparison}
+     * @param compareType the comparison type, see constants in
+     *            {@link Comparison}
      * @param column the column
      * @param expression the expression
      * @return the index condition
      */
-    public static IndexCondition get(int compareType, ExpressionColumn column, Expression expression) {
+    public static IndexCondition get(int compareType, ExpressionColumn column,
+            Expression expression) {
         return new IndexCondition(compareType, column, expression);
     }
 
@@ -105,7 +108,8 @@ public class IndexCondition {
      * @param list the expression list
      * @return the index condition
      */
-    public static IndexCondition getInList(ExpressionColumn column, List<Expression> list) {
+    public static IndexCondition getInList(ExpressionColumn column,
+            List<Expression> list) {
         IndexCondition cond = new IndexCondition(Comparison.IN_LIST, column, null);
         cond.expressionList = list;
         return cond;
@@ -318,7 +322,8 @@ public class IndexCondition {
     }
 
     /**
-     * Check if this index condition is of the type spatial column intersects value.
+     * Check if this index condition is of the type spatial column intersects
+     * value.
      *
      * @return true if this is a spatial intersects condition
      */

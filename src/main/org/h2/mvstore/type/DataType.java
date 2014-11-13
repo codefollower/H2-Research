@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.type;
@@ -34,12 +33,22 @@ public interface DataType {
     int getMemory(Object obj);
 
     /**
-     * Write the object.
+     * Write an object.
      *
      * @param buff the target buffer
      * @param obj the value
      */
     void write(WriteBuffer buff, Object obj);
+
+    /**
+     * Write a list of objects.
+     *
+     * @param buff the target buffer
+     * @param obj the objects
+     * @param len the number of objects to write
+     * @param key whether the objects are keys
+     */
+    void write(WriteBuffer buff, Object[] obj, int len, boolean key);
 
     /**
      * Read an object.
@@ -48,6 +57,16 @@ public interface DataType {
      * @return the object
      */
     Object read(ByteBuffer buff);
+
+    /**
+     * Read a list of objects.
+     *
+     * @param buff the target buffer
+     * @param obj the objects
+     * @param len the number of objects to read
+     * @param key whether the objects are keys
+     */
+    void read(ByteBuffer buff, Object[] obj, int len, boolean key);
 
 }
 

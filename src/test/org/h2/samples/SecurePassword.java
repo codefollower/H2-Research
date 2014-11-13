@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -38,7 +37,8 @@ public class SecurePassword {
         // Connection conn =
         //     DriverManager.getConnection(url, user, new String(password));
 
-        // This is the most safe way to connect: the password is overwritten after use
+        // This is the most safe way to connect: the password is overwritten
+        // after use
         Properties prop = new Properties();
         prop.setProperty("user", user);
         prop.put("password", password);
@@ -51,7 +51,10 @@ public class SecurePassword {
         stat.execute(
                 "drop table account if exists");
         stat.execute(
-                "create table account(name varchar primary key, salt binary default secure_rand(16), hash binary)");
+                "create table account(" +
+                "name varchar primary key, " +
+                "salt binary default secure_rand(16), " +
+                "hash binary)");
         PreparedStatement prep;
         prep = conn.prepareStatement("insert into account(name) values(?)");
         prep.setString(1, "Joe");
@@ -59,14 +62,18 @@ public class SecurePassword {
         prep.close();
 
         prep = conn.prepareStatement(
-                "update account set hash=hash('SHA256', stringtoutf8(salt||?), 10) where name=?");
+                "update account set " +
+                "hash=hash('SHA256', stringtoutf8(salt||?), 10) " +
+                "where name=?");
         prep.setString(1, "secret");
         prep.setString(2, "Joe");
         prep.execute();
         prep.close();
 
         prep = conn.prepareStatement(
-                "select * from account where name=? and hash=hash('SHA256', stringtoutf8(salt||?), 10)");
+                "select * from account " +
+                "where name=? " +
+                "and hash=hash('SHA256', stringtoutf8(salt||?), 10)");
         prep.setString(1, "Joe");
         prep.setString(2, "secret");
         ResultSet rs = prep.executeQuery();

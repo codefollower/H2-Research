@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
@@ -15,22 +14,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.h2.api.ErrorCode;
 import org.h2.api.TableEngine;
 import org.h2.command.ddl.CreateTableData;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.FileStore;
+import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
+import org.h2.mvstore.MVStoreTool;
 import org.h2.mvstore.db.TransactionStore.Transaction;
+import org.h2.mvstore.db.TransactionStore.TransactionMap;
 import org.h2.store.InDoubtTransaction;
 import org.h2.store.fs.FileChannelInputStream;
 import org.h2.store.fs.FileUtils;
-import org.h2.table.RegularTable;
 import org.h2.table.TableBase;
+import org.h2.util.BitField;
 import org.h2.util.New;
 
 /**
@@ -53,9 +55,10 @@ public class MVTableEngine implements TableEngine {
         String dbPath = db.getDatabasePath();
         MVStore.Builder builder = new MVStore.Builder();
         if (dbPath == null) {
-            store = new Store(db, builder.open());
+            store = new Store(db, builder);
         } else {
             String fileName = dbPath + Constants.SUFFIX_MV_FILE;
+            MVStoreTool.compactCleanUp(fileName);
             builder.fileName(fileName);
             if (db.isReadOnly()) {
                 builder.readOnly();
@@ -72,9 +75,15 @@ public class MVTableEngine implements TableEngine {
             if (key != null) {
                 char[] password = new char[key.length / 2];
                 for (int i = 0; i < password.length; i++) {
-                    password[i] = (char) (((key[i + i] & 255) << 16) | ((key[i + i + 1]) & 255));
+                    password[i] = (char) (((key[i + i] & 255) << 16) |
+                            ((key[i + i + 1]) & 255));
                 }
                 builder.encryptionKey(password);
+            }
+            if (db.getSettings().compressData) {
+                builder.compress();
+                // use a larger page split size to improve the compression ratio
+                builder.pageSplitSize(64 * 1024);
             }
             builder.backgroundExceptionHandler(new UncaughtExceptionHandler() {
 
@@ -85,17 +94,27 @@ public class MVTableEngine implements TableEngine {
 
             });
             try {
-                store = new Store(db, builder.open());
+                store = new Store(db, builder);
             } catch (IllegalStateException e) {
                 int errorCode = DataUtils.getErrorCode(e.getMessage());
                 if (errorCode == DataUtils.ERROR_FILE_CORRUPT) {
                     if (key != null) {
-                        throw DbException.get(ErrorCode.FILE_ENCRYPTION_ERROR_1, e, fileName);
+                        throw DbException.get(
+                                ErrorCode.FILE_ENCRYPTION_ERROR_1,
+                                e, fileName);
                     }
                 } else if (errorCode == DataUtils.ERROR_FILE_LOCKED) {
-                    throw DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1, e, fileName);
+                    throw DbException.get(
+                            ErrorCode.DATABASE_ALREADY_OPEN_1,
+                            e, fileName);
+                } else if (errorCode == DataUtils.ERROR_READING_FAILED) {
+                    throw DbException.get(
+                            ErrorCode.IO_EXCEPTION_1,
+                            e, fileName);
                 }
-                throw DbException.get(ErrorCode.FILE_CORRUPTED_1, e, fileName);
+                throw DbException.get(
+                        ErrorCode.FILE_CORRUPTED_1,
+                        e, fileName);
             }
         }
         db.setMvStore(store);
@@ -105,9 +124,6 @@ public class MVTableEngine implements TableEngine {
     @Override
     public TableBase createTable(CreateTableData data) {
         Database db = data.session.getDatabase();
-        if (!data.persistData) {
-            return new RegularTable(data);
-        }
         Store store = init(db);
         MVTable table = new MVTable(data, store);
         table.init(data.session);
@@ -121,15 +137,11 @@ public class MVTableEngine implements TableEngine {
     public static class Store {
 
         /**
-         * The database.
-         */
-        final Database db;
-
-        /**
          * The map of open tables.
          * Key: the map name, value: the table.
          */
-        final ConcurrentHashMap<String, MVTable> tableMap = new ConcurrentHashMap<String, MVTable>();
+        final ConcurrentHashMap<String, MVTable> tableMap =
+                new ConcurrentHashMap<String, MVTable>();
 
         /**
          * The store.
@@ -143,11 +155,15 @@ public class MVTableEngine implements TableEngine {
 
         private long statisticsStart;
 
-        public Store(Database db, MVStore store) {
-            this.db = db;
-            this.store = store;
-            this.transactionStore = new TransactionStore(store,
-                    new ValueDataType(null, db, null));
+        private int temporaryMapId;
+
+        public Store(Database db, MVStore.Builder builder) {
+            this.store = builder.open();
+            this.transactionStore = new TransactionStore(
+                    store,
+                    new ValueDataType(null, db, null),
+                    db.isMultiThreaded()
+                    );
         }
 
         public MVStore getStore() {
@@ -179,7 +195,7 @@ public class MVTableEngine implements TableEngine {
             if (s == null || s.isReadOnly()) {
                 return;
             }
-            if (!store.compact(50)) {
+            if (!store.compact(50, 4 * 1024 * 1024)) {
                 store.commit();
             }
         }
@@ -207,6 +223,39 @@ public class MVTableEngine implements TableEngine {
                     t.rollback();
                 }
             }
+        }
+
+        /**
+         * Remove all temporary maps.
+         *
+         * @param objectIds the ids of the objects to keep
+         */
+        public void removeTemporaryMaps(BitField objectIds) {
+            for (String mapName : store.getMapNames()) {
+                if (mapName.startsWith("temp.")) {
+                    MVMap<?, ?> map = store.openMap(mapName);
+                    store.removeMap(map);
+                } else if (mapName.startsWith("table.") || mapName.startsWith("index.")) {
+                    int id = Integer.parseInt(mapName.substring(1 + mapName.indexOf(".")));
+                    if (!objectIds.get(id)) {
+                        ValueDataType keyType = new ValueDataType(null, null, null);
+                        ValueDataType valueType = new ValueDataType(null, null, null);
+                        Transaction t = transactionStore.begin();
+                        TransactionMap<?, ?> m = t.openMap(mapName, keyType, valueType);
+                        transactionStore.removeMap(m);
+                        t.commit();
+                    }
+                }
+            }
+        }
+
+        /**
+         * Get the name of the next available temporary map.
+         *
+         * @return the map name
+         */
+        public synchronized String nextTemporaryMapName() {
+            return "temp." + temporaryMapId++;
         }
 
         /**
@@ -264,14 +313,14 @@ public class MVTableEngine implements TableEngine {
         public void compactFile(long maxCompactTime) {
             store.setRetentionTime(0);
             long start = System.currentTimeMillis();
-            while (store.compact(99)) {
+            while (store.compact(95, 16 * 1024 * 1024)) {
                 store.sync();
+                store.compactMoveChunks(95, 16 * 1024 * 1024);
                 long time = System.currentTimeMillis() - start;
                 if (time > maxCompactTime) {
                     break;
                 }
             }
-            store.compactMoveChunks();
         }
 
         /**
@@ -282,18 +331,35 @@ public class MVTableEngine implements TableEngine {
          * @param maxCompactTime the maximum time in milliseconds to compact
          */
         public void close(long maxCompactTime) {
-            if (!store.isClosed() && store.getFileStore() != null) {
-                if (!store.getFileStore().isReadOnly()) {
-                    transactionStore.close();
-                    long start = System.currentTimeMillis();
-                    while (store.compact(90)) {
-                        long time = System.currentTimeMillis() - start;
-                        if (time > maxCompactTime) {
-                            break;
+            try {
+                if (!store.isClosed() && store.getFileStore() != null) {
+                    boolean compactFully = false;
+                    if (!store.getFileStore().isReadOnly()) {
+                        transactionStore.close();
+                        if (maxCompactTime == Long.MAX_VALUE) {
+                            compactFully = true;
                         }
                     }
+                    String fileName = store.getFileStore().getFileName();
+                    store.close();
+                    if (compactFully && FileUtils.exists(fileName)) {
+                        // the file could have been deleted concurrently,
+                        // so only compact if the file still exists
+                        MVStoreTool.compact(fileName, true);
+                    }
                 }
-                store.close();
+            } catch (IllegalStateException e) {
+                int errorCode = DataUtils.getErrorCode(e.getMessage());
+                if (errorCode == DataUtils.ERROR_WRITING_FAILED) {
+                    // disk full - ok
+                } else if (errorCode == DataUtils.ERROR_FILE_CORRUPT) {
+                    // wrong encryption key - ok
+                } else {
+                    // something else
+                    // TODO log those issues when running unit tests
+                }
+                store.closeImmediately();
+                throw DbException.get(ErrorCode.IO_EXCEPTION_1, e, "Closing");
             }
         }
 

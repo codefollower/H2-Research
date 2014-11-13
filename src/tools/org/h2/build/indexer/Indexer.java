@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.indexer;
@@ -73,16 +72,20 @@ public class Indexer {
         File file = new File(dir);
         setNoIndex("index.html", "html/header.html", "html/search.html",
                 "html/frame.html", "html/fragments.html",
-                "html/sourceError.html", "html/source.html", "html/mainWeb.html",
-                "javadoc/index.html", "javadoc/classes.html", "javadoc/allclasses-frame.html",
-                "javadoc/allclasses-noframe.html", "javadoc/constant-values.html", "javadoc/overview-frame.html",
+                "html/sourceError.html", "html/source.html",
+                "html/mainWeb.html", "javadoc/index.html",
+                "javadoc/classes.html", "javadoc/allclasses-frame.html",
+                "javadoc/allclasses-noframe.html",
+                "javadoc/constant-values.html", "javadoc/overview-frame.html",
                 "javadoc/overview-summary.html", "javadoc/serialized-form.html");
         output = new PrintWriter(new FileWriter(destDir + "/index.js"));
         readPages("", file, 0);
         output.println("var pages=new Array();");
         output.println("var ref=new Array();");
         output.println("var ignored='';");
-        output.println("function Page(title, file) { this.title=title; this.file=file; }");
+        output.println("function Page(title, file) { ");
+        output.println("    this.title=title; this.file=file;");
+        output.println("}");
         output.println("function load() {");
         sortWords();
         removeOverflowRelations();
@@ -174,8 +177,8 @@ public class Indexer {
 
     private void listPages() {
         for (Page p : pages) {
-            output.println("pages[" + p.id + "]=new Page('" + convertUTF(p.title) + "', '" + p.fileName
-                    + "');");
+            output.println("pages[" + p.id + "]=new Page('"
+                    + convertUTF(p.title) + "', '" + p.fileName                    + "');");
         }
     }
 
@@ -192,7 +195,7 @@ public class Indexer {
         if (!lower.endsWith(".html") && !lower.endsWith(".htm")) {
             return;
         }
-        if (lower.indexOf("_ja.") >= 0) {
+        if (lower.contains("_ja.")) {
             return;
         }
         if (!noIndex.contains(fileName)) {
@@ -333,7 +336,8 @@ public class Indexer {
         }
         // this list of constants needs to be the same in search.js
         // (char) 160: nbsp
-        StringTokenizer t = new StringTokenizer(text, " \t\r\n\"'.,:;!&/\\?%@`[]{}()+-=<>|*^~#$" + (char) 160, false);
+        StringTokenizer t = new StringTokenizer(text,
+                " \t\r\n\"'.,:;!&/\\?%@`[]{}()+-=<>|*^~#$" + (char) 160, false);
         while (t.hasMoreTokens()) {
             String token = t.nextToken();
             if (token.length() < MIN_WORD_SIZE) {

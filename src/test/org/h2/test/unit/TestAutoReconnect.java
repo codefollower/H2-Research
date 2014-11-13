@@ -1,19 +1,17 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.api.DatabaseEventListener;
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.tools.Server;
 
@@ -44,7 +42,7 @@ public class TestAutoReconnect extends TestBase {
                 connServer.close();
             }
             org.h2.Driver.load();
-            connServer = DriverManager.getConnection(url);
+            connServer = getConnection(url);
         } else {
             server.stop();
             server.start();
@@ -65,16 +63,21 @@ public class TestAutoReconnect extends TestBase {
         deleteDb("autoReconnect");
         Server tcp = Server.createTcpServer().start();
         try {
-            conn = getConnection("jdbc:h2:" + getBaseDir() + "/autoReconnect;AUTO_SERVER=TRUE");
+            conn = getConnection("jdbc:h2:" + getBaseDir() +
+                    "/autoReconnect;AUTO_SERVER=TRUE");
             assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, this).
-                    getConnection("jdbc:h2:" + getBaseDir() + "/autoReconnect;OPEN_NEW=TRUE");
+                    getConnection("jdbc:h2:" + getBaseDir() +
+                            "/autoReconnect;OPEN_NEW=TRUE");
             assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, this).
-                    getConnection("jdbc:h2:" + getBaseDir() + "/autoReconnect;OPEN_NEW=TRUE");
+                    getConnection("jdbc:h2:" + getBaseDir() +
+                            "/autoReconnect;OPEN_NEW=TRUE");
             conn.close();
 
-            conn = getConnection("jdbc:h2:tcp://localhost/" + getBaseDir() + "/autoReconnect");
+            conn = getConnection("jdbc:h2:tcp://localhost/" + getBaseDir() +
+                    "/autoReconnect");
             assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, this).
-                    getConnection("jdbc:h2:" + getBaseDir() + "/autoReconnect;AUTO_SERVER=TRUE;OPEN_NEW=TRUE");
+                    getConnection("jdbc:h2:" + getBaseDir() +
+                            "/autoReconnect;AUTO_SERVER=TRUE;OPEN_NEW=TRUE");
             conn.close();
         } finally {
             tcp.stop();
@@ -95,18 +98,20 @@ public class TestAutoReconnect extends TestBase {
         }
 
         // test the database event listener
-        conn = DriverManager.getConnection(url + ";DATABASE_EVENT_LISTENER='" + MyDatabaseEventListener.class.getName() + "'");
+        conn = getConnection(url + ";DATABASE_EVENT_LISTENER='" +
+        MyDatabaseEventListener.class.getName() + "'");
         conn.close();
 
         Statement stat;
 
-        conn = DriverManager.getConnection(url);
+        conn = getConnection(url);
         restart();
         stat = conn.createStatement();
         restart();
         stat.execute("create table test(id identity, name varchar)");
         restart();
-        PreparedStatement prep = conn.prepareStatement("insert into test values(null, ?)");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test values(null, ?)");
         restart();
         prep.setString(1, "Hello");
         restart();
@@ -179,7 +184,8 @@ public class TestAutoReconnect extends TestBase {
     /**
      * A database event listener used in this test.
      */
-    public static final class MyDatabaseEventListener implements DatabaseEventListener {
+    public static final class MyDatabaseEventListener implements
+            DatabaseEventListener {
 
         @Override
         public void closingDatabase() {

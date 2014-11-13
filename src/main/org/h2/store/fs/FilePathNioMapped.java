@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -16,7 +15,9 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import org.h2.constant.SysProperties;
+import java.nio.channels.NonWritableChannelException;
+
+import org.h2.engine.SysProperties;
 
 /**
  * This file system stores files on disk and uses java.nio to access the files.
@@ -94,7 +95,8 @@ class FileNioMapped extends FileBase {
             }
         }
         if (useSystemGc) {
-            WeakReference<MappedByteBuffer> bufferWeakRef = new WeakReference<MappedByteBuffer>(mapped);
+            WeakReference<MappedByteBuffer> bufferWeakRef =
+                    new WeakReference<MappedByteBuffer>(mapped);
             mapped = null;
             long start = System.currentTimeMillis();
             while (bufferWeakRef.get() != null) {
@@ -125,7 +127,8 @@ class FileNioMapped extends FileBase {
         int limit = mapped.limit();
         int capacity = mapped.capacity();
         if (limit < fileLength || capacity < fileLength) {
-            throw new IOException("Unable to map: length=" + limit + " capacity=" + capacity + " length=" + fileLength);
+            throw new IOException("Unable to map: length=" + limit +
+                    " capacity=" + capacity + " length=" + fileLength);
         }
         if (SysProperties.NIO_LOAD_MAPPED) {
             mapped.load();
@@ -135,7 +138,8 @@ class FileNioMapped extends FileBase {
 
     private static void checkFileSizeLimit(long length) throws IOException {
         if (length > Integer.MAX_VALUE) {
-            throw new IOException("File over 2GB is not supported yet when using this file system");
+            throw new IOException(
+                    "File over 2GB is not supported yet when using this file system");
         }
     }
 
@@ -199,6 +203,10 @@ class FileNioMapped extends FileBase {
 
     @Override
     public synchronized FileChannel truncate(long newLength) throws IOException {
+        // compatibility with JDK FileChannel#truncate
+        if (mode == MapMode.READ_ONLY) {
+            throw new NonWritableChannelException();
+        }
         if (newLength < size()) {
             setFileLength(newLength);
         }
@@ -244,7 +252,8 @@ class FileNioMapped extends FileBase {
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(long position, long size,
+            boolean shared) throws IOException {
         return file.getChannel().tryLock(position, size, shared);
     }
 

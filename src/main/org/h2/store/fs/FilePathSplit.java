@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -15,7 +14,8 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.ArrayList;
 import java.util.List;
-import org.h2.constant.SysProperties;
+
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.util.New;
 
@@ -167,8 +167,10 @@ public class FilePathSplit extends FilePathWrapper {
         return 1L << Integer.decode(parse(name)[0]).intValue();
     }
 
-    private void closeAndThrow(int id, FileChannel[] array, FileChannel o, long maxLength) throws IOException {
-        String message = "Expected file length: " + maxLength + " got: " + o.size() + " for " + getName(id);
+    private void closeAndThrow(int id, FileChannel[] array, FileChannel o,
+            long maxLength) throws IOException {
+        String message = "Expected file length: " + maxLength + " got: " +
+                o.size() + " for " + getName(id);
         for (FileChannel f : array) {
             f.close();
         }
@@ -181,12 +183,12 @@ public class FilePathSplit extends FilePathWrapper {
     }
 
     @Override
-    public void moveTo(FilePath path) {
+    public void moveTo(FilePath path, boolean atomicReplace) {
         FilePathSplit newName = (FilePathSplit) path;
         for (int i = 0;; i++) {
             FilePath o = getBase(i);
             if (o.exists()) {
-                o.moveTo(newName.getBase(i));
+                o.moveTo(newName.getBase(i), atomicReplace);
             } else {
                 break;
             }
@@ -252,7 +254,8 @@ class FileSplit extends FileBase {
     private long filePointer;
     private long length;
 
-    FileSplit(FilePathSplit file, String mode, FileChannel[] list, long length, long maxLength) {
+    FileSplit(FilePathSplit file, String mode, FileChannel[] list, long length,
+            long maxLength) {
         this.file = file;
         this.mode = mode;
         this.list = list;
@@ -386,7 +389,8 @@ class FileSplit extends FileBase {
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(long position, long size,
+            boolean shared) throws IOException {
         return list[0].tryLock(position, size, shared);
     }
 

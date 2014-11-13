@@ -1,8 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version 1.0,
+Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0, Version 1.0,
 and under the Eclipse Public License, Version 1.0
-(http://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -103,7 +102,7 @@ Features
 </li><li>Cost based optimizer, using a genetic algorithm for complex queries, zero-administration
 </li><li>Scrollable and updatable result set support, large result set, external result sorting,
     functions can return a result set
-</li><li>Encrypted database (AES or XTEA), SHA-256 password encryption, encryption functions, SSL
+</li><li>Encrypted database (AES), SHA-256 password encryption, encryption functions, SSL
 </li></ul>
 
 <h3>SQL Support</h3>
@@ -130,7 +129,7 @@ Features
     (even when using insecure connections; this only applies to the TCP server and not to the H2 Console however;
     it also doesn't apply if you set the password in the database URL)
 </li><li>All database files (including script files that can be used to backup data) can be
-encrypted using AES-128 and XTEA encryption algorithms
+encrypted using the AES-128 encryption algorithm
 </li><li>The remote JDBC driver supports TCP/IP connections over SSL/TLS
 </li><li>The built-in web server supports connections over SSL/TLS
 </li><li>Passwords can be sent to the database using char arrays instead of Strings
@@ -497,16 +496,16 @@ This is achieved using different database URLs. Settings in the URLs are not cas
 <tr>
     <td><a href="#file_encryption">Using encrypted files</a></td>
     <td class="notranslate">
-        jdbc:h2:&lt;url&gt;;CIPHER=[AES|XTEA]<br />
+        jdbc:h2:&lt;url&gt;;CIPHER=AES<br />
         jdbc:h2:ssl://localhost/~/test;CIPHER=AES<br />
-        jdbc:h2:file:~/secure;CIPHER=XTEA<br />
+        jdbc:h2:file:~/secure;CIPHER=AES<br />
     </td>
 </tr>
 <tr>
     <td><a href="#database_file_locking">File locking methods</a></td>
     <td class="notranslate">
         jdbc:h2:&lt;url&gt;;FILE_LOCK={FILE|SOCKET|NO}<br />
-        jdbc:h2:file:~/private;CIPHER=XTEA;FILE_LOCK=SOCKET<br />
+        jdbc:h2:file:~/private;CIPHER=AES;FILE_LOCK=SOCKET<br />
     </td>
 </tr>
 <tr>
@@ -641,7 +640,7 @@ To keep the content of an in-memory database as long as the virtual machine is a
 
 <h2 id="file_encryption">Database Files Encryption</h2>
 <p>
-The database files can be encrypted. Two encryption algorithms are supported: AES and XTEA.
+The database files can be encrypted. Two encryption algorithm AES is supported.
 To use file encryption, you need to specify the encryption algorithm (the 'cipher')
 and the file password (in addition to the user password) when connecting to the database.
 </p>
@@ -776,7 +775,7 @@ the INIT property. Note that multiple commands may be passed to INIT, but the se
 must be escaped, as in the example below.
 </p>
 <pre>
-String url = "jdbc:h2:mem;INIT=runscript from '~/create.sql'\\;runscript from '~/populate.sql'";
+String url = "jdbc:h2:mem:test;INIT=runscript from '~/create.sql'\\;runscript from '~/populate.sql'";
 </pre>
 <p>
 Please note the double backslash is only required in a Java or properties file.
@@ -812,7 +811,7 @@ other database settings can be passed in the database URL.
 Adding <code>;setting=value</code> at the end of a database URL is the
 same as executing the statement <code>SET setting value</code> just after
 connecting. For a list of supported settings, see <a href="grammar.html">SQL Grammar</a>
-or the <a href="../javadoc/org/h2/constant/DbSettings.html">DbSettings</a> javadoc.
+or the <a href="../javadoc/org/h2/engine/DbSettings.html">DbSettings</a> javadoc.
 </p>
 
 <h2 id="custom_access_mode">Custom File Access Mode</h2>

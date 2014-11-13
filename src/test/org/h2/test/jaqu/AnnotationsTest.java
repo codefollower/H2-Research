@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: James Moger
  */
 package org.h2.test.jaqu;
@@ -10,7 +9,8 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.jaqu.Db;
 import org.h2.test.TestBase;
 import org.h2.util.JdbcUtils;
@@ -21,7 +21,8 @@ import org.h2.util.JdbcUtils;
 public class AnnotationsTest extends TestBase {
 
     /**
-     * This object represents a database (actually a connection to the database).
+     * This object represents a database (actually a connection to the
+     * database).
      */
     private Db db;
 
@@ -53,7 +54,8 @@ public class AnnotationsTest extends TestBase {
     private void testIndexCreation() throws SQLException {
         // test indexes are created, and columns are in the right order
         DatabaseMetaData meta = db.getConnection().getMetaData();
-        ResultSet rs = meta.getIndexInfo(null, "PUBLIC", "ANNOTATED" + "PRODUCT", false, true);
+        ResultSet rs = meta.getIndexInfo(null, "PUBLIC",
+                "ANNOTATED" + "PRODUCT", false, true);
         assertTrue(rs.next());
         assertStartsWith(rs.getString("INDEX_NAME"), "PRIMARY_KEY");
         assertTrue(rs.next());
@@ -130,7 +132,8 @@ public class AnnotationsTest extends TestBase {
     private void testColumnInheritanceAnnotation() {
         ProductInheritedAnnotation table = new ProductInheritedAnnotation();
         Db db = Db.open("jdbc:h2:mem:", "sa", "sa");
-        List<ProductInheritedAnnotation> inserted = ProductInheritedAnnotation.getData();
+        List<ProductInheritedAnnotation> inserted = ProductInheritedAnnotation
+                .getData();
         db.insertAll(inserted);
 
         List<ProductInheritedAnnotation> retrieved = db.from(table).select();

@@ -1,13 +1,12 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
-import org.h2.constant.SysProperties;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -28,7 +27,8 @@ public class TreeIndex extends BaseIndex {
     private long rowCount;
     private boolean closed;
 
-    public TreeIndex(RegularTable table, int id, String indexName, IndexColumn[] columns, IndexType indexType) {
+    public TreeIndex(RegularTable table, int id, String indexName,
+            IndexColumn[] columns, IndexType indexType) {
         initBaseIndex(table, id, indexName, columns, indexType);
         tableData = table;
         if (!database.isStarting()) {
@@ -318,8 +318,10 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
-        return getCostRangeIndex(masks, tableData.getRowCountApproximation(), filter, sortOrder);
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
+        return getCostRangeIndex(masks, tableData.getRowCountApproximation(),
+                filter, sortOrder);
     }
 
     @Override

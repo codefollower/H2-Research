@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -13,8 +12,8 @@ import java.sql.SQLException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.IOUtils;
@@ -73,7 +72,8 @@ public class Restore extends Tool {
         execute(zipFileName, dir, db);
     }
 
-    private static String getOriginalDbName(String fileName, String db) throws IOException {
+    private static String getOriginalDbName(String fileName, String db)
+            throws IOException {
         InputStream in = null;
         try {
             in = FileUtils.newInputStream(fileName);
@@ -122,10 +122,12 @@ public class Restore extends Tool {
      */
     private static String getDatabaseNameFromFileName(String fileName) {
         if (fileName.endsWith(Constants.SUFFIX_PAGE_FILE)) {
-            return fileName.substring(0, fileName.length() - Constants.SUFFIX_PAGE_FILE.length());
+            return fileName.substring(0,
+                    fileName.length() - Constants.SUFFIX_PAGE_FILE.length());
         }
         if (fileName.endsWith(Constants.SUFFIX_MV_FILE)) {
-            return fileName.substring(0, fileName.length() - Constants.SUFFIX_MV_FILE.length());
+            return fileName.substring(0,
+                    fileName.length() - Constants.SUFFIX_MV_FILE.length());
         }
         return null;
     }
@@ -180,7 +182,8 @@ public class Restore extends Tool {
                 if (copy) {
                     OutputStream o = null;
                     try {
-                        o = FileUtils.newOutputStream(directory + SysProperties.FILE_SEPARATOR + fileName, false);
+                        o = FileUtils.newOutputStream(
+                                directory + SysProperties.FILE_SEPARATOR + fileName, false);
                         IOUtils.copy(zipIn, o);
                         o.close();
                     } finally {

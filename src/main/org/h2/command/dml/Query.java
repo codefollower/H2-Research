@@ -1,15 +1,15 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.expression.Alias;
@@ -81,7 +81,8 @@ public abstract class Query extends Prepared {
      * @param target the target to write results to
      * @return the result
      */
-    protected abstract LocalResult queryWithoutCache(int limit, ResultTarget target);
+    protected abstract LocalResult queryWithoutCache(int limit,
+            ResultTarget target);
 
     /**
      * Initialize the query.
@@ -156,7 +157,8 @@ public abstract class Query extends Prepared {
     public abstract void mapColumns(ColumnResolver resolver, int level);
 
     /**
-     * Change the evaluatable flag. This is used when building the execution plan.
+     * Change the evaluatable flag. This is used when building the execution
+     * plan.
      *
      * @param tableFilter the table filter
      * @param b the new value
@@ -170,7 +172,12 @@ public abstract class Query extends Prepared {
      * @param columnId the column index (0 meaning the first column)
      * @param comparisonType the comparison type
      */
+<<<<<<< HEAD
     public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType); //在ViewIndex中有使用
+=======
+    public abstract void addGlobalCondition(Parameter param, int columnId,
+            int comparisonType);
+>>>>>>> remotes/git-svn
 
     /**
      * Check whether adding condition to the query is allowed. This is not
@@ -241,7 +248,8 @@ public abstract class Query extends Prepared {
         this.noCache = true;
     }
 
-    private boolean sameResultAsLast(Session s, Value[] params, Value[] lastParams, long lastEval) {
+    private boolean sameResultAsLast(Session s, Value[] params,
+            Value[] lastParams, long lastEval) {
         if (!cacheableChecked) {
             long max = getMaxDataModificationId();
             noCache = max == Long.MAX_VALUE;
@@ -257,11 +265,17 @@ public abstract class Query extends Prepared {
                 return false;
             }
         }
-        if (!isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR) || !isEverything(ExpressionVisitor.INDEPENDENT_VISITOR)) {
+        if (!isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR) ||
+                !isEverything(ExpressionVisitor.INDEPENDENT_VISITOR)) {
             return false;
         }
+<<<<<<< HEAD
         //数据有变时不使用缓存
         if (db.getModificationDataId() > lastEval && getMaxDataModificationId() > lastEval) {
+=======
+        if (db.getModificationDataId() > lastEval &&
+                getMaxDataModificationId() > lastEval) {
+>>>>>>> remotes/git-svn
             return false;
         }
         return true;
@@ -301,8 +315,10 @@ public abstract class Query extends Prepared {
         Value[] params = getParameterValues();
         long now = session.getDatabase().getModificationDataId();
         if (isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR)) {
-            if (lastResult != null && !lastResult.isClosed() && limit == lastLimit) {
-                if (sameResultAsLast(session, params, lastParameters, lastEvaluated)) {
+            if (lastResult != null && !lastResult.isClosed() &&
+                    limit == lastLimit) {
+                if (sameResultAsLast(session, params, lastParameters,
+                        lastEvaluated)) {
                     lastResult = lastResult.createShallowCopy(session);
                     if (lastResult != null) {
                         lastResult.reset();
@@ -434,7 +450,8 @@ public abstract class Query extends Prepared {
             //会自动加order by中的字段到select字段列表中
             if (!isAlias) {
                 if (mustBeInResult) {
-                    throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT, e.getSQL());
+                    throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT,
+                            e.getSQL());
                 }
                 expressions.add(e);
                 String sql = e.getSQL();
@@ -454,9 +471,14 @@ public abstract class Query extends Prepared {
      * @param expressionCount the number of columns in the query
      * @return the {@link SortOrder} object
      */
+<<<<<<< HEAD
     //order by字段列表在select字段列表中的位置索引(从0开始计数)和order by字段排序类型生成两个数组:indexes、sortTypes
     //得到一个综合的SortOrder实例
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
+=======
+    public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList,
+            int expressionCount) {
+>>>>>>> remotes/git-svn
         int size = orderList.size();
         int[] index = new int[size];
         int[] columnIndexes = new int[size]; //我加上的

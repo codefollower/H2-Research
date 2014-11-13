@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -35,7 +34,8 @@ public abstract class FileBase extends FileChannel {
     public abstract int write(ByteBuffer src) throws IOException;
 
     @Override
-    public synchronized int read(ByteBuffer dst, long position) throws IOException {
+    public synchronized int read(ByteBuffer dst, long position)
+            throws IOException {
         long oldPos = position();
         position(position);
         int len = read(dst);
@@ -44,7 +44,8 @@ public abstract class FileBase extends FileChannel {
     }
 
     @Override
-    public synchronized int write(ByteBuffer src, long position) throws IOException {
+    public synchronized int write(ByteBuffer src, long position)
+            throws IOException {
         long oldPos = position();
         position(position);
         int len = write(src);
@@ -66,22 +67,26 @@ public abstract class FileBase extends FileChannel {
     }
 
     @Override
-    public FileLock lock(long position, long size, boolean shared) throws IOException {
+    public FileLock lock(long position, long size, boolean shared)
+            throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public MappedByteBuffer map(MapMode mode, long position, long size) throws IOException {
+    public MappedByteBuffer map(MapMode mode, long position, long size)
+            throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long read(ByteBuffer[] dsts, int offset, int length) throws IOException {
+    public long read(ByteBuffer[] dsts, int offset, int length)
+            throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long transferFrom(ReadableByteChannel src, long position, long count) throws IOException {
+    public long transferFrom(ReadableByteChannel src, long position, long count)
+            throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -92,12 +97,14 @@ public abstract class FileBase extends FileChannel {
     }
 
     @Override
-    public FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public FileLock tryLock(long position, long size, boolean shared)
+            throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long write(ByteBuffer[] srcs, int offset, int length) throws IOException {
+    public long write(ByteBuffer[] srcs, int offset, int length)
+            throws IOException {
         throw new UnsupportedOperationException();
     }
 

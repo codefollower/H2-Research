@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
@@ -10,9 +9,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.dml.Select;
 import org.h2.command.dml.SelectOrderBy;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
@@ -230,7 +230,7 @@ public class Aggregate extends Expression {
     @Override
     public void updateAggregate(Session session) {
         // TODO aggregates: check nested MIN(MAX(ID)) and so on
-        // if(on != null) {
+        // if (on != null) {
         // on.updateAggregate();
         // }
         HashMap<Expression, Object> group = select.getCurrentGroup();
@@ -332,7 +332,8 @@ public class Aggregate extends Expression {
                 });
             }
             StatementBuilder buff = new StatementBuilder();
-            String sep = groupConcatSeparator == null ? "," : groupConcatSeparator.getValue(session).getString();
+            String sep = groupConcatSeparator == null ?
+                    "," : groupConcatSeparator.getValue(session).getString();
             for (Value val : list) {
                 String s;
                 if (val.getType() == Value.ARRAY) {
@@ -601,7 +602,8 @@ public class Aggregate extends Expression {
         if (on != null && !on.isEverything(visitor)) {
             return false;
         }
-        if (groupConcatSeparator != null && !groupConcatSeparator.isEverything(visitor)) {
+        if (groupConcatSeparator != null &&
+                !groupConcatSeparator.isEverything(visitor)) {
             return false;
         }
         if (groupConcatOrderList != null) {

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -12,7 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -89,7 +88,8 @@ public class TestFunctionOverload extends TestBase {
     private void testOverloadNamedArgs() throws SQLException {
         Statement stat = conn.createStatement();
 
-        stat.execute("create alias overload1or2Named for \"" + ME + ".overload1or2(int)\"");
+        stat.execute("create alias overload1or2Named for \"" + ME +
+                ".overload1or2(int)\"");
 
         ResultSet rs = stat.executeQuery("select overload1or2Named(1) from dual");
         assertTrue("First Row", rs.next());
@@ -104,7 +104,8 @@ public class TestFunctionOverload extends TestBase {
     private void testOverloadWithConnection() throws SQLException {
         Statement stat = conn.createStatement();
 
-        stat.execute("create alias overload1or2WithConn for \"" + ME + ".overload1or2WithConn\"");
+        stat.execute("create alias overload1or2WithConn for \"" + ME +
+                ".overload1or2WithConn\"");
 
         ResultSet rs = stat.executeQuery("select overload1or2WithConn(1) from dual");
         rs.next();
@@ -158,7 +159,8 @@ public class TestFunctionOverload extends TestBase {
      * @param one the value
      * @return the value
      */
-    public static int overload1or2WithConn(Connection conn, int one) throws SQLException {
+    public static int overload1or2WithConn(Connection conn, int one)
+            throws SQLException {
         conn.createStatement().executeQuery("select 1 from dual");
         return one;
     }

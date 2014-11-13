@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -41,6 +40,7 @@ public class TestSequence extends TestBase {
         testCreateWithMaxValue();
         testCreationErrors();
         testCreateSql();
+        testDefaultMinMax();
         deleteDb("sequence");
     }
 
@@ -71,10 +71,13 @@ public class TestSequence extends TestBase {
     private void testAlterSequence() throws SQLException {
         test("create sequence s; alter sequence s restart with 2", null, 2, 3, 4);
         test("create sequence s; alter sequence s restart with 7", null, 7, 8, 9, 10);
-        test("create sequence s; alter sequence s restart with 11 minvalue 3 maxvalue 12 cycle", null, 11, 12, 3, 4);
-        test("create sequence s; alter sequence s restart with 5 cache 2", null, 5, 6, 7, 8);
-        test("create sequence s; alter sequence s restart with 9 maxvalue 12 nocycle nocache",
-            "Sequence \"S\" has run out of numbers", 9, 10, 11, 12);
+        test("create sequence s; alter sequence s restart with 11 " +
+        "minvalue 3 maxvalue 12 cycle", null, 11, 12, 3, 4);
+        test("create sequence s; alter sequence s restart with 5 cache 2",
+                null, 5, 6, 7, 8);
+        test("create sequence s; alter sequence s restart with 9 " +
+                "maxvalue 12 nocycle nocache",
+                "Sequence \"S\" has run out of numbers", 9, 10, 11, 12);
     }
 
     private void testCache() throws SQLException {
@@ -91,7 +94,8 @@ public class TestSequence extends TestBase {
         stat = conn.createStatement();
         stat.execute("call next value for test_Sequence");
         stat.execute("call next value for test_Sequence3");
-        ResultSet rs = stat.executeQuery("select * from information_schema.sequences order by sequence_name");
+        ResultSet rs = stat.executeQuery("select * from " +
+                "information_schema.sequences order by sequence_name");
         rs.next();
         assertEquals("TEST_SEQUENCE", rs.getString("SEQUENCE_NAME"));
         assertEquals("32", rs.getString("CACHE"));
@@ -107,8 +111,10 @@ public class TestSequence extends TestBase {
         Connection conn = getConnection("sequence");
         Statement stat = conn.createStatement();
         stat.execute("create sequence a");
-        stat.execute("create sequence b start with 7 minvalue 5 maxvalue 9 cycle increment by 2 nocache");
-        stat.execute("create sequence c start with -4 minvalue -9 maxvalue -3 no cycle increment by -2 cache 3");
+        stat.execute("create sequence b start with 7 minvalue 5 " +
+                "maxvalue 9 cycle increment by 2 nocache");
+        stat.execute("create sequence c start with -4 minvalue -9 " +
+                "maxvalue -3 no cycle increment by -2 cache 3");
 
         if (!config.memory) {
             conn.close();
@@ -116,7 +122,8 @@ public class TestSequence extends TestBase {
         }
 
         stat = conn.createStatement();
-        ResultSet rs = stat.executeQuery("select * from information_schema.sequences order by sequence_name");
+        ResultSet rs = stat.executeQuery("select * from " +
+                "information_schema.sequences order by sequence_name");
         rs.next();
         assertEquals("SEQUENCE", rs.getString("SEQUENCE_CATALOG"));
         assertEquals("PUBLIC", rs.getString("SEQUENCE_SCHEMA"));
@@ -159,14 +166,16 @@ public class TestSequence extends TestBase {
 
     private void testCreateWithMinValue() throws SQLException {
         test("create sequence s minvalue 3", null, 3, 4, 5, 6);
-        test("create sequence s minvalue -3 increment by -1 cycle", null, -1, -2, -3, -1);
+        test("create sequence s minvalue -3 increment by -1 cycle",
+                null, -1, -2, -3, -1);
         test("create sequence s minvalue -3 increment by -1",
                 "Sequence \"S\" has run out of numbers", -1, -2, -3);
         test("create sequence s minvalue -3 increment by -1 nocycle",
                 "Sequence \"S\" has run out of numbers", -1, -2, -3);
         test("create sequence s minvalue -3 increment by -1 no cycle",
                 "Sequence \"S\" has run out of numbers", -1, -2, -3);
-        test("create sequence s minvalue -3 increment by -1 nocache cycle", null, -1, -2, -3, -1);
+        test("create sequence s minvalue -3 increment by -1 nocache cycle",
+                null, -1, -2, -3, -1);
         test("create sequence s minvalue -3 increment by -1 nocache",
                 "Sequence \"S\" has run out of numbers", -1, -2, -3);
         test("create sequence s minvalue -3 increment by -1 nocache nocycle",
@@ -176,7 +185,8 @@ public class TestSequence extends TestBase {
     }
 
     private void testCreateWithMaxValue() throws SQLException {
-        test("create sequence s maxvalue -3 increment by -1", null, -3, -4, -5, -6);
+        test("create sequence s maxvalue -3 increment by -1",
+                null, -3, -4, -5, -6);
         test("create sequence s maxvalue 3 cycle", null, 1, 2, 3, 1);
         test("create sequence s maxvalue 3",
                 "Sequence \"S\" has run out of numbers", 1, 2, 3);
@@ -184,7 +194,8 @@ public class TestSequence extends TestBase {
                 "Sequence \"S\" has run out of numbers", 1, 2, 3);
         test("create sequence s maxvalue 3 no cycle",
                 "Sequence \"S\" has run out of numbers", 1, 2, 3);
-        test("create sequence s maxvalue 3 nocache cycle", null, 1, 2, 3, 1);
+        test("create sequence s maxvalue 3 nocache cycle",
+                null, 1, 2, 3, 1);
         test("create sequence s maxvalue 3 nocache",
                 "Sequence \"S\" has run out of numbers", 1, 2, 3);
         test("create sequence s maxvalue 3 nocache nocycle",
@@ -200,28 +211,34 @@ public class TestSequence extends TestBase {
         expectError(
                 stat,
                 "create sequence a minvalue 5 start with 2",
-                "Unable to create or alter sequence \"A\" because of invalid attributes (start value \"2\", "
-                        + "min value \"5\", max value \"" + Long.MAX_VALUE + "\", increment \"1\")");
+                "Unable to create or alter sequence \"A\" because of " +
+                "invalid attributes (start value \"2\", " +
+                "min value \"5\", max value \"" + Long.MAX_VALUE +
+                "\", increment \"1\")");
         expectError(
                 stat,
                 "create sequence b maxvalue 5 start with 7",
-                "Unable to create or alter sequence \"B\" because of invalid attributes (start value \"7\", "
-                        + "min value \"1\", max value \"5\", increment \"1\")");
+                "Unable to create or alter sequence \"B\" because of " +
+                "invalid attributes (start value \"7\", " +
+                        "min value \"1\", max value \"5\", increment \"1\")");
         expectError(
                 stat,
                 "create sequence c minvalue 5 maxvalue 2",
-                "Unable to create or alter sequence \"C\" because of invalid attributes (start value \"5\", "
-                        + "min value \"5\", max value \"2\", increment \"1\")");
+                "Unable to create or alter sequence \"C\" because of " +
+                "invalid attributes (start value \"5\", " +
+                "min value \"5\", max value \"2\", increment \"1\")");
         expectError(
                 stat,
                 "create sequence d increment by 0",
-                "Unable to create or alter sequence \"D\" because of invalid attributes (start value \"1\", "
-                        + "min value \"1\", max value \"" + Long.MAX_VALUE + "\", increment \"0\")");
-        expectError(
-                stat,
+                "Unable to create or alter sequence \"D\" because of " +
+                "invalid attributes (start value \"1\", " +
+                "min value \"1\", max value \"" +
+                Long.MAX_VALUE + "\", increment \"0\")");
+        expectError(stat,
                 "create sequence e minvalue 1 maxvalue 5 increment 99",
-                "Unable to create or alter sequence \"E\" because of invalid attributes (start value \"1\", "
-                        + "min value \"1\", max value \"5\", increment \"99\")");
+                "Unable to create or alter sequence \"E\" because of " +
+                "invalid attributes (start value \"1\", " +
+                "min value \"1\", max value \"5\", increment \"99\")");
         conn.close();
     }
 
@@ -243,12 +260,26 @@ public class TestSequence extends TestBase {
         }
         Collections.sort(script);
         assertEquals("CREATE SEQUENCE PUBLIC.A START WITH 1;", script.get(0));
-        assertEquals("CREATE SEQUENCE PUBLIC.B START WITH 5 INCREMENT BY 2 " +
+        assertEquals("CREATE SEQUENCE PUBLIC.B START " +
+                "WITH 5 INCREMENT BY 2 " +
                 "MINVALUE 3 MAXVALUE 7 CYCLE CACHE 1;", script.get(1));
-        assertEquals("CREATE SEQUENCE PUBLIC.C START WITH 3 MINVALUE 2 MAXVALUE 9 CACHE 2;",
+        assertEquals("CREATE SEQUENCE PUBLIC.C START " +
+                "WITH 3 MINVALUE 2 MAXVALUE 9 CACHE 2;",
                 script.get(2));
-        assertEquals("CREATE SEQUENCE PUBLIC.D START WITH 1 CACHE 1;", script.get(3));
-        assertEquals("CREATE SEQUENCE PUBLIC.E START WITH 1 CACHE 1;", script.get(4));
+        assertEquals("CREATE SEQUENCE PUBLIC.D START " +
+                "WITH 1 CACHE 1;", script.get(3));
+        assertEquals("CREATE SEQUENCE PUBLIC.E START " +
+                "WITH 1 CACHE 1;", script.get(4));
+        conn.close();
+    }
+
+    private void testDefaultMinMax() throws SQLException {
+        // test that we calculate default MIN and MAX values correctly
+        deleteDb("sequence");
+        Connection conn = getConnection("sequence");
+        Statement stat = conn.createStatement();
+        stat.execute("create sequence a START WITH -7320917853639540658");
+        stat.execute("create sequence b START WITH 7320917853639540658 INCREMENT -1");
         conn.close();
     }
 
@@ -279,7 +310,8 @@ public class TestSequence extends TestBase {
         conn.close();
     }
 
-    private void test(String setupSql, String finalError, long... values) throws SQLException {
+    private void test(String setupSql, String finalError, long... values)
+            throws SQLException {
 
         deleteDb("sequence");
 

@@ -1,14 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.message;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import org.h2.constant.SysProperties;
+
+import org.h2.engine.SysProperties;
 import org.h2.expression.ParameterInterface;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
@@ -208,7 +208,8 @@ public class Trace {
      * @param parameters the parameter list
      * @return the formatted text
      */
-    public static String formatParams(ArrayList<? extends ParameterInterface> parameters) {
+    public static String formatParams(
+            ArrayList<? extends ParameterInterface> parameters) {
         if (parameters.size() == 0) {
             return "";
         }
@@ -319,7 +320,8 @@ public class Trace {
      */
     public void infoCode(String java) {
         if (isEnabled(TraceSystem.INFO)) {
-            traceWriter.write(TraceSystem.INFO, module, lineSeparator + "/**/" + java, null);
+            traceWriter.write(TraceSystem.INFO, module, lineSeparator +
+                    "/**/" + java, null);
         }
     }
 
@@ -330,7 +332,8 @@ public class Trace {
      */
     void debugCode(String java) {
         if (isEnabled(TraceSystem.DEBUG)) {
-            traceWriter.write(TraceSystem.DEBUG, module, lineSeparator + "/**/" + java, null);
+            traceWriter.write(TraceSystem.DEBUG, module, lineSeparator +
+                    "/**/" + java, null);
         }
     }
 

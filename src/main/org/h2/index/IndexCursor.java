@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -118,8 +117,9 @@ public class IndexCursor implements Cursor {
                 if (columnId >= 0) {
                     IndexColumn idxCol = indexColumns[columnId];
                     if (idxCol != null && (idxCol.sortType & SortOrder.DESCENDING) != 0) {
-                        // if the index column is sorted the other way, we swap end and start
-                        // NULLS_FIRST / NULLS_LAST is not a problem, as nulls never match anyway
+                        // if the index column is sorted the other way, we swap
+                        // end and start NULLS_FIRST / NULLS_LAST is not a
+                        // problem, as nulls never match anyway
                         boolean temp = isStart;
                         isStart = isEnd;
                         isEnd = temp;
@@ -192,8 +192,10 @@ public class IndexCursor implements Cursor {
             // if an object needs to overlap with both a and b,
             // then it needs to overlap with the the union of a and b
             // (not the intersection)
-            ValueGeometry vg = (ValueGeometry) row.getValue(columnId).convertTo(Value.GEOMETRY);
-            v = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).getEnvelopeUnion(vg);
+            ValueGeometry vg = (ValueGeometry) row.getValue(columnId).
+                    convertTo(Value.GEOMETRY);
+            v = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).
+                    getEnvelopeUnion(vg);
         }
         if (columnId < 0) {
             row.setKey(v.getLong());
@@ -203,7 +205,8 @@ public class IndexCursor implements Cursor {
         return row;
     }
 
-    private SearchRow getSearchRow(SearchRow row, int columnId, Value v, boolean max) {
+    private SearchRow getSearchRow(SearchRow row, int columnId, Value v,
+            boolean max) {
         if (row == null) {
             row = table.getTemplateRow();
         } else {

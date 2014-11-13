@@ -38,6 +38,7 @@
 90008=被发现非法的数值 {0} 在参数  {1}
 90009=#Unable to create or alter sequence {0} because of invalid attributes (start value {1}, min value {2}, max value {3}, increment {4})
 90010=#Invalid TO_CHAR format {0}
+90011=#A file path that is implicitly relative to the current working directory is not allowed in the database URL {0}. Use an absolute path, ~/name, ./name, or the baseDir setting instead.
 90012=参数 {0} 的值还没有设置
 90013=找不到数据库 {0}
 90014=解析 {0} 时发生错误
@@ -47,6 +48,7 @@
 90018=连接未被关闭但已被垃圾回收器回收
 90019=不能移除当前用户
 90020=数据可可能当前已正被使用: {0}. 解决方案有：关闭所有其他连接; 使用服务器模式(server mode)
+90021=#This combination of database settings is not supported: {0}
 90022=未找到函数 {0}
 90023=字段 {0} 不能为空
 90024=将文件 {0} 命名为 {1} 发生错误
@@ -114,7 +116,6 @@
 90089=不能变更整理(Collation),因为存在一个数据表: {0}
 90090=不能删除方案(schema) {0}
 90091=不能删除角色 {0}
-90092=不支持这个 Java 版本 (至少需要Java 1.4 )
 90093=集群错误 - 数据库现在运行在独立运行模式
 90094=集群错误 - 数据库现在运行在集群模式, 服务器列表: {0}
 90095=字符串格式错误: {0}
@@ -122,7 +123,6 @@
 90097=数据库为只读
 90098=数据库已关闭
 90099=设立数据库事件监听器错误 {0}, 原因: {1}
-90100=磁盘没有有效空间
 90101=错误的 XID 格式: {0}
 90102=不支持的压缩选项: {0}
 90103=不支持的压缩算法: {0}

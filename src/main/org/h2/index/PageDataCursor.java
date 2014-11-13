@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -25,7 +24,8 @@ class PageDataCursor implements Cursor {
     private final Session session;
     private Iterator<Row> delta;
 
-    PageDataCursor(Session session, PageDataLeaf current, int idx, long maxKey, boolean multiVersion) {
+    PageDataCursor(Session session, PageDataLeaf current, int idx, long maxKey,
+            boolean multiVersion) {
         this.current = current;
         this.idx = idx;
         this.maxKey = maxKey;
@@ -65,7 +65,8 @@ class PageDataCursor implements Cursor {
                 }
             } else {
                 nextRow();
-                if (row != null && row.getSessionId() != 0 && row.getSessionId() != session.getId()) {
+                if (row != null && row.getSessionId() != 0 &&
+                        row.getSessionId() != session.getId()) {
                     continue;
                 }
             }

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
@@ -13,9 +12,9 @@ import java.util.ArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.h2.api.DatabaseEventListener;
+import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
@@ -59,9 +58,9 @@ public class BackupCommand extends Prepared {
             throw DbException.get(ErrorCode.DATABASE_IS_NOT_PERSISTENT);
         }
         try {
-            Store store = db.getMvStore();
-            if (store != null) {
-                store.flush();
+            Store mvStore = db.getMvStore();
+            if (mvStore != null) {
+                mvStore.flush();
             }
             String name = db.getName(); //返回E:/H2/baseDir/mydb
             name = FileUtils.getName(name); //返回mydb(也就是只取简单文件名
@@ -69,8 +68,15 @@ public class BackupCommand extends Prepared {
             OutputStream zip = FileUtils.newOutputStream(fileName, false);
             ZipOutputStream out = new ZipOutputStream(zip);
             db.flush();
+<<<<<<< HEAD
             String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //返回E:/H2/baseDir/mydb.h2.db
             backupPageStore(out, fn, db.getPageStore());
+=======
+            if (db.getPageStore() != null) {
+                String fn = db.getName() + Constants.SUFFIX_PAGE_FILE;
+                backupPageStore(out, fn, db.getPageStore());
+            }
+>>>>>>> remotes/git-svn
             // synchronize on the database, to avoid concurrent temp file
             // creation / deletion / backup
             String base = FileUtils.getParent(db.getName());
@@ -87,12 +93,17 @@ public class BackupCommand extends Prepared {
                     if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //备份".lob.db"文件
                         backupFile(out, base, n);
                     }
+<<<<<<< HEAD
                     if (n.endsWith(Constants.SUFFIX_MV_FILE)) { //备份".mv.db"文件
                         MVStore s = store.getStore();
+=======
+                    if (n.endsWith(Constants.SUFFIX_MV_FILE) && mvStore != null) {
+                        MVStore s = mvStore.getStore();
+>>>>>>> remotes/git-svn
                         boolean before = s.getReuseSpace();
                         s.setReuseSpace(false);
                         try {
-                            InputStream in = store.getInputStream();
+                            InputStream in = mvStore.getInputStream();
                             backupFile(out, base, n, in);
                         } finally {
                             s.setReuseSpace(before);
@@ -107,10 +118,8 @@ public class BackupCommand extends Prepared {
         }
     }
 
-    private void backupPageStore(ZipOutputStream out, String fileName, PageStore store) throws IOException {
-        if (store == null) {
-            return;
-        }
+    private void backupPageStore(ZipOutputStream out, String fileName,
+            PageStore store) throws IOException {
         Database db = session.getDatabase();
         fileName = FileUtils.getName(fileName); //fileName = E:/H2/baseDir/mydb.h2.db，然后变成"mydb.h2.db"
         out.putNextEntry(new ZipEntry(fileName));
@@ -131,14 +140,22 @@ public class BackupCommand extends Prepared {
         out.closeEntry();
     }
 
-    private static void backupFile(ZipOutputStream out, String base, String fn) throws IOException {
+    private static void backupFile(ZipOutputStream out, String base, String fn)
+            throws IOException {
         InputStream in = FileUtils.newInputStream(fn);
         backupFile(out, base, fn, in);
     }
 
+<<<<<<< HEAD
     private static void backupFile(ZipOutputStream out, String base, String fn, InputStream in) throws IOException {
         String f = FileUtils.toRealPath(fn); //返回E:/H2/baseDir/mydb.mv.db
         base = FileUtils.toRealPath(base); //返回E:/H2/baseDir
+=======
+    private static void backupFile(ZipOutputStream out, String base, String fn,
+            InputStream in) throws IOException {
+        String f = FileUtils.toRealPath(fn);
+        base = FileUtils.toRealPath(base);
+>>>>>>> remotes/git-svn
         if (!f.startsWith(base)) {
             DbException.throwInternalError(f + " does not start with " + base);
         }

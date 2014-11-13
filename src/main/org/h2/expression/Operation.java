@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
@@ -24,7 +23,8 @@ import org.h2.value.ValueString;
 public class Operation extends Expression {
 
     /**
-     * This operation represents a string concatenation as in 'Hello' || 'World'.
+     * This operation represents a string concatenation as in
+     * 'Hello' || 'World'.
      */
     public static final int CONCAT = 0;
 
@@ -201,17 +201,20 @@ public class Operation extends Expression {
             right = right.optimize(session);
             int l = left.getType();
             int r = right.getType();
-            if ((l == Value.NULL && r == Value.NULL) || (l == Value.UNKNOWN && r == Value.UNKNOWN)) {
+            if ((l == Value.NULL && r == Value.NULL) ||
+                    (l == Value.UNKNOWN && r == Value.UNKNOWN)) {
                 // (? + ?) - use decimal by default (the most safe data type) or
                 // string when text concatenation with + is enabled
-                if (opType == PLUS && session.getDatabase().getMode().allowPlusForStringConcat) {
+                if (opType == PLUS && session.getDatabase().
+                        getMode().allowPlusForStringConcat) {
                     dataType = Value.STRING;
                     opType = CONCAT;
                 } else {
                     dataType = Value.DECIMAL;
                 }
-            } else if (l == Value.DATE || l == Value.TIMESTAMP || l == Value.TIME ||
-                    r == Value.DATE || r == Value.TIMESTAMP || r == Value.TIME) {
+            } else if (l == Value.DATE || l == Value.TIMESTAMP ||
+                    l == Value.TIME || r == Value.DATE ||
+                    r == Value.TIMESTAMP || r == Value.TIME) {
                 if (opType == PLUS) {
                     if (r != Value.getHigherOrder(l, r)) {
                         // order left and right: INT < TIME < DATE < TIMESTAMP
@@ -256,7 +259,8 @@ public class Operation extends Expression {
                         f.setParameter(2, left);
                         f.doneWithParameters();
                         return f.optimize(session);
-                    } else if ((l == Value.DATE || l == Value.TIMESTAMP) && (r == Value.DECIMAL || r == Value.FLOAT || r == Value.DOUBLE)) {
+                    } else if ((l == Value.DATE || l == Value.TIMESTAMP) &&
+                            (r == Value.DECIMAL || r == Value.FLOAT || r == Value.DOUBLE)) {
                         // Oracle date subtract
                         Function f = Function.getFunction(session.getDatabase(), "DATEADD");
                         f.setParameter(0, ValueExpression.get(ValueString.get("SECOND")));
@@ -309,7 +313,8 @@ public class Operation extends Expression {
                         DataType.getDataType(r).name);
             } else {
                 dataType = Value.getHigherOrder(l, r);
-                if (DataType.isStringType(dataType) && session.getDatabase().getMode().allowPlusForStringConcat) {
+                if (DataType.isStringType(dataType) &&
+                        session.getDatabase().getMode().allowPlusForStringConcat) {
                     opType = CONCAT;
                 }
             }
@@ -360,7 +365,8 @@ public class Operation extends Expression {
         if (right != null) {
             switch (opType) {
             case CONCAT:
-                return MathUtils.convertLongToInt((long) left.getDisplaySize() + (long) right.getDisplaySize());
+                return MathUtils.convertLongToInt((long) left.getDisplaySize() +
+                        (long) right.getDisplaySize());
             default:
                 return Math.max(left.getDisplaySize(), right.getDisplaySize());
             }
@@ -386,7 +392,8 @@ public class Operation extends Expression {
 
     @Override
     public boolean isEverything(ExpressionVisitor visitor) {
-        return left.isEverything(visitor) && (right == null || right.isEverything(visitor));
+        return left.isEverything(visitor) &&
+                (right == null || right.isEverything(visitor));
     }
 
     @Override

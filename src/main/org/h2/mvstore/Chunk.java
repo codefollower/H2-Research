@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore;
@@ -15,16 +14,25 @@ import java.util.HashMap;
  * Chunks are page aligned (each page is usually 4096 bytes).
  * There are at most 67 million (2^26) chunks,
  * each chunk is at most 2 GB large.
- * File format:
- * 1 byte: 'c'
- * 4 bytes: length
- * 4 bytes: chunk id (an incrementing number)
- * 4 bytes: pageCount
- * 8 bytes: metaRootPos
- * 8 bytes: maxLengthLive
- * [ Page ] *
  */
 public class Chunk {
+
+    /**
+     * The maximum chunk id.
+     */
+    public static final int MAX_ID = (1 << 26) - 1;
+
+    /**
+     * The maximum length of a chunk header, in bytes.
+     */
+    static final int MAX_HEADER_LENGTH = 1024;
+
+    /**
+     * The length of the chunk footer. The longest footer is:
+     * chunk:ffffffff,block:ffffffffffffffff,
+     * version:ffffffffffffffff,fletcher:ffffffff
+     */
+    static final int FOOTER_LENGTH = 128;
 
     /**
      * The chunk id.
@@ -32,14 +40,14 @@ public class Chunk {
     public final int id;
 
     /**
-     * The start position within the file.
+     * The start block number within the file.
      */
-    public long start;
+    public long block;
 
     /**
-     * The length in bytes.
+     * The length in number of blocks.
      */
-    public int length;
+    public int len;
 
     /**
      * The total number of pages in this chunk.
@@ -54,15 +62,16 @@ public class Chunk {
     /**
      * The sum of the max length of all pages.
      */
-    public long maxLength;
+    public long maxLen;
 
     /**
      * The sum of the max length of all pages that are in use.
      */
-    public long maxLengthLive;
+    public long maxLenLive;
 
     /**
-     * The garbage collection priority.
+     * The garbage collection priority. Priority 0 means it needs to be
+     * collected, a high value means low priority.
      */
     public int collectPriority;
 
@@ -81,6 +90,23 @@ public class Chunk {
      */
     public long time;
 
+    /**
+     * When this chunk was no longer needed, in milliseconds after the store was
+     * created. After this, the chunk is kept alive for at least half the
+     * retention time (in case it is referenced in older versions).
+     */
+    public long unused;
+
+    /**
+     * The last used map id.
+     */
+    public int mapId;
+
+    /**
+     * The predicted position of the next chunk.
+     */
+    public long next;
+
     Chunk(int id) {
         this.id = id;
     }
@@ -92,42 +118,58 @@ public class Chunk {
      * @param start the start of the chunk in the file
      * @return the chunk
      */
-    static Chunk fromHeader(ByteBuffer buff, long start) {
-        if (buff.get() != 'c') {
+    static Chunk readChunkHeader(ByteBuffer buff, long start) {
+        int pos = buff.position();
+        byte[] data = new byte[Math.min(buff.remaining(), MAX_HEADER_LENGTH)];
+        buff.get(data);
+        try {
+            for (int i = 0; i < data.length; i++) {
+                if (data[i] == '\n') {
+                    // set the position to the start of the first page
+                    buff.position(pos + i + 1);
+                    String s = new String(data, 0, i, DataUtils.LATIN).trim();
+                    return fromString(s);
+                }
+            }
+        } catch (Exception e) {
+            // there could be various reasons
             throw DataUtils.newIllegalStateException(
                     DataUtils.ERROR_FILE_CORRUPT,
-                    "File corrupt reading chunk at position {0}", start);
+                    "File corrupt reading chunk at position {0}", start, e);
         }
-        int length = buff.getInt();
-        int chunkId = buff.getInt();
-        int pageCount = buff.getInt();
-        long metaRootPos = buff.getLong();
-        long maxLength = buff.getLong();
-        long maxLengthLive = buff.getLong();
-        Chunk c = new Chunk(chunkId);
-        c.length = length;
-        c.pageCount = pageCount;
-        c.pageCountLive = pageCount;
-        c.start = start;
-        c.metaRootPos = metaRootPos;
-        c.maxLength = maxLength;
-        c.maxLengthLive = maxLengthLive;
-        return c;
+        throw DataUtils.newIllegalStateException(
+                DataUtils.ERROR_FILE_CORRUPT,
+                "File corrupt reading chunk at position {0}", start);
     }
 
     /**
      * Write the chunk header.
      *
      * @param buff the target buffer
+     * @param minLength the minimum length
      */
-    void writeHeader(WriteBuffer buff) {
-        buff.put((byte) 'c').
-            putInt(length).
-            putInt(id).
-            putInt(pageCount).
-            putLong(metaRootPos).
-            putLong(maxLength).
-            putLong(maxLengthLive);
+    void writeChunkHeader(WriteBuffer buff, int minLength) {
+        long pos = buff.position();
+        buff.put(asString().getBytes(DataUtils.LATIN));
+        while (buff.position() - pos < minLength - 1) {
+            buff.put((byte) ' ');
+        }
+        if (minLength != 0 && buff.position() > minLength) {
+            throw DataUtils.newIllegalStateException(
+                    DataUtils.ERROR_INTERNAL,
+                    "Chunk metadata too long");
+        }
+        buff.put((byte) '\n');
+    }
+
+    /**
+     * Get the metadata key for the given chunk id.
+     *
+     * @param chunkId the chunk id
+     * @return the metadata key
+     */
+    static String getMetaKey(int chunkId) {
+        return "chunk." + Integer.toHexString(chunkId);
     }
 
     /**
@@ -138,22 +180,35 @@ public class Chunk {
      */
     public static Chunk fromString(String s) {
         HashMap<String, String> map = DataUtils.parseMap(s);
-        int id = Integer.parseInt(map.get("id"));
+        int id = DataUtils.readHexInt(map, "chunk", 0);
         Chunk c = new Chunk(id);
-        c.start = Long.parseLong(map.get("start"));
-        c.length = Integer.parseInt(map.get("length"));
-        c.pageCount = Integer.parseInt(map.get("pageCount"));
-        c.pageCountLive = Integer.parseInt(map.get("pageCountLive"));
-        c.maxLength = Long.parseLong(map.get("maxLength"));
-        c.maxLengthLive = Long.parseLong(map.get("maxLengthLive"));
-        c.metaRootPos = Long.parseLong(map.get("metaRoot"));
-        c.time = Long.parseLong(map.get("time"));
-        c.version = Long.parseLong(map.get("version"));
+        c.block = DataUtils.readHexLong(map, "block", 0);
+        c.len = DataUtils.readHexInt(map, "len", 0);
+        c.pageCount = DataUtils.readHexInt(map, "pages", 0);
+        c.pageCountLive = DataUtils.readHexInt(map, "livePages", c.pageCount);
+        c.mapId = DataUtils.readHexInt(map, "map", 0);
+        c.maxLen = DataUtils.readHexLong(map, "max", 0);
+        c.maxLenLive = DataUtils.readHexLong(map, "liveMax", c.maxLen);
+        c.metaRootPos = DataUtils.readHexLong(map, "root", 0);
+        c.time = DataUtils.readHexLong(map, "time", 0);
+        c.unused = DataUtils.readHexLong(map, "unused", 0);
+        c.version = DataUtils.readHexLong(map, "version", id);
+        c.next = DataUtils.readHexLong(map, "next", 0);
         return c;
     }
 
+    /**
+     * Calculate the fill rate in %. 0 means empty, 100 means full.
+     *
+     * @return the fill rate
+     */
     public int getFillRate() {
-        return (int) (maxLength == 0 ? 0 : 100 * maxLengthLive / maxLength);
+        if (maxLenLive <= 0) {
+            return 0;
+        } else if (maxLenLive == maxLen) {
+            return 100;
+        }
+        return 1 + (int) (98 * maxLenLive / maxLen);
     }
 
     @Override
@@ -172,17 +227,44 @@ public class Chunk {
      * @return the string
      */
     public String asString() {
-        return
-                "id:" + id + "," +
-                "length:" + length + "," +
-                "maxLength:" + maxLength + "," +
-                "maxLengthLive:" + maxLengthLive + "," +
-                "metaRoot:" + metaRootPos + "," +
-                "pageCount:" + pageCount + "," +
-                "pageCountLive:" + pageCountLive + "," +
-                "start:" + start + "," +
-                "time:" + time + "," +
-                "version:" + version;
+        StringBuilder buff = new StringBuilder();
+        DataUtils.appendMap(buff, "chunk", id);
+        DataUtils.appendMap(buff, "block", block);
+        DataUtils.appendMap(buff, "len", len);
+        if (maxLen != maxLenLive) {
+            DataUtils.appendMap(buff, "liveMax", maxLenLive);
+        }
+        if (pageCount != pageCountLive) {
+            DataUtils.appendMap(buff, "livePages", pageCountLive);
+        }
+        DataUtils.appendMap(buff, "map", mapId);
+        DataUtils.appendMap(buff, "max", maxLen);
+        if (next != 0) {
+            DataUtils.appendMap(buff, "next", next);
+        }
+        DataUtils.appendMap(buff, "pages", pageCount);
+        DataUtils.appendMap(buff, "root", metaRootPos);
+        DataUtils.appendMap(buff, "time", time);
+        if (unused != 0) {
+            DataUtils.appendMap(buff, "unused", unused);
+        }
+        DataUtils.appendMap(buff, "version", version);
+        return buff.toString();
+    }
+
+    byte[] getFooterBytes() {
+        StringBuilder buff = new StringBuilder();
+        DataUtils.appendMap(buff, "chunk", id);
+        DataUtils.appendMap(buff, "block", block);
+        DataUtils.appendMap(buff, "version", version);
+        byte[] bytes = buff.toString().getBytes(DataUtils.LATIN);
+        int checksum = DataUtils.getFletcher32(bytes, bytes.length);
+        DataUtils.appendMap(buff, "fletcher", checksum);
+        while (buff.length() < Chunk.FOOTER_LENGTH - 1) {
+            buff.append(' ');
+        }
+        buff.append("\n");
+        return buff.toString().getBytes(DataUtils.LATIN);
     }
 
     @Override

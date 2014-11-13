@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -17,22 +16,27 @@ public class Constants {
     /**
      * The build date is updated for each public release.
      */
-    public static final String BUILD_DATE = "2014-01-18";
+    public static final String BUILD_DATE = "2014-08-06";
 
     /**
-     * The build date is updated for each public release.
+     * The build date of the last stable release.
      */
-    public static final String BUILD_DATE_STABLE = "2013-10-19";
+    public static final String BUILD_DATE_STABLE = "2014-04-05";
 
     /**
      * The build id is incremented for each public release.
      */
-    public static final int BUILD_ID = 175;
+    public static final int BUILD_ID = 181;
 
     /**
      * The build id of the last stable release.
      */
-    public static final int BUILD_ID_STABLE = 174;
+    public static final int BUILD_ID_STABLE = 176;
+
+    /**
+     * Whether this is a snapshot version.
+     */
+    public static final boolean BUILD_SNAPSHOT = false;
 
     /**
      * If H2 is compiled to be included in a product, this should be set to
@@ -83,6 +87,16 @@ public class Constants {
     public static final int TCP_PROTOCOL_VERSION_13 = 13;
 
     /**
+     * The TCP protocol version number 14.
+     */
+    public static final int TCP_PROTOCOL_VERSION_14 = 14;
+
+    /**
+     * The TCP protocol version number 15.
+     */
+    public static final int TCP_PROTOCOL_VERSION_15 = 15;
+
+    /**
      * The major version of this database.
      */
     public static final int VERSION_MAJOR = 1;
@@ -90,8 +104,7 @@ public class Constants {
     /**
      * The minor version of this database.
      */
-    public static final int VERSION_MINOR = 3;
-    // Build.getLuceneVersion() uses an ugly hack to read this value
+    public static final int VERSION_MINOR = 4;
 
     /**
      * The lock mode that means no locking is used at all.
@@ -144,9 +157,9 @@ public class Constants {
     public static final int CACHE_MIN_RECORDS = 16;
 
     /**
-     * The default cache size in KB.
+     * The default cache size in KB for each GB of RAM.
      */
-    public static final int CACHE_SIZE_DEFAULT = 16 * 1024;
+    public static final int CACHE_SIZE_DEFAULT = 64 * 1024;
 
     /**
      * The default cache type.
@@ -201,27 +214,15 @@ public class Constants {
     public static final int DEFAULT_LOCK_MODE = LOCK_MODE_READ_COMMITTED;
 
     /**
-     * The default maximum length of an LOB that is stored in the database file.
-     * Only used if h2.lobInDatabase==false.
+     * The default maximum length of an LOB that is stored with the record
+     * itself, and not in a separate place.
      */
-    public static final int DEFAULT_MAX_LENGTH_INPLACE_LOB = 4096;
-
-    /**
-     * The default maximum length of an LOB that is stored with the record itself,
-     * and not in a separate place.
-     * Only used if h2.lobInDatabase==true.
-     */
-    public static final int DEFAULT_MAX_LENGTH_INPLACE_LOB2 = 128;
+    public static final int DEFAULT_MAX_LENGTH_INPLACE_LOB = 128;
 
     /**
      * The default value for the maximum transaction log size.
      */
     public static final long DEFAULT_MAX_LOG_SIZE = 16 * 1024 * 1024;
-
-    /**
-     * The default maximum number of rows to be kept in memory in a result set.
-     */
-    public static final int DEFAULT_MAX_MEMORY_ROWS = 10000;
 
     /**
      * The default value for the MAX_MEMORY_UNDO setting.
@@ -236,13 +237,14 @@ public class Constants {
     /**
      * The default page size to use for new databases.
      */
-    public static final int DEFAULT_PAGE_SIZE = 2048;
+    public static final int DEFAULT_PAGE_SIZE = 4096;
 
     /**
      * The default result set concurrency for statements created with
      * Connection.createStatement() or prepareStatement(String sql).
      */
-    public static final int DEFAULT_RESULT_SET_CONCURRENCY = ResultSet.CONCUR_READ_ONLY;
+    public static final int DEFAULT_RESULT_SET_CONCURRENCY =
+            ResultSet.CONCUR_READ_ONLY;
 
     /**
      * The default port of the TCP server.
@@ -313,12 +315,14 @@ public class Constants {
     /**
      * The memory needed by an object of class PageBtree.
      */
-    public static final int MEMORY_PAGE_BTREE = 112 + MEMORY_DATA + 2 * MEMORY_OBJECT;
+    public static final int MEMORY_PAGE_BTREE =
+            112 + MEMORY_DATA + 2 * MEMORY_OBJECT;
 
     /**
      * The memory needed by an object of class PageData.
      */
-    public static final int MEMORY_PAGE_DATA = 144 + MEMORY_DATA + 3 * MEMORY_OBJECT;
+    public static final int MEMORY_PAGE_DATA =
+            144 + MEMORY_DATA + 3 * MEMORY_OBJECT;
 
     /**
      * The memory needed by an object of class PageDataOverflow.
@@ -384,7 +388,8 @@ public class Constants {
     public static final int SELECTIVITY_DISTINCT_COUNT = 10000;
 
     /**
-     * The default directory name of the server properties file for the H2 Console.
+     * The default directory name of the server properties file for the H2
+     * Console.
      */
     public static final String SERVER_PROPERTIES_DIR = "~";
 
@@ -460,7 +465,8 @@ public class Constants {
      * The database URL format in simplified Backus-Naur form.
      */
     public static final String URL_FORMAT = START_URL +
-    "{ {.|mem:}[name] | [file:]fileName | {tcp|ssl}:[//]server[:port][,server2[:port]]/name }[;key=value...]";
+            "{ {.|mem:}[name] | [file:]fileName | " +
+            "{tcp|ssl}:[//]server[:port][,server2[:port]]/name }[;key=value...]";
 
     /**
      * The package name of user defined classes.
@@ -489,8 +495,8 @@ public class Constants {
     }
 
     /**
-     * Get the version of this product, consisting of major version, minor version,
-     * and build id.
+     * Get the version of this product, consisting of major version, minor
+     * version, and build id.
      *
      * @return the version number
      */
@@ -498,6 +504,9 @@ public class Constants {
         String version = VERSION_MAJOR + "." + VERSION_MINOR + "." + BUILD_ID;
         if (BUILD_VENDOR_AND_VERSION != null) {
             version += "_" + BUILD_VENDOR_AND_VERSION;
+        }
+        if (BUILD_SNAPSHOT) {
+            version += "-SNAPSHOT";
         }
         return version;
     }

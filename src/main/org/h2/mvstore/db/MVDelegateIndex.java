@@ -1,10 +1,11 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
+
+import java.util.List;
 
 import org.h2.engine.Session;
 import org.h2.index.BaseIndex;
@@ -22,19 +23,30 @@ import org.h2.value.ValueLong;
 /**
  * An index that delegates indexing to another index.
  */
-public class MVDelegateIndex extends BaseIndex {
+public class MVDelegateIndex extends BaseIndex implements MVIndex {
 
     private final MVPrimaryIndex mainIndex;
 
     public MVDelegateIndex(MVTable table, int id, String name,
             MVPrimaryIndex mainIndex,
             IndexType indexType) {
-        IndexColumn[] cols = IndexColumn.wrap(new Column[] { table.getColumn(mainIndex.getMainIndexColumn())});
+        IndexColumn[] cols = IndexColumn.wrap(new Column[] { table
+                .getColumn(mainIndex.getMainIndexColumn()) });
         this.initBaseIndex(table, id, name, cols, indexType);
         this.mainIndex = mainIndex;
         if (id < 0) {
             throw DbException.throwInternalError("" + name);
         }
+    }
+
+    @Override
+    public void addRowsToBuffer(List<Row> rows, String bufferName) {
+        throw DbException.throwInternalError();
+    }
+
+    @Override
+    public void addBufferedRows(List<String> bufferNames) {
+        throw DbException.throwInternalError();
     }
 
     @Override
@@ -54,10 +66,12 @@ public class MVDelegateIndex extends BaseIndex {
 
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
-        ValueLong min = mainIndex.getKey(first, MVPrimaryIndex.MIN, MVPrimaryIndex.MIN);
+        ValueLong min = mainIndex.getKey(first,
+                MVPrimaryIndex.MIN, MVPrimaryIndex.MIN);
         // ifNull is MIN_VALUE as well, because the column is never NULL
         // so avoid returning all rows (returning one row is OK)
-        ValueLong max = mainIndex.getKey(last, MVPrimaryIndex.MAX, MVPrimaryIndex.MIN);
+        ValueLong max = mainIndex.getKey(last,
+                MVPrimaryIndex.MAX, MVPrimaryIndex.MIN);
         return mainIndex.find(session, min, max);
     }
 
@@ -75,8 +89,10 @@ public class MVDelegateIndex extends BaseIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
-        return 10 * getCostRangeIndex(masks, mainIndex.getRowCountApproximation(), filter, sortOrder);
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
+        return 10 * getCostRangeIndex(masks,
+                mainIndex.getRowCountApproximation(), filter, sortOrder);
     }
 
     @Override

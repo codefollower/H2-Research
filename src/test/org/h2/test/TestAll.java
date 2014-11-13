@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test;
@@ -114,12 +113,14 @@ import org.h2.test.store.TestCacheConcurrentLIRS;
 import org.h2.test.store.TestCacheLIRS;
 import org.h2.test.store.TestCacheLongKeyLIRS;
 import org.h2.test.store.TestConcurrent;
+import org.h2.test.store.TestConcurrentLinkedList;
 import org.h2.test.store.TestDataUtils;
 import org.h2.test.store.TestFreeSpace;
 import org.h2.test.store.TestKillProcessWhileWriting;
 import org.h2.test.store.TestMVRTree;
 import org.h2.test.store.TestMVStore;
 import org.h2.test.store.TestMVStoreBenchmark;
+import org.h2.test.store.TestMVStoreTool;
 import org.h2.test.store.TestMVTableEngine;
 import org.h2.test.store.TestObjectDataType;
 import org.h2.test.store.TestRandomMapOps;
@@ -127,6 +128,7 @@ import org.h2.test.store.TestSpinLock;
 import org.h2.test.store.TestStreamStore;
 import org.h2.test.store.TestTransactionStore;
 import org.h2.test.synth.TestBtreeIndex;
+import org.h2.test.synth.TestConcurrentUpdate;
 import org.h2.test.synth.TestCrashAPI;
 import org.h2.test.synth.TestDiskFull;
 import org.h2.test.synth.TestFuzzOptimizations;
@@ -196,6 +198,7 @@ import org.h2.test.utils.OutputCatcher;
 import org.h2.test.utils.SelfDestructor;
 import org.h2.tools.DeleteDbFiles;
 import org.h2.tools.Server;
+import org.h2.util.AbbaLockingDetector;
 import org.h2.util.Profiler;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
@@ -234,8 +237,10 @@ java org.h2.test.TestAll timer
 
 */
 
-    ;
-    private static final boolean MV_STORE = false;
+    /**
+     * Whether the MVStore storage is used.
+     */
+    public final boolean mvStore = Constants.VERSION_MINOR >= 4;
 
     /**
      * If the test should run with many rows.
@@ -253,11 +258,6 @@ java org.h2.test.TestAll timer
     public boolean memory;
 
     /**
-     * Whether to use the MVStore.
-     */
-    public boolean mvStore;
-
-    /**
      * Whether the test is running with code coverage.
      */
     public boolean coverage;
@@ -270,7 +270,7 @@ java org.h2.test.TestAll timer
     /**
      * If the multi version concurrency control mode should be used.
      */
-    public boolean mvcc;
+    public boolean mvcc = mvStore;
 
     /**
      * The cipher to use (null for unencrypted).
@@ -363,6 +363,11 @@ java org.h2.test.TestAll timer
      */
     String cacheType;
 
+    /**
+     * The AB-BA locking detector.
+     */
+    AbbaLockingDetector abbaLockingDetector;
+
     private Server server;
 
     /**
@@ -381,7 +386,12 @@ java org.h2.test.TestAll timer
         SelfDestructor.startCountdown(4 * 60);
         long time = System.currentTimeMillis();
         printSystemInfo();
-        System.setProperty("h2.maxMemoryRowsDistinct", "128");
+
+        // use lower values, to better test those cases,
+        // and (for delays) to speed up the tests
+
+        System.setProperty("h2.maxMemoryRows", "100");
+
         System.setProperty("h2.check2", "true");
         System.setProperty("h2.delayWrongPasswordMin", "0");
         System.setProperty("h2.delayWrongPasswordMax", "0");
@@ -427,7 +437,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             if ("reopen".equals(args[0])) {
                 System.setProperty("h2.delayWrongPasswordMin", "0");
                 System.setProperty("h2.check2", "false");
-                System.setProperty("h2.lobInDatabase", "true");
                 System.setProperty("h2.analyzeAuto", "100");
                 System.setProperty("h2.pageSize", "64");
                 System.setProperty("h2.reopenShift", "5");
@@ -435,7 +444,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
                 test.reopen = true;
                 TestReopen reopen = new TestReopen();
                 reopen.init();
-                reopen.config.mvStore = MV_STORE;
                 FilePathRec.setRecorder(reopen);
                 test.runTests();
             } else if ("crash".equals(args[0])) {
@@ -471,41 +479,22 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             prof.depth = 16;
             prof.interval = 1;
             prof.startCollecting();
-            if (test.mvStore) {
-                TestPerformance.main("-init", "-db", "9", "-size", "1000");
-            } else {
-                TestPerformance.main("-init", "-db", "1");
-            }
+            TestPerformance.main("-init", "-db", "1", "-size", "1000");
             prof.stopCollecting();
             System.out.println(prof.getTop(30));
-            if (test.mvStore) {
-                prof = new Profiler();
-                prof.depth = 16;
-                prof.interval = 1;
-                prof.startCollecting();
-                TestPerformance.main("-init", "-db", "1", "-size", "1000");
-                prof.stopCollecting();
-                System.out.println(prof.getTop(3));
-                TestPerformance.main("-init", "-db", "1", "-size", "1000");
-                TestPerformance.main("-init", "-db", "9", "-size", "1000");
-            }
-//            Recover.execute("data", null);
-//            RunScript.execute("jdbc:h2:data/test2",
-//                 "sa1", "sa1", "data/test.h2.sql", null, false);
-//            Recover.execute("data", null);
+            TestPerformance.main("-init", "-db", "1", "-size", "1000");
         }
-        System.out.println(TestBase.formatTime(System.currentTimeMillis() - time) + " total");
+        System.out.println(TestBase.formatTime(
+                System.currentTimeMillis() - time) + " total");
     }
 
     /**
      * Run all tests in all possible combinations.
      */
     private void testEverything() throws SQLException {
-        for (int c = 0; c < 3; c++) {
+        for (int c = 0; c < 2; c++) {
             if (c == 0) {
                 cipher = null;
-            } else if (c == 1) {
-                cipher = "XTEA";
             } else {
                 cipher = "AES";
             }
@@ -529,13 +518,16 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
      */
     private void runTests() throws SQLException {
 
-        coverage = isCoverage();
+        if (Boolean.getBoolean("abba")) {
+            abbaLockingDetector = new AbbaLockingDetector().startCollecting();
+        }
 
-        mvStore = MV_STORE;
+        coverage = isCoverage();
 
         smallLog = big = networked = memory = ssl = false;
         diskResult = traceSystemOut = diskUndo = false;
-        mvcc = traceTest = stopOnError = false;
+        mvcc = mvStore;
+        traceTest = stopOnError = false;
         defrag = false;
         traceLevelFile = throttle = 0;
         cipher = null;
@@ -555,7 +547,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         traceLevelFile = 3;
         throttle = 1;
         cacheType = "SOFT_LRU";
-        cipher = "XTEA";
+        cipher = "AES";
         test();
 
         diskUndo = false;
@@ -601,7 +593,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
      */
     private static boolean isCoverage() {
         for (StackTraceElement e : Thread.currentThread().getStackTrace()) {
-            if (e.toString().indexOf(".emma.") >= 0) {
+            if (e.toString().contains(".emma.")) {
                 return true;
             }
         }
@@ -613,7 +605,8 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
      */
     private void test() throws SQLException {
         System.out.println();
-        System.out.println("Test " + toString() + " (" + Utils.getMemoryUsed() + " KB used)");
+        System.out.println("Test " + toString() +
+                " (" + Utils.getMemoryUsed() + " KB used)");
         beforeTest();
 
         // db
@@ -623,7 +616,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         new TestAlterSchemaRename().runTest(this);
         new TestAutoRecompile().runTest(this);
         new TestBitField().runTest(this);
-        new TestBnf().runTest(this);
         new TestBackup().runTest(this);
         new TestBigDb().runTest(this);
         new TestBigResult().runTest(this);
@@ -696,7 +688,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         new TestJavaObject().runTest(this);
         new TestJavaObjectSerializer().runTest(this);
         new TestUrlJavaObjectSerializer().runTest(this);
-
         new TestLimitUpdates().runTest(this);
         new TestLobApi().runTest(this);
         new TestManyJdbcObjects().runTest(this);
@@ -729,9 +720,9 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
 
         // synth
         new TestBtreeIndex().runTest(this);
+        new TestConcurrentUpdate().runTest(this);
         new TestDiskFull().runTest(this);
         new TestCrashAPI().runTest(this);
-
         new TestFuzzOptimizations().runTest(this);
         new TestLimit().runTest(this);
         new TestRandomSQL().runTest(this);
@@ -751,12 +742,14 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         new TestCacheLIRS().runTest(this);
         new TestCacheLongKeyLIRS().runTest(this);
         new TestConcurrent().runTest(this);
+        new TestConcurrentLinkedList().runTest(this);
         new TestDataUtils().runTest(this);
         new TestFreeSpace().runTest(this);
         new TestKillProcessWhileWriting().runTest(this);
         new TestMVRTree().runTest(this);
         new TestMVStore().runTest(this);
         new TestMVStoreBenchmark().runTest(this);
+        new TestMVStoreTool().runTest(this);
         new TestMVTableEngine().runTest(this);
         new TestObjectDataType().runTest(this);
         new TestRandomMapOps().runTest(this);
@@ -766,6 +759,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
 
         // unit
         new TestAutoReconnect().runTest(this);
+        new TestBnf().runTest(this);
         new TestCache().runTest(this);
         new TestClearReferences().runTest(this);
         new TestCollation().runTest(this);
@@ -840,8 +834,8 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         DeleteDbFiles.execute(TestBase.BASE_TEST_DIR, null, true);
         FileUtils.deleteRecursive("trace.db", false);
         if (networked) {
-            String[] args = ssl ? new String[] { "-tcpSSL", "-tcpPort", "9192" } : new String[] { "-tcpPort",
-                    "9192" };
+            String[] args = ssl ? new String[] { "-tcpSSL", "-tcpPort", "9192" }
+                    : new String[] { "-tcpPort", "9192" };
             server = Server.createTcpServer(args);
             try {
                 server.start();

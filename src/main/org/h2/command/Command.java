@@ -1,14 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
@@ -92,7 +92,8 @@ public abstract class Command implements CommandInterface {
     public abstract ResultInterface queryMeta(); //就是结果集元数据，对应于java.sql.ResultSetMetaData
 
     /**
-     * Execute an updating statement, if this is possible.
+     * Execute an updating statement (for example insert, delete, or update), if
+     * this is possible.
      *
      * @return the update count
      * @throws DbException if the command is not an updating statement

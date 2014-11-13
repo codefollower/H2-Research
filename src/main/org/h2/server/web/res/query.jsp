@@ -1,9 +1,7 @@
 <!-- can not use doctype -->
 <!--
-Copyright 2004-2013 H2 Group.
-Multiple-Licensed under the H2 License, Version 1.0,
-and under the Eclipse Public License, Version 1.0
-(http://h2database.com/html/license.html).
+Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+and the EPL 1.0 (http://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
 <html>
@@ -16,7 +14,7 @@ Initial Developer: H2 Group
 
 var agent=navigator.userAgent.toLowerCase();
 var is_opera = agent.indexOf("opera") >= 0;
-var autoComplete = 1; // 0: off, 1: normal, 2: full
+var autoComplete = 0; // 0: off, 1: normal, 2: full
 var selectedRow = -1;
 var lastList = '';
 var lastQuery = null;
@@ -28,7 +26,7 @@ var req;
 
 function refreshTables() {
     columnsByTable = new Object();
-    var tables = top.frames['h2menu'].tables;
+    var tables = parent.h2menu.tables;
     for(var i=0; i<tables.length; i++) {
         columnsByTable[tables[i].name] = tables[i].columns;
     }
@@ -46,8 +44,8 @@ function buildTableAliases(input) {
     var last = "";
     for(var i=0; i<list.length; i++) {
         var word = list[i].toUpperCase();
-        if(word != "AS") {
-            if(columnsByTable[last]) {
+        if (word != "AS") {
+            if (columnsByTable[last]) {
                 tableAliases[word] = last;
             }
             last = word;
@@ -61,11 +59,11 @@ function splitSQL(s) {
     var e = s.length;
     for(var i=0; i<e; i++) {
         var ch = s.charAt(i);
-        if(ch == '_' || (ch >= 'A' && ch <= 'Z')) {
+        if (ch == '_' || (ch >= 'A' && ch <= 'Z')) {
             var start = i;
             do {
                 ch = s.charAt(++i);
-            } while(ch == '_' || (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z'));
+            } while (ch == '_' || (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z'));
             list[list.length] = s.substring(start, i);
         }
     }
@@ -76,24 +74,24 @@ function help() {
     var input = document.h2query.sql;
     setSelection(input);
     var pos = input.selectionStart;
-    if(pos > 0) {
+    if (pos > 0) {
         var s = input.value.substring(0, pos).toUpperCase();
         var e = pos-1;
         for(; e>=0; e-=1) {
             var ch = s.charAt(e);
-            if(ch != '_' && (ch < '0' || ch > '9') && (ch < 'A' || ch > 'Z')) {
+            if (ch != '_' && (ch < '0' || ch > '9') && (ch < 'A' || ch > 'Z')) {
                 break;
             }
         }
         s = s.substring(e+1, s.length);
         buildTableAliases(input.value);
-        if(!columnsByTable[s]) {
+        if (!columnsByTable[s]) {
             s = tableAliases[s];
         }
-        if(columnsByTable[s]) {
-            if(top.h2menu.goToTable(s)) {
-                top.h2menu.document.location='tables.do?jsessionid=${sessionId}#' + s;
-                // top.h2menu.window.blur();
+        if (columnsByTable[s]) {
+            if (parent.h2menu.goToTable(s)) {
+                parent.h2menu.document.location='tables.do?jsessionid=${sessionId}#' + s;
+                // parent.h2menu.window.blur();
                 document.h2query.sql.focus();
             }
         }
@@ -101,7 +99,7 @@ function help() {
 }
 
 function setSelection(element) {
-    if(document.all && !is_opera) {
+    if (document.all && !is_opera) {
         try {
             var range = document.selection.createRange();
             var copy = range.duplicate();
@@ -122,20 +120,20 @@ function set(field, combo) {
 }
 
 function trim(s) {
-    while(s.charAt(0)==' ' && s.length>0) {
+    while (s.charAt(0)==' ' && s.length>0) {
         s=s.substring(1);
     }
-    while(s.charAt(s.length-1)==' ' && s.length>0) {
+    while (s.charAt(s.length-1)==' ' && s.length>0) {
         s=s.substring(0, s.length-1);
     }
     return s;
 }
 
 function trimCommas(s) {
-    while(s.charAt(0)==',' && s.length>0) {
+    while (s.charAt(0)==',' && s.length>0) {
         s=s.substring(1);
     }
-    while(s.charAt(s.length-1)==',' && s.length>0) {
+    while (s.charAt(s.length-1)==',' && s.length>0) {
         s=s.substring(0, s.length-1);
     }
     return s;
@@ -150,10 +148,10 @@ function insertText(s, isTable) {
     s = decodeURIComponent(s);
     var field = document.h2query.sql;
     var last = s.substring(s.length-1);
-    if(last != '.' && last != '\'' && last != '"' && last > ' ') {
+    if (last != '.' && last != '\'' && last != '"' && last > ' ') {
         s += ' ';
     }
-    if(isTable && trim(field.value)=='') {
+    if (isTable && trim(field.value)=='') {
         field.value = 'SELECT * FROM ' + s;
     } else {
         if (document.selection) {
@@ -177,7 +175,7 @@ function insertText(s, isTable) {
 }
 
 function showAutoComplete() {
-    if(showAutoCompleteWait==0) {
+    if (showAutoCompleteWait==0) {
         showAutoCompleteWait=5;
         setTimeout('showAutoCompleteNow()', 100);
     } else {
@@ -190,7 +188,7 @@ function showAutoCompleteNow() {
     setSelection(input);
     var pos = input.selectionStart;
     var s = input.value.substring(0, pos);
-    if(s != lastQuery) {
+    if (s != lastQuery) {
         lastQuery = s;
         retrieveList(s);
     }
@@ -199,64 +197,66 @@ function showAutoCompleteNow() {
 
 function keyDown(event) {
     var key=event.keyCode? event.keyCode : event.charCode;
-    if(key == null) {
+    if (key == null) {
         return false;
     }
     if (key == 13 && (event.ctrlKey || event.metaKey)) {
         // ctrl + return, cmd + return
         submitAll();
         return false;
-    } else if(key == 13 && event.shiftKey) {
+    } else if (key == 13 && event.shiftKey) {
         // shift + return
         submitSelected();
         return false;
-    } else if(key == 32 && (event.ctrlKey || event.altKey)) {
+    } else if (key == 32 && (event.ctrlKey || event.altKey)) {
         // ctrl + space
-        autoCompleteManual = true;
-        lastQuery = null;
-        lastList = '';
-        showAutoCompleteNow();
+        manualAutoComplete();
         return false;
-    } else if(key == 190 && autoComplete==0) {
+    } else if (key == 190 && autoComplete == 0) {
         // dot
         help();
         return true;
     }
     var table = getAutoCompleteTable();
-    if(table.rows.length > 0) {
-        if(key == 27) {
+    if (table.rows.length > 0) {
+        if (key == 27) {
             // escape
-            while(table.rows.length > 0) {
+            while (table.rows.length > 0) {
                 table.deleteRow(0);
             }
             showOutput('');
             return false;
-        } else if((key == 13 && !event.shiftKey) || (key==9 && !event.shiftKey)) {
-            // enter or tab
-            if(table.rows.length > selectedRow) {
+        } else if ((key == 9 && !event.shiftKey) || (key == 13 && !event.shiftKey && !event.ctrlKey && !event.altKey)) {
+            // tab
+            if (table.rows.length > selectedRow) {
                 var row = table.rows[selectedRow];
-                if(row.cells.length>1) {
+                if (row.cells.length>1) {
                     insertText(row.cells[1].innerHTML);
                 }
-                if(autoComplete == 0) {
-                    setAutoComplete(0);
-                }
+                removeAutoComplete();
                 return false;
             }
-        } else if(key == 38 && !event.shiftKey) {
+        } else if (key == 38 && !event.shiftKey) {
             // up
-            if(table.rows.length > selectedRow) {
+            if (table.rows.length > selectedRow) {
                 selectedRow = selectedRow <= 0 ? table.rows.length-1 : selectedRow-1;
                 highlightRow(selectedRow);
+                return false;
             }
-            return false;
-        } else if(key == 40 && !event.shiftKey) {
+        } else if (key == 40 && !event.shiftKey) {
             // down
-            if(table.rows.length > selectedRow) {
+            if (table.rows.length > selectedRow) {
                 selectedRow = selectedRow >= table.rows.length-1 ? 0 : selectedRow+1;
                 highlightRow(selectedRow);
+                return false;
             }
-            return false;
+        }
+        if (autoComplete == 0) {
+            // remove auto-complete if manually started
+            while (table.rows.length > 0) {
+                table.deleteRow(0);
+            }
+            showOutput('');
         }
     }
     // alert('key:' + key);
@@ -270,13 +270,13 @@ function keyDown(event) {
 
 function keyUp(event) {
     var key = event == null ? 0 : (event.keyCode ? event.keyCode : event.charCode);
-    if(autoComplete != 0) {
-        if(key != 37 && key != 38 && key != 39 && key != 40) {
+    if (autoComplete != 0) {
+        if (key != 37 && key != 38 && key != 39 && key != 40) {
             // left, right, up, down: don't show autocomplete
             showAutoComplete();
         }
     }
-    if(key == 13 && event.shiftKey) {
+    if (key == 13 && event.shiftKey) {
         // shift + return
         return false;
     }
@@ -285,21 +285,32 @@ function keyUp(event) {
 
 function setAutoComplete(value) {
     autoComplete = value;
-    if(value != 1) {
+    if (value == 0) {
+        removeAutoComplete();
+    } else {
         var s = lastList;
         lastList = '';
         showList(s);
-    } else {
-        var table = getAutoCompleteTable();
-        while(table.rows.length > 0) {
-            table.deleteRow(0);
-        }
-        showOutput('');
     }
 }
 
+function manualAutoComplete() {
+    autoCompleteManual = true;
+    lastQuery = null;
+    lastList = '';
+    showAutoCompleteNow();
+}
+
+function removeAutoComplete() {
+    var table = getAutoCompleteTable();
+    while (table.rows.length > 0) {
+        table.deleteRow(0);
+    }
+    showOutput('');
+}
+
 function highlightRow(row) {
-    if(row != null) {
+    if (row != null) {
         selectedRow = row;
     }
     var table = getAutoCompleteTable();
@@ -312,7 +323,7 @@ function highlightThisRow(row) {
         var r = table.rows[i];
         var col = (r == row) ? '#95beff' : '';
         var cells = r.cells;
-        if(cells.length > 0) {
+        if (cells.length > 0) {
             cells[0].style.backgroundColor = col;
         }
     }
@@ -320,39 +331,34 @@ function highlightThisRow(row) {
 }
 
 function getAutoCompleteTable() {
-    return top.h2result.document.getElementById('h2auto');
-//    return top.frames['h2result'].document.getElementById('h2auto');
-//    return top.h2menu.h2result.document.getElementById('h2auto');
+    return parent.h2result.document.getElementById('h2auto');
 }
 
 function showOutput(x) {
-//     top.h2result.document.getElementById('output').style.display=x;
+//     parent.h2result.document.getElementById('output').style.display=x;
 }
 
 function showList(s) {
-    if(lastList == s) {
+    if (lastList == s) {
         return;
     }
     lastList = s;
     var list = s.length == 0 ? null : s.split('|');
     var table = getAutoCompleteTable();
-    if(table == null) {
+    if (table == null) {
         return;
     }
-    while(table.rows.length > 0) {
+    while (table.rows.length > 0) {
         table.deleteRow(0);
-    }
-    if(autoComplete==0) {
-        return;
     }
     selectedRow = 0;
     var count = 0;
-    var doc = top.h2result.document;
+    var doc = parent.h2result.document;
     var tbody = table.tBodies[0];
     for(var i=0; list != null && i<list.length; i++) {
         var kv = list[i].split('#');
         var type = kv[0];
-        if(type > 0 && autoComplete != 2 && !autoCompleteManual) {
+        if (type > 0 && autoComplete != 2 && !autoCompleteManual) {
             continue;
         }
         var row = doc.createElement("tr");
@@ -360,14 +366,14 @@ function showList(s) {
         var cell = doc.createElement("td");
         var key = kv[1];
         var value = kv[2];
-        if(!key || !value) {
+        if (!key || !value) {
             break;
         }
         count++;
         cell.className = 'autoComp' + type;
         key = decodeURIComponent(key);
         row.onmouseover = function(){highlightThisRow(this)};
-        if(!document.all || is_opera) {
+        if (!document.all || is_opera) {
             row.onclick = function(){insertText(this.cells[1].innerHTML);keyUp()};
         }
     //    addEvent(row, "click", function(e){var row=e?e.target:window.event.srcElement;alert(row);insertText(row.cells[1].innerHTML)});
@@ -384,14 +390,14 @@ function showList(s) {
         cell.appendChild(text);
         row.appendChild(cell);
     }
-    if(count > 0) {
+    if (count > 0) {
         highlightRow();
         showOutput('none');
     } else {
         showOutput('');
     }
     // scroll to the top left
-    top.h2result.scrollTo(0, 0);
+    parent.h2result.scrollTo(0, 0);
     autoCompleteManual = false;
 }
 
@@ -404,7 +410,7 @@ function retrieveList(s) {
 
 function addEvent(element, eventType, fn) {
     // cross-browser event handling for IE5+,  NS6 and Mozilla by Scott Andrew
-    if(fn == null) {
+    if (fn == null) {
         return;
     }
     if (element.addEventListener) {
@@ -419,13 +425,13 @@ function addEvent(element, eventType, fn) {
 
 function sendAsyncRequest(url) {
     req = false;
-    if(window.XMLHttpRequest) {
+    if (window.XMLHttpRequest) {
         try {
             req = new XMLHttpRequest();
         } catch(e) {
             req = false;
         }
-    } else if(window.ActiveXObject) {
+    } else if (window.ActiveXObject) {
         try {
             req = new ActiveXObject("Msxml2.XMLHTTP");
         } catch(e) {
@@ -436,7 +442,7 @@ function sendAsyncRequest(url) {
             }
         }
     }
-    if(req) {
+    if (req) {
         req.onreadystatechange = processAsyncResponse;
         req.open("GET", url, true);
         req.send("");
@@ -482,6 +488,7 @@ function submitSelected() {
             <span style="white-space:nowrap">
                 <input type="button" class="button" value="${text.toolbar.run}" onclick="javascript:submitAll();sql.focus();return true;" />
                 <input type="button" class="button" value="${text.toolbar.runSelected}" onclick="javascript:submitSelected();sql.focus();return true;" />
+                <input type="button" class="button" value="${text.toolbar.autoComplete}" onclick="javascript:manualAutoComplete();sql.focus();return true;" />
                 <input type="button" class="button" value="${text.toolbar.clear}" onclick="javascript:sql.value='';keyUp();sql.focus();return true;" />
                 ${text.toolbar.sqlStatement}:
             </span>

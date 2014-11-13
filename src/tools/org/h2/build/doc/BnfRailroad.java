@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.doc;
@@ -39,7 +38,8 @@ public class BnfRailroad implements BnfVisitor {
         StringBuilder buff = new StringBuilder();
         for (String s : syntaxList) {
             bnf.visit(this, s);
-            html = StringUtils.replaceAll(html, "</code></td><td class=\"d\"><code class=\"c\">", " ");
+            html = StringUtils.replaceAll(html, "</code></td>" +
+                    "<td class=\"d\"><code class=\"c\">", " ");
             if (buff.length() > 0) {
                 buff.append("<br />");
             }
@@ -137,7 +137,8 @@ public class BnfRailroad implements BnfVisitor {
             for (Rule r : list) {
                 String a = i == 0 ? "t" : i == list.size() - 1 ? "l" : "k";
                 i++;
-                buff.append("<tr class=\"railroad\"><td class=\"" + a + "s\"></td><td class=\"d\">");
+                buff.append("<tr class=\"railroad\"><td class=\"" +
+                        a + "s\"></td><td class=\"d\">");
                 r.accept(this);
                 buff.append(html);
                 buff.append("</td><td class=\"" + a + "e\"></td></tr>");
@@ -161,8 +162,10 @@ public class BnfRailroad implements BnfVisitor {
     public void visitRuleOptional(Rule rule) {
         StringBuilder buff = new StringBuilder();
         buff.append("<table class=\"railroad\">");
-        buff.append("<tr class=\"railroad\"><td class=\"ts\"></td><td class=\"d\">&nbsp;</td><td class=\"te\"></td></tr>");
-        buff.append("<tr class=\"railroad\"><td class=\"ls\"></td><td class=\"d\">");
+        buff.append("<tr class=\"railroad\"><td class=\"ts\"></td>" +
+                "<td class=\"d\">&nbsp;</td><td class=\"te\"></td></tr>");
+        buff.append("<tr class=\"railroad\">" +
+                "<td class=\"ls\"></td><td class=\"d\">");
         rule.accept(this);
         buff.append(html);
         buff.append("</td><td class=\"le\"></td></tr></table>");

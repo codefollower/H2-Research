@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -17,11 +16,11 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.h2.constant.SysProperties;
+
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
-import org.h2.util.Utils;
 import org.h2.util.IOUtils;
 import org.h2.util.JdbcUtils;
 import org.h2.util.ScriptReader;
@@ -90,7 +89,7 @@ public class RunScript extends Tool {
     @Override
     public void runTool(String... args) throws SQLException {
         String url = null;
-        String user = "sa";
+        String user = "";
         String password = "";
         String script = "backup.sql";
         String options = null;
@@ -116,7 +115,7 @@ public class RunScript extends Tool {
                 showTime = true;
             } else if (arg.equals("-driver")) {
                 String driver = args[++i];
-                Utils.loadUserClass(driver);
+                JdbcUtils.loadUserClass(driver);
             } else if (arg.equals("-options")) {
                 StringBuilder buff = new StringBuilder();
                 i++;
@@ -154,7 +153,8 @@ public class RunScript extends Tool {
      * @param reader the reader
      * @return the last result set
      */
-    public static ResultSet execute(Connection conn, Reader reader) throws SQLException {
+    public static ResultSet execute(Connection conn, Reader reader)
+            throws SQLException {
         // can not close the statement because we return a result set from it
         Statement stat = conn.createStatement();
         ResultSet rs = null;
@@ -180,7 +180,8 @@ public class RunScript extends Tool {
     }
 
     private void process(Connection conn, String fileName,
-            boolean continueOnError, Charset charset) throws SQLException, IOException {
+            boolean continueOnError, Charset charset) throws SQLException,
+            IOException {
         InputStream in = FileUtils.newInputStream(fileName);
         String path = FileUtils.getParent(fileName);
         try {
@@ -192,8 +193,8 @@ public class RunScript extends Tool {
         }
     }
 
-    private void process(Connection conn, boolean continueOnError,
-            String path, Reader reader, Charset charset) throws SQLException, IOException {
+    private void process(Connection conn, boolean continueOnError, String path,
+            Reader reader, Charset charset) throws SQLException, IOException {
         Statement stat = conn.createStatement();
         ScriptReader r = new ScriptReader(reader);
         while (true) {
@@ -205,7 +206,8 @@ public class RunScript extends Tool {
             if (trim.length() == 0) {
                 continue;
             }
-            if (trim.startsWith("@") && StringUtils.toUpperEnglish(trim).startsWith("@INCLUDE")) {
+            if (trim.startsWith("@") && StringUtils.toUpperEnglish(trim).
+                    startsWith("@INCLUDE")) {
                 sql = trim;
                 sql = sql.substring("@INCLUDE".length()).trim();
                 if (!FileUtils.isAbsolute(sql)) {
@@ -247,7 +249,9 @@ public class RunScript extends Tool {
                                 if (!expected.equals(result)) {
                                     expected = StringUtils.replaceAll(expected, " ", "+");
                                     result = StringUtils.replaceAll(result, " ", "+");
-                                    throw new SQLException("Unexpected output for:\n" + sql.trim() + "\nGot:\n" + result + "\nExpected:\n" + expected);
+                                    throw new SQLException(
+                                            "Unexpected output for:\n" + sql.trim() +
+                                            "\nGot:\n" + result + "\nExpected:\n" + expected);
                                 }
                             }
 
@@ -290,11 +294,14 @@ public class RunScript extends Tool {
      * @param password the password
      * @param fileName the script file
      * @param charset the character set or null for UTF-8
-     * @param continueOnError if execution should be continued if an error occurs
+     * @param continueOnError if execution should be continued if an error
+     *            occurs
      */
     public static void execute(String url, String user, String password,
-            String fileName, Charset charset, boolean continueOnError) throws SQLException {
-        new RunScript().process(url, user, password, fileName, charset, continueOnError);
+            String fileName, Charset charset, boolean continueOnError)
+            throws SQLException {
+        new RunScript().process(url, user, password, fileName, charset,
+                continueOnError);
     }
 
     /**
@@ -305,7 +312,8 @@ public class RunScript extends Tool {
      * @param password the password
      * @param fileName the script file
      * @param charset the character set or null for UTF-8
-     * @param continueOnError if execution should be continued if an error occurs
+     * @param continueOnError if execution should be continued if an error
+     *            occurs
      */
     void process(String url, String user, String password,
             String fileName, Charset charset,

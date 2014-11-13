@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
@@ -12,8 +11,9 @@ import java.nio.ByteBuffer;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.Arrays;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
@@ -22,7 +22,6 @@ import org.h2.mvstore.rtree.SpatialKey;
 import org.h2.mvstore.type.DataType;
 import org.h2.result.SortOrder;
 import org.h2.store.DataHandler;
-import org.h2.store.LobStorageFrontend;
 import org.h2.tools.SimpleResultSet;
 import org.h2.value.CompareMode;
 import org.h2.value.Value;
@@ -37,7 +36,6 @@ import org.h2.value.ValueFloat;
 import org.h2.value.ValueGeometry;
 import org.h2.value.ValueInt;
 import org.h2.value.ValueJavaObject;
-import org.h2.value.ValueLob;
 import org.h2.value.ValueLobDb;
 import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
@@ -54,8 +52,6 @@ import org.h2.value.ValueUuid;
  * A row type.
  */
 public class ValueDataType implements DataType {
-
-    static final String PREFIX = ValueDataType.class.getName();
 
     private static final int INT_0_15 = 32;
     private static final int LONG_0_7 = 48;
@@ -75,12 +71,20 @@ public class ValueDataType implements DataType {
     final DataHandler handler;
     final CompareMode compareMode;
     final int[] sortTypes;
-    final SpatialDataType spatialType = new SpatialDataType(2);
+    SpatialDataType spatialType;
 
-    public ValueDataType(CompareMode compareMode, DataHandler handler, int[] sortTypes) {
+    public ValueDataType(CompareMode compareMode, DataHandler handler,
+            int[] sortTypes) {
         this.compareMode = compareMode;
         this.handler = handler;
         this.sortTypes = sortTypes;
+    }
+
+    private SpatialDataType getSpatialDataType() {
+        if (spatialType == null) {
+            spatialType = new SpatialDataType(2);
+        }
+        return spatialType;
     }
 
     @Override
@@ -115,7 +119,8 @@ public class ValueDataType implements DataType {
         if (a == b) {
             return 0;
         }
-        boolean aNull = a == null, bNull = b == null;
+        boolean aNull = a == null || a == ValueNull.INSTANCE;
+        boolean bNull = b == null || b == ValueNull.INSTANCE;
         if (aNull || bNull) {
             return SortOrder.compareNull(aNull, sortType);
         }
@@ -136,13 +141,27 @@ public class ValueDataType implements DataType {
     @Override
     public int getMemory(Object obj) {
         if (obj instanceof SpatialKey) {
-            return spatialType.getMemory(obj);
+            return getSpatialDataType().getMemory(obj);
         }
         return getMemory((Value) obj);
     }
 
     private static int getMemory(Value v) {
         return v == null ? 0 : v.getMemory();
+    }
+
+    @Override
+    public void read(ByteBuffer buff, Object[] obj, int len, boolean key) {
+        for (int i = 0; i < len; i++) {
+            obj[i] = read(buff);
+        }
+    }
+
+    @Override
+    public void write(WriteBuffer buff, Object[] obj, int len, boolean key) {
+        for (int i = 0; i < len; i++) {
+            write(buff, obj[i]);
+        }
     }
 
     @Override
@@ -154,7 +173,7 @@ public class ValueDataType implements DataType {
     public void write(WriteBuffer buff, Object obj) {
         if (obj instanceof SpatialKey) {
             buff.put((byte) SPATIAL_KEY_2D);
-            spatialType.write(buff, obj);
+            getSpatialDataType().write(buff, obj);
             return;
         }
         Value x = (Value) obj;
@@ -169,7 +188,8 @@ public class ValueDataType implements DataType {
         int type = v.getType();
         switch (type) {
         case Value.BOOLEAN:
-            buff.put((byte) (v.getBoolean().booleanValue() ? BOOLEAN_TRUE : BOOLEAN_FALSE));
+            buff.put((byte) (v.getBoolean().booleanValue() ?
+                    BOOLEAN_TRUE : BOOLEAN_FALSE));
             break;
         case Value.BYTE:
             buff.put((byte) type).put(v.getByte());
@@ -246,7 +266,7 @@ public class ValueDataType implements DataType {
         case Value.TIMESTAMP: {
             ValueTimestamp ts = (ValueTimestamp) v;
             long dateValue = ts.getDateValue();
-            long nanos = ts.getNanos();
+            long nanos = ts.getTimeNanos();
             long millis = nanos / 1000000;
             nanos -= millis * 1000000;
             buff.put((byte) type).
@@ -332,38 +352,16 @@ public class ValueDataType implements DataType {
         case Value.BLOB:
         case Value.CLOB: {
             buff.put((byte) type);
-            if (v instanceof ValueLob) {
-                ValueLob lob = (ValueLob) v;
-                lob.convertToFileIfRequired(handler);
-                byte[] small = lob.getSmall();
-                if (small == null) {
-                    int t = -1;
-                    if (!lob.isLinked()) {
-                        t = -2;
-                    }
-                    buff.putVarInt(t).
-                        putVarInt(lob.getTableId()).
-                        putVarInt(lob.getObjectId()).
-                        putVarLong(lob.getPrecision()).
-                        put((byte) (lob.isCompressed() ? 1 : 0));
-                    if (t == -2) {
-                        writeString(buff, lob.getFileName());
-                    }
-                } else {
-                    buff.putVarInt(small.length).put(small);
-                }
+            ValueLobDb lob = (ValueLobDb) v;
+            byte[] small = lob.getSmall();
+            if (small == null) {
+                buff.putVarInt(-3).
+                    putVarInt(lob.getTableId()).
+                    putVarLong(lob.getLobId()).
+                    putVarLong(lob.getPrecision());
             } else {
-                ValueLobDb lob = (ValueLobDb) v;
-                byte[] small = lob.getSmall();
-                if (small == null) {
-                    buff.putVarInt(-3).
-                        putVarInt(lob.getTableId()).
-                        putVarLong(lob.getLobId()).
-                        putVarLong(lob.getPrecision());
-                } else {
-                    buff.putVarInt(small.length).
-                        put(small);
-                }
+                buff.putVarInt(small.length).
+                    put(small);
             }
             break;
         }
@@ -392,8 +390,10 @@ public class ValueDataType implements DataType {
                 while (rs.next()) {
                     buff.put((byte) 1);
                     for (int i = 0; i < columnCount; i++) {
-                        int t = org.h2.value.DataType.getValueTypeFromResultSet(meta, i + 1);
-                        Value val = org.h2.value.DataType.readValue(null, rs, i + 1, t);
+                        int t = org.h2.value.DataType.
+                                getValueTypeFromResultSet(meta, i + 1);
+                        Value val = org.h2.value.DataType.readValue(
+                                null, rs, i + 1, t);
                         writeValue(buff, val);
                     }
                 }
@@ -453,10 +453,12 @@ public class ValueDataType implements DataType {
         case DECIMAL_0_1 + 1:
             return ValueDecimal.ONE;
         case DECIMAL_SMALL_0:
-            return ValueDecimal.get(BigDecimal.valueOf(readVarLong(buff)));
+            return ValueDecimal.get(BigDecimal.valueOf(
+                    readVarLong(buff)));
         case DECIMAL_SMALL: {
             int scale = readVarInt(buff);
-            return ValueDecimal.get(BigDecimal.valueOf(readVarLong(buff), scale));
+            return ValueDecimal.get(BigDecimal.valueOf(
+                    readVarLong(buff), scale));
         }
         case Value.DECIMAL: {
             int scale = readVarInt(buff);
@@ -507,39 +509,28 @@ public class ValueDataType implements DataType {
         case DOUBLE_0_1 + 1:
             return ValueDouble.get(1);
         case Value.DOUBLE:
-            return ValueDouble.get(Double.longBitsToDouble(Long.reverse(readVarLong(buff))));
+            return ValueDouble.get(Double.longBitsToDouble(
+                    Long.reverse(readVarLong(buff))));
         case Value.FLOAT:
-            return ValueFloat.get(Float.intBitsToFloat(Integer.reverse(readVarInt(buff))));
+            return ValueFloat.get(Float.intBitsToFloat(
+                    Integer.reverse(readVarInt(buff))));
         case Value.BLOB:
         case Value.CLOB: {
             int smallLen = readVarInt(buff);
             if (smallLen >= 0) {
                 byte[] small = DataUtils.newBytes(smallLen);
                 buff.get(small, 0, smallLen);
-                return LobStorageFrontend.createSmallLob(type, small);
+                return ValueLobDb.createSmallLob(type, small);
             } else if (smallLen == -3) {
                 int tableId = readVarInt(buff);
                 long lobId = readVarLong(buff);
                 long precision = readVarLong(buff);
-                ValueLobDb lob = ValueLobDb.create(type, handler, tableId, lobId, null, precision);
+                ValueLobDb lob = ValueLobDb.create(type,
+                        handler, tableId, lobId, null, precision);
                 return lob;
             } else {
-                int tableId = readVarInt(buff);
-                int objectId = readVarInt(buff);
-                long precision = 0;
-                boolean compression = false;
-                // -1: regular
-                // -2: regular, but not linked (in this case: including file name)
-                if (smallLen == -1 || smallLen == -2) {
-                    precision = readVarLong(buff);
-                    compression = buff.get() == 1;
-                }
-                if (smallLen == -2) {
-                    String filename = readString(buff);
-                    return ValueLob.openUnlinked(type, handler, tableId, objectId, precision, compression, filename);
-                }
-                ValueLob lob = ValueLob.openLinked(type, handler, tableId, objectId, precision, compression);
-                return lob;
+                throw DbException.get(ErrorCode.FILE_CORRUPTED_1,
+                        "lob type: " + smallLen);
             }
         }
         case Value.ARRAY: {
@@ -552,9 +543,13 @@ public class ValueDataType implements DataType {
         }
         case Value.RESULT_SET: {
             SimpleResultSet rs = new SimpleResultSet();
+            rs.setAutoClose(false);
             int columns = readVarInt(buff);
             for (int i = 0; i < columns; i++) {
-                rs.addColumn(readString(buff), readVarInt(buff), readVarInt(buff), readVarInt(buff));
+                rs.addColumn(readString(buff),
+                        readVarInt(buff),
+                        readVarInt(buff),
+                        readVarInt(buff));
             }
             while (true) {
                 if (buff.get() == 0) {
@@ -575,7 +570,7 @@ public class ValueDataType implements DataType {
             return ValueGeometry.get(b);
         }
         case SPATIAL_KEY_2D:
-            return spatialType.read(buff);
+            return getSpatialDataType().read(buff);
         default:
             if (type >= INT_0_15 && type < INT_0_15 + 16) {
                 return ValueInt.get(type - INT_0_15);
@@ -608,6 +603,25 @@ public class ValueDataType implements DataType {
     private static String readString(ByteBuffer buff) {
         int len = readVarInt(buff);
         return DataUtils.readString(buff, len);
+    }
+
+    @Override
+    public int hashCode() {
+        return compareMode.hashCode() ^ Arrays.hashCode(sortTypes);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (!(obj instanceof ValueDataType)) {
+            return false;
+        }
+        ValueDataType v = (ValueDataType) obj;
+        if (!compareMode.equals(v.compareMode)) {
+            return false;
+        }
+        return Arrays.equals(sortTypes, v.sortTypes);
     }
 
 }

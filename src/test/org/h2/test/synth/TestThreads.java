@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -22,7 +21,8 @@ import org.h2.test.TestBase;
 public class TestThreads extends TestBase implements Runnable {
 
     private static final int INSERT = 0, UPDATE = 1, DELETE = 2;
-    private static final int SELECT_ONE = 3, SELECT_ALL = 4, CHECKPOINT = 5, RECONNECT = 6;
+    private static final int SELECT_ONE = 3, SELECT_ALL = 4;
+    private static final int CHECKPOINT = 5, RECONNECT = 6;
     private static final int OP_TYPES = RECONNECT + 1;
 
     private int maxId = 1;
@@ -89,15 +89,18 @@ public class TestThreads extends TestBase implements Runnable {
         conn.close();
     }
 
-    private static void insertRows(Connection conn, String tableName, int len) throws SQLException {
-        PreparedStatement prep = conn.prepareStatement("INSERT INTO " + tableName + " VALUES(?, 'Hi')");
+    private static void insertRows(Connection conn, String tableName, int len)
+            throws SQLException {
+        PreparedStatement prep = conn.prepareStatement("INSERT INTO " +
+                tableName + " VALUES(?, 'Hi')");
         for (int i = 0; i < len; i++) {
             prep.setInt(1, i);
             prep.execute();
         }
     }
 
-    private static void checkTable(Connection conn, String tableName) throws SQLException {
+    private static void checkTable(Connection conn, String tableName)
+            throws SQLException {
         Statement stat = conn.createStatement();
         ResultSet rs = stat.executeQuery("SELECT * FROM " + tableName + " ORDER BY ID");
         while (rs.next()) {

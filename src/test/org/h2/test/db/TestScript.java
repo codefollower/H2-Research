@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -149,11 +148,12 @@ public class TestScript extends TestBase {
     }
 
     private boolean containsTempTables() throws SQLException {
-        ResultSet rs = conn.getMetaData().getTables(null, null, null, new String[] { "TABLE" });
+        ResultSet rs = conn.getMetaData().getTables(null, null, null,
+                new String[] { "TABLE" });
         while (rs.next()) {
             String sql = rs.getString("SQL");
             if (sql != null) {
-                if (sql.indexOf("TEMPORARY") >= 0) {
+                if (sql.contains("TEMPORARY")) {
                     return true;
                 }
             }
@@ -204,14 +204,16 @@ public class TestScript extends TestBase {
         write("");
     }
 
-    private static void setParameter(PreparedStatement prep, int i, String param) throws SQLException {
+    private static void setParameter(PreparedStatement prep, int i, String param)
+            throws SQLException {
         if (param.equalsIgnoreCase("null")) {
             param = null;
         }
         prep.setString(i, param);
     }
 
-    private int processPrepared(String sql, PreparedStatement prep, String param) throws Exception {
+    private int processPrepared(String sql, PreparedStatement prep, String param)
+            throws Exception {
         try {
             StringBuilder buff = new StringBuilder();
             int index = 0;
@@ -278,7 +280,7 @@ public class TestScript extends TestBase {
     }
 
     private void writeResultSet(String sql, ResultSet rs) throws Exception {
-        boolean ordered = StringUtils.toLowerEnglish(sql).indexOf("order by") >= 0;
+        boolean ordered = StringUtils.toLowerEnglish(sql).contains("order by");
         ResultSetMetaData meta = rs.getMetaData();
         int len = meta.getColumnCount();
         int[] max = new int[len];
@@ -345,7 +347,8 @@ public class TestScript extends TestBase {
         writeResult(sql, "exception", e);
     }
 
-    private void writeResult(String sql, String s, SQLException e) throws Exception {
+    private void writeResult(String sql, String s, SQLException e)
+            throws Exception {
         assertKnownException(e);
         s = ("> " + s).trim();
         String compare = readLine();

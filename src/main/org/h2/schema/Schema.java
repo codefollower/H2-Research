@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.schema;
@@ -9,16 +8,17 @@ package org.h2.schema;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import org.h2.api.ErrorCode;
 import org.h2.api.TableEngine;
 import org.h2.command.ddl.CreateTableData;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.constraint.Constraint;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
 import org.h2.engine.DbObjectBase;
 import org.h2.engine.FunctionAlias;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.engine.User;
 import org.h2.index.Index;
 import org.h2.message.DbException;
@@ -27,8 +27,8 @@ import org.h2.mvstore.db.MVTableEngine;
 import org.h2.table.RegularTable;
 import org.h2.table.Table;
 import org.h2.table.TableLink;
+import org.h2.util.JdbcUtils;
 import org.h2.util.New;
-import org.h2.util.Utils;
 
 /**
  * A schema as created by the SQL statement
@@ -64,7 +64,8 @@ public class Schema extends DbObjectBase {
      * @param system if this is a system schema (such a schema can not be
      *            dropped)
      */
-    public Schema(Database database, int id, String schemaName, User owner, boolean system) {
+    public Schema(Database database, int id, String schemaName, User owner,
+            boolean system) {
         tablesAndViews = database.newStringMap();
         indexes = database.newStringMap();
         sequences = database.newStringMap();
@@ -122,10 +123,6 @@ public class Schema extends DbObjectBase {
             Constraint obj = (Constraint) constraints.values().toArray()[0];
             database.removeSchemaObject(session, obj);
         }
-        while (constraints != null && constraints.size() > 0) {
-            Constraint obj = (Constraint) constraints.values().toArray()[0];
-            database.removeSchemaObject(session, obj);
-        }
         // There can be dependencies between tables e.g. using computed columns,
         // so we might need to loop over them multiple times.
         boolean runLoopAgain = false;
@@ -134,8 +131,8 @@ public class Schema extends DbObjectBase {
             if (tablesAndViews != null) {
                 // Loop over a copy because the map is modified underneath us.
                 for (Table obj : New.arrayList(tablesAndViews.values())) {
-                    // Check for null because multiple tables might be deleted in one go
-                    // underneath us.
+                    // Check for null because multiple tables might be deleted
+                    // in one go underneath us.
                     if (obj.getName() != null) {
                         if (database.getDependentTable(obj, obj) == null) {
                             database.removeSchemaObject(session, obj);
@@ -364,7 +361,8 @@ public class Schema extends DbObjectBase {
         }
     }
 
-    private String getUniqueName(DbObject obj, HashMap<String, ? extends SchemaObject> map, String prefix) {
+    private String getUniqueName(DbObject obj,
+            HashMap<String, ? extends SchemaObject> map, String prefix) {
         String hash = Integer.toHexString(obj.getName().hashCode()).toUpperCase();
         String name = null;
         synchronized (temporaryUniqueNames) {
@@ -574,14 +572,14 @@ public class Schema extends DbObjectBase {
             }
             data.schema = this;
             if (data.tableEngine == null) {
-                if (database.getSettings().mvStore && database.isPersistent()) {
+                if (database.getSettings().mvStore) {
                     data.tableEngine = MVTableEngine.class.getName();
                 }
             }
             if (data.tableEngine != null) {
                 TableEngine engine;
                 try {
-                    engine = (TableEngine) Utils.loadUserClass(data.tableEngine).newInstance();
+                    engine = (TableEngine) JdbcUtils.loadUserClass(data.tableEngine).newInstance();
                 } catch (Exception e) {
                     throw DbException.convert(e);
                 }
@@ -606,9 +604,9 @@ public class Schema extends DbObjectBase {
      * @param force create the object even if the database can not be accessed
      * @return the {@link TableLink} object
      */
-    public TableLink createTableLink(int id, String tableName,
-            String driver, String url, String user, String password,
-            String originalSchema, String originalTable, boolean emitUpdates, boolean force) {
+    public TableLink createTableLink(int id, String tableName, String driver,
+            String url, String user, String password, String originalSchema,
+            String originalTable, boolean emitUpdates, boolean force) {
         synchronized (database) {
             return new TableLink(this, id, tableName,
                     driver, url, user, password,

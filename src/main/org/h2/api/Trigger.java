@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.api;
@@ -51,8 +50,8 @@ public interface Trigger {
      * @param type the operation type: INSERT, UPDATE, DELETE, SELECT, or a
      *            combination (this parameter is a bit field)
      */
-    void init(Connection conn, String schemaName, String triggerName, String tableName, boolean before, int type)
-        throws SQLException;
+    void init(Connection conn, String schemaName, String triggerName,
+            String tableName, boolean before, int type) throws SQLException;
 
     /**
      * This method is called for each triggered action. The method is called
@@ -73,7 +72,8 @@ public interface Trigger {
      *            DELETE)
      * @throws SQLException if the operation must be undone
      */
-    void fire(Connection conn, Object[] oldRow, Object[] newRow) throws SQLException;
+    void fire(Connection conn, Object[] oldRow, Object[] newRow)
+            throws SQLException;
 
     /**
      * This method is called when the database is closed.

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -10,7 +9,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.util.MathUtils;
 
@@ -88,7 +88,8 @@ public class ValueLong extends Value {
     }
 
     private DbException getOverflow() {
-        return DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_1, Long.toString(value));
+        return DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_1,
+                Long.toString(value));
     }
 
     @Override
@@ -122,7 +123,7 @@ public class ValueLong extends Value {
         }
         // just checking one case is not enough: Long.MIN_VALUE * -1
         // probably this is correct but I'm not sure
-        // if(result / value == other.value && result / other.value == value) {
+        // if (result / value == other.value && result / other.value == value) {
         //    return ValueLong.get(result);
         //}
         BigInteger bv = BigInteger.valueOf(value);
@@ -194,7 +195,8 @@ public class ValueLong extends Value {
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
+    public void set(PreparedStatement prep, int parameterIndex)
+            throws SQLException {
         prep.setLong(parameterIndex, value);
     }
 

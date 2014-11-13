@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.utils;
@@ -122,7 +121,8 @@ public class ProxyCodeGenerator {
             }
             if (constructor == null) {
                 constructor = c;
-            } else if (c.getParameterTypes().length < constructor.getParameterTypes().length) {
+            } else if (c.getParameterTypes().length <
+                    constructor.getParameterTypes().length) {
                 constructor = c;
             }
         }
@@ -203,7 +203,8 @@ public class ProxyCodeGenerator {
         writer.println("    public " + className + "() {");
         writer.println("        this(new InvocationHandler() {");
         writer.println("            public Object invoke(Object proxy,");
-        writer.println("                    Method method, Object[] args) throws Throwable {");
+        writer.println("                    Method method, Object[] args) " +
+                "throws Throwable {");
         writer.println("                return method.invoke(proxy, args);");
         writer.println("            }});");
         writer.println("    }");
@@ -243,7 +244,8 @@ public class ProxyCodeGenerator {
         writer.println("        this.ih = ih;");
         writer.println("    }");
         writer.println("    @SuppressWarnings(\"unchecked\")");
-        writer.println("    private static <T extends RuntimeException> T convertException(Throwable e) {");
+        writer.println("    private static <T extends RuntimeException> " +
+                "T convertException(Throwable e) {");
         writer.println("        if (e instanceof Error) {");
         writer.println("            throw (Error) e;");
         writer.println("        }");

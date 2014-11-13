@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.bnf.context;
@@ -79,9 +78,11 @@ public class DbSchema {
             isSystem = true;
         } else if ("INFORMATION_SCHEMA".equals(name)) {
             isSystem = true;
-        } else if (!contents.isH2() && StringUtils.toUpperEnglish(name).startsWith("INFO")) {
+        } else if (!contents.isH2() &&
+                StringUtils.toUpperEnglish(name).startsWith("INFO")) {
             isSystem = true;
-        } else if (contents.isPostgreSQL() && StringUtils.toUpperEnglish(name).startsWith("PG_")) {
+        } else if (contents.isPostgreSQL() &&
+                StringUtils.toUpperEnglish(name).startsWith("PG_")) {
             isSystem = true;
         } else if (contents.isDerby() && name.startsWith("SYS")) {
             isSystem = true;
@@ -117,7 +118,8 @@ public class DbSchema {
      * @param meta the database meta data
      * @param tableTypes the table types to read
      */
-    public void readTables(DatabaseMetaData meta, String[] tableTypes) throws SQLException {
+    public void readTables(DatabaseMetaData meta, String[] tableTypes)
+            throws SQLException {
         ResultSet rs = meta.getTables(null, name, null, tableTypes);
         ArrayList<DbTableOrView> list = New.arrayList();
         while (rs.next()) {

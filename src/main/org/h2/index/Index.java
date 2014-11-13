@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -54,7 +53,8 @@ public interface Index extends SchemaObject {
     void remove(Session session, Row row); //删除单行
 
     /**
-     * Find a row or a list of rows and create a cursor to iterate over the result.
+     * Find a row or a list of rows and create a cursor to iterate over the
+     * result.
      *
      * @param session the session
      * @param first the first row, or null for no limit
@@ -64,10 +64,11 @@ public interface Index extends SchemaObject {
     Cursor find(Session session, SearchRow first, SearchRow last);
 
     /**
-     * Find a row or a list of rows and create a cursor to iterate over the result.
+     * Find a row or a list of rows and create a cursor to iterate over the
+     * result.
      *
-     * @param filter the table filter (which possibly knows
-     *          about additional conditions)
+     * @param filter the table filter (which possibly knows about additional
+     *            conditions)
      * @param first the first row, or null for no limit
      * @param last the last row, or null for no limit
      * @return the cursor to iterate over the results
@@ -86,7 +87,8 @@ public interface Index extends SchemaObject {
      * @param sortOrder the sort order
      * @return the estimated cost
      */
-    double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder);
+    double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder);
 
     /**
      * Remove the index.
@@ -177,7 +179,8 @@ public interface Index extends SchemaObject {
      *
      * @param rowData the first row
      * @param compare the second row
-     * @return 0 if both rows are equal, -1 if the first row is smaller, otherwise 1
+     * @return 0 if both rows are equal, -1 if the first row is smaller,
+     *         otherwise 1
      */
     int compareRows(SearchRow rowData, SearchRow compare); //只比较索引字段，并不一定是所有字段
 

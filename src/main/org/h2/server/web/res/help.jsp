@@ -1,9 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <!--
-Copyright 2004-2013 H2 Group.
-Multiple-Licensed under the H2 License, Version 1.0,
-and under the Eclipse Public License, Version 1.0
-(http://h2database.com/html/license.html).
+Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+and the EPL 1.0 (http://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
 <html>
@@ -17,7 +15,9 @@ Initial Developer: H2 Group
 <script type="text/javascript">
 <!--
 function set(s) {
-    top.h2query.document.h2query.sql.value = s;
+    if (parent.h2query) {
+        parent.h2query.document.h2query.sql.value = s;
+    }
 }
 //-->
 </script>
@@ -28,34 +28,35 @@ function set(s) {
 <table>
 <tr>
     <td style="padding:0px"><img src="icon_help.gif" alt="${text.a.help}"/></td>
-    <td style="vertical-align: middle;">
-        ${text.helpDisplayThis}
-    </td>
+    <td style="vertical-align: middle;"></td>
+    <td style="vertical-align: middle;">${text.helpDisplayThis}</td>
 </tr>
 <tr>
     <td style="padding:0px"><img src="icon_history.gif" alt="${text.toolbar.history}"/></td>
-    <td style="vertical-align: middle;">
-        ${text.helpCommandHistory}
-    </td>
+    <td style="vertical-align: middle;"></td>
+    <td style="vertical-align: middle;">${text.helpCommandHistory}</td>
 </tr>
 <tr>
-    <td style="padding:0px"><img src="icon_run_selected.gif" alt="${text.toolbar.run}"/></td>
-    <td style="vertical-align: middle;">
-        ${text.helpExecuteCurrent}
-    </td>
+    <td style="padding:0px"><img src="icon_run.gif" alt="${text.toolbar.run}"/></td>
+    <td style="vertical-align: middle;">${text.key.ctrl}+${text.key.enter}</td>
+    <td style="vertical-align: middle;">${text.helpExecuteCurrent}</td>
 </tr>
 <tr>
-    <td style="padding:0px"><img src="icon_run.gif" alt="${text.toolbar.runSelected}"/></td>
-    <td style="vertical-align: middle;">
-        ${text.helpExecuteSelected}
-    </td>
+    <td style="padding:0px"><img src="icon_run_selected.gif" alt="${text.toolbar.runSelected}"/></td>
+    <td style="vertical-align: middle;">${text.key.shift}+${text.key.enter}</td>
+    <td style="vertical-align: middle;">${text.helpExecuteSelected}</td>
+</tr>
+<tr>
+    <td style="padding:0px"></td>
+    <td style="vertical-align: middle;">${text.key.ctrl}+${text.key.space}</td>
+    <td style="vertical-align: middle;">${text.toolbar.autoComplete}</td>
 </tr>
 <tr>
     <td style="padding:0px"><img src="icon_disconnect.gif" alt="${text.toolbar.disconnect}"/></td>
-    <td style="vertical-align: middle;">
-        ${text.helpDisconnect}
-    </td>
+    <td style="vertical-align: middle;"></td>
+    <td style="vertical-align: middle;">${text.helpDisconnect}</td>
 </tr>
+
 </table>
 
 <h3>${text.helpSampleSQL}</h3>

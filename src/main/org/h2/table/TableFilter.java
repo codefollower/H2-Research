@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
@@ -9,9 +8,9 @@ package org.h2.table;
 import java.util.ArrayList;
 import org.h2.command.Parser;
 import org.h2.command.dml.Select;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Comparison;
 import org.h2.expression.ConditionAndOr;
@@ -38,7 +37,8 @@ import org.h2.value.ValueNull;
  */
 public class TableFilter implements ColumnResolver {
 
-    private static final int BEFORE_FIRST = 0, FOUND = 1, AFTER_LAST = 2, NULL_ROW = 3;
+    private static final int BEFORE_FIRST = 0, FOUND = 1, AFTER_LAST = 2,
+            NULL_ROW = 3;
 
     /**
      * Whether this is a direct or indirect (nested) outer join
@@ -127,7 +127,8 @@ public class TableFilter implements ColumnResolver {
      * @param rightsChecked true if rights are already checked
      * @param select the select statement
      */
-    public TableFilter(Session session, Table table, String alias, boolean rightsChecked, Select select) {
+    public TableFilter(Session session, Table table, String alias,
+            boolean rightsChecked, Select select) {
         this.session = session;
         this.table = table;
         this.alias = alias;
@@ -153,12 +154,12 @@ public class TableFilter implements ColumnResolver {
      *
      * @param s the session
      * @param exclusive true if an exclusive lock is required
-     * @param force lock even in the MVCC mode
+     * @param forceLockEvenInMvcc lock even in the MVCC mode
      */
-    public void lock(Session s, boolean exclusive, boolean force) {
-        table.lock(s, exclusive, force);
+    public void lock(Session s, boolean exclusive, boolean forceLockEvenInMvcc) {
+        table.lock(s, exclusive, forceLockEvenInMvcc);
         if (join != null) {
-            join.lock(s, exclusive, force);
+            join.lock(s, exclusive, forceLockEvenInMvcc);
         }
     }
 
@@ -572,13 +573,15 @@ public class TableFilter implements ColumnResolver {
             if (joinCondition == null) {
                 joinCondition = condition;
             } else {
-                joinCondition = new ConditionAndOr(ConditionAndOr.AND, joinCondition, condition);
+                joinCondition = new ConditionAndOr(ConditionAndOr.AND,
+                        joinCondition, condition);
             }
         } else {
             if (filterCondition == null) {
                 filterCondition = condition;
             } else {
-                filterCondition = new ConditionAndOr(ConditionAndOr.AND, filterCondition, condition);
+                filterCondition = new ConditionAndOr(ConditionAndOr.AND,
+                        filterCondition, condition);
             }
         }
     }
@@ -591,12 +594,17 @@ public class TableFilter implements ColumnResolver {
      * @param nested if this is a nested join
      * @param on the join condition
      */
+<<<<<<< HEAD
     //没有发现outer、nested同时为true的
     //on这个joinCondition是加到filter参数对应的TableFilter中，也就是右表，而不是左表
     public void addJoin(TableFilter filter, boolean outer, boolean nested, final Expression on) {
     	//给on中的ExpressionColumn设置columnResolver，
     	//TableFilter实现了ColumnResolver接口，所以ExpressionColumn的columnResolver实际上就是TableFilter对象
     	//另外，下面的两个visit能查出多个Table之间的列是否同名
+=======
+    public void addJoin(TableFilter filter, boolean outer, boolean nested,
+            final Expression on) {
+>>>>>>> remotes/git-svn
         if (on != null) {
             on.mapColumns(this, 0);
             if (session.getDatabase().getSettings().nestedJoins) {
@@ -652,8 +660,13 @@ public class TableFilter implements ColumnResolver {
                     }
                 } else {
                     if (outer) {
+<<<<<<< HEAD
                         //当nestedJoins为false时，nestedJoin字段不会有值，都是join字段有值，
                         // convert all inner joins on the right hand side to outer joins
+=======
+                        // convert all inner joins on the right hand side to
+                        // outer joins
+>>>>>>> remotes/git-svn
                         TableFilter f = filter.join;
                         while (f != null) {
                             f.joinOuter = true;
@@ -1023,7 +1036,7 @@ public class TableFilter implements ColumnResolver {
      * @return true if this is a joined natural join column
      */
     public boolean isNaturalJoinColumn(Column c) {
-        return naturalJoinColumns != null && naturalJoinColumns.indexOf(c) >= 0;
+        return naturalJoinColumns != null && naturalJoinColumns.contains(c);
     }
 
     @Override

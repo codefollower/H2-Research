@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.rtree;
@@ -13,7 +12,7 @@ import org.h2.mvstore.WriteBuffer;
 import org.h2.mvstore.type.DataType;
 
 /**
- * A spatial data type. This class supports up to 255 dimensions. Each dimension
+ * A spatial data type. This class supports up to 31 dimensions. Each dimension
  * can have a minimum and a maximum value of type float. For each dimension, the
  * maximum value is only stored when it is not the same as the minimum.
  */
@@ -22,9 +21,12 @@ public class SpatialDataType implements DataType {
     private final int dimensions;
 
     public SpatialDataType(int dimensions) {
+        // Because of how we are storing the
+        // min-max-flag in the read/write method
+        // the number of dimensions must be < 32.
         DataUtils.checkArgument(
-                dimensions >= 1 && dimensions < 256,
-                "Dimensions must be between 1 and 255, is {0}", dimensions);
+                dimensions >= 1 && dimensions < 32,
+                "Dimensions must be between 1 and 31, is {0}", dimensions);
         this.dimensions = dimensions;
     }
 
@@ -51,6 +53,20 @@ public class SpatialDataType implements DataType {
     @Override
     public int getMemory(Object obj) {
         return 40 + dimensions * 4;
+    }
+
+    @Override
+    public void read(ByteBuffer buff, Object[] obj, int len, boolean key) {
+        for (int i = 0; i < len; i++) {
+            obj[i] = read(buff);
+        }
+    }
+
+    @Override
+    public void write(WriteBuffer buff, Object[] obj, int len, boolean key) {
+        for (int i = 0; i < len; i++) {
+            write(buff, obj[i]);
+        }
     }
 
     @Override
@@ -264,7 +280,8 @@ public class SpatialDataType implements DataType {
         float min = boundsInner.min(bestDim);
         float max = boundsInner.max(bestDim);
         int firstIndex = -1, lastIndex = -1;
-        for (int i = 0; i < list.size() && (firstIndex < 0 || lastIndex < 0); i++) {
+        for (int i = 0; i < list.size() &&
+                (firstIndex < 0 || lastIndex < 0); i++) {
             SpatialKey o = (SpatialKey) list.get(i);
             if (firstIndex < 0 && o.max(bestDim) == min) {
                 firstIndex = i;

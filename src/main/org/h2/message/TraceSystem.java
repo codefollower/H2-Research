@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.message;
@@ -10,11 +9,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.sql.DriverManager;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.jdbc.JdbcSQLException;
 import org.h2.store.fs.FileUtils;
@@ -78,9 +76,14 @@ public class TraceSystem implements TraceWriter {
      */
     private static final int DEFAULT_MAX_FILE_SIZE = 64 * 1024 * 1024;
 
+<<<<<<< HEAD
     private static final int CHECK_SIZE_EACH_WRITES = 128;
     
     //用于SystemOut的级别，默认关闭
+=======
+    private static final int CHECK_SIZE_EACH_WRITES = 4096;
+
+>>>>>>> remotes/git-svn
     private int levelSystemOut = DEFAULT_TRACE_LEVEL_SYSTEM_OUT;
     //用于写入文件的级别，默认ERROR
     private int levelFile = DEFAULT_TRACE_LEVEL_FILE;
@@ -118,18 +121,6 @@ public class TraceSystem implements TraceWriter {
      */
     public void setSysOut(PrintStream out) {
         this.sysOut = out;
-    }
-
-    /**
-     * Write the exception to the driver manager log writer if configured.
-     *
-     * @param e the exception
-     */
-    public static void traceThrowable(Throwable e) {
-        PrintWriter writer = DriverManager.getLogWriter();
-        if (writer != null) {
-            e.printStackTrace(writer);
-        }
     }
 
     /**
@@ -227,7 +218,7 @@ public class TraceSystem implements TraceWriter {
         if (dateFormat == null) {
             dateFormat = new SimpleDateFormat("MM-dd HH:mm:ss ");
         }
-        return dateFormat.format(new Date()) + module + ": " + s;
+        return dateFormat.format(System.currentTimeMillis()) + module + ": " + s;
     }
 
     @Override
@@ -255,7 +246,7 @@ public class TraceSystem implements TraceWriter {
                 if (maxFileSize > 0 && FileUtils.size(fileName) > maxFileSize) {
                     String old = fileName + ".old";
                     FileUtils.delete(old);
-                    FileUtils.moveTo(fileName, old);
+                    FileUtils.move(fileName, old);
                 }
             }
             if (!openWriter()) {
@@ -289,7 +280,8 @@ public class TraceSystem implements TraceWriter {
             return;
         }
         writingErrorLogged = true;
-        Exception se = DbException.get(ErrorCode.TRACE_FILE_ERROR_2, e, fileName, e.toString());
+        Exception se = DbException.get(
+                ErrorCode.TRACE_FILE_ERROR_2, e, fileName, e.toString());
         // print this error only once
         fileName = null;
         sysOut.println(se);
@@ -305,7 +297,8 @@ public class TraceSystem implements TraceWriter {
                     // can't be opened
                     return false;
                 }
-                fileWriter = IOUtils.getBufferedWriter(FileUtils.newOutputStream(fileName, true));
+                fileWriter = IOUtils.getBufferedWriter(
+                        FileUtils.newOutputStream(fileName, true));
                 printWriter = new PrintWriter(fileWriter, true);
             } catch (Exception e) {
                 logWritingError(e);

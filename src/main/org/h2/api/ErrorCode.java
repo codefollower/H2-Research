@@ -1,10 +1,9 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
-package org.h2.constant;
+package org.h2.api;
 
 /**
  * This class defines the error codes used for SQL exceptions.
@@ -108,6 +107,18 @@ public class ErrorCode {
     public static final int NUMERIC_VALUE_OUT_OF_RANGE_1 = 22003;
 
     /**
+     * The error with code <code>22007</code> is thrown when
+     * a text can not be converted to a date, time, or timestamp constant.
+     * Examples:
+     * <pre>
+     * CALL DATE '2007-January-01';
+     * CALL TIME '14:61:00';
+     * CALL TIMESTAMP '2001-02-30 12:00:00';
+     * </pre>
+     */
+    public static final int INVALID_DATETIME_CONSTANT_2 = 22007;
+
+    /**
      * The error with code <code>22012</code> is thrown when trying to divide
      * a value by zero. Example:
      * <pre>
@@ -118,9 +129,8 @@ public class ErrorCode {
 
     /**
      * The error with code <code>22018</code> is thrown when
-     * trying to convert a value to a data type where the conversion is undefined,
-     * or when an error occurred trying to convert.
-     * Example:
+     * trying to convert a value to a data type where the conversion is
+     * undefined, or when an error occurred trying to convert. Example:
      * <pre>
      * CALL CAST(DATE '2001-01-01' AS BOOLEAN);
      * CALL CAST('CHF 99.95' AS INT);
@@ -234,27 +244,27 @@ public class ErrorCode {
 
     /**
      * The error with code <code>28000</code> is thrown when
-     * there is no such user registered in the database, when
-     * the user password does not match, or when the database encryption password
-     * does not match (if database encryption is used).
+     * there is no such user registered in the database, when the user password
+     * does not match, or when the database encryption password does not match
+     * (if database encryption is used).
      */
     public static final int WRONG_USER_OR_PASSWORD = 28000;
 
     // 3B: savepoint exception
 
     /**
-     * The error with code <code>40001</code> is thrown when the database
-     * engine has detected a deadlock. The transaction of this session has been
-     * rolled back to solve the problem. A deadlock occurs when a session tries
-     * to lock a table another session has locked, while the other session wants
-     * to lock a table the first session has locked. As an example, session 1
-     * has locked table A, while session 2 has locked table B. If session 1 now
-     * tries to lock table B and session 2 tries to lock table A, a deadlock has
-     * occurred. Deadlocks that involve more than two sessions are also possible.
-     * To solve deadlock problems, an application should lock tables always in
-     * the same order, such as always lock table A before locking table B. For
-     * details, see <a href="http://en.wikipedia.org/wiki/Deadlock">Wikipedia
-     * Deadlock</a>.
+     * The error with code <code>40001</code> is thrown when
+     * the database engine has detected a deadlock. The transaction of this
+     * session has been rolled back to solve the problem. A deadlock occurs when
+     * a session tries to lock a table another session has locked, while the
+     * other session wants to lock a table the first session has locked. As an
+     * example, session 1 has locked table A, while session 2 has locked table
+     * B. If session 1 now tries to lock table B and session 2 tries to lock
+     * table A, a deadlock has occurred. Deadlocks that involve more than two
+     * sessions are also possible. To solve deadlock problems, an application
+     * should lock tables always in the same order, such as always lock table A
+     * before locking table B. For details, see <a
+     * href="http://en.wikipedia.org/wiki/Deadlock">Wikipedia Deadlock</a>.
      */
     public static final int DEADLOCK_1 = 40001;
 
@@ -283,8 +293,8 @@ public class ErrorCode {
 
     /**
      * The error with code <code>42101</code> is thrown when
-     * trying to create a table or view if an object with this name already exists.
-     * Example:
+     * trying to create a table or view if an object with this name already
+     * exists. Example:
      * <pre>
      * CREATE TABLE TEST(ID INT);
      * CREATE TABLE TEST(ID INT PRIMARY KEY);
@@ -496,16 +506,23 @@ public class ErrorCode {
     public static final int INVALID_TO_CHAR_FORMAT = 90010;
 
     /**
-     * The error with code <code>22007</code> is thrown when
-     * a text can not be converted to a date, time, or timestamp constant.
-     * Examples:
+     * The error with code <code>90011</code> is thrown when
+     * trying to open a connection to a database using an implicit relative
+     * path, such as "jdbc:h2:test" (in which case the database file would be
+     * stored in the current working directory of the application). This is not
+     * allowed because it can lead to confusion where the database file is, and
+     * can result in multiple databases because different working directories
+     * are used. Instead, use "jdbc:h2:~/name" (relative to the current user
+     * home directory), use an absolute path, set the base directory (baseDir),
+     * use "jdbc:h2:./name" (explicit relative path), or set the system property
+     * "h2.implicitRelativePath" to "true" (to prevent this check). For Windows,
+     * an absolute path also needs to include the drive ("C:/..."). Please see
+     * the documentation on the supported URL format. Example:
      * <pre>
-     * CALL DATE '2007-January-01';
-     * CALL TIME '14:61:00';
-     * CALL TIMESTAMP '2001-02-30 12:00:00';
+     * jdbc:h2:test
      * </pre>
      */
-    public static final int INVALID_DATETIME_CONSTANT_2 = 22007;
+    public static final int URL_RELATIVE_TO_CWD = 90011;
 
     /**
      * The error with code <code>90012</code> is thrown when
@@ -519,10 +536,9 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90013</code> is thrown when
-     * trying to open a database that does not exist using the flag IFEXISTS=TRUE,
-     * or when trying to access a database object with a catalog name that does
-     * not match the database name.
-     * Example:
+     * trying to open a database that does not exist using the flag
+     * IFEXISTS=TRUE, or when trying to access a database object with a catalog
+     * name that does not match the database name. Example:
      * <pre>
      * CREATE TABLE TEST(ID INT);
      * SELECT XYZ.PUBLIC.TEST.ID FROM TEST;
@@ -553,8 +569,8 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90016</code> is thrown when
-     * a column was used in the expression list or the order by clause
-     * of a group or aggregate query, and that column is not in the GROUP BY clause.
+     * a column was used in the expression list or the order by clause of a
+     * group or aggregate query, and that column is not in the GROUP BY clause.
      * Example of wrong usage:
      * <pre>
      * CREATE TABLE TEST(ID INT, NAME VARCHAR);
@@ -626,6 +642,13 @@ public class ErrorCode {
      * in the same process where the database is open in embedded mode.
      */
     public static final int DATABASE_ALREADY_OPEN_1 = 90020;
+
+    /**
+     * The error with code <code>90021</code> is thrown when
+     * trying to change a specific database property that conflicts with other
+     * database properties.
+     */
+    public static final int UNSUPPORTED_SETTING_COMBINATION = 90021;
 
     /**
      * The error with code <code>90022</code> is thrown when
@@ -833,9 +856,8 @@ public class ErrorCode {
     public static final int ERROR_EXECUTING_TRIGGER_3 = 90044;
 
     /**
-     * The error with code <code>90045</code> is thrown when
-     * trying to create a constraint  if an object with this name already exists.
-     * Example:
+     * The error with code <code>90045</code> is thrown when trying to create a
+     * constraint if an object with this name already exists. Example:
      * <pre>
      * CREATE TABLE TEST(ID INT NOT NULL);
      * ALTER TABLE TEST ADD CONSTRAINT PK PRIMARY KEY(ID);
@@ -846,9 +868,9 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90046</code> is thrown when
-     * trying to open a connection to a database using an unsupported URL format.
-     * Please see the documentation on the supported URL format and examples.
-     * Example:
+     * trying to open a connection to a database using an unsupported URL
+     * format. Please see the documentation on the supported URL format and
+     * examples. Example:
      * <pre>
      * jdbc:h2:;;
      * </pre>
@@ -954,7 +976,7 @@ public class ErrorCode {
     /**
      * The error with code <code>90055</code> is thrown when
      * trying to open a database with an unsupported cipher algorithm.
-     * Supported are AES and XTEA.
+     * Supported is AES.
      * Example:
      * <pre>
      * jdbc:h2:~/test;CIPHER=DES
@@ -1381,13 +1403,6 @@ public class ErrorCode {
     public static final int ROLE_CAN_NOT_BE_DROPPED_1 = 90091;
 
     /**
-     * The error with code <code>90092</code> is thrown when
-     * the source code is not compiled for the Java platform used.
-     * At runtime, the existence of the class java.sql.Savepoint is checked.
-     */
-    public static final int UNSUPPORTED_JAVA_VERSION = 90092;
-
-    /**
      * The error with code <code>90093</code> is thrown when
      * trying to connect to a clustered database that runs in standalone
      * mode. This can happen if clustering is not enabled on the database,
@@ -1449,13 +1464,6 @@ public class ErrorCode {
      * </pre>
      */
     public static final int ERROR_SETTING_DATABASE_EVENT_LISTENER_2 = 90099;
-
-    /**
-     * The error with code <code>90100</code> is thrown when
-     * there is no more space available on the device where the database
-     * files are stored.
-     */
-    public static final int NO_DISK_SPACE_AVAILABLE = 90100;
 
     /**
      * The error with code <code>90101</code> is thrown when
@@ -1672,8 +1680,8 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90123</code> is thrown when
-     * trying mix regular parameters and indexed parameters in the same statement.
-     * Example:
+     * trying mix regular parameters and indexed parameters in the same
+     * statement. Example:
      * <pre>
      * SELECT ?, ?1 FROM DUAL;
      * </pre>
@@ -1689,11 +1697,10 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90125</code> is thrown when
-     * PreparedStatement.setBigDecimal is called
-     * with object that extends the class BigDecimal, and the system property
-     * h2.allowBigDecimalExtensions is not set. Using extensions of BigDecimal is
-     * dangerous because the database relies on the behavior of BigDecimal.
-     * Example of wrong usage:
+     * PreparedStatement.setBigDecimal is called with object that extends the
+     * class BigDecimal, and the system property h2.allowBigDecimalExtensions is
+     * not set. Using extensions of BigDecimal is dangerous because the database
+     * relies on the behavior of BigDecimal. Example of wrong usage:
      * <pre>
      * BigDecimal bd = new MyDecimal("$10.3");
      * prep.setBigDecimal(1, bd);
@@ -1701,7 +1708,7 @@ public class ErrorCode {
      * </pre>
      * Correct:
      * <pre>
-     * BigDecimal bd = new BigDecimal("10.3");
+     * BigDecimal bd = new BigDecimal(&quot;10.3&quot;);
      * prep.setBigDecimal(1, bd);
      * </pre>
      */
@@ -1801,17 +1808,17 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90133</code> is thrown when
-     * trying to change a specific database property while the database is already
-     * open. The MVCC property needs to be set in the first connection
+     * trying to change a specific database property while the database is
+     * already open. The MVCC property needs to be set in the first connection
      * (in the connection opening the database) and can not be changed later on.
      */
     public static final int CANNOT_CHANGE_SETTING_WHEN_OPEN_1 = 90133;
 
     /**
      * The error with code <code>90134</code> is thrown when
-     * trying to load a Java class that is not part of the allowed classes.
-     * By default, all classes are allowed, but this can be changed using the system
-     * property h2.allowedClasses.
+     * trying to load a Java class that is not part of the allowed classes. By
+     * default, all classes are allowed, but this can be changed using the
+     * system property h2.allowedClasses.
      */
     public static final int ACCESS_DENIED_TO_CLASS_1 = 90134;
 
@@ -1887,15 +1894,14 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90141</code> is thrown when
-     * trying to change the java object serializer while there was already data in
-     * the database. The serializer of the database must be set when the
+     * trying to change the java object serializer while there was already data
+     * in the database. The serializer of the database must be set when the
      * database is empty.
      */
     public static final int JAVA_OBJECT_SERIALIZER_CHANGE_WITH_DATA_TABLE = 90141;
 
 
-    // next are 90011, 90021, 90039,
-    // 90051, 90056, 90110, 90122, 90142
+    // next are 90039, 90051, 90056, 90110, 90122, 90142
 
     private ErrorCode() {
         // utility class
@@ -1905,13 +1911,16 @@ public class ErrorCode {
      * INTERNAL
      */
     public static boolean isCommon(int errorCode) {
+        // this list is sorted alphabetically
         switch (errorCode) {
         case DATA_CONVERSION_ERROR_1:
         case DUPLICATE_KEY_1:
+        case FUNCTION_ALIAS_ALREADY_EXISTS_1:
         case LOCK_TIMEOUT_1:
         case NULL_NOT_ALLOWED:
         case NO_DATA_AVAILABLE:
         case NUMERIC_VALUE_OUT_OF_RANGE_1:
+        case OBJECT_CLOSED:
         case REFERENTIAL_INTEGRITY_VIOLATED_CHILD_EXISTS_1:
         case REFERENTIAL_INTEGRITY_VIOLATED_PARENT_MISSING_1:
         case SYNTAX_ERROR_1:
@@ -1919,7 +1928,6 @@ public class ErrorCode {
         case TABLE_OR_VIEW_ALREADY_EXISTS_1:
         case TABLE_OR_VIEW_NOT_FOUND_1:
         case VALUE_TOO_LONG_2:
-        case FUNCTION_ALIAS_ALREADY_EXISTS_1:
             return true;
         }
         return false;

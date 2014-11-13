@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
@@ -9,10 +8,10 @@ package org.h2.expression;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
-import org.h2.api.AggregateFunction;
+import org.h2.api.Aggregate;
+import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
 import org.h2.command.dml.Select;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.engine.UserAggregate;
 import org.h2.message.DbException;
@@ -36,7 +35,8 @@ public class JavaAggregate extends Expression {
     private Connection userConnection;
     private int lastGroupRowId;
 
-    public JavaAggregate(UserAggregate userAggregate, Expression[] args, Select select) {
+    public JavaAggregate(UserAggregate userAggregate, Expression[] args,
+            Select select) {
         this.userAggregate = userAggregate;
         this.args = args;
         this.select = select;
@@ -116,17 +116,15 @@ public class JavaAggregate extends Expression {
         userConnection = session.createConnection(false);
         int len = args.length;
         argTypes = new int[len];
-        int[] argSqlTypes = new int[len];
         for (int i = 0; i < len; i++) {
             Expression expr = args[i];
             args[i] = expr.optimize(session);
             int type = expr.getType();
             argTypes[i] = type;
-            argSqlTypes[i] = DataType.convertTypeToSQLType(type);
         }
         try {
-            AggregateFunction aggregate = getInstance();
-            dataType = DataType.convertSQLTypeToValueType(aggregate.getType(argSqlTypes));
+            Aggregate aggregate = getInstance();
+            dataType = aggregate.getInternalType(argTypes);
         } catch (SQLException e) {
             throw DbException.convert(e);
         }
@@ -140,8 +138,8 @@ public class JavaAggregate extends Expression {
         }
     }
 
-    private AggregateFunction getInstance() throws SQLException {
-        AggregateFunction agg = userAggregate.getInstance();
+    private Aggregate getInstance() throws SQLException {
+        Aggregate agg = userAggregate.getInstance();
         agg.init(userConnection);
         return agg;
     }
@@ -153,7 +151,7 @@ public class JavaAggregate extends Expression {
             throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getSQL());
         }
         try {
-            AggregateFunction agg = (AggregateFunction) group.get(this);
+            Aggregate agg = (Aggregate) group.get(this);
             if (agg == null) {
                 agg = getInstance();
             }
@@ -182,7 +180,7 @@ public class JavaAggregate extends Expression {
         }
         lastGroupRowId = groupRowId;
 
-        AggregateFunction agg = (AggregateFunction) group.get(this);
+        Aggregate agg = (Aggregate) group.get(this);
         try {
             if (agg == null) {
                 agg = getInstance();

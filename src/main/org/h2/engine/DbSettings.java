@@ -1,13 +1,11 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
-package org.h2.constant;
+package org.h2.engine;
 
 import java.util.HashMap;
-import org.h2.engine.SettingsBase;
 
 /**
  * This class contains various database-level settings. To override the
@@ -91,7 +89,8 @@ public class DbSettings extends SettingsBase {
 
     /**
      * Database setting <code>DEFRAG_ALWAYS</code> (default: false).<br />
-     * Each time the database is closed, it is fully defragmented (SHUTDOWN DEFRAG).
+     * Each time the database is closed, it is fully defragmented (SHUTDOWN
+     * DEFRAG).
      */
     public final boolean defragAlways = get("DEFRAG_ALWAYS", false);
 
@@ -114,23 +113,18 @@ public class DbSettings extends SettingsBase {
      * The estimated number of rows in a function table (for example, CSVREAD or
      * FTL_SEARCH). This value is used by the optimizer.
      */
-    public final int estimatedFunctionTableRows = get("ESTIMATED_FUNCTION_TABLE_ROWS", 1000);
+    public final int estimatedFunctionTableRows = get(
+            "ESTIMATED_FUNCTION_TABLE_ROWS", 1000);
 
     /**
-     * Database setting <code>FUNCTIONS_IN_SCHEMA</code> (default:
-     * true).<br />
-     * If set, all functions are stored in a schema. Specially, the SCRIPT statement
-     * will always include the schema name in the CREATE ALIAS statement.
-     * This is not backward compatible with H2 versions 1.2.134 and older.
+     * Database setting <code>FUNCTIONS_IN_SCHEMA</code>
+     * (default: true).<br />
+     * If set, all functions are stored in a schema. Specially, the SCRIPT
+     * statement will always include the schema name in the CREATE ALIAS
+     * statement. This is not backward compatible with H2 versions 1.2.134 and
+     * older.
      */
     public final boolean functionsInSchema = get("FUNCTIONS_IN_SCHEMA", true);
-
-    /**
-     * Database setting <code>LARGE_RESULT_BUFFER_SIZE</code> (default: 4096).<br />
-     * Buffer size for large result sets. Set this value to 0 to disable the
-     * buffer.
-     */
-    public final int largeResultBufferSize = get("LARGE_RESULT_BUFFER_SIZE", 4 * 1024);
 
     /**
      * Database setting <code>LARGE_TRANSACTIONS</code> (default: true).<br />
@@ -143,22 +137,14 @@ public class DbSettings extends SettingsBase {
      * (default: Integer.MAX_VALUE).<br />
      * The maximum number of pages to move when closing a database.
      */
-    public final int maxCompactCount = get("MAX_COMPACT_COUNT", Integer.MAX_VALUE);
+    public final int maxCompactCount = get("MAX_COMPACT_COUNT",
+            Integer.MAX_VALUE);
 
     /**
      * Database setting <code>MAX_COMPACT_TIME</code> (default: 200).<br />
      * The maximum time in milliseconds used to compact a database when closing.
      */
     public final int maxCompactTime = get("MAX_COMPACT_TIME", 200);
-
-    /**
-     * Database setting <code>MAX_MEMORY_ROWS_DISTINCT</code> (default:
-     * 10000).<br />
-     * The maximum number of rows kept in-memory for SELECT DISTINCT queries. If
-     * more than this number of rows are in a result set, a temporary table is
-     * used.
-     */
-    public final int maxMemoryRowsDistinct = get("MAX_MEMORY_ROWS_DISTINCT", 10000);
 
     /**
      * Database setting <code>MAX_QUERY_TIMEOUT</code> (default: 0).<br />
@@ -193,7 +179,8 @@ public class DbSettings extends SettingsBase {
      * true).<br />
      * Optimize subqueries that are not dependent on the outer query.
      */
-    public final boolean optimizeEvaluatableSubqueries = get("OPTIMIZE_EVALUATABLE_SUBQUERIES", true);
+    public final boolean optimizeEvaluatableSubqueries = get(
+            "OPTIMIZE_EVALUATABLE_SUBQUERIES", true);
 
     /**
      * Database setting <code>OPTIMIZE_INSERT_FROM_SELECT</code>
@@ -201,7 +188,8 @@ public class DbSettings extends SettingsBase {
      * Insert into table from query directly bypassing temporary disk storage.
      * This also applies to create table as select.
      */
-    public final boolean optimizeInsertFromSelect = get("OPTIMIZE_INSERT_FROM_SELECT", true);
+    public final boolean optimizeInsertFromSelect = get(
+            "OPTIMIZE_INSERT_FROM_SELECT", true);
 
     /**
      * Database setting <code>OPTIMIZE_IN_LIST</code> (default: true).<br />
@@ -248,14 +236,16 @@ public class DbSettings extends SettingsBase {
      * (default: 128 * 1024).<br />
      * The maximum number of pages the file grows at any time.
      */
-    public final int pageStoreMaxGrowth = get("PAGE_STORE_MAX_GROWTH", 128 * 1024);
+    public final int pageStoreMaxGrowth = get("PAGE_STORE_MAX_GROWTH",
+            128 * 1024);
 
     /**
      * Database setting <code>PAGE_STORE_INTERNAL_COUNT</code>
      * (default: false).<br />
      * Update the row counts on a node level.
      */
-    public final boolean pageStoreInternalCount = get("PAGE_STORE_INTERNAL_COUNT", false);
+    public final boolean pageStoreInternalCount = get(
+            "PAGE_STORE_INTERNAL_COUNT", false);
 
     /**
      * Database setting <code>PAGE_STORE_TRIM</code> (default: true).<br />
@@ -312,7 +302,8 @@ public class DbSettings extends SettingsBase {
      * database should be used for all linked tables that connect to the same
      * database.
      */
-    public final boolean shareLinkedConnections = get("SHARE_LINKED_CONNECTIONS", true);
+    public final boolean shareLinkedConnections = get(
+            "SHARE_LINKED_CONNECTIONS", true);
 
     /**
      * Database setting <code>DEFAULT_TABLE_ENGINE</code>
@@ -326,7 +317,14 @@ public class DbSettings extends SettingsBase {
      * (default: false).<br />
      * Use the MVStore storage engine.
      */
-    public final boolean mvStore = get("MV_STORE", false);
+    public boolean mvStore = get("MV_STORE", Constants.VERSION_MINOR >= 4);
+
+    /**
+     * Database setting <code>COMPRESS</code>
+     * (default: false).<br />
+     * Compress data when storing.
+     */
+    public final boolean compressData = get("COMPRESS", false);
 
     private DbSettings(HashMap<String, String> s) {
         super(s);

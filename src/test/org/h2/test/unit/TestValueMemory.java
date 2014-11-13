@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -56,7 +55,8 @@ import org.h2.value.ValueUuid;
 public class TestValueMemory extends TestBase implements DataHandler {
 
     private final Random random = new Random(1);
-    private final SmallLRUCache<String, String[]> lobFileListCache = SmallLRUCache.newInstance(128);
+    private final SmallLRUCache<String, String[]> lobFileListCache = SmallLRUCache
+            .newInstance(128);
     private LobStorageFrontend lobStorage;
 
     /**
@@ -161,7 +161,7 @@ public class TestValueMemory extends TestBase implements DataHandler {
         case Value.DATE:
             return ValueDate.get(new java.sql.Date(random.nextLong()));
         case Value.TIMESTAMP:
-            return ValueTimestamp.get(new java.sql.Timestamp(random.nextLong()));
+            return ValueTimestamp.fromMillis(random.nextLong());
         case Value.BYTES:
             return ValueBytes.get(randomBytes(random.nextInt(1000)));
         case Value.STRING:
@@ -198,7 +198,8 @@ public class TestValueMemory extends TestBase implements DataHandler {
             if (DataType.GEOMETRY_CLASS == null) {
                 return ValueNull.INSTANCE;
             }
-            return ValueGeometry.get("POINT (" + random.nextInt(100) + " "+random.nextInt(100)+")");
+            return ValueGeometry.get("POINT (" + random.nextInt(100) + " " +
+                    random.nextInt(100) + ")");
         default:
             throw new AssertionError("type=" + type);
         }
@@ -278,7 +279,8 @@ public class TestValueMemory extends TestBase implements DataHandler {
     }
 
     @Override
-    public int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length) {
+    public int readLob(long lobId, byte[] hmac, long offset, byte[] buff,
+            int off, int length) {
         return -1;
     }
 

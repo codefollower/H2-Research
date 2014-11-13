@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -12,6 +11,7 @@ import java.util.Arrays;
 
 import com.vividsolutions.jts.geom.CoordinateSequence;
 import com.vividsolutions.jts.geom.CoordinateSequenceFilter;
+import com.vividsolutions.jts.geom.PrecisionModel;
 import org.h2.message.DbException;
 import org.h2.util.StringUtils;
 import com.vividsolutions.jts.geom.Envelope;
@@ -33,31 +33,40 @@ import com.vividsolutions.jts.io.WKTWriter;
 public class ValueGeometry extends Value {
 
     /**
+     * As conversion from/to WKB cost a significant amount of CPU cycles, WKB
+     * are kept in ValueGeometry instance.
+     *
+     * We always calculate the WKB, because not all WKT values can be
+     * represented in WKB, but since we persist it in WKB format, it has to be
+     * valid in WKB
+     */
+    private final byte[] bytes;
+
+    private final int hashCode;
+
+    /**
      * The value. Converted from WKB only on request as conversion from/to WKB
-     * cost a significant amount of cpu cycles.
+     * cost a significant amount of CPU cycles.
      */
     private Geometry geometry;
 
     /**
-     * As conversion from/to WKB cost a significant amount of cpu cycles, WKB
-     * are kept in ValueGeometry instance
+     * Create a new geometry objects.
+     *
+     * @param bytes the bytes (always known)
+     * @param geometry the geometry object (may be null)
      */
-    private byte[] bytes;
-
-    private int hashCode;
-
-    private ValueGeometry(Geometry geometry) {
-        this.geometry = geometry;
-    }
-
-    private ValueGeometry(byte[] bytes) {
+    private ValueGeometry(byte[] bytes, Geometry geometry) {
         this.bytes = bytes;
+        this.geometry = geometry;
+        this.hashCode = Arrays.hashCode(bytes);
     }
 
     /**
      * Get or create a geometry value for the given geometry.
      *
-     * @param o the geometry object (of type com.vividsolutions.jts.geom.Geometry)
+     * @param o the geometry object (of type
+     *            com.vividsolutions.jts.geom.Geometry)
      * @return the value
      */
     public static ValueGeometry getFromGeometry(Object o) {
@@ -65,10 +74,21 @@ public class ValueGeometry extends Value {
     }
 
     private static ValueGeometry get(Geometry g) {
-        // not all WKT values can be represented in WKB, but since we persist it
-        // in WKB format, it has to be valid in WKB
-        toWKB(g);
-        return (ValueGeometry) Value.cache(new ValueGeometry(g));
+        byte[] bytes = convertToWKB(g);
+        return (ValueGeometry) Value.cache(new ValueGeometry(bytes, g));
+    }
+
+    private static byte[] convertToWKB(Geometry g) {
+        boolean includeSRID = g.getSRID() != 0;
+        int dimensionCount = getDimensionCount(g);
+        WKBWriter writer = new WKBWriter(dimensionCount, includeSRID);
+        return writer.write(g);
+    }
+
+    private static int getDimensionCount(Geometry geometry) {
+        ZVisitor finder = new ZVisitor();
+        geometry.apply(finder);
+        return finder.isFoundZ() ? 3 : 2;
     }
 
     /**
@@ -78,11 +98,29 @@ public class ValueGeometry extends Value {
      * @return the value
      */
     public static ValueGeometry get(String s) {
-        Geometry g = fromWKT(s);
-        // not all WKT values can be represented in WKB, but since we persist it
-        // in WKB format, it has to be valid in WKB
-        toWKB(g);
-        return (ValueGeometry) Value.cache(new ValueGeometry(g));
+        try {
+            Geometry g = new WKTReader().read(s);
+            return get(g);
+        } catch (ParseException ex) {
+            throw DbException.convert(ex);
+        }
+    }
+
+    /**
+     * Get or create a geometry value for the given geometry.
+     *
+     * @param s the WKT representation of the geometry
+     * @param srid the srid of the object
+     * @return the value
+     */
+    public static ValueGeometry get(String s, int srid) {
+        try {
+            GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), srid);
+            Geometry g = new WKTReader(geometryFactory).read(s);
+            return get(g);
+        } catch (ParseException ex) {
+            throw DbException.convert(ex);
+        }
     }
 
     /**
@@ -92,12 +130,26 @@ public class ValueGeometry extends Value {
      * @return the value
      */
     public static ValueGeometry get(byte[] bytes) {
-        return (ValueGeometry) Value.cache(new ValueGeometry(bytes));
+        return (ValueGeometry) Value.cache(new ValueGeometry(bytes, null));
     }
 
+    /**
+     * Get a copy of geometry object. Geometry object is mutable. The returned
+     * object is therefore copied before returning.
+     *
+     * @return a copy of the geometry object
+     */
     public Geometry getGeometry() {
-        if (geometry == null && bytes != null) {
-            geometry = fromWKB(bytes);
+        return (Geometry) getGeometryNoCopy().clone();
+    }
+
+    public Geometry getGeometryNoCopy() {
+        if (geometry == null) {
+            try {
+                geometry = new WKBReader().read(bytes);
+            } catch (ParseException ex) {
+                throw DbException.convert(ex);
+            }
         }
         return geometry;
     }
@@ -111,7 +163,8 @@ public class ValueGeometry extends Value {
      */
     public boolean intersectsBoundingBox(ValueGeometry r) {
         // the Geometry object caches the envelope
-        return getGeometry().getEnvelopeInternal().intersects(r.getGeometry().getEnvelopeInternal());
+        return getGeometryNoCopy().getEnvelopeInternal().intersects(
+                r.getGeometryNoCopy().getEnvelopeInternal());
     }
 
     /**
@@ -122,29 +175,9 @@ public class ValueGeometry extends Value {
      */
     public Value getEnvelopeUnion(ValueGeometry r) {
         GeometryFactory gf = new GeometryFactory();
-        Envelope mergedEnvelope = new Envelope(getGeometry().getEnvelopeInternal());
-        mergedEnvelope.expandToInclude(r.getGeometry().getEnvelopeInternal());
+        Envelope mergedEnvelope = new Envelope(getGeometryNoCopy().getEnvelopeInternal());
+        mergedEnvelope.expandToInclude(r.getGeometryNoCopy().getEnvelopeInternal());
         return get(gf.toGeometry(mergedEnvelope));
-    }
-
-    /**
-     * Get the intersection.
-     *
-     * @param r the other geometry
-     * @return the intersection of this geometry envelope and another
-     */
-    public ValueGeometry getEnvelopeIntersection(ValueGeometry r) {
-        Envelope e1 = getGeometry().getEnvelopeInternal();
-        Envelope e2 = r.getGeometry().getEnvelopeInternal();
-        Envelope e3 = e1.intersection(e2);
-        // try to re-use the object
-        if (e3 == e1) {
-            return this;
-        } else if (e3 == e2) {
-            return r;
-        }
-        GeometryFactory gf = new GeometryFactory();
-        return get(gf.toGeometry(e3));
     }
 
     @Override
@@ -154,18 +187,21 @@ public class ValueGeometry extends Value {
 
     @Override
     public String getSQL() {
-        return StringUtils.quoteStringSQL(toWKT()) + "'::Geometry";
+        // WKT does not hold Z or SRID with JTS 1.13. As getSQL is used to
+        // export database, it should contains all object attributes. Moreover
+        // using bytes is faster than converting WKB to Geometry then to WKT.
+        return "X'" + StringUtils.convertBytesToHex(getBytesNoCopy()) + "'::Geometry";
     }
 
     @Override
     protected int compareSecure(Value v, CompareMode mode) {
-        Geometry g = ((ValueGeometry) v).getGeometry();
-        return getGeometry().compareTo(g);
+        Geometry g = ((ValueGeometry) v).getGeometryNoCopy();
+        return getGeometryNoCopy().compareTo(g);
     }
 
     @Override
     public String getString() {
-        return toWKT();
+        return getWKT();
     }
 
     @Override
@@ -175,9 +211,6 @@ public class ValueGeometry extends Value {
 
     @Override
     public int hashCode() {
-        if (hashCode == 0) {
-            hashCode = Arrays.hashCode(toWKB());
-        }
         return hashCode;
     }
 
@@ -188,96 +221,54 @@ public class ValueGeometry extends Value {
 
     @Override
     public byte[] getBytes() {
-        return toWKB();
+        return getWKB();
     }
 
     @Override
     public byte[] getBytesNoCopy() {
-        return toWKB();
+        return getWKB();
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        prep.setObject(parameterIndex, getGeometry());
+    public void set(PreparedStatement prep, int parameterIndex)
+            throws SQLException {
+        prep.setObject(parameterIndex, getGeometryNoCopy());
     }
 
     @Override
     public int getDisplaySize() {
-        return toWKT().length();
+        return getWKT().length();
     }
 
     @Override
     public int getMemory() {
-        return toWKB().length * 20 + 24;
+        return getWKB().length * 20 + 24;
     }
 
     @Override
     public boolean equals(Object other) {
         // The JTS library only does half-way support for 3D coordinates, so
         // their equals method only checks the first two coordinates.
-        return other instanceof ValueGeometry && Arrays.equals(toWKB(), ((ValueGeometry) other).toWKB());
+        return other instanceof ValueGeometry &&
+                Arrays.equals(getWKB(), ((ValueGeometry) other).getWKB());
     }
 
     /**
-     * Convert the value to the Well-Known-Text format.
+     * Get the value in Well-Known-Text format.
      *
      * @return the well-known-text
      */
-    public String toWKT() {
-        return new WKTWriter().write(getGeometry());
+    public String getWKT() {
+        return new WKTWriter(3).write(getGeometryNoCopy());
     }
 
     /**
-     * Convert to Well-Known-Binary format.
+     * Get the value in Well-Known-Binary format.
      *
      * @return the well-known-binary
      */
-    public byte[] toWKB() {
-        if (bytes != null) {
-            return bytes;
-        }
-        return toWKB(getGeometry());
-    }
-
-    private static byte[] toWKB(Geometry geometry) {
-        int dimensionCount = getDimensionCount(geometry);
-        boolean includeSRID = geometry.getSRID() != 0;
-        WKBWriter writer = new WKBWriter(dimensionCount, includeSRID);
-        return writer.write(geometry);
-    }
-
-    private static int getDimensionCount(Geometry geometry) {
-        ZVisitor finder = new ZVisitor();
-        geometry.apply(finder);
-        return finder.isFoundZ() ? 3 : 2;
-    }
-
-    /**
-     * Convert a Well-Known-Text to a Geometry object.
-     *
-     * @param s the well-known-text
-     * @return the Geometry object
-     */
-    private static Geometry fromWKT(String s) {
-        try {
-            return new WKTReader().read(s);
-        } catch (ParseException ex) {
-            throw DbException.convert(ex);
-        }
-    }
-
-    /**
-     * Convert a Well-Known-Binary to a Geometry object.
-     *
-     * @param bytes the well-known-binary
-     * @return the Geometry object
-     */
-    private static Geometry fromWKB(byte[] bytes) {
-        try {
-            return new WKBReader().read(bytes);
-        } catch (ParseException ex) {
-            throw DbException.convert(ex);
-        }
+    public byte[] getWKB() {
+        return bytes;
     }
 
     @Override

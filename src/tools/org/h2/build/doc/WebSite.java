@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.doc;
@@ -26,7 +25,8 @@ public class WebSite {
 
     private static final String ANALYTICS_TAG = "<!-- analytics -->";
     private static final String ANALYTICS_SCRIPT =
-        "<script src=\"http://www.google-analytics.com/ga.js\" type=\"text/javascript\"></script>\n" +
+        "<script src=\"http://www.google-analytics.com/ga.js\" " +
+        "type=\"text/javascript\"></script>\n" +
         "<script type=\"text/javascript\">" +
         "var pageTracker=_gat._getTracker(\"UA-2351060-1\");" +
         "pageTracker._initData();pageTracker._trackPageview();" +
@@ -116,7 +116,8 @@ public class WebSite {
         dir.delete();
     }
 
-    private void copy(File source, File target, boolean replaceFragments, boolean web) throws IOException {
+    private void copy(File source, File target, boolean replaceFragments,
+            boolean web) throws IOException {
         if (source.isDirectory()) {
             target.mkdirs();
             for (File f : source.listFiles()) {

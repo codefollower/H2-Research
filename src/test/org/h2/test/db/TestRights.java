@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -13,7 +12,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 
@@ -35,6 +34,8 @@ public class TestRights extends TestBase {
 
     @Override
     public void test() throws SQLException {
+        testLinkedTableMeta();
+        testGrantMore();
         testOpenNonAdminWithMode();
         testDisallowedTables();
         testDropOwnUser();
@@ -47,15 +48,80 @@ public class TestRights extends TestBase {
         deleteDb("rights");
     }
 
+    private void testLinkedTableMeta() throws SQLException {
+        deleteDb("rights");
+        Connection conn = getConnection("rights");
+        stat = conn.createStatement();
+        stat.execute("create user test password 'test'");
+        stat.execute("create linked table test" +
+                "(null, 'jdbc:h2:mem:', 'sa', 'sa', 'DUAL')");
+        // password is invisible to non-admin
+        Connection conn2 = getConnection(
+                "rights", "test", getPassword("test"));
+        Statement stat2 = conn2.createStatement();
+        ResultSet rs = stat2.executeQuery(
+                "select * from information_schema.tables " +
+                "where table_name = 'TEST'");
+        assertTrue(rs.next());
+        ResultSetMetaData meta = rs.getMetaData();
+        for (int i = 1; i <= meta.getColumnCount(); i++) {
+            String s = rs.getString(i);
+            assertFalse(s != null && s.contains("'sa'"));
+        }
+        conn2.close();
+        // password is visible to admin
+        rs = stat.executeQuery(
+                "select * from information_schema.tables " +
+                "where table_name = 'TEST'");
+        assertTrue(rs.next());
+        meta = rs.getMetaData();
+        boolean foundPassword = false;
+        for (int i = 1; i <= meta.getColumnCount(); i++) {
+            String s = rs.getString(i);
+            if (s != null && s.contains("'sa'")) {
+                foundPassword = true;
+            }
+        }
+        assertTrue(foundPassword);
+        conn2.close();
+
+        stat.execute("drop table test");
+        conn.close();
+    }
+
+    private void testGrantMore() throws SQLException {
+        deleteDb("rights");
+        Connection conn = getConnection("rights");
+        stat = conn.createStatement();
+        stat.execute("create role new_role");
+        stat.execute("create table test(id int)");
+        stat.execute("grant select on test to new_role");
+        ResultSet rs = stat.executeQuery(
+                "select * from information_schema.table_privileges");
+        assertTrue(rs.next());
+        assertFalse(rs.next());
+        stat.execute("grant insert on test to new_role");
+        rs = stat.executeQuery(
+                "select * from information_schema.table_privileges");
+        assertTrue(rs.next());
+        assertTrue(rs.next());
+        assertFalse(rs.next());
+        stat.execute("drop table test");
+        stat.execute("drop role new_role");
+        conn.close();
+    }
+
     private void testOpenNonAdminWithMode() throws SQLException {
         if (config.memory) {
             return;
         }
         deleteDb("rights");
-        Connection conn = getConnection("rights;MODE=MYSQL");
+        Connection conn = getConnection(
+                    "rights;MODE=MYSQL");
         stat = conn.createStatement();
         stat.execute("create user test password 'test'");
-        Connection conn2 = getConnection("rights;MODE=MYSQL", "test", getPassword("test"));
+        Connection conn2 = getConnection(
+                    "rights;MODE=MYSQL", "test", getPassword("test"));
         conn2.close();
         conn.close();
         if (config.memory) {
@@ -217,12 +283,14 @@ public class TestRights extends TestBase {
         executeSuccess("CREATE USER SCHEMA_CREATOR PASSWORD 'xyz'");
 
         executeSuccess("CREATE SCHEMA SCHEMA_RIGHT_TEST");
-        executeSuccess("ALTER SCHEMA SCHEMA_RIGHT_TEST RENAME TO SCHEMA_RIGHT_TEST_RENAMED");
+        executeSuccess("ALTER SCHEMA SCHEMA_RIGHT_TEST " +
+                "RENAME TO SCHEMA_RIGHT_TEST_RENAMED");
         executeSuccess("DROP SCHEMA SCHEMA_RIGHT_TEST_RENAMED");
 
         /* create this for tests below */
         executeSuccess("CREATE SCHEMA SCHEMA_RIGHT_TEST_EXISTS");
-        executeSuccess("CREATE TABLE SCHEMA_RIGHT_TEST_EXISTS.TEST_EXISTS(ID INT PRIMARY KEY, NAME VARCHAR)");
+        executeSuccess("CREATE TABLE SCHEMA_RIGHT_TEST_EXISTS.TEST_EXISTS" +
+                "(ID INT PRIMARY KEY, NAME VARCHAR)");
         conn.close();
 
         // try and fail (no rights yet)
@@ -246,7 +314,8 @@ public class TestRights extends TestBase {
         conn = getConnection("rights;LOG=2", "SCHEMA_CREATOR", getPassword("xyz"));
         stat = conn.createStatement();
 
-        /* should be able to create a schema and manipulate tables on that schema... */
+        // should be able to create a schema and manipulate tables on that
+        // schema...
         executeSuccess("CREATE SCHEMA SCHEMA_RIGHT_TEST");
         executeSuccess("ALTER SCHEMA SCHEMA_RIGHT_TEST RENAME TO S");
         executeSuccess("CREATE TABLE S.TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
@@ -256,7 +325,7 @@ public class TestRights extends TestBase {
         executeSuccess("DELETE FROM S.TEST");
         executeSuccess("DROP SCHEMA S");
 
-        /* ...and on other schemata */
+        // ...and on other schemata
         executeSuccess("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
         executeSuccess("ALTER TABLE TEST ADD COLUMN QUESTION VARCHAR");
         executeSuccess("INSERT INTO  TEST (ID, NAME) VALUES (42, 'Adams')");
@@ -277,13 +346,16 @@ public class TestRights extends TestBase {
         assertThrows(ErrorCode.ADMIN_RIGHTS_REQUIRED, stat).
             execute("CREATE SCHEMA SCHEMA_RIGHT_TEST");
         assertThrows(ErrorCode.ADMIN_RIGHTS_REQUIRED, stat).
-            execute("ALTER SCHEMA SCHEMA_RIGHT_TEST_EXISTS RENAME TO SCHEMA_RIGHT_TEST_RENAMED");
+            execute("ALTER SCHEMA SCHEMA_RIGHT_TEST_EXISTS " +
+                    "RENAME TO SCHEMA_RIGHT_TEST_RENAMED");
         assertThrows(ErrorCode.ADMIN_RIGHTS_REQUIRED, stat).
             execute("DROP SCHEMA SCHEMA_RIGHT_TEST_EXISTS");
         assertThrows(ErrorCode.NOT_ENOUGH_RIGHTS_FOR_1, stat).
-        execute("CREATE TABLE SCHEMA_RIGHT_TEST_EXISTS.TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
+        execute("CREATE TABLE SCHEMA_RIGHT_TEST_EXISTS.TEST" +
+                "(ID INT PRIMARY KEY, NAME VARCHAR)");
         assertThrows(ErrorCode.NOT_ENOUGH_RIGHTS_FOR_1, stat).
-        execute("INSERT INTO  SCHEMA_RIGHT_TEST_EXISTS.TEST_EXISTS (ID, NAME) VALUES (42, 'Adams')");
+        execute("INSERT INTO  SCHEMA_RIGHT_TEST_EXISTS.TEST_EXISTS " +
+                "(ID, NAME) VALUES (42, 'Adams')");
         assertThrows(ErrorCode.NOT_ENOUGH_RIGHTS_FOR_1, stat).
         execute("UPDATE SCHEMA_RIGHT_TEST_EXISTS.TEST_EXISTS Set NAME = 'Douglas'");
         assertThrows(ErrorCode.NOT_ENOUGH_RIGHTS_FOR_1, stat).
@@ -306,7 +378,8 @@ public class TestRights extends TestBase {
         // rights on tables and views
         executeSuccess("CREATE USER PASS_READER PASSWORD 'abc'");
         executeSuccess("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
-        executeSuccess("CREATE TABLE PASS(ID INT PRIMARY KEY, NAME VARCHAR, PASSWORD VARCHAR)");
+        executeSuccess("CREATE TABLE PASS(ID INT PRIMARY KEY, " +
+                "NAME VARCHAR, PASSWORD VARCHAR)");
         executeSuccess("CREATE VIEW PASS_NAME AS SELECT ID, NAME FROM PASS");
         executeSuccess("GRANT SELECT ON PASS_NAME TO PASS_READER");
         executeSuccess("GRANT SELECT, INSERT, UPDATE ON TEST TO PASS_READER");
@@ -363,7 +436,8 @@ public class TestRights extends TestBase {
         executeSuccess("ALTER USER TEST SET PASSWORD 'def'");
         executeSuccess("CREATE USER TEST2 PASSWORD 'def' ADMIN");
         executeSuccess("ALTER USER TEST ADMIN FALSE");
-        executeSuccess("SCRIPT TO '" + getBaseDir() + "/rights.sql' CIPHER XTEA PASSWORD 'test'");
+        executeSuccess("SCRIPT TO '" + getBaseDir() +
+                    "/rights.sql' CIPHER AES PASSWORD 'test'");
         conn.close();
 
         try {

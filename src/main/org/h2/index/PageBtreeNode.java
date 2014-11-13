@@ -1,15 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
 import org.h2.api.DatabaseEventListener;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.result.SearchRow;
 import org.h2.store.Data;
@@ -53,7 +52,8 @@ public class PageBtreeNode extends PageBtree {
 
     private PageBtreeNode(PageBtreeIndex index, int pageId, Data data) {
         super(index, pageId, data);
-        this.pageStoreInternalCount = index.getDatabase().getSettings().pageStoreInternalCount;
+        this.pageStoreInternalCount = index.getDatabase().
+                getSettings().pageStoreInternalCount;
     }
 
     /**
@@ -78,8 +78,10 @@ public class PageBtreeNode extends PageBtree {
      * @param parentPageId the parent page id
      * @return the page
      */
-    static PageBtreeNode create(PageBtreeIndex index, int pageId, int parentPageId) {
-        PageBtreeNode p = new PageBtreeNode(index, pageId, index.getPageStore().createData());
+    static PageBtreeNode create(PageBtreeIndex index, int pageId,
+            int parentPageId) {
+        PageBtreeNode p = new PageBtreeNode(index, pageId, index.getPageStore()
+                .createData());
         index.getPageStore().logUndo(p, null);
         p.parentPageId = parentPageId;
         p.writeHead();
@@ -159,7 +161,8 @@ public class PageBtreeNode extends PageBtree {
      *
      * @param x the position 是指rows数组的下标，从0开始，把row变量加到rows数组的x下标位置处
      * @param childPageId the child
-     * @param row the row smaller than the first row of the child and its children
+     * @param row the row smaller than the first row of the child and its
+     *            children
      */
     private void addChild(int x, int childPageId, SearchRow row) {
         int rowLength = index.getRowSize(data, row, onlyPosition);
@@ -176,7 +179,8 @@ public class PageBtreeNode extends PageBtree {
             }
             last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
             rowLength = index.getRowSize(data, row, true);
-            if (SysProperties.CHECK && last - rowLength < start + CHILD_OFFSET_PAIR_LENGTH) {
+            if (SysProperties.CHECK && last - rowLength <
+                    start + CHILD_OFFSET_PAIR_LENGTH) {
                 throw DbException.throwInternalError();
             }
         }
@@ -411,7 +415,9 @@ public class PageBtreeNode extends PageBtree {
                 int child = childPageIds[i];
                 PageBtree page = index.getPage(child);
                 count += page.getRowCount();
-                index.getDatabase().setProgress(DatabaseEventListener.STATE_SCAN_FILE, index.getName(), count, Integer.MAX_VALUE);
+                index.getDatabase().setProgress(
+                        DatabaseEventListener.STATE_SCAN_FILE,
+                        index.getName(), count, Integer.MAX_VALUE);
             }
             rowCount = count;
         }
@@ -455,7 +461,8 @@ public class PageBtreeNode extends PageBtree {
 
     private void writeHead() {
         data.reset();
-        data.writeByte((byte) (Page.TYPE_BTREE_NODE | (onlyPosition ? 0 : Page.FLAG_LAST)));
+        data.writeByte((byte) (Page.TYPE_BTREE_NODE |
+                (onlyPosition ? 0 : Page.FLAG_LAST)));
         data.writeShortInt(0);
         data.writeInt(parentPageId);
         data.writeVarInt(index.getId());
@@ -578,8 +585,13 @@ public class PageBtreeNode extends PageBtree {
 
     @Override
     public String toString() {
+<<<<<<< HEAD
     	return tree();
         //return "page[" + getPos() + "] b-tree node table:" + index.getId() + " entries:" + entryCount;
+=======
+        return "page[" + getPos() + "] b-tree node table:" +
+                index.getId() + " entries:" + entryCount;
+>>>>>>> remotes/git-svn
     }
 
     @Override

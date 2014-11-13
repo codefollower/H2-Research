@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -21,7 +20,8 @@ public class TestStringCache extends TestBase {
      */
     volatile boolean stop;
     private final Random random = new Random(1);
-    private final String[] some = { null, "", "ABC", "this is a medium sized string", "1", "2" };
+    private final String[] some = { null, "", "ABC",
+            "this is a medium sized string", "1", "2" };
     private boolean returnNew;
     private boolean useIntern;
 
@@ -88,7 +88,8 @@ public class TestStringCache extends TestBase {
                 TestBase.logError("error", e);
             }
             if (a != null && a == b && a.length() > 0) {
-                throw new AssertionError("a=" + System.identityHashCode(a) + " b=" + System.identityHashCode(b));
+                throw new AssertionError("a=" + System.identityHashCode(a) +
+                        " b=" + System.identityHashCode(b));
             }
         } else {
             String b;

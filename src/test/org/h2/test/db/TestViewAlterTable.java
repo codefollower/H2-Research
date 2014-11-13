@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -11,7 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.test.TestBase;
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 
 /**
  * Test the impact of ALTER TABLE statements on views.
@@ -70,7 +69,8 @@ public class TestViewAlterTable extends TestBase {
 
     private void testAlterTableDropColumnInView() throws SQLException {
         // simple
-        stat.execute("create table test(id identity, name varchar) as select x, 'Hello'");
+        stat.execute("create table test(id identity, name varchar) " +
+                "as select x, 'Hello'");
         stat.execute("create view test_view as select * from test");
         assertThrows(ErrorCode.VIEW_IS_INVALID_2, stat).
                 execute("alter table test drop name");
@@ -93,7 +93,8 @@ public class TestViewAlterTable extends TestBase {
         checkViewRemainsValid();
     }
 
-    private void testAlterTableAlterColumnDataTypeWithView() throws SQLException {
+    private void testAlterTableAlterColumnDataTypeWithView()
+            throws SQLException {
         createTestData();
         stat.execute("alter table test alter b char(1)");
         checkViewRemainsValid();
@@ -103,9 +104,9 @@ public class TestViewAlterTable extends TestBase {
         createTestData();
         stat.execute("create view v4 as select * from test");
         stat.execute("alter table test add d int default 6");
-        // H2 doesn't remember v4 as 'select * from test',
-        // it instead remembers each individual column that was in 'test' when the
-        // view was originally created. This is consistent with PostgreSQL.
+        // H2 doesn't remember v4 as 'select * from test', it instead remembers
+        // each individual column that was in 'test' when the view was
+        // originally created. This is consistent with PostgreSQL.
         assertThrows(ErrorCode.COLUMN_NOT_FOUND_1, stat).
             executeQuery("select d from v4");
         checkViewRemainsValid();
@@ -113,7 +114,8 @@ public class TestViewAlterTable extends TestBase {
 
     private void testJoinAndAlias() throws SQLException {
         createTestData();
-        stat.execute("create view v4 as select v1.a dog, v3.a cat from v1 join v3 on v1.b = v3.a");
+        stat.execute("create view v4 as select v1.a dog, v3.a cat " +
+                "from v1 join v3 on v1.b = v3.a");
         // should make no difference
         stat.execute("alter table test add d int default 6");
         ResultSet rs = stat.executeQuery("select cat, dog from v4");
@@ -126,7 +128,8 @@ public class TestViewAlterTable extends TestBase {
 
     private void testSubSelect() throws SQLException {
         createTestData();
-        stat.execute("create view v4 as select * from v3 where a in (select b from v2)");
+        stat.execute("create view v4 as select * from v3 " +
+                "where a in (select b from v2)");
         // should make no difference
         stat.execute("alter table test add d int default 6");
         ResultSet rs = stat.executeQuery("select a from v4");
@@ -138,7 +141,8 @@ public class TestViewAlterTable extends TestBase {
 
     private void testForeignKey() throws SQLException {
         createTestData();
-        stat.execute("create table test2(z int, a int, primary key(z), foreign key (a) references TEST(a))");
+        stat.execute("create table test2(z int, a int, primary key(z), " +
+                "foreign key (a) references TEST(a))");
         stat.execute("insert into test2(z, a) values (99, 1)");
         // should make no difference
         stat.execute("alter table test add d int default 6");

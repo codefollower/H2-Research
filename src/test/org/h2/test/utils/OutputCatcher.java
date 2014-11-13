@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.utils;
@@ -22,7 +21,8 @@ import java.io.PrintWriter;
 public class OutputCatcher {
 
     /**
-     * The HTML text will contain this string if something was written to System.err.
+     * The HTML text will contain this string if something was written to
+     * System.err.
      */
     public static final String START_ERROR = "<span style=\"color:red;\">";
 
@@ -60,11 +60,15 @@ public class OutputCatcher {
         file.getParentFile().mkdirs();
         PrintWriter writer = new PrintWriter(new FileOutputStream(file));
         writer.write("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 " +
-                "Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n");
-        writer.write("<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" xml:lang=\"en\">\n");
-        writer.write("<head><meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\" /><title>\n");
+                "Strict//EN\" " +
+                "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n");
+        writer.write("<html xmlns=\"http://www.w3.org/1999/xhtml\" " +
+                "lang=\"en\" xml:lang=\"en\">\n");
+        writer.write("<head><meta http-equiv=\"Content-Type\" " +
+                "content=\"text/html;charset=utf-8\" /><title>\n");
         writer.print(title);
-        writer.print("</title><link rel=\"stylesheet\" type=\"text/css\" href=\"stylesheet.css\" />\n");
+        writer.print("</title><link rel=\"stylesheet\" " +
+                "type=\"text/css\" href=\"stylesheet.css\" />\n");
         writer.print("</head><body style=\"margin: 20px;\">\n");
         writer.print("<h1>" + title + "</h1><br />\n");
         writer.print(output);

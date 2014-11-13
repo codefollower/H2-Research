@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jaqu;
@@ -39,14 +38,15 @@ public class Db {
      * doesn't actually hold column tokens, as those are bound to the query
      * itself.
      */
-    private static final Map<Object, Token> TOKENS =
-        Collections.synchronizedMap(new WeakIdentityHashMap<Object, Token>());
+    private static final Map<Object, Token> TOKENS = Collections
+            .synchronizedMap(new WeakIdentityHashMap<Object, Token>());
 
     private final Connection conn;
     private final Map<Class<?>, TableDefinition<?>> classMap = New.hashMap();
     private final SQLDialect dialect;
     private DbUpgrader dbUpgrader = new DefaultDbUpgrader();
-    private final Set<Class<?>> upgradeChecked = Collections.synchronizedSet(new HashSet<Class<?>>());
+    private final Set<Class<?>> upgradeChecked = Collections
+            .synchronizedSet(new HashSet<Class<?>>());
 
     private int todoDocumentNewFeaturesInHtmlFile;
 
@@ -74,7 +74,8 @@ public class Db {
 
     public static Db open(String url, String user, String password) {
         try {
-            Connection conn = JdbcUtils.getConnection(null, url, user, password);
+            Connection conn = JdbcUtils
+                    .getConnection(null, url, user, password);
             return new Db(conn);
         } catch (SQLException e) {
             throw convert(e);
@@ -148,12 +149,14 @@ public class Db {
             // flag as checked immediately because calls are nested.
             upgradeChecked.add(dbUpgrader.getClass());
 
-            JQDatabase model = dbUpgrader.getClass().getAnnotation(JQDatabase.class);
+            JQDatabase model = dbUpgrader.getClass().getAnnotation(
+                    JQDatabase.class);
             if (model.version() > 0) {
                 DbVersion v = new DbVersion();
                 DbVersion dbVersion =
-                    // (SCHEMA="" && TABLE="") == DATABASE
-                    from(v).where(v.schema).is("").and(v.table).is("").selectFirst();
+                // (SCHEMA="" && TABLE="") == DATABASE
+                from(v).where(v.schema).is("").and(v.table).is("")
+                        .selectFirst();
                 if (dbVersion == null) {
                     // database has no version registration, but model specifies
                     // version: insert DbVersion entry and return.
@@ -186,10 +189,10 @@ public class Db {
             if (model.tableVersion > 0) {
                 // table is using JaQu version tracking.
                 DbVersion v = new DbVersion();
-                String schema = StringUtils.isNullOrEmpty(model.schemaName) ? "" : model.schemaName;
-                DbVersion dbVersion =
-                    from(v).where(v.schema).like(schema).and(v.table)
-                    .like(model.tableName).selectFirst();
+                String schema = StringUtils.isNullOrEmpty(model.schemaName) ? ""
+                        : model.schemaName;
+                DbVersion dbVersion = from(v).where(v.schema).like(schema)
+                        .and(v.table).like(model.tableName).selectFirst();
                 if (dbVersion == null) {
                     // table has no version registration, but model specifies
                     // version: insert DbVersion entry
@@ -204,7 +207,8 @@ public class Db {
                             && (dbUpgrader != null)) {
                         // table is an older version than model
                         boolean success = dbUpgrader.upgradeTable(this, schema,
-                                model.tableName, dbVersion.version, model.tableVersion);
+                                model.tableName, dbVersion.version,
+                                model.tableVersion);
                         if (success) {
                             dbVersion.version = model.tableVersion;
                             update(dbVersion);
@@ -227,7 +231,8 @@ public class Db {
                 Table table = (Table) t;
                 Define.define(def, table);
             } else if (clazz.isAnnotationPresent(JQTable.class)) {
-                // annotated classes skip the Define().define() static initializer
+                // annotated classes skip the Define().define() static
+                // initializer
                 T t = instance(clazz);
                 def.mapObject(t);
             }
@@ -293,7 +298,8 @@ public class Db {
     PreparedStatement prepare(String sql, boolean returnGeneratedKeys) {
         try {
             if (returnGeneratedKeys) {
-                return conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                return conn.prepareStatement(sql,
+                        Statement.RETURN_GENERATED_KEYS);
             }
             return conn.prepareStatement(sql);
         } catch (SQLException e) {
@@ -337,12 +343,12 @@ public class Db {
         }
     }
 
-//    <X> FieldDefinition<X> getFieldDefinition(X x) {
-//        return aliasMap.get(x).getFieldDefinition();
-//    }
-//
-//    <X> SelectColumn<X> getSelectColumn(X x) {
-//        return aliasMap.get(x);
-//    }
+    // <X> FieldDefinition<X> getFieldDefinition(X x) {
+    // return aliasMap.get(x).getFieldDefinition();
+    // }
+    //
+    // <X> SelectColumn<X> getSelectColumn(X x) {
+    // return aliasMap.get(x);
+    // }
 
 }

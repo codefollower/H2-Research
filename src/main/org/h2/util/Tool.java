@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
@@ -11,7 +10,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.sql.SQLException;
 import java.util.Properties;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.store.FileLister;
 import org.h2.store.fs.FileUtils;
@@ -51,7 +51,8 @@ public abstract class Tool {
      * @param option the unsupported option
      * @return this method never returns normally
      */
-    protected SQLException showUsageAndThrowUnsupportedOption(String option) throws SQLException {
+    protected SQLException showUsageAndThrowUnsupportedOption(String option)
+            throws SQLException {
         showUsage();
         throw throwUnsupportedOption(option);
     }
@@ -62,8 +63,10 @@ public abstract class Tool {
      * @param option the unsupported option
      * @return this method never returns normally
      */
-    protected SQLException throwUnsupportedOption(String option) throws SQLException {
-        throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, option).getSQLException();
+    protected SQLException throwUnsupportedOption(String option)
+            throws SQLException {
+        throw DbException.get(
+                ErrorCode.FEATURE_NOT_SUPPORTED_1, option).getSQLException();
     }
 
     /**
@@ -109,7 +112,8 @@ public abstract class Tool {
         out.println(resources.get(className));
         out.println("Usage: java "+getClass().getName() + " <options>");
         out.println(resources.get(className + ".main"));
-        out.println("See also http://h2database.com/javadoc/" + className.replace('.', '/') + ".html");
+        out.println("See also http://h2database.com/javadoc/" +
+                className.replace('.', '/') + ".html");
     }
 
     /**
@@ -125,7 +129,8 @@ public abstract class Tool {
         if (arg.equals(option)) {
             return true;
         } else if (arg.startsWith(option)) {
-            throw DbException.getUnsupportedException("expected: " + option + " got: " + arg);
+            throw DbException.getUnsupportedException(
+                    "expected: " + option + " got: " + arg);
         }
         return false;
     }

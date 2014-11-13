@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -9,7 +8,6 @@ package org.h2.test.unit;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.sql.Types;
 
 import org.h2.api.JavaObjectSerializer;
@@ -50,7 +48,7 @@ import org.h2.value.ValueUuid;
 public class TestDataPage extends TestBase implements DataHandler {
 
     private boolean testPerformance;
-    private final CompareMode compareMode = CompareMode.getInstance(null, 0, false);
+    private final CompareMode compareMode = CompareMode.getInstance(null, 0);
 
     /**
      * Run just this test.
@@ -166,8 +164,8 @@ public class TestDataPage extends TestBase implements DataHandler {
         testValue(ValueDate.get(new Date(0)));
         testValue(ValueTime.get(new Time(System.currentTimeMillis())));
         testValue(ValueTime.get(new Time(0)));
-        testValue(ValueTimestamp.get(new Timestamp(System.currentTimeMillis())));
-        testValue(ValueTimestamp.get(new Timestamp(0)));
+        testValue(ValueTimestamp.fromMillis(System.currentTimeMillis()));
+        testValue(ValueTimestamp.fromMillis(0));
         testValue(ValueJavaObject.getNoCopy(null, new byte[0], this));
         testValue(ValueJavaObject.getNoCopy(null, new byte[100], this));
         for (int i = 0; i < 300; i++) {
@@ -200,8 +198,8 @@ public class TestDataPage extends TestBase implements DataHandler {
             }
         }
         testValue(ValueArray.get(new Value[0]));
-        testValue(ValueArray.get(new Value[] {ValueBoolean.get(true), ValueInt.get(10)}));
-
+        testValue(ValueArray.get(new Value[] { ValueBoolean.get(true),
+                ValueInt.get(10) }));
 
         SimpleResultSet rs = new SimpleResultSet();
         rs.setAutoClose(false);
@@ -224,7 +222,6 @@ public class TestDataPage extends TestBase implements DataHandler {
         assertEquals(0, v.compareTo(v2, compareMode));
         assertEquals(123, data.readInt());
     }
-
 
     private void testAll() {
         Data page = Data.create(this, 128);
@@ -332,7 +329,8 @@ public class TestDataPage extends TestBase implements DataHandler {
     }
 
     @Override
-    public int readLob(long lobId,  byte[] hmac, long offset, byte[] buff, int off, int length) {
+    public int readLob(long lobId, byte[] hmac, long offset, byte[] buff,
+            int off, int length) {
         return -1;
     }
 

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -37,7 +36,8 @@ public class TestSelectCountNonNullColumn extends TestBase {
         Connection conn = getConnection(DBNAME);
         stat = conn.createStatement();
 
-        stat.execute("CREATE TABLE SIMPLE(KEY VARCHAR(25) PRIMARY KEY, NAME VARCHAR(25))");
+        stat.execute("CREATE TABLE SIMPLE(KEY VARCHAR(25) " +
+                "PRIMARY KEY, NAME VARCHAR(25))");
         stat.execute("INSERT INTO SIMPLE(KEY) VALUES('k1')");
         stat.execute("INSERT INTO SIMPLE(KEY,NAME) VALUES('k2','name2')");
 
@@ -64,7 +64,8 @@ public class TestSelectCountNonNullColumn extends TestBase {
             assertEquals(expect, rs.getLong(1));
         } else {
             // System.out.println(rs.getString(1));
-            assertEquals("SELECT\n" + "    COUNT(*)\n" + "FROM PUBLIC.SIMPLE\n" + "    /* PUBLIC.SIMPLE.tableScan */\n"
+            assertEquals("SELECT\n" + "    COUNT(*)\n" + "FROM PUBLIC.SIMPLE\n"
+                    + "    /* PUBLIC.SIMPLE.tableScan */\n"
                     + "/* direct lookup */", rs.getString(1));
         }
     }
@@ -80,8 +81,10 @@ public class TestSelectCountNonNullColumn extends TestBase {
             assertEquals(expect, rs.getLong(1));
         } else {
             // System.out.println(rs.getString(1));
-            assertEquals("SELECT\n" + "    COUNT(KEY)\n" + "FROM PUBLIC.SIMPLE\n"
-                    + "    /* PUBLIC.SIMPLE.tableScan */\n" + "/* direct lookup */", rs.getString(1));
+            assertEquals("SELECT\n" + "    COUNT(KEY)\n"
+                    + "FROM PUBLIC.SIMPLE\n"
+                    + "    /* PUBLIC.SIMPLE.tableScan */\n"
+                    + "/* direct lookup */", rs.getString(1));
         }
     }
 

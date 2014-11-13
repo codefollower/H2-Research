@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -18,14 +17,15 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.channels.NonWritableChannelException;
 import java.util.ArrayList;
 import java.util.List;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+
+import org.h2.api.ErrorCode;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.util.IOUtils;
 import org.h2.util.New;
-import org.h2.util.Utils;
 
 /**
  * This file system stores files on disk.
@@ -75,16 +75,22 @@ public class FilePathDisk extends FilePath {
 	//fileName = "file:~/FileStoreTest/my.txt";
     //则返回的是E:/H2/tmp/FileStoreTest/my.txt
     public static String expandUserHomeDirectory(String fileName) {
+<<<<<<< HEAD
     	//要么是单个~，要么是以~/开头
         if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
             String userDir = SysProperties.USER_HOME; //默认是C:\Users\Administrator
+=======
+        if (fileName.startsWith("~") && (fileName.length() == 1 ||
+                fileName.startsWith("~/"))) {
+            String userDir = SysProperties.USER_HOME;
+>>>>>>> remotes/git-svn
             fileName = userDir + fileName.substring(1);
         }
         return fileName;
     }
 
     @Override
-    public void moveTo(FilePath newName) {
+    public void moveTo(FilePath newName, boolean atomicReplace) {
         File oldFile = new File(name);
         File newFile = new File(newName.name);
         if (oldFile.getAbsolutePath().equals(newFile.getAbsolutePath())) {
@@ -95,9 +101,20 @@ public class FilePathDisk extends FilePath {
                     name + " (not found)",
                     newName.name);
         }
+        // Java 7: use java.nio.file.Files.move(Path source, Path target,
+        //     CopyOption... options)
+        // with CopyOptions "REPLACE_EXISTING" and "ATOMIC_MOVE".
+        if (atomicReplace) {
+            boolean ok = oldFile.renameTo(newFile);
+            if (ok) {
+                return;
+            }
+            throw DbException.get(ErrorCode.FILE_RENAME_FAILED_2,
+                    new String[]{name, newName.name});
+        }
         if (newFile.exists()) {
             throw DbException.get(ErrorCode.FILE_RENAME_FAILED_2,
-                    new String[] { name, newName + " (exists)" });
+                new String[] { name, newName + " (exists)" });
         }
         for (int i = 0; i < SysProperties.MAX_FILE_RETRY; i++) {
             IOUtils.trace("rename", name + " >" + newName, null);
@@ -107,7 +124,8 @@ public class FilePathDisk extends FilePath {
             }
             wait(i);
         }
-        throw DbException.get(ErrorCode.FILE_RENAME_FAILED_2, new String[]{name, newName.name});
+        throw DbException.get(ErrorCode.FILE_RENAME_FAILED_2,
+                new String[]{name, newName.name});
     }
 
     private static void wait(int i) {
@@ -252,16 +270,15 @@ public class FilePathDisk extends FilePath {
 
     @Override
     public void createDirectory() {
-        File f = new File(name);
-        if (f.exists()) {
-            if (f.isDirectory()) {
-                return;
-            }
-            throw DbException.get(ErrorCode.FILE_CREATION_FAILED_1, name + " (a file with this name already exists)");
-        }
         File dir = new File(name);
         for (int i = 0; i < SysProperties.MAX_FILE_RETRY; i++) {
-            if ((dir.exists() && dir.isDirectory()) || dir.mkdir()) {
+            if (dir.exists()) {
+                if (dir.isDirectory()) {
+                    return;
+                }
+                throw DbException.get(ErrorCode.FILE_CREATION_FAILED_1,
+                        name + " (a file with this name already exists)");
+            } else if (dir.mkdir()) {
                 return;
             }
             wait(i);
@@ -290,9 +307,15 @@ public class FilePathDisk extends FilePath {
     public InputStream newInputStream() throws IOException {
         int index = name.indexOf(':');
         if (index > 1 && index < 20) {
+<<<<<<< HEAD
             // if the ':' is in position 1, a windows file access is assumed: C:.. or D:
             // if the ':' is not at the beginning, assume its a file name with a colon
         	//如"classpath:my/test/store/fs/FileUtilsTest.class"
+=======
+            // if the ':' is in position 1, a windows file access is assumed:
+            // C:.. or D:, and if the ':' is not at the beginning, assume its a
+            // file name with a colon
+>>>>>>> remotes/git-svn
             if (name.startsWith(CLASSPATH_PREFIX)) {
                 String fileName = name.substring(CLASSPATH_PREFIX.length());
                 if (!fileName.startsWith("/")) {
@@ -300,7 +323,8 @@ public class FilePathDisk extends FilePath {
                 }
                 InputStream in = getClass().getResourceAsStream(fileName);
                 if (in == null) {
-                    in = Thread.currentThread().getContextClassLoader().getResourceAsStream(fileName);
+                    in = Thread.currentThread().getContextClassLoader().
+                            getResourceAsStream(fileName);
                 }
                 if (in == null) {
                     throw new FileNotFoundException("resource " + fileName);
@@ -318,8 +342,8 @@ public class FilePathDisk extends FilePath {
     }
 
     /**
-     * Call the garbage collection and run finalization. This close all files that
-     * were not closed, and are no longer referenced.
+     * Call the garbage collection and run finalization. This close all files
+     * that were not closed, and are no longer referenced.
      */
     static void freeMemoryAndFinalize() {
         IOUtils.trace("freeMemoryAndFinalize", null, null);
@@ -359,13 +383,13 @@ public class FilePathDisk extends FilePath {
     }
 
     @Override
-    public FilePath createTempFile(String suffix, boolean deleteOnExit, boolean inTempDir)
-            throws IOException {
+    public FilePath createTempFile(String suffix, boolean deleteOnExit,
+            boolean inTempDir) throws IOException {
         String fileName = name + ".";
         String prefix = new File(fileName).getName();
         File dir;
         if (inTempDir) {
-            dir = new File(Utils.getProperty("java.io.tmpdir", "."));
+            dir = new File(System.getProperty("java.io.tmpdir", "."));
         } else {
             dir = new File(fileName).getAbsoluteFile().getParentFile();
         }
@@ -399,10 +423,12 @@ class FileDisk extends FileBase {
 
     private final RandomAccessFile file;
     private final String name;
+    private final boolean readOnly;
 
     FileDisk(String fileName, String mode) throws FileNotFoundException {
         this.file = new RandomAccessFile(fileName, mode);
         this.name = fileName;
+        this.readOnly = mode.equals("r");
     }
 
     @Override
@@ -423,6 +449,10 @@ class FileDisk extends FileBase {
 
     @Override
     public FileChannel truncate(long newLength) throws IOException {
+        // compatibility with JDK FileChannel#truncate
+        if (readOnly) {
+            throw new NonWritableChannelException();
+        }
         if (newLength < file.length()) {
             file.setLength(newLength);
         }
@@ -430,7 +460,8 @@ class FileDisk extends FileBase {
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(long position, long size,
+            boolean shared) throws IOException {
         return file.getChannel().tryLock(position, size, shared);
     }
 
@@ -451,7 +482,8 @@ class FileDisk extends FileBase {
 
     @Override
     public int read(ByteBuffer dst) throws IOException {
-        int len = file.read(dst.array(), dst.arrayOffset() + dst.position(), dst.remaining());
+        int len = file.read(dst.array(), dst.arrayOffset() + dst.position(),
+                dst.remaining());
         if (len > 0) {
             dst.position(dst.position() + len);
         }

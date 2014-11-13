@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth.thread;
@@ -55,7 +54,8 @@ public class TestMulti extends TestBase {
     }
 
     Connection getConnection() throws SQLException {
-        final String url = "jdbc:h2:" + getBaseDir() + "/openClose;LOCK_MODE=3;DB_CLOSE_DELAY=-1";
+        final String url = "jdbc:h2:" + getBaseDir() +
+                "/openClose;LOCK_MODE=3;DB_CLOSE_DELAY=-1";
         Connection conn = DriverManager.getConnection(url, "sa", "");
         return conn;
     }

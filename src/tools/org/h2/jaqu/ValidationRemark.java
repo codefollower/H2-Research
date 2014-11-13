@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: James Moger
  */
 package org.h2.jaqu;
@@ -30,7 +29,8 @@ public class ValidationRemark {
     private final String fieldName;
     private final String message;
 
-    private ValidationRemark(Level level, String table, String type, String message) {
+    private ValidationRemark(Level level, String table, String type,
+            String message) {
         this.level = level;
         this.table = table;
         this.fieldType = type;
@@ -38,7 +38,8 @@ public class ValidationRemark {
         this.message = message;
     }
 
-    private ValidationRemark(Level level, String table, FieldDefinition field, String message) {
+    private ValidationRemark(Level level, String table, FieldDefinition field,
+            String message) {
         this.level = level;
         this.table = table;
         this.fieldType = field.dataType;
@@ -46,7 +47,8 @@ public class ValidationRemark {
         this.message = message;
     }
 
-    private ValidationRemark(Level level, String table, ColumnInspector col, String message) {
+    private ValidationRemark(Level level, String table, ColumnInspector col,
+            String message) {
         this.level = level;
         this.table = table;
         this.fieldType = col.type;
@@ -54,31 +56,38 @@ public class ValidationRemark {
         this.message = message;
     }
 
-    public static ValidationRemark consider(String table, String type, String message) {
+    public static ValidationRemark consider(String table, String type,
+            String message) {
         return new ValidationRemark(Level.CONSIDER, table, type, message);
     }
 
-    public static ValidationRemark consider(String table, ColumnInspector col, String message) {
+    public static ValidationRemark consider(String table, ColumnInspector col,
+            String message) {
         return new ValidationRemark(Level.CONSIDER, table, col, message);
     }
 
-    public static ValidationRemark warn(String table, ColumnInspector col, String message) {
+    public static ValidationRemark warn(String table, ColumnInspector col,
+            String message) {
         return new ValidationRemark(Level.WARN, table, col, message);
     }
 
-    public static ValidationRemark warn(String table, String type, String message) {
-        return new ValidationRemark(Level.WARN, table, type,  message);
+    public static ValidationRemark warn(String table, String type,
+            String message) {
+        return new ValidationRemark(Level.WARN, table, type, message);
     }
 
-    public static ValidationRemark error(String table, ColumnInspector col, String message) {
+    public static ValidationRemark error(String table, ColumnInspector col,
+            String message) {
         return new ValidationRemark(Level.ERROR, table, col, message);
     }
 
-    public static ValidationRemark error(String table, String type, String message) {
-        return new ValidationRemark(Level.ERROR, table, type,  message);
+    public static ValidationRemark error(String table, String type,
+            String message) {
+        return new ValidationRemark(Level.ERROR, table, type, message);
     }
 
-    public static ValidationRemark error(String table, FieldDefinition field, String message) {
+    public static ValidationRemark error(String table, FieldDefinition field,
+            String message) {
         return new ValidationRemark(Level.ERROR, table, field, message);
     }
 

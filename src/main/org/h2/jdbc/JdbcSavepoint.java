@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbc;
@@ -9,7 +8,7 @@ package org.h2.jdbc;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.message.TraceObject;
@@ -28,7 +27,8 @@ public class JdbcSavepoint extends TraceObject implements Savepoint {
     private final String name;
     private JdbcConnection conn;
 
-    JdbcSavepoint(JdbcConnection conn, int savepointId, String name, Trace trace, int id) {
+    JdbcSavepoint(JdbcConnection conn, int savepointId, String name,
+            Trace trace, int id) {
         setTrace(trace, TraceObject.SAVEPOINT, id);
         this.conn = conn;
         this.savepointId = savepointId;
@@ -63,12 +63,15 @@ public class JdbcSavepoint extends TraceObject implements Savepoint {
      */
     void rollback() {
         checkValid();
-        conn.prepareCommand("ROLLBACK TO SAVEPOINT " + getName(name, savepointId), Integer.MAX_VALUE).executeUpdate();
+        conn.prepareCommand(
+                "ROLLBACK TO SAVEPOINT " + getName(name, savepointId),
+                Integer.MAX_VALUE).executeUpdate();
     }
 
     private void checkValid() {
         if (conn == null) {
-            throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, getName(name, savepointId));
+            throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1,
+                    getName(name, savepointId));
         }
     }
 

@@ -1,8 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
- * Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ *  * Initial Developer: H2 Group
  */
 
 var nodeList = new Array();
@@ -23,24 +22,24 @@ function addTable(name, columns, i) {
 }
 
 function ins(s, isTable) {
-    if(top.h2query) {
-        if(top.h2query.insertText) {
-            top.h2query.insertText(s, isTable);
+    if (parent.h2query) {
+        if (parent.h2query.insertText) {
+            parent.h2query.insertText(s, isTable);
         }
     }
 }
 
 function refreshQueryTables() {
-    if(top.frames['h2query']) {
-        if(top.frames['h2query'].refreshTables) {
-            top.frames['h2query'].refreshTables();
+    if (parent.h2query) {
+        if (parent.h2query.refreshTables) {
+            parent.h2query.refreshTables();
         }
     }
 }
 
 function goToTable(s) {
     var t = tablesByName[s];
-    if(t) {
+    if (t) {
         hitOpen(t.id);
         return true;
     }
@@ -67,10 +66,10 @@ function setNode(id, level, type, icon, text, link) {
 }
 
 function writeDiv(i, level, dist) {
-    if(dist>0) {
+    if (dist>0) {
         document.write("<div id=\"div"+(i-1)+"\" style=\"display: none;\">");
     } else {
-        while(dist++<0) {
+        while (dist++<0) {
             document.write("</div>");
         }
     }
@@ -84,18 +83,18 @@ function writeTree() {
         writeDiv(i, node.level, node.level-last.level);
         last=node;
         var j=node.level;
-        while(j-->0) {
+        while (j-->0) {
             document.write("<img src=\"tree_empty.gif\"/>");
         }
         if (node.type==1) {
-            if( i < nodeList.length-1 && nodeList[i+1].level > node.level) {
+            if (i < nodeList.length-1 && nodeList[i+1].level > node.level) {
                 document.write("<img onclick=\"hit("+i+");\" id=\"join"+i+"\" src=\"tree_plus.gif\"/>");
             } else {
                 document.write("<img src=\"tree_empty.gif\"/>");
             }
         }
         document.write("<img src=\"tree_"+node.icon+".gif\"/>&nbsp;");
-        if(node.link==null) {
+        if (node.link==null) {
             document.write(node.text);
         } else {
             document.write("<a id='"+node.text+"' href=\""+node.link+"\" >"+node.text+"</a>");

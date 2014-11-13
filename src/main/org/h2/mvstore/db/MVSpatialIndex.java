@@ -1,21 +1,21 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
 
 import java.util.Iterator;
+import java.util.List;
 
-import org.h2.constant.ErrorCode;
-import org.h2.engine.Constants;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.index.BaseIndex;
 import org.h2.index.Cursor;
-import org.h2.index.IndexCondition;
 import org.h2.index.IndexType;
 import org.h2.index.SpatialIndex;
+import org.h2.index.SpatialTreeIndex;
 import org.h2.message.DbException;
 import org.h2.mvstore.db.TransactionStore.Transaction;
 import org.h2.mvstore.db.TransactionStore.TransactionMap;
@@ -27,7 +27,6 @@ import org.h2.mvstore.rtree.SpatialKey;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
-import org.h2.table.Column;
 import org.h2.table.IndexColumn;
 import org.h2.table.TableFilter;
 import org.h2.value.Value;
@@ -44,7 +43,7 @@ import com.vividsolutions.jts.geom.Geometry;
  * @author Noel Grandin
  * @author Nicolas Fortin, Atelier SIG, IRSTV FR CNRS 24888
  */
-public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
+public class MVSpatialIndex extends BaseIndex implements SpatialIndex, MVIndex {
 
     /**
      * The multi-value table.
@@ -69,20 +68,25 @@ public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
             Database db, MVTable table, int id, String indexName,
             IndexColumn[] columns, IndexType indexType) {
         if (columns.length != 1) {
-            throw DbException.getUnsupportedException("Can only index one column");
+            throw DbException.getUnsupportedException(
+                    "Can only index one column");
         }
         IndexColumn col = columns[0];
         if ((col.sortType & SortOrder.DESCENDING) != 0) {
-            throw DbException.getUnsupportedException("Cannot index in descending order");
+            throw DbException.getUnsupportedException(
+                    "Cannot index in descending order");
         }
         if ((col.sortType & SortOrder.NULLS_FIRST) != 0) {
-            throw DbException.getUnsupportedException("Nulls first is not supported");
+            throw DbException.getUnsupportedException(
+                    "Nulls first is not supported");
         }
         if ((col.sortType & SortOrder.NULLS_LAST) != 0) {
-            throw DbException.getUnsupportedException("Nulls last is not supported");
+            throw DbException.getUnsupportedException(
+                    "Nulls last is not supported");
         }
         if (col.column.getType() != Value.GEOMETRY) {
-            throw DbException.getUnsupportedException("Spatial index on non-geometry column, "
+            throw DbException.getUnsupportedException(
+                    "Spatial index on non-geometry column, "
                     + col.column.getCreateSQL());
         }
         this.mvTable = table;
@@ -98,6 +102,16 @@ public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
                 valueType(valueType);
         spatialMap = db.getMvStore().getStore().openMap(mapName, mapBuilder);
         dataMap = mvTable.getTransaction(null).openMap(spatialMap);
+    }
+
+    @Override
+    public void addRowsToBuffer(List<Row> rows, String bufferName) {
+        throw DbException.throwInternalError();
+    }
+
+    @Override
+    public void addBufferedRows(List<String> bufferNames) {
+        throw DbException.throwInternalError();
     }
 
     @Override
@@ -151,7 +165,7 @@ public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
             return null;
         }
         Value v = r.getValue(columnIds[0]);
-        Geometry g = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).getGeometry();
+        Geometry g = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).getGeometryNoCopy();
         Envelope env = g.getEnvelopeInternal();
         return new SpatialKey(r.getKey(),
                 (float) env.getMinX(), (float) env.getMaxX(),
@@ -196,7 +210,8 @@ public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
         if (intersection == null) {
             return find(session);
         }
-        Iterator<SpatialKey> cursor = spatialMap.findIntersectingKeys(getEnvelope(intersection));
+        Iterator<SpatialKey> cursor =
+                spatialMap.findIntersectingKeys(getEnvelope(intersection));
         TransactionMap<SpatialKey, Value> map = getMap(session);
         Iterator<SpatialKey> it = map.wrapIterator(cursor, false);
         return new MVStoreCursor(session, it);
@@ -204,7 +219,7 @@ public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
 
     private SpatialKey getEnvelope(SearchRow row) {
         Value v = row.getValue(columnIds[0]);
-        Geometry g = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).getGeometry();
+        Geometry g = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).getGeometryNoCopy();
         Envelope env = g.getEnvelopeInternal();
         return new SpatialKey(row.getKey(),
                 (float) env.getMinX(), (float) env.getMaxX(),
@@ -230,25 +245,16 @@ public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
-        return getCostRangeIndex(masks, table.getRowCountApproximation(), filter, sortOrder);
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
+        return getCostRangeIndex(masks, table.getRowCountApproximation(),
+                filter, sortOrder);
     }
 
     @Override
-    protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) {
-        rowCount += Constants.COST_ROW_OFFSET;
-        long cost = rowCount;
-        if (masks == null) {
-            return cost;
-        }
-        for (Column column : columns) {
-            int index = column.getColumnId();
-            int mask = masks[index];
-            if ((mask & IndexCondition.SPATIAL_INTERSECTS) != 0) {
-                cost = 3 + rowCount / 4;
-            }
-        }
-        return cost;
+    protected long getCostRangeIndex(int[] masks, long rowCount,
+            TableFilter filter, SortOrder sortOrder) {
+        return SpatialTreeIndex.getCostRangeIndex(masks, rowCount, columns);
     }
 
     @Override
@@ -274,7 +280,8 @@ public class MVSpatialIndex extends BaseIndex implements SpatialIndex {
     @Override
     public Cursor findFirstOrLast(Session session, boolean first) {
         if (!first) {
-            throw DbException.throwInternalError("Spatial Index can only be fetch in ascending order");
+            throw DbException.throwInternalError(
+                    "Spatial Index can only be fetch in ascending order");
         }
         return find(session);
     }

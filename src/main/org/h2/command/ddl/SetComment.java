@@ -1,13 +1,12 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
 
+import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Comment;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
@@ -98,6 +97,7 @@ public class SetComment extends DefineCommand {
         } else {
             object.setComment(text);
         }
+<<<<<<< HEAD
         
         //对于表、视图、索引、列、用户、约束的注释直接更新到他们的对象自身，
         //其他的新建Comment实例
@@ -105,6 +105,13 @@ public class SetComment extends DefineCommand {
         if (column || objectType == DbObject.TABLE_OR_VIEW || objectType == DbObject.USER
                 || objectType == DbObject.INDEX || objectType == DbObject.CONSTRAINT) {
             db.update(session, object);
+=======
+        if (column || objectType == DbObject.TABLE_OR_VIEW ||
+                objectType == DbObject.USER ||
+                objectType == DbObject.INDEX ||
+                objectType == DbObject.CONSTRAINT) {
+            db.updateMeta(session, object);
+>>>>>>> remotes/git-svn
         } else {
             Comment comment = db.findComment(object);
             if (comment == null) {
@@ -121,7 +128,7 @@ public class SetComment extends DefineCommand {
                     db.removeDatabaseObject(session, comment);
                 } else {
                     comment.setCommentText(text);
-                    db.update(session, comment);
+                    db.updateMeta(session, comment);
                 }
             }
         }

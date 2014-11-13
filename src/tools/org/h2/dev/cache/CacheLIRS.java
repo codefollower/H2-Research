@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.dev.cache;
@@ -84,11 +83,14 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
      *        of the stack before the current item is moved
      */
     @SuppressWarnings("unchecked")
-    public CacheLIRS(long maxMemory, int averageMemory, int segmentCount, int stackMoveDistance) {
+    public CacheLIRS(long maxMemory, int averageMemory, int segmentCount,
+            int stackMoveDistance) {
         setMaxMemory(maxMemory);
         setAverageMemory(averageMemory);
         if (Integer.bitCount(segmentCount) != 1) {
-            throw new IllegalArgumentException("The segment count must be a power of 2, is " + segmentCount);
+            throw new IllegalArgumentException(
+                    "The segment count must be a power of 2, is "
+                            + segmentCount);
         }
         this.segmentCount = segmentCount;
         this.segmentMask = segmentCount - 1;
@@ -467,8 +469,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
         private int averageMemory;
 
         /**
-         * The bit mask that is applied to the key hash code to get the index in the
-         * map array. The mask is the length of the array minus one.
+         * The bit mask that is applied to the key hash code to get the index in
+         * the map array. The mask is the length of the array minus one.
          */
         private int mask;
 
@@ -478,8 +480,9 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
         private int stackSize;
 
         /**
-         * The stack of recently referenced elements. This includes all hot entries,
-         * the recently referenced cold entries, and all non-resident cold entries.
+         * The stack of recently referenced elements. This includes all hot
+         * entries, the recently referenced cold entries, and all non-resident
+         * cold entries.
          * <p>
          * There is always at least one entry: the head entry.
          */
@@ -513,7 +516,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
          * @param stackMoveDistance the number of other entries to be moved to
          *        the top of the stack before moving an entry to the top
          */
-        Segment(CacheLIRS<K, V> cache, long maxMemory, int averageMemory, int stackMoveDistance) {
+        Segment(CacheLIRS<K, V> cache, long maxMemory, int averageMemory,
+                int stackMoveDistance) {
             this.cache = cache;
             setMaxMemory(maxMemory);
             setAverageMemory(averageMemory);
@@ -589,7 +593,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
             }
             if (e.isHot()) {
                 if (e != stack.stackNext) {
-                    if (stackMoveDistance == 0 || stackMoveCounter - e.topMove > stackMoveDistance) {
+                    if (stackMoveDistance == 0
+                            || stackMoveCounter - e.topMove > stackMoveDistance) {
                         access(key, hash);
                     }
                 }
@@ -600,8 +605,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
         }
 
         /**
-         * Access an item, moving the entry to the top of the stack or front of the
-         * queue if found.
+         * Access an item, moving the entry to the top of the stack or front of
+         * the queue if found.
          *
          * @param key the key
          */
@@ -612,7 +617,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
             }
             if (e.isHot()) {
                 if (e != stack.stackNext) {
-                    if (stackMoveDistance == 0 || stackMoveCounter - e.topMove > stackMoveDistance) {
+                    if (stackMoveDistance == 0
+                            || stackMoveCounter - e.topMove > stackMoveDistance) {
                         // move a hot entry to the top of the stack
                         // unless it is already there
                         boolean wasEnd = e == stack.stackPrev;
@@ -739,9 +745,9 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
         }
 
         /**
-         * Evict cold entries (resident and non-resident) until the memory limit is
-         * reached. The new entry is added as a cold entry, except if it is the only
-         * entry.
+         * Evict cold entries (resident and non-resident) until the memory limit
+         * is reached. The new entry is added as a cold entry, except if it is
+         * the only entry.
          *
          * @param newCold a new cold entry
          */
@@ -783,8 +789,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
                 // internal structure of the cache is corrupt)
                 throw new IllegalStateException();
             }
-            // remove from stack - which is done anyway in the stack pruning, but we
-            // can do it here as well
+            // remove from stack - which is done anyway in the stack pruning,
+            // but we can do it here as well
             removeFromStack(last);
             // adding an entry to the queue will make it cold
             addToQueue(queue, last);
@@ -877,8 +883,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
         }
 
         /**
-         * Get the list of keys. This method allows to read the internal state of
-         * the cache.
+         * Get the list of keys. This method allows to read the internal state
+         * of the cache.
          *
          * @param cold if true, only keys for the cold entries are returned
          * @param nonResident true for non-resident entries
@@ -937,7 +943,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
          */
         void setMaxMemory(long maxMemory) {
             if (maxMemory <= 0) {
-                throw new IllegalArgumentException("Max memory must be larger than 0");
+                throw new IllegalArgumentException(
+                        "Max memory must be larger than 0");
             }
             this.maxMemory = maxMemory;
         }
@@ -950,7 +957,8 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
          */
         void setAverageMemory(int averageMemory) {
             if (averageMemory <= 0) {
-                throw new IllegalArgumentException("Average memory must be larger than 0");
+                throw new IllegalArgumentException(
+                        "Average memory must be larger than 0");
             }
             this.averageMemory = averageMemory;
         }

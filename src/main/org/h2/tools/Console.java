@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -214,7 +213,8 @@ ShutdownHandler {
         }
         if (tcpShutdown) {
             out.println("Shutting down TCP Server at " + tcpShutdownServer);
-            Server.shutdownTcpServer(tcpShutdownServer, tcpPassword, tcpShutdownForce, false);
+            Server.shutdownTcpServer(tcpShutdownServer,
+                    tcpPassword, tcpShutdownForce, false);
         }
         SQLException startException = null;
         boolean webRunning = false;
@@ -368,7 +368,8 @@ ShutdownHandler {
     private boolean createTrayIcon() {
         try {
             // SystemTray.isSupported();
-            boolean supported = (Boolean) Utils.callStaticMethod("java.awt.SystemTray.isSupported");
+            boolean supported = (Boolean) Utils.callStaticMethod(
+                    "java.awt.SystemTray.isSupported");
             if (!supported) {
                 return false;
             }
@@ -408,8 +409,10 @@ ShutdownHandler {
             }
             Image icon = loadImage(iconFile);
 
-            // trayIcon = new TrayIcon(image, "H2 Database Engine", menuConsole);
-            trayIcon = Utils.newInstance("java.awt.TrayIcon", icon, "H2 Database Engine", menuConsole);
+            // trayIcon = new TrayIcon(image, "H2 Database Engine",
+            //         menuConsole);
+            trayIcon = Utils.newInstance("java.awt.TrayIcon",
+                    icon, "H2 Database Engine", menuConsole);
 
             // trayIcon.addMouseListener(this);
             Utils.callMethod(trayIcon, "addMouseListener", this);
@@ -494,7 +497,8 @@ ShutdownHandler {
         int width = 300, height = 120;
         frame.setSize(width, height);
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        frame.setLocation((screenSize.width - width) / 2, (screenSize.height - height) / 2);
+        frame.setLocation((screenSize.width - width) / 2,
+                (screenSize.height - height) / 2);
         try {
             frame.setVisible(true);
         } catch (Throwable t) {

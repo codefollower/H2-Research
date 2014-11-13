@@ -1,44 +1,28 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamClass;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
-import org.h2.api.JavaObjectSerializer;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
-import org.h2.message.DbException;
-import org.h2.store.DataHandler;
 
 /**
  * This utility class contains miscellaneous functions.
  */
 public class Utils {
-
-    /**
-     * The serializer to use.
-     */
-    public static JavaObjectSerializer serializer;
 
     /**
      * An 0-size byte array.
@@ -61,60 +45,15 @@ public class Utils {
 
     private static final HashMap<String, byte[]> RESOURCES = New.hashMap();
 
-    private static boolean allowAllClasses;
-    private static HashSet<String> allowedClassNames;
-
-    /**
-     *  In order to manage more than one class loader
-     */
-    private static ArrayList<ClassFactory> userClassFactories = new ArrayList<ClassFactory>();
-
-    private static String[] allowedClassNamePrefixes;
-
-    static {
-        String clazz = SysProperties.JAVA_OBJECT_SERIALIZER;
-        if (clazz != null) {
-            try {
-                serializer = (JavaObjectSerializer) loadUserClass(clazz).newInstance();
-            } catch (Exception e) {
-                throw DbException.convert(e);
-            }
-        }
-    }
-
     private Utils() {
         // utility class
     }
 
-    /**
-     * Add a class factory in order to manage more than one class loader.
-     *
-     * @param classFactory An object that implements ClassFactory
-     */
-    public static void addClassFactory(ClassFactory classFactory) {
-        getUserClassFactories().add(classFactory);
-    }
-
-    /**
-     * Remove a class factory
-     *
-     * @param classFactory Already inserted class factory instance
-     */
-    public static void removeClassFactory(ClassFactory classFactory) {
-        getUserClassFactories().remove(classFactory);
-    }
-
-    private static ArrayList<ClassFactory> getUserClassFactories() {
-        if (userClassFactories == null) {
-            // initially, it is empty
-            // but Apache Tomcat may clear the fields as well
-            userClassFactories = new ArrayList<ClassFactory>();
-        }
-        return userClassFactories;
-    }
-
     private static int readInt(byte[] buff, int pos) {
-        return (buff[pos++] << 24) + ((buff[pos++] & 0xff) << 16) + ((buff[pos++] & 0xff) << 8) + (buff[pos] & 0xff);
+        return (buff[pos++] << 24) +
+                ((buff[pos++] & 0xff) << 16) +
+                ((buff[pos++] & 0xff) << 8) +
+                (buff[pos] & 0xff);
     }
 
     /**
@@ -146,7 +85,8 @@ public class Utils {
      * @return the value
      */
     public static long readLong(byte[] buff, int pos) {
-        return (((long) readInt(buff, pos)) << 32) + (readInt(buff, pos + 4) & 0xffffffffL);
+        return (((long) readInt(buff, pos)) << 32) +
+                (readInt(buff, pos + 4) & 0xffffffffL);
     }
 
     /**
@@ -328,93 +268,6 @@ public class Utils {
     }
 
     /**
-     * Serialize the object to a byte array, using the serializer specified by
-     * the connection info if set, or the default serializer.
-     *
-     * @param obj the object to serialize
-     * @param dataHandler provides the object serializer (may be null)
-     * @return the byte array
-     */
-    public static byte[] serialize(Object obj, DataHandler dataHandler) {
-        try {
-            JavaObjectSerializer handlerSerializer = null;
-            if (dataHandler != null) {
-                handlerSerializer = dataHandler.getJavaObjectSerializer();
-            }
-            if (handlerSerializer != null) {
-                return handlerSerializer.serialize(obj);
-            }
-            if (serializer != null) {
-                return serializer.serialize(obj);
-            }
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            ObjectOutputStream os = new ObjectOutputStream(out);
-            os.writeObject(obj);
-            return out.toByteArray();
-        } catch (Throwable e) {
-            throw DbException.get(ErrorCode.SERIALIZATION_FAILED_1, e, e.toString());
-        }
-    }
-
-    /**
-     * De-serialize the byte array to an object.
-     *
-     * @param data the byte array
-     * @return the object
-     * @throws DbException if serialization fails
-     *
-     * @deprecated use {@link #deserialize(byte[], DataHandler)} instead
-     */
-    @Deprecated
-    public static Object deserialize(byte[] data) {
-        return deserialize(data, null);
-    }
-
-    /**
-     * De-serialize the byte array to an object, eventually using the serializer
-     * specified by the connection info.
-     *
-     * @param data the byte array
-     * @param dataHandler provides the object serializer (may be null)
-     * @return the object
-     * @throws DbException if serialization fails
-     */
-    public static Object deserialize(byte[] data, DataHandler dataHandler) {
-        try {
-            JavaObjectSerializer dbJavaObjectSerializer = null;
-            if (dataHandler != null) {
-                dbJavaObjectSerializer = dataHandler.getJavaObjectSerializer();
-            }
-            if (dbJavaObjectSerializer != null) {
-                return dbJavaObjectSerializer.deserialize(data);
-            }
-            if (serializer != null) {
-                return serializer.deserialize(data);
-            }
-            ByteArrayInputStream in = new ByteArrayInputStream(data);
-            ObjectInputStream is;
-            if (SysProperties.USE_THREAD_CONTEXT_CLASS_LOADER) {
-                final ClassLoader loader = Thread.currentThread().getContextClassLoader();
-                is = new ObjectInputStream(in) {
-                    @Override
-                    protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
-                        try {
-                            return Class.forName(desc.getName(), true, loader);
-                        } catch (ClassNotFoundException e) {
-                            return super.resolveClass(desc);
-                        }
-                    }
-                };
-            } else {
-                is = new ObjectInputStream(in);
-            }
-            return is.readObject();
-        } catch (Throwable e) {
-            throw DbException.get(ErrorCode.DESERIALIZATION_FAILED_1, e, e.toString());
-        }
-    }
-
-    /**
      * Calculate the hash code of the given object. The object may be null.
      *
      * @param o the object
@@ -515,7 +368,8 @@ public class Utils {
     public static <X> void sortTopN(X[] array, int offset, int limit,
             Comparator<? super X> comp) {
         partitionTopN(array, offset, limit, comp);
-        Arrays.sort(array, offset, (int) Math.min((long) offset + limit, array.length), comp);
+        Arrays.sort(array, offset,
+                (int) Math.min((long) offset + limit, array.length), comp);
     }
 
     /**
@@ -529,7 +383,8 @@ public class Utils {
      */
     private static <X> void partitionTopN(X[] array, int offset, int limit,
             Comparator<? super X> comp) {
-        partialQuickSort(array, 0, array.length - 1, comp, offset, offset + limit - 1);
+        partialQuickSort(array, 0, array.length - 1, comp, offset, offset +
+                limit - 1);
     }
 
     private static <X> void partialQuickSort(X[] array, int low, int high,
@@ -577,7 +432,8 @@ public class Utils {
      * @param c2 the second class
      * @return true if they have
      */
-    public static boolean haveCommonComparableSuperclass(Class<?> c1, Class<?> c2) {
+    public static boolean haveCommonComparableSuperclass(
+            Class<?> c1, Class<?> c2) {
         if (c1 == c2 || c1.isAssignableFrom(c2) || c2.isAssignableFrom(c1)) {
             return true;
         }
@@ -594,76 +450,6 @@ public class Utils {
         } while (Comparable.class.isAssignableFrom(c2));
 
         return top1 == top2;
-    }
-
-    /**
-     * Load a class, but check if it is allowed to load this class first. To
-     * perform access rights checking, the system property h2.allowedClasses
-     * needs to be set to a list of class file name prefixes.
-     *
-     * @param className the name of the class
-     * @return the class object
-     */
-    public static Class<?> loadUserClass(String className) {
-        if (allowedClassNames == null) {
-            // initialize the static fields
-            String s = SysProperties.ALLOWED_CLASSES;
-            ArrayList<String> prefixes = New.arrayList();
-            boolean allowAll = false;
-            HashSet<String> classNames = New.hashSet();
-            for (String p : StringUtils.arraySplit(s, ',', true)) {
-                if (p.equals("*")) {
-                    allowAll = true;
-                } else if (p.endsWith("*")) {
-                    prefixes.add(p.substring(0, p.length() - 1));
-                } else {
-                    classNames.add(p);
-                }
-            }
-            allowedClassNamePrefixes = new String[prefixes.size()];
-            prefixes.toArray(allowedClassNamePrefixes);
-            allowAllClasses = allowAll;
-            allowedClassNames = classNames;
-        }
-        if (!allowAllClasses && !allowedClassNames.contains(className)) {
-            boolean allowed = false;
-            for (String s : allowedClassNamePrefixes) {
-                if (className.startsWith(s)) {
-                    allowed = true;
-                }
-            }
-            if (!allowed) {
-                throw DbException.get(ErrorCode.ACCESS_DENIED_TO_CLASS_1, className);
-            }
-        }
-        // Use provided class factory first.
-        for (ClassFactory classFactory : getUserClassFactories()) {
-            if (classFactory.match(className)) {
-                try {
-                    Class<?> userClass = classFactory.loadClass(className);
-                    if (!(userClass == null)) {
-                        return userClass;
-                    }
-                } catch (Exception e) {
-                    throw DbException.get(ErrorCode.CLASS_NOT_FOUND_1, e, className);
-                }
-            }
-        }
-        // Use local ClassLoader
-        try {
-            return Class.forName(className);
-        } catch (ClassNotFoundException e) {
-            try {
-                return Class.forName(className, true, Thread.currentThread().getContextClassLoader());
-            } catch (Exception e2) {
-                throw DbException.get(ErrorCode.CLASS_NOT_FOUND_1, e, className);
-            }
-        } catch (NoClassDefFoundError e) {
-            throw DbException.get(ErrorCode.CLASS_NOT_FOUND_1, e, className);
-        } catch (Error e) {
-            // UnsupportedClassVersionError
-            throw DbException.get(ErrorCode.GENERAL_ERROR_1, e, className);
-        }
     }
 
     /**
@@ -728,7 +514,8 @@ public class Utils {
      * @param params the method parameters
      * @return the return value from this call
      */
-    public static Object callStaticMethod(String classAndMethod, Object... params) throws Exception {
+    public static Object callStaticMethod(String classAndMethod,
+            Object... params) throws Exception {
         int lastDot = classAndMethod.lastIndexOf('.');
         String className = classAndMethod.substring(0, lastDot);
         String methodName = classAndMethod.substring(lastDot + 1);
@@ -760,7 +547,8 @@ public class Utils {
         int bestMatch = 0;
         boolean isStatic = instance == null;
         for (Method m : clazz.getMethods()) {
-            if (Modifier.isStatic(m.getModifiers()) == isStatic && m.getName().equals(methodName)) {
+            if (Modifier.isStatic(m.getModifiers()) == isStatic &&
+                    m.getName().equals(methodName)) {
                 int p = match(m.getParameterTypes(), params);
                 if (p > bestMatch) {
                     bestMatch = p;
@@ -783,7 +571,8 @@ public class Utils {
      * @param params the constructor parameters
      * @return the newly created object
      */
-    public static Object newInstance(String className, Object... params) throws Exception {
+    public static Object newInstance(String className, Object... params)
+            throws Exception {
         Constructor<?> best = null;
         int bestMatch = 0;
         for (Constructor<?> c : Class.forName(className).getConstructors()) {
@@ -840,7 +629,8 @@ public class Utils {
      * @param fieldName the field name
      * @return the field value
      */
-    public static Object getField(Object instance, String fieldName) throws Exception {
+    public static Object getField(Object instance, String fieldName)
+            throws Exception {
         return instance.getClass().getField(fieldName).get(instance);
     }
 
@@ -945,6 +735,38 @@ public class Utils {
             }
         }
         return defaultValue;
+    }
+
+    /**
+     * Scale the value with the available memory. If 1 GB of RAM is available,
+     * the value is returned, if 2 GB are available, then twice the value, and
+     * so on.
+     *
+     * @param value the value to scale
+     * @return the scaled value
+     */
+    public static int scaleForAvailableMemory(int value) {
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        if (maxMemory != Long.MAX_VALUE) {
+            // we are limited by an -XmX parameter
+            return (int) (value * maxMemory / (1024 * 1024 * 1024));
+        }
+        try {
+            OperatingSystemMXBean mxBean = ManagementFactory
+                    .getOperatingSystemMXBean();
+            // this method is only available on the class
+            // com.sun.management.OperatingSystemMXBean, which mxBean
+            // is an instance of under the Oracle JDK, but it is not present on
+            // Android and other JDK's
+            Method method = Class.forName(
+                    "com.sun.management.OperatingSystemMXBean").
+                    getMethod("getTotalPhysicalMemorySize");
+            long physicalMemorySize = ((Number) method.invoke(mxBean)).longValue();
+            return (int) (value * physicalMemorySize / (1024 * 1024 * 1024));
+        } catch (Exception e) {
+            // ignore
+        }
+        return value;
     }
 
     /**

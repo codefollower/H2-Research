@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbcx;
@@ -18,7 +17,8 @@ import javax.sql.XAConnection;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.util.JdbcUtils;
 import org.h2.util.New;
@@ -32,7 +32,8 @@ import org.h2.message.TraceObject;
  * An application developer usually does not use this interface.
  * It is used by the transaction manager internally.
  */
-public class JdbcXAConnection extends TraceObject implements XAConnection, XAResource {
+public class JdbcXAConnection extends TraceObject implements XAConnection,
+        XAResource {
 
     private final JdbcDataSourceFactory factory;
 
@@ -49,7 +50,8 @@ public class JdbcXAConnection extends TraceObject implements XAConnection, XARes
         org.h2.Driver.load();
     }
 
-    JdbcXAConnection(JdbcDataSourceFactory factory, int id, JdbcConnection physicalConn) {
+    JdbcXAConnection(JdbcDataSourceFactory factory, int id,
+            JdbcConnection physicalConn) {
         this.factory = factory;
         setTrace(factory.getTrace(), TraceObject.XA_DATA_SOURCE, id);
         this.physicalConn = physicalConn;
@@ -180,12 +182,12 @@ public class JdbcXAConnection extends TraceObject implements XAConnection, XARes
     }
 
     /**
-     * Get the list of prepared transaction branches.
-     * This method is called by the transaction manager during recovery.
+     * Get the list of prepared transaction branches. This method is called by
+     * the transaction manager during recovery.
      *
-     * @param flag TMSTARTRSCAN, TMENDRSCAN, or TMNOFLAGS. If no other flags are set,
-     *  TMNOFLAGS must be used.
-     *  @return zero or more Xid objects
+     * @param flag TMSTARTRSCAN, TMENDRSCAN, or TMNOFLAGS. If no other flags are
+     *            set, TMNOFLAGS must be used.
+     * @return zero or more Xid objects
      */
     @Override
     public Xid[] recover(int flag) throws XAException {
@@ -194,7 +196,8 @@ public class JdbcXAConnection extends TraceObject implements XAConnection, XARes
         Statement stat = null;
         try {
             stat = physicalConn.createStatement();
-            ResultSet rs = stat.executeQuery("SELECT * FROM INFORMATION_SCHEMA.IN_DOUBT ORDER BY TRANSACTION");
+            ResultSet rs = stat.executeQuery("SELECT * FROM " +
+                    "INFORMATION_SCHEMA.IN_DOUBT ORDER BY TRANSACTION");
             ArrayList<Xid> list = New.arrayList();
             while (rs.next()) {
                 String tid = rs.getString("TRANSACTION");

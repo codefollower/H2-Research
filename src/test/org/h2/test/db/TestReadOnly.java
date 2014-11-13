@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -14,7 +13,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.dev.fs.FilePathZip2;
 import org.h2.store.FileLister;
 import org.h2.store.fs.FileUtils;
@@ -59,7 +58,8 @@ public class TestReadOnly extends TestBase {
         String dir = getBaseDir();
         Connection conn = getConnection("readonlyInZip");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE TABLE TEST(ID INT) AS SELECT X FROM SYSTEM_RANGE(1, 20)");
+        stat.execute("CREATE TABLE TEST(ID INT) AS " +
+                "SELECT X FROM SYSTEM_RANGE(1, 20)");
         conn.close();
         Backup.execute(dir + "/readonly.zip", dir, "readonlyInZip", true);
         conn = getConnection(
@@ -90,9 +90,12 @@ public class TestReadOnly extends TestBase {
         deleteDb("readonlyTemp");
         Connection conn = getConnection("readonlyTemp");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE TABLE TEST(ID INT) AS SELECT X FROM SYSTEM_RANGE(1, 20)");
+        stat.execute("CREATE TABLE TEST(ID INT) AS " +
+                "SELECT X FROM SYSTEM_RANGE(1, 20)");
         conn.close();
-        conn = getConnection("readonlyTemp;ACCESS_MODE_DATA=r;MAX_MEMORY_ROWS_DISTINCT=10");
+        conn = getConnection(
+                "readonlyTemp;ACCESS_MODE_DATA=r;" +
+                "MAX_MEMORY_ROWS=10");
         stat = conn.createStatement();
         stat.execute("SELECT DISTINCT ID FROM TEST");
         conn.close();
@@ -160,9 +163,11 @@ public class TestReadOnly extends TestBase {
         conn.close();
 
         if (setReadOnly) {
-            conn = getConnection("readonlyFiles;DB_CLOSE_DELAY=1");
+            conn = getConnection(
+                    "readonlyFiles;DB_CLOSE_DELAY=1");
         } else {
-            conn = getConnection("readonlyFiles;DB_CLOSE_DELAY=1;ACCESS_MODE_DATA=r");
+            conn = getConnection(
+                    "readonlyFiles;DB_CLOSE_DELAY=1;ACCESS_MODE_DATA=r");
         }
         stat = conn.createStatement();
         stat.execute("SELECT * FROM TEST");
@@ -173,7 +178,8 @@ public class TestReadOnly extends TestBase {
     }
 
     private void setReadOnly() {
-        ArrayList<String> list = FileLister.getDatabaseFiles(getBaseDir(), "readonlyFiles", true);
+        ArrayList<String> list = FileLister.getDatabaseFiles(
+                getBaseDir(), "readonlyFiles", true);
         for (String fileName : list) {
             FileUtils.setReadOnly(fileName);
         }

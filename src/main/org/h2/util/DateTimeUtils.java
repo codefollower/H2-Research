@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  * Iso8601:
  * Initial Developer: Robert Rathsack (firstName dot lastName at gmx dot de)
@@ -16,7 +15,8 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.value.Value;
 import org.h2.value.ValueDate;
@@ -42,38 +42,32 @@ public class DateTimeUtils {
     private static final int SHIFT_YEAR = 9;
     private static final int SHIFT_MONTH = 5;
 
-    private static final int[] NORMAL_DAYS_PER_MONTH = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    private static final int[] NORMAL_DAYS_PER_MONTH = { 0, 31, 28, 31, 30, 31,
+            30, 31, 31, 30, 31, 30, 31 };
 
     /**
      * Offsets of month within a year, starting with March, April,...
      */
-    private static final int[] DAYS_OFFSET = { 0, 31, 61, 92, 122, 153, 184, 214, 245, 275, 306, 337, 366 };
+    private static final int[] DAYS_OFFSET = { 0, 31, 61, 92, 122, 153, 184,
+            214, 245, 275, 306, 337, 366 };
 
-    private static int zoneOffset;
-    private static Calendar cachedCalendar;
+    private static final ThreadLocal<Calendar> CACHED_CALENDAR =
+            new ThreadLocal<Calendar>() {
+        @Override
+        protected Calendar initialValue() {
+            return Calendar.getInstance();
+        }
+    };
 
     private DateTimeUtils() {
         // utility class
-    }
-
-    static {
-        getCalendar();
     }
 
     /**
      * Reset the calendar, for example after changing the default timezone.
      */
     public static void resetCalendar() {
-        cachedCalendar = null;
-        getCalendar();
-    }
-
-    private static Calendar getCalendar() {
-        if (cachedCalendar == null) {
-            cachedCalendar = Calendar.getInstance();
-            zoneOffset = cachedCalendar.get(Calendar.ZONE_OFFSET);
-        }
-        return cachedCalendar;
+        CACHED_CALENDAR.remove();
     }
 
     /**
@@ -146,7 +140,7 @@ public class DateTimeUtils {
         cal.clear();
         cal.setLenient(true);
         long dateValue = ts.getDateValue();
-        long nanos = ts.getNanos();
+        long nanos = ts.getTimeNanos();
         long millis = nanos / 1000000;
         nanos -= millis * 1000000;
         long s = millis / 1000;
@@ -289,7 +283,8 @@ public class DateTimeUtils {
      * @return the time in nanoseconds
      * @throws IllegalArgumentException if there is a problem
      */
-    public static long parseTimeNanos(String s, int start, int end, boolean timeOfDay) {
+    public static long parseTimeNanos(String s, int start, int end,
+            boolean timeOfDay) {
         int hour = 0, minute = 0, second = 0;
         long nanos = 0;
         int s1 = s.indexOf(':', start);
@@ -317,7 +312,8 @@ public class DateTimeUtils {
             String n = (s.substring(s3 + 1, end) + "000000000").substring(0, 9);
             nanos = Integer.parseInt(n);
         }
-        if (hour >= 2000000 || minute < 0 || minute >= 60 || second < 0 || second >= 60) {
+        if (hour >= 2000000 || minute < 0 ||
+                minute >= 60 || second < 0 || second >= 60) {
             throw new IllegalArgumentException(s);
         }
         if (timeOfDay && hour >= 24) {
@@ -341,7 +337,8 @@ public class DateTimeUtils {
      * @param millis the number of milliseconds
      * @return the number of milliseconds (UTC)
      */
-    public static long getMillis(TimeZone tz, int year, int month, int day, int hour, int minute, int second, int millis) {
+    public static long getMillis(TimeZone tz, int year, int month, int day,
+            int hour, int minute, int second, int millis) {
         try {
             return getTimeTry(false, tz, year, month, day, hour, minute, second, millis);
         } catch (IllegalArgumentException e) {
@@ -352,7 +349,8 @@ public class DateTimeUtils {
                 if (hour < 0 || hour > 23) {
                     throw e;
                 }
-                return getTimeTry(true, tz, year, month, day, hour, minute, second, millis);
+                return getTimeTry(true, tz, year, month, day, hour, minute,
+                        second, millis);
             } else if (message.indexOf("DAY_OF_MONTH") > 0) {
                 int maxDay;
                 if (month == 2) {
@@ -367,9 +365,11 @@ public class DateTimeUtils {
                 // using the timezone Brasilia and others,
                 // for example for 2042-10-12 00:00:00.
                 hour += 6;
-                return getTimeTry(true, tz, year, month, day, hour, minute, second, millis);
+                return getTimeTry(true, tz, year, month, day, hour, minute,
+                        second, millis);
             } else {
-                return getTimeTry(true, tz, year, month, day, hour, minute, second, millis);
+                return getTimeTry(true, tz, year, month, day, hour, minute,
+                        second, millis);
             }
         }
     }
@@ -378,21 +378,19 @@ public class DateTimeUtils {
             int year, int month, int day, int hour, int minute, int second,
             int millis) {
         Calendar c;
-        if (tz == null) {
-            c = getCalendar();
+        if (tz == TimeZone.getDefault()) {
+            c = CACHED_CALENDAR.get();
         } else {
             c = Calendar.getInstance(tz);
         }
-        synchronized (c) {
-            c.clear();
-            c.setLenient(lenient);
-            setCalendarFields(c, year, month, day, hour, minute, second, millis);
-            return c.getTime().getTime();
-        }
+        c.clear();
+        c.setLenient(lenient);
+        setCalendarFields(c, year, month, day, hour, minute, second, millis);
+        return c.getTime().getTime();
     }
 
-    private static void setCalendarFields(Calendar cal, int year, int month, int day,
-            int hour, int minute, int second, int millis) {
+    private static void setCalendarFields(Calendar cal, int year, int month,
+            int day, int hour, int minute, int second, int millis) {
         if (year <= 0) {
             cal.set(Calendar.ERA, GregorianCalendar.BC);
             cal.set(Calendar.YEAR, 1 - year);
@@ -418,6 +416,7 @@ public class DateTimeUtils {
      * @return the value
      */
     public static int getDatePart(java.util.Date d, int field) {
+<<<<<<< HEAD
         Calendar c = getCalendar();
         synchronized (c) {
             c.setTime(d);
@@ -429,7 +428,18 @@ public class DateTimeUtils {
                 return value + 1; //月份是从0开始的，所以要加1
             }
             return value;
+=======
+        Calendar c = CACHED_CALENDAR.get();
+        c.setTime(d);
+        if (field == Calendar.YEAR) {
+            return getYear(c);
         }
+        int value = c.get(field);
+        if (field == Calendar.MONTH) {
+            return value + 1;
+>>>>>>> remotes/git-svn
+        }
+        return value;
     }
 
     /**
@@ -447,14 +457,14 @@ public class DateTimeUtils {
     }
 
     /**
-     * Get the number of milliseconds since 1970-01-01 in the local timezone, but
-     * without daylight saving time into account.
+     * Get the number of milliseconds since 1970-01-01 in the local timezone,
+     * but without daylight saving time into account.
      *
      * @param d the date
      * @return the milliseconds
      */
     public static long getTimeLocalWithoutDst(java.util.Date d) {
-        return d.getTime() + zoneOffset;
+        return d.getTime() + CACHED_CALENDAR.get().get(Calendar.ZONE_OFFSET);
     }
 
     /**
@@ -465,7 +475,7 @@ public class DateTimeUtils {
      * @return the number of milliseconds in UTC
      */
     public static long getTimeUTCWithoutDst(long millis) {
-        return millis - zoneOffset;
+        return millis - CACHED_CALENDAR.get().get(Calendar.ZONE_OFFSET);
     }
 
     /**
@@ -539,7 +549,8 @@ public class DateTimeUtils {
      * @param timeZone the timezone
      * @return the formatted date
      */
-    public static String formatDateTime(java.util.Date date, String format, String locale, String timeZone) {
+    public static String formatDateTime(java.util.Date date, String format,
+            String locale, String timeZone) {
         SimpleDateFormat dateFormat = getDateFormat(format, locale, timeZone);
         synchronized (dateFormat) {
             return dateFormat.format(date);
@@ -555,7 +566,8 @@ public class DateTimeUtils {
      * @param timeZone the timeZone
      * @return the parsed date
      */
-    public static java.util.Date parseDateTime(String date, String format, String locale, String timeZone) {
+    public static java.util.Date parseDateTime(String date, String format,
+            String locale, String timeZone) {
         SimpleDateFormat dateFormat = getDateFormat(format, locale, timeZone);
         try {
             synchronized (dateFormat) {
@@ -567,7 +579,8 @@ public class DateTimeUtils {
         }
     }
 
-    private static SimpleDateFormat getDateFormat(String format, String locale, String timeZone) {
+    private static SimpleDateFormat getDateFormat(String format, String locale,
+            String timeZone) {
         try {
             // currently, a new instance is create for each call
             // however, could cache the last few instances
@@ -583,7 +596,8 @@ public class DateTimeUtils {
             }
             return df;
         } catch (Exception e) {
-            throw DbException.get(ErrorCode.PARSE_ERROR_1, e, format + "/" + locale + "/" + timeZone);
+            throw DbException.get(ErrorCode.PARSE_ERROR_1, e,
+                    format + "/" + locale + "/" + timeZone);
         }
     }
 
@@ -638,12 +652,13 @@ public class DateTimeUtils {
      * timezone.
      *
      * @param dateValue the date value
-     * @param nanos the nanoseconds since midnight
+     * @param timeNanos the nanoseconds since midnight
      * @return the timestamp
      */
-    public static Timestamp convertDateValueToTimestamp(long dateValue, long nanos) {
-        long millis = nanos / 1000000;
-        nanos -= millis * 1000000;
+    public static Timestamp convertDateValueToTimestamp(long dateValue,
+            long timeNanos) {
+        long millis = timeNanos / 1000000;
+        timeNanos -= millis * 1000000;
         long s = millis / 1000;
         millis -= s * 1000;
         long m = s / 60;
@@ -656,7 +671,7 @@ public class DateTimeUtils {
                 dayFromDateValue(dateValue),
                 (int) h, (int) m, (int) s, 0);
         Timestamp ts = new Timestamp(ms);
-        ts.setNanos((int) (nanos + millis * 1000000));
+        ts.setNanos((int) (timeNanos + millis * 1000000));
         return ts;
     }
 
@@ -730,12 +745,10 @@ public class DateTimeUtils {
      * @return the date value
      */
     public static long dateValueFromDate(long ms) {
-        Calendar cal = getCalendar();
-        synchronized (cal) {
-            cal.clear();
-            cal.setTimeInMillis(ms);
-            return dateValueFromCalendar(cal);
-        }
+        Calendar cal = CACHED_CALENDAR.get();
+        cal.clear();
+        cal.setTimeInMillis(ms);
+        return dateValueFromCalendar(cal);
     }
 
     /**
@@ -760,12 +773,10 @@ public class DateTimeUtils {
      * @return the nanoseconds
      */
     public static long nanosFromDate(long ms) {
-        Calendar cal = getCalendar();
-        synchronized (cal) {
-            cal.clear();
-            cal.setTimeInMillis(ms);
-            return nanosFromCalendar(cal);
-        }
+        Calendar cal = CACHED_CALENDAR.get();
+        cal.clear();
+        cal.setTimeInMillis(ms);
+        return nanosFromCalendar(cal);
     }
 
     /**
@@ -800,7 +811,8 @@ public class DateTimeUtils {
             nanos -= d * NANOS_PER_DAY;
             absoluteDay += d;
         }
-        return ValueTimestamp.fromDateValueAndNanos(dateValueFromAbsoluteDay(absoluteDay), nanos);
+        return ValueTimestamp.fromDateValueAndNanos(
+                dateValueFromAbsoluteDay(absoluteDay), nanos);
     }
 
     /**

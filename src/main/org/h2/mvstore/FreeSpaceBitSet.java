@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore;
@@ -14,6 +13,8 @@ import org.h2.util.MathUtils;
  * A free space bit set.
  */
 public class FreeSpaceBitSet {
+
+    private static final boolean DETAILED_INFO = false;
 
     /**
      * The first usable block.
@@ -171,21 +172,42 @@ public class FreeSpaceBitSet {
 
     @Override
     public String toString() {
-        StringBuilder buff = new StringBuilder("[");
+        StringBuilder buff = new StringBuilder();
+        if (DETAILED_INFO) {
+            int onCount = 0, offCount = 0;
+            int on = 0;
+            for (int i = 0; i < set.length(); i++) {
+                if (set.get(i)) {
+                    onCount++;
+                    on++;
+                } else {
+                    offCount++;
+                }
+                if ((i & 1023) == 1023) {
+                    buff.append(String.format("%3x", on)).append(' ');
+                    on = 0;
+                }
+            }
+            buff.append("\n");
+            buff.append(" on " + onCount + " off " + offCount);
+            buff.append(" " + 100 * onCount / (onCount+offCount) + "% used ");
+        }
+        buff.append('[');
         for (int i = 0;;) {
             if (i > 0) {
                 buff.append(", ");
             }
             int start = set.nextClearBit(i);
-            buff.append(start).append('-');
+            buff.append(Integer.toHexString(start)).append('-');
             int end = set.nextSetBit(start + 1);
             if (end < 0) {
                 break;
             }
-            buff.append(end - 1);
+            buff.append(Integer.toHexString(end - 1));
             i = end + 1;
         }
-        return buff.append(']').toString();
+        buff.append(']');
+        return buff.toString();
     }
 
 }

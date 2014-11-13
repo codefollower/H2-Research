@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.code;
@@ -18,14 +17,20 @@ import java.util.Arrays;
  */
 public class CheckTextFiles {
 
-    // must contain "+" otherwise this here counts as well
-    private static final String COPYRIGHT = "Copyright 2004-2013 " + "H2 Group.";
-    private static final String LICENSE = "Multiple-Licensed " + "under the H2 License";
+    private static final int MAX_SOURCE_LINE_SIZE = 100;
 
-    private static final String[] SUFFIX_CHECK = { "html", "jsp", "js", "css", "bat", "nsi",
-            "java", "txt", "properties", "sql", "xml", "csv", "Driver", "prefs" };
-    private static final String[] SUFFIX_IGNORE = { "gif", "png", "odg", "ico", "sxd",
-            "layout", "res", "win", "jar", "task", "svg", "MF", "mf", "sh", "DS_Store", "prop" };
+    // must contain "+" otherwise this here counts as well
+    private static final String COPYRIGHT = "Copyright 2004-2014 " +
+            "H2 Group.";
+    private static final String LICENSE = "Multiple-Licensed " +
+            "under the MPL 2.0";
+
+    private static final String[] SUFFIX_CHECK = { "html", "jsp", "js", "css",
+            "bat", "nsi", "java", "txt", "properties", "sql", "xml", "csv",
+            "Driver", "prefs" };
+    private static final String[] SUFFIX_IGNORE = { "gif", "png", "odg", "ico",
+            "sxd", "layout", "res", "win", "jar", "task", "svg", "MF", "mf",
+            "sh", "DS_Store", "prop" };
     private static final String[] SUFFIX_CRLF = { "bat" };
 
     private static final boolean ALLOW_TAB = false;
@@ -86,7 +91,9 @@ public class CheckTextFiles {
 //                check = false;
 //                ignore = true;
 //            }
-            if (name.endsWith(".utf8.txt") || (name.startsWith("_docs_") && name.endsWith(".properties"))) {
+            if (name.endsWith(".utf8.txt") ||
+                    (name.startsWith("_docs_") &&
+                    name.endsWith(".properties"))) {
                 check = false;
                 ignore = true;
             }
@@ -103,7 +110,8 @@ public class CheckTextFiles {
                 }
             }
             if (ignore == check) {
-                throw new RuntimeException("Unknown suffix: " + suffix + " for file: " + file.getAbsolutePath());
+                throw new RuntimeException("Unknown suffix: " + suffix
+                        + " for file: " + file.getAbsolutePath());
             }
             useCRLF = false;
             for (String s : SUFFIX_CRLF) {
@@ -128,7 +136,8 @@ public class CheckTextFiles {
      * @param fix automatically fix newline characters and trailing spaces
      * @param checkLicense check the license and copyright
      */
-    public void checkOrFixFile(File file, boolean fix, boolean checkLicense) throws Exception {
+    public void checkOrFixFile(File file, boolean fix, boolean checkLicense)
+            throws Exception {
         RandomAccessFile in = new RandomAccessFile(file, "r");
         byte[] data = new byte[(int) file.length()];
         ByteArrayOutputStream out = fix ? new ByteArrayOutputStream() : null;
@@ -156,12 +165,14 @@ public class CheckTextFiles {
             }
         }
         int line = 1;
+        int startLinePos = 0;
         boolean lastWasWhitespace = false;
         for (int i = 0; i < data.length; i++) {
             char ch = (char) (data[i] & 0xff);
             boolean isWhitespace = Character.isWhitespace(ch);
             if (ch > 127) {
-                fail(file, "contains character " + (int) ch + " at " + new String(data, i - 10, 20), line);
+                fail(file, "contains character " + (int) ch + " at "
+                        + new String(data, i - 10, 20), line);
                 return;
             } else if (ch < 32) {
                 if (ch == '\n') {
@@ -177,6 +188,13 @@ public class CheckTextFiles {
                     }
                     lastWasWhitespace = false;
                     line++;
+                    int lineLength = i - startLinePos;
+                    if (file.getName().endsWith(".java")) {
+                        if (lineLength > MAX_SOURCE_LINE_SIZE) {
+                            fail(file, "line too long: " + lineLength, line);
+                        }
+                    }
+                    startLinePos = i;
                 } else if (ch == '\r') {
                     if (!ALLOW_CR) {
                         fail(file, "contains CR", line);
@@ -254,7 +272,8 @@ public class CheckTextFiles {
                     if (data[j] != 32) {
                         int mod = (j - i - 1) & 3;
                         if (mod != 0 && (mod != 1 || data[j] != '*')) {
-                            fail(file, "contains wrong number of heading spaces: " + (j - i - 1), line);
+                            fail(file, "contains wrong number " +
+                                    "of heading spaces: " + (j - i - 1), line);
                         }
                         break;
                     }
@@ -277,7 +296,8 @@ public class CheckTextFiles {
                 name = name.substring(idx);
             }
         }
-        System.out.println("FAIL at " + name + " " + error + " " + file.getAbsolutePath());
+        System.out.println("FAIL at " + name + " " + error + " "
+                + file.getAbsolutePath());
         hasError = true;
         if (failOnError) {
             throw new RuntimeException("FAIL");

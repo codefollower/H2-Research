@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -15,7 +14,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Random;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.utils.SelfDestructor;
@@ -90,7 +89,8 @@ public class TestKillRestartMulti extends TestBase {
                     fail("Failed: " + s);
                 }
             }
-            String backup = getBaseDir() + "/killRestartMulti-" + System.currentTimeMillis() + ".zip";
+            String backup = getBaseDir() + "/killRestartMulti-" +
+                    System.currentTimeMillis() + ".zip";
             try {
                 Backup.execute(backup, getBaseDir(), "killRestartMulti", true);
                 Connection conn = null;
@@ -115,7 +115,7 @@ public class TestKillRestartMulti extends TestBase {
                 conn.close();
                 FileUtils.delete(backup);
             } catch (SQLException e) {
-                FileUtils.moveTo(backup, backup + ".error");
+                FileUtils.move(backup, backup + ".error");
                 throw e;
             }
         }
@@ -145,14 +145,16 @@ public class TestKillRestartMulti extends TestBase {
                 password = args[++i];
             }
         }
-        System.out.println("#Started; driver: " + driver + " url: " + url + " user: " + user + " password: " + password);
+        System.out.println("#Started; driver: " + driver + " url: " + url +
+                " user: " + user + " password: " + password);
         try {
             System.out.println("#Starting...");
             Random random = new Random();
             boolean wasRunning = false;
             for (int i = 0; i < 3000; i++) {
                 if (i > 1000 && connections.size() > 1 && tables.size() > 1) {
-                    System.out.println("#Running connections: " + connections.size() + " tables: " + tables.size());
+                    System.out.println("#Running connections: " +
+                            connections.size() + " tables: " + tables.size());
                     wasRunning = true;
                 }
                 if (connections.size() < 1) {
@@ -170,7 +172,8 @@ public class TestKillRestartMulti extends TestBase {
                 } else if ((p -= 1) <= 0) {
                     // 1%: close connection
                     if (connections.size() > 1) {
-                        Connection conn = connections.remove(random.nextInt(connections.size()));
+                        Connection conn = connections.remove(
+                                random.nextInt(connections.size()));
                         if (random.nextBoolean()) {
                             conn.close();
                         }
@@ -181,12 +184,14 @@ public class TestKillRestartMulti extends TestBase {
                 } else if ((p -= 20) <= 0) {
                     // 20% large insert, delete, or update
                     if (tables.size() > 0) {
-                        Connection conn = connections.get(random.nextInt(connections.size()));
+                        Connection conn = connections.get(
+                                random.nextInt(connections.size()));
                         Statement stat = conn.createStatement();
                         String table = tables.get(random.nextInt(tables.size()));
                         if (random.nextBoolean()) {
                             // 10% insert
-                            stat.execute("INSERT INTO " + table + "(NAME) SELECT 'Hello ' || X FROM SYSTEM_RANGE(0, 20)");
+                            stat.execute("INSERT INTO " + table +
+                                    "(NAME) SELECT 'Hello ' || X FROM SYSTEM_RANGE(0, 20)");
                         } else if (random.nextBoolean()) {
                             // 5% update
                             stat.execute("UPDATE " + table + " SET NAME='Hallo Welt'");
@@ -223,14 +228,16 @@ public class TestKillRestartMulti extends TestBase {
                         Connection conn = connections.get(random.nextInt(connections.size()));
                         Statement stat = conn.createStatement();
                         String table = tables.get(random.nextInt(tables.size()));
-                        stat.execute("DELETE FROM " + table + " WHERE ID = SELECT MIN(ID) FROM " + table);
+                        stat.execute("DELETE FROM " + table +
+                                " WHERE ID = SELECT MIN(ID) FROM " + table);
                     }
                 }
             }
             System.out.println("#Fail: end " + wasRunning);
             System.out.println("#End");
         } catch (Throwable e) {
-            System.out.println("#Fail: openCount=" + openCount + " url=" + url + " " + e.toString());
+            System.out.println("#Fail: openCount=" +
+                    openCount + " url=" + url + " " + e.toString());
             e.printStackTrace(System.out);
             System.out.println("#End");
         }

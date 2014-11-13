@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -44,10 +43,9 @@ public class FileUtils {
     }
 
     /**
-     * Create a new file.
-     * This method is similar to Java 7
-     * <code>java.nio.file.Path.createFile</code>,
-     * but returns false instead of throwing a exception if the file already existed.
+     * Create a new file. This method is similar to Java 7
+     * <code>java.nio.file.Path.createFile</code>, but returns false instead of
+     * throwing a exception if the file already existed.
      *
      * @param fileName the file name
      * @return true if creating was successful
@@ -69,8 +67,8 @@ public class FileUtils {
     }
 
     /**
-     * Get the canonical file or directory name.
-     * This method is similar to Java 7 <code>java.nio.file.Path.toRealPath</code>.
+     * Get the canonical file or directory name. This method is similar to Java
+     * 7 <code>java.nio.file.Path.toRealPath</code>.
      *
      * @param fileName the file name
      * @return the normalized file name
@@ -80,9 +78,9 @@ public class FileUtils {
     }
 
     /**
-     * Get the parent directory of a file or directory.
-     * This method returns null if there is no parent.
-     * This method is similar to Java 7 <code>java.nio.file.Path.getParent</code>.
+     * Get the parent directory of a file or directory. This method returns null
+     * if there is no parent. This method is similar to Java 7
+     * <code>java.nio.file.Path.getParent</code>.
      *
      * @param fileName the file or directory name
      * @return the parent directory name
@@ -93,8 +91,8 @@ public class FileUtils {
     }
 
     /**
-     * Check if the file name includes a path.
-     * This method is similar to Java 7 <code>java.nio.file.Path.isAbsolute</code>.
+     * Check if the file name includes a path. This method is similar to Java 7
+     * <code>java.nio.file.Path.isAbsolute</code>.
      *
      * @param fileName the file name
      * @return if the file name is absolute
@@ -104,14 +102,26 @@ public class FileUtils {
     }
 
     /**
-     * Rename a file if this is allowed.
-     * This method is similar to Java 7 <code>java.nio.file.Path.moveTo</code>.
+     * Rename a file if this is allowed. This method is similar to Java 7
+     * <code>java.nio.file.Files.move</code>.
      *
-     * @param oldName the old fully qualified file name
-     * @param newName the new fully qualified file name
+     * @param source the old fully qualified file name
+     * @param target the new fully qualified file name
      */
-    public static void moveTo(String oldName, String newName) {
-        FilePath.get(oldName).moveTo(FilePath.get(newName));
+    public static void move(String source, String target) {
+        FilePath.get(source).moveTo(FilePath.get(target), false);
+    }
+
+    /**
+     * Rename a file if this is allowed, and try to atomically replace an
+     * existing file. This method is similar to Java 7
+     * <code>java.nio.file.Files.move</code>.
+     *
+     * @param source the old fully qualified file name
+     * @param target the new fully qualified file name
+     */
+    public static void moveAtomicReplace(String source, String target) {
+        FilePath.get(source).moveTo(FilePath.get(target), true);
     }
 
     /**
@@ -190,7 +200,8 @@ public class FileUtils {
      * @param mode the access mode. Supported are r, rw, rws, rwd
      * @return the file object
      */
-    public static FileChannel open(String fileName, String mode) throws IOException {
+    public static FileChannel open(String fileName, String mode)
+            throws IOException {
         return FilePath.get(fileName).open(mode);
     }
 
@@ -202,7 +213,8 @@ public class FileUtils {
      * @param fileName the file name
      * @return the input stream
      */
-    public static InputStream newInputStream(String fileName) throws IOException {
+    public static InputStream newInputStream(String fileName)
+            throws IOException {
         return FilePath.get(fileName).newInputStream();
     }
 
@@ -216,7 +228,8 @@ public class FileUtils {
      *            truncated first
      * @return the output stream
      */
-    public static OutputStream newOutputStream(String fileName, boolean append) throws IOException {
+    public static OutputStream newOutputStream(String fileName, boolean append)
+            throws IOException {
         return FilePath.get(fileName).newOutputStream(append);
     }
 
@@ -324,9 +337,10 @@ public class FileUtils {
      * @param inTempDir if the file should be stored in the temporary directory
      * @return the name of the created file
      */
-    public static String createTempFile(String prefix, String suffix, boolean deleteOnExit, boolean inTempDir)
-            throws IOException {
-        return FilePath.get(prefix).createTempFile(suffix, deleteOnExit, inTempDir).toString();
+    public static String createTempFile(String prefix, String suffix,
+            boolean deleteOnExit, boolean inTempDir) throws IOException {
+        return FilePath.get(prefix).createTempFile(
+                suffix, deleteOnExit, inTempDir).toString();
     }
 
     /**
@@ -336,7 +350,8 @@ public class FileUtils {
      * @param channel the file channel
      * @param dst the byte buffer
      */
-    public static void readFully(FileChannel channel, ByteBuffer dst) throws IOException {
+    public static void readFully(FileChannel channel, ByteBuffer dst)
+            throws IOException {
         do {
             int r = channel.read(dst);
             if (r < 0) {
@@ -351,7 +366,8 @@ public class FileUtils {
      * @param channel the file channel
      * @param src the byte buffer
      */
-    public static void writeFully(FileChannel channel, ByteBuffer src) throws IOException {
+    public static void writeFully(FileChannel channel, ByteBuffer src)
+            throws IOException {
         do {
             channel.write(src);
         } while (src.remaining() > 0);

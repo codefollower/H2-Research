@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -16,9 +15,9 @@ import org.h2.api.DatabaseEventListener;
 import org.h2.jdbc.JdbcConnection;
 
 /**
- * This example application implements a database event listener.
- * This is useful to display progress information while opening a large database,
- * or to log database exceptions.
+ * This example application implements a database event listener. This is useful
+ * to display progress information while opening a large database, or to log
+ * database exceptions.
  */
 public class ShowProgress implements DatabaseEventListener {
 
@@ -51,7 +50,8 @@ public class ShowProgress implements DatabaseEventListener {
         Statement stat = conn.createStatement();
         stat.execute("DROP TABLE IF EXISTS TEST");
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
-        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, 'Test' || SPACE(100))");
+        PreparedStatement prep = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, 'Test' || SPACE(100))");
         long time;
         time = System.currentTimeMillis();
         int len = 1000;
@@ -78,7 +78,9 @@ public class ShowProgress implements DatabaseEventListener {
 
         System.out.println("Open connection...");
         time = System.currentTimeMillis();
-        conn = DriverManager.getConnection("jdbc:h2:test;DATABASE_EVENT_LISTENER='" + getClass().getName() + "'", "sa", "");
+        conn = DriverManager.getConnection(
+                "jdbc:h2:test;DATABASE_EVENT_LISTENER='" +
+                getClass().getName() + "'", "sa", "");
         time = System.currentTimeMillis() - time;
         System.out.println("Done after " + time + " ms");
         prep.close();
@@ -100,7 +102,8 @@ public class ShowProgress implements DatabaseEventListener {
     }
 
     /**
-     * This method is called when opening the database to notify about the progress.
+     * This method is called when opening the database to notify about the
+     * progress.
      *
      * @param state the current state
      * @param name the object name (depends on the state)
@@ -133,7 +136,9 @@ public class ShowProgress implements DatabaseEventListener {
         } catch (InterruptedException e) {
             // ignore
         }
-        System.out.println("State: " + stateName + " " + (100 * current / max) + "% (" + current + " of " + max + ") "
+        System.out.println("State: " + stateName + " " +
+                (100 * current / max) + "% (" +
+                current + " of " + max + ") "
                 + (time - start) + " ms");
     }
 

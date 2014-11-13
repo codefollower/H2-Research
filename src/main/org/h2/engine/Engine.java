@@ -1,18 +1,16 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
 import java.util.HashMap;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
 import org.h2.command.dml.SetTypes;
-import org.h2.constant.DbSettings;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.FileLock;
 import org.h2.util.MathUtils;
@@ -31,8 +29,10 @@ public class Engine implements SessionFactory {
     private static final Engine INSTANCE = new Engine();
     private static final HashMap<String, Database> DATABASES = New.hashMap();
 
-    private volatile long wrongPasswordDelay = SysProperties.DELAY_WRONG_PASSWORD_MIN;
+    private volatile long wrongPasswordDelay =
+            SysProperties.DELAY_WRONG_PASSWORD_MIN;
     private boolean jmx;
+<<<<<<< HEAD
     
     //调用顺序: 1 (如果是内存数据库，这一步不调用，直接到2)
     public static Engine getInstance() {
@@ -44,6 +44,19 @@ public class Engine implements SessionFactory {
     private Session openSession(ConnectionInfo ci, boolean ifExists, String cipher) {
     	//如果设置了h2.baseDir，如:System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
     	//那么name就包含了h2.baseDir，否则就是当前工作目录
+=======
+
+    private Engine() {
+        // use getInstance()
+    }
+
+    public static Engine getInstance() {
+        return INSTANCE;
+    }
+
+    private Session openSession(ConnectionInfo ci, boolean ifExists,
+            String cipher) {
+>>>>>>> remotes/git-svn
         String name = ci.getName();
         Database database;
         ci.removeProperty("NO_UPGRADE", false);
@@ -65,7 +78,8 @@ public class Engine implements SessionFactory {
             if (database.getAllUsers().size() == 0) {
                 // users is the last thing we add, so if no user is around,
                 // the database is new (or not initialized correctly)
-                user = new User(database, database.allocateObjectId(), ci.getUserName(), false);
+                user = new User(database, database.allocateObjectId(),
+                        ci.getUserName(), false);
                 user.setAdmin(true);
                 user.setUserPasswordHash(ci.getUserPasswordHash());
                 database.setMasterUser(user);
@@ -109,7 +123,8 @@ public class Engine implements SessionFactory {
             Session session = database.createSession(user);
             if (ci.getProperty("JMX", false)) {
                 try {
-                    Utils.callStaticMethod("org.h2.jmx.DatabaseInfo.registerMBean", ci, database);
+                    Utils.callStaticMethod(
+                            "org.h2.jmx.DatabaseInfo.registerMBean", ci, database);
                 } catch (Exception e) {
                     database.removeSession(session);
                     throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, e, "JMX");
@@ -166,7 +181,8 @@ public class Engine implements SessionFactory {
     //执行SET和INIT参数中指定的SQL
     private synchronized Session openSession(ConnectionInfo ci) {
         boolean ifExists = ci.removeProperty("IFEXISTS", false);
-        boolean ignoreUnknownSetting = ci.removeProperty("IGNORE_UNKNOWN_SETTINGS", false);
+        boolean ignoreUnknownSetting = ci.removeProperty(
+                "IGNORE_UNKNOWN_SETTINGS", false);
         String cipher = ci.removeProperty("CIPHER", null);
         String init = ci.removeProperty("INIT", null); //INIT参数可以放一些初始化的SQL
         Session session;
@@ -198,9 +214,15 @@ public class Engine implements SessionFactory {
             //connection相关的参数在org.h2.command.Parser.parseSet()中被转成NoOperation
             String value = ci.getProperty(setting);
             try {
+<<<<<<< HEAD
             	//session.prepareCommand是在本地执行sql，不走jdbc
                 CommandInterface command = session.prepareCommand("SET " + Parser.quoteIdentifier(setting) + " "
                         + value, Integer.MAX_VALUE);
+=======
+                CommandInterface command = session.prepareCommand(
+                        "SET " + Parser.quoteIdentifier(setting) + " " + value,
+                        Integer.MAX_VALUE);
+>>>>>>> remotes/git-svn
                 command.executeUpdate();
             } catch (DbException e) {
                 if (!ignoreUnknownSetting) {
@@ -211,7 +233,8 @@ public class Engine implements SessionFactory {
         }
         if (init != null) {
             try {
-                CommandInterface command = session.prepareCommand(init, Integer.MAX_VALUE);
+                CommandInterface command = session.prepareCommand(init,
+                        Integer.MAX_VALUE);
                 command.executeUpdate();
             } catch (DbException e) {
                 if (!ignoreUnknownSetting) {
@@ -238,9 +261,12 @@ public class Engine implements SessionFactory {
             if (!Constants.CLUSTERING_ENABLED.equals(clusterSession)) {
                 if (!StringUtils.equals(clusterSession, clusterDb)) {
                     if (clusterDb.equals(Constants.CLUSTERING_DISABLED)) {
-                        throw DbException.get(ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_ALONE);
+                        throw DbException.get(
+                                ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_ALONE);
                     }
-                    throw DbException.get(ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1, clusterDb);
+                    throw DbException.get(
+                            ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1,
+                            clusterDb);
                 }
             }
         }

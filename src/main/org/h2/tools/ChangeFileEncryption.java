@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -47,7 +46,7 @@ public class ChangeFileEncryption extends Tool {
      * <tr><td>[-help] or [-?]</td>
      * <td>Print the list of options</td></tr>
      * <tr><td>[-cipher type]</td>
-     * <td>The encryption type (AES or XTEA)</td></tr>
+     * <td>The encryption type (AES)</td></tr>
      * <tr><td>[-dir &lt;dir&gt;]</td>
      * <td>The database directory (default: .)</td></tr>
      * <tr><td>[-db &lt;database&gt;]</td>
@@ -98,7 +97,8 @@ public class ChangeFileEncryption extends Tool {
         }
         if ((encryptPassword == null && decryptPassword == null) || cipher == null) {
             showUsage();
-            throw new SQLException("Encryption or decryption password not set, or cipher not set");
+            throw new SQLException(
+                    "Encryption or decryption password not set, or cipher not set");
         }
         try {
             process(dir, db, cipher, decryptPassword, encryptPassword, quiet);
@@ -108,8 +108,8 @@ public class ChangeFileEncryption extends Tool {
     }
 
     /**
-     * Get the file encryption key for a given password.
-     * The password must be supplied as char arrays and is cleaned in this method.
+     * Get the file encryption key for a given password. The password must be
+     * supplied as char arrays and is cleaned in this method.
      *
      * @param password the password as a char array
      * @return the encryption key
@@ -122,28 +122,31 @@ public class ChangeFileEncryption extends Tool {
     }
 
     /**
-     * Changes the password for a database.
-     * The passwords must be supplied as char arrays and are cleaned in this method.
-     * The database must be closed before calling this method.
+     * Changes the password for a database. The passwords must be supplied as
+     * char arrays and are cleaned in this method. The database must be closed
+     * before calling this method.
      *
      * @param dir the directory (. for the current directory)
      * @param db the database name (null for all databases)
-     * @param cipher the cipher (AES, XTEA)
+     * @param cipher the cipher (AES)
      * @param decryptPassword the decryption password as a char array
      * @param encryptPassword the encryption password as a char array
      * @param quiet don't print progress information
      */
     public static void execute(String dir, String db, String cipher,
-            char[] decryptPassword, char[] encryptPassword, boolean quiet) throws SQLException {
+            char[] decryptPassword, char[] encryptPassword, boolean quiet)
+            throws SQLException {
         try {
-            new ChangeFileEncryption().process(dir, db, cipher, decryptPassword, encryptPassword, quiet);
+            new ChangeFileEncryption().process(dir, db, cipher,
+                    decryptPassword, encryptPassword, quiet);
         } catch (Exception e) {
             throw DbException.toSQLException(e);
         }
     }
 
     private void process(String dir, String db, String cipher,
-            char[] decryptPassword, char[] encryptPassword, boolean quiet) throws SQLException {
+            char[] decryptPassword, char[] encryptPassword, boolean quiet)
+            throws SQLException {
         dir = FileLister.getDir(dir);
         ChangeFileEncryption change = new ChangeFileEncryption();
         if (encryptPassword != null) {
@@ -174,8 +177,8 @@ public class ChangeFileEncryption extends Tool {
         for (String fileName : files) {
             String temp = dir + "/temp.db";
             FileUtils.delete(temp);
-            FileUtils.moveTo(fileName, temp);
-            FileUtils.moveTo(temp, fileName);
+            FileUtils.move(fileName, temp);
+            FileUtils.move(temp, fileName);
         }
         // if this worked, the operation will (hopefully) be successful
         // TODO changeFileEncryption: this is a workaround!
@@ -193,7 +196,8 @@ public class ChangeFileEncryption extends Tool {
             try {
                 copy(fileName);
             } catch (IOException e) {
-                throw DbException.convertIOException(e, "Error encrypting / decrypting file " + fileName);
+                throw DbException.convertIOException(e,
+                        "Error encrypting / decrypting file " + fileName);
             }
             return;
         }
@@ -203,8 +207,12 @@ public class ChangeFileEncryption extends Tool {
         } else {
             in = FileStore.open(null, fileName, "r", cipherType, decrypt);
         }
-        in.init();
-        copy(fileName, in, encrypt);
+        try {
+            in.init();
+            copy(fileName, in, encrypt);
+        } finally {
+            in.closeSilently();
+        }
     }
 
     private void copy(String fileName) throws IOException {
@@ -212,35 +220,43 @@ public class ChangeFileEncryption extends Tool {
             return;
         }
         FileChannel fileIn = FilePath.get(fileName).open("r");
-        if (decryptKey != null) {
-            fileIn = new FilePathEncrypt.FileEncrypt(fileName, decryptKey, fileIn);
-        }
-        InputStream inStream = new FileChannelInputStream(fileIn, true);
+        FileChannel fileOut = null;
         String temp = directory + "/temp.db";
-        FileUtils.delete(temp);
-        FileChannel fileOut = FilePath.get(temp).open("rw");
-        if (encryptKey != null) {
-            fileOut = new FilePathEncrypt.FileEncrypt(temp, encryptKey, fileOut);
-        }
-        OutputStream outStream = new FileChannelOutputStream(fileOut, true);
-        byte[] buffer = new byte[4 * 1024];
-        long remaining = fileIn.size();
-        long total = remaining;
-        long time = System.currentTimeMillis();
-        while (remaining > 0) {
-            if (System.currentTimeMillis() - time > 1000) {
-                out.println(fileName + ": " + (100 - 100 * remaining / total) + "%");
-                time = System.currentTimeMillis();
+        try {
+            if (decryptKey != null) {
+                fileIn = new FilePathEncrypt.FileEncrypt(fileName, decryptKey, fileIn);
             }
-            int len = (int) Math.min(buffer.length, remaining);
-            len = inStream.read(buffer, 0, len);
-            outStream.write(buffer, 0, len);
-            remaining -= len;
+            InputStream inStream = new FileChannelInputStream(fileIn, true);
+            FileUtils.delete(temp);
+            fileOut = FilePath.get(temp).open("rw");
+            if (encryptKey != null) {
+                fileOut = new FilePathEncrypt.FileEncrypt(temp, encryptKey, fileOut);
+            }
+            OutputStream outStream = new FileChannelOutputStream(fileOut, true);
+            byte[] buffer = new byte[4 * 1024];
+            long remaining = fileIn.size();
+            long total = remaining;
+            long time = System.currentTimeMillis();
+            while (remaining > 0) {
+                if (System.currentTimeMillis() - time > 1000) {
+                    out.println(fileName + ": " + (100 - 100 * remaining / total) + "%");
+                    time = System.currentTimeMillis();
+                }
+                int len = (int) Math.min(buffer.length, remaining);
+                len = inStream.read(buffer, 0, len);
+                outStream.write(buffer, 0, len);
+                remaining -= len;
+            }
+            inStream.close();
+            outStream.close();
+        } finally {
+            fileIn.close();
+            if (fileOut != null) {
+                fileOut.close();
+            }
         }
-        inStream.close();
-        outStream.close();
         FileUtils.delete(fileName);
-        FileUtils.moveTo(temp, fileName);
+        FileUtils.move(temp, fileName);
     }
 
     private void copy(String fileName, FileStore in, byte[] key) {
@@ -275,7 +291,7 @@ public class ChangeFileEncryption extends Tool {
         in.close();
         fileOut.close();
         FileUtils.delete(fileName);
-        FileUtils.moveTo(temp, fileName);
+        FileUtils.move(temp, fileName);
     }
 
 }

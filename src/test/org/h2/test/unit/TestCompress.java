@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -149,7 +148,8 @@ public class TestCompress extends TestBase {
         while (rs.next()) {
             String table = rs.getString(1);
             if (!"COLLATIONS".equals(table)) {
-                stat2.execute("create table " + table + " as select * from information_schema." + table);
+                stat2.execute("create table " + table +
+                        " as select * from information_schema." + table);
             }
         }
         conn.close();
@@ -240,12 +240,14 @@ public class TestCompress extends TestBase {
             }
             CompressTool utils = CompressTool.getInstance();
             // level 9 is highest, strategy 2 is huffman only
-            for (String a : new String[] { "LZF", "No", "Deflate", "Deflate level 9 strategy 2" }) {
+            for (String a : new String[] { "LZF", "No",
+                    "Deflate", "Deflate level 9 strategy 2" }) {
                 long time = System.currentTimeMillis();
                 byte[] out = utils.compress(b, a);
                 byte[] test = utils.expand(out);
                 if (testPerformance) {
-                    System.out.println("p:" + pattern + " len: " + out.length + " time: " + (System.currentTimeMillis() - time) + " " + a);
+                    System.out.println("p:" + pattern + " len: " + out.length +
+                            " time: " + (System.currentTimeMillis() - time) + " " + a);
                 }
                 assertEquals(b.length, test.length);
                 assertEquals(b, test);

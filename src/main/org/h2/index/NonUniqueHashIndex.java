@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -35,7 +34,8 @@ public class NonUniqueHashIndex extends BaseIndex {
     private final RegularTable tableData;
     private long rowCount;
 
-    public NonUniqueHashIndex(RegularTable table, int id, String indexName, IndexColumn[] columns, IndexType indexType) {
+    public NonUniqueHashIndex(RegularTable table, int id, String indexName,
+            IndexColumn[] columns, IndexType indexType) {
         initBaseIndex(table, id, indexName, columns, indexType);
         this.indexColumn = columns[0].column.getColumnId();
         this.tableData = table;
@@ -130,7 +130,8 @@ public class NonUniqueHashIndex extends BaseIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
         for (Column column : columns) {
             int index = column.getColumnId();
             int mask = masks[index];

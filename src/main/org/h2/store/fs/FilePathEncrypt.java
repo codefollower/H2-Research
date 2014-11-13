@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -88,13 +87,15 @@ public class FilePathEncrypt extends FilePathWrapper {
      */
     private String[] parse(String fileName) {
         if (!fileName.startsWith(getScheme())) {
-            throw new IllegalArgumentException(fileName + " doesn't start with " + getScheme());
+            throw new IllegalArgumentException(fileName +
+                    " doesn't start with " + getScheme());
         }
         fileName = fileName.substring(getScheme().length() + 1);
         int idx = fileName.indexOf(':');
         String password;
         if (idx < 0) {
-            throw new IllegalArgumentException(fileName + " doesn't contain encryption algorithm and password");
+            throw new IllegalArgumentException(fileName +
+                    " doesn't contain encryption algorithm and password");
         }
         password = fileName.substring(0, idx);
         fileName = fileName.substring(idx + 1);
@@ -136,12 +137,12 @@ public class FilePathEncrypt extends FilePathWrapper {
         static final int BLOCK_SIZE_MASK = BLOCK_SIZE - 1;
 
         /**
-         * The length of the file header. Using a smaller header is possible, but
-         * would mean reads and writes are not aligned to the block size.
+         * The length of the file header. Using a smaller header is possible,
+         * but would mean reads and writes are not aligned to the block size.
          */
         static final int HEADER_LENGTH = BLOCK_SIZE;
 
-        private static final byte[] HEADER = "H2crypt\n".getBytes();
+        private static final byte[] HEADER = "H2encrypt\n".getBytes();
         private static final int SALT_POS = HEADER.length;
 
         /**
@@ -157,8 +158,6 @@ public class FilePathEncrypt extends FilePathWrapper {
 
         private final FileChannel base;
 
-        private final XTS xts;
-
         /**
          * The current position within the file, from a user perspective.
          */
@@ -171,9 +170,23 @@ public class FilePathEncrypt extends FilePathWrapper {
 
         private final String name;
 
-        public FileEncrypt(String name, byte[] encryptionKey, FileChannel base) throws IOException {
+        private XTS xts;
+
+        private byte[] encryptionKey;
+
+        public FileEncrypt(String name, byte[] encryptionKey, FileChannel base) {
+            // don't do any read or write operations here, because they could
+            // fail if the file is locked, and we want to give the caller a
+            // chance to lock the file first
             this.name = name;
             this.base = base;
+            this.encryptionKey = encryptionKey;
+        }
+
+        private void init() throws IOException {
+            if (xts != null) {
+                return;
+            }
             this.size = base.size() - HEADER_LENGTH;
             boolean newFile = size < 0;
             byte[] salt;
@@ -191,7 +204,9 @@ public class FilePathEncrypt extends FilePathWrapper {
                 }
             }
             AES cipher = new AES();
-            cipher.setKey(SHA256.getPBKDF2(encryptionKey, salt, HASH_ITERATIONS, 16));
+            cipher.setKey(SHA256.getPBKDF2(
+                    encryptionKey, salt, HASH_ITERATIONS, 16));
+            encryptionKey = null;
             xts = new XTS(cipher);
         }
 
@@ -226,6 +241,7 @@ public class FilePathEncrypt extends FilePathWrapper {
             if (len == 0) {
                 return 0;
             }
+            init();
             len = (int) Math.min(len, size - position);
             if (position >= size) {
                 return -1;
@@ -251,7 +267,8 @@ public class FilePathEncrypt extends FilePathWrapper {
             return len;
         }
 
-        private void readInternal(ByteBuffer dst, long position, int len) throws IOException {
+        private void readInternal(ByteBuffer dst, long position, int len)
+                throws IOException {
             int x = dst.position();
             readFully(base, position + HEADER_LENGTH, dst);
             long block = position / BLOCK_SIZE;
@@ -262,7 +279,8 @@ public class FilePathEncrypt extends FilePathWrapper {
             }
         }
 
-        private static void readFully(FileChannel file, long pos, ByteBuffer dst) throws IOException {
+        private static void readFully(FileChannel file, long pos, ByteBuffer dst)
+                throws IOException {
             do {
                 int len = file.read(dst, pos);
                 if (len < 0) {
@@ -274,6 +292,7 @@ public class FilePathEncrypt extends FilePathWrapper {
 
         @Override
         public int write(ByteBuffer src, long position) throws IOException {
+            init();
             int len = src.remaining();
             if ((position & BLOCK_SIZE_MASK) != 0 ||
                     (len & BLOCK_SIZE_MASK) != 0) {
@@ -310,7 +329,8 @@ public class FilePathEncrypt extends FilePathWrapper {
             return len;
         }
 
-        private void writeInternal(ByteBuffer src, long position, int len) throws IOException {
+        private void writeInternal(ByteBuffer src, long position, int len)
+                throws IOException {
             ByteBuffer crypt = ByteBuffer.allocate(len);
             crypt.put(src);
             crypt.flip();
@@ -324,7 +344,8 @@ public class FilePathEncrypt extends FilePathWrapper {
             writeFully(base, position + HEADER_LENGTH, crypt);
         }
 
-        private static void writeFully(FileChannel file, long pos, ByteBuffer src) throws IOException {
+        private static void writeFully(FileChannel file, long pos,
+                ByteBuffer src) throws IOException {
             int off = 0;
             do {
                 int len = file.write(src, pos + off);
@@ -343,11 +364,13 @@ public class FilePathEncrypt extends FilePathWrapper {
 
         @Override
         public long size() throws IOException {
+            init();
             return size;
         }
 
         @Override
         public FileChannel truncate(long newSize) throws IOException {
+            init();
             if (newSize > size) {
                 return this;
             }
@@ -371,7 +394,8 @@ public class FilePathEncrypt extends FilePathWrapper {
         }
 
         @Override
-        public FileLock tryLock(long position, long size, boolean shared) throws IOException {
+        public FileLock tryLock(long position, long size, boolean shared)
+                throws IOException {
             return base.tryLock(position, size, shared);
         }
 
@@ -448,7 +472,8 @@ public class FilePathEncrypt extends FilePathWrapper {
             for (; i + CIPHER_BLOCK_SIZE <= len; i += CIPHER_BLOCK_SIZE) {
                 if (i > 0) {
                     updateTweak(tweak);
-                    if (i + CIPHER_BLOCK_SIZE + CIPHER_BLOCK_SIZE > len && i + CIPHER_BLOCK_SIZE < len) {
+                    if (i + CIPHER_BLOCK_SIZE + CIPHER_BLOCK_SIZE > len &&
+                            i + CIPHER_BLOCK_SIZE < len) {
                         tweakEnd = Arrays.copyOf(tweak, CIPHER_BLOCK_SIZE);
                         updateTweak(tweak);
                     }

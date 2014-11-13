@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -112,7 +111,8 @@ public class TestMemoryUsage extends TestBase {
         try {
             int base = Utils.getMemoryUsed();
             for (int i = 0; i < 4; i++) {
-                stat.execute("INSERT INTO TEST(DATA) SELECT SPACE(8000) FROM SYSTEM_RANGE(1, 800)");
+                stat.execute("INSERT INTO TEST(DATA) " +
+                        "SELECT SPACE(8000) FROM SYSTEM_RANGE(1, 800)");
                 freeSoftReferences();
                 int used = Utils.getMemoryUsed();
                 if ((used - base) > 3 * 8192) {
@@ -147,11 +147,13 @@ public class TestMemoryUsage extends TestBase {
         conn = getConnection("memoryUsage");
         Statement stat = conn.createStatement();
         stat.execute("create table test(id int, name varchar(255))");
-        PreparedStatement prep = conn.prepareStatement("insert into test values(?, space(200))");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test values(?, space(200))");
         int len = getSize(10000, 100000);
         for (int i = 0; i < len; i++) {
             if (i % 1000 == 0) {
-                // trace("[" + i + "/" + len + "] KB: " + MemoryUtils.getMemoryUsed());
+                // trace("[" + i + "/" + len + "] KB: " +
+                //         MemoryUtils.getMemoryUsed());
             }
             prep.setInt(1, i);
             prep.executeUpdate();
@@ -195,7 +197,8 @@ public class TestMemoryUsage extends TestBase {
         stat.execute("DROP TABLE IF EXISTS TEST");
         trace("drop=" + (System.currentTimeMillis() - time));
         stat.execute("CREATE CACHED TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255))");
-        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, 'Hello World')");
+        PreparedStatement prep = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, 'Hello World')");
         printTimeMemory("start", 0);
         time = System.currentTimeMillis();
         for (int i = 0; i < len; i++) {
@@ -209,7 +212,8 @@ public class TestMemoryUsage extends TestBase {
 
         // update
         time = System.currentTimeMillis();
-        prep = conn.prepareStatement("UPDATE TEST SET NAME='Hallo Welt' || ID WHERE ID = ?");
+        prep = conn.prepareStatement(
+                "UPDATE TEST SET NAME='Hallo Welt' || ID WHERE ID = ?");
         for (int i = 0; i < len; i++) {
             prep.setInt(1, i);
             prep.execute();

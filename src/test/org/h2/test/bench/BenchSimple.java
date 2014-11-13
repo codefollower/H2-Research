@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.bench;
@@ -23,7 +22,7 @@ public class BenchSimple implements Bench {
     @Override
     public void init(Database db, int size) throws SQLException {
         this.database = db;
-        this.records = size * 60;
+        this.records = size * 75;
 
         db.start(this, "Init");
         db.openConnection();
@@ -62,7 +61,7 @@ public class BenchSimple implements Bench {
 
         db.start(this, "Query (random)");
         prep = db.prepare("SELECT * FROM TEST WHERE ID=?");
-        for (int i = 0; i < records; i++) {
+        for (int i = 0; i < records / 10; i++) {
             prep.setInt(1, random.nextInt(records));
             db.queryReadResult(prep);
         }
@@ -76,9 +75,9 @@ public class BenchSimple implements Bench {
         }
         db.end();
 
-        db.start(this, "Update (random)");
+        db.start(this, "Update (sequential)");
         prep = db.prepare("UPDATE TEST SET NAME=? WHERE ID=?");
-        for (int i = 0; i < records; i++) {
+        for (int i = 0; i < records; i += 3) {
             prep.setString(1, "Hallo Welt");
             prep.setInt(2, i);
             db.update(prep, "updateTest");

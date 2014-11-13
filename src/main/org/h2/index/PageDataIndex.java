@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -11,10 +10,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.engine.UndoLogRecord;
 import org.h2.message.DbException;
 import org.h2.result.Row;
@@ -221,7 +221,8 @@ public class PageDataIndex extends PageIndex {
         if (p instanceof PageDataOverflow) {
             return (PageDataOverflow) p;
         }
-        throw DbException.get(ErrorCode.FILE_CORRUPTED_1, p == null ? "null" : p.toString());
+        throw DbException.get(ErrorCode.FILE_CORRUPTED_1,
+                p == null ? "null" : p.toString());
     }
 
     /**
@@ -247,7 +248,8 @@ public class PageDataIndex extends PageIndex {
         PageData p = (PageData) pd;
         if (parent != -1) {
             if (p.getParentPageId() != parent) {
-                throw DbException.throwInternalError(p + " parent " + p.getParentPageId() + " expected " + parent);
+                throw DbException.throwInternalError(p +
+                        " parent " + p.getParentPageId() + " expected " + parent);
             }
         }
         return p;
@@ -313,8 +315,10 @@ public class PageDataIndex extends PageIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
-        long cost = 10 * (tableData.getRowCountApproximation() + Constants.COST_ROW_OFFSET);
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
+        long cost = 10 * (tableData.getRowCountApproximation() +
+                Constants.COST_ROW_OFFSET);
         return cost;
     }
 
@@ -506,7 +510,8 @@ public class PageDataIndex extends PageIndex {
             if (delta != null) {
                 delta.remove(row);
             }
-            incrementRowCount(row.getSessionId(), operation == UndoLogRecord.DELETE ? 1 : -1);
+            incrementRowCount(row.getSessionId(),
+                    operation == UndoLogRecord.DELETE ? 1 : -1);
         }
     }
 
@@ -574,7 +579,8 @@ public class PageDataIndex extends PageIndex {
         if (memoryCount < Constants.MEMORY_FACTOR) {
             memoryPerPage += (x - memoryPerPage) / ++memoryCount;
         } else {
-            memoryPerPage += (x > memoryPerPage ? 1 : -1) + ((x - memoryPerPage) / Constants.MEMORY_FACTOR);
+            memoryPerPage += (x > memoryPerPage ? 1 : -1) +
+                    ((x - memoryPerPage) / Constants.MEMORY_FACTOR);
         }
     }
 

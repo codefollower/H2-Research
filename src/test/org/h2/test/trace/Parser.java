@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -185,7 +184,9 @@ class Parser {
             if (number.endsWith("f")) {
                 Float v = Float.parseFloat(number);
                 return new Arg(float.class, v);
-            } else if (number.endsWith("d") || number.indexOf("e") >= 0 || number.indexOf(".") >= 0) {
+            } else if (number.endsWith("d") ||
+                    number.indexOf('e') >= 0 ||
+                    number.indexOf('.') >= 0) {
                 Double v = Double.parseDouble(number);
                 return new Arg(double.class, v);
             } else if (number.endsWith("L") || number.endsWith("l")) {

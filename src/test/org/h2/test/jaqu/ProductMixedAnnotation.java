@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: James Moger
  */
 package org.h2.test.jaqu;
@@ -36,8 +35,9 @@ public class ProductMixedAnnotation {
         // public constructor
     }
 
-    protected ProductMixedAnnotation(int productId, String productName, String category, double unitPrice,
-            int unitsInStock, String mappedField) {
+    protected ProductMixedAnnotation(int productId, String productName,
+            String category, double unitPrice, int unitsInStock,
+            String mappedField) {
         this.productId = productId;
         this.productName = productName;
         this.category = category;
@@ -46,14 +46,17 @@ public class ProductMixedAnnotation {
         this.mappedField = mappedField;
     }
 
-    private static ProductMixedAnnotation create(int productId, String productName, String category, double unitPrice,
+    private static ProductMixedAnnotation create(int productId,
+            String productName, String category, double unitPrice,
             int unitsInStock, String mappedField) {
-        return new ProductMixedAnnotation(productId, productName, category, unitPrice, unitsInStock, mappedField);
+        return new ProductMixedAnnotation(productId, productName, category,
+                unitPrice, unitsInStock, mappedField);
     }
 
     public static List<ProductMixedAnnotation> getList() {
         String mappedField = "mapped";
-        ProductMixedAnnotation[] list = { create(1, "Chai", "Beverages", 18, 39, mappedField),
+        ProductMixedAnnotation[] list = {
+                create(1, "Chai", "Beverages", 18, 39, mappedField),
                 create(2, "Chang", "Beverages", 19.0, 17, mappedField),
                 create(3, "Aniseed Syrup", "Condiments", 10.0, 13, mappedField),
                 create(4, "Chef Anton's Cajun Seasoning", "Condiments", 22.0, 53, mappedField),

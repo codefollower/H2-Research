@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -148,8 +147,8 @@ public abstract class FilePathWrapper extends FilePath {
     }
 
     @Override
-    public void moveTo(FilePath newName) {
-        base.moveTo(((FilePathWrapper) newName).base);
+    public void moveTo(FilePath newName, boolean atomicReplace) {
+        base.moveTo(((FilePathWrapper) newName).base, atomicReplace);
     }
 
     @Override
@@ -178,8 +177,8 @@ public abstract class FilePathWrapper extends FilePath {
     }
 
     @Override
-    public FilePath createTempFile(String suffix, boolean deleteOnExit, boolean inTempDir)
-            throws IOException {
+    public FilePath createTempFile(String suffix, boolean deleteOnExit,
+            boolean inTempDir) throws IOException {
         return wrap(base.createTempFile(suffix, deleteOnExit, inTempDir));
     }
 

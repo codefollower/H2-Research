@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -10,7 +9,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.test.utils.FilePathDebug;
 
@@ -47,7 +47,9 @@ public class TestPowerOffFs extends TestBase {
     private boolean test(int x) throws SQLException {
         deleteDb("memFS:", null);
         fs.setPowerOffCount(x);
-        String url = "jdbc:h2:debug:memFS:powerOffFs;FILE_LOCK=NO;TRACE_LEVEL_FILE=0;WRITE_DELAY=0;CACHE_SIZE=4096";
+        String url = "jdbc:h2:debug:memFS:powerOffFs;" +
+                "FILE_LOCK=NO;TRACE_LEVEL_FILE=0;" +
+                "WRITE_DELAY=0;CACHE_SIZE=4096";
         Connection conn = null;
         Statement stat = null;
         try {

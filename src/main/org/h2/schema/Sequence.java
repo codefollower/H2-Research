@@ -1,13 +1,13 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.schema;
 
 import java.math.BigInteger;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
@@ -43,8 +43,10 @@ public class Sequence extends SchemaObjectBase {
      * @param startValue the first value to return
      * @param increment the increment count
      */
-    public Sequence(Schema schema, int id, String name, long startValue, long increment) {
-        this(schema, id, name, startValue, increment, null, null, null, false, true);
+    public Sequence(Schema schema, int id, String name, long startValue,
+            long increment) {
+        this(schema, id, name, startValue, increment, null, null, null, false,
+                true);
     }
 
     /**
@@ -62,20 +64,28 @@ public class Sequence extends SchemaObjectBase {
      * @param belongsToTable whether this sequence belongs to a table (for
      *            auto-increment columns)
      */
-    public Sequence(Schema schema, int id, String name, Long startValue, Long increment, Long cacheSize,
-            Long minValue, Long maxValue, boolean cycle, boolean belongsToTable) {
+    public Sequence(Schema schema, int id, String name, Long startValue,
+            Long increment, Long cacheSize, Long minValue, Long maxValue,
+            boolean cycle, boolean belongsToTable) {
         initSchemaObjectBase(schema, id, name, Trace.SEQUENCE);
-        this.increment = increment != null ? increment : 1;
-        this.minValue = minValue != null ? minValue : getDefaultMinValue(this.increment);
-        this.maxValue = maxValue != null ? maxValue : getDefaultMaxValue(this.increment);
-        this.value = startValue != null ? startValue : getDefaultStartValue(this.increment);
+        this.increment = increment != null ?
+                increment : 1;
+        this.minValue = minValue != null ?
+                minValue : getDefaultMinValue(startValue, this.increment);
+        this.maxValue = maxValue != null ?
+                maxValue : getDefaultMaxValue(startValue, this.increment);
+        this.value = startValue != null ?
+                startValue : getDefaultStartValue(this.increment);
         this.valueWithMargin = value;
-        this.cacheSize = cacheSize != null ? Math.max(1, cacheSize) : DEFAULT_CACHE_SIZE;
+        this.cacheSize = cacheSize != null ?
+                Math.max(1, cacheSize) : DEFAULT_CACHE_SIZE;
         this.cycle = cycle;
         this.belongsToTable = belongsToTable;
         if (!isValid(this.value, this.minValue, this.maxValue, this.increment)) {
-            throw DbException.get(ErrorCode.SEQUENCE_ATTRIBUTES_INVALID, name, String.valueOf(this.value),
-                    String.valueOf(this.minValue), String.valueOf(this.maxValue), String.valueOf(this.increment));
+            throw DbException.get(ErrorCode.SEQUENCE_ATTRIBUTES_INVALID, name,
+                    String.valueOf(this.value), String.valueOf(this.minValue),
+                    String.valueOf(this.maxValue),
+                    String.valueOf(this.increment));
         }
     }
 
@@ -91,7 +101,8 @@ public class Sequence extends SchemaObjectBase {
      * @param maxValue the new max value (<code>null</code> if no change)
      * @param increment the new increment (<code>null</code> if no change)
      */
-    public synchronized void modify(Long startValue, Long minValue, Long maxValue, Long increment) {
+    public synchronized void modify(Long startValue, Long minValue,
+            Long maxValue, Long increment) {
         if (startValue == null) {
             startValue = this.value;
         }
@@ -105,8 +116,11 @@ public class Sequence extends SchemaObjectBase {
             increment = this.increment;
         }
         if (!isValid(startValue, minValue, maxValue, increment)) {
-            throw DbException.get(ErrorCode.SEQUENCE_ATTRIBUTES_INVALID, getName(), String.valueOf(this.value),
-                    String.valueOf(this.minValue), String.valueOf(this.maxValue), String.valueOf(this.increment));
+            throw DbException.get(ErrorCode.SEQUENCE_ATTRIBUTES_INVALID,
+                    getName(), String.valueOf(this.value),
+                    String.valueOf(this.minValue),
+                    String.valueOf(this.maxValue),
+                    String.valueOf(this.increment));
         }
         this.value = startValue;
         this.valueWithMargin = startValue;
@@ -125,23 +139,33 @@ public class Sequence extends SchemaObjectBase {
      * @param maxValue the prospective max value
      * @param increment the prospective increment
      */
-    private static boolean isValid(long value, long minValue, long maxValue, long increment) {
+    private static boolean isValid(long value, long minValue, long maxValue,
+            long increment) {
         return minValue <= value &&
             maxValue >= value &&
             maxValue > minValue &&
             increment != 0 &&
             // Math.abs(increment) < maxValue - minValue
-            // use BigInteger to avoid overflows when maxValue and minValue are really big
+                // use BigInteger to avoid overflows when maxValue and minValue
+                // are really big
             BigInteger.valueOf(increment).abs().compareTo(
                 BigInteger.valueOf(maxValue).subtract(BigInteger.valueOf(minValue))) < 0;
     }
 
-    private static long getDefaultMinValue(long increment) {
-        return increment >= 0 ? 1 : Long.MIN_VALUE;
+    private static long getDefaultMinValue(Long startValue, long increment) {
+        long v = increment >= 0 ? 1 : Long.MIN_VALUE;
+        if (startValue != null && increment >= 0 && startValue < v) {
+            v = startValue;
+        }
+        return v;
     }
 
-    private static long getDefaultMaxValue(long increment) {
-        return increment >= 0 ? Long.MAX_VALUE : -1;
+    private static long getDefaultMaxValue(Long startValue, long increment) {
+        long v = increment >= 0 ? Long.MAX_VALUE : -1;
+        if (startValue != null && increment < 0 && startValue > v) {
+            v = startValue;
+        }
+        return v;
     }
 
     private long getDefaultStartValue(long increment) {
@@ -192,10 +216,10 @@ public class Sequence extends SchemaObjectBase {
         if (increment != 1) {
             buff.append(" INCREMENT BY ").append(increment);
         }
-        if (minValue != getDefaultMinValue(increment)) {
+        if (minValue != getDefaultMinValue(value, increment)) {
             buff.append(" MINVALUE ").append(minValue);
         }
-        if (maxValue != getDefaultMaxValue(increment)) {
+        if (maxValue != getDefaultMaxValue(value, increment)) {
             buff.append(" MAXVALUE ").append(maxValue);
         }
         if (cycle) {
@@ -218,11 +242,13 @@ public class Sequence extends SchemaObjectBase {
      */
     public synchronized long getNext(Session session) {
         boolean needsFlush = false;
-        if ((increment > 0 && value >= valueWithMargin) || (increment < 0 && value <= valueWithMargin)) {
+        if ((increment > 0 && value >= valueWithMargin) ||
+                (increment < 0 && value <= valueWithMargin)) {
             valueWithMargin += increment * cacheSize;
             needsFlush = true;
         }
-        if ((increment > 0 && value > maxValue) || (increment < 0 && value < minValue)) {
+        if ((increment > 0 && value > maxValue) ||
+                (increment < 0 && value < minValue)) {
             if (cycle) {
                 value = increment > 0 ? minValue : maxValue;
                 valueWithMargin = value + (increment * cacheSize);
@@ -256,9 +282,9 @@ public class Sequence extends SchemaObjectBase {
      */
     public synchronized void flush(Session session) {
         if (session == null || !database.isSysTableLocked()) {
-            // This session may not lock the sys table (except if it already has locked it)
-            // because it must be committed immediately,
-            // otherwise other threads can not access the sys table.
+            // This session may not lock the sys table (except if it already has
+            // locked it) because it must be committed immediately, otherwise
+            // other threads can not access the sys table.
             Session sysSession = database.getSystemSession();
             synchronized (sysSession) {
                 flushInternal(sysSession);
@@ -276,7 +302,9 @@ public class Sequence extends SchemaObjectBase {
         long realValue = value;
         try {
             value = valueWithMargin;
-            database.update(session, this);
+            if (!isTemporary()) {
+                database.updateMeta(session, this);
+            }
         } finally {
             value = realValue;
         }

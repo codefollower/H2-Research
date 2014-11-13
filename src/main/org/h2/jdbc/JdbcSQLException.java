@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbc;
@@ -41,7 +40,8 @@ public class JdbcSQLException extends SQLException {
      * @param cause the exception that was the reason for this exception
      * @param stackTrace the stack trace
      */
-    public JdbcSQLException(String message, String sql, String state, int errorCode, Throwable cause, String stackTrace) {
+    public JdbcSQLException(String message, String sql, String state,
+            int errorCode, Throwable cause, String stackTrace) {
         super(message, state, errorCode);
         this.originalMessage = message;
         setSQL(sql);
@@ -145,7 +145,7 @@ public class JdbcSQLException extends SQLException {
      * INTERNAL
      */
     public void setSQL(String sql) {
-        if (sql != null && sql.indexOf(HIDE_SQL) >= 0) {
+        if (sql != null && sql.contains(HIDE_SQL)) {
             sql = "-";
         }
         this.sql = sql;
@@ -153,11 +153,13 @@ public class JdbcSQLException extends SQLException {
     }
 
     private void buildMessage() {
-        StringBuilder buff = new StringBuilder(originalMessage == null ? "- " : originalMessage);
+        StringBuilder buff = new StringBuilder(originalMessage == null ?
+                "- " : originalMessage);
         if (sql != null) {
             buff.append("; SQL statement:\n").append(sql);
         }
-        buff.append(" [").append(getErrorCode()).append('-').append(Constants.BUILD_ID).append(']');
+        buff.append(" [").append(getErrorCode()).
+                append('-').append(Constants.BUILD_ID).append(']');
         message = buff.toString();
     }
 

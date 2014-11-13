@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.test.store;
 
@@ -45,16 +45,17 @@ public class TestRandomMapOps extends TestBase {
         testMap("memFS:randomOps.h3");
     }
 
-    private void testMap(String fileName) {
+    private void testMap(String fileName) throws Exception {
         this.fileName = fileName;
         int best = Integer.MAX_VALUE;
         int bestSeed = 0;
         Throwable failException = null;
+        int size = getSize(100, 1000);
         for (seed = 0; seed < 100; seed++) {
             FileUtils.delete(fileName);
             Throwable ex = null;
             try {
-                testCase();
+                testOps(size);
                 continue;
             } catch (Exception e) {
                 ex = e;
@@ -65,8 +66,9 @@ public class TestRandomMapOps extends TestBase {
                 trace(seed);
                 bestSeed = seed;
                 best = op;
+                size = best;
                 failException = ex;
-                // System.out.println("seed:" + seed + " op:" + op);
+                // System.out.println("seed:" + seed + " op:" + op + " " + ex);
             }
         }
         if (failException != null) {
@@ -75,7 +77,7 @@ public class TestRandomMapOps extends TestBase {
         }
     }
 
-    private void testCase() throws Exception {
+    private void testOps(int size) throws Exception {
         FileUtils.delete(fileName);
         MVStore s;
         s = openStore(fileName);
@@ -87,7 +89,6 @@ public class TestRandomMapOps extends TestBase {
         }
         Random r = new Random(seed);
         op = 0;
-        int size = getSize(100, 1000);
         TreeMap<Integer, byte[]> map = new TreeMap<Integer, byte[]>();
         for (; op < size; op++) {
             int k = r.nextInt(100);
@@ -109,8 +110,8 @@ public class TestRandomMapOps extends TestBase {
                 map.remove(k);
                 break;
             case 6:
-                log(op, k, v, "s.compact(90)");
-                s.compact(90);
+                log(op, k, v, "s.compact(90, 1024)");
+                s.compact(90, 1024);
                 break;
             case 7:
                 log(op, k, v, "m.clear()");
@@ -167,7 +168,7 @@ public class TestRandomMapOps extends TestBase {
     private static MVStore openStore(String fileName) {
         MVStore s = new MVStore.Builder().fileName(fileName).
                 pageSplitSize(50).autoCommitDisabled().open();
-        s.setRetentionTime(0);
+        s.setRetentionTime(1000);
         return s;
     }
 

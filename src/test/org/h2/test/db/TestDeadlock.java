@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -11,7 +10,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.util.Task;
 
@@ -66,7 +66,8 @@ public class TestDeadlock extends TestBase {
         conn2 = getConnection(url);
         final Statement stat = conn.createStatement();
         Statement stat2 = conn2.createStatement();
-        stat.execute("create alias if not exists ft_init for \"org.h2.fulltext.FullText.init\"");
+        stat.execute("create alias if not exists ft_init for " +
+                "\"org.h2.fulltext.FullText.init\"");
         stat.execute("call ft_init()");
         stat.execute("create table test(id int primary key, name varchar)");
         stat.execute("call ft_create_index('PUBLIC', 'TEST', null)");
@@ -94,7 +95,7 @@ public class TestDeadlock extends TestBase {
 
     private void testConcurrentLobReadAndTempResultTableDelete() throws Exception {
         deleteDb("deadlock");
-        String url = "deadlock;MAX_MEMORY_ROWS_DISTINCT=10";
+        String url = "deadlock;MAX_MEMORY_ROWS=10";
         Connection conn, conn2;
         Statement stat2;
         conn = getConnection(url);

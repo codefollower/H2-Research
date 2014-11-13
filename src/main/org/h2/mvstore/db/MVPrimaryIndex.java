@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
@@ -12,7 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
@@ -60,21 +59,23 @@ public class MVPrimaryIndex extends BaseIndex {
     private long lastKey;
     private int mainIndexColumn = -1;
 
-    public MVPrimaryIndex(Database db, MVTable table, int id, IndexColumn[] columns,
-                IndexType indexType) {
+    public MVPrimaryIndex(Database db, MVTable table, int id,
+            IndexColumn[] columns, IndexType indexType) {
         this.mvTable = table;
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
         int[] sortTypes = new int[columns.length];
         for (int i = 0; i < columns.length; i++) {
             sortTypes[i] = SortOrder.ASCENDING;
         }
-        ValueDataType keyType = new ValueDataType(
-                null, null, null);
-        ValueDataType valueType = new ValueDataType(
-                db.getCompareMode(), db, sortTypes);
+        ValueDataType keyType = new ValueDataType(null, null, null);
+        ValueDataType valueType = new ValueDataType(db.getCompareMode(), db,
+                sortTypes);
         mapName = "table." + getId();
-        dataMap = mvTable.getTransaction(null).openMap(
-                mapName, keyType, valueType);
+        dataMap = mvTable.getTransaction(null).openMap(mapName, keyType,
+                valueType);
+        if (!table.isPersistData()) {
+            dataMap.map.setVolatile(true);
+        }
         Value k = dataMap.lastKey();
         lastKey = k == null ? 0 : k.getLong();
     }
@@ -132,7 +133,7 @@ public class MVPrimaryIndex extends BaseIndex {
         if (old != null) {
             String sql = "PRIMARY KEY ON " + table.getSQL();
             if (mainIndexColumn >= 0 && mainIndexColumn < indexColumns.length) {
-                sql +=  "(" + indexColumns[mainIndexColumn].getSQL() + ")";
+                sql += "(" + indexColumns[mainIndexColumn].getSQL() + ")";
             }
             DbException e = DbException.get(ErrorCode.DUPLICATE_KEY_1, sql);
             e.setSource(this);
@@ -141,7 +142,8 @@ public class MVPrimaryIndex extends BaseIndex {
         try {
             map.put(key, ValueArray.get(row.getValueList()));
         } catch (IllegalStateException e) {
-            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, table.getName());
+            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1,
+                    table.getName());
         }
         lastKey = Math.max(lastKey, row.getKey());
     }
@@ -164,7 +166,8 @@ public class MVPrimaryIndex extends BaseIndex {
                         getSQL() + ": " + row.getKey());
             }
         } catch (IllegalStateException e) {
-            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, table.getName());
+            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1,
+                    table.getName());
         }
     }
 
@@ -192,8 +195,7 @@ public class MVPrimaryIndex extends BaseIndex {
             }
         }
         TransactionMap<Value, Value> map = getMap(session);
-        return new MVStoreCursor(map.entryIterator(
-                min), max);
+        return new MVStoreCursor(map.entryIterator(min), max);
     }
 
     @Override
@@ -212,7 +214,8 @@ public class MVPrimaryIndex extends BaseIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
         try {
             long cost = 10 * (dataMap.sizeAsLongMax() + Constants.COST_ROW_OFFSET);
             return cost;
@@ -226,7 +229,6 @@ public class MVPrimaryIndex extends BaseIndex {
         // can not use this index - use the delegate index instead
         return -1;
     }
-
 
     @Override
     public void remove(Session session) {
@@ -256,7 +258,8 @@ public class MVPrimaryIndex extends BaseIndex {
         TransactionMap<Value, Value> map = getMap(session);
         ValueLong v = (ValueLong) (first ? map.firstKey() : map.lastKey());
         if (v == null) {
-            return new MVStoreCursor(Collections.<Entry<Value, Value>>emptyList().iterator(), null);
+            return new MVStoreCursor(Collections
+                    .<Entry<Value, Value>> emptyList().iterator(), null);
         }
         Value value = map.get(v);
         Entry<Value, Value> e = new DataUtils.MapEntry<Value, Value>(v, value);
@@ -398,7 +401,7 @@ public class MVPrimaryIndex extends BaseIndex {
 
         @Override
         public boolean next() {
-            current = it.next();
+            current = it.hasNext() ? it.next() : null;
             if (current != null && current.getKey().getLong() > last.getLong()) {
                 current = null;
             }

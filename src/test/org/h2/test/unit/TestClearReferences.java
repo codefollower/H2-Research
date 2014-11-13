@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -25,7 +24,7 @@ public class TestClearReferences extends TestBase {
 
     private static final String[] KNOWN_REFRESHED = {
         "org.h2.compress.CompressLZF.cachedHashTable",
-        "org.h2.constant.DbSettings.defaultSettings",
+        "org.h2.engine.DbSettings.defaultSettings",
         "org.h2.engine.SessionRemote.sessionFactory",
         "org.h2.jdbcx.JdbcDataSourceFactory.cachedTraceSystem",
         "org.h2.store.RecoverTester.instance",
@@ -37,13 +36,13 @@ public class TestClearReferences extends TestBase {
         "org.h2.tools.CompressTool.cachedBuffer",
         "org.h2.util.CloseWatcher.queue",
         "org.h2.util.CloseWatcher.refs",
-        "org.h2.util.DateTimeUtils.cachedCalendar",
         "org.h2.util.MathUtils.cachedSecureRandom",
         "org.h2.util.NetUtils.cachedLocalAddress",
         "org.h2.util.StringUtils.softCache",
-        "org.h2.util.Utils.allowedClassNames",
-        "org.h2.util.Utils.allowedClassNamePrefixes",
-        "org.h2.util.Utils.userClassFactories",
+        "org.h2.util.JdbcUtils.allowedClassNames",
+        "org.h2.util.JdbcUtils.allowedClassNamePrefixes",
+        "org.h2.util.JdbcUtils.userClassFactories",
+        "org.h2.util.Task.counter",
         "org.h2.value.CompareMode.lastUsed",
         "org.h2.value.Value.softCache",
     };
@@ -120,7 +119,7 @@ public class TestClearReferences extends TestBase {
             try {
                 clazz = Class.forName(className);
             } catch (NoClassDefFoundError e) {
-                if (e.toString().indexOf("lucene") >= 0) {
+                if (e.toString().contains("lucene")) {
                     // Lucene is not in the classpath, OK
                 }
             } catch (ClassNotFoundException e) {
@@ -142,13 +141,13 @@ public class TestClearReferences extends TestBase {
         try {
             fields = clazz.getDeclaredFields();
         } catch (NoClassDefFoundError e) {
-            if (e.toString().indexOf("lucene") >= 0) {
+            if (e.toString().contains("lucene")) {
                 // Lucene is not in the classpath, OK
                 return;
-            } else if (e.toString().indexOf("jts") >= 0) {
+            } else if (e.toString().contains("jts")) {
                 // JTS is not in the classpath, OK
                 return;
-            } else if (e.toString().indexOf("slf4j") >= 0) {
+            } else if (e.toString().contains("slf4j")) {
                 // slf4j is not in the classpath, OK
                 return;
             }

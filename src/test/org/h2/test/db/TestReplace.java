@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: Cemo
  */
 package org.h2.test.db;
@@ -48,15 +47,20 @@ public class TestReplace extends TestBase {
                 "  PRIMARY KEY (WORD_ID)" +
                 ");");
 
-        stat.execute("REPLACE INTO TABLE_WORD ( WORD ) VALUES ('aaaaaaaaaa')");
-        stat.execute("REPLACE INTO TABLE_WORD ( WORD ) VALUES ('bbbbbbbbbb')");
-        stat.execute("REPLACE INTO TABLE_WORD ( WORD_ID, WORD ) VALUES (3, 'cccccccccc')");
+        stat.execute("REPLACE INTO TABLE_WORD " +
+                "( WORD ) VALUES ('aaaaaaaaaa')");
+        stat.execute("REPLACE INTO TABLE_WORD " +
+                "( WORD ) VALUES ('bbbbbbbbbb')");
+        stat.execute("REPLACE INTO TABLE_WORD " +
+                "( WORD_ID, WORD ) VALUES (3, 'cccccccccc')");
 
-        rs = stat.executeQuery("SELECT WORD FROM TABLE_WORD where WORD_ID = 1");
+        rs = stat.executeQuery("SELECT WORD " +
+                "FROM TABLE_WORD where WORD_ID = 1");
         rs.next();
         assertEquals("aaaaaaaaaa", rs.getNString(1));
 
-        stat.execute("REPLACE INTO TABLE_WORD (  WORD_ID, WORD ) VALUES (1, 'REPLACED')");
+        stat.execute("REPLACE INTO TABLE_WORD " +
+                "(  WORD_ID, WORD ) VALUES (1, 'REPLACED')");
         rs = stat.executeQuery("SELECT WORD FROM TABLE_WORD where WORD_ID = 1");
         rs.next();
         assertEquals("REPLACED", rs.getNString(1));

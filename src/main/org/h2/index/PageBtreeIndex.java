@@ -1,15 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -40,8 +39,13 @@ public class PageBtreeIndex extends PageIndex {
     private int memoryPerPage;
     private int memoryCount;
 
+<<<<<<< HEAD
     //PageDataIndex的id就是表的id，其他索引如PageBtreeIndex的id是自动分配的并不是表的id
     public PageBtreeIndex(RegularTable table, int id, String indexName, IndexColumn[] columns,
+=======
+    public PageBtreeIndex(RegularTable table, int id, String indexName,
+            IndexColumn[] columns,
+>>>>>>> remotes/git-svn
             IndexType indexType, boolean create, Session session) {
         initBaseIndex(table, id, indexName, columns, indexType);
         if (!database.isStarting() && create) {
@@ -127,7 +131,8 @@ public class PageBtreeIndex extends PageIndex {
             //而 page1.setPageId(id)会重新remapChildren左节点中对应的原始子节点
             page1.setParentPageId(rootPageId);
             page2.setParentPageId(rootPageId);
-            PageBtreeNode newRoot = PageBtreeNode.create(this, rootPageId, PageBtree.ROOT);
+            PageBtreeNode newRoot = PageBtreeNode.create(
+                    this, rootPageId, PageBtree.ROOT);
             store.logUndo(newRoot, null);
             newRoot.init(page1, pivot, page2);
             store.update(page1);
@@ -202,7 +207,8 @@ public class PageBtreeIndex extends PageIndex {
         return find(session, first, false, last);
     }
 
-    private Cursor find(Session session, SearchRow first, boolean bigger, SearchRow last) {
+    private Cursor find(Session session, SearchRow first, boolean bigger,
+            SearchRow last) {
         if (SysProperties.CHECK && store == null) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED);
         }
@@ -247,8 +253,10 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
-        return 10 * getCostRangeIndex(masks, tableData.getRowCount(session), filter, sortOrder);
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
+        return 10 * getCostRangeIndex(masks, tableData.getRowCount(session),
+                filter, sortOrder);
     }
 
     @Override
@@ -372,7 +380,8 @@ public class PageBtreeIndex extends PageIndex {
      * @param needData whether the row data is required
      * @return the row
      */
-    SearchRow readRow(Data data, int offset, boolean onlyPosition, boolean needData) {
+    SearchRow readRow(Data data, int offset, boolean onlyPosition,
+            boolean needData) {
         synchronized (data) {
             data.setPos(offset);
             long key = data.readVarLong();
@@ -500,7 +509,8 @@ public class PageBtreeIndex extends PageIndex {
         if (memoryCount < Constants.MEMORY_FACTOR) {
             memoryPerPage += (x - memoryPerPage) / ++memoryCount;
         } else {
-            memoryPerPage += (x > memoryPerPage ? 1 : -1) + ((x - memoryPerPage) / Constants.MEMORY_FACTOR);
+            memoryPerPage += (x > memoryPerPage ? 1 : -1) +
+                    ((x - memoryPerPage) / Constants.MEMORY_FACTOR);
         }
     }
 

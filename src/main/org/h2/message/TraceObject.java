@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.message;
@@ -52,11 +51,6 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
     protected static final int SAVEPOINT = 6;
 
     /**
-     * The trace type id  for sql exceptions.
-     */
-    protected static final int SQL_EXCEPTION = 7;
-
-    /**
      * The trace type id  for statements.
      */
     protected static final int STATEMENT = 8;
@@ -87,11 +81,6 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
     protected static final int XA_DATA_SOURCE = 13;
 
     /**
-     * The trace type id  for XA resources.
-     */
-    protected static final int XA_RESOURCE = 14;
-
-    /**
      * The trace type id  for transaction ids.
      */
     protected static final int XID = 15;
@@ -103,10 +92,9 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
 
     private static final int LAST = ARRAY + 1;
     private static final int[] ID = new int[LAST];
-    private static final String[] PREFIX = {
-        "call", "conn", "dbMeta", "prep", "rs", "rsMeta", "sp", "ex", "stat", "blob", "clob", "pMeta",
-        "ds", "xads", "xares", "xid", "ar"
-    };
+    private static final String[] PREFIX = { "call", "conn", "dbMeta", "prep",
+            "rs", "rsMeta", "sp", "ex", "stat", "blob", "clob", "pMeta", "ds",
+            "xads", "xares", "xid", "ar" };
 
     /**
      * The trace module used by this object.
@@ -127,15 +115,6 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
         this.trace = trace;
         this.traceType = type;
         this.id = id;
-    }
-
-    /**
-     * Get the trace object.
-     *
-     * @return the trace object
-     */
-    protected Trace getTrace() {
-        return trace;
     }
 
     /**
@@ -189,9 +168,11 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
      * @param newId the trace object id of the created object
      * @param value the value to assign this new object to
      */
-    protected void debugCodeAssign(String className, int newType, int newId, String value) {
+    protected void debugCodeAssign(String className, int newType, int newId,
+            String value) {
         if (trace.isDebugEnabled()) {
-            trace.debugCode(className + " " + PREFIX[newType] + newId + " = " + getTraceObjectName() + "." + value + ";");
+            trace.debugCode(className + " " + PREFIX[newType] +
+                    newId + " = " + getTraceObjectName() + "." + value + ";");
         }
     }
 
@@ -217,7 +198,8 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
      */
     protected void debugCodeCall(String methodName, long param) {
         if (trace.isDebugEnabled()) {
-            trace.debugCode(getTraceObjectName() + "." + methodName + "(" + param + ");");
+            trace.debugCode(getTraceObjectName() + "." +
+                    methodName + "(" + param + ");");
         }
     }
 
@@ -231,7 +213,8 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
      */
     protected void debugCodeCall(String methodName, String param) {
         if (trace.isDebugEnabled()) {
-            trace.debugCode(getTraceObjectName() + "." + methodName + "(" + quote(param) + ");");
+            trace.debugCode(getTraceObjectName() + "." +
+                    methodName + "(" + quote(param) + ");");
         }
     }
 
@@ -318,7 +301,8 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
         if (x == null) {
             return "null";
         }
-        return "org.h2.util.StringUtils.convertHexToBytes(\"" + StringUtils.convertBytesToHex(x) + "\")";
+        return "org.h2.util.StringUtils.convertHexToBytes(\"" +
+                StringUtils.convertBytesToHex(x) + "\")";
     }
 
     /**
@@ -367,7 +351,7 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
     protected SQLException logAndConvert(Exception ex) {
         SQLException e = DbException.toSQLException(ex);
         if (trace == null) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         } else {
             int errorCode = e.getErrorCode();
             if (errorCode >= 23000 && errorCode < 24000) {

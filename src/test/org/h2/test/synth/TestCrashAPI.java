@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -31,7 +30,8 @@ import java.util.Calendar;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.store.FileLister;
 import org.h2.store.fs.FileUtils;
@@ -53,14 +53,16 @@ public class TestCrashAPI extends TestBase implements Runnable {
 
     private static final boolean RECOVER_ALL = false;
 
-    private static final Class<?>[] INTERFACES = { Connection.class, PreparedStatement.class, Statement.class,
-            ResultSet.class, ResultSetMetaData.class, Savepoint.class,
-            ParameterMetaData.class, Clob.class, Blob.class, Array.class, CallableStatement.class };
+    private static final Class<?>[] INTERFACES = { Connection.class,
+            PreparedStatement.class, Statement.class, ResultSet.class,
+            ResultSetMetaData.class, Savepoint.class, ParameterMetaData.class,
+            Clob.class, Blob.class, Array.class, CallableStatement.class };
 
     private static final String DIR = "synth";
 
     private final ArrayList<Object> objects = New.arrayList();
-    private final HashMap<Class <?>, ArrayList<Method>> classMethods = New.hashMap();
+    private final HashMap<Class <?>, ArrayList<Method>> classMethods =
+            New.hashMap();
     private RandomGen random = new RandomGen();
     private final ArrayList<String> statements = New.arrayList();
     private int openCount;
@@ -403,7 +405,7 @@ if (connectTime > 2000) {
     private void printIfBad(int seed, int id, int objectId, Throwable t) {
         if (t instanceof BatchUpdateException) {
             // do nothing
-        } else if (t.getClass().getName().indexOf("SQLClientInfoException") >= 0) {
+        } else if (t.getClass().getName().contains("SQLClientInfoException")) {
             // do nothing
         } else if (t instanceof SQLException) {
             SQLException s = (SQLException) t;

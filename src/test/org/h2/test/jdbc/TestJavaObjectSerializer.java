@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -13,7 +12,7 @@ import java.sql.Statement;
 import java.sql.Types;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.test.TestBase;
-import org.h2.util.Utils;
+import org.h2.util.JdbcUtils;
 
 /**
  * Tests {@link JavaObjectSerializer}.
@@ -47,7 +46,7 @@ public class TestJavaObjectSerializer extends TestBase {
     }
 
     private void testStaticGlobalSerializer() throws Exception {
-        Utils.serializer = new JavaObjectSerializer() {
+        JdbcUtils.serializer = new JavaObjectSerializer() {
             @Override
             public byte[] serialize(Object obj) throws Exception {
                 assertEquals(100500, ((Integer) obj).intValue());
@@ -86,7 +85,7 @@ public class TestJavaObjectSerializer extends TestBase {
             conn.close();
             deleteDb("javaSerializer");
         } finally {
-            Utils.serializer = null;
+            JdbcUtils.serializer = null;
         }
     }
 
@@ -101,7 +100,8 @@ public class TestJavaObjectSerializer extends TestBase {
             deleteDb("javaSerializer");
             Connection conn = getConnection("javaSerializer");
 
-            conn.createStatement().execute("SET JAVA_OBJECT_SERIALIZER '"+DbLevelJavaObjectSerializer.class.getName()+"'");
+            conn.createStatement().execute("SET JAVA_OBJECT_SERIALIZER '"+
+                    DbLevelJavaObjectSerializer.class.getName()+"'");
 
             Statement stat = conn.createStatement();
             stat.execute("create table t1(id identity, val other)");
@@ -129,7 +129,8 @@ public class TestJavaObjectSerializer extends TestBase {
     /**
      * The serializer to use for this test.
      */
-    public static class DbLevelJavaObjectSerializer implements JavaObjectSerializer {
+    public static class DbLevelJavaObjectSerializer implements
+            JavaObjectSerializer {
 
         /**
          * The test.

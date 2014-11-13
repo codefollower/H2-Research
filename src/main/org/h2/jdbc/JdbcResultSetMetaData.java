@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbc;
@@ -19,7 +18,8 @@ import org.h2.value.DataType;
 /**
  * Represents the meta data for a ResultSet.
  */
-public class JdbcResultSetMetaData extends TraceObject implements ResultSetMetaData {
+public class JdbcResultSetMetaData extends TraceObject implements
+        ResultSetMetaData {
 
     private final String catalog;
     private final JdbcResultSet rs;
@@ -27,8 +27,8 @@ public class JdbcResultSetMetaData extends TraceObject implements ResultSetMetaD
     private final ResultInterface result;
     private final int columnCount;
 
-    JdbcResultSetMetaData(JdbcResultSet rs, JdbcPreparedStatement prep, ResultInterface result,
-                String catalog, Trace trace, int id) {
+    JdbcResultSetMetaData(JdbcResultSet rs, JdbcPreparedStatement prep,
+            ResultInterface result, String catalog, Trace trace, int id) {
         setTrace(trace, TraceObject.RESULT_SET_META_DATA, id);
         this.catalog = catalog;
         this.rs = rs;

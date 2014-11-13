@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.web;
@@ -18,7 +17,6 @@ import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -28,9 +26,9 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TimeZone;
 
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
-import org.h2.message.TraceSystem;
+import org.h2.engine.SysProperties;
+import org.h2.message.DbException;
 import org.h2.server.Service;
 import org.h2.server.ShutdownHandler;
 import org.h2.store.fs.FileUtils;
@@ -75,26 +73,40 @@ public class WebServer implements Service {
         { "zh_TW", "\u4e2d\u6587 (\u7e41\u9ad4)"},
     };
 
+    private static final String COMMAND_HISTORY = "commandHistory";
+
     private static final String DEFAULT_LANGUAGE = "en";
 
     private static final String[] GENERIC = {
-        "Generic JNDI Data Source|javax.naming.InitialContext|java:comp/env/jdbc/Test|sa",
-        "Generic Firebird Server|org.firebirdsql.jdbc.FBDriver|jdbc:firebirdsql:localhost:c:/temp/firebird/test|sysdba",
-        "Generic SQLite|org.sqlite.JDBC|jdbc:sqlite:test|sa",
-        "Generic DB2|COM.ibm.db2.jdbc.net.DB2Driver|jdbc:db2://localhost/test|" ,
-        "Generic Oracle|oracle.jdbc.driver.OracleDriver|jdbc:oracle:thin:@localhost:1521:XE|sa" ,
+        "Generic JNDI Data Source|javax.naming.InitialContext|" +
+                "java:comp/env/jdbc/Test|sa",
+        "Generic Firebird Server|org.firebirdsql.jdbc.FBDriver|" +
+                "jdbc:firebirdsql:localhost:c:/temp/firebird/test|sysdba",
+        "Generic SQLite|org.sqlite.JDBC|" +
+                "jdbc:sqlite:test|sa",
+        "Generic DB2|COM.ibm.db2.jdbc.net.DB2Driver|" +
+                "jdbc:db2://localhost/test|" ,
+        "Generic Oracle|oracle.jdbc.driver.OracleDriver|" +
+                    "jdbc:oracle:thin:@localhost:1521:XE|sa" ,
         "Generic MS SQL Server 2000|com.microsoft.jdbc.sqlserver.SQLServerDriver|" +
                 "jdbc:microsoft:sqlserver://localhost:1433;DatabaseName=sqlexpress|sa",
         "Generic MS SQL Server 2005|com.microsoft.sqlserver.jdbc.SQLServerDriver|" +
                 "jdbc:sqlserver://localhost;DatabaseName=test|sa",
-        "Generic PostgreSQL|org.postgresql.Driver|jdbc:postgresql:test|" ,
-        "Generic MySQL|com.mysql.jdbc.Driver|jdbc:mysql://localhost:3306/test|" ,
-        "Generic HSQLDB|org.hsqldb.jdbcDriver|jdbc:hsqldb:test;hsqldb.default_table_type=cached|sa" ,
-        "Generic Derby (Server)|org.apache.derby.jdbc.ClientDriver|jdbc:derby://localhost:1527/test;create=true|sa",
-        "Generic Derby (Embedded)|org.apache.derby.jdbc.EmbeddedDriver|jdbc:derby:test;create=true|sa",
-        "Generic H2 (Server)|org.h2.Driver|jdbc:h2:tcp://localhost/~/test|sa",
+        "Generic PostgreSQL|org.postgresql.Driver|" +
+                "jdbc:postgresql:test|" ,
+        "Generic MySQL|com.mysql.jdbc.Driver|" +
+                "jdbc:mysql://localhost:3306/test|" ,
+        "Generic HSQLDB|org.hsqldb.jdbcDriver|" +
+                "jdbc:hsqldb:test;hsqldb.default_table_type=cached|sa" ,
+        "Generic Derby (Server)|org.apache.derby.jdbc.ClientDriver|" +
+                "jdbc:derby://localhost:1527/test;create=true|sa",
+        "Generic Derby (Embedded)|org.apache.derby.jdbc.EmbeddedDriver|" +
+                "jdbc:derby:test;create=true|sa",
+        "Generic H2 (Server)|org.h2.Driver|" +
+                "jdbc:h2:tcp://localhost/~/test|sa",
         // this will be listed on top for new installations
-        "Generic H2 (Embedded)|org.h2.Driver|jdbc:h2:~/test|sa",
+        "Generic H2 (Embedded)|org.h2.Driver|" +
+                "jdbc:h2:~/test|sa",
     };
 
     private static int ticker;
@@ -129,7 +141,8 @@ public class WebServer implements Service {
     private int port;
     private boolean allowOthers;
     private boolean isDaemon;
-    private final Set<WebThread> running = Collections.synchronizedSet(new HashSet<WebThread>());
+    private final Set<WebThread> running =
+            Collections.synchronizedSet(new HashSet<WebThread>());
     private boolean ssl;
     private final HashMap<String, ConnectionInfo> connInfoMap = New.hashMap();
 
@@ -146,6 +159,8 @@ public class WebServer implements Service {
     private TranslateThread translateThread;
     private boolean allowChunked = true;
     private String serverPropertiesDir = Constants.SERVER_PROPERTIES_DIR;
+    // null means the history is not allowed to be stored
+    private String commandHistoryString;
 
     /**
      * Read the given file from the file system or from the resources.
@@ -240,7 +255,7 @@ public class WebServer implements Service {
         String newId;
         do {
             newId = generateSessionId();
-        } while(sessions.get(newId) != null);
+        } while (sessions.get(newId) != null);
         WebSession session = new WebSession(this);
         session.lastAccess = System.currentTimeMillis();
         session.put("sessionId", newId);
@@ -257,9 +272,10 @@ public class WebServer implements Service {
 
     String getStartDateTime() {
         if (startDateTime == null) {
-            SimpleDateFormat format = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss z", new Locale("en", ""));
+            SimpleDateFormat format = new SimpleDateFormat(
+                    "EEE, d MMM yyyy HH:mm:ss z", new Locale("en", ""));
             format.setTimeZone(TimeZone.getTimeZone("GMT"));
-            startDateTime = format.format(new Date());
+            startDateTime = format.format(System.currentTimeMillis());
         }
         return startDateTime;
     }
@@ -273,9 +289,13 @@ public class WebServer implements Service {
             }
         }
         Properties prop = loadProperties();
-        port = SortedProperties.getIntProperty(prop, "webPort", Constants.DEFAULT_HTTP_PORT);
-        ssl = SortedProperties.getBooleanProperty(prop, "webSSL", false);
-        allowOthers = SortedProperties.getBooleanProperty(prop, "webAllowOthers", false);
+        port = SortedProperties.getIntProperty(prop,
+                "webPort", Constants.DEFAULT_HTTP_PORT);
+        ssl = SortedProperties.getBooleanProperty(prop,
+                "webSSL", false);
+        allowOthers = SortedProperties.getBooleanProperty(prop,
+                "webAllowOthers", false);
+        commandHistoryString = prop.getProperty(COMMAND_HISTORY);
         for (int i = 0; args != null && i < args.length; i++) {
             String a = args[i];
             if (Tool.isOption(a, "-webPort")) {
@@ -298,7 +318,7 @@ public class WebServer implements Service {
                 trace = true;
             }
         }
-//            if(driverList != null) {
+//            if (driverList != null) {
 //                try {
 //                    String[] drivers =
 //                        StringUtils.arraySplit(driverList, ',', false);
@@ -325,7 +345,8 @@ public class WebServer implements Service {
 
     private void updateURL() {
         try {
-            url = (ssl ? "https" : "http") + "://" + NetUtils.getLocalAddress() + ":" + port;
+            url = (ssl ? "https" : "http") + "://" +
+                    NetUtils.getLocalAddress() + ":" + port;
         } catch (NoClassDefFoundError e) {
             // Google App Engine does not allow java.net.InetAddress
         }
@@ -388,7 +409,7 @@ public class WebServer implements Service {
             try {
                 listenerThread.join(1000);
             } catch (InterruptedException e) {
-                TraceSystem.traceThrowable(e);
+                DbException.traceThrowable(e);
             }
         }
         // TODO server: using a boolean 'now' argument? a timeout?
@@ -450,7 +471,7 @@ public class WebServer implements Service {
             trace("translation: "+language);
             byte[] trans = getFile("_text_"+language+".prop");
             trace("  "+new String(trans));
-            text = SortedProperties.fromLines(new String(trans, "UTF-8"));
+            text = SortedProperties.fromLines(new String(trans, Constants.UTF8));
             // remove starting # (if not translated yet)
             for (Entry<Object, Object> entry : text.entrySet()) {
                 String value = (String) entry.getValue();
@@ -459,7 +480,7 @@ public class WebServer implements Service {
                 }
             }
         } catch (IOException e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         }
         session.put("text", new HashMap<Object, Object>(text));
     }
@@ -508,6 +529,66 @@ public class WebServer implements Service {
         return port;
     }
 
+    public boolean isCommandHistoryAllowed() {
+        return commandHistoryString != null;
+    }
+
+    public void setCommandHistoryAllowed(boolean allowed) {
+        if (allowed) {
+            if (commandHistoryString == null) {
+                commandHistoryString = "";
+            }
+        } else {
+            commandHistoryString = null;
+        }
+    }
+
+    public ArrayList<String> getCommandHistoryList() {
+        ArrayList<String> result = New.arrayList();
+        if (commandHistoryString == null) {
+            return result;
+        }
+
+        // Split the commandHistoryString on non-escaped semicolons
+        // and unescape it.
+        StringBuilder sb = new StringBuilder();
+        for (int end = 0;; end++) {
+            if (end == commandHistoryString.length() ||
+                    commandHistoryString.charAt(end) == ';') {
+                if (sb.length() > 0) {
+                    result.add(sb.toString());
+                    sb.delete(0, sb.length());
+                }
+                if (end == commandHistoryString.length()) {
+                    break;
+                }
+            } else if (commandHistoryString.charAt(end) == '\\' &&
+                    end < commandHistoryString.length() - 1) {
+                sb.append(commandHistoryString.charAt(++end));
+            } else {
+                sb.append(commandHistoryString.charAt(end));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Save the command history to the properties file.
+     *
+     * @param commandHistory the history
+     */
+    public void saveCommandHistoryList(ArrayList<String> commandHistory) {
+        StringBuilder sb = new StringBuilder();
+        for (String s : commandHistory) {
+            if (sb.length() > 0) {
+                sb.append(';');
+            }
+            sb.append(s.replace("\\", "\\\\").replace(";", "\\;"));
+        }
+        commandHistoryString = sb.toString();
+        saveProperties(null);
+    }
+
     /**
      * Get the connection information for this setting.
      *
@@ -542,9 +623,10 @@ public class WebServer implements Service {
             if ("null".equals(serverPropertiesDir)) {
                 return new Properties();
             }
-            return SortedProperties.loadProperties(serverPropertiesDir + "/" + Constants.SERVER_PROPERTIES_NAME);
+            return SortedProperties.loadProperties(
+                    serverPropertiesDir + "/" + Constants.SERVER_PROPERTIES_NAME);
         } catch (Exception e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
             return new Properties();
         }
     }
@@ -606,9 +688,18 @@ public class WebServer implements Service {
             if (prop == null) {
                 Properties old = loadProperties();
                 prop = new SortedProperties();
-                prop.setProperty("webPort", "" + SortedProperties.getIntProperty(old, "webPort", port));
-                prop.setProperty("webAllowOthers", "" + SortedProperties.getBooleanProperty(old, "webAllowOthers", allowOthers));
-                prop.setProperty("webSSL", "" + SortedProperties.getBooleanProperty(old, "webSSL", ssl));
+                prop.setProperty("webPort",
+                        "" + SortedProperties.getIntProperty(old,
+                        "webPort", port));
+                prop.setProperty("webAllowOthers",
+                        "" + SortedProperties.getBooleanProperty(old,
+                        "webAllowOthers", allowOthers));
+                prop.setProperty("webSSL",
+                        "" + SortedProperties.getBooleanProperty(old,
+                        "webSSL", ssl));
+                if (commandHistoryString != null) {
+                    prop.setProperty(COMMAND_HISTORY, commandHistoryString);
+                }
             }
             ArrayList<ConnectionInfo> settings = getSettings();
             int len = settings.size();
@@ -619,12 +710,13 @@ public class WebServer implements Service {
                 }
             }
             if (!"null".equals(serverPropertiesDir)) {
-                OutputStream out = FileUtils.newOutputStream(serverPropertiesDir + "/" + Constants.SERVER_PROPERTIES_NAME, false);
+                OutputStream out = FileUtils.newOutputStream(
+                        serverPropertiesDir + "/" + Constants.SERVER_PROPERTIES_NAME, false);
                 prop.store(out, "H2 Server Properties");
                 out.close();
             }
         } catch (Exception e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         }
     }
 
@@ -637,7 +729,8 @@ public class WebServer implements Service {
      * @param password the password
      * @return the database connection
      */
-    Connection getConnection(String driver, String databaseUrl, String user, String password) throws SQLException {
+    Connection getConnection(String driver, String databaseUrl, String user,
+            String password) throws SQLException {
         driver = driver.trim();
         databaseUrl = databaseUrl.trim();
         org.h2.Driver.load();
@@ -652,7 +745,8 @@ public class WebServer implements Service {
             }
             // PostgreSQL would throw a NullPointerException
             // if it is loaded before the H2 driver
-            // because it can't deal with non-String objects in the connection Properties
+            // because it can't deal with non-String objects in the connection
+            // Properties
             return org.h2.Driver.load().connect(databaseUrl, p);
         }
 //            try {

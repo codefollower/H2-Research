@@ -1,11 +1,11 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
 
+import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -33,7 +33,8 @@ public class TestMultiThread extends TestBase implements Runnable {
         // nothing to do
     }
 
-    private TestMultiThread(TestAll config, TestMultiThread parent) throws SQLException {
+    private TestMultiThread(TestAll config, TestMultiThread parent)
+            throws SQLException {
         this.config = config;
         this.parent = parent;
         random = new Random();
@@ -52,10 +53,47 @@ public class TestMultiThread extends TestBase implements Runnable {
 
     @Override
     public void test() throws Exception {
+        testConcurrentLobAdd();
         testConcurrentView();
         testConcurrentAlter();
         testConcurrentAnalyze();
         testConcurrentInsertUpdateSelect();
+    }
+
+    private void testConcurrentLobAdd() throws Exception {
+        String db = "concurrentLobAdd";
+        deleteDb(db);
+        final String url = getURL(db + ";MULTI_THREADED=1", true);
+        Connection conn = getConnection(url);
+        Statement stat = conn.createStatement();
+        stat.execute("create table test(id identity, data clob)");
+        Task[] tasks = new Task[2];
+        for (int i = 0; i < tasks.length; i++) {
+            Task t = new Task() {
+                @Override
+                public void call() throws Exception {
+                    Connection c2 = getConnection(url);
+                    PreparedStatement p2 = c2
+                            .prepareStatement("insert into test(data) values(?)");
+                    try {
+                        while (!stop) {
+                            p2.setCharacterStream(1, new StringReader(new String(
+                                    new char[10 * 1024])));
+                            p2.execute();
+                        }
+                    } finally {
+                        c2.close();
+                    }
+                }
+            };
+            tasks[i] = t;
+            t.execute();
+        }
+        Thread.sleep(500);
+        for (Task t : tasks) {
+            t.get();
+        }
+        conn.close();
     }
 
     private void testConcurrentView() throws Exception {
@@ -83,7 +121,8 @@ public class TestMultiThread extends TestBase implements Runnable {
             public void call() throws Exception {
                 Connection c2 = getConnection(url);
                 while (!stop) {
-                    c2.prepareStatement("select * from test_view where x" + r.nextInt(len) + "=1");
+                    c2.prepareStatement("select * from test_view where x" +
+                            r.nextInt(len) + "=1");
                 }
                 c2.close();
             }
@@ -91,7 +130,8 @@ public class TestMultiThread extends TestBase implements Runnable {
         t.execute();
         SynchronizedVerifier.setDetect(SmallLRUCache.class, true);
         for (int i = 0; i < 1000; i++) {
-            conn.prepareStatement("select * from test_view where x" + r.nextInt(len) + "=1");
+            conn.prepareStatement("select * from test_view where x" +
+                    r.nextInt(len) + "=1");
         }
         t.get();
         SynchronizedVerifier.setDetect(SmallLRUCache.class, false);
@@ -129,7 +169,8 @@ public class TestMultiThread extends TestBase implements Runnable {
         final String url = getURL("concurrentAnalyze;MULTI_THREADED=1", true);
         Connection conn = getConnection(url);
         Statement stat = conn.createStatement();
-        stat.execute("create table test(id bigint primary key) as select x from system_range(1, 1000)");
+        stat.execute("create table test(id bigint primary key) " +
+                "as select x from system_range(1, 1000)");
         Task t = new Task() {
             @Override
             public void call() throws SQLException {
@@ -186,7 +227,8 @@ public class TestMultiThread extends TestBase implements Runnable {
             while (!parent.stop) {
                 threadStat.execute("SELECT COUNT(*) FROM TEST");
                 threadStat.execute("INSERT INTO TEST VALUES(NULL, 'Hi')");
-                PreparedStatement prep = threadConn.prepareStatement("UPDATE TEST SET NAME='Hello' WHERE ID=?");
+                PreparedStatement prep = threadConn.prepareStatement(
+                        "UPDATE TEST SET NAME='Hello' WHERE ID=?");
                 prep.setInt(1, random.nextInt(10000));
                 prep.execute();
                 prep = threadConn.prepareStatement("SELECT * FROM TEST WHERE ID=?");

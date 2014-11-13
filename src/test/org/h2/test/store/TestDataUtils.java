@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.test.store;
 
@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 
+import org.h2.mvstore.Chunk;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
 import org.h2.test.TestBase;
@@ -32,6 +33,7 @@ public class TestDataUtils extends TestBase {
 
     @Override
     public void test() {
+        testParse();
         testWriteBuffer();
         testEncodeLength();
         testFletcher();
@@ -58,6 +60,21 @@ public class TestDataUtils extends TestBase {
         for (int i = 0; i < 10000; i += 1000) {
             assertEquals(-1, DataUtils.getFletcher32(data, i));
         }
+        for (int i = 0; i < 1000; i++) {
+            for (int j = 0; j < 255; j++) {
+                Arrays.fill(data, 0, i, (byte) j);
+                data[i] = 0;
+                int a = DataUtils.getFletcher32(data, i);
+                if (i % 2 == 1) {
+                    // add length: same as appending a 0
+                    int b = DataUtils.getFletcher32(data, i + 1);
+                    assertEquals(a, b);
+                }
+                data[i] = 10;
+                int c = DataUtils.getFletcher32(data, i);
+                assertEquals(a, c);
+            }
+        }
         long last = 0;
         for (int i = 1; i < 255; i++) {
             Arrays.fill(data, (byte) i);
@@ -68,8 +85,10 @@ public class TestDataUtils extends TestBase {
             }
         }
         Arrays.fill(data, (byte) 10);
-        assertEquals(0x1e1e1414, DataUtils.getFletcher32(data, 10000));
-        assertEquals(0x1e3fa7ed, DataUtils.getFletcher32("Fletcher32".getBytes(), 10));
+        assertEquals(0x1e1e1414,
+                DataUtils.getFletcher32(data, 10000));
+        assertEquals(0x1e3fa7ed,
+                DataUtils.getFletcher32("Fletcher32".getBytes(), 10));
     }
 
     private void testMap() {
@@ -79,15 +98,17 @@ public class TestDataUtils extends TestBase {
         DataUtils.appendMap(buff,  "b", ",");
         DataUtils.appendMap(buff,  "c", "1,2");
         DataUtils.appendMap(buff,  "d", "\"test\"");
-        assertEquals(":,a:1,b:\",\",c:\"1,2\",d:\"\\\"test\\\"\"", buff.toString());
+        DataUtils.appendMap(buff,  "e", "}");
+        assertEquals(":,a:1,b:\",\",c:\"1,2\",d:\"\\\"test\\\"\",e:}", buff.toString());
 
         HashMap<String, String> m = DataUtils.parseMap(buff.toString());
-        assertEquals(5, m.size());
+        assertEquals(6, m.size());
         assertEquals("", m.get(""));
         assertEquals("1", m.get("a"));
         assertEquals(",", m.get("b"));
         assertEquals("1,2", m.get("c"));
         assertEquals("\"test\"", m.get("d"));
+        assertEquals("}", m.get("e"));
     }
 
     private void testMapRandomized() {
@@ -223,10 +244,39 @@ public class TestDataUtils extends TestBase {
         assertEquals((short) (1 << 15), DataUtils.getCheckValue(1 << 31));
     }
 
+    private void testParse() {
+        for (long i = -1; i != 0; i >>>= 1) {
+            String x = Long.toHexString(i);
+            assertEquals(i, DataUtils.parseHexLong(x));
+            x = Long.toHexString(-i);
+            assertEquals(-i, DataUtils.parseHexLong(x));
+            int j = (int) i;
+            x = Integer.toHexString(j);
+            assertEquals(j, DataUtils.parseHexInt(x));
+            j = (int) -i;
+            x = Integer.toHexString(j);
+            assertEquals(j, DataUtils.parseHexInt(x));
+        }
+    }
+
     private void testPagePos() {
         assertEquals(0, DataUtils.PAGE_TYPE_LEAF);
         assertEquals(1, DataUtils.PAGE_TYPE_NODE);
-        for (int i = 0; i < 67000000; i++) {
+
+        long max = DataUtils.getPagePos(Chunk.MAX_ID, Integer.MAX_VALUE,
+                    Integer.MAX_VALUE, DataUtils.PAGE_TYPE_NODE);
+        String hex = Long.toHexString(max);
+        assertEquals(max, DataUtils.parseHexLong(hex));
+        assertEquals(Chunk.MAX_ID, DataUtils.getPageChunkId(max));
+        assertEquals(Integer.MAX_VALUE, DataUtils.getPageOffset(max));
+        assertEquals(DataUtils.PAGE_LARGE, DataUtils.getPageMaxLength(max));
+        assertEquals(DataUtils.PAGE_TYPE_NODE, DataUtils.getPageType(max));
+
+        long overflow = DataUtils.getPagePos(Chunk.MAX_ID + 1,
+                Integer.MAX_VALUE, Integer.MAX_VALUE, DataUtils.PAGE_TYPE_NODE);
+        assertTrue(Chunk.MAX_ID + 1 != DataUtils.getPageChunkId(overflow));
+
+        for (int i = 0; i < Chunk.MAX_ID; i++) {
             long pos = DataUtils.getPagePos(i, 3, 128, 1);
             assertEquals(i, DataUtils.getPageChunkId(pos));
             assertEquals(3, DataUtils.getPageOffset(pos));
@@ -234,10 +284,13 @@ public class TestDataUtils extends TestBase {
             assertEquals(1, DataUtils.getPageType(pos));
         }
         for (int type = 0; type <= 1; type++) {
-            for (int chunkId = 0; chunkId < 67000000; chunkId += 670000) {
-                for (long offset = 0; offset < Integer.MAX_VALUE; offset += Integer.MAX_VALUE / 100) {
+            for (int chunkId = 0; chunkId < Chunk.MAX_ID;
+                    chunkId += Chunk.MAX_ID / 100) {
+                for (long offset = 0; offset < Integer.MAX_VALUE;
+                        offset += Integer.MAX_VALUE / 100) {
                     for (int length = 0; length < 2000000; length += 200000) {
-                        long pos = DataUtils.getPagePos(chunkId, (int) offset, length, type);
+                        long pos = DataUtils.getPagePos(
+                                chunkId, (int) offset, length, type);
                         assertEquals(chunkId, DataUtils.getPageChunkId(pos));
                         assertEquals(offset, DataUtils.getPageOffset(pos));
                         assertTrue(DataUtils.getPageMaxLength(pos) >= length);

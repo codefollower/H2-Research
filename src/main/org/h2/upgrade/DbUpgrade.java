@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.upgrade;
@@ -45,7 +44,8 @@ public class DbUpgrade {
      * @param info the properties
      * @return the connection if connected with the old version (NO_UPGRADE)
      */
-    public static Connection connectOrUpgrade(String url, Properties info) throws SQLException {
+    public static Connection connectOrUpgrade(String url, Properties info)
+            throws SQLException {
         if (!UPGRADE_CLASSES_PRESENT) {
             return null;
         }
@@ -100,12 +100,15 @@ public class DbUpgrade {
         DbUpgrade.deleteOldDb = deleteOldDb;
     }
 
-    private static Connection connectWithOldVersion(String url, Properties info) throws SQLException {
-        url = "jdbc:h2v1_1:" + url.substring("jdbc:h2:".length()) + ";IGNORE_UNKNOWN_SETTINGS=TRUE";
+    private static Connection connectWithOldVersion(String url, Properties info)
+            throws SQLException {
+        url = "jdbc:h2v1_1:" + url.substring("jdbc:h2:".length()) +
+                ";IGNORE_UNKNOWN_SETTINGS=TRUE";
         return DriverManager.getConnection(url, info);
     }
 
-    private static void upgrade(ConnectionInfo ci, Properties info) throws SQLException {
+    private static void upgrade(ConnectionInfo ci, Properties info)
+            throws SQLException {
         String name = ci.getName();
         String data = name + ".data.db";
         String index = name + ".index.db";
@@ -117,11 +120,13 @@ public class DbUpgrade {
         try {
             if (scriptInTempDir) {
                 new File(Utils.getProperty("java.io.tmpdir", ".")).mkdirs();
-                script = File.createTempFile("h2dbmigration", "backup.sql").getAbsolutePath();
+                script = File.createTempFile(
+                        "h2dbmigration", "backup.sql").getAbsolutePath();
             } else {
                 script = name + ".script.sql";
             }
-            String oldUrl = "jdbc:h2v1_1:" + name + ";UNDO_LOG=0;LOG=0;LOCK_MODE=0";
+            String oldUrl = "jdbc:h2v1_1:" + name +
+                    ";UNDO_LOG=0;LOG=0;LOCK_MODE=0";
             String cipher = ci.getProperty("CIPHER", null);
             if (cipher != null) {
                 oldUrl += ";CIPHER=" + cipher;
@@ -130,21 +135,23 @@ public class DbUpgrade {
             Statement stat = conn.createStatement();
             String uuid = UUID.randomUUID().toString();
             if (cipher != null) {
-                stat.execute("script to '" + script + "' cipher aes password '" + uuid + "' --hide--");
+                stat.execute("script to '" + script +
+                        "' cipher aes password '" + uuid + "' --hide--");
             } else {
                 stat.execute("script to '" + script + "'");
             }
             conn.close();
-            FileUtils.moveTo(data, backupData);
-            FileUtils.moveTo(index, backupIndex);
+            FileUtils.move(data, backupData);
+            FileUtils.move(index, backupIndex);
             if (FileUtils.exists(lobs)) {
-                FileUtils.moveTo(lobs, backupLobs);
+                FileUtils.move(lobs, backupLobs);
             }
             ci.removeProperty("IFEXISTS", false);
             conn = new JdbcConnection(ci, true);
             stat = conn.createStatement();
             if (cipher != null) {
-                stat.execute("runscript from '" + script + "' cipher aes password '" + uuid + "' --hide--");
+                stat.execute("runscript from '" + script +
+                        "' cipher aes password '" + uuid + "' --hide--");
             } else {
                 stat.execute("runscript from '" + script + "'");
             }
@@ -159,13 +166,13 @@ public class DbUpgrade {
             }
         } catch (Exception e)  {
             if (FileUtils.exists(backupData)) {
-                FileUtils.moveTo(backupData, data);
+                FileUtils.move(backupData, data);
             }
             if (FileUtils.exists(backupIndex)) {
-                FileUtils.moveTo(backupIndex, index);
+                FileUtils.move(backupIndex, index);
             }
             if (FileUtils.exists(backupLobs)) {
-                FileUtils.moveTo(backupLobs, lobs);
+                FileUtils.move(backupLobs, lobs);
             }
             FileUtils.delete(name + ".h2.db");
             throw DbException.toSQLException(e);

@@ -1,16 +1,16 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
 import java.util.HashMap;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
 import org.h2.command.dml.Select;
 import org.h2.command.dml.SelectListColumnResolver;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.index.IndexCondition;
@@ -45,12 +45,18 @@ public class ExpressionColumn extends Expression {
         this.tableAlias = null;
         this.columnName = null;
     }
+<<<<<<< HEAD
     
     //对于SELECT public.t.id FROM ExpressionColumnTest as t
     //schemaName = public
     //tableAlias = t
     //columnName = id
     public ExpressionColumn(Database database, String schemaName, String tableAlias, String columnName) {
+=======
+
+    public ExpressionColumn(Database database, String schemaName,
+            String tableAlias, String columnName) {
+>>>>>>> remotes/git-svn
         this.database = database;
         this.schemaName = schemaName;
         this.tableAlias = tableAlias;
@@ -83,10 +89,12 @@ public class ExpressionColumn extends Expression {
 
     @Override
     public void mapColumns(ColumnResolver resolver, int level) {
-        if (tableAlias != null && !database.equalsIdentifiers(tableAlias, resolver.getTableAlias())) {
+        if (tableAlias != null && !database.equalsIdentifiers(
+                tableAlias, resolver.getTableAlias())) {
             return;
         }
-        if (schemaName != null && !database.equalsIdentifiers(schemaName, resolver.getSchemaName())) {
+        if (schemaName != null && !database.equalsIdentifiers(
+                schemaName, resolver.getSchemaName())) {
             return;
         }
         for (Column col : resolver.getColumns()) {
@@ -323,15 +331,17 @@ public class ExpressionColumn extends Expression {
     	//如果没有为字段b建立索引，就在org.h2.table.TableFilter.prepare()中删除这个无用条件
         TableFilter tf = getTableFilter();
         if (filter == tf && column.getType() == Value.BOOLEAN) {
-            IndexCondition cond = IndexCondition.get(Comparison.EQUAL, this, ValueExpression
-                    .get(ValueBoolean.get(true)));
+            IndexCondition cond = IndexCondition.get(
+                    Comparison.EQUAL, this, ValueExpression.get(
+                            ValueBoolean.get(true)));
             filter.addIndexCondition(cond);
         }
     }
 
     @Override
     public Expression getNotIfPossible(Session session) {
-        return new Comparison(session, Comparison.EQUAL, this, ValueExpression.get(ValueBoolean.get(false)));
+        return new Comparison(session, Comparison.EQUAL, this,
+                ValueExpression.get(ValueBoolean.get(false)));
     }
 
 }

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jaqu;
@@ -31,9 +30,11 @@ public class Query<T> {
     private final Db db;
     private SelectTable<T> from;
     private final ArrayList<Token> conditions = New.arrayList();
-    private final ArrayList<UpdateColumn> updateColumnDeclarations = New.arrayList();
+    private final ArrayList<UpdateColumn> updateColumnDeclarations = New
+            .arrayList();
     private final ArrayList<SelectTable<?>> joins = New.arrayList();
-    private final IdentityHashMap<Object, SelectColumn<T>> aliasMap = ClassUtils.newIdentityHashMap();
+    private final IdentityHashMap<Object, SelectColumn<T>> aliasMap = ClassUtils
+            .newIdentityHashMap();
     private final ArrayList<OrderExpression<T>> orderByList = New.arrayList();
     private Object[] groupByExpressions;
     private long limit;
@@ -46,7 +47,8 @@ public class Query<T> {
     @SuppressWarnings("unchecked")
     static <T> Query<T> from(Db db, T alias) {
         Query<T> query = new Query<T>(db);
-        TableDefinition<T> def = (TableDefinition<T>) db.define(alias.getClass());
+        TableDefinition<T> def = (TableDefinition<T>) db.define(alias
+                .getClass());
         query.from = new SelectTable<T>(db, query, alias, false);
         def.initSelectObject(query.from, alias, query.aliasMap);
         return query;
@@ -253,7 +255,8 @@ public class Query<T> {
             try {
                 Object obj = f.get(filter);
                 if (obj == from.getAlias()) {
-                    List<TableDefinition.FieldDefinition> fields = from.getAliasDefinition().getFields();
+                    List<TableDefinition.FieldDefinition> fields = from
+                            .getAliasDefinition().getFields();
                     String name = f.getName();
                     for (TableDefinition.FieldDefinition field : fields) {
                         String n = name + "." + field.field.getName();
@@ -266,7 +269,8 @@ public class Query<T> {
                 throw new RuntimeException(e);
             }
         }
-        Token filterCode = new ClassReader().decompile(filter, fieldMap, "where");
+        Token filterCode = new ClassReader().decompile(filter, fieldMap,
+                "where");
         // String filterQuery = filterCode.toString();
         conditions.add(filterCode);
         return new QueryWhere<T>(this);
@@ -301,16 +305,16 @@ public class Query<T> {
      */
     public Query<T> orderBy(Object... expressions) {
         for (Object expr : expressions) {
-            OrderExpression<T> e =
-                new OrderExpression<T>(this, expr, false, false, false);
+            OrderExpression<T> e = new OrderExpression<T>(this, expr, false,
+                    false, false);
             addOrderBy(e);
         }
         return this;
     }
 
     public Query<T> orderByDesc(Object expr) {
-        OrderExpression<T> e =
-            new OrderExpression<T>(this, expr, true, false, false);
+        OrderExpression<T> e = new OrderExpression<T>(this, expr, true, false,
+                false);
         addOrderBy(e);
         return this;
     }
@@ -410,7 +414,8 @@ public class Query<T> {
      */
     @SuppressWarnings("unchecked")
     public <U> QueryJoin innerJoin(U alias) {
-        TableDefinition<T> def = (TableDefinition<T>) db.define(alias.getClass());
+        TableDefinition<T> def = (TableDefinition<T>) db.define(alias
+                .getClass());
         SelectTable<T> join = new SelectTable(db, this, alias, false);
         def.initSelectObject(join, alias, aliasMap);
         joins.add(join);

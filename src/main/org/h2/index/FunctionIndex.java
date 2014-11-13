@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -48,11 +47,13 @@ public class FunctionIndex extends BaseIndex {
         if (functionTable.isBufferResultSetToLocalTemp()) {
             return new FunctionCursor(functionTable.getResult(session));
         }
-        return new FunctionCursorResultSet(session, functionTable.getResultSet(session));
+        return new FunctionCursorResultSet(session,
+                functionTable.getResultSet(session));
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
         if (masks != null) {
             throw DbException.getUnsupportedException("ALIAS");
         }

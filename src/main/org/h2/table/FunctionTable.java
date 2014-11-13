@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
@@ -10,7 +9,8 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.FunctionCall;
@@ -29,7 +29,8 @@ import org.h2.value.ValueNull;
 import org.h2.value.ValueResultSet;
 
 /**
- * A table backed by a system or user-defined function that returns a result set.
+ * A table backed by a system or user-defined function that returns a result
+ * set.
  */
 public class FunctionTable extends Table {
 
@@ -39,9 +40,14 @@ public class FunctionTable extends Table {
     private LocalResult cachedResult;
     private Value cachedValue;
 
+<<<<<<< HEAD
     //在org.h2.command.Parser.parseValuesTable()和org.h2.command.Parser.readTableFilter(boolean)中有调用
     //functionExpr和function实际上是同一个对象
     public FunctionTable(Schema schema, Session session, Expression functionExpr, FunctionCall function) {
+=======
+    public FunctionTable(Schema schema, Session session,
+            Expression functionExpr, FunctionCall function) {
+>>>>>>> remotes/git-svn
         super(schema, 0, function.getName(), false, true);
         this.functionExpr = functionExpr;
         this.function = function;
@@ -53,18 +59,21 @@ public class FunctionTable extends Table {
         function.optimize(session);
         int type = function.getType();
         if (type != Value.RESULT_SET) {
-            throw DbException.get(ErrorCode.FUNCTION_MUST_RETURN_RESULT_SET_1, function.getName());
+            throw DbException.get(
+                    ErrorCode.FUNCTION_MUST_RETURN_RESULT_SET_1, function.getName());
         }
-        int params = function.getParameterCount();
-        Expression[] columnListArgs = new Expression[params];
         Expression[] args = function.getArgs();
-        for (int i = 0; i < params; i++) {
+        int numParams = args.length;
+        Expression[] columnListArgs = new Expression[numParams];
+        for (int i = 0; i < numParams; i++) {
             args[i] = args[i].optimize(session);
             columnListArgs[i] = args[i];
         }
-        ValueResultSet template = function.getValueForColumnList(session, columnListArgs);
+        ValueResultSet template = function.getValueForColumnList(
+                session, columnListArgs);
         if (template == null) {
-            throw DbException.get(ErrorCode.FUNCTION_MUST_RETURN_RESULT_SET_1, function.getName());
+            throw DbException.get(
+                    ErrorCode.FUNCTION_MUST_RETURN_RESULT_SET_1, function.getName());
         }
         ResultSet rs = template.getResultSet();
         try {
@@ -84,7 +93,7 @@ public class FunctionTable extends Table {
     }
 
     @Override
-    public void lock(Session session, boolean exclusive, boolean force) {
+    public void lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
         // nothing to do
     }
 
@@ -104,8 +113,9 @@ public class FunctionTable extends Table {
     }
 
     @Override
-    public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
-            boolean create, String indexComment) {
+    public Index addIndex(Session session, String indexName, int indexId,
+            IndexColumn[] cols, IndexType indexType, boolean create,
+            String indexComment) {
         throw DbException.getUnsupportedException("ALIAS");
     }
 

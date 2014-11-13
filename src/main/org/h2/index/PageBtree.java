@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -153,8 +152,8 @@ public abstract class PageBtree extends Page {
     }
 
     /**
-     * Add a row if possible. If it is possible this method returns -1, otherwise
-     * the split point. It is always possible to add one row.
+     * Add a row if possible. If it is possible this method returns -1,
+     * otherwise the split point. It is always possible to add one row.
      *
      * @param row the row to add
      * @return the split point of this page, or -1 if no split is required

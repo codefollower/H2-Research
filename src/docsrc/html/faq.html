@@ -1,8 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version 1.0,
+Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0, Version 1.0,
 and under the Eclipse Public License, Version 1.0
-(http://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -175,7 +174,6 @@ is well tested (if possible with automated test cases). The areas that are not w
 <ul>
 <li>Platforms other than Windows XP, Linux, Mac OS X, or JVMs other than Sun 1.6 or 1.7
 </li><li>The features <code>AUTO_SERVER</code> and <code>AUTO_RECONNECT</code>.
-</li><li>The file locking method 'Serialized'.
 </li><li>Cluster mode, 2-phase commit, savepoints.
 </li><li>24/7 operation.
 </li><li>Fulltext search.
@@ -251,7 +249,7 @@ and not the alias name. If you need the alias name, use
 <a href="http://java.sun.com/javase/6/docs/api/java/sql/ResultSetMetaData.html#getColumnLabel(int)"><code>ResultSetMetaData.getColumnLabel()</code></a>.
 Some other database don't work like this yet (they don't follow the JDBC specification).
 If you need compatibility with those databases, use the <a href="features.html#compatibility">Compatibility Mode</a>,
-or append <a href="../javadoc/org/h2/constant/DbSettings.html#ALIAS_COLUMN_NAME"><code>;ALIAS_COLUMN_NAME=TRUE</code></a> to the database URL.
+or append <a href="../javadoc/org/h2/engine/DbSettings.html#ALIAS_COLUMN_NAME"><code>;ALIAS_COLUMN_NAME=TRUE</code></a> to the database URL.
 </p>
 <p>
 This also applies to DatabaseMetaData calls that return a result set.

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -19,7 +18,9 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Random;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
+import org.h2.engine.Constants;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 
@@ -39,6 +40,9 @@ public class TestCases extends TestBase {
 
     @Override
     public void test() throws Exception {
+        testReferenceLaterTable();
+        testAutoCommitInDatabaseURL();
+        testReferenceableIndexUsage();
         testClearSyntaxException();
         testEmptyStatements();
         testViewParameters();
@@ -49,7 +53,7 @@ public class TestCases extends TestBase {
         testDependencies();
         testConvertType();
         testSortedSelect();
-        testMaxMemoryRowsDistinct();
+        testMaxMemoryRows();
         testDeleteTop();
         testUnicode();
         testOuterJoin();
@@ -101,6 +105,47 @@ public class TestCases extends TestBase {
         testCollation();
         testBinaryCollation();
         deleteDb("cases");
+    }
+
+    private void testReferenceLaterTable() throws SQLException {
+        deleteDb("cases");
+        Connection conn = getConnection("cases");
+        Statement stat = conn.createStatement();
+        stat.execute("create table a(id int)");
+        stat.execute("create table b(id int)");
+        stat.execute("drop table a");
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, stat).
+            execute("create table a(id int check id < select max(id) from b)");
+        stat.execute("drop table b");
+        stat.execute("create table b(id int)");
+        stat.execute("create table a(id int check id < select max(id) from b)");
+        conn.close();
+        conn = getConnection("cases");
+        conn.close();
+    }
+
+    private void testAutoCommitInDatabaseURL() throws SQLException {
+        Connection conn = getConnection("cases;autocommit=false");
+        assertFalse(conn.getAutoCommit());
+        Statement stat = conn.createStatement();
+        ResultSet rs = stat.executeQuery("call autocommit()");
+        rs.next();
+        assertFalse(rs.getBoolean(1));
+        conn.close();
+    }
+
+    private void testReferenceableIndexUsage() throws SQLException {
+        Connection conn = getConnection("cases");
+        Statement stat = conn.createStatement();
+        stat.execute("drop table if exists a, b");
+        stat.execute("create table a(id int, x int) as select 1, 100");
+        stat.execute("create index idx1 on a(id, x)");
+        stat.execute("create table b(id int primary key, a_id int) as select 1, 1");
+        stat.execute("alter table b add constraint x " +
+                "foreign key(a_id) references a(id)");
+        stat.execute("update a set x=200");
+        stat.execute("drop table if exists a, b");
+        conn.close();
     }
 
     private void testClearSyntaxException() throws SQLException {
@@ -176,7 +221,8 @@ public class TestCases extends TestBase {
         stat.execute("create table test(a int, b int)");
         stat.execute("create index idx on test(a)");
         stat.execute("insert into test values (1, 9), (2, 9), (3, 9)");
-        ResultSet rs = stat.executeQuery("select (select count(*) from test where a = t.a and b = 0) from test t group by a");
+        ResultSet rs = stat.executeQuery("select (select count(*)" +
+                " from test where a = t.a and b = 0) from test t group by a");
         rs.next();
         assertEquals(0, rs.getInt(1));
         conn.close();
@@ -186,7 +232,8 @@ public class TestCases extends TestBase {
         deleteDb("cases");
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
-        stat.execute("create table test(id int not null) as select 1 from system_range(1, 10)");
+        stat.execute("create table test(id int not null) as " +
+                "select 1 from system_range(1, 10)");
         ResultSet rs = stat.executeQuery("select count(distinct id) from test");
         rs.next();
         assertEquals(1, rs.getInt(1));
@@ -200,13 +247,15 @@ public class TestCases extends TestBase {
 
         // avoid endless recursion when adding dependencies
         stat.execute("create table test(id int primary key, parent int)");
-        stat.execute("alter table test add constraint test check (select count(*) from test) < 10");
+        stat.execute("alter table test add constraint test check " +
+                "(select count(*) from test) < 10");
         stat.execute("create table b()");
         stat.execute("drop table b");
         stat.execute("drop table test");
 
         // ensure the dependency is detected
-        stat.execute("create alias is_positive as 'boolean isPositive(int x) { return x > 0; }'");
+        stat.execute("create alias is_positive as " +
+                "'boolean isPositive(int x) { return x > 0; }'");
         stat.execute("create table a(a integer, constraint test check is_positive(a))");
         assertThrows(ErrorCode.CANNOT_DROP_2, stat).
                 execute("drop alias is_positive");
@@ -217,7 +266,8 @@ public class TestCases extends TestBase {
         // (otherwise re-opening the database is not possible)
         stat.execute("create table test(id int primary key)");
         assertThrows(ErrorCode.COLUMN_IS_REFERENCED_1, stat).
-                execute("alter table test alter column id set default ifnull((select max(id) from test for update)+1, 0)");
+                execute("alter table test alter column id " +
+                        "set default ifnull((select max(id) from test for update)+1, 0)");
         stat.execute("drop table test");
         conn.close();
     }
@@ -245,15 +295,19 @@ public class TestCases extends TestBase {
         conn.close();
     }
 
-    private void testMaxMemoryRowsDistinct() throws SQLException {
+    private void testMaxMemoryRows() throws SQLException {
         deleteDb("cases");
-        Connection conn = getConnection("cases;max_memory_rows_distinct=1");
+        Connection conn = getConnection(
+                "cases;MAX_MEMORY_ROWS=1");
         Statement stat = conn.createStatement();
         stat.execute("create table test(id int primary key)");
         stat.execute("insert into test values(1), (2)");
-        stat.execute("select * from dual where x not in (select id from test order by id)");
-        stat.execute("select * from dual where x not in (select id from test union select id from test)");
-        stat.execute("(select id from test order by id) intersect (select id from test order by id)");
+        stat.execute("select * from dual where x not in " +
+                "(select id from test order by id)");
+        stat.execute("select * from dual where x not in " +
+                "(select id from test union select id from test)");
+        stat.execute("(select id from test order by id) " +
+                "intersect (select id from test order by id)");
         conn.close();
     }
 
@@ -263,7 +317,8 @@ public class TestCases extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("create table test(id identity, name text)");
         String[] data = { "\uff1e", "\ud848\udf1e" };
-        PreparedStatement prep = conn.prepareStatement("insert into test(name) values(?)");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test(name) values(?)");
         for (int i = 0; i < data.length; i++) {
             prep.setString(1, data[i]);
             prep.execute();
@@ -282,7 +337,8 @@ public class TestCases extends TestBase {
         deleteDb("cases");
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
-        stat.execute("create alias is_email as 'boolean isEmail(String x) { return x != null && x.indexOf(''@'') > 0; }'");
+        stat.execute("create alias is_email as " +
+                "'boolean isEmail(String x) { return x != null && x.indexOf(''@'') > 0; }'");
         stat.execute("create domain email as varchar check is_email(value)");
         stat.execute("create table test(e email)");
         conn.close();
@@ -296,7 +352,8 @@ public class TestCases extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("create table parent(p int primary key) as select 1");
         stat.execute("create table child(c int primary key, pc int) as select 2, 1");
-        ResultSet rs = stat.executeQuery("select * from parent left outer join child on p = pc where c is null");
+        ResultSet rs = stat.executeQuery("select * from parent " +
+                "left outer join child on p = pc where c is null");
         assertFalse(rs.next());
         stat.execute("drop all objects");
         conn.close();
@@ -308,8 +365,10 @@ public class TestCases extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("create schema cases");
         stat.execute("create table cases.cases(cases int)");
-        stat.execute("comment on column cases.cases.cases is 'schema.table.column'");
-        stat.execute("comment on column cases.cases.cases.cases is 'db.schema.table.column'");
+        stat.execute("comment on column " +
+                "cases.cases.cases is 'schema.table.column'");
+        stat.execute("comment on column " +
+                "cases.cases.cases.cases is 'db.schema.table.column'");
         conn.close();
     }
 
@@ -332,7 +391,8 @@ public class TestCases extends TestBase {
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
         stat.execute("create table parent(id identity) as select 0");
-        stat.execute("create table child(id identity, parent int references parent(id)) as select 0, 0");
+        stat.execute("create table child(id identity, " +
+                "parent int references parent(id)) as select 0, 0");
         assertThrows(ErrorCode.CANNOT_TRUNCATE_1, stat).
                 execute("truncate table parent");
         assertThrows(ErrorCode.REFERENTIAL_INTEGRITY_VIOLATED_CHILD_EXISTS_1, stat).
@@ -356,7 +416,9 @@ public class TestCases extends TestBase {
         stat.execute("insert into test values(1, 'Hello')");
         stat.execute("insert into test values(2, 'World')");
 
-        PreparedStatement ps = conn.prepareStatement("select name from test where id in (select id from test where name = ?)");
+        PreparedStatement ps = conn.prepareStatement(
+                "select name from test where id in " +
+                "(select id from test where name = ?)");
         ps.setString(1, "Hello");
         ResultSet rs = ps.executeQuery();
         if (rs.next()) {
@@ -446,8 +508,10 @@ public class TestCases extends TestBase {
         deleteDb("cases");
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE TABLE IF NOT EXISTS test (rowid INTEGER PRIMARY KEY AUTO_INCREMENT, txt VARCHAR(64000));");
-        PreparedStatement prep = conn.prepareStatement("insert into test (txt) values(space(?))");
+        stat.execute("CREATE TABLE IF NOT EXISTS test " +
+                "(rowid INTEGER PRIMARY KEY AUTO_INCREMENT, txt VARCHAR(64000));");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test (txt) values(space(?))");
         for (int i = 0; i < 3000; i++) {
             prep.setInt(1, i * 3);
             prep.execute();
@@ -493,10 +557,12 @@ public class TestCases extends TestBase {
         conn = getConnection("cases");
         conn.createStatement().execute("set MAX_MEMORY_UNDO 1");
         conn.createStatement().execute("create table test(id number primary key)");
-        conn.createStatement().execute("insert into test(id) select x from system_range(1, 2)");
+        conn.createStatement().execute(
+                "insert into test(id) select x from system_range(1, 2)");
         Connection conn2 = getConnection("cases");
         conn2.setAutoCommit(false);
-        assertEquals(2, conn2.createStatement().executeUpdate("delete from test"));
+        assertEquals(2, conn2.createStatement().executeUpdate(
+                "delete from test"));
         conn2.close();
         conn.close();
 
@@ -505,7 +571,8 @@ public class TestCases extends TestBase {
         conn.createStatement().execute("set MAX_MEMORY_UNDO 8");
         conn.createStatement().execute("create table test(id number primary key)");
         conn.setAutoCommit(false);
-        conn.createStatement().execute("insert into test select x from system_range(1, 10)");
+        conn.createStatement().execute(
+                "insert into test select x from system_range(1, 10)");
         conn.createStatement().execute("delete from test");
         conn.rollback();
         conn.close();
@@ -528,7 +595,8 @@ public class TestCases extends TestBase {
         Connection conn;
         conn = getConnection("cases");
         conn.createStatement().execute("CREATE TABLE test(id int PRIMARY KEY);");
-        conn.createStatement().execute("INSERT INTO test SELECT X FROM SYSTEM_RANGE(1, 77)");
+        conn.createStatement().execute(
+                "INSERT INTO test SELECT X FROM SYSTEM_RANGE(1, 77)");
         conn.createStatement().execute("DELETE from test");
         conn.close();
         conn = getConnection("cases");
@@ -559,14 +627,16 @@ public class TestCases extends TestBase {
         Connection conn = getConnection("cases");
         String key = "key";
         String value = "Hello World";
-        PreparedStatement prep = conn.prepareStatement("CALL ENCRYPT('AES', RAWTOHEX(?), STRINGTOUTF8(?))");
+        PreparedStatement prep = conn.prepareStatement(
+                "CALL ENCRYPT('AES', RAWTOHEX(?), STRINGTOUTF8(?))");
         prep.setCharacterStream(1, new StringReader(key), -1);
         prep.setCharacterStream(2, new StringReader(value), -1);
         ResultSet rs = prep.executeQuery();
         rs.next();
         String encrypted = rs.getString(1);
-        PreparedStatement prep2 = conn
-                .prepareStatement("CALL TRIM(CHAR(0) FROM UTF8TOSTRING(DECRYPT('AES', RAWTOHEX(?), ?)))");
+        PreparedStatement prep2 = conn.prepareStatement(
+                "CALL TRIM(CHAR(0) FROM " +
+                "UTF8TOSTRING(DECRYPT('AES', RAWTOHEX(?), ?)))");
         prep2.setCharacterStream(1, new StringReader(key), -1);
         prep2.setCharacterStream(2, new StringReader(encrypted), -1);
         ResultSet rs2 = prep2.executeQuery();
@@ -597,7 +667,8 @@ public class TestCases extends TestBase {
         if (config.memory) {
             return;
         }
-        assertThrows(ErrorCode.INVALID_DATABASE_NAME_1, this).getConnection("cases/");
+        assertThrows(ErrorCode.INVALID_DATABASE_NAME_1, this).
+            getConnection("cases/");
     }
 
     private void testReuseSpace() throws SQLException {
@@ -632,7 +703,8 @@ public class TestCases extends TestBase {
         stat.execute("set max_memory_rows 2");
         stat.execute("create table test(id int primary key, x int)");
         stat.execute("insert into test values(0, 0), (1, 1), (2, 2)");
-        stat.execute("delete from test where id not in (select min(x) from test group by id)");
+        stat.execute("delete from test where id not in " +
+                "(select min(x) from test group by id)");
         conn.close();
     }
 
@@ -641,23 +713,40 @@ public class TestCases extends TestBase {
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
         assertThrows(ErrorCode.SYNTAX_ERROR_2, stat).
-                execute("create table address(id identity, name varchar check? instr(value, '@') > 1)");
-        stat.execute("SET AUTOCOMMIT OFF; \n//create sequence if not exists object_id;\n");
-        stat.execute("SET AUTOCOMMIT OFF;\n//create sequence if not exists object_id;\n");
-        stat.execute("SET AUTOCOMMIT OFF; //create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF;//create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF \n//create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF\n//create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF //create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF//create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF; \n///create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF;\n///create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF; ///create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF;///create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF \n///create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF\n///create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF ///create sequence if not exists object_id;");
-        stat.execute("SET AUTOCOMMIT OFF///create sequence if not exists object_id;");
+                execute("create table address" +
+                        "(id identity, name varchar check? instr(value, '@') > 1)");
+        stat.execute("SET AUTOCOMMIT OFF; \n//" +
+                "create sequence if not exists object_id;\n");
+        stat.execute("SET AUTOCOMMIT OFF;\n//" +
+                "create sequence if not exists object_id;\n");
+        stat.execute("SET AUTOCOMMIT OFF; //" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF;//" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF \n//" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF\n//" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF //" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF//" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF; \n///" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF;\n///" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF; ///" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF;///" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF \n///" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF\n///" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF ///" +
+                "create sequence if not exists object_id;");
+        stat.execute("SET AUTOCOMMIT OFF///" +
+                "create sequence if not exists object_id;");
         conn.close();
     }
 
@@ -718,7 +807,8 @@ public class TestCases extends TestBase {
         stat.execute("create table s.test(id identity)");
         conn.close();
         conn = getConnection("cases");
-        ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM S.TEST");
+        ResultSet rs = conn.createStatement().executeQuery(
+                "SELECT * FROM S.TEST");
         while (rs.next()) {
             // ignore
         }
@@ -742,11 +832,13 @@ public class TestCases extends TestBase {
             public void run() {
                 try {
                     long time = System.currentTimeMillis();
-                    ResultSet rs = stat
-                            .executeQuery("SELECT MAX(T.ID) FROM TEST T, TEST, TEST, TEST, TEST, TEST, TEST, TEST, TEST, TEST, TEST");
+                    ResultSet rs = stat.executeQuery("SELECT MAX(T.ID) " +
+                            "FROM TEST T, TEST, TEST, TEST, TEST, " +
+                            "TEST, TEST, TEST, TEST, TEST, TEST");
                     rs.next();
                     time = System.currentTimeMillis() - time;
-                    TestBase.logError("query was too quick; result: " + rs.getInt(1) + " time:" + time, null);
+                    TestBase.logError("query was too quick; result: " +
+                            rs.getInt(1) + " time:" + time, null);
                 } catch (SQLException e) {
                     stopped[0] = e;
                     // ok
@@ -776,12 +868,14 @@ public class TestCases extends TestBase {
         deleteDb("cases");
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
-        ResultSet rs = stat.executeQuery("SELECT ? FROM DUAL {1: 'Hello'}");
+        ResultSet rs = stat.executeQuery(
+                "SELECT ? FROM DUAL {1: 'Hello'}");
         rs.next();
         assertEquals("Hello", rs.getString(1));
         assertFalse(rs.next());
 
-        rs = stat.executeQuery("SELECT ? FROM DUAL UNION ALL SELECT ? FROM DUAL {1: 'Hello', 2:'World' }");
+        rs = stat.executeQuery("SELECT ? FROM DUAL UNION ALL " +
+                "SELECT ? FROM DUAL {1: 'Hello', 2:'World' }");
         rs.next();
         assertEquals("Hello", rs.getString(1));
         rs.next();
@@ -801,7 +895,8 @@ public class TestCases extends TestBase {
                 execute("alter table test add column name varchar not null;");
         conn.close();
         conn = getConnection("cases");
-        ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM TEST");
+        ResultSet rs = conn.createStatement().executeQuery(
+                "SELECT * FROM TEST");
         rs.next();
         assertEquals("1", rs.getString(1));
         assertFalse(rs.next());
@@ -836,8 +931,10 @@ public class TestCases extends TestBase {
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
         stat.execute("SET COLLATION ENGLISH STRENGTH PRIMARY");
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255))");
-        stat.execute("INSERT INTO TEST VALUES(1, 'Hello'), (2, 'World'), (3, 'WORLD'), (4, 'HELLO')");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, " +
+                "NAME VARCHAR(255))");
+        stat.execute("INSERT INTO TEST VALUES(1, 'Hello'), " +
+                "(2, 'World'), (3, 'WORLD'), (4, 'HELLO')");
         stat.execute("create index idxname on test(name)");
         ResultSet rs;
         rs = stat.executeQuery("select name from test order by name");
@@ -864,20 +961,22 @@ public class TestCases extends TestBase {
         ResultSet rs;
 
         // test the default (SIGNED)
-        stat.execute("create table bin( x binary(1) );");
-        stat.execute("insert into bin(x) values (x'09'),(x'0a'),(x'99'),(x'aa');");
-        rs = stat.executeQuery("select * from bin order by x;");
-        rs.next();
-        assertEquals("99", rs.getString(1));
-        rs.next();
-        assertEquals("aa", rs.getString(1));
-        rs.next();
-        assertEquals("09", rs.getString(1));
-        rs.next();
-        assertEquals("0a", rs.getString(1));
+        if (Constants.VERSION_MINOR < 4) {
+            stat.execute("create table bin( x binary(1) );");
+            stat.execute("insert into bin(x) values (x'09'),(x'0a'),(x'99'),(x'aa');");
+            rs = stat.executeQuery("select * from bin order by x;");
+            rs.next();
+            assertEquals("99", rs.getString(1));
+            rs.next();
+            assertEquals("aa", rs.getString(1));
+            rs.next();
+            assertEquals("09", rs.getString(1));
+            rs.next();
+            assertEquals("0a", rs.getString(1));
+            stat.execute("drop table bin");
+        }
 
         // test UNSIGNED mode
-        stat.execute("drop table bin");
         stat.execute("SET BINARY_COLLATION UNSIGNED");
         stat.execute("create table bin( x binary(1) );");
         stat.execute("insert into bin(x) values (x'09'),(x'0a'),(x'99'),(x'aa');");
@@ -899,13 +998,16 @@ public class TestCases extends TestBase {
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
         stat.execute("SET COLLATION de_DE");
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, " +
+                "NAME VARCHAR)");
         stat.execute("CREATE INDEX IDXNAME ON TEST(NAME)");
         // \u00f6 = oe
-        stat.execute("INSERT INTO TEST VALUES(1, 'B\u00f6hlen'), (2, 'Bach'), (3, 'Bucher')");
+        stat.execute("INSERT INTO TEST VALUES(1, 'B\u00f6hlen'), " +
+                "(2, 'Bach'), (3, 'Bucher')");
         conn.close();
         conn = getConnection("cases");
-        ResultSet rs = conn.createStatement().executeQuery("SELECT NAME FROM TEST ORDER BY NAME");
+        ResultSet rs = conn.createStatement().executeQuery(
+                "SELECT NAME FROM TEST ORDER BY NAME");
         rs.next();
         assertEquals("Bach", rs.getString(1));
         rs.next();
@@ -919,10 +1021,13 @@ public class TestCases extends TestBase {
         deleteDb("cases");
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE TABLE TEST(ORDER_ID INT PRIMARY KEY, ORDER_DATE DATETIME, " +
-                "USER_ID INT, DESCRIPTION VARCHAR, STATE VARCHAR, TRACKING_ID VARCHAR)");
+        stat.execute("CREATE TABLE TEST(ORDER_ID INT PRIMARY KEY, " +
+                "ORDER_DATE DATETIME, " +
+                "USER_ID INT, DESCRIPTION VARCHAR, STATE VARCHAR, " +
+                "TRACKING_ID VARCHAR)");
         Timestamp orderDate = Timestamp.valueOf("2005-05-21 17:46:00");
-        String sql = "insert into TEST (ORDER_ID,ORDER_DATE,USER_ID,DESCRIPTION,STATE,TRACKING_ID) " +
+        String sql = "insert into TEST (ORDER_ID,ORDER_DATE," +
+                "USER_ID,DESCRIPTION,STATE,TRACKING_ID) " +
                 "select cast(? as int),cast(? as date),cast(? as int),cast(? as varchar)," +
                 "cast(? as varchar),cast(? as varchar) union all select ?,?,?,?,?,?";
         PreparedStatement ps = conn.prepareStatement(sql);
@@ -966,7 +1071,8 @@ public class TestCases extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("create table parent(id int)");
         stat.execute("insert into parent values(1)");
-        stat.execute("create table test(id int default (select max(id) from parent), name varchar)");
+        stat.execute("create table test(id int default " +
+                "(select max(id) from parent), name varchar)");
 
         conn.close();
         conn = getConnection("cases");
@@ -988,7 +1094,8 @@ public class TestCases extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("DROP TABLE IF EXISTS TEST");
         stat.execute("CREATE TABLE TEST(ID INT, TEXT VARCHAR, TEXT_C CLOB)");
-        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, ?, ?)");
+        PreparedStatement prep = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, ?, ?)");
         int len = getSize(1000, 66000);
         char[] buff = new char[len];
 
@@ -1041,7 +1148,8 @@ public class TestCases extends TestBase {
         stat.execute("drop table if exists parent");
         stat.execute("drop table if exists child");
         stat.execute("create table parent(id int)");
-        stat.execute("create table child(c_id int, p_id int, foreign key(p_id) references parent(id))");
+        stat.execute("create table child(c_id int, p_id int, " +
+                "foreign key(p_id) references parent(id))");
         stat.execute("insert into parent values(1), (2)");
         stat.execute("insert into child values(1, 1)");
         stat.execute("insert into child values(2, 2)");
@@ -1062,7 +1170,8 @@ public class TestCases extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("SET WRITE_DELAY 0");
         stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255))");
+        stat.execute("CREATE TABLE TEST" +
+                "(ID INT PRIMARY KEY, NAME VARCHAR(255))");
         stat.execute("INSERT INTO TEST VALUES(1, 'Hello')");
         conn.setAutoCommit(false);
         stat.execute("INSERT INTO TEST VALUES(2, 'World')");
@@ -1090,10 +1199,13 @@ public class TestCases extends TestBase {
         trace("testRenameReconnect");
         deleteDb("cases");
         Connection conn = getConnection("cases");
-        conn.createStatement().execute("CREATE TABLE TEST_SEQ(ID INT IDENTITY, NAME VARCHAR(255))");
-        conn.createStatement().execute("CREATE TABLE TEST(ID INT PRIMARY KEY)");
+        conn.createStatement().execute("CREATE TABLE TEST_SEQ" +
+                "(ID INT IDENTITY, NAME VARCHAR(255))");
+        conn.createStatement().execute("CREATE TABLE TEST" +
+                "(ID INT PRIMARY KEY)");
         conn.createStatement().execute("ALTER TABLE TEST RENAME TO TEST2");
-        conn.createStatement().execute("CREATE TABLE TEST_B(ID INT PRIMARY KEY, NAME VARCHAR, UNIQUE(NAME))");
+        conn.createStatement().execute("CREATE TABLE TEST_B" +
+                "(ID INT PRIMARY KEY, NAME VARCHAR, UNIQUE(NAME))");
         conn.close();
         conn = getConnection("cases");
         conn.createStatement().execute("INSERT INTO TEST_SEQ(NAME) VALUES('Hi')");
@@ -1106,7 +1218,8 @@ public class TestCases extends TestBase {
         conn.close();
         conn = getConnection("cases");
         conn.createStatement().execute("SELECT * FROM TEST_B2");
-        conn.createStatement().execute("INSERT INTO TEST_SEQ(NAME) VALUES('World')");
+        conn.createStatement().execute(
+                "INSERT INTO TEST_SEQ(NAME) VALUES('World')");
         rs = conn.createStatement().executeQuery("CALL IDENTITY()");
         rs.next();
         assertEquals(2, rs.getInt(1));
@@ -1170,8 +1283,10 @@ public class TestCases extends TestBase {
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(ID INT, D DATE, T TIME, TS TIMESTAMP)");
-        stat.execute("INSERT INTO TEST VALUES(1, '2001-01-01', '20:00:00', '2002-02-02 22:22:22.2')");
-        stat.execute("INSERT INTO TEST VALUES(1, '2001-01-01', '20:00:00', '2002-02-02 22:22:22.2')");
+        stat.execute("INSERT INTO TEST VALUES(1, '2001-01-01', " +
+                "'20:00:00', '2002-02-02 22:22:22.2')");
+        stat.execute("INSERT INTO TEST VALUES(1, '2001-01-01', " +
+                "'20:00:00', '2002-02-02 22:22:22.2')");
         ResultSet rs = stat.executeQuery("SELECT * FROM TEST");
         rs.next();
         Date d1 = rs.getDate("D");
@@ -1196,9 +1311,11 @@ public class TestCases extends TestBase {
         deleteDb("cases");
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
-        stat.execute("create table employee(id int, firstName VARCHAR(50), salary decimal(10, 2), "
+        stat.execute("create table employee(id int, firstName VARCHAR(50), "
+                + "salary decimal(10, 2), "
                 + "superior_id int, CONSTRAINT PK_employee PRIMARY KEY (id), "
-                + "CONSTRAINT FK_superior FOREIGN KEY (superior_id) REFERENCES employee(ID))");
+                + "CONSTRAINT FK_superior FOREIGN KEY (superior_id) "
+                + "REFERENCES employee(ID))");
         stat.execute("DROP TABLE employee");
         conn.close();
         conn = getConnection("cases");
@@ -1250,16 +1367,18 @@ public class TestCases extends TestBase {
         c0 = getConnection("cases");
         c0.createStatement().executeUpdate("SET AUTOCOMMIT FALSE");
         c0.createStatement().executeUpdate("drop table australia");
-        c0.createStatement().executeUpdate(
-                "create table australia (ID  INTEGER NOT NULL, Name VARCHAR(100), "
-                        + "firstName VARCHAR(100), Points INTEGER, LicenseID INTEGER, PRIMARY KEY(ID))");
+        c0.createStatement().executeUpdate("create table australia " +
+                "(ID  INTEGER NOT NULL, Name VARCHAR(100), " +
+                "firstName VARCHAR(100), Points INTEGER, " +
+                "LicenseID INTEGER, PRIMARY KEY(ID))");
         c0.createStatement().executeUpdate("COMMIT");
         c0.close();
 
         c0 = getConnection("cases");
         c0.createStatement().executeUpdate("SET AUTOCOMMIT FALSE");
-        PreparedStatement p65 = c0.prepareStatement("insert into australia"
-                + "(id, Name, FirstName, Points, LicenseID) values (?, ?, ?, ?, ?)");
+        PreparedStatement p65 = c0.prepareStatement(
+                "insert into australia" +
+                "(id, Name, FirstName, Points, LicenseID) values (?, ?, ?, ?, ?)");
         len = getSize(1, 1000);
         for (int i = 0; i < len; i++) {
             p65.setInt(1, i);
@@ -1283,10 +1402,12 @@ public class TestCases extends TestBase {
         deleteDb("cases");
 
         Connection c0 = getConnection("cases");
-        c0.createStatement().executeUpdate("create table test (ID  int PRIMARY KEY)");
+        c0.createStatement().executeUpdate(
+                "create table test (ID  int PRIMARY KEY)");
         c0.createStatement().executeUpdate("insert into test values(1)");
         c0.createStatement().executeUpdate("drop table test");
-        c0.createStatement().executeUpdate("create table test (ID  int PRIMARY KEY)");
+        c0.createStatement().executeUpdate(
+                "create table test (ID  int PRIMARY KEY)");
         c0.close();
 
         c0 = getConnection("cases");
@@ -1302,8 +1423,10 @@ public class TestCases extends TestBase {
 
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
-        stat.execute("create table master(id number primary key, name varchar2(30));");
-        stat.execute("create table detail(id number references master(id), location varchar2(30));");
+        stat.execute("create table master" +
+                "(id number primary key, name varchar2(30));");
+        stat.execute("create table detail" +
+                "(id number references master(id), location varchar2(30));");
 
         stat.execute("Insert into master values(1,'a'), (2,'b'), (3,'c');");
         stat.execute("Insert into detail values(1,'a'), (2,'b'), (3,'c');");
@@ -1323,14 +1446,16 @@ public class TestCases extends TestBase {
         conn.close();
     }
 
-    private void testDeleteAndDropTableWithLobs(boolean useDrop) throws SQLException {
+    private void testDeleteAndDropTableWithLobs(boolean useDrop)
+            throws SQLException {
         deleteDb("cases");
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(id int, content BLOB)");
         stat.execute("set MAX_LENGTH_INPLACE_LOB 1");
 
-        PreparedStatement prepared = conn.prepareStatement("INSERT INTO TEST VALUES(?, ?)");
+        PreparedStatement prepared = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, ?)");
         byte[] blobContent = "BLOB_CONTENT".getBytes();
         prepared.setInt(1, 1);
         prepared.setBytes(2, blobContent);
@@ -1344,7 +1469,8 @@ public class TestCases extends TestBase {
 
         conn.close();
 
-        List<String> list = FileUtils.newDirectoryStream(getBaseDir() + "/cases.lobs.db");
+        List<String> list = FileUtils.newDirectoryStream(getBaseDir() +
+                "/cases.lobs.db");
         assertEquals("Lob file was not deleted: " + list, 0, list.size());
     }
 
@@ -1353,7 +1479,8 @@ public class TestCases extends TestBase {
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
 
-        stat.execute("CREATE TABLE TEST(id int) AS SELECT x FROM system_range(1, 100)");
+        stat.execute("CREATE TABLE TEST(id int) AS " +
+                "SELECT x FROM system_range(1, 100)");
         stat.execute("DELETE TOP 10 FROM TEST");
         ResultSet rs = stat.executeQuery("SELECT COUNT(*) FROM TEST");
         assertTrue(rs.next());
@@ -1364,7 +1491,8 @@ public class TestCases extends TestBase {
         assertTrue(rs.next());
         assertEquals(81, rs.getInt(1));
 
-        rs = stat.executeQuery("EXPLAIN DELETE FROM TEST LIMIT ((SELECT COUNT(*) FROM TEST) / 10)");
+        rs = stat.executeQuery("EXPLAIN DELETE " +
+                "FROM TEST LIMIT ((SELECT COUNT(*) FROM TEST) / 10)");
         rs.next();
         assertEquals("DELETE FROM PUBLIC.TEST\n" +
                 "    /* PUBLIC.TEST.tableScan */\n" +

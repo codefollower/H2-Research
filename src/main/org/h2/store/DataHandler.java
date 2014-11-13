@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store;
@@ -95,7 +94,7 @@ public interface DataHandler {
     /**
      * Read from a lob.
      *
-     * @param lobId the lob
+     * @param lobId the lob id
      * @param hmac the message authentication code
      * @param offset the offset within the lob
      * @param buff the target buffer
@@ -103,7 +102,8 @@ public interface DataHandler {
      * @param length the number of bytes to read
      * @return the number of bytes read
      */
-    int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length);
+    int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off,
+            int length);
 
     /**
      * Return the serializer to be used for java objects being stored in

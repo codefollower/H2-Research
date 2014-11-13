@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.web;
@@ -20,9 +19,9 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.StringTokenizer;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
-import org.h2.message.TraceSystem;
+import org.h2.engine.SysProperties;
+import org.h2.message.DbException;
 import org.h2.mvstore.DataUtils;
 import org.h2.util.IOUtils;
 import org.h2.util.NetUtils;
@@ -96,7 +95,7 @@ class WebThread extends WebApp implements Runnable {
                 }
             }
         } catch (Exception e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         }
         IOUtils.closeSilently(output);
         IOUtils.closeSilently(input);
@@ -142,7 +141,8 @@ class WebThread extends WebApp implements Runnable {
             }
             String message;
             byte[] bytes;
-            if (cache && ifModifiedSince != null && ifModifiedSince.equals(server.getStartDateTime())) {
+            if (cache && ifModifiedSince != null &&
+                    ifModifiedSince.equals(server.getStartDateTime())) {
                 bytes = null;
                 message = "HTTP/1.1 304 Not Modified\r\n";
             } else {
@@ -279,7 +279,7 @@ class WebThread extends WebApp implements Runnable {
                 len = Integer.parseInt(getHeaderLineValue(line));
                 trace("len=" + len);
             } else if (lower.startsWith("user-agent")) {
-                boolean isWebKit = lower.indexOf("webkit/") >= 0;
+                boolean isWebKit = lower.contains("webkit/");
                 if (isWebKit && session != null) {
                     // workaround for what seems to be a WebKit bug:
                     // http://code.google.com/p/chromium/issues/detail?id=6402
@@ -345,7 +345,8 @@ class WebThread extends WebApp implements Runnable {
             }
             int index = line.indexOf("filename=\"");
             if (index > 0) {
-                fileName = line.substring(index + "filename=\"".length(), line.lastIndexOf('"'));
+                fileName = line.substring(index +
+                        "filename=\"".length(), line.lastIndexOf('"'));
             }
             trace(" " + line);
         }

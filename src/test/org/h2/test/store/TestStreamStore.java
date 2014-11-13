@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.store;
@@ -42,7 +41,8 @@ public class TestStreamStore extends TestBase {
     public void test() throws IOException {
         FileUtils.deleteRecursive(getBaseDir(), true);
         FileUtils.createDirectories(getBaseDir());
-
+        testSaveCount();
+        testExceptionDuringStore();
         testReadCount();
         testLarge();
         testDetectIllegalId();
@@ -51,6 +51,39 @@ public class TestStreamStore extends TestBase {
         testWithExistingData();
         testWithFullMap();
         testLoop();
+    }
+
+    private void testSaveCount() throws IOException {
+        String fileName = getBaseDir() + "/testSaveCount.h3";
+        FileUtils.delete(fileName);
+        MVStore s = new MVStore.Builder().
+                fileName(fileName).
+                open();
+        MVMap<Long, byte[]> map = s.openMap("data");
+        StreamStore streamStore = new StreamStore(map);
+        int blockSize = 256 * 1024;
+        assertEquals(blockSize, streamStore.getMaxBlockSize());
+        for (int i = 0; i < 8 * 16; i++) {
+            streamStore.put(new RandomStream(blockSize, i));
+        }
+        long writeCount = s.getFileStore().getWriteCount();
+        assertTrue(writeCount > 2);
+        s.close();
+    }
+
+    private void testExceptionDuringStore() throws IOException {
+        // test that if there is an IOException while storing
+        // the data, the entries in the map are "rolled back"
+        HashMap<Long, byte[]> map = New.hashMap();
+        StreamStore s = new StreamStore(map);
+        s.setMaxBlockSize(1024);
+        assertThrows(IOException.class, s).
+            put(createFailingStream(new IOException()));
+        assertEquals(0, map.size());
+        // the runtime exception is converted to an IOException
+        assertThrows(IOException.class, s).
+            put(createFailingStream(new IllegalStateException()));
+        assertEquals(0, map.size());
     }
 
     private void testReadCount() throws IOException {
@@ -81,7 +114,7 @@ public class TestStreamStore extends TestBase {
         long readCount = s.getFileStore().getReadCount();
         // the read count should be low because new blocks
         // are appended at the end (not between existing blocks)
-        assertTrue("rc: " + readCount, readCount < 10);
+        assertTrue("rc: " + readCount, readCount < 15);
         map = s.openMap("data");
         assertTrue("size: " + map.size(), map.sizeAsLong() >= 200);
         s.close();
@@ -92,7 +125,7 @@ public class TestStreamStore extends TestBase {
         return new StreamStore(map) {
             @Override
             protected void onStore(int len) {
-                if (s.getUnsavedPageCount() > s.getAutoCommitPageCount() / 2) {
+                if (s.getUnsavedMemory() > s.getAutoCommitMemory() / 2) {
                     s.commit();
                 }
             }
@@ -206,6 +239,7 @@ public class TestStreamStore extends TestBase {
         store.setMaxBlockSize(100);
         byte[] id = store.put(new ByteArrayInputStream(new byte[10000]));
         InputStream in = store.get(id);
+        assertEquals(0, in.read(new byte[0]));
         assertEquals(0, in.read());
         assertEquals(3, reads.get());
     }
@@ -331,7 +365,8 @@ public class TestStreamStore extends TestBase {
         }
     }
 
-    private void test(StreamStore store, int minBlockSize, int maxBlockSize, int length) throws IOException {
+    private void test(StreamStore store, int minBlockSize, int maxBlockSize,
+            int length) throws IOException {
         store.setMinBlockSize(minBlockSize);
         assertEquals(minBlockSize, store.getMinBlockSize());
         store.setMaxBlockSize(maxBlockSize);

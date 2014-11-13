@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
@@ -24,7 +23,8 @@ public class RangeIndex extends BaseIndex {
     private final RangeTable rangeTable;
 
     public RangeIndex(RangeTable table, IndexColumn[] columns) {
-        initBaseIndex(table, 0, "RANGE_INDEX", columns, IndexType.createNonUnique(true));
+        initBaseIndex(table, 0, "RANGE_INDEX", columns,
+                IndexType.createNonUnique(true));
         this.rangeTable = table;
     }
 
@@ -61,7 +61,8 @@ public class RangeIndex extends BaseIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
         return 1;
     }
 

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -9,7 +8,7 @@ package org.h2.test.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -40,17 +39,22 @@ public class TestTransactionIsolation extends TestBase {
     private void testTableLevelLocking() throws SQLException {
         deleteDb("transactionIsolation");
         conn1 = getConnection("transactionIsolation");
-        assertEquals(Connection.TRANSACTION_READ_COMMITTED, conn1.getTransactionIsolation());
+        assertEquals(Connection.TRANSACTION_READ_COMMITTED,
+                conn1.getTransactionIsolation());
         conn1.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-        assertEquals(Connection.TRANSACTION_SERIALIZABLE, conn1.getTransactionIsolation());
+        assertEquals(Connection.TRANSACTION_SERIALIZABLE,
+                conn1.getTransactionIsolation());
         conn1.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
-        assertEquals(Connection.TRANSACTION_READ_UNCOMMITTED, conn1.getTransactionIsolation());
+        assertEquals(Connection.TRANSACTION_READ_UNCOMMITTED,
+                conn1.getTransactionIsolation());
         assertSingleValue(conn1.createStatement(), "CALL LOCK_MODE()", 0);
         conn1.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
         assertSingleValue(conn1.createStatement(), "CALL LOCK_MODE()", 3);
-        assertEquals(Connection.TRANSACTION_READ_COMMITTED, conn1.getTransactionIsolation());
+        assertEquals(Connection.TRANSACTION_READ_COMMITTED,
+                conn1.getTransactionIsolation());
         conn1.createStatement().execute("SET LOCK_MODE 1");
-        assertEquals(Connection.TRANSACTION_SERIALIZABLE, conn1.getTransactionIsolation());
+        assertEquals(Connection.TRANSACTION_SERIALIZABLE,
+                conn1.getTransactionIsolation());
         conn1.createStatement().execute("CREATE TABLE TEST(ID INT)");
         conn1.createStatement().execute("INSERT INTO TEST VALUES(1)");
         conn1.setAutoCommit(false);

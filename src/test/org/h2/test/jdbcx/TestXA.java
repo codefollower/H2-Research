@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: James Devenish
  */
 package org.h2.test.jdbcx;
@@ -82,7 +81,8 @@ public class TestXA extends TestBase {
         XAResource xa = c.getXAResource();
         Connection connection = c.getConnection();
         xa.start(xid, XAResource.TMJOIN);
-        PreparedStatement ps = connection.prepareStatement("UPDATE TEST SET VAL=? WHERE ID=?");
+        PreparedStatement ps = connection.prepareStatement(
+                "UPDATE TEST SET VAL=? WHERE ID=?");
         ps.setInt(1, new Random().nextInt());
         ps.setInt(2, 1);
         ps.close();
@@ -235,27 +235,42 @@ public class TestXA extends TestBase {
             }
 
             if (useOneDatabase) {
-                trace("stmt1.executeUpdate(\"CREATE TABLE xatest1 (id INT PRIMARY KEY, value INT)\")");
-                stat1.executeUpdate("CREATE TABLE xatest1 (id INT PRIMARY KEY, value INT)");
-                trace("stmt2.executeUpdate(\"CREATE TABLE xatest2 (id INT PRIMARY KEY, value INT)\")");
-                stat2.executeUpdate("CREATE TABLE xatest2 (id INT PRIMARY KEY, value INT)");
+                trace("stmt1.executeUpdate(\"CREATE TABLE xatest1 " +
+                        "(id INT PRIMARY KEY, value INT)\")");
+                stat1.executeUpdate("CREATE TABLE xatest1 " +
+                        "(id INT PRIMARY KEY, value INT)");
+                trace("stmt2.executeUpdate(\"CREATE TABLE xatest2 " +
+                        "(id INT PRIMARY KEY, value INT)\")");
+                stat2.executeUpdate("CREATE TABLE xatest2 " +
+                        "(id INT PRIMARY KEY, value INT)");
             } else {
-                trace("stmt1.executeUpdate(\"CREATE TABLE xatest (id INT PRIMARY KEY, value INT)\")");
-                stat1.executeUpdate("CREATE TABLE xatest (id INT PRIMARY KEY, value INT)");
-                trace("stmt2.executeUpdate(\"CREATE TABLE xatest (id INT PRIMARY KEY, value INT)\")");
-                stat2.executeUpdate("CREATE TABLE xatest (id INT PRIMARY KEY, value INT)");
+                trace("stmt1.executeUpdate(\"CREATE TABLE xatest " +
+                        "(id INT PRIMARY KEY, value INT)\")");
+                stat1.executeUpdate("CREATE TABLE xatest " +
+                        "(id INT PRIMARY KEY, value INT)");
+                trace("stmt2.executeUpdate(\"CREATE TABLE xatest " +
+                        "(id INT PRIMARY KEY, value INT)\")");
+                stat2.executeUpdate("CREATE TABLE xatest " +
+                        "(id INT PRIMARY KEY, value INT)");
             }
 
             if (useOneDatabase) {
-                trace("stmt1.executeUpdate(\"INSERT INTO xatest1 VALUES (1, 0)\")");
+                trace("stmt1.executeUpdate(\"INSERT INTO xatest1 " +
+                        "VALUES (1, 0)\")");
                 stat1.executeUpdate("INSERT INTO xatest1 VALUES (1, 0)");
-                trace("stmt2.executeUpdate(\"INSERT INTO xatest2 VALUES (2, 0)\")");
-                stat2.executeUpdate("INSERT INTO xatest2 VALUES (2, 0)");
+                trace("stmt2.executeUpdate(\"INSERT INTO xatest2 " +
+                        "VALUES (2, 0)\")");
+                stat2.executeUpdate("INSERT INTO xatest2 " +
+                        "VALUES (2, 0)");
             } else {
-                trace("stmt1.executeUpdate(\"INSERT INTO xatest VALUES (1, 0)\")");
-                stat1.executeUpdate("INSERT INTO xatest VALUES (1, 0)");
-                trace("stmt2.executeUpdate(\"INSERT INTO xatest VALUES (2, 0)\")");
-                stat2.executeUpdate("INSERT INTO xatest VALUES (2, 0)");
+                trace("stmt1.executeUpdate(\"INSERT INTO xatest " +
+                        "VALUES (1, 0)\")");
+                stat1.executeUpdate("INSERT INTO xatest " +
+                        "VALUES (1, 0)");
+                trace("stmt2.executeUpdate(\"INSERT INTO xatest " +
+                        "VALUES (2, 0)\")");
+                stat2.executeUpdate("INSERT INTO xatest " +
+                        "VALUES (2, 0)");
             }
 
             Xid xid1 = null;
@@ -282,15 +297,23 @@ public class TestXA extends TestBase {
             }
 
             if (useOneDatabase) {
-                trace("stmt1.executeUpdate(\"UPDATE xatest1 SET value=1 WHERE id=1\")");
-                stat1.executeUpdate("UPDATE xatest1 SET value=1 WHERE id=1");
-                trace("stmt2.executeUpdate(\"UPDATE xatest2 SET value=1 WHERE id=2\")");
-                stat2.executeUpdate("UPDATE xatest2 SET value=1 WHERE id=2");
+                trace("stmt1.executeUpdate(\"UPDATE xatest1 " +
+                        "SET value=1 WHERE id=1\")");
+                stat1.executeUpdate("UPDATE xatest1 " +
+                        "SET value=1 WHERE id=1");
+                trace("stmt2.executeUpdate(\"UPDATE xatest2 " +
+                        "SET value=1 WHERE id=2\")");
+                stat2.executeUpdate("UPDATE xatest2 " +
+                        "SET value=1 WHERE id=2");
             } else {
-                trace("stmt1.executeUpdate(\"UPDATE xatest SET value=1 WHERE id=1\")");
-                stat1.executeUpdate("UPDATE xatest SET value=1 WHERE id=1");
-                trace("stmt2.executeUpdate(\"UPDATE xatest SET value=1 WHERE id=2\")");
-                stat2.executeUpdate("UPDATE xatest SET value=1 WHERE id=2");
+                trace("stmt1.executeUpdate(\"UPDATE xatest " +
+                        "SET value=1 WHERE id=1\")");
+                stat1.executeUpdate("UPDATE xatest " +
+                        "SET value=1 WHERE id=1");
+                trace("stmt2.executeUpdate(\"UPDATE xatest " +
+                        "SET value=1 WHERE id=2\")");
+                stat2.executeUpdate("UPDATE xatest " +
+                        "SET value=1 WHERE id=2");
             }
 
             trace("xares1.end(xid1, XAResource.TMSUCCESS)");
@@ -309,10 +332,12 @@ public class TestXA extends TestBase {
             trace("xares2.prepare(xid2): " + ret2);
 
             if ((ret1 != XAResource.XA_OK) && (ret1 != XAResource.XA_RDONLY)) {
-                throw new IllegalStateException("xares1.prepare(xid1) must return XA_OK or XA_RDONLY");
+                throw new IllegalStateException(
+                        "xares1.prepare(xid1) must return XA_OK or XA_RDONLY");
             }
             if ((ret2 != XAResource.XA_OK) && (ret2 != XAResource.XA_RDONLY)) {
-                throw new IllegalStateException("xares2.prepare(xid2) must return XA_OK or XA_RDONLY");
+                throw new IllegalStateException(
+                        "xares2.prepare(xid2) must return XA_OK or XA_RDONLY");
             }
 
             if (ret1 == XAResource.XA_OK) {

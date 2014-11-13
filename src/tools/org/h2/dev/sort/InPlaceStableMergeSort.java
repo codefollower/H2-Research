@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.dev.sort;
@@ -195,7 +194,8 @@ public class InPlaceStableMergeSort<T> {
      * @param from2 the index of the first element in the second source array
      * @param to2 the index of the last element in the second source array
      */
-    private void mergeSmall(T[] target, int pos, T[] s1, int from1, int to1, T[] s2, int from2, int to2) {
+    private void mergeSmall(T[] target, int pos, T[] s1, int from1, int to1,
+            T[] s2, int from2, int to2) {
         T x1 = s1[from1], x2 = s2[from2];
         while (true) {
             if (comp.compare(x1, x2) <= 0) {

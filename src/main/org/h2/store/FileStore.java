@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store;
@@ -11,9 +10,10 @@ import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.security.SecureFileStore;
 import org.h2.store.fs.FileUtils;
@@ -33,7 +33,8 @@ public class FileStore {
     /**
      * The magic file header.
      */
-    private static final String HEADER = "-- H2 0.5/B --      ".substring(0, Constants.FILE_BLOCK_SIZE - 1) + "\n";
+    private static final String HEADER =
+            "-- H2 0.5/B --      ".substring(0, Constants.FILE_BLOCK_SIZE - 1) + "\n";
 
     /**
      * The file name.
@@ -76,7 +77,8 @@ public class FileStore {
                 fileLength = file.size();
             }
         } catch (IOException e) {
-            throw DbException.convertIOException(e, "name: " + name + " mode: " + mode);
+            throw DbException.convertIOException(
+                    e, "name: " + name + " mode: " + mode);
         }
         this.mode = mode;
     }
@@ -103,8 +105,10 @@ public class FileStore {
      * @param key the encryption key
      * @return the created object
      */
-    public static FileStore open(DataHandler handler, String name, String mode, String cipher, byte[] key) {
-        return open(handler, name, mode, cipher, key, Constants.ENCRYPTION_KEY_HASH_ITERATIONS);
+    public static FileStore open(DataHandler handler, String name, String mode,
+            String cipher, byte[] key) {
+        return open(handler, name, mode, cipher, key,
+                Constants.ENCRYPTION_KEY_HASH_ITERATIONS);
     }
 
     /**
@@ -118,13 +122,14 @@ public class FileStore {
      * @param keyIterations the number of iterations the key should be hashed
      * @return the created object
      */
-    public static FileStore open(DataHandler handler, String name, String mode, String cipher,
-            byte[] key, int keyIterations) {
+    public static FileStore open(DataHandler handler, String name, String mode,
+            String cipher, byte[] key, int keyIterations) {
         FileStore store;
         if (cipher == null) {
             store = new FileStore(handler, name, mode);
         } else {
-            store = new SecureFileStore(handler, name, mode, cipher, key, keyIterations);
+            store = new SecureFileStore(handler, name, mode,
+                    cipher, key, keyIterations);
         }
         return store;
     }
@@ -259,8 +264,10 @@ public class FileStore {
      * @param len the number of bytes to read
      */
     public void readFully(byte[] b, int off, int len) {
-        if (SysProperties.CHECK && (len < 0 || len % Constants.FILE_BLOCK_SIZE != 0)) {
-            DbException.throwInternalError("unaligned read " + name + " len " + len);
+        if (SysProperties.CHECK &&
+                (len < 0 || len % Constants.FILE_BLOCK_SIZE != 0)) {
+            DbException.throwInternalError(
+                    "unaligned read " + name + " len " + len);
         }
         checkPowerOff();
         try {
@@ -277,8 +284,10 @@ public class FileStore {
      * @param pos the location
      */
     public void seek(long pos) {
-        if (SysProperties.CHECK && pos % Constants.FILE_BLOCK_SIZE != 0) {
-            DbException.throwInternalError("unaligned seek " + name + " pos " + pos);
+        if (SysProperties.CHECK &&
+                pos % Constants.FILE_BLOCK_SIZE != 0) {
+            DbException.throwInternalError(
+                    "unaligned seek " + name + " pos " + pos);
         }
         try {
             if (pos != filePos) {
@@ -309,8 +318,10 @@ public class FileStore {
      * @param len the number of bytes to write
      */
     public void write(byte[] b, int off, int len) {
-        if (SysProperties.CHECK && (len < 0 || len % Constants.FILE_BLOCK_SIZE != 0)) {
-            DbException.throwInternalError("unaligned write " + name + " len " + len);
+        if (SysProperties.CHECK && (len < 0 ||
+                len % Constants.FILE_BLOCK_SIZE != 0)) {
+            DbException.throwInternalError(
+                    "unaligned write " + name + " len " + len);
         }
         checkWritingAllowed();
         checkPowerOff();
@@ -331,7 +342,8 @@ public class FileStore {
      */
     public void setLength(long newLength) {
         if (SysProperties.CHECK && newLength % Constants.FILE_BLOCK_SIZE != 0) {
-            DbException.throwInternalError("unaligned setLength " + name + " pos " + newLength);
+            DbException.throwInternalError(
+                    "unaligned setLength " + name + " pos " + newLength);
         }
         checkPowerOff();
         checkWritingAllowed();
@@ -362,14 +374,17 @@ public class FileStore {
             if (SysProperties.CHECK2) {
                 len = file.size();
                 if (len != fileLength) {
-                    DbException.throwInternalError("file " + name + " length " + len + " expected " + fileLength);
+                    DbException.throwInternalError(
+                            "file " + name + " length " + len + " expected " + fileLength);
                 }
             }
             if (SysProperties.CHECK2 && len % Constants.FILE_BLOCK_SIZE != 0) {
-                long newLength = len + Constants.FILE_BLOCK_SIZE - (len % Constants.FILE_BLOCK_SIZE);
+                long newLength = len + Constants.FILE_BLOCK_SIZE -
+                        (len % Constants.FILE_BLOCK_SIZE);
                 file.truncate(newLength);
                 fileLength = newLength;
-                DbException.throwInternalError("unaligned file length " + name + " len " + len);
+                DbException.throwInternalError(
+                        "unaligned file length " + name + " len " + len);
             }
             return len;
         } catch (IOException e) {

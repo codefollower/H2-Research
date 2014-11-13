@@ -1,22 +1,21 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
 import java.util.ArrayList;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.dml.Query;
 import org.h2.command.dml.SelectUnion;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Session;
 import org.h2.expression.Comparison;
 import org.h2.expression.Parameter;
 import org.h2.message.DbException;
 import org.h2.result.LocalResult;
-import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
@@ -35,7 +34,7 @@ import org.h2.value.Value;
  * This object represents a virtual index for a query.
  * Actually it only represents a prepared SELECT statement.
  */
-public class ViewIndex extends BaseIndex {
+public class ViewIndex extends BaseIndex implements SpatialIndex {
 
     private final TableView view;
     private final String querySQL;
@@ -47,7 +46,8 @@ public class ViewIndex extends BaseIndex {
     private Query query;
     private final Session createSession;
 
-    public ViewIndex(TableView view, String querySQL, ArrayList<Parameter> originalParameters, boolean recursive) {
+    public ViewIndex(TableView view, String querySQL,
+            ArrayList<Parameter> originalParameters, boolean recursive) {
         initBaseIndex(view, 0, null, null, IndexType.createNonUnique(false));
         this.view = view;
         this.querySQL = querySQL;
@@ -58,7 +58,8 @@ public class ViewIndex extends BaseIndex {
         this.indexMasks = null;
     }
 
-    public ViewIndex(TableView view, ViewIndex index, Session session, int[] masks) {
+    public ViewIndex(TableView view, ViewIndex index, Session session,
+            int[] masks) {
         initBaseIndex(view, 0, null, null, IndexType.createNonUnique(false));
         this.view = view;
         this.querySQL = index.querySQL;
@@ -119,11 +120,18 @@ public class ViewIndex extends BaseIndex {
     
     //此方法不影响些类的任何字段，只是为了计算cost
     @Override
+<<<<<<< HEAD
     public synchronized double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
         if (recursive) { //对应WITH RECURSIVE开头之类的语句，见my.test.command.ddl.CreateViewTest
+=======
+    public synchronized double getCost(Session session, int[] masks,
+            TableFilter filter, SortOrder sortOrder) {
+        if (recursive) {
+>>>>>>> remotes/git-svn
             return 1000;
         }
-        IntArray masksArray = new IntArray(masks == null ? Utils.EMPTY_INT_ARRAY : masks);
+        IntArray masksArray = new IntArray(masks == null ?
+                Utils.EMPTY_INT_ARRAY : masks);
         SynchronizedVerifier.check(costCache);
         CostElement cachedCost = costCache.get(masksArray);
         if (cachedCost != null) {
@@ -156,6 +164,9 @@ public class ViewIndex extends BaseIndex {
                 if ((mask & IndexCondition.EQUALITY) != 0) {
                     Parameter param = new Parameter(nextParamIndex);
                     q.addGlobalCondition(param, idx, Comparison.EQUAL_NULL_SAFE);
+                } else if ((mask & IndexCondition.SPATIAL_INTERSECTS) != 0) {
+                    Parameter param = new Parameter(nextParamIndex);
+                    q.addGlobalCondition(param, idx, Comparison.SPATIAL_INTERSECTS);
                 } else {
                     if ((mask & IndexCondition.START) != 0) {
                     	//例如:sql = "select * from my_view where f2 > 'b1'";
@@ -185,11 +196,25 @@ public class ViewIndex extends BaseIndex {
 
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
+        return find(session, first, last, null);
+    }
+
+    @Override
+    public Cursor findByGeometry(TableFilter filter, SearchRow intersection) {
+        return find(filter.getSession(), null, null, intersection);
+    }
+
+    private Cursor find(Session session, SearchRow first, SearchRow last,
+            SearchRow intersection) {
         if (recursive) {
+<<<<<<< HEAD
         	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
         	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
         	//不过有bug
             ResultInterface recResult = view.getRecursiveResult();
+=======
+            LocalResult recResult = view.getRecursiveResult();
+>>>>>>> remotes/git-svn
             if (recResult != null) {
                 recResult.reset();
                 return new ViewCursor(this, recResult, first, last);
@@ -198,17 +223,22 @@ public class ViewIndex extends BaseIndex {
                 query = (Query) createSession.prepare(querySQL, true);
             }
             if (!(query instanceof SelectUnion)) {
-                throw DbException.get(ErrorCode.SYNTAX_ERROR_2, "recursive queries without UNION ALL");
+                throw DbException.get(ErrorCode.SYNTAX_ERROR_2,
+                        "recursive queries without UNION ALL");
             }
             SelectUnion union = (SelectUnion) query;
             if (union.getUnionType() != SelectUnion.UNION_ALL) {
-                throw DbException.get(ErrorCode.SYNTAX_ERROR_2, "recursive queries without UNION ALL");
+                throw DbException.get(ErrorCode.SYNTAX_ERROR_2,
+                        "recursive queries without UNION ALL");
             }
             Query left = union.getLeft();
             // to ensure the last result is not closed
             left.disableCache();
             LocalResult r = left.query(0);
             LocalResult result = union.getEmptyResult();
+            // ensure it is not written to disk,
+            // because it is not closed normally
+            result.setMaxMemoryRows(Integer.MAX_VALUE);
             while (r.next()) {
                 result.addRow(r.currentRow());
             }
@@ -261,6 +291,8 @@ public class ViewIndex extends BaseIndex {
             len = first.getColumnCount();
         } else if (last != null) {
             len = last.getColumnCount();
+        } else if (intersection != null) {
+            len = intersection.getColumnCount();
         } else {
             len = 0;
         }
@@ -275,20 +307,31 @@ public class ViewIndex extends BaseIndex {
                     setParameter(paramList, x, v);
                 }
             }
-            // for equality, only one parameter is used (first == last)
-            if (last != null && indexMasks[i] != IndexCondition.EQUALITY) {
-                Value v = last.getValue(i);
+            if (last != null) {
+                int mask = indexMasks[i];
+                // for equality, only one parameter is used (first == last)
+                if (mask != IndexCondition.EQUALITY) {
+                    Value v = last.getValue(i);
+                    if (v != null) {
+                        int x = idx++;
+                        setParameter(paramList, x, v);
+                    }
+                }
+            }
+            if (intersection != null) {
+                Value v = intersection.getValue(i);
                 if (v != null) {
                     int x = idx++;
                     setParameter(paramList, x, v);
                 }
             }
         }
-        ResultInterface result = query.query(0);
+        LocalResult result = query.query(0);
         return new ViewCursor(this, result, first, last);
     }
 
-    private static void setParameter(ArrayList<Parameter> paramList, int x, Value v) {
+    private static void setParameter(ArrayList<Parameter> paramList, int x,
+            Value v) {
         if (x >= paramList.size()) {
             // the parameter may be optimized away as in
             // select * from (select null as x) where x=1;
@@ -310,7 +353,8 @@ public class ViewIndex extends BaseIndex {
         if (!q.allowGlobalConditions()) {
             return q;
         }
-        int firstIndexParam = originalParameters == null ? 0 : originalParameters.size();
+        int firstIndexParam = originalParameters == null ?
+                0 : originalParameters.size();
         firstIndexParam += view.getParameterOffset();
         IntArray paramIndex = new IntArray();
         int indexColumnCount = 0;
@@ -335,19 +379,24 @@ public class ViewIndex extends BaseIndex {
             int idx = paramIndex.get(i);
             columnList.add(table.getColumn(idx));
             int mask = masks[idx];
-            if ((mask & IndexCondition.EQUALITY) == IndexCondition.EQUALITY) {
+            if ((mask & IndexCondition.EQUALITY) != 0) {
                 Parameter param = new Parameter(firstIndexParam + i);
                 q.addGlobalCondition(param, idx, Comparison.EQUAL_NULL_SAFE);
                 i++;
             }
-            if ((mask & IndexCondition.START) == IndexCondition.START) {
+            if ((mask & IndexCondition.START) != 0) {
                 Parameter param = new Parameter(firstIndexParam + i);
                 q.addGlobalCondition(param, idx, Comparison.BIGGER_EQUAL);
                 i++;
             }
-            if ((mask & IndexCondition.END) == IndexCondition.END) {
+            if ((mask & IndexCondition.END) != 0) {
                 Parameter param = new Parameter(firstIndexParam + i);
                 q.addGlobalCondition(param, idx, Comparison.SMALLER_EQUAL);
+                i++;
+            }
+            if ((mask & IndexCondition.SPATIAL_INTERSECTS) != 0) {
+                Parameter param = new Parameter(firstIndexParam + i);
+                q.addGlobalCondition(param, idx, Comparison.SPATIAL_INTERSECTS);
                 i++;
             }
         }
@@ -370,13 +419,13 @@ public class ViewIndex extends BaseIndex {
                     continue;
                 }
                 if (type == 0) {
-                    if ((mask & IndexCondition.EQUALITY) != IndexCondition.EQUALITY) {
+                    if ((mask & IndexCondition.EQUALITY) == 0) {
                         // the first columns need to be equality conditions
                         continue;
                     }
                 } else {
-                    if ((mask & IndexCondition.EQUALITY) == IndexCondition.EQUALITY) {
-                        // then only range conditions
+                    if ((mask & IndexCondition.EQUALITY) != 0) {
+                        // after that only range conditions
                         continue;
                     }
                 }

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -52,7 +51,8 @@ public class MetaRecord implements Comparable<MetaRecord> {
      * @param systemSession the system session
      * @param listener the database event listener
      */
-    void execute(Database db, Session systemSession, DatabaseEventListener listener) {
+    void execute(Database db, Session systemSession,
+            DatabaseEventListener listener) {
         try {
             Prepared command = systemSession.prepare(sql);
             //System.out.println(sql);
@@ -144,7 +144,8 @@ public class MetaRecord implements Comparable<MetaRecord> {
 
     @Override
     public String toString() {
-        return "MetaRecord [id=" + id + ", objectType=" + objectType + ", sql=" + sql + "]";
+        return "MetaRecord [id=" + id + ", objectType=" + objectType +
+                ", sql=" + sql + "]";
     }
 
 }

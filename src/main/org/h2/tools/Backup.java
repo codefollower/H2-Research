@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -93,11 +92,12 @@ public class Backup extends Tool {
      *
      * @param zipFileName the name of the target backup file (including path)
      * @param directory the source directory name
-     * @param db the source database name (null if there is only one database, and
-     *          and empty string to backup all files in this directory)
+     * @param db the source database name (null if there is only one database,
+     *            and and empty string to backup all files in this directory)
      * @param quiet don't print progress information
      */
-    public static void execute(String zipFileName, String directory, String db, boolean quiet) throws SQLException {
+    public static void execute(String zipFileName, String directory, String db,
+            boolean quiet) throws SQLException {
         try {
             new Backup().process(zipFileName, directory, db, quiet);
         } catch (Exception e) {
@@ -105,7 +105,8 @@ public class Backup extends Tool {
         }
     }
 
-    private void process(String zipFileName, String directory, String db, boolean quiet) throws SQLException {
+    private void process(String zipFileName, String directory, String db,
+            boolean quiet) throws SQLException {
         List<String> list;
         boolean allFiles = db != null && db.length() == 0;
         if (allFiles) {

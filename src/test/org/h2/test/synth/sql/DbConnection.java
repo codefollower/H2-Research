@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth.sql;
@@ -29,7 +28,8 @@ class DbConnection implements DbInterface {
     private Connection sentinel;
     private final boolean useSentinel;
 
-    DbConnection(TestSynth config, String driver, String url, String user, String password, int id, boolean useSentinel) {
+    DbConnection(TestSynth config, String driver, String url, String user,
+            String password, int id, boolean useSentinel) {
         this.config = config;
         this.driver = driver;
         this.url = url;
@@ -129,7 +129,8 @@ class DbConnection implements DbInterface {
     }
 
     @Override
-    public Result insert(Table table, Column[] c, Value[] v) throws SQLException {
+    public Result insert(Table table, Column[] c, Value[] v)
+            throws SQLException {
         String sql = table.getInsertSQL(c, v);
         execute(sql);
         return new Result(sql, 1);
@@ -161,7 +162,8 @@ class DbConnection implements DbInterface {
     }
 
     @Override
-    public Result update(Table table, Column[] columns, Value[] values, String condition) throws SQLException {
+    public Result update(Table table, Column[] columns, Value[] values,
+            String condition) throws SQLException {
         String sql = "UPDATE " + table.getName() + " SET ";
         for (int i = 0; i < columns.length; i++) {
             if (i > 0) {

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -13,21 +12,21 @@ import java.lang.reflect.Modifier;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Arrays;
+
 import org.h2.Driver;
+import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.schema.Schema;
 import org.h2.schema.SchemaObjectBase;
 import org.h2.table.Table;
+import org.h2.util.JdbcUtils;
 import org.h2.util.New;
 import org.h2.util.SourceCompiler;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
-import org.h2.util.Utils;
 import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
@@ -68,7 +67,8 @@ public class FunctionAlias extends SchemaObjectBase {
             boolean force, boolean bufferResultSetToLocalTemp) {
         FunctionAlias alias = new FunctionAlias(schema, id, name);
         int paren = javaClassMethod.indexOf('(');
-        int lastDot = javaClassMethod.lastIndexOf('.', paren < 0 ? javaClassMethod.length() : paren);
+        int lastDot = javaClassMethod.lastIndexOf('.', paren < 0 ?
+                javaClassMethod.length() : paren);
         if (lastDot < 0) {
             throw DbException.get(ErrorCode.SYNTAX_ERROR_1, javaClassMethod);
         }
@@ -143,7 +143,7 @@ public class FunctionAlias extends SchemaObjectBase {
     }
 
     private void loadClass() {
-        Class<?> javaClass = Utils.loadUserClass(className);
+        Class<?> javaClass = JdbcUtils.loadUserClass(className);
         Method[] methods = javaClass.getMethods();
         ArrayList<JavaMethod> list = New.arrayList();
         for (int i = 0, len = methods.length; i < len; i++) {
@@ -151,21 +151,23 @@ public class FunctionAlias extends SchemaObjectBase {
             if (!Modifier.isStatic(m.getModifiers())) {
                 continue;
             }
-            if (m.getName().equals(methodName) || getMethodSignature(m).equals(methodName)) {
+            if (m.getName().equals(methodName) ||
+                    getMethodSignature(m).equals(methodName)) {
                 JavaMethod javaMethod = new JavaMethod(m, i);
                 for (JavaMethod old : list) {
                     if (old.getParameterCount() == javaMethod.getParameterCount()) {
-                        throw DbException.get(
-                                ErrorCode.METHODS_MUST_HAVE_DIFFERENT_PARAMETER_COUNTS_2,
-                                old.toString(), javaMethod.toString()
-                        );
+                        throw DbException.get(ErrorCode.
+                                METHODS_MUST_HAVE_DIFFERENT_PARAMETER_COUNTS_2,
+                                old.toString(), javaMethod.toString());
                     }
                 }
                 list.add(javaMethod);
             }
         }
         if (list.size() == 0) {
-            throw DbException.get(ErrorCode.PUBLIC_STATIC_JAVA_METHOD_NOT_FOUND_1, methodName + " (" + className + ")");
+            throw DbException.get(
+                    ErrorCode.PUBLIC_STATIC_JAVA_METHOD_NOT_FOUND_1,
+                    methodName + " (" + className + ")");
         }
         javaMethods = new JavaMethod[list.size()];
         list.toArray(javaMethods);
@@ -205,7 +207,8 @@ public class FunctionAlias extends SchemaObjectBase {
     @Override
     public String getSQL() {
         // TODO can remove this method once FUNCTIONS_IN_SCHEMA is enabled
-        if (database.getSettings().functionsInSchema || !getSchema().getName().equals(Constants.SCHEMA_MAIN)) {
+        if (database.getSettings().functionsInSchema ||
+                !getSchema().getName().equals(Constants.SCHEMA_MAIN)) {
             return super.getSQL();
         }
         return Parser.quoteIdentifier(getName());
@@ -224,7 +227,8 @@ public class FunctionAlias extends SchemaObjectBase {
         if (source != null) {
             buff.append(" AS ").append(StringUtils.quoteStringSQL(source));
         } else {
-            buff.append(" FOR ").append(Parser.quoteIdentifier(className + "." + methodName));
+            buff.append(" FOR ").append(Parser.quoteIdentifier(
+                    className + "." + methodName));
         }
         return buff.toString();
     }
@@ -260,12 +264,13 @@ public class FunctionAlias extends SchemaObjectBase {
         int parameterCount = args.length;
         for (JavaMethod m : javaMethods) {
             int count = m.getParameterCount();
-            if (count == parameterCount || (m.isVarArgs() && count <= parameterCount + 1)) {
+            if (count == parameterCount || (m.isVarArgs() &&
+                    count <= parameterCount + 1)) {
                 return m;
             }
         }
-        throw DbException.get(ErrorCode.METHOD_NOT_FOUND_1,
-                methodName + " (" + className + ", parameter count: " + parameterCount + ")");
+        throw DbException.get(ErrorCode.METHOD_NOT_FOUND_1, getName() + " (" +
+                className + ", parameter count: " + parameterCount + ")");
     }
 
     public String getJavaClassName() {
@@ -284,6 +289,50 @@ public class FunctionAlias extends SchemaObjectBase {
     public JavaMethod[] getJavaMethods() {
         load();
         return javaMethods;
+    }
+
+    public void setDeterministic(boolean deterministic) {
+        this.deterministic = deterministic;
+    }
+
+    public boolean isDeterministic() {
+        return deterministic;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    /**
+     * Checks if the given method takes a variable number of arguments. For Java
+     * 1.4 and older, false is returned. Example:
+     * <pre>
+     * public static double mean(double... values)
+     * </pre>
+     *
+     * @param m the method to test
+     * @return true if the method takes a variable number of arguments.
+     */
+    static boolean isVarArgs(Method m) {
+        if ("1.5".compareTo(SysProperties.JAVA_SPECIFICATION_VERSION) > 0) {
+            return false;
+        }
+        try {
+            Method isVarArgs = m.getClass().getMethod("isVarArgs");
+            Boolean result = (Boolean) isVarArgs.invoke(m);
+            return result.booleanValue();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Should the return value ResultSet be buffered in a local temporary file?
+     *
+     * @return true if yes
+     */
+    public boolean isBufferResultSetToLocalTemp() {
+        return bufferResultSetToLocalTemp;
     }
 
     /**
@@ -342,10 +391,12 @@ public class FunctionAlias extends SchemaObjectBase {
          *
          * @param session the session
          * @param args the argument list
-         * @param columnList true if the function should only return the column list
+         * @param columnList true if the function should only return the column
+         *            list
          * @return the value
          */
-        public Value getValue(Session session, Expression[] args, boolean columnList) {
+        public Value getValue(Session session, Expression[] args,
+                boolean columnList) {
             Class<?>[] paramClasses = method.getParameterTypes();
             Object[] params = new Object[paramClasses.length];
             int p = 0;
@@ -356,13 +407,15 @@ public class FunctionAlias extends SchemaObjectBase {
             // allocate array for varArgs parameters
             Object varArg = null;
             if (varArgs) {
-                int len = args.length - params.length + 1 + (hasConnectionParam ? 1 : 0);
+                int len = args.length - params.length + 1 +
+                        (hasConnectionParam ? 1 : 0);
                 varArg = Array.newInstance(varArgClass, len);
                 params[params.length - 1] = varArg;
             }
 
             for (int a = 0, len = args.length; a < len; a++, p++) {
-                boolean currentIsVarArg = varArgs && p >= paramClasses.length - 1;
+                boolean currentIsVarArg = varArgs &&
+                        p >= paramClasses.length - 1;
                 Class<?> paramClass;
                 if (currentIsVarArg) {
                     paramClass = varArgClass;
@@ -374,10 +427,14 @@ public class FunctionAlias extends SchemaObjectBase {
                 Object o;
                 if (Value.class.isAssignableFrom(paramClass)) {
                     o = v;
-                } else if (v.getType() == Value.ARRAY && paramClass.isArray() && paramClass.getComponentType() != Object.class) {
+                } else if (v.getType() == Value.ARRAY &&
+                        paramClass.isArray() &&
+                        paramClass.getComponentType() != Object.class) {
                     Value[] array = ((ValueArray) v).getList();
-                    Object[] objArray = (Object[]) Array.newInstance(paramClass.getComponentType(), array.length);
-                    int componentType = DataType.getTypeFromClass(paramClass.getComponentType());
+                    Object[] objArray = (Object[]) Array.newInstance(
+                            paramClass.getComponentType(), array.length);
+                    int componentType = DataType.getTypeFromClass(
+                            paramClass.getComponentType());
                     for (int i = 0; i < objArray.length; i++) {
                         objArray[i] = array[i].convertTo(componentType).getObject();
                     }
@@ -389,10 +446,9 @@ public class FunctionAlias extends SchemaObjectBase {
                 if (o == null) {
                     if (paramClass.isPrimitive()) {
                         if (columnList) {
-                            // if the column list is requested, the parameters may
-                            // be null
-                            // need to set to default value,
-                            // otherwise the function can't be called at all
+                            // If the column list is requested, the parameters
+                            // may be null. Need to set to default value,
+                            // otherwise the function can't be called at all.
                             o = DataType.getDefaultForPrimitiveType(paramClass);
                         } else {
                             // NULL for a java primitive: return NULL
@@ -412,13 +468,15 @@ public class FunctionAlias extends SchemaObjectBase {
             }
             boolean old = session.getAutoCommit();
             Value identity = session.getLastScopeIdentity();
-            boolean defaultConnection = session.getDatabase().getSettings().defaultConnection;
+            boolean defaultConnection = session.getDatabase().
+                    getSettings().defaultConnection;
             try {
                 session.setAutoCommit(false);
                 Object returnValue;
                 try {
                     if (defaultConnection) {
-                        Driver.setDefaultConnection(session.createConnection(columnList));
+                        Driver.setDefaultConnection(
+                                session.createConnection(columnList));
                     }
                     returnValue = method.invoke(null, params);
                     if (returnValue == null) {
@@ -482,47 +540,4 @@ public class FunctionAlias extends SchemaObjectBase {
 
     }
 
-    public void setDeterministic(boolean deterministic) {
-        this.deterministic = deterministic;
-    }
-
-    public boolean isDeterministic() {
-        return deterministic;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    /**
-     * Checks if the given method takes a variable number of arguments. For Java
-     * 1.4 and older, false is returned. Example:
-     * <pre>
-     * public static double mean(double... values)
-     * </pre>
-     *
-     * @param m the method to test
-     * @return true if the method takes a variable number of arguments.
-     */
-    static boolean isVarArgs(Method m) {
-        if ("1.5".compareTo(SysProperties.JAVA_SPECIFICATION_VERSION) > 0) {
-            return false;
-        }
-        try {
-            Method isVarArgs = m.getClass().getMethod("isVarArgs");
-            Boolean result = (Boolean) isVarArgs.invoke(m);
-            return result.booleanValue();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Should the return value ResultSet be buffered in a local temporary file?
-     *
-     * @return true if yes
-     */
-    public boolean isBufferResultSetToLocalTemp() {
-        return bufferResultSetToLocalTemp;
-    }
 }

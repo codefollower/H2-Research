@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -49,7 +48,8 @@ public class Player {
     // TODO support Map
     // TODO support SQLXML
 
-    private static final String[] IMPORTED_PACKAGES = { "", "java.lang.", "java.sql.", "javax.sql." };
+    private static final String[] IMPORTED_PACKAGES = {
+        "", "java.lang.", "java.sql.", "javax.sql." };
     private boolean trace;
     private final HashMap<String, Object> objects = New.hashMap();
 

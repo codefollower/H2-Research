@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.pg;
@@ -20,7 +19,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.server.Service;
@@ -175,6 +175,7 @@ public class PgServer implements Service {
 
     @Override
     public void start() {
+        stop = false;
         try {
             serverSocket = NetUtils.createServerSocket(port, false);
         } catch (DbException e) {
@@ -310,10 +311,11 @@ public class PgServer implements Service {
      * @param pretty this flag is ignored
      * @return the SQL statement or the column name
      */
-    public static String getIndexColumn(Connection conn, int indexId, Integer ordinalPosition, Boolean pretty)
-            throws SQLException {
+    public static String getIndexColumn(Connection conn, int indexId,
+            Integer ordinalPosition, Boolean pretty) throws SQLException {
         if (ordinalPosition == null || ordinalPosition.intValue() == 0) {
-            PreparedStatement prep = conn.prepareStatement("select sql from information_schema.indexes where id=?");
+            PreparedStatement prep = conn.prepareStatement(
+                    "select sql from information_schema.indexes where id=?");
             prep.setInt(1, indexId);
             ResultSet rs = prep.executeQuery();
             if (rs.next()) {
@@ -322,7 +324,8 @@ public class PgServer implements Service {
             return "";
         }
         PreparedStatement prep = conn.prepareStatement(
-                "select column_name from information_schema.indexes where id=? and ordinal_position=?");
+                "select column_name from information_schema.indexes " +
+                "where id=? and ordinal_position=?");
         prep.setInt(1, indexId);
         prep.setInt(2, ordinalPosition.intValue());
         ResultSet rs = prep.executeQuery();
@@ -346,18 +349,19 @@ public class PgServer implements Service {
     }
 
     /**
-     * Get the OID of an object.
-     * This method is called by the database.
+     * Get the OID of an object. This method is called by the database.
      *
      * @param conn the connection
      * @param tableName the table name
      * @return the oid
      */
-    public static int getOid(Connection conn, String tableName) throws SQLException {
+    public static int getOid(Connection conn, String tableName)
+            throws SQLException {
         if (tableName.startsWith("\"") && tableName.endsWith("\"")) {
             tableName = tableName.substring(1, tableName.length() - 1);
         }
-        PreparedStatement prep = conn.prepareStatement("select oid from pg_class where relName = ?");
+        PreparedStatement prep = conn.prepareStatement(
+                "select oid from pg_class where relName = ?");
         prep.setString(1, tableName);
         ResultSet rs = prep.executeQuery();
         if (!rs.next()) {
@@ -393,7 +397,8 @@ public class PgServer implements Service {
      * @return the server name and version
      */
     public static String getVersion() {
-        return "PostgreSQL 8.1.4  server protocol using H2 " + Constants.getFullVersion();
+        return "PostgreSQL 8.1.4  server protocol using H2 " +
+                Constants.getFullVersion();
     }
 
     /**
@@ -415,7 +420,8 @@ public class PgServer implements Service {
      * @return the user name
      */
     public static String getUserById(Connection conn, int id) throws SQLException {
-        PreparedStatement prep = conn.prepareStatement("SELECT NAME FROM INFORMATION_SCHEMA.USERS WHERE ID=?");
+        PreparedStatement prep = conn.prepareStatement(
+                "SELECT NAME FROM INFORMATION_SCHEMA.USERS WHERE ID=?");
         prep.setInt(1, id);
         ResultSet rs = prep.executeQuery();
         if (rs.next()) {
@@ -482,7 +488,8 @@ public class PgServer implements Service {
      * @param typeMod the type modifier (typically -1)
      * @return the name of the given type
      */
-    public static String formatType(Connection conn, int pgType, int typeMod) throws SQLException {
+    public static String formatType(Connection conn, int pgType, int typeMod)
+            throws SQLException {
         PreparedStatement prep = conn.prepareStatement(
                 "select typname from pg_catalog.pg_type where oid = ? and typtypmod = ?");
         prep.setInt(1, pgType);

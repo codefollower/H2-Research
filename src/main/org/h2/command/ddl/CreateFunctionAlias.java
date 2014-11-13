@@ -1,13 +1,12 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
 
+import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.FunctionAlias;
 import org.h2.engine.Session;
@@ -40,17 +39,20 @@ public class CreateFunctionAlias extends SchemaCommand {
         Database db = session.getDatabase();
         if (getSchema().findFunction(aliasName) != null) {
             if (!ifNotExists) {
-                throw DbException.get(ErrorCode.FUNCTION_ALIAS_ALREADY_EXISTS_1, aliasName);
+                throw DbException.get(
+                        ErrorCode.FUNCTION_ALIAS_ALREADY_EXISTS_1, aliasName);
             }
         } else {
             int id = getObjectId();
             FunctionAlias functionAlias;
             if (javaClassMethod != null) {
-                functionAlias = FunctionAlias.newInstance(
-                        getSchema(), id, aliasName, javaClassMethod, force, bufferResultSetToLocalTemp);
+                functionAlias = FunctionAlias.newInstance(getSchema(), id,
+                        aliasName, javaClassMethod, force,
+                        bufferResultSetToLocalTemp);
             } else {
                 functionAlias = FunctionAlias.newInstanceFromSource(
-                        getSchema(), id, aliasName, source, force, bufferResultSetToLocalTemp);
+                        getSchema(), id, aliasName, source, force,
+                        bufferResultSetToLocalTemp);
             }
             functionAlias.setDeterministic(deterministic);
             db.addSchemaObject(session, functionAlias);

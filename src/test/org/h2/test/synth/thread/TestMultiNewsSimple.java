@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth.thread;
@@ -33,8 +32,10 @@ public class TestMultiNewsSimple extends TestMultiThread {
     @Override
     void first() throws SQLException {
         Connection c = base.getConnection();
-        c.createStatement().execute("create table news(id identity, state int default 0, text varchar default '')");
-        PreparedStatement prep = c.prepareStatement("insert into news() values()");
+        c.createStatement().execute("create table news" +
+                "(id identity, state int default 0, text varchar default '')");
+        PreparedStatement prep = c.prepareStatement(
+                "insert into news() values()");
         for (int i = 0; i < newsCount; i++) {
             prep.executeUpdate();
         }
@@ -64,12 +65,14 @@ public class TestMultiNewsSimple extends TestMultiThread {
             }
         } else {
             if (random.nextBoolean()) {
-                PreparedStatement prep = conn.prepareStatement("update news set state = ? where id = ?");
+                PreparedStatement prep = conn.prepareStatement(
+                        "update news set state = ? where id = ?");
                 prep.setInt(1, random.nextInt(getNewsCount()));
                 prep.setInt(2, random.nextInt(10));
                 prep.execute();
             } else {
-                PreparedStatement prep = conn.prepareStatement("select * from news where id = ?");
+                PreparedStatement prep = conn.prepareStatement(
+                        "select * from news where id = ?");
                 prep.setInt(1, random.nextInt(getNewsCount()));
                 ResultSet rs = prep.executeQuery();
                 if (!rs.next()) {

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.i18n;
@@ -49,7 +48,8 @@ public class PropertiesToUTF8 {
      * @param source the name of the properties file
      * @param target the target file name
      */
-    static void propertiesToTextUTF8(String source, String target) throws Exception {
+    static void propertiesToTextUTF8(String source, String target)
+            throws Exception {
         if (!new File(source).exists()) {
             return;
         }
@@ -73,11 +73,13 @@ public class PropertiesToUTF8 {
      * @param source the source file name
      * @param target the target file name
      */
-    static void textUTF8ToProperties(String source, String target) throws Exception {
+    static void textUTF8ToProperties(String source, String target)
+            throws Exception {
         if (!new File(source).exists()) {
             return;
         }
-        LineNumberReader reader = new LineNumberReader(new InputStreamReader(new FileInputStream(source), "UTF-8"));
+        LineNumberReader reader = new LineNumberReader(new InputStreamReader(
+                new FileInputStream(source), "UTF-8"));
         try {
             SortedProperties prop = new SortedProperties();
             StringBuilder buff = new StringBuilder();

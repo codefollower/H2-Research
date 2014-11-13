@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.bench;
@@ -21,7 +20,7 @@ import java.util.Random;
  */
 public class BenchB implements Bench, Runnable {
 
-    private static final int SCALE = 1;
+    private static final int SCALE = 4;
     private static final int BRANCHES = 1;
     private static final int TELLERS = 10;
     private static final int ACCOUNTS = 100000;
@@ -66,7 +65,7 @@ public class BenchB implements Bench, Runnable {
     @Override
     public void init(Database db, int size) throws SQLException {
         this.database = db;
-        this.transactionPerClient = size;
+        this.transactionPerClient = size / 8;
 
         db.start(this, "Init");
         db.openConnection();
@@ -74,10 +73,19 @@ public class BenchB implements Bench, Runnable {
         db.dropTable("TELLERS");
         db.dropTable("ACCOUNTS");
         db.dropTable("HISTORY");
-        String[] create = { "CREATE TABLE BRANCHES(BID INT NOT NULL PRIMARY KEY, BBALANCE INT, FILLER VARCHAR(88))",
-                "CREATE TABLE TELLERS(TID INT NOT NULL PRIMARY KEY, BID INT, TBALANCE INT, FILLER VARCHAR(84))",
-                "CREATE TABLE ACCOUNTS(AID INT NOT NULL PRIMARY KEY, BID INT, ABALANCE INT, FILLER VARCHAR(84))",
-                "CREATE TABLE HISTORY(TID INT, BID INT, AID INT, DELTA INT, TIME DATETIME, FILLER VARCHAR(22))" };
+        String[] create = {
+                "CREATE TABLE BRANCHES(" +
+                        "BID INT NOT NULL PRIMARY KEY, " +
+                        "BBALANCE INT, FILLER VARCHAR(88))",
+                "CREATE TABLE TELLERS(" +
+                        "TID INT NOT NULL PRIMARY KEY, " +
+                        "BID INT, TBALANCE INT, FILLER VARCHAR(84))",
+                "CREATE TABLE ACCOUNTS(" +
+                        "AID INT NOT NULL PRIMARY KEY, " +
+                        "BID INT, ABALANCE INT, FILLER VARCHAR(84))",
+                "CREATE TABLE HISTORY(" +
+                        "TID INT, BID INT, AID INT, " +
+                        "DELTA INT, TIME DATETIME, FILLER VARCHAR(22))" };
         for (String sql : create) {
             db.update(sql);
         }

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
@@ -11,8 +10,8 @@ import java.util.Collections;
 import java.util.Comparator;
 
 import org.h2.command.dml.SelectOrderBy;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Database;
+import org.h2.engine.SysProperties;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.table.Column;
@@ -53,7 +52,8 @@ public class SortOrder implements Comparator<Value[]> {
     /**
      * The default sort order for NULL.
      */
-    private static final int DEFAULT_NULL_SORT = SysProperties.SORT_NULLS_HIGH ? 1 : -1;
+    private static final int DEFAULT_NULL_SORT =
+            SysProperties.SORT_NULLS_HIGH ? 1 : -1;
 
     private final Database database;
 
@@ -81,8 +81,13 @@ public class SortOrder implements Comparator<Value[]> {
      * @param sortType the sort order bit masks
      * @param orderList the original query order list (if this is a query)
      */
+<<<<<<< HEAD
 
     public SortOrder(Database database, int[] queryColumnIndexes, int[] sortType, ArrayList<SelectOrderBy> orderList, int[] columnIndexes) {
+=======
+    public SortOrder(Database database, int[] queryColumnIndexes,
+            int[] sortType, ArrayList<SelectOrderBy> orderList) {
+>>>>>>> remotes/git-svn
         this.database = database;
         this.queryColumnIndexes = queryColumnIndexes;
         this.sortTypes = sortType;

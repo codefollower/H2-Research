@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -30,16 +29,16 @@ public class Compact {
      * @param args the command line parameters
      */
     public static void main(String... args) throws Exception {
-        DeleteDbFiles.execute("data", "test", true);
+        DeleteDbFiles.execute("./data", "test", true);
         Class.forName("org.h2.Driver");
-        Connection conn = DriverManager.getConnection("jdbc:h2:data/test", "sa", "");
+        Connection conn = DriverManager.getConnection("jdbc:h2:./data/test", "sa", "");
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
         stat.execute("INSERT INTO TEST VALUES(1, 'Hello'), (2, 'World');");
         stat.close();
         conn.close();
         System.out.println("Compacting...");
-        compact("data", "test", "sa", "");
+        compact("./data", "test", "sa", "");
         System.out.println("Done.");
     }
 

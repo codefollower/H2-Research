@@ -1,15 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.Data;
 import org.h2.store.Page;
@@ -143,7 +142,8 @@ public class PageDataOverflow extends Page {
             nextPage = data.readInt();
             size = store.getPageSize() - data.length();
         } else {
-            throw DbException.get(ErrorCode.FILE_CORRUPTED_1, "page:" + getPos() + " type:" + type);
+            throw DbException.get(ErrorCode.FILE_CORRUPTED_1, "page:" +
+                    getPos() + " type:" + type);
         }
         start = data.length();
     }
@@ -194,7 +194,8 @@ public class PageDataOverflow extends Page {
 
     @Override
     public String toString() {
-        return "page[" + getPos() + "] data leaf overflow parent:" + parentPageId + " next:" + nextPage;
+        return "page[" + getPos() + "] data leaf overflow parent:" +
+                parentPageId + " next:" + nextPage;
     }
 
     /**
@@ -225,7 +226,8 @@ public class PageDataOverflow extends Page {
             next = (PageDataOverflow) store.getPage(nextPage);
         }
         store.logUndo(this, data);
-        PageDataOverflow p2 = PageDataOverflow.create(store, newPos, type, parentPageId, nextPage, data, start, size);
+        PageDataOverflow p2 = PageDataOverflow.create(store, newPos, type,
+                parentPageId, nextPage, data, start, size);
         store.update(p2);
         if (next != null) {
             next.setParentPageId(newPos);

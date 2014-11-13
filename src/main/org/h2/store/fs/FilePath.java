@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -72,12 +71,17 @@ public abstract class FilePath {
 
     private static void registerDefaultProviders() {
         if (providers == null || defaultProvider == null) {
+<<<<<<< HEAD
             Map<String, FilePath> map = Collections.synchronizedMap(New.<String, FilePath>hashMap());
             //默认是org.h2.store.fs.FilePathDisk, 所以这里不包含它
             //但是少了org.h2.store.fs.FilePathRec、org.h2.mvstore.cache.FilePathCache
             //不过org.h2.store.fs.FilePathRec是通过org.h2.store.fs.FilePath.register(FilePath)这个方法注册
             //见org.h2.store.fs.FilePathRec.register(),
             //在org.h2.engine.ConnectionInfo.ConnectionInfo(String, Properties)调用它了
+=======
+            Map<String, FilePath> map = Collections.synchronizedMap(
+                    New.<String, FilePath>hashMap());
+>>>>>>> remotes/git-svn
             for (String c : new String[] {
                     "org.h2.store.fs.FilePathDisk",
                     "org.h2.store.fs.FilePathMem",
@@ -134,8 +138,10 @@ public abstract class FilePath {
      * Rename a file if this is allowed.
      *
      * @param newName the new fully qualified file name
+     * @param atomicReplace whether the move should be atomic, and the target
+     *            file should be replaced if it exists and replacing is possible
      */
-    public abstract void moveTo(FilePath newName);
+    public abstract void moveTo(FilePath newName, boolean atomicReplace);
 
     /**
      * Create a new file.
@@ -261,7 +267,8 @@ public abstract class FilePath {
      * @param inTempDir if the file should be stored in the temporary directory
      * @return the name of the created file
      */
-    public FilePath createTempFile(String suffix, boolean deleteOnExit, boolean inTempDir) throws IOException {
+    public FilePath createTempFile(String suffix, boolean deleteOnExit,
+            boolean inTempDir) throws IOException {
         while (true) {
             FilePath p = getPath(name + getNextTempFileNamePart(false) + suffix);
             if (p.exists() || !p.createFile()) {
@@ -280,7 +287,8 @@ public abstract class FilePath {
      * @param newRandom if the random part of the filename should change
      * @return the file name part
      */
-    protected static synchronized String getNextTempFileNamePart(boolean newRandom) {
+    protected static synchronized String getNextTempFileNamePart(
+            boolean newRandom) {
         if (newRandom || tempRandom == null) {
             tempRandom = MathUtils.randomInt(Integer.MAX_VALUE) + ".";
         }

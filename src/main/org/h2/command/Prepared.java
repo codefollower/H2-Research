@@ -1,14 +1,13 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
 
 import java.util.ArrayList;
 import org.h2.api.DatabaseEventListener;
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
@@ -119,7 +118,9 @@ public abstract class Prepared {
         }
         // parser: currently, compiling every create/drop/... twice
         // because needRecompile return true even for the first execution
-        return prepareAlways || modificationMetaId < db.getModificationMetaId() || db.getSettings().recompileAlways;
+        return prepareAlways ||
+                modificationMetaId < db.getModificationMetaId() ||
+                db.getSettings().recompileAlways;
     }
 
     /**
@@ -320,7 +321,8 @@ public abstract class Prepared {
         }
         if (session.getDatabase().getQueryStatistics()) {
             long deltaTime = System.currentTimeMillis() - startTime;
-            session.getDatabase().getQueryStatisticsData().update(toString(), deltaTime, rowCount);
+            session.getDatabase().getQueryStatisticsData().
+                    update(toString(), deltaTime, rowCount);
         }
     }
 
@@ -360,9 +362,16 @@ public abstract class Prepared {
      * Notifies query progress via the DatabaseEventListener
      */
     private void setProgress() {
+<<<<<<< HEAD
     	//等价于((currentRowNumber % 128) == 0)，但是(currentRowNumber & 127)性能更高
         if ((currentRowNumber & 127) == 0) { //每过128条记录提示一次进度
             session.getDatabase().setProgress(DatabaseEventListener.STATE_STATEMENT_PROGRESS, sqlStatement, currentRowNumber, 0);
+=======
+        if ((currentRowNumber & 127) == 0) {
+            session.getDatabase().setProgress(
+                    DatabaseEventListener.STATE_STATEMENT_PROGRESS,
+                    sqlStatement, currentRowNumber, 0);
+>>>>>>> remotes/git-svn
         }
     }
 

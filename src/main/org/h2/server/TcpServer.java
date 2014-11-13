@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server;
@@ -22,10 +21,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import org.h2.Driver;
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
-import org.h2.message.TraceSystem;
 import org.h2.util.JdbcUtils;
 import org.h2.util.NetUtils;
 import org.h2.util.New;
@@ -54,7 +52,8 @@ public class TcpServer implements Service {
      */
     private static final String MANAGEMENT_DB_PREFIX = "management_db_";
 
-    private static final Map<Integer, TcpServer> SERVERS = Collections.synchronizedMap(new HashMap<Integer, TcpServer>());
+    private static final Map<Integer, TcpServer> SERVERS =
+            Collections.synchronizedMap(new HashMap<Integer, TcpServer>());
 
     private int port;
     private boolean portIsSet;
@@ -63,7 +62,8 @@ public class TcpServer implements Service {
     private boolean stop;
     private ShutdownHandler shutdownHandler;
     private ServerSocket serverSocket;
-    private final Set<TcpServerThread> running = Collections.synchronizedSet(new HashSet<TcpServerThread>());
+    private final Set<TcpServerThread> running =
+            Collections.synchronizedSet(new HashSet<TcpServerThread>());
     private String baseDir;
     private boolean allowOthers;
     private boolean isDaemon;
@@ -92,14 +92,20 @@ public class TcpServer implements Service {
         prop.setProperty("user", "");
         prop.setProperty("password", managementPassword);
         // avoid using the driver manager
+<<<<<<< HEAD
         // url如: jdbc:h2:mem:management_db_9092
         //内存数据库不走TCP，执行到这里时TcpServer的listenerThread还没启动，
         //所以下面的sql语句不会在TcpServerThread这个类中收到请求
         Connection conn = Driver.load().connect("jdbc:h2:" + getManagementDbName(port), prop);
+=======
+        Connection conn = Driver.load().connect("jdbc:h2:" +
+                getManagementDbName(port), prop);
+>>>>>>> remotes/git-svn
         managementDb = conn;
         Statement stat = null;
         try {
             stat = conn.createStatement();
+<<<<<<< HEAD
             //建立了一个自定义的函数STOP_SERVER，
             //通过类似这样CALL STOP_SERVER(9092, '', 0)就能关闭H2数据库
             //调用的是org.h2.server.TcpServer.stopServer(int, String, int)方法
@@ -109,6 +115,17 @@ public class TcpServer implements Service {
             stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS(ID INT PRIMARY KEY, URL VARCHAR, USER VARCHAR, CONNECTED TIMESTAMP)");
             managementDbAdd = conn.prepareStatement("INSERT INTO SESSIONS VALUES(?, ?, ?, NOW())");
             managementDbRemove = conn.prepareStatement("DELETE FROM SESSIONS WHERE ID=?");
+=======
+            stat.execute("CREATE ALIAS IF NOT EXISTS STOP_SERVER FOR \"" +
+                    TcpServer.class.getName() + ".stopServer\"");
+            stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS" +
+                    "(ID INT PRIMARY KEY, URL VARCHAR, USER VARCHAR, " +
+                    "CONNECTED TIMESTAMP)");
+            managementDbAdd = conn.prepareStatement(
+                    "INSERT INTO SESSIONS VALUES(?, ?, ?, NOW())");
+            managementDbRemove = conn.prepareStatement(
+                    "DELETE FROM SESSIONS WHERE ID=?");
+>>>>>>> remotes/git-svn
         } finally {
             JdbcUtils.closeSilently(stat);
         }
@@ -144,7 +161,7 @@ public class TcpServer implements Service {
             managementDbAdd.setString(3, user);
             managementDbAdd.execute();
         } catch (SQLException e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         }
     }
 
@@ -160,7 +177,7 @@ public class TcpServer implements Service {
             managementDbRemove.setInt(1, id);
             managementDbRemove.execute();
         } catch (SQLException e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         }
     }
 
@@ -169,7 +186,7 @@ public class TcpServer implements Service {
             try {
                 managementDb.close();
             } catch (SQLException e) {
-                TraceSystem.traceThrowable(e);
+                DbException.traceThrowable(e);
             }
             managementDb = null;
         }
@@ -272,7 +289,7 @@ public class TcpServer implements Service {
             serverSocket = NetUtils.closeSilently(serverSocket);
         } catch (Exception e) {
             if (!stop) {
-                TraceSystem.traceThrowable(e);
+                DbException.traceThrowable(e);
             }
         }
         stopManagementDb();
@@ -311,7 +328,7 @@ public class TcpServer implements Service {
                 try {
                     serverSocket.close();
                 } catch (IOException e) {
-                    TraceSystem.traceThrowable(e);
+                    DbException.traceThrowable(e);
                 } catch (NullPointerException e) {
                     // ignore
                 }
@@ -321,7 +338,7 @@ public class TcpServer implements Service {
                 try {
                     listenerThread.join(1000);
                 } catch (InterruptedException e) {
-                    TraceSystem.traceThrowable(e);
+                    DbException.traceThrowable(e);
                 }
             }
         }
@@ -332,7 +349,7 @@ public class TcpServer implements Service {
                 try {
                     c.getThread().join(100);
                 } catch (Exception e) {
-                    TraceSystem.traceThrowable(e);
+                    DbException.traceThrowable(e);
                 }
             }
         }
@@ -445,7 +462,8 @@ public class TcpServer implements Service {
      * @param all whether all TCP servers that are running in the JVM should be
      *            stopped
      */
-    public static synchronized void shutdown(String url, String password, boolean force, boolean all) throws SQLException {
+    public static synchronized void shutdown(String url, String password,
+            boolean force, boolean all) throws SQLException {
         try {
             int port = Constants.DEFAULT_TCP_PORT;
             int idx = url.lastIndexOf(':');

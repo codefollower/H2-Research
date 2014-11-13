@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.todo;
@@ -34,7 +33,6 @@ public class TestTempTableCrash {
 
         System.setProperty("h2.delayWrongPasswordMin", "0");
         System.setProperty("h2.check2", "false");
-        System.setProperty("h2.lobInDatabase", "true");
         FilePathRec.register();
         System.setProperty("reopenShift", "4");
         TestReopen reopen = new TestReopen();
@@ -62,12 +60,14 @@ public class TestTempTableCrash {
             stat.execute("drop table if exists test" + x);
             String type = random.nextBoolean() ? "temp" : "";
             // String type = "";
-            stat.execute("create " + type + " table test" + x + "(id int primary key, name varchar)");
+            stat.execute("create " + type + " table test" + x +
+                    "(id int primary key, name varchar)");
             if (random.nextBoolean()) {
                 stat.execute("create index idx_" + x + " on test" + x + "(name, id)");
             }
             if (random.nextBoolean()) {
-                stat.execute("insert into test" + x + " select x, x from system_range(1, " + random.nextInt(100) + ")");
+                stat.execute("insert into test" + x + " select x, x " +
+                        "from system_range(1, " + random.nextInt(100) + ")");
             }
             if (random.nextInt(10) == 1) {
                 conn.close();

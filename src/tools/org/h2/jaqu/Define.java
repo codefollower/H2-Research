@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jaqu;
@@ -34,12 +33,14 @@ public class Define {
 
     public static void hashIndex(Object column) {
         checkInDefine();
-        currentTableDefinition.addIndex(IndexType.HASH, new Object [] { column });
+        currentTableDefinition
+                .addIndex(IndexType.HASH, new Object[] { column });
     }
 
     public static void uniqueHashIndex(Object column) {
         checkInDefine();
-        currentTableDefinition.addIndex(IndexType.UNIQUE_HASH, new Object [] { column });
+        currentTableDefinition.addIndex(IndexType.UNIQUE_HASH,
+                new Object[] { column });
     }
 
     public static void maxLength(Object column, int length) {
@@ -62,9 +63,10 @@ public class Define {
 
     private static void checkInDefine() {
         if (currentTable == null) {
-            throw new RuntimeException("This method may only be called " +
-                "from within the define() method, and the define() method " +
-                "is called by the framework.");
+            throw new RuntimeException(
+                    "This method may only be called "
+                            + "from within the define() method, and the define() method "
+                            + "is called by the framework.");
         }
     }
 

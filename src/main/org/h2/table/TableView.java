@@ -1,22 +1,23 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
-
+import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
 import org.h2.command.dml.Query;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.engine.User;
+import org.h2.expression.Alias;
 import org.h2.expression.Expression;
+import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.index.Index;
@@ -24,21 +25,20 @@ import org.h2.index.IndexType;
 import org.h2.index.ViewIndex;
 import org.h2.message.DbException;
 import org.h2.result.LocalResult;
-import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.result.SortOrder;
 import org.h2.schema.Schema;
-import org.h2.util.IntArray;
 import org.h2.util.New;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
 import org.h2.util.SynchronizedVerifier;
-import org.h2.util.Utils;
 import org.h2.value.Value;
 
 /**
  * A view is a virtual table that is defined by a query.
+ * @author Thomas Mueller
+ * @author Nicolas Fortin, Atelier SIG, IRSTV FR CNRS 24888
  */
 /*
          有三种产生TableView的方式:
@@ -75,7 +75,7 @@ public class TableView extends Table {
     private ViewIndex index;
     private boolean recursive;
     private DbException createException;
-    private final SmallLRUCache<IntArray, ViewIndex> indexCache =
+    private final SmallLRUCache<CacheKey, ViewIndex> indexCache =
             SmallLRUCache.newInstance(Constants.VIEW_INDEX_CACHE_SIZE);
     private long lastModificationCheck;
     private long maxDataModificationId;
@@ -84,8 +84,9 @@ public class TableView extends Table {
     private LocalResult recursiveResult;
     private boolean tableExpression;
 
-    public TableView(Schema schema, int id, String name, String querySQL, ArrayList<Parameter> params, String[] columnNames,
-            Session session, boolean recursive) {
+    public TableView(Schema schema, int id, String name, String querySQL,
+            ArrayList<Parameter> params, String[] columnNames, Session session,
+            boolean recursive) {
         super(schema, id, name, false, true);
         init(querySQL, params, columnNames, session, recursive);
     }
@@ -100,7 +101,8 @@ public class TableView extends Table {
      * @param recursive whether this is a recursive view
      * @param force if errors should be ignored
      */
-    public void replace(String querySQL, String[] columnNames, Session session, boolean recursive, boolean force) {
+    public void replace(String querySQL, String[] columnNames, Session session,
+            boolean recursive, boolean force) {
         String oldQuerySQL = this.querySQL;
         String[] oldColumnNames = this.columnNames;
         boolean oldRecursive = this.recursive;
@@ -220,6 +222,23 @@ public class TableView extends Table {
                 int displaySize = expr.getDisplaySize();
                 Column col = new Column(name, type, precision, scale, displaySize);
                 col.setTable(this, i);
+                // Fetch check constraint from view column source
+                ExpressionColumn fromColumn = null;
+                if (expr instanceof ExpressionColumn) {
+                    fromColumn = (ExpressionColumn) expr;
+                } else if (expr instanceof Alias) {
+                    Expression aliasExpr = expr.getNonAliasExpression();
+                    if (aliasExpr instanceof ExpressionColumn) {
+                        fromColumn = (ExpressionColumn) aliasExpr;
+                    }
+                }
+                if (fromColumn != null) {
+                    Expression checkExpression = fromColumn.getColumn()
+                            .getCheckConstraint(session, name);
+                    if (checkExpression != null) {
+                        col.addCheckConstraint(session, checkExpression);
+                    }
+                }
                 list.add(col);
             }
             cols = new Column[list.size()];
@@ -259,17 +278,34 @@ public class TableView extends Table {
     }
 
     @Override
-    public synchronized PlanItem getBestPlanItem(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+    public PlanItem getBestPlanItem(Session session, int[] masks,
+            TableFilter filter, SortOrder sortOrder) {
         PlanItem item = new PlanItem();
         item.cost = index.getCost(session, masks, filter, sortOrder);
-        IntArray masksArray = new IntArray(masks == null ? Utils.EMPTY_INT_ARRAY : masks);
-        SynchronizedVerifier.check(indexCache);
-        ViewIndex i2 = indexCache.get(masksArray);
-        if (i2 == null || i2.getSession() != session) {
-            i2 = new ViewIndex(this, index, session, masks);
-            indexCache.put(masksArray, i2);
+        final CacheKey cacheKey = new CacheKey(masks, session);
+
+        synchronized (this) {
+            SynchronizedVerifier.check(indexCache);
+            ViewIndex i2 = indexCache.get(cacheKey);
+            if (i2 != null) {
+                item.setIndex(i2);
+                return item;
+            }
         }
-        item.setIndex(i2);
+        // We cannot hold the lock during the ViewIndex creation or we risk ABBA
+        // deadlocks if the view creation calls back into H2 via something like
+        // a FunctionTable.
+        ViewIndex i2 = new ViewIndex(this, index, session, masks);
+        synchronized (this) {
+            // have to check again in case another session has beat us to it
+            ViewIndex i3 = indexCache.get(cacheKey);
+            if (i3 != null) {
+                item.setIndex(i3);
+                return item;
+            }
+            indexCache.put(cacheKey, i2);
+            item.setIndex(i2);
+        }
         return item;
     }
 
@@ -300,7 +336,8 @@ public class TableView extends Table {
         return getCreateSQL(orReplace, force, getSQL());
     }
 
-    private String getCreateSQL(boolean orReplace, boolean force, String quotedName) {
+    private String getCreateSQL(boolean orReplace, boolean force,
+            String quotedName) {
         StatementBuilder buff = new StatementBuilder("CREATE ");
         if (orReplace) {
             buff.append("OR REPLACE ");
@@ -337,7 +374,7 @@ public class TableView extends Table {
     }
 
     @Override
-    public void lock(Session session, boolean exclusive, boolean force) {
+    public void lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
         // exclusive lock means: the view will be dropped
     }
 
@@ -357,8 +394,9 @@ public class TableView extends Table {
     }
 
     @Override
-    public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
-            boolean create, String indexComment) {
+    public Index addIndex(Session session, String indexName, int indexId,
+            IndexColumn[] cols, IndexType indexType, boolean create,
+            String indexComment) {
         throw DbException.getUnsupportedException("VIEW");
     }
 
@@ -429,7 +467,8 @@ public class TableView extends Table {
     public Index getScanIndex(Session session) {
         if (createException != null) {
             String msg = createException.getMessage();
-            throw DbException.get(ErrorCode.VIEW_IS_INVALID_2, createException, getSQL(), msg);
+            throw DbException.get(ErrorCode.VIEW_IS_INVALID_2,
+                    createException, getSQL(), msg);
         }
         PlanItem item = getBestPlanItem(session, null, null, null);
         return item.getIndex();
@@ -502,10 +541,12 @@ public class TableView extends Table {
      * @param topQuery the top level query
      * @return the view table
      */
-    public static TableView createTempView(Session session, User owner, String name, Query query, Query topQuery) {
+    public static TableView createTempView(Session session, User owner,
+            String name, Query query, Query topQuery) {
         Schema mainSchema = session.getDatabase().getSchema(Constants.SCHEMA_MAIN);
         String querySQL = query.getPlanSQL();
-        TableView v = new TableView(mainSchema, 0, name, querySQL, query.getParameters(), null, session,
+        TableView v = new TableView(mainSchema, 0, name,
+                querySQL, query.getParameters(), null, session,
                 false);
         if (v.createException != null) {
             throw v.createException;
@@ -549,7 +590,7 @@ public class TableView extends Table {
         this.recursiveResult = value;
     }
 
-    public ResultInterface getRecursiveResult() {
+    public LocalResult getRecursiveResult() {
         return recursiveResult;
     }
 
@@ -570,6 +611,50 @@ public class TableView extends Table {
                     t.addDependencies(dependencies);
                 }
             }
+        }
+    }
+
+    /**
+     * The key of the index cache for views.
+     */
+    private static final class CacheKey {
+
+        private final int[] masks;
+        private final Session session;
+
+        public CacheKey(int[] masks, Session session) {
+            this.masks = masks;
+            this.session = session;
+        }
+
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + Arrays.hashCode(masks);
+            result = prime * result + session.hashCode();
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            CacheKey other = (CacheKey) obj;
+            if (session != other.session) {
+                return false;
+            }
+            if (!Arrays.equals(masks, other.masks)) {
+                return false;
+            }
+            return true;
         }
     }
 

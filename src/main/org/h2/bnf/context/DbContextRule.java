@@ -1,13 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.bnf.context;
 
 import java.util.HashMap;
 import java.util.HashSet;
+
+import org.h2.bnf.Bnf;
 import org.h2.bnf.BnfVisitor;
 import org.h2.bnf.Rule;
 import org.h2.bnf.RuleElement;
@@ -85,7 +86,9 @@ public class DbContextRule implements Rule {
                 } else if (s.length() == 0 || name.startsWith(up)) {
                     if (s.length() < name.length()) {
                         sentence.add(name, name.substring(s.length()), type);
-                        sentence.add(schema.quotedName + ".", schema.quotedName.substring(s.length()) + ".", Sentence.CONTEXT);
+                        sentence.add(schema.quotedName + ".",
+                                schema.quotedName.substring(s.length()) + ".",
+                                Sentence.CONTEXT);
                     }
                 }
             }
@@ -117,7 +120,9 @@ public class DbContextRule implements Rule {
                     }
                 } else if (s.length() == 0 || name.startsWith(compare)) {
                     if (s.length() < name.length()) {
-                        sentence.add(table.getQuotedName(), table.getQuotedName().substring(s.length()), Sentence.CONTEXT);
+                        sentence.add(table.getQuotedName(),
+                                table.getQuotedName().substring(s.length()),
+                                Sentence.CONTEXT);
                     }
                 }
             }
@@ -167,13 +172,17 @@ public class DbContextRule implements Rule {
                         name = column.getQuotedName();
                         compare = query;
                     }
-                    if (compare.startsWith(name) && (columnType == null || column.getDataType().contains(columnType))) {
+                    if (compare.startsWith(name) &&
+                            (columnType == null ||
+                            column.getDataType().contains(columnType))) {
                         String b = s.substring(name.length());
                         if (best == null || b.length() < best.length()) {
                             best = b;
                         } else if (s.length() == 0 || name.startsWith(compare)) {
                             if (s.length() < name.length()) {
-                                sentence.add(column.getName(), column.getName().substring(s.length()), Sentence.CONTEXT);
+                                sentence.add(column.getName(),
+                                        column.getName().substring(s.length()),
+                                        Sentence.CONTEXT);
                             }
                         }
                     }
@@ -199,7 +208,9 @@ public class DbContextRule implements Rule {
                                 }
                             } else if (s.length() == 0 || name.startsWith(up)) {
                                 if (s.length() < name.length()) {
-                                    sentence.add(column.getName(), column.getName().substring(s.length()), Sentence.CONTEXT);
+                                    sentence.add(column.getName(),
+                                            column.getName().substring(s.length()),
+                                            Sentence.CONTEXT);
                                 }
                             }
                         }
@@ -211,14 +222,14 @@ public class DbContextRule implements Rule {
             }
             break;
         }
-            case PROCEDURE:
-                autoCompleteProcedure(sentence);
-                break;
+        case PROCEDURE:
+            autoCompleteProcedure(sentence);
+            break;
         default:
             throw DbException.throwInternalError("type=" + type);
         }
         if (!s.equals(query)) {
-            while (s.length() > 0 && Character.isSpaceChar(s.charAt(0))) {
+            while (Bnf.startWithSpace(s)) {
                 s = s.substring(1);
             }
             sentence.setQuery(s);
@@ -234,7 +245,8 @@ public class DbContextRule implements Rule {
         String incompleteSentence = sentence.getQueryUpper();
         String incompleteFunctionName = incompleteSentence;
         if (incompleteSentence.contains("(")) {
-            incompleteFunctionName = incompleteSentence.substring(0, incompleteSentence.indexOf('(')).trim();
+            incompleteFunctionName = incompleteSentence.substring(0,
+                    incompleteSentence.indexOf('(')).trim();
         }
 
         // Common elements
@@ -273,7 +285,9 @@ public class DbContextRule implements Rule {
             }
         }
     }
-    private static String autoCompleteTableAlias(Sentence sentence, boolean newAlias) {
+
+    private static String autoCompleteTableAlias(Sentence sentence,
+            boolean newAlias) {
         String s = sentence.getQuery();
         String up = sentence.getQueryUpper();
         int i = 0;
@@ -294,7 +308,8 @@ public class DbContextRule implements Rule {
             sentence.addAlias(alias, sentence.getLastTable());
         }
         HashMap<String, DbTableOrView> map = sentence.getAliases();
-        if ((map != null && map.containsKey(alias)) || (sentence.getLastTable() == null)) {
+        if ((map != null && map.containsKey(alias)) ||
+                (sentence.getLastTable() == null)) {
             if (newAlias && s.length() == alias.length()) {
                 return s;
             }
@@ -308,12 +323,16 @@ public class DbContextRule implements Rule {
         if (tables != null) {
             String best = null;
             for (DbTableOrView table : tables) {
-                String tableName = StringUtils.toUpperEnglish(table.getName());
-                if (alias.startsWith(tableName) && (best == null || tableName.length() > best.length())) {
+                String tableName =
+                        StringUtils.toUpperEnglish(table.getName());
+                if (alias.startsWith(tableName) &&
+                        (best == null || tableName.length() > best.length())) {
                     sentence.setLastMatchedTable(table);
                     best = tableName;
                 } else if (s.length() == 0 || tableName.startsWith(alias)) {
-                    sentence.add(tableName + ".", tableName.substring(s.length()) + ".", Sentence.CONTEXT);
+                    sentence.add(tableName + ".",
+                            tableName.substring(s.length()) + ".",
+                            Sentence.CONTEXT);
                 }
             }
             if (best != null) {

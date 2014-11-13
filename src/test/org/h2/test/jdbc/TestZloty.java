@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -12,7 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -38,7 +37,8 @@ public class TestZloty extends TestBase {
     }
 
     /**
-     * This class overrides BigDecimal and implements some strange comparison method.
+     * This class overrides BigDecimal and implements some strange comparison
+     * method.
      */
     private static class ZlotyBigDecimal extends BigDecimal {
 
@@ -58,8 +58,10 @@ public class TestZloty extends TestBase {
     private void testModifyBytes() throws SQLException {
         deleteDb("zloty");
         Connection conn = getConnection("zloty");
-        conn.createStatement().execute("CREATE TABLE TEST(ID INT, DATA BINARY)");
-        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, ?)");
+        conn.createStatement().execute(
+                "CREATE TABLE TEST(ID INT, DATA BINARY)");
+        PreparedStatement prep = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, ?)");
         byte[] shared = { 0 };
         prep.setInt(1, 0);
         prep.setBytes(2, shared);
@@ -68,7 +70,8 @@ public class TestZloty extends TestBase {
         prep.setInt(1, 1);
         prep.setBytes(2, shared);
         prep.execute();
-        ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM TEST ORDER BY ID");
+        ResultSet rs = conn.createStatement().executeQuery(
+                "SELECT * FROM TEST ORDER BY ID");
         rs.next();
         assertEquals(0, rs.getInt(1));
         assertEquals(0, rs.getBytes(2)[0]);

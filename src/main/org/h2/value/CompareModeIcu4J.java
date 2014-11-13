@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -9,9 +8,10 @@ package org.h2.value;
 import java.lang.reflect.Method;
 import java.util.Comparator;
 import java.util.Locale;
+
 import org.h2.message.DbException;
+import org.h2.util.JdbcUtils;
 import org.h2.util.StringUtils;
-import org.h2.util.Utils;
 
 /**
  * An implementation of CompareMode that uses the ICU4J Collator.
@@ -35,16 +35,20 @@ public class CompareModeIcu4J extends CompareMode {
     }
 
     @Override
-    public boolean equalsChars(String a, int ai, String b, int bi, boolean ignoreCase) {
-        return compareString(a.substring(ai, ai + 1), b.substring(bi, bi + 1), ignoreCase) == 0;
+    public boolean equalsChars(String a, int ai, String b, int bi,
+            boolean ignoreCase) {
+        return compareString(a.substring(ai, ai + 1), b.substring(bi, bi + 1),
+                ignoreCase) == 0;
     }
 
     @SuppressWarnings("unchecked")
     private static Comparator<String> getIcu4jCollator(String name, int strength) {
         try {
             Comparator<String> result = null;
-            Class<?> collatorClass = Utils.loadUserClass("com.ibm.icu.text.Collator");
-            Method getInstanceMethod = collatorClass.getMethod("getInstance", Locale.class);
+            Class<?> collatorClass = JdbcUtils.loadUserClass(
+                    "com.ibm.icu.text.Collator");
+            Method getInstanceMethod = collatorClass.getMethod(
+                    "getInstance", Locale.class);
             if (name.length() == 2) {
                 Locale locale = new Locale(StringUtils.toLowerEnglish(name), "");
                 if (compareLocaleNames(locale, name)) {
@@ -63,7 +67,8 @@ public class CompareModeIcu4J extends CompareMode {
                 }
             }
             if (result == null) {
-                for (Locale locale : (Locale[]) collatorClass.getMethod("getAvailableLocales").invoke(null)) {
+                for (Locale locale : (Locale[]) collatorClass.getMethod(
+                        "getAvailableLocales").invoke(null)) {
                     if (compareLocaleNames(locale, name)) {
                         result = (Comparator<String>) getInstanceMethod.invoke(null, locale);
                         break;

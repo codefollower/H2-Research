@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -11,7 +10,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -43,6 +43,7 @@ public class TestView extends TestBase {
         testManyViews();
         testReferenceView();
         testViewAlterAndCommandCache();
+        testViewConstraintFromColumnExpression();
         deleteDb("view");
     }
 
@@ -73,10 +74,12 @@ public class TestView extends TestBase {
         deleteDb("view");
         Connection conn = getConnection("view");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE TABLE Test(id INT AUTO_INCREMENT NOT NULL, f1 VARCHAR NOT NULL, f2 VARCHAR NOT NULL)");
+        stat.execute("CREATE TABLE Test(id INT AUTO_INCREMENT NOT NULL, " +
+                "f1 VARCHAR NOT NULL, f2 VARCHAR NOT NULL)");
         stat.execute("INSERT INTO Test(f1, f2) VALUES ('value1','value2')");
         stat.execute("INSERT INTO Test(f1, f2) VALUES ('value1','value3')");
-        PreparedStatement ps = conn.prepareStatement("CREATE VIEW Test_View AS SELECT f2 FROM Test WHERE f1=?");
+        PreparedStatement ps = conn.prepareStatement(
+                "CREATE VIEW Test_View AS SELECT f2 FROM Test WHERE f1=?");
         ps.setString(1, "value1");
         assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, ps).
                 executeUpdate();
@@ -144,7 +147,8 @@ public class TestView extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("create table test(id int primary key) as select 1");
         PreparedStatement prep = conn.prepareStatement(
-                "select * from test t where t.id in (select t2.id from test t2 where t2.id in (?, ?))");
+                "select * from test t where t.id in " +
+                "(select t2.id from test t2 where t2.id in (?, ?))");
         prep.setInt(1, 1);
         prep.setInt(2, 2);
         prep.execute();
@@ -185,7 +189,8 @@ public class TestView extends TestBase {
         for (int i = 0; i < 30; i++) {
             s.execute("create view t" + (i + 1) + " as select * from t" + i);
             s.execute("select * from t" + (i + 1));
-            ResultSet rs = s.executeQuery("select count(*) from t" + (i + 1) + " where id=2");
+            ResultSet rs = s.executeQuery(
+                    "select count(*) from t" + (i + 1) + " where id=2");
             assertTrue(rs.next());
             assertEquals(1, rs.getInt(1));
         }
@@ -202,7 +207,8 @@ public class TestView extends TestBase {
         s.execute("create table t0(id int primary key)");
         s.execute("create view t1 as select * from t0");
         assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, s).execute(
-                "create table t2(id int primary key, col1 int not null, foreign key (col1) references t1(id))");
+                "create table t2(id int primary key, " +
+                "col1 int not null, foreign key (col1) references t1(id))");
         conn.close();
         deleteDb("view");
     }
@@ -231,4 +237,47 @@ public class TestView extends TestBase {
         deleteDb("view");
     }
 
+    /**
+     * Make sure that the table constraint is still available when create a view
+     * of other table.
+     */
+    private void testViewConstraintFromColumnExpression() throws SQLException {
+        deleteDb("view");
+        Connection conn = getConnection("view");
+        Statement stat = conn.createStatement();
+        stat.execute("create table t0(id1 int primary key CHECK ((ID1 % 2) = 0))");
+        stat.execute("create table t1(id2 int primary key CHECK ((ID2 % 1) = 0))");
+        stat.execute("insert into t0 values(0)");
+        stat.execute("insert into t1 values(1)");
+        stat.execute("create view v1 as select * from t0,t1");
+        // Check with ColumnExpression
+        ResultSet rs = stat.executeQuery(
+                "select * from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = 'V1'");
+        assertTrue(rs.next());
+        assertEquals("ID1", rs.getString("COLUMN_NAME"));
+        assertEquals("((ID1 % 2) = 0)", rs.getString("CHECK_CONSTRAINT"));
+        assertTrue(rs.next());
+        assertEquals("ID2", rs.getString("COLUMN_NAME"));
+        assertEquals("((ID2 % 1) = 0)", rs.getString("CHECK_CONSTRAINT"));
+        // Check with AliasExpression
+        stat.execute("create view v2 as select ID1 key1,ID2 key2 from t0,t1");
+        rs = stat.executeQuery("select * from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = 'V2'");
+        assertTrue(rs.next());
+        assertEquals("KEY1", rs.getString("COLUMN_NAME"));
+        assertEquals("((KEY1 % 2) = 0)", rs.getString("CHECK_CONSTRAINT"));
+        assertTrue(rs.next());
+        assertEquals("KEY2", rs.getString("COLUMN_NAME"));
+        assertEquals("((KEY2 % 1) = 0)", rs.getString("CHECK_CONSTRAINT"));
+        // Check hide of constraint if column is an Operation
+        stat.execute("create view v3 as select ID1 + 1 ID1, ID2 + 1 ID2 from t0,t1");
+        rs = stat.executeQuery("select * from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = 'V3'");
+        assertTrue(rs.next());
+        assertEquals("ID1", rs.getString("COLUMN_NAME"));
+        assertEquals("", rs.getString("CHECK_CONSTRAINT"));
+        assertTrue(rs.next());
+        assertEquals("ID2", rs.getString("COLUMN_NAME"));
+        assertEquals("", rs.getString("CHECK_CONSTRAINT"));
+        conn.close();
+        deleteDb("view");
+    }
 }

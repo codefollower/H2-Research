@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -23,10 +22,11 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Collections;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.IOUtils;
+import org.h2.util.JdbcUtils;
 import org.h2.util.Utils;
 
 /**
@@ -77,26 +77,43 @@ public class TestCallableStatement extends TestBase {
     private void testUnsupportedOperations(Connection conn) throws SQLException {
         CallableStatement call;
         call = conn.prepareCall("select 10 as a");
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getURL(1);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getObject(1, Collections.<String, Class<?>>emptyMap());
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getRef(1);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getRowId(1);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getSQLXML(1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getURL(1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getObject(1, Collections.<String, Class<?>>emptyMap());
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getRef(1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getRowId(1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getSQLXML(1);
 
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getURL("a");
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getObject("a", Collections.<String, Class<?>>emptyMap());
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getRef("a");
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getRowId("a");
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).getSQLXML("a");
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getURL("a");
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getObject("a", Collections.<String, Class<?>>emptyMap());
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getRef("a");
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getRowId("a");
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                getSQLXML("a");
 
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).setURL(1, (URL) null);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).setRef(1, (Ref) null);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).setRowId(1, (RowId) null);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).setSQLXML(1, (SQLXML) null);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                setURL(1, (URL) null);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                setRef(1, (Ref) null);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                setRowId(1, (RowId) null);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                setSQLXML(1, (SQLXML) null);
 
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).setURL("a", (URL) null);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).setRowId("a", (RowId) null);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).setSQLXML("a", (SQLXML) null);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                setURL("a", (URL) null);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                setRowId("a", (RowId) null);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, call).
+                setSQLXML("a", (SQLXML) null);
 
     }
 
@@ -158,7 +175,8 @@ public class TestCallableStatement extends TestBase {
         call.execute();
         assertEquals("01:02:03", call.getTime(1).toString());
 
-        call.setTimestamp(2, java.sql.Timestamp.valueOf("2001-02-03 04:05:06.789"));
+        call.setTimestamp(2, java.sql.Timestamp.valueOf(
+                "2001-02-03 04:05:06.789"));
         call.registerOutParameter(1, Types.TIMESTAMP);
         call.execute();
         assertEquals("2001-02-03 04:05:06.789", call.getTimestamp(1).toString());
@@ -181,7 +199,8 @@ public class TestCallableStatement extends TestBase {
 
     private void testCallWithResult(Connection conn) throws SQLException {
         CallableStatement call;
-        for (String s : new String[]{"{?= call abs(?)}", " { ? = call abs(?)}", " {? = call abs(?)}"}) {
+        for (String s : new String[]{"{?= call abs(?)}",
+                " { ? = call abs(?)}", " {? = call abs(?)}"}) {
             call = conn.prepareCall(s);
             call.setInt(2, -3);
             call.registerOutParameter(1, Types.INTEGER);
@@ -218,7 +237,8 @@ public class TestCallableStatement extends TestBase {
         assertEquals(1, rs.getInt(1));
         assertEquals("Hello", rs.getString(2));
         assertFalse(rs.next());
-        stat.execute("CREATE ALIAS testCall FOR \"" + getClass().getName() + ".testCall\"");
+        stat.execute("CREATE ALIAS testCall FOR \"" +
+                    getClass().getName() + ".testCall\"");
         call = conn.prepareCall("{CALL testCall(?, ?, ?, ?)}");
         call.setInt("A", 50);
         call.setString("B", "abc");
@@ -297,22 +317,28 @@ public class TestCallableStatement extends TestBase {
             // expected exception
         }
 
-        call.setCharacterStream("B", new StringReader("xyz"));
+        call.setCharacterStream("B",
+                new StringReader("xyz"));
         call.executeUpdate();
         assertEquals("XYZ", call.getString("B"));
-        call.setCharacterStream("B", new StringReader("xyz-"), 3);
+        call.setCharacterStream("B",
+                new StringReader("xyz-"), 3);
         call.executeUpdate();
         assertEquals("XYZ", call.getString("B"));
-        call.setCharacterStream("B", new StringReader("xyz-"), 3L);
+        call.setCharacterStream("B",
+                new StringReader("xyz-"), 3L);
         call.executeUpdate();
         assertEquals("XYZ", call.getString("B"));
-        call.setAsciiStream("B", new ByteArrayInputStream("xyz".getBytes("UTF-8")));
+        call.setAsciiStream("B",
+                new ByteArrayInputStream("xyz".getBytes("UTF-8")));
         call.executeUpdate();
         assertEquals("XYZ", call.getString("B"));
-        call.setAsciiStream("B", new ByteArrayInputStream("xyz-".getBytes("UTF-8")), 3);
+        call.setAsciiStream("B",
+                new ByteArrayInputStream("xyz-".getBytes("UTF-8")), 3);
         call.executeUpdate();
         assertEquals("XYZ", call.getString("B"));
-        call.setAsciiStream("B", new ByteArrayInputStream("xyz-".getBytes("UTF-8")), 3L);
+        call.setAsciiStream("B",
+                new ByteArrayInputStream("xyz-".getBytes("UTF-8")), 3L);
         call.executeUpdate();
         assertEquals("XYZ", call.getString("B"));
 
@@ -349,7 +375,7 @@ public class TestCallableStatement extends TestBase {
 
     private void testClassLoader(Connection conn) throws SQLException {
         Utils.ClassFactory myFactory = new TestClassFactory();
-        Utils.addClassFactory(myFactory);
+        JdbcUtils.addClassFactory(myFactory);
         try {
             Statement stat = conn.createStatement();
             stat.execute("CREATE ALIAS T_CLASSLOADER FOR \"TestClassFactory.testClassF\"");
@@ -357,7 +383,7 @@ public class TestCallableStatement extends TestBase {
             assertTrue(rs.next());
             assertEquals(false, rs.getBoolean(1));
         } finally {
-            Utils.removeClassFactory(myFactory);
+            JdbcUtils.removeClassFactory(myFactory);
         }
     }
 
@@ -380,7 +406,8 @@ public class TestCallableStatement extends TestBase {
      * @param d the value d
      * @return a result set
      */
-    public static ResultSet testCall(Connection conn,  int a, String b, Timestamp c, Timestamp d) throws SQLException {
+    public static ResultSet testCall(Connection conn, int a, String b,
+            Timestamp c, Timestamp d) throws SQLException {
         SimpleResultSet rs = new SimpleResultSet();
         rs.addColumn("A", Types.INTEGER, 0, 0);
         rs.addColumn("B", Types.VARCHAR, 0, 0);

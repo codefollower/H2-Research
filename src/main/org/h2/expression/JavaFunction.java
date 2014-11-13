@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
@@ -95,7 +94,9 @@ public class JavaFunction extends Expression implements FunctionCall {
         // TODO always append the schema once FUNCTIONS_IN_SCHEMA is enabled
         if (functionAlias.getDatabase().getSettings().functionsInSchema ||
                 !functionAlias.getSchema().getName().equals(Constants.SCHEMA_MAIN)) {
-            buff.append(Parser.quoteIdentifier(functionAlias.getSchema().getName())).append('.');
+            buff.append(
+                    Parser.quoteIdentifier(functionAlias.getSchema().getName()))
+                    .append('.');
         }
         buff.append(Parser.quoteIdentifier(functionAlias.getName())).append('(');
         for (Expression e : args) {
@@ -120,12 +121,8 @@ public class JavaFunction extends Expression implements FunctionCall {
     }
 
     @Override
-    public int getParameterCount() {
-        return javaMethod.getParameterCount();
-    }
-
-    @Override
-    public ValueResultSet getValueForColumnList(Session session, Expression[] argList) {
+    public ValueResultSet getValueForColumnList(Session session,
+            Expression[] argList) {
         Value v = javaMethod.getValue(session, argList, true);
         return v == ValueNull.INSTANCE ? null : (ValueResultSet) v;
     }

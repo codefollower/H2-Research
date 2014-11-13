@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.mvcc;
@@ -13,7 +12,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Random;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -46,12 +45,14 @@ public class TestMvcc1 extends TestBase {
         deleteDb("mvcc1");
         c1 = getConnection("mvcc1;MVCC=FALSE");
         Statement stat = c1.createStatement();
-        ResultSet rs = stat.executeQuery("select * from information_schema.settings where name='MVCC'");
+        ResultSet rs = stat.executeQuery(
+                "select * from information_schema.settings where name='MVCC'");
         rs.next();
         assertEquals("FALSE", rs.getString("VALUE"));
         assertThrows(ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1, stat).
                 execute("SET MVCC TRUE");
-        rs = stat.executeQuery("select * from information_schema.settings where name='MVCC'");
+        rs = stat.executeQuery("select * from information_schema.settings " +
+                "where name='MVCC'");
         rs.next();
         assertEquals("FALSE", rs.getString("VALUE"));
         c1.close();
@@ -64,13 +65,13 @@ public class TestMvcc1 extends TestBase {
         ResultSet rs;
 
         // TODO Prio 1: document: exclusive table lock still used when altering
-        //     tables, adding indexes, select ... for update; table level locks are
-        //     checked
+        // tables, adding indexes, select ... for update; table level locks are
+        // checked
         // TODO Prio 2: if MVCC is used, rows of transactions need to fit in
-        //     memory
+        // memory
         // TODO Prio 2: getFirst / getLast in MultiVersionIndex
         // TODO Prio 2: snapshot isolation (currently read-committed, not
-        //     repeatable read)
+        // repeatable read)
 
         // TODO test: one thread appends, the other
         //     selects new data (select * from test where id > ?) and deletes

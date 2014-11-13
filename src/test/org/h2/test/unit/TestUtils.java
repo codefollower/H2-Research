@@ -1,12 +1,16 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringReader;
 import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -15,6 +19,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.Random;
 import org.h2.test.TestBase;
+import org.h2.util.IOUtils;
 import org.h2.util.Utils;
 
 /**
@@ -38,6 +43,7 @@ public class TestUtils extends TestBase {
 
     @Override
     public void test() throws Exception {
+        testIOUtils();
         testSortTopN();
         testSortTopNRandom();
         testWriteReadLong();
@@ -45,6 +51,45 @@ public class TestUtils extends TestBase {
         testGetNonPrimitiveClass();
         testGetNonPrimitiveClass();
         testReflectionUtils();
+    }
+
+    private void testIOUtils() throws IOException {
+        for (int i = 0; i < 20; i++) {
+            byte[] data = new byte[i];
+            InputStream in = new ByteArrayInputStream(data);
+            byte[] buffer = new byte[i];
+            assertEquals(0, IOUtils.readFully(in, buffer, -2));
+            assertEquals(0, IOUtils.readFully(in, buffer, -1));
+            assertEquals(0, IOUtils.readFully(in, buffer, 0));
+            for (int j = 1, off = 0;; j += 1) {
+                int read = Math.max(0, Math.min(i - off, j));
+                int l = IOUtils.readFully(in, buffer, j);
+                assertEquals(read, l);
+                off += l;
+                if (l == 0) {
+                    break;
+                }
+            }
+            assertEquals(0, IOUtils.readFully(in, buffer, 1));
+        }
+        for (int i = 0; i < 10; i++) {
+            char[] data = new char[i];
+            Reader in = new StringReader(new String(data));
+            char[] buffer = new char[i];
+            assertEquals(0, IOUtils.readFully(in, buffer, -2));
+            assertEquals(0, IOUtils.readFully(in, buffer, -1));
+            assertEquals(0, IOUtils.readFully(in, buffer, 0));
+            for (int j = 1, off = 0;; j += 1) {
+                int read = Math.max(0, Math.min(i - off, j));
+                int l = IOUtils.readFully(in, buffer, j);
+                assertEquals(read, l);
+                off += l;
+                if (l == 0) {
+                    break;
+                }
+            }
+            assertEquals(0, IOUtils.readFully(in, buffer, 1));
+        }
     }
 
     private void testWriteReadLong() {
@@ -103,7 +148,8 @@ public class TestUtils extends TestBase {
             Arrays.sort(arr2, comp);
             for (int i = offset, end = Math.min(offset + limit, arr.length); i < end; i++) {
                 if (!arr[i].equals(arr2[i])) {
-                    fail(offset + " " + end + "\n" + Arrays.toString(arr) + "\n" + Arrays.toString(arr2));
+                    fail(offset + " " + end + "\n" + Arrays.toString(arr) +
+                            "\n" + Arrays.toString(arr2));
                 }
             }
         }
@@ -130,7 +176,8 @@ public class TestUtils extends TestBase {
     private void testReflectionUtils() throws Exception {
         // Static method call
         long currentTimeMillis1 = System.currentTimeMillis();
-        long currentTimeMillis2 = (Long) Utils.callStaticMethod("java.lang.System.currentTimeMillis");
+        long currentTimeMillis2 = (Long) Utils.callStaticMethod(
+                "java.lang.System.currentTimeMillis");
         assertTrue(currentTimeMillis1 <= currentTimeMillis2);
         // New Instance
         Object instance = Utils.newInstance("java.lang.StringBuilder");
@@ -143,7 +190,8 @@ public class TestUtils extends TestBase {
         long x = (Long) Utils.callMethod(instance, "longValue");
         assertEquals(10, x);
         // Static fields
-        String pathSeparator = (String) Utils.getStaticField("java.io.File.pathSeparator");
+        String pathSeparator = (String) Utils
+                .getStaticField("java.io.File.pathSeparator");
         assertEquals(File.pathSeparator, pathSeparator);
         // Instance fields
         String test = (String) Utils.getField(this, "testField");
@@ -155,11 +203,21 @@ public class TestUtils extends TestBase {
         Utils.callStaticMethod("java.awt.AWTKeyStroke.getAWTKeyStroke",
                 'x', java.awt.event.InputEvent.SHIFT_DOWN_MASK);
         // Common comparable superclass
-        assertFalse(Utils.haveCommonComparableSuperclass(Integer.class, Long.class));
-        assertTrue(Utils.haveCommonComparableSuperclass(Integer.class, Integer.class));
-        assertTrue(Utils.haveCommonComparableSuperclass(Timestamp.class, Date.class));
-        assertFalse(Utils.haveCommonComparableSuperclass(ArrayList.class, Long.class));
-        assertFalse(Utils.haveCommonComparableSuperclass(Integer.class, ArrayList.class));
+        assertFalse(Utils.haveCommonComparableSuperclass(
+                Integer.class,
+                Long.class));
+        assertTrue(Utils.haveCommonComparableSuperclass(
+                Integer.class,
+                Integer.class));
+        assertTrue(Utils.haveCommonComparableSuperclass(
+                Timestamp.class,
+                Date.class));
+        assertFalse(Utils.haveCommonComparableSuperclass(
+                ArrayList.class,
+                Long.class));
+        assertFalse(Utils.haveCommonComparableSuperclass(
+                Integer.class,
+                ArrayList.class));
     }
 
 }

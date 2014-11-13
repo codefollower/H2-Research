@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
@@ -95,7 +94,8 @@ public class MathUtils {
 
             try {
                 Thread t = new Thread(runnable, "Generate Seed");
-                // let the process terminate even if generating the seed is really slow
+                // let the process terminate even if generating the seed is
+                // really slow
                 t.setDaemon(true);
                 t.start();
                 Thread.yield();
@@ -161,12 +161,17 @@ public class MathUtils {
             // host name and ip addresses (if any)
             try {
                 // workaround for the Google App Engine: don't use InetAddress
-                Class<?> inetAddressClass = Class.forName("java.net.InetAddress");
-                Object localHost = inetAddressClass.getMethod("getLocalHost").invoke(null);
-                String hostName = inetAddressClass.getMethod("getHostName").invoke(localHost).toString();
+                Class<?> inetAddressClass = Class.forName(
+                        "java.net.InetAddress");
+                Object localHost = inetAddressClass.getMethod(
+                        "getLocalHost").invoke(null);
+                String hostName = inetAddressClass.getMethod(
+                        "getHostName").invoke(localHost).toString();
                 out.writeUTF(hostName);
-                Object[] list = (Object[]) inetAddressClass.getMethod("getAllByName", String.class).invoke(null, hostName);
-                Method getAddress = inetAddressClass.getMethod("getAddress");
+                Object[] list = (Object[]) inetAddressClass.getMethod(
+                        "getAllByName", String.class).invoke(null, hostName);
+                Method getAddress = inetAddressClass.getMethod(
+                        "getAddress");
                 for (Object o : list) {
                     out.write((byte[]) getAddress.invoke(o));
                 }
@@ -243,8 +248,8 @@ public class MathUtils {
     }
 
     /**
-     * Compare two values. Returns -1 if the first value is smaller, 1 if bigger,
-     * and 0 if equal.
+     * Compare two values. Returns -1 if the first value is smaller, 1 if
+     * bigger, and 0 if equal.
      *
      * @param a the first value
      * @param b the second value
@@ -255,8 +260,8 @@ public class MathUtils {
     }
 
     /**
-     * Compare two values. Returns -1 if the first value is smaller, 1 if bigger,
-     * and 0 if equal.
+     * Compare two values. Returns -1 if the first value is smaller, 1 if
+     * bigger, and 0 if equal.
      *
      * @param a the first value
      * @param b the second value

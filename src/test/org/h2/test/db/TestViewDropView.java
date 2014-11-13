@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -10,7 +9,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -65,7 +65,8 @@ public class TestViewDropView extends TestBase {
 
     private void testDropViewDefaultBehaviour() throws SQLException {
         createTestData();
-        ResultSet rs = stat.executeQuery("select value from information_schema.settings where name = 'DROP_RESTRICT'");
+        ResultSet rs = stat.executeQuery("select value " +
+                "from information_schema.settings where name = 'DROP_RESTRICT'");
         rs.next();
         boolean dropRestrict = rs.getBoolean(1);
         if (dropRestrict) {
@@ -107,7 +108,8 @@ public class TestViewDropView extends TestBase {
         checkViewRemainsValid();
     }
 
-    private void testCreateOrReplaceViewWithNowInvalidDependentViews() throws SQLException {
+    private void testCreateOrReplaceViewWithNowInvalidDependentViews()
+            throws SQLException {
         createTestData();
         // v2 and v3 need more than just "c", so we should get an error
         // dependent views need more columns than just 'c'
@@ -117,7 +119,8 @@ public class TestViewDropView extends TestBase {
         checkViewRemainsValid();
     }
 
-    private void testCreateOrReplaceForceViewWithNowInvalidDependentViews() throws SQLException {
+    private void testCreateOrReplaceForceViewWithNowInvalidDependentViews()
+            throws SQLException {
         createTestData();
 
         // v2 and v3 need more than just "c",

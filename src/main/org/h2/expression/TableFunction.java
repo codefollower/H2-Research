@@ -1,13 +1,13 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
 import java.util.ArrayList;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
@@ -68,7 +68,8 @@ public class TableFunction extends Function {
     }
 
     @Override
-    public ValueResultSet getValueForColumnList(Session session, Expression[] nullArgs) {
+    public ValueResultSet getValueForColumnList(Session session,
+            Expression[] nullArgs) {
         return getTable(session, args, true, false);
     }
 
@@ -77,7 +78,8 @@ public class TableFunction extends Function {
         columns.toArray(columnList);
     }
 
-    private ValueResultSet getTable(Session session, Expression[] argList, boolean onlyColumnList, boolean distinctRows) {
+    private ValueResultSet getTable(Session session, Expression[] argList,
+            boolean onlyColumnList, boolean distinctRows) {
         int len = columnList.length;
         Expression[] header = new Expression[len];
         Database db = session.getDatabase();
@@ -124,13 +126,16 @@ public class TableFunction extends Function {
             }
         }
         result.done();
-        ValueResultSet vr = ValueResultSet.get(getSimpleResultSet(result, Integer.MAX_VALUE));
+        ValueResultSet vr = ValueResultSet.get(getSimpleResultSet(result,
+                Integer.MAX_VALUE));
         return vr;
     }
 
-    private static SimpleResultSet getSimpleResultSet(ResultInterface rs,  int maxrows) {
+    private static SimpleResultSet getSimpleResultSet(ResultInterface rs,
+            int maxrows) {
         int columnCount = rs.getVisibleColumnCount();
         SimpleResultSet simple = new SimpleResultSet();
+        simple.setAutoClose(false);
         for (int i = 0; i < columnCount; i++) {
             String name = rs.getColumnName(i);
             int sqlType = DataType.convertTypeToSQLType(rs.getColumnType(i));
@@ -155,7 +160,8 @@ public class TableFunction extends Function {
 
     @Override
     public Expression[] getExpressionColumns(Session session) {
-        return getExpressionColumns(session, getTable(session, getArgs(), true, false).getResultSet());
+        return getExpressionColumns(session,
+                getTable(session, getArgs(), true, false).getResultSet());
     }
 
 }

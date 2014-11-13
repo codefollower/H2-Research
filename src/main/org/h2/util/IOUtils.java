@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
@@ -20,8 +19,8 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 
@@ -104,7 +103,8 @@ public class IOUtils {
      * @param out the output stream
      * @return the number of bytes copied
      */
-    public static long copyAndClose(InputStream in, OutputStream out) throws IOException {
+    public static long copyAndClose(InputStream in, OutputStream out)
+            throws IOException {
         try {
             long len = copyAndCloseInput(in, out);
             out.close();
@@ -124,7 +124,8 @@ public class IOUtils {
      * @param out the output stream (null if writing is not required)
      * @return the number of bytes copied
      */
-    public static long copyAndCloseInput(InputStream in, OutputStream out) throws IOException {
+    public static long copyAndCloseInput(InputStream in, OutputStream out)
+            throws IOException {
         try {
             return copy(in, out);
         } catch (Exception e) {
@@ -142,7 +143,8 @@ public class IOUtils {
      * @param out the output stream (null if writing is not required)
      * @return the number of bytes copied
      */
-    public static long copy(InputStream in, OutputStream out) throws IOException {
+    public static long copy(InputStream in, OutputStream out)
+            throws IOException {
         return copy(in, out, Long.MAX_VALUE);
     }
 
@@ -155,7 +157,8 @@ public class IOUtils {
      * @param length the maximum number of bytes to copy
      * @return the number of bytes copied
      */
-    public static long copy(InputStream in, OutputStream out, long length) throws IOException {
+    public static long copy(InputStream in, OutputStream out, long length)
+            throws IOException {
         try {
             long copied = 0;
             int len = (int) Math.min(length, Constants.IO_BUFFER_SIZE);
@@ -187,7 +190,8 @@ public class IOUtils {
      * @param length the maximum number of bytes to copy
      * @return the number of characters copied
      */
-    public static long copyAndCloseInput(Reader in, Writer out, long length) throws IOException {
+    public static long copyAndCloseInput(Reader in, Writer out, long length)
+            throws IOException {
         try {
             long copied = 0;
             int len = (int) Math.min(length, Constants.IO_BUFFER_SIZE);
@@ -267,7 +271,8 @@ public class IOUtils {
      *            the end of file
      * @return the bytes read
      */
-    public static byte[] readBytesAndClose(InputStream in, int length) throws IOException {
+    public static byte[] readBytesAndClose(InputStream in, int length)
+            throws IOException {
         try {
             if (length <= 0) {
                 length = Integer.MAX_VALUE;
@@ -291,7 +296,8 @@ public class IOUtils {
      *            until the end of file
      * @return the string read
      */
-    public static String readStringAndClose(Reader in, int length) throws IOException {
+    public static String readStringAndClose(Reader in, int length)
+            throws IOException {
         try {
             if (length <= 0) {
                 length = Integer.MAX_VALUE;
@@ -312,21 +318,19 @@ public class IOUtils {
      *
      * @param in the input stream
      * @param buffer the output buffer
-     * @param off the offset in the buffer
      * @param max the number of bytes to read at most
      * @return the number of bytes read, 0 meaning EOF
      */
-    public static int readFully(InputStream in, byte[] buffer, int off, int max) throws IOException {
+    public static int readFully(InputStream in, byte[] buffer, int max)
+            throws IOException {
         try {
-            int len = Math.min(max, buffer.length);
-            int result = 0;
+            int result = 0, len = Math.min(max, buffer.length);
             while (len > 0) {
-                int l = in.read(buffer, off, len);
+                int l = in.read(buffer, result, len);
                 if (l < 0) {
                     break;
                 }
                 result += l;
-                off += l;
                 len -= l;
             }
             return result;
@@ -343,26 +347,21 @@ public class IOUtils {
      * @param in the reader
      * @param buffer the output buffer
      * @param max the number of characters to read at most
-     * @return the number of characters read
+     * @return the number of characters read, 0 meaning EOF
      */
-    public static int readFully(Reader in, char[] buffer, int max) throws IOException {
+    public static int readFully(Reader in, char[] buffer, int max)
+            throws IOException {
         try {
-            int off = 0, len = Math.min(max, buffer.length);
-            if (len == 0) {
-                return 0;
-            }
-            while (true) {
-                int l = len - off;
-                if (l <= 0) {
-                    break;
-                }
-                l = in.read(buffer, off, l);
+            int result = 0, len = Math.min(max, buffer.length);
+            while (len > 0) {
+                int l = in.read(buffer, result, len);
                 if (l < 0) {
                     break;
                 }
-                off += l;
+                result += l;
+                len -= l;
             }
-            return off <= 0 ? -1 : off;
+            return result;
         } catch (Exception e) {
             throw DbException.convertToIOException(e);
         }
@@ -378,7 +377,8 @@ public class IOUtils {
      * @return the reader
      */
     public static Reader getBufferedReader(InputStream in) {
-        return in == null ? null : new BufferedReader(new InputStreamReader(in, Constants.UTF8));
+        return in == null ? null : new BufferedReader(
+                new InputStreamReader(in, Constants.UTF8));
     }
 
     /**
@@ -392,7 +392,8 @@ public class IOUtils {
      */
     public static Reader getReader(InputStream in) {
         // InputStreamReader may read some more bytes
-        return in == null ? null : new BufferedReader(new InputStreamReader(in, Constants.UTF8));
+        return in == null ? null : new BufferedReader(
+                new InputStreamReader(in, Constants.UTF8));
     }
 
     /**
@@ -403,7 +404,8 @@ public class IOUtils {
      * @return the writer
      */
     public static Writer getBufferedWriter(OutputStream out) {
-        return out == null ? null : new BufferedWriter(new OutputStreamWriter(out, Constants.UTF8));
+        return out == null ? null : new BufferedWriter(
+                new OutputStreamWriter(out, Constants.UTF8));
     }
 
     /**

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.mvcc;
@@ -11,7 +10,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.util.Task;
 
@@ -20,10 +20,14 @@ import org.h2.util.Task;
  */
 public class TestMvcc2 extends TestBase {
 
-    private static final String DROP_TABLE = "DROP TABLE IF EXISTS EMPLOYEE";
-    private static final String CREATE_TABLE = "CREATE TABLE EMPLOYEE (id BIGINT, version BIGINT, NAME VARCHAR(255))";
-    private static final String INSERT = "INSERT INTO EMPLOYEE (id, version, NAME) VALUES (1, 1, 'Jones')";
-    private static final String UPDATE = "UPDATE EMPLOYEE SET NAME = 'Miller' WHERE version = 1";
+    private static final String DROP_TABLE =
+            "DROP TABLE IF EXISTS EMPLOYEE";
+    private static final String CREATE_TABLE =
+            "CREATE TABLE EMPLOYEE (id BIGINT, version BIGINT, NAME VARCHAR(255))";
+    private static final String INSERT =
+            "INSERT INTO EMPLOYEE (id, version, NAME) VALUES (1, 1, 'Jones')";
+    private static final String UPDATE =
+            "UPDATE EMPLOYEE SET NAME = 'Miller' WHERE version = 1";
 
     /**
      * Run just this test.

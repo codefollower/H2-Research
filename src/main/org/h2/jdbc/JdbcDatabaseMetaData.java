@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbc;
@@ -12,8 +11,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.RowIdLifetime;
 import java.sql.SQLException;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.Trace;
 import org.h2.message.TraceObject;
 import org.h2.tools.SimpleResultSet;
@@ -23,7 +22,8 @@ import org.h2.util.StringUtils;
 /**
  * Represents the meta data for a database.
  */
-public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaData {
+public class JdbcDatabaseMetaData extends TraceObject implements
+        DatabaseMetaData {
 
     private final JdbcConnection conn;
     private String mode;
@@ -135,8 +135,9 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
             String tableNamePattern, String[] types) throws SQLException {
         try {
             if (isDebugEnabled()) {
-                debugCode("getTables(" + quote(catalogPattern) + ", " + quote(schemaPattern) + ", " + quote(tableNamePattern)
-                        + ", " + quoteArray(types) + ");");
+                debugCode("getTables(" + quote(catalogPattern) + ", " +
+                        quote(schemaPattern) + ", " + quote(tableNamePattern) +
+                        ", " + quoteArray(types) + ");");
             }
             checkClosed();
             String tableType;
@@ -261,7 +262,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
                     + "CAST(SOURCE_DATA_TYPE AS VARCHAR) SCOPE_SCHEMA, "
                     + "CAST(SOURCE_DATA_TYPE AS VARCHAR) SCOPE_TABLE, "
                     + "SOURCE_DATA_TYPE, "
-                    + "CASE WHEN SEQUENCE_NAME IS NULL THEN CAST(? AS VARCHAR) ELSE CAST(? AS VARCHAR) END IS_AUTOINCREMENT, "
+                    + "CASE WHEN SEQUENCE_NAME IS NULL THEN "
+                    + "CAST(? AS VARCHAR) ELSE CAST(? AS VARCHAR) END IS_AUTOINCREMENT, "
                     + "CAST(SOURCE_DATA_TYPE AS VARCHAR) SCOPE_CATLOG "
                     + "FROM INFORMATION_SCHEMA.COLUMNS "
                     + "WHERE TABLE_CATALOG LIKE ? ESCAPE ? "
@@ -324,8 +326,9 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
             throws SQLException {
         try {
             if (isDebugEnabled()) {
-                debugCode("getIndexInfo(" + quote(catalogPattern) + ", " + quote(schemaPattern) + ", " + quote(tableName) + ", "
-                        + unique + ", " + approximate + ");");
+                debugCode("getIndexInfo(" + quote(catalogPattern) + ", " +
+                        quote(schemaPattern) + ", " + quote(tableName) + ", " +
+                        unique + ", " + approximate + ");");
             }
             String uniqueCondition;
             if (unique) {
@@ -388,7 +391,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * @throws SQLException if the connection is closed
      */
     @Override
-    public ResultSet getPrimaryKeys(String catalogPattern, String schemaPattern, String tableName) throws SQLException {
+    public ResultSet getPrimaryKeys(String catalogPattern,
+            String schemaPattern, String tableName) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("getPrimaryKeys("
@@ -653,9 +657,9 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * @throws SQLException if the connection is closed
      */
     @Override
-    public ResultSet getProcedureColumns(String catalogPattern, String schemaPattern,
-            String procedureNamePattern, String columnNamePattern)
-            throws SQLException {
+    public ResultSet getProcedureColumns(String catalogPattern,
+            String schemaPattern, String procedureNamePattern,
+            String columnNamePattern) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("getProcedureColumns("
@@ -795,21 +799,21 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * COLUMN_NAME and PRIVILEGE
      *
      * <ul>
-     * <li>1 TABLE_CAT (String) table catalog </li>
-     * <li>2 TABLE_SCHEM (String) table schema </li>
-     * <li>3 TABLE_NAME (String) table name </li>
-     * <li>4 COLUMN_NAME (String) column name </li>
-     * <li>5 GRANTOR (String) grantor of access </li>
-     * <li>6 GRANTEE (String) grantee of access </li>
+     * <li>1 TABLE_CAT (String) table catalog</li>
+     * <li>2 TABLE_SCHEM (String) table schema</li>
+     * <li>3 TABLE_NAME (String) table name</li>
+     * <li>4 COLUMN_NAME (String) column name</li>
+     * <li>5 GRANTOR (String) grantor of access</li>
+     * <li>6 GRANTEE (String) grantee of access</li>
      * <li>7 PRIVILEGE (String) SELECT, INSERT, UPDATE, DELETE or REFERENCES
-     * (only one per row) </li>
+     * (only one per row)</li>
      * <li>8 IS_GRANTABLE (String) YES means the grantee can grant access to
-     * others </li>
+     * others</li>
      * </ul>
      *
      * @param catalogPattern null (to get all objects) or the catalog name
-     * @param schemaPattern null (to get all objects) or a schema name (uppercase for
-     *            unquoted names)
+     * @param schemaPattern null (to get all objects) or a schema name
+     *            (uppercase for unquoted names)
      * @param table a table name (uppercase for unquoted names)
      * @param columnNamePattern null (to get all objects) or a column name
      *            (uppercase for unquoted names)
@@ -817,8 +821,9 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * @throws SQLException if the connection is closed
      */
     @Override
-    public ResultSet getColumnPrivileges(String catalogPattern, String schemaPattern,
-            String table, String columnNamePattern) throws SQLException {
+    public ResultSet getColumnPrivileges(String catalogPattern,
+            String schemaPattern, String table, String columnNamePattern)
+            throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("getColumnPrivileges("
@@ -881,8 +886,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * @throws SQLException if the connection is closed
      */
     @Override
-    public ResultSet getTablePrivileges(String catalogPattern, String schemaPattern,
-            String tableNamePattern) throws SQLException {
+    public ResultSet getTablePrivileges(String catalogPattern,
+            String schemaPattern, String tableNamePattern) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("getTablePrivileges("
@@ -942,8 +947,9 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * @throws SQLException if the connection is closed
      */
     @Override
-    public ResultSet getBestRowIdentifier(String catalogPattern, String schemaPattern,
-            String tableName, int scope, boolean nullable) throws SQLException {
+    public ResultSet getBestRowIdentifier(String catalogPattern,
+            String schemaPattern, String tableName, int scope, boolean nullable)
+            throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("getBestRowIdentifier("
@@ -1068,7 +1074,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * @throws SQLException if the connection is closed
      */
     @Override
-    public ResultSet getImportedKeys(String catalogPattern, String schemaPattern, String tableName) throws SQLException {
+    public ResultSet getImportedKeys(String catalogPattern,
+            String schemaPattern, String tableName) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("getImportedKeys("
@@ -1140,8 +1147,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * @throws SQLException if the connection is closed
      */
     @Override
-    public ResultSet getExportedKeys(String catalogPattern, String schemaPattern, String tableName)
-            throws SQLException {
+    public ResultSet getExportedKeys(String catalogPattern,
+            String schemaPattern, String tableName) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("getExportedKeys("
@@ -2816,8 +2823,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
      * </ul>
      *
      * @param catalog null (to get all objects) or the catalog name
-     * @param schemaPattern null (to get all objects) or a schema name (uppercase for
-     *            unquoted names)
+     * @param schemaPattern null (to get all objects) or a schema name
+     *            (uppercase for unquoted names)
      * @param tableNamePattern null (to get all objects) or a table name pattern
      *            (uppercase for unquoted names)
      * @return an empty result set
@@ -2968,12 +2975,15 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
     }
 
     private static String getSchemaPattern(String pattern) {
-        return pattern == null ? "%" : pattern.length() == 0 ? Constants.SCHEMA_MAIN : pattern;
+        return pattern == null ? "%" : pattern.length() == 0 ?
+                Constants.SCHEMA_MAIN : pattern;
     }
 
     private static String getCatalogPattern(String catalogPattern) {
-        // Workaround for OpenOffice: getColumns is called with "" as the catalog
-        return catalogPattern == null || catalogPattern.length() == 0 ? "%" : catalogPattern;
+        // Workaround for OpenOffice: getColumns is called with "" as the
+        // catalog
+        return catalogPattern == null || catalogPattern.length() == 0 ?
+                "%" : catalogPattern;
     }
 
     /**
@@ -3029,7 +3039,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
     }
 
     /**
-     * Returns whether the database supports calling functions using the call syntax.
+     * Returns whether the database supports calling functions using the call
+     * syntax.
      *
      * @return true
      */
@@ -3040,7 +3051,8 @@ public class JdbcDatabaseMetaData extends TraceObject implements DatabaseMetaDat
     }
 
     /**
-     * Returns whether an exception while auto commit is on closes all result sets.
+     * Returns whether an exception while auto commit is on closes all result
+     * sets.
      *
      * @return false
      */

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
@@ -61,12 +60,18 @@ public class LocalResult implements ResultInterface, ResultTarget {
      * @param expressions the expression array
      * @param visibleColumnCount the number of visible columns
      */
-    public LocalResult(Session session, Expression[] expressions, int visibleColumnCount) {
+    public LocalResult(Session session, Expression[] expressions,
+            int visibleColumnCount) {
         this.session = session;
         if (session == null) {
             this.maxMemoryRows = Integer.MAX_VALUE;
         } else {
-            this.maxMemoryRows = session.getDatabase().getMaxMemoryRows();
+            Database db = session.getDatabase();
+            if (db.isPersistent() && !db.isReadOnly()) {
+                this.maxMemoryRows = session.getDatabase().getMaxMemoryRows();
+            } else {
+                this.maxMemoryRows = Integer.MAX_VALUE;
+            }
         }
         rows = New.arrayList();
         this.visibleColumnCount = visibleColumnCount;
@@ -74,8 +79,13 @@ public class LocalResult implements ResultInterface, ResultTarget {
         this.expressions = expressions;
     }
 
+    public void setMaxMemoryRows(int maxValue) {
+        this.maxMemoryRows = maxValue;
+    }
+
     /**
-     * Construct a local result set by reading all data from a regular result set.
+     * Construct a local result set by reading all data from a regular result
+     * set.
      *
      * @param session the session
      * @param rs the result set
@@ -228,7 +238,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
 
     @Override
     public boolean next() {
-        if (rowId < rowCount) {
+        if (!closed && rowId < rowCount) {
             rowId++;
             if (rowId < rowCount) {
                 if (external != null) {
@@ -262,9 +272,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
                 ValueArray array = ValueArray.get(values);
                 distinctRows.put(array, values); //会触发ValueArray的hashCode方法
                 rowCount = distinctRows.size();
-                Database db = session.getDatabase();
-                if (rowCount > db.getSettings().maxMemoryRowsDistinct && db.isPersistent() && !db.isReadOnly()) {
-                    external = new ResultTempTable(session, sort);
+                if (rowCount > maxMemoryRows) {
+                    external = new ResultTempTable(session, expressions, true, sort);
                     rowCount = external.addRows(distinctRows.values());
                     distinctRows = null;
                 }
@@ -275,16 +284,9 @@ public class LocalResult implements ResultInterface, ResultTarget {
         }
         rows.add(values);
         rowCount++;
-        if (rows.size() > maxMemoryRows && session.getDatabase().isPersistent()) {
+        if (rows.size() > maxMemoryRows) {
             if (external == null) {
-                if (randomAccess) {
-                    Database db = session.getDatabase();
-                    if (!db.isReadOnly()) {
-                        external = new ResultTempTable(session, sort);
-                    }
-                } else {
-                    external = new ResultDiskBuffer(session, sort, values.length);
-                }
+                external = new ResultTempTable(session, expressions, false, sort);
             }
             addRowsToDisk();
         }
@@ -321,14 +323,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
                             break;
                         }
                         if (external == null) {
-                            if (randomAccess) {
-                                Database db = session.getDatabase();
-                                if (!db.isReadOnly()) {
-                                    external = new ResultTempTable(session, sort);
-                                }
-                            } else {
-                                external = new ResultDiskBuffer(session, sort, list.length);
-                            }
+                            external = new ResultTempTable(session, expressions, true, sort);
                         }
                         rows.add(list);
                         if (rows.size() > maxMemoryRows) {
@@ -337,7 +332,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
                         }
                     }
                     temp.close();
-                    // the remaining data in rows is written in the following lines
+                    // the remaining data in rows is written in the following
+                    // lines
                 }
             }
         }
@@ -487,7 +483,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
 
     @Override
     public String toString() {
-        return super.toString() + " columns: " + visibleColumnCount + " rows: " + rowCount + " pos: " + rowId;
+        return super.toString() + " columns: " + visibleColumnCount +
+                " rows: " + rowCount + " pos: " + rowId;
     }
 
     /**

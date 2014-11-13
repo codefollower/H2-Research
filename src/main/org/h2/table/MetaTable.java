@@ -1,12 +1,12 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.sql.DatabaseMetaData;
@@ -39,6 +39,7 @@ import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.index.MetaIndex;
 import org.h2.index.MultiVersionIndex;
+import org.h2.jdbc.JdbcSQLException;
 import org.h2.message.DbException;
 import org.h2.mvstore.FileStore;
 import org.h2.mvstore.db.MVTableEngine.Store;
@@ -545,7 +546,8 @@ public class MetaTable extends Table {
             metaIndex = null;
         } else {
             indexColumn = getColumn(indexColumnName).getColumnId();
-            IndexColumn[] indexCols = IndexColumn.wrap(new Column[] { cols[indexColumn] });
+            IndexColumn[] indexCols = IndexColumn.wrap(
+                    new Column[] { cols[indexColumn] });
             metaIndex = new MetaIndex(this, indexCols, false);
         }
     }
@@ -558,7 +560,8 @@ public class MetaTable extends Table {
             int dataType;
             String name;
             if (idx < 0) {
-                dataType = database.getMode().lowerCaseIdentifiers ? Value.STRING_IGNORECASE : Value.STRING;
+                dataType = database.getMode().lowerCaseIdentifiers ?
+                        Value.STRING_IGNORECASE : Value.STRING;
                 name = nameType;
             } else {
                 dataType = DataType.getTypeByName(nameType.substring(idx + 1)).type;
@@ -580,13 +583,14 @@ public class MetaTable extends Table {
     }
 
     @Override
-    public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
-            boolean create, String indexComment) {
+    public Index addIndex(Session session, String indexName, int indexId,
+            IndexColumn[] cols, IndexType indexType, boolean create,
+            String indexComment) {
         throw DbException.getUnsupportedException("META");
     }
 
     @Override
-    public void lock(Session session, boolean exclusive, boolean force) {
+    public void lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
         // nothing to do
     }
 
@@ -609,7 +613,8 @@ public class MetaTable extends Table {
         return tables;
     }
 
-    private boolean checkIndex(Session session, String value, Value indexFrom, Value indexTo) {
+    private boolean checkIndex(Session session, String value, Value indexFrom,
+            Value indexTo) {
         if (value == null || (indexFrom == null && indexTo == null)) {
             return true;
         }
@@ -646,7 +651,8 @@ public class MetaTable extends Table {
      * @param last the last row to return
      * @return the generated rows
      */
-    public ArrayList<Row> generateRows(Session session, SearchRow first, SearchRow last) {
+    public ArrayList<Row> generateRows(Session session, SearchRow first,
+            SearchRow last) {
         Value indexFrom = null, indexTo = null;
 
         if (indexColumn >= 0) {
@@ -679,7 +685,15 @@ public class MetaTable extends Table {
                         storageType = "LOCAL TEMPORARY";
                     }
                 } else {
-                    storageType = table.isPersistIndexes() ? "CACHED" : "MEMORY";
+                    storageType = table.isPersistIndexes() ?
+                            "CACHED" : "MEMORY";
+                }
+                String sql = table.getCreateSQL();
+                if (!admin) {
+                    if (sql != null && sql.contains(JdbcSQLException.HIDE_SQL)) {
+                        // hide the password of linked tables
+                        sql = "-";
+                    }
                 }
                 add(rows,
                         // TABLE_CATALOG
@@ -693,7 +707,7 @@ public class MetaTable extends Table {
                         // STORAGE_TYPE
                         storageType,
                         // SQL
-                        table.getCreateSQL(),
+                        sql,
                         // REMARKS
                         replaceNullWithEmpty(table.getComment()),
                         // LAST_MODIFICATION
@@ -758,7 +772,9 @@ public class MetaTable extends Table {
                             // TYPE_NAME
                             identifier(DataType.getDataType(c.getType()).name),
                             // NULLABLE
-                            "" + (c.isNullable() ? DatabaseMetaData.columnNullable : DatabaseMetaData.columnNoNulls) ,
+                            "" + (c.isNullable() ?
+                                    DatabaseMetaData.columnNullable :
+                                    DatabaseMetaData.columnNoNulls) ,
                             // IS_COMPUTED
                             "" + (c.getComputed() ? "TRUE" : "FALSE"),
                             // SELECTIVITY
@@ -797,7 +813,8 @@ public class MetaTable extends Table {
                         Constraint constraint = constraints.get(k);
                         if (constraint.usesIndex(index)) {
                             if (index.getIndexType().isPrimaryKey()) {
-                                if (constraint.getConstraintType().equals(Constraint.PRIMARY_KEY)) {
+                                if (constraint.getConstraintType().equals(
+                                        Constraint.PRIMARY_KEY)) {
                                     constraintName = constraint.getName();
                                 }
                             } else {
@@ -808,7 +825,8 @@ public class MetaTable extends Table {
                     IndexColumn[] cols = index.getIndexColumns();
                     String indexClass;
                     if (index instanceof MultiVersionIndex) {
-                        indexClass = ((MultiVersionIndex) index).getBaseIndex().getClass().getName();
+                        indexClass = ((MultiVersionIndex) index).
+                                getBaseIndex().getClass().getName();
                     } else {
                         indexClass = index.getClass().getName();
                     }
@@ -823,7 +841,8 @@ public class MetaTable extends Table {
                                 // TABLE_NAME
                                 tableName,
                                 // NON_UNIQUE
-                                index.getIndexType().isUnique() ? "FALSE" : "TRUE",
+                                index.getIndexType().isUnique() ?
+                                        "FALSE" : "TRUE",
                                 // INDEX_NAME
                                 identifier(index.getName()),
                                 // ORDINAL_POSITION
@@ -833,15 +852,18 @@ public class MetaTable extends Table {
                                 // CARDINALITY
                                 "0",
                                 // PRIMARY_KEY
-                                index.getIndexType().isPrimaryKey() ? "TRUE" : "FALSE",
+                                index.getIndexType().isPrimaryKey() ?
+                                        "TRUE" : "FALSE",
                                 // INDEX_TYPE_NAME
                                 index.getIndexType().getSQL(),
                                 // IS_GENERATED
-                                index.getIndexType().getBelongsToConstraint() ? "TRUE" : "FALSE",
+                                index.getIndexType().getBelongsToConstraint() ?
+                                        "TRUE" : "FALSE",
                                 // INDEX_TYPE
                                 "" + DatabaseMetaData.tableIndexOther,
                                 // ASC_OR_DESC
-                                (idxCol.sortType & SortOrder.DESCENDING) != 0 ? "D" : "A",
+                                (idxCol.sortType & SortOrder.DESCENDING) != 0 ?
+                                        "D" : "A",
                                 // PAGES
                                 "0",
                                 // FILTER_CONDITION
@@ -892,17 +914,17 @@ public class MetaTable extends Table {
             add(rows, "info.VERSION", "" + Constants.getFullVersion());
             if (admin) {
                 String[] settings = {
-                        "java.runtime.version",
-                        "java.vm.name", "java.vendor",
-                        "os.name", "os.arch", "os.version", "sun.os.patch.level",
-                        "file.separator", "path.separator", "line.separator",
-                        "user.country", "user.language", "user.variant", "file.encoding"
-                };
+                        "java.runtime.version", "java.vm.name",
+                        "java.vendor", "os.name", "os.arch", "os.version",
+                        "sun.os.patch.level", "file.separator",
+                        "path.separator", "line.separator", "user.country",
+                        "user.language", "user.variant", "file.encoding"                };
                 for (String s : settings) {
                     add(rows, "property." + s, Utils.getProperty(s, ""));
                 }
             }
-            add(rows, "EXCLUSIVE", database.getExclusiveSession() == null ? "FALSE" : "TRUE");
+            add(rows, "EXCLUSIVE", database.getExclusiveSession() == null ?
+                    "FALSE" : "TRUE");
             add(rows, "MODE", database.getMode().getName());
             add(rows, "MULTI_THREADED", database.isMultiThreaded() ? "1" : "0");
             add(rows, "MVCC", database.isMultiVersion() ? "TRUE" : "FALSE");
@@ -922,21 +944,44 @@ public class MetaTable extends Table {
             if (database.isPersistent()) {
                 PageStore store = database.getPageStore();
                 if (store != null) {
-                    add(rows, "info.FILE_WRITE_TOTAL", "" + store.getWriteCountTotal());
-                    add(rows, "info.FILE_WRITE", "" + store.getWriteCount());
-                    add(rows, "info.FILE_READ", "" + store.getReadCount());
-                    add(rows, "info.PAGE_COUNT", "" + store.getPageCount());
-                    add(rows, "info.PAGE_SIZE", "" + store.getPageSize());
-                    add(rows, "info.CACHE_MAX_SIZE", "" + store.getCache().getMaxMemory());
-                    add(rows, "info.CACHE_SIZE", "" + store.getCache().getMemory());
+                    add(rows, "info.FILE_WRITE_TOTAL",
+                            "" + store.getWriteCountTotal());
+                    add(rows, "info.FILE_WRITE",
+                            "" + store.getWriteCount());
+                    add(rows, "info.FILE_READ",
+                            "" + store.getReadCount());
+                    add(rows, "info.PAGE_COUNT",
+                            "" + store.getPageCount());
+                    add(rows, "info.PAGE_SIZE",
+                            "" + store.getPageSize());
+                    add(rows, "info.CACHE_MAX_SIZE",
+                            "" + store.getCache().getMaxMemory());
+                    add(rows, "info.CACHE_SIZE",
+                            "" + store.getCache().getMemory());
                 }
                 Store mvStore = database.getMvStore();
                 if (mvStore != null) {
                     FileStore fs = mvStore.getStore().getFileStore();
-                    add(rows, "info.FILE_WRITE", "" + fs.getWriteCount());
-                    add(rows, "info.FILE_READ", "" + fs.getReadCount());
-                    add(rows, "info.CACHE_MAX_SIZE", "" + mvStore.getStore().getCacheSize());
-                    add(rows, "info.CACHE_SIZE", "" + mvStore.getStore().getCacheSizeUsed());
+                    add(rows, "info.FILE_WRITE", "" +
+                            fs.getWriteCount());
+                    add(rows, "info.FILE_READ", "" +
+                            fs.getReadCount());
+                    long size;
+                    try {
+                        size = fs.getFile().size();
+                    } catch (IOException e) {
+                        throw DbException.convertIOException(e, "Can not get size");
+                    }
+                    int pageSize = 4 * 1024;
+                    long pageCount = size / pageSize;
+                    add(rows, "info.PAGE_COUNT", "" +
+                            pageCount);
+                    add(rows, "info.PAGE_SIZE", "" +
+                            pageSize);
+                    add(rows, "info.CACHE_MAX_SIZE", "" +
+                            mvStore.getStore().getCacheSize());
+                    add(rows, "info.CACHE_SIZE", "" +
+                            mvStore.getStore().getCacheSizeUsed());
                 }
             }
             break;
@@ -983,7 +1028,8 @@ public class MetaTable extends Table {
             String resource = "/org/h2/res/help.csv";
             try {
                 byte[] data = Utils.getResource(resource);
-                Reader reader = new InputStreamReader(new ByteArrayInputStream(data));
+                Reader reader = new InputStreamReader(
+                        new ByteArrayInputStream(data));
                 Csv csv = new Csv();
                 csv.setLineCommentCharacter('#');
                 ResultSet rs = csv.read(reader, null);
@@ -1007,7 +1053,8 @@ public class MetaTable extends Table {
             break;
         }
         case SEQUENCES: {
-            for (SchemaObject obj : database.getAllSchemaObjects(DbObject.SEQUENCE)) {
+            for (SchemaObject obj : database.getAllSchemaObjects(
+                    DbObject.SEQUENCE)) {
                 Sequence s = (Sequence) obj;
                 add(rows,
                         // SEQUENCE_CATALOG
@@ -1075,7 +1122,8 @@ public class MetaTable extends Table {
                 for (Right r : database.getAllRights()) {
                     Role role = r.getGrantedRole();
                     DbObject grantee = r.getGrantee();
-                    String rightType = grantee.getType() == DbObject.USER ? "USER" : "ROLE";
+                    String rightType = grantee.getType() == DbObject.USER ?
+                            "USER" : "ROLE";
                     if (role == null) {
                         Table granted = r.getGrantedTable();
                         String tableName = identifier(granted.getName());
@@ -1121,11 +1169,13 @@ public class MetaTable extends Table {
             break;
         }
         case FUNCTION_ALIASES: {
-            for (SchemaObject aliasAsSchemaObject : database.getAllSchemaObjects(DbObject.FUNCTION_ALIAS)) {
+            for (SchemaObject aliasAsSchemaObject :
+                    database.getAllSchemaObjects(DbObject.FUNCTION_ALIAS)) {
                 FunctionAlias alias = (FunctionAlias) aliasAsSchemaObject;
                 for (FunctionAlias.JavaMethod method : alias.getJavaMethods()) {
-                    int returnsResult = method.getDataType() == Value.NULL ? DatabaseMetaData.procedureNoResult
-                            : DatabaseMetaData.procedureReturnsResult;
+                    int returnsResult = method.getDataType() == Value.NULL ?
+                            DatabaseMetaData.procedureNoResult :
+                            DatabaseMetaData.procedureReturnsResult;
                     add(rows,
                             // ALIAS_CATALOG
                             catalog,
@@ -1188,9 +1238,50 @@ public class MetaTable extends Table {
             break;
         }
         case FUNCTION_COLUMNS: {
-            for (SchemaObject aliasAsSchemaObject : database.getAllSchemaObjects(DbObject.FUNCTION_ALIAS)) {
+            for (SchemaObject aliasAsSchemaObject :
+                    database.getAllSchemaObjects(DbObject.FUNCTION_ALIAS)) {
                 FunctionAlias alias = (FunctionAlias) aliasAsSchemaObject;
                 for (FunctionAlias.JavaMethod method : alias.getJavaMethods()) {
+                    // Add return column index 0
+                    if (method.getDataType() != Value.NULL) {
+                        DataType dt = DataType.getDataType(method.getDataType());
+                        add(rows,
+                                // ALIAS_CATALOG
+                                catalog,
+                                // ALIAS_SCHEMA
+                                alias.getSchema().getName(),
+                                // ALIAS_NAME
+                                identifier(alias.getName()),
+                                // JAVA_CLASS
+                                alias.getJavaClassName(),
+                                // JAVA_METHOD
+                                alias.getJavaMethodName(),
+                                // COLUMN_COUNT
+                                "" + method.getParameterCount(),
+                                // POS INT
+                                "0",
+                                // COLUMN_NAME
+                                "P0",
+                                // DATA_TYPE
+                                "" + DataType.convertTypeToSQLType(method.getDataType()),
+                                // TYPE_NAME
+                                dt.name,
+                                // PRECISION INT
+                                "" + MathUtils.convertLongToInt(dt.defaultPrecision),
+                                // SCALE
+                                "" + dt.defaultScale,
+                                // RADIX
+                                "10",
+                                // NULLABLE SMALLINT
+                                "" + DatabaseMetaData.columnNullableUnknown,
+                                // COLUMN_TYPE
+                                "" + DatabaseMetaData.procedureColumnReturn,
+                                // REMARKS
+                                "",
+                                // COLUMN_DEFAULT
+                                null
+                        );
+                    }
                     Class<?>[] columnList = method.getColumnClasses();
                     for (int k = 0; k < columnList.length; k++) {
                         if (method.hasConnectionParam() && k == 0) {
@@ -1257,7 +1348,8 @@ public class MetaTable extends Table {
                         // DEFAULT_COLLATION_NAME
                         collation,
                         // IS_DEFAULT
-                        Constants.SCHEMA_MAIN.equals(schema.getName()) ? "TRUE" : "FALSE",
+                        Constants.SCHEMA_MAIN.equals(
+                                schema.getName()) ? "TRUE" : "FALSE",
                         // REMARKS
                         replaceNullWithEmpty(schema.getComment()),
                         // ID
@@ -1276,7 +1368,8 @@ public class MetaTable extends Table {
                 if (!checkIndex(session, tableName, indexFrom, indexTo)) {
                     continue;
                 }
-                addPrivileges(rows, r.getGrantee(), catalog, table, null, r.getRightMask());
+                addPrivileges(rows, r.getGrantee(), catalog, table, null,
+                        r.getRightMask());
             }
             break;
         }
@@ -1293,7 +1386,8 @@ public class MetaTable extends Table {
                 DbObject grantee = r.getGrantee();
                 int mask = r.getRightMask();
                 for (Column column : table.getColumns()) {
-                    addPrivileges(rows, grantee, catalog, table, column.getName(), mask);
+                    addPrivileges(rows, grantee, catalog, table,
+                            column.getName(), mask);
                 }
             }
             break;
@@ -1357,7 +1451,8 @@ public class MetaTable extends Table {
             break;
         }
         case CROSS_REFERENCES: {
-            for (SchemaObject obj : database.getAllSchemaObjects(DbObject.CONSTRAINT)) {
+            for (SchemaObject obj : database.getAllSchemaObjects(
+                    DbObject.CONSTRAINT)) {
                 Constraint constraint = (Constraint) obj;
                 if (!(constraint.getConstraintType().equals(Constraint.REFERENTIAL))) {
                     continue;
@@ -1409,7 +1504,8 @@ public class MetaTable extends Table {
             break;
         }
         case CONSTRAINTS: {
-            for (SchemaObject obj : database.getAllSchemaObjects(DbObject.CONSTRAINT)) {
+            for (SchemaObject obj : database.getAllSchemaObjects(
+                    DbObject.CONSTRAINT)) {
                 Constraint constraint = (Constraint) obj;
                 String constraintType = constraint.getConstraintType();
                 String checkExpression = null;
@@ -1429,7 +1525,8 @@ public class MetaTable extends Table {
                 }
                 if (constraintType.equals(Constraint.CHECK)) {
                     checkExpression = ((ConstraintCheck) constraint).getExpression().getSQL();
-                } else if (constraintType.equals(Constraint.UNIQUE) || constraintType.equals(Constraint.PRIMARY_KEY)) {
+                } else if (constraintType.equals(Constraint.UNIQUE) ||
+                        constraintType.equals(Constraint.PRIMARY_KEY)) {
                     indexColumns = ((ConstraintUnique) constraint).getColumns();
                 } else if (constraintType.equals(Constraint.REFERENTIAL)) {
                     indexColumns = ((ConstraintReferential) constraint).getColumns();
@@ -1475,7 +1572,8 @@ public class MetaTable extends Table {
             break;
         }
         case CONSTANTS: {
-            for (SchemaObject obj : database.getAllSchemaObjects(DbObject.CONSTANT)) {
+            for (SchemaObject obj : database.getAllSchemaObjects(
+                    DbObject.CONSTANT)) {
                 Constant constant = (Constant) obj;
                 ValueExpression expr = constant.getValue();
                 add(rows,
@@ -1534,7 +1632,8 @@ public class MetaTable extends Table {
             break;
         }
         case TRIGGERS: {
-            for (SchemaObject obj : database.getAllSchemaObjects(DbObject.TRIGGER)) {
+            for (SchemaObject obj : database.getAllSchemaObjects(
+                    DbObject.TRIGGER)) {
                 TriggerObject trigger = (TriggerObject) obj;
                 Table table = trigger.getTable();
                 add(rows,
@@ -1636,7 +1735,8 @@ public class MetaTable extends Table {
             }
             String[] path = session.getSchemaSearchPath();
             if (path != null && path.length > 0) {
-                StatementBuilder buff = new StatementBuilder("SET SCHEMA_SEARCH_PATH ");
+                StatementBuilder buff = new StatementBuilder(
+                        "SET SCHEMA_SEARCH_PATH ");
                 for (String p : path) {
                     buff.appendExceptFirst(", ");
                     buff.append(StringUtils.quoteIdentifier(p));
@@ -1739,8 +1839,8 @@ public class MetaTable extends Table {
         // nothing to do
     }
 
-    private void addPrivileges(ArrayList<Row> rows, DbObject grantee, String catalog, Table table, String column,
-            int rightMask) {
+    private void addPrivileges(ArrayList<Row> rows, DbObject grantee,
+            String catalog, Table table, String column, int rightMask) {
         if ((rightMask & Right.SELECT) != 0) {
             addPrivilege(rows, grantee, catalog, table, column, "SELECT");
         }
@@ -1755,8 +1855,8 @@ public class MetaTable extends Table {
         }
     }
 
-    private void addPrivilege(ArrayList<Row> rows, DbObject grantee, String catalog, Table table, String column,
-            String right) {
+    private void addPrivilege(ArrayList<Row> rows, DbObject grantee,
+            String catalog, Table table, String column, String right) {
         String isGrantable = "NO";
         if (grantee.getType() == DbObject.USER) {
             User user = (User) grantee;

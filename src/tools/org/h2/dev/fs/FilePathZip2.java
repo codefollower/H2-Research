@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.dev.fs;
@@ -62,11 +61,13 @@ public class FilePathZip2 extends FilePath {
     }
 
     @Override
-    public FilePath createTempFile(String suffix, boolean deleteOnExit, boolean inTempDir) throws IOException {
+    public FilePath createTempFile(String suffix, boolean deleteOnExit,
+            boolean inTempDir) throws IOException {
         if (!inTempDir) {
             throw new IOException("File system is read-only");
         }
-        return new FilePathDisk().getPath(name).createTempFile(suffix, deleteOnExit, true);
+        return new FilePathDisk().getPath(name).createTempFile(suffix,
+                deleteOnExit, true);
     }
 
     @Override
@@ -274,7 +275,7 @@ public class FilePathZip2 extends FilePath {
     }
 
     @Override
-    public void moveTo(FilePath newName) {
+    public void moveTo(FilePath newName, boolean atomicReplace) {
         throw DbException.getUnsupportedException("write");
     }
 
@@ -358,7 +359,8 @@ class FileZip2 extends FileBase {
     @Override
     public int read(ByteBuffer dst) throws IOException {
         seek();
-        int len = in.read(dst.array(), dst.arrayOffset() + dst.position(), dst.remaining());
+        int len = in.read(dst.array(), dst.arrayOffset() + dst.position(),
+                dst.remaining());
         if (len > 0) {
             dst.position(dst.position() + len);
             pos += len;
@@ -421,7 +423,8 @@ class FileZip2 extends FileBase {
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(long position, long size,
+            boolean shared) throws IOException {
         if (shared) {
 
             // cast to FileChannel to avoid JDK 1.7 ambiguity

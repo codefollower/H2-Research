@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore;
@@ -301,8 +300,15 @@ public class WriteBuffer {
     private void grow(int len) {
         ByteBuffer temp = buff;
         int needed = len - temp.remaining();
-        int newCapacity = temp.capacity() + Math.max(needed, MIN_GROW);
-        buff = ByteBuffer.allocate(newCapacity);
+        int grow = Math.max(needed, MIN_GROW);
+        // grow at least 50% of the current size
+        grow = Math.max(temp.capacity() / 2, grow);
+        int newCapacity = temp.capacity() + grow;
+        try {
+            buff = ByteBuffer.allocate(newCapacity);
+        } catch (OutOfMemoryError e) {
+            throw new OutOfMemoryError("Capacity: " + newCapacity);
+        }
         temp.flip();
         buff.put(temp);
         if (newCapacity <= MAX_REUSE_CAPACITY) {

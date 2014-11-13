@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.dev.ftp;
@@ -68,7 +67,8 @@ public class FtpClient {
             if (message != null) {
                 int idxSpace = message.indexOf(' ');
                 int idxMinus = message.indexOf('-');
-                int idx = idxSpace < 0 ? idxMinus : idxMinus < 0 ? idxSpace : Math.min(idxSpace, idxMinus);
+                int idx = idxSpace < 0 ? idxMinus : idxMinus < 0 ? idxSpace
+                        : Math.min(idxSpace, idxMinus);
                 if (idx < 0) {
                     code = 0;
                 } else {
@@ -86,7 +86,8 @@ public class FtpClient {
             readLine();
         }
         if (code != expected) {
-            throw new IOException("Expected: " + expected + " got: " + code + " " + message);
+            throw new IOException("Expected: " + expected + " got: " + code
+                    + " " + message);
         }
     }
 
@@ -227,7 +228,8 @@ public class FtpClient {
         readCode(226, 227);
         int first = message.indexOf('(') + 1;
         int last = message.indexOf(')');
-        String[] address = StringUtils.arraySplit(message.substring(first, last), ',', true);
+        String[] address = StringUtils.arraySplit(
+                message.substring(first, last), ',', true);
         StatementBuilder buff = new StatementBuilder();
         for (int i = 0; i < 4; i++) {
             buff.appendExceptFirst(".");
@@ -271,9 +273,11 @@ public class FtpClient {
      *
      * @param fileName the file name
      * @param out the output stream
-     * @param restartAt restart at the given position (0 if no restart is required).
+     * @param restartAt restart at the given position (0 if no restart is
+     *            required).
      */
-    void retrieve(String fileName, OutputStream out, long restartAt) throws IOException {
+    void retrieve(String fileName, OutputStream out, long restartAt)
+            throws IOException {
         passive();
         if (restartAt > 0) {
             send("REST " + restartAt);

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -12,13 +11,15 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.channels.NonWritableChannelException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.h2.api.ErrorCode;
 import org.h2.compress.CompressLZF;
-import org.h2.constant.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.util.MathUtils;
 import org.h2.util.New;
@@ -29,7 +30,8 @@ import org.h2.util.New;
  */
 public class FilePathNioMem extends FilePath {
 
-    private static final TreeMap<String, FileNioMemData> MEMORY_FILES = new TreeMap<String, FileNioMemData>();
+    private static final TreeMap<String, FileNioMemData> MEMORY_FILES =
+            new TreeMap<String, FileNioMemData>();
 
     @Override
     public FilePathNioMem getPath(String path) {
@@ -44,8 +46,13 @@ public class FilePathNioMem extends FilePath {
     }
 
     @Override
-    public void moveTo(FilePath newName) {
+    public void moveTo(FilePath newName, boolean atomicReplace) {
         synchronized (MEMORY_FILES) {
+            if (!atomicReplace && !name.equals(newName.name) &&
+                    MEMORY_FILES.containsKey(newName.name)) {
+                throw DbException.get(ErrorCode.FILE_RENAME_FAILED_2,
+                        new String[] { name, newName + " (exists)" });
+            }
             FileNioMemData f = getMemoryFile();
             f.setName(newName.name);
             MEMORY_FILES.remove(name);
@@ -146,7 +153,8 @@ public class FilePathNioMem extends FilePath {
     @Override
     public void createDirectory() {
         if (exists() && isDirectory()) {
-            throw DbException.get(ErrorCode.FILE_CREATION_FAILED_1, name + " (a file with this name already exists)");
+            throw DbException.get(ErrorCode.FILE_CREATION_FAILED_1,
+                    name + " (a file with this name already exists)");
         }
         // TODO directories are not really supported
     }
@@ -253,6 +261,10 @@ class FileNioMem extends FileBase {
 
     @Override
     public FileChannel truncate(long newLength) throws IOException {
+        // compatibility with JDK FileChannel#truncate
+        if (readOnly) {
+            throw new NonWritableChannelException();
+        }
         if (newLength < size()) {
             data.touch(readOnly);
             pos = Math.min(pos, newLength);
@@ -274,7 +286,8 @@ class FileNioMem extends FileBase {
             return 0;
         }
         data.touch(readOnly);
-        pos = data.readWrite(pos, src, 0/*because we start writing from src.position()*/, len, true);
+        // offset is 0 because we start writing from src.position()
+        pos = data.readWrite(pos, src, 0, len, true);
         src.position(src.position() + len);
         return len;
     }
@@ -311,7 +324,8 @@ class FileNioMem extends FileBase {
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(long position, long size,
+            boolean shared) throws IOException {
         if (shared) {
             if (!data.lockShared()) {
                 return null;

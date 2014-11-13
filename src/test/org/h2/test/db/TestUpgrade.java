@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -12,7 +11,8 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.upgrade.DbUpgrade;
@@ -53,7 +53,8 @@ public class TestUpgrade extends TestBase {
         Connection conn;
         conn = DriverManager.getConnection("jdbc:h2v1_1:" +
                 getBaseDir() + "/upgrade;PAGE_STORE=FALSE", getUser(), getPassword());
-        conn.createStatement().execute("create table test(data clob) as select space(100000)");
+        conn.createStatement().execute(
+                "create table test(data clob) as select space(100000)");
         conn.close();
         assertTrue(FileUtils.exists(getBaseDir() + "/upgrade.data.db"));
         assertTrue(FileUtils.exists(getBaseDir() + "/upgrade.index.db"));
@@ -64,7 +65,8 @@ public class TestUpgrade extends TestBase {
         assertFalse(FileUtils.exists(getBaseDir() + "/upgrade.index.db"));
         ResultSet rs = conn.createStatement().executeQuery("select * from test");
         rs.next();
-        assertEquals(new String(new char[100000]).replace((char) 0, ' '), rs.getString(1));
+        assertEquals(new String(new char[100000]).replace((char) 0, ' '),
+                rs.getString(1));
         conn.close();
         DbUpgrade.setDeleteOldDb(false);
         DbUpgrade.setScriptInTempDir(false);
@@ -161,9 +163,11 @@ public class TestUpgrade extends TestBase {
 
         // Create old
         Utils.callStaticMethod("org.h2.upgrade.v1_1.Driver.load");
-        Connection connOld = DriverManager.getConnection("jdbc:h2v1_1:" + getBaseDir() + "/upgrade;PAGE_STORE=FALSE");
+        Connection connOld = DriverManager.getConnection(
+                "jdbc:h2v1_1:" + getBaseDir() + "/upgrade;PAGE_STORE=FALSE");
         // Test auto server, too
-        Connection connOld2 = DriverManager.getConnection("jdbc:h2v1_1:" + getBaseDir() + "/upgrade;PAGE_STORE=FALSE");
+        Connection connOld2 = DriverManager.getConnection(
+                "jdbc:h2v1_1:" + getBaseDir() + "/upgrade;PAGE_STORE=FALSE");
         Statement statOld = connOld.createStatement();
         statOld.execute("create table test(id int)");
         connOld.close();
@@ -171,7 +175,8 @@ public class TestUpgrade extends TestBase {
         assertTrue(FileUtils.exists(getBaseDir() + "/upgrade.data.db"));
 
         // Upgrade
-        Connection connOldViaNew = DriverManager.getConnection("jdbc:h2:" + getBaseDir() + "/upgrade;ifexists=true");
+        Connection connOldViaNew = DriverManager.getConnection(
+                "jdbc:h2:" + getBaseDir() + "/upgrade;ifexists=true");
         Statement statOldViaNew = connOldViaNew.createStatement();
         statOldViaNew.executeQuery("select * from test");
         connOldViaNew.close();
@@ -186,7 +191,8 @@ public class TestUpgrade extends TestBase {
         // Create old db
         Utils.callStaticMethod("org.h2.upgrade.v1_1.Driver.load");
         Connection conn = DriverManager.getConnection("jdbc:h2v1_1:" +
-                getBaseDir() + "/upgrade;PAGE_STORE=FALSE;CIPHER=AES", "abc", "abc abc");
+                getBaseDir() + "/upgrade;PAGE_STORE=FALSE;" +
+                "CIPHER=AES", "abc", "abc abc");
         Statement stat = conn.createStatement();
         stat.execute("create table test(id int)");
         conn.close();
@@ -207,14 +213,18 @@ public class TestUpgrade extends TestBase {
     public void deleteDb(String dbName) {
         super.deleteDb(dbName);
         try {
-            Utils.callStaticMethod("org.h2.upgrade.v1_1.tools.DeleteDbFiles.execute",
+            Utils.callStaticMethod(
+                    "org.h2.upgrade.v1_1.tools.DeleteDbFiles.execute",
                     getBaseDir(), dbName, true);
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
-        FileUtils.delete(getBaseDir() + "/" + dbName + ".data.db.backup");
-        FileUtils.delete(getBaseDir() + "/" + dbName + ".index.db.backup");
-        FileUtils.deleteRecursive(getBaseDir() + "/" + dbName + ".lobs.db.backup", false);
+        FileUtils.delete(getBaseDir() + "/" +
+                    dbName + ".data.db.backup");
+        FileUtils.delete(getBaseDir() + "/" +
+                    dbName + ".index.db.backup");
+        FileUtils.deleteRecursive(getBaseDir() + "/" +
+                    dbName + ".lobs.db.backup", false);
     }
 
 }

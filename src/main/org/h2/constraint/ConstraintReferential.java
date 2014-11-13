@@ -1,16 +1,16 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.constraint;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
 import org.h2.command.Prepared;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.Parameter;
@@ -93,7 +93,8 @@ public class ConstraintReferential extends Constraint {
     }
 
     /**
-     * Create the SQL statement of this object so a copy of the table can be made.
+     * Create the SQL statement of this object so a copy of the table can be
+     * made.
      *
      * @param forTable the table to create the object for
      * @param quotedName the name of this object (quoted if necessary)
@@ -105,7 +106,8 @@ public class ConstraintReferential extends Constraint {
     }
 
     /**
-     * Create the SQL statement of this object so a copy of the table can be made.
+     * Create the SQL statement of this object so a copy of the table can be
+     * made.
      *
      * @param forTable the table to create the object for
      * @param forRefTable the referenced table
@@ -113,7 +115,8 @@ public class ConstraintReferential extends Constraint {
      * @param internalIndex add the index name to the statement
      * @return the SQL statement
      */
-    public String getCreateSQLForCopy(Table forTable, Table forRefTable, String quotedName, boolean internalIndex) {
+    public String getCreateSQLForCopy(Table forTable, Table forRefTable,
+            String quotedName, boolean internalIndex) {
         StatementBuilder buff = new StatementBuilder("ALTER TABLE ");
         String mainTable = forTable.getSQL();
         buff.append(mainTable).append(" ADD CONSTRAINT ");
@@ -302,7 +305,8 @@ public class ConstraintReferential extends Constraint {
         if (!database.getReferentialIntegrity()) { //设置REFERENTIAL_INTEGRITY动态参数可禁用检查
             return;
         }
-        if (!table.getCheckForeignKeyConstraints() || !refTable.getCheckForeignKeyConstraints()) {
+        if (!table.getCheckForeignKeyConstraints() ||
+                !refTable.getCheckForeignKeyConstraints()) {
             return;
         }
         if (t == table) {
@@ -383,7 +387,8 @@ public class ConstraintReferential extends Constraint {
         }
     }
 
-    private boolean existsRow(Session session, Index searchIndex, SearchRow check, Row excluding) {
+    private boolean existsRow(Session session, Index searchIndex,
+            SearchRow check, Row excluding) {
         Table searchTable = searchIndex.getTable();
         searchTable.lock(session, false, false);
         Cursor cursor = searchIndex.find(session, check, check);

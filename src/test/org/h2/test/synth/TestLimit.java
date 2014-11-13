@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -35,7 +34,8 @@ public class TestLimit extends TestBase {
         deleteDb("limit");
         Connection conn = getConnection("limit");
         stat = conn.createStatement();
-        stat.execute("create table test(id int) as select x from system_range(1, 10)");
+        stat.execute("create table test(id int) as " +
+                "select x from system_range(1, 10)");
         for (int maxRows = 0; maxRows < 12; maxRows++) {
             stat.setMaxRows(maxRows);
             for (int limit = -2; limit < 12; limit++) {
@@ -63,7 +63,8 @@ public class TestLimit extends TestBase {
                         for (int unionLimit = -2; unionLimit < 5; unionLimit++) {
                             int e = unionLimit < 0 ? 20 : Math.min(20, unionLimit);
                             e = Math.min(expected, e);
-                            String u = union + " limit " + (unionLimit == -2 ? "null" : unionLimit);
+                            String u = union + " limit " +
+                                    (unionLimit == -2 ? "null" : unionLimit);
                             assertRow(e, u);
                         }
                     }

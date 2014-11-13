@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -108,12 +107,16 @@ public class ConvertTraceFile extends Tool {
     /**
      * Converts a trace file to a Java class file and a script file.
      */
-    private void convertFile(String traceFileName, String javaClassName, String script) throws IOException {
-        LineNumberReader reader = new LineNumberReader(IOUtils.getBufferedReader(
+    private void convertFile(String traceFileName, String javaClassName,
+            String script) throws IOException {
+        LineNumberReader reader = new LineNumberReader(
+                IOUtils.getBufferedReader(
                 FileUtils.newInputStream(traceFileName)));
-        PrintWriter javaWriter = new PrintWriter(IOUtils.getBufferedWriter(
+        PrintWriter javaWriter = new PrintWriter(
+                IOUtils.getBufferedWriter(
                 FileUtils.newOutputStream(javaClassName + ".java", false)));
-        PrintWriter scriptWriter = new PrintWriter(IOUtils.getBufferedWriter(
+        PrintWriter scriptWriter = new PrintWriter(
+                IOUtils.getBufferedWriter(
                 FileUtils.newOutputStream(script, false)));
         javaWriter.println("import java.io.*;");
         javaWriter.println("import java.sql.*;");
@@ -125,7 +128,8 @@ public class ConvertTraceFile extends Tool {
             cn = cn.substring(idx + 1);
         }
         javaWriter.println("public class " + cn + " {");
-        javaWriter.println("    public static void main(String... args) throws Exception {");
+        javaWriter.println("    public static void main(String... args) " +
+                "throws Exception {");
         javaWriter.println("        Class.forName(\"org.h2.Driver\");");
         while (true) {
             String line = reader.readLine();

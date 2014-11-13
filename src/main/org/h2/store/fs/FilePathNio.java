@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store.fs;
@@ -82,28 +81,24 @@ class FileNio extends FileBase {
 
     @Override
     public FileChannel truncate(long newLength) throws IOException {
-        try {
-            long size = channel.size();
-            if (newLength < size) {
-                long pos = channel.position();
-                channel.truncate(newLength);
-                long newPos = channel.position();
-                if (pos < newLength) {
-                    // position should stay
-                    // in theory, this should not be needed
-                    if (newPos != pos) {
-                        channel.position(pos);
-                    }
-                } else if (newPos > newLength) {
-                    // looks like a bug in this FileChannel implementation, as the
-                    // documentation says the position needs to be changed
-                    channel.position(newLength);
+        long size = channel.size();
+        if (newLength < size) {
+            long pos = channel.position();
+            channel.truncate(newLength);
+            long newPos = channel.position();
+            if (pos < newLength) {
+                // position should stay
+                // in theory, this should not be needed
+                if (newPos != pos) {
+                    channel.position(pos);
                 }
+            } else if (newPos > newLength) {
+                // looks like a bug in this FileChannel implementation, as
+                // the documentation says the position needs to be changed
+                channel.position(newLength);
             }
-            return this;
-        } catch (NonWritableChannelException e) {
-            throw new IOException("read only");
         }
+        return this;
     }
 
     @Override
@@ -121,7 +116,8 @@ class FileNio extends FileBase {
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(long position, long size,
+            boolean shared) throws IOException {
         return channel.tryLock(position, size, shared);
     }
 

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.bench;
@@ -95,7 +94,8 @@ class Database {
             serverH2 = Server.createTcpServer().start();
             Thread.sleep(100);
         } else if (url.startsWith("jdbc:derby://")) {
-            serverDerby = Class.forName("org.apache.derby.drda.NetworkServerControl").newInstance();
+            serverDerby = Class.forName(
+                    "org.apache.derby.drda.NetworkServerControl").newInstance();
             Method m = serverDerby.getClass().getMethod("start", PrintWriter.class);
             m.invoke(serverDerby, new Object[] { null });
             // serverDerby = new NetworkServerControl();
@@ -152,7 +152,8 @@ class Database {
      * @param threadCount the number of threads to use
      * @return a new database object with the given settings
      */
-    static Database parse(DatabaseTest test, int id, String dbString, int threadCount) {
+    static Database parse(DatabaseTest test, int id, String dbString,
+            int threadCount) {
         try {
             StringTokenizer tokenizer = new StringTokenizer(dbString, ",");
             Database db = new Database();
@@ -189,11 +190,11 @@ class Database {
             try {
                 s = newConn.createStatement();
                 // stat.execute("CALL
-                // SYSCS_UTIL.SYSCS_SET_DATABASE_PROPERTY('derby.storage.pageCacheSize',
-                // '64')");
+                // SYSCS_UTIL.SYSCS_SET_DATABASE_PROPERTY(
+                // 'derby.storage.pageCacheSize', '64')");
                 // stat.execute("CALL
-                // SYSCS_UTIL.SYSCS_SET_DATABASE_PROPERTY('derby.storage.pageSize',
-                // '8192')");
+                // SYSCS_UTIL.SYSCS_SET_DATABASE_PROPERTY(
+                // 'derby.storage.pageSize', '8192')");
             } finally {
                 JdbcUtils.closeSilently(s);
             }

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jaqu;
@@ -48,7 +47,8 @@ public class UpdateTest extends TestBase {
 
     private void testSimpleUpdate() {
         Product p = new Product();
-        Product pChang = db.from(p).where(p.productName).is("Chang").selectFirst();
+        Product pChang = db.from(p).where(p.productName).is("Chang")
+                .selectFirst();
         // update unitPrice from 19.0 to 19.5
         pChang.unitPrice = 19.5;
         // update unitsInStock from 17 to 16
@@ -56,7 +56,8 @@ public class UpdateTest extends TestBase {
         db.update(pChang);
 
         Product p2 = new Product();
-        Product pChang2 = db.from(p2).where(p2.productName).is("Chang").selectFirst();
+        Product pChang2 = db.from(p2).where(p2.productName).is("Chang")
+                .selectFirst();
         assertEquals(19.5, pChang2.unitPrice);
         assertEquals(16, pChang2.unitsInStock.intValue());
 
@@ -68,11 +69,13 @@ public class UpdateTest extends TestBase {
 
     private void testSimpleUpdateWithCombinedPrimaryKey() {
         Order o = new Order();
-        Order ourOrder = db.from(o).where(o.orderDate).is(valueOf("2007-01-02")).selectFirst();
+        Order ourOrder = db.from(o).where(o.orderDate)
+                .is(valueOf("2007-01-02")).selectFirst();
         ourOrder.orderDate = valueOf("2007-01-03");
         db.update(ourOrder);
 
-        Order ourUpdatedOrder = db.from(o).where(o.orderDate).is(valueOf("2007-01-03")).selectFirst();
+        Order ourUpdatedOrder = db.from(o).where(o.orderDate)
+                .is(valueOf("2007-01-03")).selectFirst();
         assertTrue("updated order not found", ourUpdatedOrder != null);
 
         // undo update
@@ -82,7 +85,8 @@ public class UpdateTest extends TestBase {
 
     private void testSimpleMerge() {
         Product p = new Product();
-        Product pChang = db.from(p).where(p.productName).is("Chang").selectFirst();
+        Product pChang = db.from(p).where(p.productName).is("Chang")
+                .selectFirst();
         // update unitPrice from 19.0 to 19.5
         pChang.unitPrice = 19.5;
         // update unitsInStock from 17 to 16
@@ -90,7 +94,8 @@ public class UpdateTest extends TestBase {
         db.merge(pChang);
 
         Product p2 = new Product();
-        Product pChang2 = db.from(p2).where(p2.productName).is("Chang").selectFirst();
+        Product pChang2 = db.from(p2).where(p2.productName).is("Chang")
+                .selectFirst();
         assertEquals(19.5, pChang2.unitPrice);
         assertEquals(16, pChang2.unitsInStock.intValue());
 
@@ -102,11 +107,13 @@ public class UpdateTest extends TestBase {
 
     private void testSimpleMergeWithCombinedPrimaryKey() {
         Order o = new Order();
-        Order ourOrder = db.from(o).where(o.orderDate).is(valueOf("2007-01-02")).selectFirst();
+        Order ourOrder = db.from(o).where(o.orderDate)
+                .is(valueOf("2007-01-02")).selectFirst();
         ourOrder.orderDate = valueOf("2007-01-03");
         db.merge(ourOrder);
 
-        Order ourUpdatedOrder = db.from(o).where(o.orderDate).is(valueOf("2007-01-03")).selectFirst();
+        Order ourUpdatedOrder = db.from(o).where(o.orderDate)
+                .is(valueOf("2007-01-03")).selectFirst();
         assertTrue("updated order not found", ourUpdatedOrder != null);
 
         // undo update
@@ -141,17 +148,19 @@ public class UpdateTest extends TestBase {
             .where(p.productId).is(1).update();
 
         // confirm the data was properly restored
-        Product restored = db.from(p).where(p.productId).is(1).selectFirst();
+        Product restored = db.from(p).
+                where(p.productId).is(1).selectFirst();
         assertEquals(original.productName, restored.productName);
         assertEquals(original.unitPrice, restored.unitPrice);
         assertEquals(original.unitsInStock, restored.unitsInStock);
 
-
-        double unitPriceOld = db.from(p).where(p.productId).is(1).selectFirst().unitPrice;
+        double unitPriceOld = db.from(p).
+                where(p.productId).is(1).selectFirst().unitPrice;
         // double the unit price
-        db.from(p).increment(p.unitPrice).by(p.unitPrice)
-            .where(p.productId).is(1).update();
-        double unitPriceNew = db.from(p).where(p.productId).is(1).selectFirst().unitPrice;
+        db.from(p).increment(p.unitPrice).by(p.unitPrice).where(p.productId)
+                .is(1).update();
+        double unitPriceNew = db.from(p).
+                where(p.productId).is(1).selectFirst().unitPrice;
         assertEquals(unitPriceOld * 2, unitPriceNew);
 
     }

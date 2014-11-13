@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -45,7 +44,8 @@ public class TestFile extends TestBase implements DataHandler {
         FileStore mem = null, file = null;
         byte[] buffMem = null;
         byte[] buffFile = null;
-        String prefix = nioMem ? (compress ? "nioMemLZF:" : "nioMemFS:") : (compress ? "memLZF:" : "memFS:");
+        String prefix = nioMem ? (compress ? "nioMemLZF:" : "nioMemFS:")
+                : (compress ? "memLZF:" : "memFS:");
         FileUtils.delete(prefix + "test");
         FileUtils.delete("~/testFile");
 
@@ -91,7 +91,8 @@ public class TestFile extends TestBase implements DataHandler {
                 if (buffFile.length > 16) {
                     int off = random.nextInt(buffFile.length - 16);
                     int l = random.nextInt((buffFile.length - off) / 16) * 16;
-                    l = (int) Math.min(l, file.length() - file.getFilePointer());
+                    l = (int) Math
+                            .min(l, file.length() - file.getFilePointer());
                     trace("read " + off + " " + l);
                     Exception a = null, b = null;
                     try {
@@ -186,7 +187,8 @@ public class TestFile extends TestBase implements DataHandler {
     }
 
     @Override
-    public int readLob(long lobId,  byte[] hmac, long offset, byte[] buff, int off, int length) {
+    public int readLob(long lobId, byte[] hmac, long offset, byte[] buff,
+            int off, int length) {
         return -1;
     }
 

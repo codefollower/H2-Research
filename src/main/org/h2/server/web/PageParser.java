@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.web;
@@ -17,6 +16,8 @@ import org.h2.util.New;
  * This class is used by the H2 Console.
  */
 public class PageParser {
+    private static final int TAB_WIDTH = 4;
+
     private final String page;
     private int pos;
     private final Map<String, Object> settings;
@@ -246,12 +247,15 @@ public class PageParser {
         boolean convertSpace = true;
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
-            if (c == ' ') {
-                if (convertSpace && convertBreakAndSpace) {
-                    buff.append("&nbsp;");
-                } else {
-                    buff.append(' ');
-                    convertSpace = true;
+            if (c == ' ' || c == '\t') {
+                // convert tabs into spaces
+                for (int j = 0; j < (c == ' ' ? 1 : TAB_WIDTH); j++) {
+                    if (convertSpace && convertBreakAndSpace) {
+                        buff.append("&nbsp;");
+                    } else {
+                        buff.append(' ');
+                        convertSpace = true;
+                    }
                 }
                 continue;
             }

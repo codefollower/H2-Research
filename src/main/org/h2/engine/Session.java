@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -12,13 +11,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
 
+import org.h2.api.ErrorCode;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
 import org.h2.command.Prepared;
 import org.h2.command.dml.SetTypes;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.constraint.Constraint;
 import org.h2.index.Index;
 import org.h2.jdbc.JdbcConnection;
@@ -28,12 +26,11 @@ import org.h2.message.TraceSystem;
 import org.h2.mvstore.db.MVTable;
 import org.h2.mvstore.db.TransactionStore.Change;
 import org.h2.mvstore.db.TransactionStore.Transaction;
-import org.h2.result.ResultInterface;
+import org.h2.result.LocalResult;
 import org.h2.result.Row;
 import org.h2.schema.Schema;
 import org.h2.store.DataHandler;
 import org.h2.store.InDoubtTransaction;
-import org.h2.store.LobStorageBackend;
 import org.h2.store.LobStorageFrontend;
 import org.h2.table.Table;
 import org.h2.util.New;
@@ -101,7 +98,7 @@ public class Session extends SessionWithState {
     private long transactionStart;
     private long currentCommandStart;
     private HashMap<String, Value> variables;
-    private HashSet<ResultInterface> temporaryResults;
+    private HashSet<LocalResult> temporaryResults;
     private int queryTimeout;
     private boolean commitOrRollbackDisabled;
     private Table waitForLock;
@@ -123,9 +120,16 @@ public class Session extends SessionWithState {
         this.undoLog = new UndoLog(this);
         this.user = user;
         this.id = id;
-        Setting setting = database.findSetting(SetTypes.getTypeName(SetTypes.DEFAULT_LOCK_TIMEOUT));
-        this.lockTimeout = setting == null ? Constants.INITIAL_LOCK_TIMEOUT : setting.getIntValue();
+        Setting setting = database.findSetting(
+                SetTypes.getTypeName(SetTypes.DEFAULT_LOCK_TIMEOUT));
+        this.lockTimeout = setting == null ?
+                Constants.INITIAL_LOCK_TIMEOUT : setting.getIntValue();
         this.currentSchemaName = Constants.SCHEMA_MAIN;
+    }
+
+    @Override
+    public ArrayList<String> getClusterServers() {
+        return new ArrayList<String>();
     }
 
     public boolean setCommitOrRollbackDisabled(boolean x) {
@@ -154,7 +158,8 @@ public class Session extends SessionWithState {
             old = variables.remove(name);
         } else {
             // link LOB values, to make sure we have our own object
-            value = value.link(database, LobStorageFrontend.TABLE_ID_SESSION_VARIABLE);
+            value = value.link(database,
+                    LobStorageFrontend.TABLE_ID_SESSION_VARIABLE);
             old = variables.put(name, value);
         }
         if (old != null) {
@@ -224,7 +229,8 @@ public class Session extends SessionWithState {
             localTempTables = database.newStringMap();
         }
         if (localTempTables.get(table.getName()) != null) {
-            throw DbException.get(ErrorCode.TABLE_OR_VIEW_ALREADY_EXISTS_1, table.getSQL());
+            throw DbException.get(ErrorCode.TABLE_OR_VIEW_ALREADY_EXISTS_1,
+                    table.getSQL());
         }
         modificationId++;
         localTempTables.put(table.getName(), table);
@@ -275,7 +281,8 @@ public class Session extends SessionWithState {
             localTempTableIndexes = database.newStringMap();
         }
         if (localTempTableIndexes.get(index.getName()) != null) {
-            throw DbException.get(ErrorCode.INDEX_ALREADY_EXISTS_1, index.getSQL());
+            throw DbException.get(ErrorCode.INDEX_ALREADY_EXISTS_1,
+                    index.getSQL());
         }
         localTempTableIndexes.put(index.getName(), index);
     }
@@ -333,7 +340,8 @@ public class Session extends SessionWithState {
         }
         String name = constraint.getName();
         if (localTempTableConstraints.get(name) != null) {
-            throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, constraint.getSQL());
+            throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1,
+                    constraint.getSQL());
         }
         localTempTableConstraints.put(name, constraint);
     }
@@ -377,7 +385,8 @@ public class Session extends SessionWithState {
     //4个prepare方法要么生成CommandInterface(Command)要么生成Prepared
     //并且都调用org.h2.command.Prepared.prepare()方法
     @Override
-    public synchronized CommandInterface prepareCommand(String sql, int fetchSize) {
+    public synchronized CommandInterface prepareCommand(String sql,
+            int fetchSize) {
         return prepareLocal(sql);
     }
 
@@ -417,7 +426,8 @@ public class Session extends SessionWithState {
      */
     public Command prepareLocal(String sql) {
         if (closed) {
-            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "session closed");
+            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1,
+                    "session closed");
         }
         Command command;
         //如果允许重用那么不再做SQL解析
@@ -534,9 +544,19 @@ public class Session extends SessionWithState {
                 autoCommitAtTransactionEnd = false;
             }
         }
+        endTransaction();
+    }
+
+    private void checkCommitRollback() {
+        if (commitOrRollbackDisabled && locks.size() > 0) {
+            throw DbException.get(ErrorCode.COMMIT_ROLLBACK_NOT_ALLOWED);
+        }
+    }
+
+    private void endTransaction() {
         if (unlinkLobMap != null && unlinkLobMap.size() > 0) {
-            // need to flush the transaction log, because we can't unlink lobs if the
-            // commit record is not written
+            // need to flush the transaction log, because we can't unlink lobs
+            // if the commit record is not written
             database.flush();
             for (Value v : unlinkLobMap.values()) {
                 v.unlink(database);
@@ -545,12 +565,6 @@ public class Session extends SessionWithState {
             unlinkLobMap = null;
         }
         unlockAll();
-    }
-
-    private void checkCommitRollback() {
-        if (commitOrRollbackDisabled && locks.size() > 0) {
-            throw DbException.get(ErrorCode.COMMIT_ROLLBACK_NOT_ALLOWED);
-        }
     }
 
     /**
@@ -576,11 +590,11 @@ public class Session extends SessionWithState {
             database.commit(this);
         }
         cleanTempTables(false);
-        unlockAll();
         if (autoCommitAtTransactionEnd) {
             autoCommit = true;
             autoCommitAtTransactionEnd = false;
         }
+        endTransaction();
     }
 
     /**
@@ -598,7 +612,8 @@ public class Session extends SessionWithState {
         }
         if (transaction != null) {
             long savepointId = savepoint == null ? 0 : savepoint.transactionSavepoint;
-            HashMap<String, MVTable> tableMap = database.getMvStore().getTables();
+            HashMap<String, MVTable> tableMap =
+                    database.getMvStore().getTables();
             Iterator<Change> it = transaction.getChanges(savepointId);
             while (it.hasNext()) {
                 Change c = it.next();
@@ -684,7 +699,7 @@ public class Session extends SessionWithState {
      */
     public void addLock(Table table) {
         if (SysProperties.CHECK) {
-            if (locks.indexOf(table) >= 0) {
+            if (locks.contains(table)) {
                 DbException.throwInternalError();
             }
         }
@@ -708,9 +723,14 @@ public class Session extends SessionWithState {
             // otherwise rollback will try to rollback a not-inserted row
             if (SysProperties.CHECK) {
                 int lockMode = database.getLockMode();
+<<<<<<< HEAD
                 if (lockMode != Constants.LOCK_MODE_OFF && !database.isMultiVersion()) {
                 	//当要记撤消日志时，除了TABLE_LINK、EXTERNAL_TABLE_ENGINE这两种类型的表外，其他表类型必须先锁表
                 	//例如调用org.h2.table.Table.lock(Session, boolean, boolean)
+=======
+                if (lockMode != Constants.LOCK_MODE_OFF &&
+                        !database.isMultiVersion()) {
+>>>>>>> remotes/git-svn
                     String tableType = log.getTable().getTableType();
                     if (locks.indexOf(log.getTable()) < 0
                             && !Table.TABLE_LINK.equals(tableType)
@@ -846,7 +866,8 @@ public class Session extends SessionWithState {
 
     /**
      * Called when a log entry for this session is added. The session keeps
-     * track of the first entry in the transaction log that is not yet committed.
+     * track of the first entry in the transaction log that is not yet
+     * committed.
      *
      * @param logId the transaction log id
      * @param pos the position of the log entry in the transaction log
@@ -942,15 +963,18 @@ public class Session extends SessionWithState {
      * @param commit true for commit, false for rollback
      */
     public void setPreparedTransaction(String transactionName, boolean commit) {
-        if (currentTransactionName != null && currentTransactionName.equals(transactionName)) {
+        if (currentTransactionName != null &&
+                currentTransactionName.equals(transactionName)) {
             if (commit) {
                 commit(false);
             } else {
                 rollback();
             }
         } else {
-            ArrayList<InDoubtTransaction> list = database.getInDoubtTransactions();
-            int state = commit ? InDoubtTransaction.COMMIT : InDoubtTransaction.ROLLBACK;
+            ArrayList<InDoubtTransaction> list = database
+                    .getInDoubtTransactions();
+            int state = commit ? InDoubtTransaction.COMMIT
+                    : InDoubtTransaction.ROLLBACK;
             boolean found = false;
             if (list != null) {
                 for (InDoubtTransaction p: list) {
@@ -962,7 +986,8 @@ public class Session extends SessionWithState {
                 }
             }
             if (!found) {
-                throw DbException.get(ErrorCode.TRANSACTION_NOT_FOUND_1, transactionName);
+                throw DbException.get(ErrorCode.TRANSACTION_NOT_FOUND_1,
+                        transactionName);
             }
         }
     }
@@ -1087,10 +1112,6 @@ public class Session extends SessionWithState {
         return database;
     }
 
-    public LobStorageBackend getLobStorageBackend() {
-        return database.getLobStorage();
-    }
-
     /**
      * Remember that the given LOB value must be un-linked (disconnected from
      * the table) at commit.
@@ -1129,7 +1150,7 @@ public class Session extends SessionWithState {
         String identifier;
         do {
             identifier = SYSTEM_IDENTIFIER_PREFIX + systemIdentifier++;
-        } while (sql.indexOf(identifier) >= 0);
+        } while (sql.contains(identifier));
         return identifier;
     }
 
@@ -1241,8 +1262,8 @@ public class Session extends SessionWithState {
      * method returns as soon as the exclusive mode has been disabled.
      */
     public void waitIfExclusiveModeEnabled() {
-        // Even in exclusive mode, we have to let the LOB session proceed, or we will
-        // get deadlocks.
+        // Even in exclusive mode, we have to let the LOB session proceed, or we
+        // will get deadlocks.
         if (database.getLobSession() == this) {
             return;
         }
@@ -1270,7 +1291,7 @@ public class Session extends SessionWithState {
      *
      * @param result the temporary result set
      */
-    public void addTemporaryResult(ResultInterface result) {
+    public void addTemporaryResult(LocalResult result) {
         if (!result.needToClose()) {
             return;
         }
@@ -1285,7 +1306,7 @@ public class Session extends SessionWithState {
 
     private void closeTemporaryResults() {
         if (temporaryResults != null) {
-            for (ResultInterface result : temporaryResults) {
+            for (LocalResult result : temporaryResults) {
                 result.close();
             }
             temporaryResults = null;
@@ -1309,7 +1330,8 @@ public class Session extends SessionWithState {
     }
 
     /**
-     * Set the table this session is waiting for, and the thread that is waiting.
+     * Set the table this session is waiting for, and the thread that is
+     * waiting.
      *
      * @param waitForLock the table
      * @param waitForLockThread the current thread (the one that is waiting)
@@ -1385,7 +1407,8 @@ public class Session extends SessionWithState {
         if (undoLog.size() == 0) {
             return ValueNull.INSTANCE;
         }
-        return ValueString.get(firstUncommittedLog + "-" + firstUncommittedPos + "-" + id);
+        return ValueString.get(firstUncommittedLog + "-" + firstUncommittedPos +
+                "-" + id);
     }
 
     /**

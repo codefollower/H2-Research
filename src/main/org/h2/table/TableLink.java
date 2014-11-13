@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
@@ -15,8 +14,9 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
 import org.h2.index.Index;
@@ -39,8 +39,8 @@ import org.h2.value.ValueTime;
 import org.h2.value.ValueTimestamp;
 
 /**
- * A linked table contains connection information for a table accessible by JDBC.
- * The table may be stored in a different database.
+ * A linked table contains connection information for a table accessible by
+ * JDBC. The table may be stored in a different database.
  */
 public class TableLink extends Table {
 
@@ -63,8 +63,9 @@ public class TableLink extends Table {
     private boolean globalTemporary;
     private boolean readOnly;
 
-    public TableLink(Schema schema, int id, String name, String driver, String url, String user, String password,
-            String originalSchema, String originalTable, boolean emitUpdates, boolean force) {
+    public TableLink(Schema schema, int id, String name, String driver,
+            String url, String user, String password, String originalSchema,
+            String originalTable, boolean emitUpdates, boolean force) {
         super(schema, id, name, false, true);
         this.driver = driver;
         this.url = url;
@@ -81,7 +82,8 @@ public class TableLink extends Table {
             }
             Column[] cols = { };
             setColumns(cols);
-            linkedIndex = new LinkedIndex(this, id, IndexColumn.wrap(cols), IndexType.createNonUnique(false));
+            linkedIndex = new LinkedIndex(this, id, IndexColumn.wrap(cols),
+                    IndexType.createNonUnique(false));
             indexes.add(linkedIndex);
         }
     }
@@ -136,7 +138,8 @@ public class TableLink extends Table {
             if (schema == null) {
                 schema = thisSchema;
             }
-            if (!StringUtils.equals(catalog, thisCatalog) || !StringUtils.equals(schema, thisSchema)) {
+            if (!StringUtils.equals(catalog, thisCatalog) ||
+                    !StringUtils.equals(schema, thisSchema)) {
                 // if the table exists in multiple schemas or tables,
                 // use the alternative solution
                 columnMap.clear();
@@ -167,7 +170,8 @@ public class TableLink extends Table {
         Statement stat = null;
         try {
             stat = conn.getConnection().createStatement();
-            rs = stat.executeQuery("SELECT * FROM " + qualifiedTableName + " T WHERE 1=0");
+            rs = stat.executeQuery("SELECT * FROM " +
+                    qualifiedTableName + " T WHERE 1=0");
             if (columnList.size() == 0) {
                 // alternative solution
                 ResultSetMetaData rsMeta = rs.getMetaData();
@@ -198,7 +202,8 @@ public class TableLink extends Table {
         columnList.toArray(cols);
         setColumns(cols);
         int id = getId();
-        linkedIndex = new LinkedIndex(this, id, IndexColumn.wrap(cols), IndexType.createNonUnique(false));
+        linkedIndex = new LinkedIndex(this, id, IndexColumn.wrap(cols),
+                IndexType.createNonUnique(false));
         indexes.add(linkedIndex);
         try {
             rs = meta.getPrimaryKeys(null, originalSchema, originalTable);
@@ -263,7 +268,8 @@ public class TableLink extends Table {
                     list.clear();
                 }
                 boolean unique = !rs.getBoolean("NON_UNIQUE");
-                indexType = unique ? IndexType.createUnique(false, false) : IndexType.createNonUnique(false);
+                indexType = unique ? IndexType.createUnique(false, false) :
+                        IndexType.createNonUnique(false);
                 String col = rs.getString("COLUMN_NAME");
                 col = convertColumnName(col);
                 Column column = columnMap.get(col);
@@ -315,7 +321,8 @@ public class TableLink extends Table {
     }
 
     private String convertColumnName(String columnName) {
-        if ((storesMixedCase || storesLowerCase) && columnName.equals(StringUtils.toLowerEnglish(columnName))) {
+        if ((storesMixedCase || storesLowerCase) &&
+                columnName.equals(StringUtils.toLowerEnglish(columnName))) {
             columnName = StringUtils.toUpperEnglish(columnName);
         } else if (storesMixedCase && !supportsMixedCaseIdentifiers) {
             // TeraData
@@ -376,13 +383,14 @@ public class TableLink extends Table {
     }
 
     @Override
-    public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
-            boolean create, String indexComment) {
+    public Index addIndex(Session session, String indexName, int indexId,
+            IndexColumn[] cols, IndexType indexType, boolean create,
+            String indexComment) {
         throw DbException.getUnsupportedException("LINK");
     }
 
     @Override
-    public void lock(Session session, boolean exclusive, boolean force) {
+    public void lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
         // nothing to do
     }
 
@@ -450,7 +458,8 @@ public class TableLink extends Table {
      */
     public static DbException wrapException(String sql, Exception ex) {
         SQLException e = DbException.toSQLException(ex);
-        return DbException.get(ErrorCode.ERROR_ACCESSING_LINKED_TABLE_2, e, sql, e.toString());
+        return DbException.get(ErrorCode.ERROR_ACCESSING_LINKED_TABLE_2,
+                e, sql, e.toString());
     }
 
     public String getQualifiedTable() {
@@ -466,7 +475,8 @@ public class TableLink extends Table {
      * @param reusePrepared if the prepared statement can be re-used immediately
      * @return the prepared statement, or null if it is re-used
      */
-    public PreparedStatement execute(String sql, ArrayList<Value> params, boolean reusePrepared) {
+    public PreparedStatement execute(String sql, ArrayList<Value> params,
+            boolean reusePrepared) {
         if (conn == null) {
             throw connectException;
         }

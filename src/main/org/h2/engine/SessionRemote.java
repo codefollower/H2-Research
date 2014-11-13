@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -9,13 +8,13 @@ package org.h2.engine;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+
 import org.h2.api.DatabaseEventListener;
+import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.command.CommandInterface;
 import org.h2.command.CommandRemote;
 import org.h2.command.dml.SetTypes;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.jdbc.JdbcSQLException;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
@@ -26,13 +25,13 @@ import org.h2.store.FileStore;
 import org.h2.store.LobStorageFrontend;
 import org.h2.store.LobStorageInterface;
 import org.h2.store.fs.FileUtils;
+import org.h2.util.JdbcUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.NetUtils;
 import org.h2.util.New;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.StringUtils;
 import org.h2.util.TempFileDeleter;
-import org.h2.util.Utils;
 import org.h2.value.Transfer;
 import org.h2.value.Value;
 
@@ -99,14 +98,28 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         this.connectionInfo = ci;
     }
 
-    private Transfer initTransfer(ConnectionInfo ci, String db, String server) throws IOException {
-        Socket socket = NetUtils.createSocket(server, Constants.DEFAULT_TCP_PORT, ci.isSSL());
+    @Override
+    public ArrayList<String> getClusterServers() {
+        ArrayList<String> serverList = new ArrayList<String>();
+        for (int i = 0; i < transferList.size(); i++) {
+            Transfer transfer = transferList.get(i);
+            serverList.add(transfer.getSocket().getInetAddress().
+                    getHostAddress() + ":" +
+                    transfer.getSocket().getPort());
+        }
+        return serverList;
+    }
+
+    private Transfer initTransfer(ConnectionInfo ci, String db, String server)
+            throws IOException {
+        Socket socket = NetUtils.createSocket(server,
+                Constants.DEFAULT_TCP_PORT, ci.isSSL());
         Transfer trans = new Transfer(this);
         trans.setSocket(socket);
         trans.setSSL(ci.isSSL());
         trans.init();
         trans.writeInt(Constants.TCP_PROTOCOL_VERSION_6);
-        trans.writeInt(Constants.TCP_PROTOCOL_VERSION_13);
+        trans.writeInt(Constants.TCP_PROTOCOL_VERSION_15);
         trans.writeString(db);
         trans.writeString(ci.getOriginalURL());
         trans.writeString(ci.getUserName());
@@ -121,7 +134,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             done(trans);
             clientVersion = trans.readInt();
             trans.setVersion(clientVersion);
-            if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_13) {
+            if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_14) {
                 if (ci.getFileEncryptionKey() != null) {
                     trans.writeBytes(ci.getFileEncryptionKey());
                 }
@@ -129,12 +142,16 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             trans.writeInt(SessionRemote.SESSION_SET_ID);
             trans.writeString(sessionId);
             done(trans);
+            if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_15) {
+                autoCommit = trans.readBoolean();
+            } else {
+                autoCommit = true;
+            }
+            return trans;
         } catch (DbException e) {
             trans.close();
             throw e;
         }
-        autoCommit = true;
-        return trans;
     }
 
     @Override
@@ -146,7 +163,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             Transfer transfer = transferList.get(i);
             try {
                 traceOperation("SESSION_HAS_PENDING_TRANSACTION", 0);
-                transfer.writeInt(SessionRemote.SESSION_HAS_PENDING_TRANSACTION);
+                transfer.writeInt(
+                        SessionRemote.SESSION_HAS_PENDING_TRANSACTION);
                 done(transfer);
                 return transfer.readInt() != 0;
             } catch (IOException e) {
@@ -190,7 +208,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     private void checkClusterDisableAutoCommit(String serverList) {
         if (autoCommit && transferList.size() > 1) {
             setAutoCommitSend(false);
-            CommandInterface c = prepareCommand("SET CLUSTER " + serverList, Integer.MAX_VALUE);
+            CommandInterface c = prepareCommand(
+                    "SET CLUSTER " + serverList, Integer.MAX_VALUE);
             // this will set autoCommit to false
             c.executeUpdate();
             // so we need to switch it on
@@ -232,7 +251,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 Transfer transfer = transferList.get(i);
                 try {
                     traceOperation("SESSION_SET_AUTOCOMMIT", autoCommit ? 1 : 0);
-                    transfer.writeInt(SessionRemote.SESSION_SET_AUTOCOMMIT).writeBoolean(autoCommit);
+                    transfer.writeInt(SessionRemote.SESSION_SET_AUTOCOMMIT).
+                            writeBoolean(autoCommit);
                     done(transfer);
                 } catch (IOException e) {
                     removeServer(e, i--, ++count);
@@ -241,12 +261,14 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         } else {
             if (autoCommit) {
                 if (autoCommitTrue == null) {
-                    autoCommitTrue = prepareCommand("SET AUTOCOMMIT TRUE", Integer.MAX_VALUE);
+                    autoCommitTrue = prepareCommand(
+                            "SET AUTOCOMMIT TRUE", Integer.MAX_VALUE);
                 }
                 autoCommitTrue.executeUpdate();
             } else {
                 if (autoCommitFalse == null) {
-                    autoCommitFalse = prepareCommand("SET AUTOCOMMIT FALSE", Integer.MAX_VALUE);
+                    autoCommitFalse = prepareCommand(
+                            "SET AUTOCOMMIT FALSE", Integer.MAX_VALUE);
                 }
                 autoCommitFalse.executeUpdate();
             }
@@ -314,7 +336,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         //下面的代码是用于嵌入式或内存数据库的场景
         // create the session using reflection,
         // so that the JDBC layer can be compiled without it
-        boolean autoServerMode = Boolean.parseBoolean(ci.getProperty("AUTO_SERVER", "false"));
+        boolean autoServerMode = Boolean.parseBoolean(
+                ci.getProperty("AUTO_SERVER", "false"));
         ConnectionInfo backup = null;
         try {
             if (autoServerMode) {
@@ -325,14 +348,16 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 ci.setProperty("OPEN_NEW", "true");
             }
             if (sessionFactory == null) {
-                sessionFactory = (SessionFactory) Class.forName("org.h2.engine.Engine").newInstance();
+                sessionFactory = (SessionFactory) Class.forName(
+                        "org.h2.engine.Engine").getMethod("getInstance").invoke(null);
             }
             return sessionFactory.createSession(ci);
         } catch (Exception re) {
             DbException e = DbException.convert(re);
             if (e.getErrorCode() == ErrorCode.DATABASE_ALREADY_OPEN_1) {
                 if (autoServerMode) {
-                    String serverKey = ((JdbcSQLException) e.getSQLException()).getSQL();
+                    String serverKey = ((JdbcSQLException) e.getSQLException()).
+                            getSQL();
                     if (serverKey != null) {
                         backup.setServerKey(serverKey);
                         // OPEN_NEW must be removed now, otherwise
@@ -360,6 +385,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         databaseName = name.substring(idx + 1); //是"mydb"
         String server = name.substring(0, idx); //是"localhost:9092"
         traceSystem = new TraceSystem(null);
+<<<<<<< HEAD
         //不是跟踪级别文件，是文件跟踪级别
         //跟下面的traceLevelSystemOut对应(SystemOut跟踪级别)
         //两者都是一个数字，如:
@@ -376,13 +402,27 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 if (level > 0 && level < 4) {
                 	//如: E:/H2/eclipse-workspace-client/trace.db/mydb.1647ee04bd9fa205.0.trace.db
                     String file = FileUtils.createTempFile(prefix, Constants.SUFFIX_TRACE_FILE, false, false);
+=======
+        String traceLevelFile = ci.getProperty(
+                SetTypes.TRACE_LEVEL_FILE, null);
+        if (traceLevelFile != null) {
+            int level = Integer.parseInt(traceLevelFile);
+            String prefix = getFilePrefix(
+                    SysProperties.CLIENT_TRACE_DIRECTORY);
+            try {
+                traceSystem.setLevelFile(level);
+                if (level > 0 && level < 4) {
+                    String file = FileUtils.createTempFile(prefix,
+                            Constants.SUFFIX_TRACE_FILE, false, false);
+>>>>>>> remotes/git-svn
                     traceSystem.setFileName(file);
                 }
             } catch (IOException e) {
                 throw DbException.convertIOException(e, prefix);
             }
         }
-        String traceLevelSystemOut = ci.getProperty(SetTypes.TRACE_LEVEL_SYSTEM_OUT, null);
+        String traceLevelSystemOut = ci.getProperty(
+                SetTypes.TRACE_LEVEL_SYSTEM_OUT, null);
         if (traceLevelSystemOut != null) {
             int level = Integer.parseInt(traceLevelSystemOut);
             traceSystem.setLevelSystemOut(level);
@@ -393,11 +433,14 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             serverList = StringUtils.quoteStringSQL(server);
             ci.setProperty("CLUSTER", Constants.CLUSTERING_ENABLED);
         }
-        autoReconnect = Boolean.parseBoolean(ci.getProperty("AUTO_RECONNECT", "false"));
+        autoReconnect = Boolean.parseBoolean(ci.getProperty(
+                "AUTO_RECONNECT", "false"));
         // AUTO_SERVER implies AUTO_RECONNECT
-        boolean autoServer = Boolean.parseBoolean(ci.getProperty("AUTO_SERVER", "false"));
+        boolean autoServer = Boolean.parseBoolean(ci.getProperty(
+                "AUTO_SERVER", "false"));
         if (autoServer && serverList != null) {
-            throw DbException.getUnsupportedException("autoServer && serverList != null");
+            throw DbException
+                    .getUnsupportedException("autoServer && serverList != null");
         }
         autoReconnect |= autoServer;
         if (autoReconnect) {
@@ -405,9 +448,14 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             if (className != null) {
                 className = StringUtils.trim(className, true, true, "'");
                 try {
+<<<<<<< HEAD
                 	//在server端还会重新new出实例
                 	//这里的实例只是在client端用
                     eventListener = (DatabaseEventListener) Utils.loadUserClass(className).newInstance();
+=======
+                    eventListener = (DatabaseEventListener) JdbcUtils
+                            .loadUserClass(className).newInstance();
+>>>>>>> remotes/git-svn
                 } catch (Throwable e) {
                     throw DbException.convert(e);
                 }
@@ -531,8 +579,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
         recreateSessionState();
         if (eventListener != null) {
-            eventListener.setProgress(DatabaseEventListener.STATE_RECONNECTED, databaseName, count,
-                    SysProperties.MAX_RECONNECT);
+            eventListener.setProgress(DatabaseEventListener.STATE_RECONNECTED,
+                    databaseName, count, SysProperties.MAX_RECONNECT);
         }
         return true;
     }
@@ -612,7 +660,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             String sql = transfer.readString();
             int errorCode = transfer.readInt();
             String stackTrace = transfer.readString();
-            JdbcSQLException s = new JdbcSQLException(message, sql, sqlstate, errorCode, null, stackTrace);
+            JdbcSQLException s = new JdbcSQLException(message, sql, sqlstate,
+                    errorCode, null, stackTrace);
             if (errorCode == ErrorCode.CONNECTION_BROKEN_1) {
                 // allow re-connect
                 IOException e = new IOException(s.toString(), s);
@@ -626,7 +675,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         } else if (status == STATUS_OK) {
             // ok
         } else {
-            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "unexpected status " + status);
+            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1,
+                    "unexpected status " + status);
         }
     }
 
@@ -753,7 +803,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     }
 
     @Override
-    public synchronized int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length) {
+    public synchronized int readLob(long lobId, byte[] hmac, long offset,
+            byte[] buff, int off, int length) {
         for (int i = 0, count = 0; i < transferList.size(); i++) {
             Transfer transfer = transferList.get(i);
             try {
@@ -798,7 +849,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 serializerFQN = serializerFQN.trim();
                 if (!serializerFQN.isEmpty() && !serializerFQN.equals("null")) {
                     try {
-                        javaObjectSerializer = (JavaObjectSerializer) Utils.loadUserClass(serializerFQN).newInstance();
+                        javaObjectSerializer = (JavaObjectSerializer) JdbcUtils
+                                .loadUserClass(serializerFQN).newInstance();
                     } catch (Exception e) {
                         throw DbException.convert(e);
                     }

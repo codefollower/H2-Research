@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
@@ -39,9 +38,11 @@ public class RangeTable extends Table {
      * @param max the end expression
      * @param noColumns whether this table has no columns
      */
-    public RangeTable(Schema schema, Expression min, Expression max, boolean noColumns) {
+    public RangeTable(Schema schema, Expression min, Expression max,
+            boolean noColumns) {
         super(schema, 0, NAME, true, true);
-        Column[] cols = noColumns ? new Column[0] : new Column[] { new Column("X", Value.LONG) };
+        Column[] cols = noColumns ? new Column[0] : new Column[] { new Column(
+                "X", Value.LONG) };
         this.min = min;
         this.max = max;
         setColumns(cols);
@@ -63,7 +64,7 @@ public class RangeTable extends Table {
     }
 
     @Override
-    public void lock(Session session, boolean exclusive, boolean force) {
+    public void lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
         // nothing to do
     }
 

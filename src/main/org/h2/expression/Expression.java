@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
@@ -62,8 +61,8 @@ public abstract class Expression {
     public abstract Expression optimize(Session session);
 
     /**
-     * Tell the expression columns whether the table filter can return values now.
-     * This is used when optimizing the query.
+     * Tell the expression columns whether the table filter can return values
+     * now. This is used when optimizing the query.
      *
      * @param tableFilter the table filter
      * @param value true if the table filter can return value
@@ -102,12 +101,11 @@ public abstract class Expression {
     public abstract String getSQL();
 
     /**
-     * Update an aggregate value.
-     * This method is called at statement execution time.
-     * It is usually called once for each row, but if the expression is used multiple
-     * times (for example in the column list, and as part of the HAVING expression)
-     * it is called multiple times - the row counter needs to be used to make sure
-     * the internal state is only updated once.
+     * Update an aggregate value. This method is called at statement execution
+     * time. It is usually called once for each row, but if the expression is
+     * used multiple times (for example in the column list, and as part of the
+     * HAVING expression) it is called multiple times - the row counter needs to
+     * be used to make sure the internal state is only updated once.
      *
      * @param session the session
      */
@@ -281,7 +279,8 @@ public abstract class Expression {
      * @param outerJoin if the expression is part of an outer join
      */
     public void addFilterConditions(TableFilter filter, boolean outerJoin) {
-        if (!addedToFilter && !outerJoin && isEverything(ExpressionVisitor.EVALUATABLE_VISITOR)) {
+        if (!addedToFilter && !outerJoin &&
+                isEverything(ExpressionVisitor.EVALUATABLE_VISITOR)) {
             filter.addFilterCondition(this, false);
             addedToFilter = true;
         }
@@ -319,7 +318,8 @@ public abstract class Expression {
         ExpressionColumn[] expr = new ExpressionColumn[list.length];
         for (int i = 0, len = list.length; i < len; i++) {
             Value v = list[i];
-            Column col = new Column("C" + (i + 1), v.getType(), v.getPrecision(), v.getScale(),
+            Column col = new Column("C" + (i + 1), v.getType(),
+                    v.getPrecision(), v.getScale(),
                     v.getDisplaySize());
             expr[i] = new ExpressionColumn(session.getDatabase(), col);
         }

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
@@ -55,8 +54,10 @@ public class Analyze extends DefineCommand {
      * @param sample the number of sample rows
      * @param manual whether the command was called by the user
      */
-    public static void analyzeTable(Session session, Table table, int sample, boolean manual) {
-        if (!(table.getTableType().equals(Table.TABLE)) || table.isHidden() || session == null) {
+    public static void analyzeTable(Session session, Table table, int sample,
+            boolean manual) {
+        if (!(table.getTableType().equals(Table.TABLE)) ||
+                table.isHidden() || session == null) {
             return;
         }
         if (!manual) {
@@ -113,7 +114,7 @@ public class Analyze extends DefineCommand {
             columns[j].setSelectivity(selectivity);
         }
         if (manual) {
-            db.update(session, table);
+            db.updateMeta(session, table);
         } else {
             Session sysSession = db.getSystemSession();
             if (sysSession != session) {
@@ -121,7 +122,7 @@ public class Analyze extends DefineCommand {
                 // (which is the case if we are within a trigger)
                 // then we can't update the statistics because
                 // that would unlock all locked objects
-                db.update(sysSession, table);
+                db.updateMeta(sysSession, table);
                 sysSession.commit(true);
             }
         }

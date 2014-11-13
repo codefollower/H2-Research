@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -57,22 +56,29 @@ public class Right extends DbObjectBase {
     //也就是将grantedRole角色 授予grantee(可以是系统预定义的public角色，也可以是自定义的角色，还可以是用户)
     //对应GRANT ROLE语句
     public Right(Database db, int id, RightOwner grantee, Role grantedRole) {
-        initDbObjectBase(db, id, "RIGHT_"+id, Trace.USER);
+        initDbObjectBase(db, id, "RIGHT_" + id, Trace.USER);
         this.grantee = grantee;
         this.grantedRole = grantedRole;
     }
+<<<<<<< HEAD
     
     //将权限 授予RightOwner
     //也就是将grantedRightOnTable表的grantedRight权限 授grantee
     //对应GRANT RIGHT语句
     public Right(Database db, int id, RightOwner grantee, int grantedRight, Table grantedRightOnTable) {
+=======
+
+    public Right(Database db, int id, RightOwner grantee, int grantedRight,
+            Table grantedRightOnTable) {
+>>>>>>> remotes/git-svn
         initDbObjectBase(db, id, "" + id, Trace.USER);
         this.grantee = grantee;
         this.grantedRight = grantedRight;
         this.grantedTable = grantedRightOnTable;
     }
 
-    private static boolean appendRight(StringBuilder buff, int right, int mask, String name, boolean comma) {
+    private static boolean appendRight(StringBuilder buff, int right, int mask,
+            String name, boolean comma) {
         if ((right & mask) != 0) {
             if (comma) {
                 buff.append(", ");
@@ -89,10 +95,11 @@ public class Right extends DbObjectBase {
             buff.append("ALL");
         } else {
             boolean comma = false;
-            comma = appendRight(buff, grantedRight, SELECT,           "SELECT", comma);
-            comma = appendRight(buff, grantedRight, DELETE,           "DELETE", comma);
-            comma = appendRight(buff, grantedRight, INSERT,           "INSERT", comma);
-            comma = appendRight(buff, grantedRight, ALTER_ANY_SCHEMA, "ALTER ANY SCHEMA", comma);
+            comma = appendRight(buff, grantedRight, SELECT, "SELECT", comma);
+            comma = appendRight(buff, grantedRight, DELETE, "DELETE", comma);
+            comma = appendRight(buff, grantedRight, INSERT, "INSERT", comma);
+            comma = appendRight(buff, grantedRight, ALTER_ANY_SCHEMA,
+                    "ALTER ANY SCHEMA", comma);
             appendRight(buff, grantedRight, UPDATE, "UPDATE", comma);
         }
         return buff.toString();

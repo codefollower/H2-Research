@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server;
@@ -15,14 +14,15 @@ import java.io.StringWriter;
 import java.net.Socket;
 import java.sql.SQLException;
 import java.util.ArrayList;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.Command;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.engine.ConnectionInfo;
 import org.h2.engine.Constants;
 import org.h2.engine.Engine;
 import org.h2.engine.Session;
 import org.h2.engine.SessionRemote;
+import org.h2.engine.SysProperties;
 import org.h2.expression.Parameter;
 import org.h2.expression.ParameterInterface;
 import org.h2.expression.ParameterRemote;
@@ -50,9 +50,14 @@ public class TcpServerThread implements Runnable {
     private boolean stop;
     private Thread thread;
     private Command commit;
+<<<<<<< HEAD
     private final SmallMap cache = new SmallMap(SysProperties.SERVER_CACHED_OBJECTS); //默认缓存64个对象
+=======
+    private final SmallMap cache =
+            new SmallMap(SysProperties.SERVER_CACHED_OBJECTS);
+>>>>>>> remotes/git-svn
     private final SmallLRUCache<Long, CachedInputStream> lobs =
-        SmallLRUCache.newInstance(Math.max(
+            SmallLRUCache.newInstance(Math.max(
                 SysProperties.SERVER_CACHED_OBJECTS,
                 SysProperties.SERVER_RESULT_SET_FETCH_SIZE * 5));
     private final int threadId;
@@ -84,13 +89,15 @@ public class TcpServerThread implements Runnable {
                 }
                 int minClientVersion = transfer.readInt();
                 if (minClientVersion < Constants.TCP_PROTOCOL_VERSION_6) {
-                    throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2, "" + clientVersion, "" + Constants.TCP_PROTOCOL_VERSION_6);
-                } else if (minClientVersion > Constants.TCP_PROTOCOL_VERSION_13) {
-                    throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2, "" + clientVersion, "" + Constants.TCP_PROTOCOL_VERSION_13);
+                    throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2,
+                            "" + clientVersion, "" + Constants.TCP_PROTOCOL_VERSION_6);
+                } else if (minClientVersion > Constants.TCP_PROTOCOL_VERSION_15) {
+                    throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2,
+                            "" + clientVersion, "" + Constants.TCP_PROTOCOL_VERSION_15);
                 }
                 int maxClientVersion = transfer.readInt();
-                if (maxClientVersion >= Constants.TCP_PROTOCOL_VERSION_13) {
-                    clientVersion = Constants.TCP_PROTOCOL_VERSION_13;
+                if (maxClientVersion >= Constants.TCP_PROTOCOL_VERSION_15) {
+                    clientVersion = Constants.TCP_PROTOCOL_VERSION_15;
                 } else {
                     clientVersion = minClientVersion;
                 }
@@ -239,8 +246,9 @@ public class TcpServerThread implements Runnable {
                 message = e.getMessage();
                 sql = null;
             }
-            transfer.writeInt(SessionRemote.STATUS_ERROR).writeString(e.getSQLState()).writeString(message)
-                    .writeString(sql).writeInt(e.getErrorCode()).writeString(trace).flush();
+            transfer.writeInt(SessionRemote.STATUS_ERROR).
+                    writeString(e.getSQLState()).writeString(message).
+                    writeString(sql).writeInt(e.getErrorCode()).writeString(trace).flush();
         } catch (Exception e2) {
             if (!transfer.isClosed()) {
                 server.traceError(e2);
@@ -279,8 +287,8 @@ public class TcpServerThread implements Runnable {
             //在Parser中解析sql时会调用org.h2.command.Prepared.setParameterList(ArrayList<Parameter>)
             //会保证不为null
             ArrayList<? extends ParameterInterface> params = command.getParameters();
-            transfer.writeInt(getState(old)).writeBoolean(isQuery).writeBoolean(readonly)
-                    .writeInt(params.size());
+            transfer.writeInt(getState(old)).writeBoolean(isQuery).
+                    writeBoolean(readonly).writeInt(params.size());
             if (operation == SessionRemote.SESSION_PREPARE_READ_PARAMS) {
                 for (ParameterInterface p : params) {
                     ParameterRemote.writeMetaData(transfer, p);
@@ -314,7 +322,8 @@ public class TcpServerThread implements Runnable {
             ResultInterface result = command.getMetaData();
             cache.addObject(objectId, result);
             int columnCount = result.getVisibleColumnCount();
-            transfer.writeInt(SessionRemote.STATUS_OK).writeInt(columnCount).writeInt(0);
+            transfer.writeInt(SessionRemote.STATUS_OK).
+                    writeInt(columnCount).writeInt(0);
             for (int i = 0; i < columnCount; i++) {
                 ResultColumn.writeColumn(transfer, result, i);
             }
@@ -365,7 +374,8 @@ public class TcpServerThread implements Runnable {
             } else {
                 status = getState(old);
             }
-            transfer.writeInt(status).writeInt(updateCount).writeBoolean(session.getAutoCommit());
+            transfer.writeInt(status).writeInt(updateCount).
+                    writeBoolean(session.getAutoCommit());
             transfer.flush();
             break;
         }
@@ -414,7 +424,9 @@ public class TcpServerThread implements Runnable {
         }
         case SessionRemote.SESSION_SET_ID: {
             sessionId = transfer.readString();
-            transfer.writeInt(SessionRemote.STATUS_OK).flush();
+            transfer.writeInt(SessionRemote.STATUS_OK);
+            transfer.writeBoolean(session.getAutoCommit());
+            transfer.flush();
             break;
         }
         case SessionRemote.SESSION_SET_AUTOCOMMIT: {
@@ -461,7 +473,9 @@ public class TcpServerThread implements Runnable {
             }
             if (in.getPos() != offset) {
                 LobStorageInterface lobStorage = session.getDataHandler().getLobStorage();
-                InputStream lobIn = lobStorage.getInputStream(lobId, hmac, -1);
+                // only the lob id is used
+                ValueLobDb lob = ValueLobDb.create(Value.BLOB, null, -1, lobId, hmac, -1);
+                InputStream lobIn = lobStorage.getInputStream(lob, hmac, -1);
                 in = new CachedInputStream(lobIn);
                 lobs.put(lobId, in);
                 lobIn.skip(offset);
@@ -469,7 +483,7 @@ public class TcpServerThread implements Runnable {
             // limit the buffer size
             length = Math.min(16 * Constants.IO_BUFFER_SIZE, length);
             byte[] buff = new byte[length];
-            length = IOUtils.readFully(in, buff, 0, length);
+            length = IOUtils.readFully(in, buff, length);
             transfer.writeInt(SessionRemote.STATUS_OK);
             transfer.writeInt(length);
             transfer.writeBytes(buff, 0, length);
@@ -545,7 +559,8 @@ public class TcpServerThread implements Runnable {
      */
     static class CachedInputStream extends FilterInputStream {
 
-        private static final ByteArrayInputStream DUMMY = new ByteArrayInputStream(new byte[0]);
+        private static final ByteArrayInputStream DUMMY =
+                new ByteArrayInputStream(new byte[0]);
         private long pos;
 
         CachedInputStream(InputStream in) {

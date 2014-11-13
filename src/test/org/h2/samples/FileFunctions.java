@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -48,7 +47,8 @@ public class FileFunctions {
     }
 
     /**
-     * Read a String from a file. The default encoding for this platform is used.
+     * Read a String from a file. The default encoding for this platform is
+     * used.
      *
      * @param fileName the file name
      * @return the text
@@ -66,7 +66,8 @@ public class FileFunctions {
      * @param encoding the encoding
      * @return the text
      */
-    public static String readTextFileWithEncoding(String fileName, String encoding) throws IOException {
+    public static String readTextFileWithEncoding(String fileName,
+            String encoding) throws IOException {
         byte[] buff = readFile(fileName);
         String s = new String(buff, encoding);
         return s;

@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.table.Column;
@@ -36,7 +35,8 @@ public class Parameter extends Expression implements ParameterInterface {
 
     @Override
     public void setValue(Value v, boolean closeOld) {
-        // don't need to close the old value as temporary files are anyway removed
+        // don't need to close the old value as temporary files are anyway
+        // removed
         this.value = v;
     }
 
@@ -145,7 +145,8 @@ public class Parameter extends Expression implements ParameterInterface {
         case ExpressionVisitor.EVALUATABLE:
             // the parameter _will_be_ evaluatable at execute time
         case ExpressionVisitor.SET_MAX_DATA_MODIFICATION_ID:
-            // it is checked independently if the value is the same as the last time
+            // it is checked independently if the value is the same as the last
+            // time
         case ExpressionVisitor.NOT_FROM_RESOLVER:
         case ExpressionVisitor.QUERY_COMPARABLE:
         case ExpressionVisitor.GET_DEPENDENCIES:
@@ -168,7 +169,8 @@ public class Parameter extends Expression implements ParameterInterface {
 
     @Override
     public Expression getNotIfPossible(Session session) {
-        return new Comparison(session, Comparison.EQUAL, this, ValueExpression.get(ValueBoolean.get(false)));
+        return new Comparison(session, Comparison.EQUAL, this,
+                ValueExpression.get(ValueBoolean.get(false)));
     }
 
     public void setColumn(Column column) {

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.bnf;
@@ -22,9 +21,11 @@ public class RuleElement implements Rule {
 
     public RuleElement(String name, String topic) {
         this.name = name;
-        this.keyword = name.length() == 1 || name.equals(StringUtils.toUpperEnglish(name));
+        this.keyword = name.length() == 1 ||
+                name.equals(StringUtils.toUpperEnglish(name));
         topic = StringUtils.toLowerEnglish(topic);
-        this.type = topic.startsWith("function") ? Sentence.FUNCTION : Sentence.KEYWORD;
+        this.type = topic.startsWith("function") ?
+                Sentence.FUNCTION : Sentence.KEYWORD;
     }
 
     @Override
@@ -61,7 +62,7 @@ public class RuleElement implements Rule {
             String up = sentence.getQueryUpper().trim();
             if (up.startsWith(name)) {
                 query = query.substring(name.length());
-                while (!"_".equals(name) && query.length() > 0 && Character.isSpaceChar(query.charAt(0))) {
+                while (!"_".equals(name) && Bnf.startWithSpace(query)) {
                     query = query.substring(1);
                 }
                 sentence.setQuery(query);

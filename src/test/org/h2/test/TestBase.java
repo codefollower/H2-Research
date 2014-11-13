@@ -1,11 +1,11 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -47,12 +47,12 @@ public abstract class TestBase {
     /**
      * The base directory.
      */
-    public static final String BASE_TEST_DIR = "data";
+    public static final String BASE_TEST_DIR = "./data";
 
     /**
      * The temporary directory.
      */
-    protected static final String TEMP_DIR = "data/temp";
+    protected static final String TEMP_DIR = "./data/temp";
 
     /**
      * An id used to create unique file names.
@@ -137,6 +137,9 @@ public abstract class TestBase {
      * @param conf the test configuration
      */
     public void runTest(TestAll conf) {
+        if (conf.abbaLockingDetector != null) {
+            conf.abbaLockingDetector.reset();
+        }
         try {
             init(conf);
             start = System.currentTimeMillis();
@@ -171,7 +174,8 @@ public abstract class TestBase {
      * @return the connection
      */
     public Connection getConnection(String name) throws SQLException {
-        return getConnectionInternal(getURL(name, true), getUser(), getPassword());
+        return getConnectionInternal(getURL(name, true), getUser(),
+                getPassword());
     }
 
     /**
@@ -182,7 +186,8 @@ public abstract class TestBase {
      * @param password the password to use
      * @return the connection
      */
-    public Connection getConnection(String name, String user, String password) throws SQLException {
+    public Connection getConnection(String name, String user, String password)
+            throws SQLException {
         return getConnectionInternal(getURL(name, false), user, password);
     }
 
@@ -194,7 +199,8 @@ public abstract class TestBase {
      * @return the login password
      */
     protected String getPassword(String userPassword) {
-        return config == null || config.cipher == null ? userPassword : getFilePassword() + " " + userPassword;
+        return config == null || config.cipher == null ?
+                userPassword : getFilePassword() + " " + userPassword;
     }
 
     /**
@@ -253,6 +259,11 @@ public abstract class TestBase {
             }
             return name;
         }
+        if (admin) {
+            ; // TODO testing
+            // name = addOption(name, "RETENTION_TIME", "10");
+            // name = addOption(name, "WRITE_DELAY", "10");
+        }
         if (config.memory) {
             name = "mem:" + name;
         } else {
@@ -269,7 +280,8 @@ public abstract class TestBase {
                 url = "tcp://localhost:9192/" + name;
             }
         } else if (config.googleAppEngine) {
-            url = "gae://" + name + ";FILE_LOCK=NO;AUTO_SERVER=FALSE;DB_CLOSE_ON_EXIT=FALSE";
+            url = "gae://" + name +
+                    ";FILE_LOCK=NO;AUTO_SERVER=FALSE;DB_CLOSE_ON_EXIT=FALSE";
         } else {
             url = name;
         }
@@ -332,7 +344,8 @@ public abstract class TestBase {
         return url;
     }
 
-    private static Connection getConnectionInternal(String url, String user, String password) throws SQLException {
+    private static Connection getConnectionInternal(String url, String user,
+            String password) throws SQLException {
         org.h2.Driver.load();
         // url += ";DEFAULT_TABLE_TYPE=1";
         // Class.forName("org.hsqldb.jdbcDriver");
@@ -458,7 +471,8 @@ public abstract class TestBase {
             e = new Exception(s);
         }
         System.out.flush();
-        System.err.println("ERROR: " + s + " " + e.toString() + " ------------------------------");
+        System.err.println("ERROR: " + s + " " + e.toString()
+                + " ------------------------------");
         e.printStackTrace();
         try {
             TraceSystem ts = new TraceSystem(null);
@@ -498,7 +512,8 @@ public abstract class TestBase {
      */
     static void printlnWithTime(long millis, String s) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
-        s = dateFormat.format(new java.util.Date()) + " " + formatTime(millis) + " " + s;
+        s = dateFormat.format(new java.util.Date()) + " " +
+                formatTime(millis) + " " + s;
         System.out.println(s);
     }
 
@@ -519,8 +534,9 @@ public abstract class TestBase {
      * @return the formatted time
      */
     static String formatTime(long millis) {
-        String s = new java.sql.Time(java.sql.Time.valueOf("0:0:0").getTime() + millis).toString()
-        + "." + ("" + (1000 + (millis % 1000))).substring(1);
+        String s = new java.sql.Time(
+                java.sql.Time.valueOf("0:0:0").getTime() + millis).toString() +
+                "." + ("" + (1000 + (millis % 1000))).substring(1);
         if (s.startsWith("00:")) {
             s = s.substring(3);
         }
@@ -600,7 +616,8 @@ public abstract class TestBase {
         assertEquals(expected.length, actual.length);
         for (int i = 0; i < expected.length; i++) {
             if (expected[i] != actual[i]) {
-                fail("[" + i + "]: expected: " + (int) expected[i] + " actual: " + (int) actual[i]);
+                fail("[" + i + "]: expected: " + (int) expected[i] +
+                        " actual: " + (int) actual[i]);
             }
         }
     }
@@ -653,7 +670,8 @@ public abstract class TestBase {
      * @param len the maximum length, or -1
      * @throws AssertionError if the values are not equal
      */
-    protected void assertEqualReaders(Reader expected, Reader actual, int len) throws IOException {
+    protected void assertEqualReaders(Reader expected, Reader actual, int len)
+            throws IOException {
         for (int i = 0; len < 0 || i < len; i++) {
             int ce = expected.read();
             int ca = actual.read();
@@ -674,7 +692,8 @@ public abstract class TestBase {
      * @param len the maximum length, or -1
      * @throws AssertionError if the values are not equal
      */
-    protected void assertEqualStreams(InputStream expected, InputStream actual, int len) throws IOException {
+    protected void assertEqualStreams(InputStream expected, InputStream actual,
+            int len) throws IOException {
         // this doesn't actually read anything - just tests reading 0 bytes
         actual.read(new byte[0]);
         expected.read(new byte[0]);
@@ -729,7 +748,8 @@ public abstract class TestBase {
             if (bl > 4000) {
                 actual = actual.substring(0, 4000);
             }
-            fail("Expected: " + expected + " (" + al + ") actual: " + actual + " (" + bl + ") " + message);
+            fail("Expected: " + expected + " (" + al + ") actual: " + actual
+                    + " (" + bl + ") " + message);
         }
     }
 
@@ -752,7 +772,8 @@ public abstract class TestBase {
      * @param rs1 the second result set
      * @throws AssertionError if the values are not equal
      */
-    protected void assertEquals(String message, ResultSet rs0, ResultSet rs1) throws SQLException {
+    protected void assertEquals(String message, ResultSet rs0, ResultSet rs1)
+            throws SQLException {
         ResultSetMetaData meta = rs0.getMetaData();
         int columns = meta.getColumnCount();
         assertEquals(columns, rs1.getMetaData().getColumnCount());
@@ -797,8 +818,9 @@ public abstract class TestBase {
      * Check that a text starts with the expected characters..
      *
      * @param text the text
-     * @param  expectedStart the expected prefix
-     * @throws AssertionError if the text does not start with the expected characters
+     * @param expectedStart the expected prefix
+     * @throws AssertionError if the text does not start with the expected
+     *             characters
      */
     protected void assertStartsWith(String text, String expectedStart) {
         if (!text.startsWith(expectedStart)) {
@@ -931,7 +953,8 @@ public abstract class TestBase {
      * @param rs the result set
      * @throws AssertionError if a different number of rows have been found
      */
-    protected void assertResultRowCount(int expected, ResultSet rs) throws SQLException {
+    protected void assertResultRowCount(int expected, ResultSet rs)
+            throws SQLException {
         int i = 0;
         while (rs.next()) {
             i++;
@@ -947,7 +970,8 @@ public abstract class TestBase {
      * @param expected the expected result value
      * @throws AssertionError if a different result value was returned
      */
-    protected void assertSingleValue(Statement stat, String sql, int expected) throws SQLException {
+    protected void assertSingleValue(Statement stat, String sql, int expected)
+            throws SQLException {
         ResultSet rs = stat.executeQuery(sql);
         assertTrue(rs.next());
         assertEquals(expected, rs.getInt(1));
@@ -962,7 +986,8 @@ public abstract class TestBase {
      * @param sql the SQL statement to execute
      * @throws AssertionError if a different result value was returned
      */
-    protected void assertResult(String expected, Statement stat, String sql) throws SQLException {
+    protected void assertResult(String expected, Statement stat, String sql)
+            throws SQLException {
         ResultSet rs = stat.executeQuery(sql);
         if (rs.next()) {
             String actual = rs.getString(1);
@@ -979,7 +1004,8 @@ public abstract class TestBase {
      * @param stat the statement
      * @param sql the SQL statement to execute
      */
-    protected void assertThrows(String expectedErrorMessage, Statement stat, String sql) {
+    protected void assertThrows(String expectedErrorMessage, Statement stat,
+            String sql) {
         try {
             stat.executeQuery(sql);
             fail("Expected error: " + expectedErrorMessage);
@@ -998,8 +1024,9 @@ public abstract class TestBase {
      * @param precision the expected precisions
      * @param scale the expected scales
      */
-    protected void assertResultSetMeta(ResultSet rs, int columnCount, String[] labels, int[] datatypes, int[] precision,
-            int[] scale) throws SQLException {
+    protected void assertResultSetMeta(ResultSet rs, int columnCount,
+            String[] labels, int[] datatypes, int[] precision, int[] scale)
+            throws SQLException {
         ResultSetMetaData meta = rs.getMetaData();
         int cc = meta.getColumnCount();
         if (cc != columnCount) {
@@ -1068,7 +1095,8 @@ public abstract class TestBase {
      * @param data the expected data
      * @throws AssertionError if there is a mismatch
      */
-    protected void assertResultSetOrdered(ResultSet rs, String[][] data) throws SQLException {
+    protected void assertResultSetOrdered(ResultSet rs, String[][] data)
+            throws SQLException {
         assertResultSet(true, rs, data);
     }
 
@@ -1080,7 +1108,8 @@ public abstract class TestBase {
      * @param data the expected data
      * @throws AssertionError if there is a mismatch
      */
-    private void assertResultSet(boolean ordered, ResultSet rs, String[][] data) throws SQLException {
+    private void assertResultSet(boolean ordered, ResultSet rs, String[][] data)
+            throws SQLException {
         int len = rs.getMetaData().getColumnCount();
         int rows = data.length;
         if (rows == 0) {
@@ -1101,7 +1130,8 @@ public abstract class TestBase {
             if (ordered) {
                 String[] good = data[i];
                 if (!testRow(good, row, good.length)) {
-                    fail("testResultSet row not equal, got:\n" + formatRow(row) + "\n" + formatRow(good));
+                    fail("testResultSet row not equal, got:\n" + formatRow(row)
+                            + "\n" + formatRow(good));
                 }
             } else {
                 boolean found = false;
@@ -1119,7 +1149,8 @@ public abstract class TestBase {
         }
         if (rs.next()) {
             String[] row = getData(rs, len);
-            fail("testResultSet expected rowcount:" + rows + " got:>=" + (rows + 1) + " data:" + formatRow(row));
+            fail("testResultSet expected rowcount:" + rows + " got:>="
+                    + (rows + 1) + " data:" + formatRow(row));
         }
     }
 
@@ -1252,8 +1283,11 @@ public abstract class TestBase {
      * @param stat2 the connection to the second database
      * @throws AssertionError if the databases don't match
      */
-    protected void assertEqualDatabases(Statement stat1, Statement stat2) throws SQLException {
-        ResultSet rs = stat1.executeQuery("select value from information_schema.settings where name='ANALYZE_AUTO'");
+    protected void assertEqualDatabases(Statement stat1, Statement stat2)
+            throws SQLException {
+        ResultSet rs = stat1.executeQuery(
+                "select value from information_schema.settings " +
+                "where name='ANALYZE_AUTO'");
         int analyzeAuto = rs.next() ? rs.getInt(1) : 0;
         if (analyzeAuto > 0) {
             stat1.execute("analyze");
@@ -1355,10 +1389,12 @@ public abstract class TestBase {
      * @param obj the object to wrap
      * @return a proxy for the object
      */
-    protected <T> T assertThrows(final Class<?> expectedExceptionClass, final T obj) {
+    protected <T> T assertThrows(final Class<?> expectedExceptionClass,
+            final T obj) {
         return assertThrows(new ResultVerifier() {
             @Override
-            public boolean verify(Object returnValue, Throwable t, Method m, Object... args) {
+            public boolean verify(Object returnValue, Throwable t, Method m,
+                    Object... args) {
                 if (t == null) {
                     throw new AssertionError("Expected an exception of type " +
                             expectedExceptionClass.getSimpleName() +
@@ -1369,11 +1405,14 @@ public abstract class TestBase {
                 if (!expectedExceptionClass.isAssignableFrom(t.getClass())) {
                     AssertionError ae = new AssertionError(
                             "Expected an exception of type\n" +
-                            expectedExceptionClass.getSimpleName() +
-                            " to be thrown, but the method under test threw an exception of type\n" +
-                            t.getClass().getSimpleName() +
-                            " (see in the 'Caused by' for the exception that was thrown) " +
-                            " for " + ProxyCodeGenerator.formatMethodCall(m, args));
+                                    expectedExceptionClass.getSimpleName() +
+                                    " to be thrown, but the method under test " +
+                                    "threw an exception of type\n" +
+                                    t.getClass().getSimpleName() +
+                                    " (see in the 'Caused by' for the exception " +
+                                    "that was thrown) " +
+                                    " for " + ProxyCodeGenerator.
+                                    formatMethodCall(m, args));
                     ae.initCause(t);
                     throw ae;
                 }
@@ -1393,7 +1432,8 @@ public abstract class TestBase {
     protected <T> T assertThrows(final int expectedErrorCode, final T obj) {
         return assertThrows(new ResultVerifier() {
             @Override
-            public boolean verify(Object returnValue, Throwable t, Method m, Object... args) {
+            public boolean verify(Object returnValue, Throwable t, Method m,
+                    Object... args) {
                 int errorCode;
                 if (t instanceof DbException) {
                     errorCode = ((DbException) t).getErrorCode();
@@ -1404,7 +1444,8 @@ public abstract class TestBase {
                 }
                 if (errorCode != expectedErrorCode) {
                     AssertionError ae = new AssertionError(
-                            "Expected an SQLException or DbException with error code " + expectedErrorCode);
+                            "Expected an SQLException or DbException with error code "
+                                    + expectedErrorCode);
                     ae.initCause(t);
                     throw ae;
                 }
@@ -1433,7 +1474,8 @@ public abstract class TestBase {
                 }
             }
             @Override
-            public Object invoke(Object proxy, Method method, Object[] args) throws Exception {
+            public Object invoke(Object proxy, Method method, Object[] args)
+                    throws Exception {
                 try {
                     called = null;
                     Object ret = method.invoke(obj, args);
@@ -1468,7 +1510,8 @@ public abstract class TestBase {
         };
         if (!ProxyCodeGenerator.isGenerated(c)) {
             Class<?>[] interfaces = c.getInterfaces();
-            if (Modifier.isFinal(c.getModifiers()) || (interfaces.length > 0 && getClass() != c)) {
+            if (Modifier.isFinal(c.getModifiers())
+                    || (interfaces.length > 0 && getClass() != c)) {
                 // interface class proxies
                 if (interfaces.length == 0) {
                     throw new RuntimeException("Can not create a proxy for the class " +
@@ -1480,7 +1523,8 @@ public abstract class TestBase {
         }
         try {
             Class<?> pc = ProxyCodeGenerator.getClassProxy(c);
-            Constructor<?> cons = pc.getConstructor(new Class<?>[] { InvocationHandler.class });
+            Constructor<?> cons = pc
+                    .getConstructor(new Class<?>[] { InvocationHandler.class });
             return (T) cons.newInstance(new Object[] { ih });
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -1498,6 +1542,41 @@ public abstract class TestBase {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    /**
+     * Construct a stream of 20 KB that fails while reading with the provided
+     * exception.
+     *
+     * @param e the exception
+     * @return the stream
+     */
+    public static ByteArrayInputStream createFailingStream(final Exception e) {
+        return new ByteArrayInputStream(new byte[20 * 1024]) {
+            @Override
+            public int read(byte[] buffer, int off, int len) {
+                if (this.pos > 10 * 1024) {
+                    throwException(e);
+                }
+                return super.read(buffer, off, len);
+            }
+        };
+    }
+
+    /**
+     * Throw a checked exception, without having to declare the method as
+     * throwing a checked exception.
+     *
+     * @param e the exception to throw
+     */
+    public static void throwException(Throwable e) {
+        TestBase.<RuntimeException>throwThis(e);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> void throwThis(Throwable e) throws E {
+        throw (E) e;
     }
 
 }

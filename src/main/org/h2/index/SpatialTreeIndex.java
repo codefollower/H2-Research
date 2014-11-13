@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.index;
 
@@ -63,27 +63,33 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
             throw DbException.getUnsupportedException("not unique");
         }
         if (!persistent && !create) {
-            throw DbException.getUnsupportedException("Non persistent index called with create==false");
+            throw DbException.getUnsupportedException(
+                    "Non persistent index called with create==false");
         }
         if (columns.length > 1) {
-            throw DbException.getUnsupportedException("can only do one column");
+            throw DbException.getUnsupportedException(
+                    "can only do one column");
         }
         if ((columns[0].sortType & SortOrder.DESCENDING) != 0) {
-            throw DbException.getUnsupportedException("cannot do descending");
+            throw DbException.getUnsupportedException(
+                    "cannot do descending");
         }
         if ((columns[0].sortType & SortOrder.NULLS_FIRST) != 0) {
-            throw DbException.getUnsupportedException("cannot do nulls first");
+            throw DbException.getUnsupportedException(
+                    "cannot do nulls first");
         }
         if ((columns[0].sortType & SortOrder.NULLS_LAST) != 0) {
-            throw DbException.getUnsupportedException("cannot do nulls last");
+            throw DbException.getUnsupportedException(
+                    "cannot do nulls last");
         }
         initBaseIndex(table, id, indexName, columns, indexType);
         this.needRebuild = create;
         this.table = table;
         if (!database.isStarting()) {
             if (columns[0].column.getType() != Value.GEOMETRY) {
-                throw DbException.getUnsupportedException("spatial index on non-geometry column, "
-                        + columns[0].column.getCreateSQL());
+                throw DbException.getUnsupportedException(
+                        "spatial index on non-geometry column, " +
+                        columns[0].column.getCreateSQL());
             }
         }
         if (!persistent) {
@@ -93,7 +99,8 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
                     new MVRTreeMap.Builder<Long>());
         } else {
             if (id < 0) {
-                throw DbException.getUnsupportedException("Persistent index with id<0");
+                throw DbException.getUnsupportedException(
+                        "Persistent index with id<0");
             }
             MVTableEngine.init(session.getDatabase());
             store = session.getDatabase().getMvStore().getStore();
@@ -123,7 +130,7 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
 
     private SpatialKey getEnvelope(SearchRow row) {
         Value v = row.getValue(columnIds[0]);
-        Geometry g = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).getGeometry();
+        Geometry g = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).getGeometryNoCopy();
         Envelope env = g.getEnvelopeInternal();
         return new SpatialKey(row.getKey(),
                 (float) env.getMinX(), (float) env.getMaxX(),
@@ -159,14 +166,27 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
         if (intersection == null) {
             return find(filter.getSession());
         }
-        return new SpatialCursor(treeMap.findIntersectingKeys(getEnvelope(intersection)), table, filter.getSession());
+        return new SpatialCursor(
+                treeMap.findIntersectingKeys(getEnvelope(intersection)), table,
+                filter.getSession());
     }
 
     @Override
-    protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) {
+    protected long getCostRangeIndex(int[] masks, long rowCount,
+            TableFilter filter, SortOrder sortOrder) {
+        return getCostRangeIndex(masks, rowCount, columns);
+    }
+
+    /**
+     * Compute spatial index cost
+     * @param masks Search mask
+     * @param rowCount Table row count
+     * @param columns Table columns
+     * @return Index cost hint
+     */
+    public static long getCostRangeIndex(int[] masks, long rowCount, Column[] columns) {
         rowCount += Constants.COST_ROW_OFFSET;
         long cost = rowCount;
-        long rows = rowCount;
         if (masks == null) {
             return cost;
         }
@@ -174,15 +194,17 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
             int index = column.getColumnId();
             int mask = masks[index];
             if ((mask & IndexCondition.SPATIAL_INTERSECTS) != 0) {
-                cost = 3 + rows / 4;
+                cost = 3 + rowCount / 4;
             }
         }
-        return cost;
+        return 10 * cost;
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
-        return getCostRangeIndex(masks, table.getRowCountApproximation(), filter, sortOrder);
+    public double getCost(Session session, int[] masks, TableFilter filter,
+            SortOrder sortOrder) {
+        return getCostRangeIndex(masks, table.getRowCountApproximation(),
+                filter, sortOrder);
     }
 
     @Override
@@ -218,7 +240,8 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
             throw DbException.throwInternalError();
         }
         if (!first) {
-            throw DbException.throwInternalError("Spatial Index can only be fetch by ascending order");
+            throw DbException.throwInternalError(
+                    "Spatial Index can only be fetch by ascending order");
         }
         return find(session);
     }

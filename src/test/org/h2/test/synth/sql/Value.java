@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth.sql;
@@ -138,7 +137,8 @@ public class Value {
      * @param index the column index
      * @return the value
      */
-    static Value read(TestSynth config, ResultSet rs, int index) throws SQLException {
+    static Value read(TestSynth config, ResultSet rs, int index)
+            throws SQLException {
         ResultSetMetaData meta = rs.getMetaData();
         Object data;
         int type = meta.getColumnType(index);
@@ -205,7 +205,8 @@ public class Value {
      * @param mayBeNull if the value may be null or not
      * @return the value
      */
-    static Value getRandom(TestSynth config, int type, int precision, int scale, boolean mayBeNull) {
+    static Value getRandom(TestSynth config, int type, int precision,
+            int scale, boolean mayBeNull) {
         Object data;
         if (mayBeNull && config.random().getBoolean(20)) {
             return new Value(config, type, null);
@@ -268,7 +269,8 @@ public class Value {
         return data;
     }
 
-    private static BigDecimal randomDecimal(TestSynth config, int precision, int scale) {
+    private static BigDecimal randomDecimal(TestSynth config, int precision,
+            int scale) {
         int len = config.random().getLog(precision - scale) + scale;
         if (len == 0) {
             len++;

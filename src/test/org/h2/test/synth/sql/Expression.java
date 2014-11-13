@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth.sql;
@@ -68,7 +67,8 @@ public class Expression {
         return condition;
     }
 
-    private static Expression getRandomExpression(TestSynth config, Command command) {
+    private static Expression getRandomExpression(TestSynth config,
+            Command command) {
         Expression expression = new Expression(config, command);
         String alias = command.getRandomTableAlias();
         Column column = command.getTable(alias).getRandomConditionColumn();
@@ -93,7 +93,8 @@ public class Expression {
      * @param alias the alias name
      * @return the join condition
      */
-    static Expression getRandomJoinOn(TestSynth config, Command command, String alias) {
+    static Expression getRandomJoinOn(TestSynth config, Command command,
+            String alias) {
         Expression expression = new Expression(config, command);
         expression.createJoinComparison(alias);
         return expression;
@@ -270,9 +271,11 @@ public class Expression {
             // sql += ")";
         } else {
             if (column.getType() == Types.VARCHAR) {
-                oneOf(new String[] { "=", "=", "=", "<", ">", "<=", ">=", "<>", "LIKE", "NOT LIKE" });
+                oneOf(new String[] { "=", "=", "=", "<", ">",
+                        "<=", ">=", "<>", "LIKE", "NOT LIKE" });
             } else {
-                oneOf(new String[] { "=", "=", "=", "<", ">", "<=", ">=", "<>" });
+                oneOf(new String[] { "=", "=", "=", "<", ">",
+                        "<=", ">=", "<>" });
             }
             if (columnFirst) {
                 Value v = column.getRandomValue();

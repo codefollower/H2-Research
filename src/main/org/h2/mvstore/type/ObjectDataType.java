@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.type;
@@ -95,7 +94,8 @@ public class ObjectDataType implements DataType {
             Float.class, Double.class, BigDecimal.class, String.class,
             UUID.class, Date.class };
 
-    private static final HashMap<Class<?>, Integer> COMMON_CLASSES_MAP = New.hashMap();
+    private static final HashMap<Class<?>, Integer> COMMON_CLASSES_MAP = New
+            .hashMap();
 
     private AutoDetectDataType last = new StringType(this);
 
@@ -107,6 +107,20 @@ public class ObjectDataType implements DataType {
     @Override
     public int getMemory(Object obj) {
         return last.getMemory(obj);
+    }
+
+    @Override
+    public void read(ByteBuffer buff, Object[] obj, int len, boolean key) {
+        for (int i = 0; i < len; i++) {
+            obj[i] = read(buff);
+        }
+    }
+
+    @Override
+    public void write(WriteBuffer buff, Object[] obj, int len, boolean key) {
+        for (int i = 0; i < len; i++) {
+            write(buff, obj[i]);
+        }
     }
 
     @Override
@@ -149,8 +163,7 @@ public class ObjectDataType implements DataType {
         case TYPE_SERIALIZED_OBJECT:
             return new SerializedObjectType(this);
         }
-        throw DataUtils.newIllegalStateException(
-                DataUtils.ERROR_INTERNAL,
+        throw DataUtils.newIllegalStateException(DataUtils.ERROR_INTERNAL,
                 "Unsupported type {0}", typeId);
     }
 
@@ -161,7 +174,7 @@ public class ObjectDataType implements DataType {
         if (tag <= TYPE_SERIALIZED_OBJECT) {
             typeId = tag;
         } else {
-            switch(tag) {
+            switch (tag) {
             case TAG_BOOLEAN_TRUE:
                 typeId = TYPE_BOOLEAN;
                 break;
@@ -197,23 +210,26 @@ public class ObjectDataType implements DataType {
             default:
                 if (tag >= TAG_INTEGER_0_15 && tag <= TAG_INTEGER_0_15 + 15) {
                     typeId = TYPE_INT;
-                } else if (tag >= TAG_STRING_0_15 && tag <= TAG_STRING_0_15 + 15) {
+                } else if (tag >= TAG_STRING_0_15
+                        && tag <= TAG_STRING_0_15 + 15) {
                     typeId = TYPE_STRING;
                 } else if (tag >= TAG_LONG_0_7 && tag <= TAG_LONG_0_7 + 7) {
                     typeId = TYPE_LONG;
-                } else if (tag >= TAG_BYTE_ARRAY_0_15 && tag <= TAG_BYTE_ARRAY_0_15 + 15) {
+                } else if (tag >= TAG_BYTE_ARRAY_0_15
+                        && tag <= TAG_BYTE_ARRAY_0_15 + 15) {
                     typeId = TYPE_ARRAY;
                 } else {
                     throw DataUtils.newIllegalStateException(
-                            DataUtils.ERROR_FILE_CORRUPT,
-                            "Unknown tag {0}", tag);
+                            DataUtils.ERROR_FILE_CORRUPT, "Unknown tag {0}",
+                            tag);
                 }
             }
         }
-        if (typeId != last.typeId) {
-            last = newType(typeId);
+        AutoDetectDataType t = last;
+        if (typeId != t.typeId) {
+            last = t = newType(typeId);
         }
-        return last.read(buff, tag);
+        return t.read(buff, tag);
     }
 
     private static int getTypeId(Object obj) {
@@ -261,7 +277,7 @@ public class ObjectDataType implements DataType {
         int typeId = getTypeId(obj);
         AutoDetectDataType l = last;
         if (typeId != l.typeId) {
-            l = last = newType(typeId);
+            last = l = newType(typeId);
         }
         return l;
     }
@@ -388,7 +404,7 @@ public class ObjectDataType implements DataType {
     /**
      * The base class for auto-detect data types.
      */
-    abstract class AutoDetectDataType implements DataType {
+    abstract static class AutoDetectDataType implements DataType {
 
         protected final ObjectDataType base;
         protected final int typeId;
@@ -415,14 +431,29 @@ public class ObjectDataType implements DataType {
         }
 
         @Override
+        public void write(WriteBuffer buff, Object[] obj,
+                int len, boolean key) {
+            for (int i = 0; i < len; i++) {
+                write(buff, obj[i]);
+            }
+        }
+
+        @Override
         public void write(WriteBuffer buff, Object o) {
             getType(o).write(buff, o);
         }
 
         @Override
+        public void read(ByteBuffer buff, Object[] obj,
+                int len, boolean key) {
+            for (int i = 0; i < len; i++) {
+                obj[i] = read(buff);
+            }
+        }
+
+        @Override
         public final Object read(ByteBuffer buff) {
-            throw DataUtils.newIllegalStateException(
-                    DataUtils.ERROR_INTERNAL,
+            throw DataUtils.newIllegalStateException(DataUtils.ERROR_INTERNAL,
                     "Internal error");
         }
 
@@ -450,7 +481,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for the null value
      */
-    class NullType extends AutoDetectDataType {
+    static class NullType extends AutoDetectDataType {
 
         NullType(ObjectDataType base) {
             super(base, TYPE_NULL);
@@ -492,7 +523,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for boolean true and false.
      */
-    class BooleanType extends AutoDetectDataType {
+    static class BooleanType extends AutoDetectDataType {
 
         BooleanType(ObjectDataType base) {
             super(base, TYPE_BOOLEAN);
@@ -533,7 +564,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for byte objects.
      */
-    class ByteType extends AutoDetectDataType {
+    static class ByteType extends AutoDetectDataType {
 
         ByteType(ObjectDataType base) {
             super(base, TYPE_BYTE);
@@ -574,7 +605,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for character objects.
      */
-    class CharacterType extends AutoDetectDataType {
+    static class CharacterType extends AutoDetectDataType {
 
         CharacterType(ObjectDataType base) {
             super(base, TYPE_CHAR);
@@ -615,7 +646,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for short objects.
      */
-    class ShortType extends AutoDetectDataType {
+    static class ShortType extends AutoDetectDataType {
 
         ShortType(ObjectDataType base) {
             super(base, TYPE_SHORT);
@@ -656,7 +687,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for integer objects.
      */
-    class IntegerType extends AutoDetectDataType {
+    static class IntegerType extends AutoDetectDataType {
 
         IntegerType(ObjectDataType base) {
             super(base, TYPE_INT);
@@ -687,20 +718,16 @@ public class ObjectDataType implements DataType {
             if (x < 0) {
                 // -Integer.MIN_VALUE is smaller than 0
                 if (-x < 0 || -x > DataUtils.COMPRESSED_VAR_INT_MAX) {
-                    buff.put((byte) TAG_INTEGER_FIXED).
-                        putInt(x);
+                    buff.put((byte) TAG_INTEGER_FIXED).putInt(x);
                 } else {
-                    buff.put((byte) TAG_INTEGER_NEGATIVE).
-                        putVarInt(-x);
+                    buff.put((byte) TAG_INTEGER_NEGATIVE).putVarInt(-x);
                 }
             } else if (x <= 15) {
                 buff.put((byte) (TAG_INTEGER_0_15 + x));
             } else if (x <= DataUtils.COMPRESSED_VAR_INT_MAX) {
-                buff.put((byte) TYPE_INT).
-                    putVarInt(x);
+                buff.put((byte) TYPE_INT).putVarInt(x);
             } else {
-                buff.put((byte) TAG_INTEGER_FIXED).
-                    putInt(x);
+                buff.put((byte) TAG_INTEGER_FIXED).putInt(x);
             }
         }
 
@@ -722,7 +749,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for long objects.
      */
-    class LongType extends AutoDetectDataType {
+    static class LongType extends AutoDetectDataType {
 
         LongType(ObjectDataType base) {
             super(base, TYPE_LONG);
@@ -788,7 +815,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for float objects.
      */
-    class FloatType extends AutoDetectDataType {
+    static class FloatType extends AutoDetectDataType {
 
         FloatType(ObjectDataType base) {
             super(base, TYPE_FLOAT);
@@ -824,11 +851,9 @@ public class ObjectDataType implements DataType {
             } else {
                 int value = Integer.reverse(f);
                 if (value >= 0 && value <= DataUtils.COMPRESSED_VAR_INT_MAX) {
-                    buff.put((byte) TYPE_FLOAT).
-                        putVarInt(value);
+                    buff.put((byte) TYPE_FLOAT).putVarInt(value);
                 } else {
-                    buff.put((byte) TAG_FLOAT_FIXED).
-                        putFloat(x);
+                    buff.put((byte) TAG_FLOAT_FIXED).putFloat(x);
                 }
             }
         }
@@ -843,7 +868,8 @@ public class ObjectDataType implements DataType {
             case TAG_FLOAT_FIXED:
                 return buff.getFloat();
             }
-            return Float.intBitsToFloat(Integer.reverse(DataUtils.readVarInt(buff)));
+            return Float.intBitsToFloat(Integer.reverse(DataUtils
+                    .readVarInt(buff)));
         }
 
     }
@@ -851,7 +877,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for double objects.
      */
-    class DoubleType extends AutoDetectDataType {
+    static class DoubleType extends AutoDetectDataType {
 
         DoubleType(ObjectDataType base) {
             super(base, TYPE_DOUBLE);
@@ -883,7 +909,7 @@ public class ObjectDataType implements DataType {
             if (d == ObjectDataType.DOUBLE_ZERO_BITS) {
                 buff.put((byte) TAG_DOUBLE_0);
             } else if (d == ObjectDataType.DOUBLE_ONE_BITS) {
-                    buff.put((byte) TAG_DOUBLE_1);
+                buff.put((byte) TAG_DOUBLE_1);
             } else {
                 long value = Long.reverse(d);
                 if (value >= 0 && value <= DataUtils.COMPRESSED_VAR_LONG_MAX) {
@@ -906,7 +932,8 @@ public class ObjectDataType implements DataType {
             case TAG_DOUBLE_FIXED:
                 return buff.getDouble();
             }
-            return Double.longBitsToDouble(Long.reverse(DataUtils.readVarLong(buff)));
+            return Double.longBitsToDouble(Long.reverse(DataUtils
+                    .readVarLong(buff)));
         }
 
     }
@@ -914,7 +941,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for BigInteger objects.
      */
-    class BigIntegerType extends AutoDetectDataType {
+    static class BigIntegerType extends AutoDetectDataType {
 
         BigIntegerType(ObjectDataType base) {
             super(base, TYPE_BIG_INTEGER);
@@ -949,13 +976,12 @@ public class ObjectDataType implements DataType {
             } else {
                 int bits = x.bitLength();
                 if (bits <= 63) {
-                    buff.put((byte) TAG_BIG_INTEGER_SMALL).
-                        putVarLong(x.longValue());
+                    buff.put((byte) TAG_BIG_INTEGER_SMALL).putVarLong(
+                            x.longValue());
                 } else {
                     byte[] bytes = x.toByteArray();
-                    buff.put((byte) TYPE_BIG_INTEGER).
-                        putVarInt(bytes.length).
-                        put(bytes);
+                    buff.put((byte) TYPE_BIG_INTEGER).putVarInt(bytes.length)
+                            .put(bytes);
                 }
             }
         }
@@ -981,7 +1007,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for BigDecimal objects.
      */
-    class BigDecimalType extends AutoDetectDataType {
+    static class BigDecimalType extends AutoDetectDataType {
 
         BigDecimalType(ObjectDataType base) {
             super(base, TYPE_BIG_DECIMAL);
@@ -1021,16 +1047,14 @@ public class ObjectDataType implements DataType {
                     if (scale == 0) {
                         buff.put((byte) TAG_BIG_DECIMAL_SMALL);
                     } else {
-                        buff.put((byte) TAG_BIG_DECIMAL_SMALL_SCALED).
-                            putVarInt(scale);
+                        buff.put((byte) TAG_BIG_DECIMAL_SMALL_SCALED)
+                                .putVarInt(scale);
                     }
                     buff.putVarLong(b.longValue());
                 } else {
                     byte[] bytes = b.toByteArray();
-                    buff.put((byte) TYPE_BIG_DECIMAL).
-                        putVarInt(scale).
-                        putVarInt(bytes.length).
-                        put(bytes);
+                    buff.put((byte) TYPE_BIG_DECIMAL).putVarInt(scale)
+                            .putVarInt(bytes.length).put(bytes);
                 }
             }
         }
@@ -1061,7 +1085,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for string objects.
      */
-    class StringType extends AutoDetectDataType {
+    static class StringType extends AutoDetectDataType {
 
         StringType(ObjectDataType base) {
             super(base, TYPE_STRING);
@@ -1094,8 +1118,7 @@ public class ObjectDataType implements DataType {
             if (len <= 15) {
                 buff.put((byte) (TAG_STRING_0_15 + len));
             } else {
-                buff.put((byte) TYPE_STRING).
-                    putVarInt(len);
+                buff.put((byte) TYPE_STRING).putVarInt(len);
             }
             buff.putStringData(s, len);
         }
@@ -1116,7 +1139,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for UUID objects.
      */
-    class UUIDType extends AutoDetectDataType {
+    static class UUIDType extends AutoDetectDataType {
 
         UUIDType(ObjectDataType base) {
             super(base, TYPE_UUID);
@@ -1160,7 +1183,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for java.util.Date objects.
      */
-    class DateType extends AutoDetectDataType {
+    static class DateType extends AutoDetectDataType {
 
         DateType(ObjectDataType base) {
             super(base, TYPE_DATE);
@@ -1203,7 +1226,7 @@ public class ObjectDataType implements DataType {
     /**
      * The type for object arrays.
      */
-    class ObjectArrayType extends AutoDetectDataType {
+    static class ObjectArrayType extends AutoDetectDataType {
 
         private final ObjectDataType elementType = new ObjectDataType();
 
@@ -1282,28 +1305,23 @@ public class ObjectDataType implements DataType {
                 for (int i = 0; i < len; i++) {
                     int x;
                     if (type == boolean.class) {
-                        x = Integer.signum(
-                                (((boolean[]) aObj)[i] ? 1 : 0) -
-                                (((boolean[]) bObj)[i] ? 1 : 0));
+                        x = Integer.signum((((boolean[]) aObj)[i] ? 1 : 0)
+                                - (((boolean[]) bObj)[i] ? 1 : 0));
                     } else if (type == char.class) {
-                        x = Integer.signum(
-                                (((char[]) aObj)[i]) -
-                                (((char[]) bObj)[i]));
+                        x = Integer.signum((((char[]) aObj)[i])
+                                - (((char[]) bObj)[i]));
                     } else if (type == short.class) {
-                        x = Integer.signum(
-                                (((short[]) aObj)[i]) -
-                                (((short[]) bObj)[i]));
+                        x = Integer.signum((((short[]) aObj)[i])
+                                - (((short[]) bObj)[i]));
                     } else if (type == int.class) {
                         int a = ((int[]) aObj)[i];
                         int b = ((int[]) bObj)[i];
                         x = a == b ? 0 : a < b ? -1 : 1;
                     } else if (type == float.class) {
-                        x = Float.compare(
-                                ((float[]) aObj)[i],
+                        x = Float.compare(((float[]) aObj)[i],
                                 ((float[]) bObj)[i]);
                     } else if (type == double.class) {
-                        x = Double.compare(
-                                ((double[]) aObj)[i],
+                        x = Double.compare(((double[]) aObj)[i],
                                 ((double[]) bObj)[i]);
                     } else {
                         long a = ((long[]) aObj)[i];
@@ -1343,17 +1361,16 @@ public class ObjectDataType implements DataType {
                         if (len <= 15) {
                             buff.put((byte) (TAG_BYTE_ARRAY_0_15 + len));
                         } else {
-                            buff.put((byte) TYPE_ARRAY).
-                                put((byte) classId.intValue()).
-                                putVarInt(len);
+                            buff.put((byte) TYPE_ARRAY)
+                                    .put((byte) classId.intValue())
+                                    .putVarInt(len);
                         }
                         buff.put(data);
                         return;
                     }
                     int len = Array.getLength(obj);
-                    buff.put((byte) TYPE_ARRAY).
-                        put((byte) classId.intValue()).
-                        putVarInt(len);
+                    buff.put((byte) TYPE_ARRAY).put((byte) classId.intValue())
+                            .putVarInt(len);
                     for (int i = 0; i < len; i++) {
                         if (type == boolean.class) {
                             buff.put((byte) (((boolean[]) obj)[i] ? 1 : 0));
@@ -1373,11 +1390,9 @@ public class ObjectDataType implements DataType {
                     }
                     return;
                 }
-                buff.put((byte) TYPE_ARRAY).
-                    put((byte) classId.intValue());
+                buff.put((byte) TYPE_ARRAY).put((byte) classId.intValue());
             } else {
-                buff.put((byte) TYPE_ARRAY).
-                    put((byte) -1);
+                buff.put((byte) TYPE_ARRAY).put((byte) -1);
                 String c = type.getName();
                 StringDataType.INSTANCE.write(buff, c);
             }
@@ -1408,8 +1423,7 @@ public class ObjectDataType implements DataType {
                 } catch (Exception e) {
                     throw DataUtils.newIllegalStateException(
                             DataUtils.ERROR_SERIALIZATION,
-                            "Could not get class {0}",
-                            componentType, e);
+                            "Could not get class {0}", componentType, e);
                 }
             } else {
                 clazz = COMMON_CLASSES[ct];
@@ -1420,8 +1434,8 @@ public class ObjectDataType implements DataType {
             } catch (Exception e) {
                 throw DataUtils.newIllegalStateException(
                         DataUtils.ERROR_SERIALIZATION,
-                        "Could not create array of type {0} length {1}",
-                        clazz, len, e);
+                        "Could not create array of type {0} length {1}", clazz,
+                        len, e);
             }
             if (clazz.isPrimitive()) {
                 for (int i = 0; i < len; i++) {
@@ -1457,7 +1471,9 @@ public class ObjectDataType implements DataType {
     /**
      * The type for serialized objects.
      */
-    class SerializedObjectType extends AutoDetectDataType {
+    static class SerializedObjectType extends AutoDetectDataType {
+
+        private int averageSize = 10000;
 
         SerializedObjectType(ObjectDataType base) {
             super(base, TYPE_SERIALIZED_OBJECT);
@@ -1471,8 +1487,11 @@ public class ObjectDataType implements DataType {
             }
             DataType ta = getType(aObj);
             DataType tb = getType(bObj);
-            if (ta != this && ta == tb) {
-                return ta.compare(aObj, bObj);
+            if (ta != this || tb != this) {
+                if (ta == tb) {
+                    return ta.compare(aObj, bObj);
+                }
+                return super.compare(aObj, bObj);
             }
             // TODO ensure comparable type (both may be comparable but not
             // with each other)
@@ -1495,7 +1514,7 @@ public class ObjectDataType implements DataType {
         public int getMemory(Object obj) {
             DataType t = getType(obj);
             if (t == this) {
-                return 1000;
+                return averageSize;
             }
             return t.getMemory(obj);
         }
@@ -1508,9 +1527,12 @@ public class ObjectDataType implements DataType {
                 return;
             }
             byte[] data = serialize(obj);
-            buff.put((byte) TYPE_SERIALIZED_OBJECT).
-                putVarInt(data.length).
-                put(data);
+            int size = data.length;
+            // adjust the average size
+            // using an exponential moving average
+            averageSize = (size + 15 * averageSize) / 16;
+            buff.put((byte) TYPE_SERIALIZED_OBJECT).putVarInt(data.length)
+                    .put(data);
         }
 
         @Override

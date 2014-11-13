@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -15,8 +14,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.channels.FileLock;
+import java.nio.channels.NonWritableChannelException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -251,16 +250,16 @@ public class TestFileSystem extends TestBase {
         FileUtils.deleteRecursive(dir, false);
         Connection conn;
         Statement stat;
-        conn = DriverManager.getConnection("jdbc:h2:split:18:"+dir+"/test");
+        conn = getConnection("jdbc:h2:split:18:"+dir+"/test");
         stat = conn.createStatement();
         stat.execute(
                 "create table test(id int primary key, name varchar) " +
                 "as select x, space(10000) from system_range(1, 100)");
-        stat.execute("shutdown defrag");
+        // stat.execute("shutdown defrag");
         conn.close();
         Backup.execute(dir + "/test.zip", dir, "", true);
         DeleteDbFiles.execute("split:" + dir, "test", true);
-        conn = DriverManager.getConnection(
+        conn = getConnection(
                 "jdbc:h2:split:zip:"+dir+"/test.zip!/test");
         conn.createStatement().execute("select * from test where id=1");
         conn.close();
@@ -271,13 +270,17 @@ public class TestFileSystem extends TestBase {
         org.h2.Driver.load();
         deleteDb("fsMem");
         String url = "jdbc:h2:" + getBaseDir() + "/fsMem";
-        Connection conn = DriverManager.getConnection(url, "sa", "sa");
-        conn.createStatement().execute("CREATE TABLE TEST AS SELECT * FROM DUAL");
-        conn.createStatement().execute("BACKUP TO '" + getBaseDir() + "/fsMem.zip'");
+        Connection conn = getConnection(url, "sa", "sa");
+        conn.createStatement().execute(
+                "CREATE TABLE TEST AS SELECT * FROM DUAL");
+        conn.createStatement().execute(
+                "BACKUP TO '" + getBaseDir() + "/fsMem.zip'");
         conn.close();
-        org.h2.tools.Restore.main("-file", getBaseDir() + "/fsMem.zip", "-dir", "memFS:");
-        conn = DriverManager.getConnection("jdbc:h2:memFS:fsMem", "sa", "sa");
-        ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM TEST");
+        org.h2.tools.Restore.main("-file", getBaseDir() + "/fsMem.zip", "-dir",
+                "memFS:");
+        conn = getConnection("jdbc:h2:memFS:fsMem", "sa", "sa");
+        ResultSet rs = conn.createStatement()
+                .executeQuery("SELECT * FROM TEST");
         rs.close();
         conn.close();
         deleteDb("fsMem");
@@ -293,23 +296,26 @@ public class TestFileSystem extends TestBase {
         }
         org.h2.Driver.load();
         String url = "jdbc:h2:" + getBaseDir() + "/fsJar";
-        Connection conn = DriverManager.getConnection(url, "sa", "sa");
+        Connection conn = getConnection(url, "sa", "sa");
         Statement stat = conn.createStatement();
-        stat.execute("create table test(id int primary key, name varchar, b blob, c clob)");
-        stat.execute("insert into test values(1, 'Hello', SECURE_RAND(2000), space(2000))");
+        stat.execute("create table test(id int primary key, " +
+                "name varchar, b blob, c clob)");
+        stat.execute("insert into test values(1, 'Hello', " +
+                "SECURE_RAND(2000), space(2000))");
         ResultSet rs;
         rs = stat.executeQuery("select * from test");
         rs.next();
         byte[] b1 = rs.getBytes(3);
         String s1 = rs.getString(4);
         conn.close();
-        conn = DriverManager.getConnection(url, "sa", "sa");
+        conn = getConnection(url, "sa", "sa");
         stat = conn.createStatement();
         stat.execute("backup to '" + getBaseDir() + "/fsJar.zip'");
         conn.close();
 
         deleteDb("fsJar");
-        for (String f : FileUtils.newDirectoryStream("zip:" + getBaseDir() + "/fsJar.zip")) {
+        for (String f : FileUtils.newDirectoryStream(
+                "zip:" + getBaseDir() + "/fsJar.zip")) {
             assertFalse(FileUtils.isAbsolute(f));
             assertTrue(!FileUtils.isDirectory(f));
             assertTrue(FileUtils.size(f) > 0);
@@ -326,7 +332,7 @@ public class TestFileSystem extends TestBase {
             testReadOnly(f);
         }
         String urlJar = "jdbc:h2:zip:" + getBaseDir() + "/fsJar.zip!/fsJar";
-        conn = DriverManager.getConnection(urlJar, "sa", "sa");
+        conn = getConnection(urlJar, "sa", "sa");
         stat = conn.createStatement();
         rs = stat.executeQuery("select * from test");
         rs.next();
@@ -344,30 +350,36 @@ public class TestFileSystem extends TestBase {
     }
 
     private void testReadOnly(final String f) throws IOException {
-        new AssertThrows(IOException.class) { @Override
-        public void test() throws IOException {
-            FileUtils.newOutputStream(f, false);
+        new AssertThrows(IOException.class) {
+            @Override
+            public void test() throws IOException {
+                FileUtils.newOutputStream(f, false);
         }};
-        new AssertThrows(DbException.class) { @Override
-        public void test() {
-            FileUtils.moveTo(f, f);
+        new AssertThrows(DbException.class) {
+            @Override
+            public void test() {
+                FileUtils.move(f, f);
         }};
-        new AssertThrows(DbException.class) { @Override
-        public void test() {
-            FileUtils.moveTo(f, f);
+        new AssertThrows(DbException.class) {
+            @Override
+            public void test() {
+                FileUtils.move(f, f);
         }};
-        new AssertThrows(IOException.class) { @Override
-        public void test() throws IOException {
-            FileUtils.createTempFile(f, ".tmp", false, false);
+        new AssertThrows(IOException.class) {
+            @Override
+            public void test() throws IOException {
+                FileUtils.createTempFile(f, ".tmp", false, false);
         }};
         final FileChannel channel = FileUtils.open(f, "r");
-        new AssertThrows(IOException.class) { @Override
-        public void test() throws IOException {
-            channel.write(ByteBuffer.allocate(1));
+        new AssertThrows(IOException.class) {
+            @Override
+            public void test() throws IOException {
+                channel.write(ByteBuffer.allocate(1));
         }};
-        new AssertThrows(IOException.class) { @Override
-        public void test() throws IOException {
-            channel.truncate(0);
+        new AssertThrows(IOException.class) {
+            @Override
+            public void test() throws IOException {
+                channel.truncate(0);
         }};
         assertTrue(null == channel.tryLock());
         channel.force(false);
@@ -381,6 +393,7 @@ public class TestFileSystem extends TestBase {
     }
 
     private void testFileSystem(String fsBase) throws Exception {
+        testPositionedReadWrite(fsBase);
         testSetReadOnly(fsBase);
         testParentEventuallyReturnsNull(fsBase);
         testSimple(fsBase);
@@ -406,13 +419,15 @@ public class TestFileSystem extends TestBase {
             FileUtils.delete(fileName);
         }
         if (FileUtils.createFile(fileName)) {
-            new AssertThrows(DbException.class) { @Override
-            public void test() {
-                FileUtils.createDirectory(fileName);
+            new AssertThrows(DbException.class) {
+                @Override
+                public void test() {
+                    FileUtils.createDirectory(fileName);
             }};
-            new AssertThrows(DbException.class) { @Override
-            public void test() {
-                FileUtils.createDirectories(fileName + "/test");
+            new AssertThrows(DbException.class) {
+                @Override
+                public void test() {
+                    FileUtils.createDirectories(fileName + "/test");
             }};
             FileUtils.delete(fileName);
         }
@@ -425,17 +440,19 @@ public class TestFileSystem extends TestBase {
             FileUtils.delete(fileName);
         }
         if (FileUtils.createFile(fileName)) {
-            FileUtils.moveTo(fileName, fileName2);
+            FileUtils.move(fileName, fileName2);
             FileUtils.createFile(fileName);
-            new AssertThrows(DbException.class) { @Override
-            public void test() {
-                FileUtils.moveTo(fileName2, fileName);
+            new AssertThrows(DbException.class) {
+                @Override
+                public void test() {
+                    FileUtils.move(fileName2, fileName);
             }};
             FileUtils.delete(fileName);
             FileUtils.delete(fileName2);
-            new AssertThrows(DbException.class) { @Override
-            public void test() {
-                FileUtils.moveTo(fileName, fileName2);
+            new AssertThrows(DbException.class) {
+                @Override
+                public void test() {
+                    FileUtils.move(fileName, fileName2);
             }};
         }
     }
@@ -447,29 +464,35 @@ public class TestFileSystem extends TestBase {
         }
         if (FileUtils.createFile(fileName)) {
             final FileChannel channel = FileUtils.open(fileName, "rw");
-            new AssertThrows(UnsupportedOperationException.class) { @Override
-            public void test() throws IOException {
-                channel.map(MapMode.PRIVATE, 0, channel.size());
+            new AssertThrows(UnsupportedOperationException.class) {
+                @Override
+                public void test() throws IOException {
+                    channel.map(MapMode.PRIVATE, 0, channel.size());
             }};
-            new AssertThrows(UnsupportedOperationException.class) { @Override
-            public void test() throws IOException {
-                channel.read(new ByteBuffer[]{ByteBuffer.allocate(10)}, 0, 0);
+            new AssertThrows(UnsupportedOperationException.class) {
+                @Override
+                public void test() throws IOException {
+                    channel.read(new ByteBuffer[]{ByteBuffer.allocate(10)}, 0, 0);
             }};
-            new AssertThrows(UnsupportedOperationException.class) { @Override
-            public void test() throws IOException {
-                channel.write(new ByteBuffer[]{ByteBuffer.allocate(10)}, 0, 0);
+            new AssertThrows(UnsupportedOperationException.class) {
+                @Override
+                public void test() throws IOException {
+                    channel.write(new ByteBuffer[]{ByteBuffer.allocate(10)}, 0, 0);
             }};
-            new AssertThrows(UnsupportedOperationException.class) { @Override
-            public void test() throws IOException {
-                channel.transferFrom(channel, 0, 0);
+            new AssertThrows(UnsupportedOperationException.class) {
+                @Override
+                public void test() throws IOException {
+                    channel.transferFrom(channel, 0, 0);
             }};
-            new AssertThrows(UnsupportedOperationException.class) { @Override
-            public void test() throws IOException {
-                channel.transferTo(0, 0, channel);
+            new AssertThrows(UnsupportedOperationException.class) {
+                @Override
+                public void test() throws IOException {
+                    channel.transferTo(0, 0, channel);
             }};
-            new AssertThrows(UnsupportedOperationException.class) { @Override
-            public void test() throws IOException {
-                channel.lock();
+            new AssertThrows(UnsupportedOperationException.class) {
+                @Override
+                public void test() throws IOException {
+                    channel.lock();
             }};
             channel.close();
             FileUtils.delete(fileName);
@@ -542,7 +565,7 @@ public class TestFileSystem extends TestBase {
                 fc.write(ByteBuffer.wrap(test, 0, 10));
             }
         };
-        new AssertThrows(IOException.class) {
+        new AssertThrows(NonWritableChannelException.class) {
             @Override
             public void test() throws Exception {
                 fc.truncate(10);
@@ -559,8 +582,8 @@ public class TestFileSystem extends TestBase {
         assertEquals(1, list.size());
         assertTrue(list.get(0).endsWith("test"));
         IOUtils.copyFiles(fsBase + "/test", fsBase + "/test3");
-        FileUtils.moveTo(fsBase + "/test3", fsBase + "/test2");
-        FileUtils.moveTo(fsBase + "/test2", fsBase + "/test2");
+        FileUtils.move(fsBase + "/test3", fsBase + "/test2");
+        FileUtils.move(fsBase + "/test2", fsBase + "/test2");
         assertTrue(!FileUtils.exists(fsBase + "/test3"));
         assertTrue(FileUtils.exists(fsBase + "/test2"));
         assertEquals(10000, FileUtils.size(fsBase + "/test2"));
@@ -589,6 +612,42 @@ public class TestFileSystem extends TestBase {
                 assertTrue(!FileUtils.exists(fsBase + "/testDir"));
             }
         }
+    }
+
+    private void testPositionedReadWrite(String fsBase) throws IOException {
+        FileUtils.deleteRecursive(fsBase + "/testFile", false);
+        FileUtils.delete(fsBase + "/testFile");
+        FileUtils.createDirectories(fsBase);
+        assertTrue(FileUtils.createFile(fsBase + "/testFile"));
+        FileChannel fc = FilePath.get(fsBase + "/testFile").open("rw");
+        ByteBuffer buff = ByteBuffer.allocate(4000);
+        for (int i = 0; i < 4000; i++) {
+            buff.put((byte) i);
+        }
+        buff.flip();
+        fc.write(buff, 96);
+        assertEquals(0, fc.position());
+        assertEquals(4096, fc.size());
+        buff = ByteBuffer.allocate(4000);
+        assertEquals(4000, fc.read(buff, 96));
+        assertEquals(0, fc.position());
+        buff.flip();
+        for (int i = 0; i < 4000; i++) {
+            assertEquals((byte) i, buff.get());
+        }
+        buff = ByteBuffer.allocate(0);
+        assertTrue(fc.read(buff, 8000) <= 0);
+        assertEquals(0, fc.position());
+        assertTrue(fc.read(buff, 4000) <= 0);
+        assertEquals(0, fc.position());
+        assertTrue(fc.read(buff, 2000) <= 0);
+        assertEquals(0, fc.position());
+        buff = ByteBuffer.allocate(1);
+        assertEquals(-1, fc.read(buff, 8000));
+        assertEquals(1, fc.read(buff, 4000));
+        buff.flip();
+        assertEquals(1, fc.read(buff, 2000));
+        fc.close();
     }
 
     private void testRandomAccess(String fsBase) throws Exception {
@@ -699,7 +758,8 @@ public class TestFileSystem extends TestBase {
         }
     }
 
-    private static ByteBuffer createSlicedBuffer(byte[] buffer, int offset, int len) {
+    private static ByteBuffer createSlicedBuffer(byte[] buffer, int offset,
+            int len) {
         ByteBuffer byteBuff = ByteBuffer.wrap(buffer);
         byteBuff.position(offset);
         // force the arrayOffset to be non-0

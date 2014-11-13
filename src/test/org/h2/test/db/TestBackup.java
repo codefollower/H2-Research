@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -78,28 +77,29 @@ public class TestBackup extends TestBase {
             }
         };
         Connection conn2;
-        conn2 = getConnection(url + ";database_event_listener='" + BackupListener.class.getName() + "'");
+        conn2 = getConnection(url + ";database_event_listener='" +
+                BackupListener.class.getName() + "'");
         Statement stat2 = conn2.createStatement();
         task.execute();
         for (int i = 0; i < 10; i++) {
             updateEnd.set(System.currentTimeMillis() + 2000);
             stat2.execute("backup to '"+getBaseDir()+"/backup.zip'");
             stat2.execute("checkpoint");
-            Restore.execute(getBaseDir() + "/backup.zip", getBaseDir() + "/t2", "backup");
-            Connection conn3;
-            conn3 = getConnection("t2/backup");
+            Restore.execute(getBaseDir() + "/backup.zip", getBaseDir() + "/t" + i, "backup");
+            Connection conn3 = getConnection("t" + i + "/backup");
             Statement stat3 = conn3.createStatement();
             stat3.execute("script");
-            ResultSet rs = stat3.executeQuery("select * from test where name='Hallo'");
+            ResultSet rs = stat3.executeQuery(
+                    "select * from test where name='Hallo'");
             while (rs.next()) {
                 fail();
             }
             conn3.close();
         }
         task.get();
+        conn2.close();
         conn.close();
         conn1.close();
-        conn2.close();
     }
 
     /**
@@ -145,21 +145,27 @@ public class TestBackup extends TestBase {
     private void testBackupRestoreLob() throws SQLException {
         deleteDb("backup");
         Connection conn = getConnection("backup");
-        conn.createStatement().execute("create table test(x clob) as select space(10000)");
+        conn.createStatement().execute(
+                "create table test(x clob) as select space(10000)");
         conn.close();
-        Backup.execute(getBaseDir() + "/backup.zip", getBaseDir(), "backup", true);
+        Backup.execute(getBaseDir() + "/backup.zip",
+                getBaseDir(), "backup", true);
         deleteDb("backup");
-        Restore.execute(getBaseDir() + "/backup.zip", getBaseDir(), "backup");
+        Restore.execute(getBaseDir() + "/backup.zip",
+                getBaseDir(), "backup");
     }
 
     private void testBackupRestoreLobStatement() throws SQLException {
         deleteDb("backup");
         Connection conn = getConnection("backup");
-        conn.createStatement().execute("create table test(x clob) as select space(10000)");
-        conn.createStatement().execute("backup to '" +getBaseDir() + "/backup.zip"+"'");
+        conn.createStatement().execute(
+                "create table test(x clob) as select space(10000)");
+        conn.createStatement().execute("backup to '" +
+                getBaseDir() + "/backup.zip"+"'");
         conn.close();
         deleteDb("backup");
-        Restore.execute(getBaseDir() + "/backup.zip", getBaseDir(), "backup");
+        Restore.execute(getBaseDir() + "/backup.zip",
+                getBaseDir(), "backup");
     }
 
     private void testBackup() throws SQLException {
@@ -169,10 +175,14 @@ public class TestBackup extends TestBase {
         Statement stat1, stat2, stat3;
         conn1 = getConnection("backup");
         stat1 = conn1.createStatement();
-        stat1.execute("create table test(id int primary key, name varchar(255))");
-        stat1.execute("insert into test values(1, 'first'), (2, 'second')");
-        stat1.execute("create table testlob(id int primary key, b blob, c clob)");
-        stat1.execute("insert into testlob values(1, space(10000), repeat('00', 10000))");
+        stat1.execute("create table test" +
+                "(id int primary key, name varchar(255))");
+        stat1.execute("insert into test values" +
+                "(1, 'first'), (2, 'second')");
+        stat1.execute("create table testlob" +
+                "(id int primary key, b blob, c clob)");
+        stat1.execute("insert into testlob values" +
+                "(1, space(10000), repeat('00', 10000))");
         conn2 = getConnection("backup");
         stat2 = conn2.createStatement();
         stat2.execute("insert into test values(3, 'third')");

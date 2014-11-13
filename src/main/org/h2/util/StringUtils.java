@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
@@ -10,9 +9,10 @@ import java.lang.ref.SoftReference;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Locale;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 
 /**
@@ -20,7 +20,8 @@ import org.h2.message.DbException;
  */
 public class StringUtils {
 
-    private static SoftReference<String[]> softCache = new SoftReference<String[]>(null);
+    private static SoftReference<String[]> softCache =
+            new SoftReference<String[]>(null);
     private static long softCacheCreated;
     private static final char[] HEX = "0123456789abcdef".toCharArray();
     private static final int[] HEX_DECODE = new int['f' + 1];
@@ -117,8 +118,8 @@ public class StringUtils {
 
     /**
      * Convert a string to a SQL literal. Null is converted to NULL. The text is
-     * enclosed in single quotes. If there are any special characters, the method
-     * STRINGDECODE is used.
+     * enclosed in single quotes. If there are any special characters, the
+     * method STRINGDECODE is used.
      *
      * @param s the text to convert.
      * @return the SQL literal
@@ -193,7 +194,7 @@ public class StringUtils {
                 if (ch >= ' ' && (ch < 0x80)) {
                     buff.append(c);
                 // not supported in properties files
-                // } else if(ch < 0xff) {
+                // } else if (ch < 0xff) {
                 // buff.append("\\");
                 // // make sure it's three characters (0x200 is octal 1000)
                 // buff.append(Integer.toOctalString(0x200 | ch).substring(1));
@@ -220,7 +221,8 @@ public class StringUtils {
      * @return the text with asterisk
      */
     public static String addAsterisk(String s, int index) {
-        if (s != null && index < s.length()) {
+        if (s != null) {
+            index = Math.min(index, s.length());
             s = s.substring(0, index) + "[*]" + s.substring(index);
         }
         return s;
@@ -424,7 +426,8 @@ public class StringUtils {
             } else {
                 if (SysProperties.CHECK) {
                     if (ch > 127 || ch < ' ') {
-                        throw new IllegalArgumentException("Unexpected char " + (int) ch + " decoding " + encoded);
+                        throw new IllegalArgumentException(
+                                "Unexpected char " + (int) ch + " decoding " + encoded);
                     }
                 }
                 buff[j++] = (byte) ch;
@@ -536,7 +539,8 @@ public class StringUtils {
      * @param indent whether to indent the content if it contains a newline
      * @return the node
      */
-    public static String xmlNode(String name, String attributes, String content, boolean indent) {
+    public static String xmlNode(String name, String attributes,
+            String content, boolean indent) {
         String start = attributes == null ? name : name + attributes;
         if (content == null) {
             return "<" + start + "/>\n";
@@ -615,7 +619,7 @@ public class StringUtils {
      * @return <![CDATA[data]]>
      */
     public static String xmlCData(String data) {
-        if (data.indexOf("]]>") >= 0) {
+        if (data.contains("]]>")) {
             return xmlText(data);
         }
         boolean newline = data.endsWith("\n");
@@ -708,7 +712,8 @@ public class StringUtils {
         if (next < 0) {
             return s;
         }
-        StringBuilder buff = new StringBuilder(s.length() - before.length() + after.length());
+        StringBuilder buff = new StringBuilder(
+                s.length() - before.length() + after.length());
         int index = 0;
         while (true) {
             buff.append(s.substring(index, next)).append(after);
@@ -835,7 +840,8 @@ public class StringUtils {
      *      or null for a space
      * @return the trimmed string
      */
-    public static String trim(String s, boolean leading, boolean trailing, String sp) {
+    public static String trim(String s, boolean leading, boolean trailing,
+            String sp) {
         char space = (sp == null || sp.length() < 1) ? ' ' : sp.charAt(0);
         if (leading) {
             int len = s.length(), i = 0;
@@ -1018,7 +1024,8 @@ public class StringUtils {
      * @param length the number of characters to append
      * @param positiveValue the number to append
      */
-    public static void appendZeroPadded(StringBuilder buff, int length, long positiveValue) {
+    public static void appendZeroPadded(StringBuilder buff, int length,
+            long positiveValue) {
         if (length == 2) {
             if (positiveValue < 10) {
                 buff.append('0');

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.bnf.context;
@@ -24,7 +23,8 @@ public class DbColumn {
 
     private int position;
 
-    private DbColumn(DbContents contents, ResultSet rs, boolean procedureColumn) throws SQLException {
+    private DbColumn(DbContents contents, ResultSet rs, boolean procedureColumn)
+            throws SQLException {
         name = rs.getString("COLUMN_NAME");
         quotedName = contents.quoteIdentifier(name);
         String type = rs.getString("TYPE_NAME");
@@ -66,7 +66,8 @@ public class DbColumn {
      * @param rs the result set
      * @return the column
      */
-    public static DbColumn getProcedureColumn(DbContents contents, ResultSet rs) throws SQLException {
+    public static DbColumn getProcedureColumn(DbContents contents, ResultSet rs)
+            throws SQLException {
         return new DbColumn(contents, rs, true);
     }
 
@@ -77,7 +78,8 @@ public class DbColumn {
      * @param rs the result set
      * @return the column
      */
-    public static DbColumn getColumn(DbContents contents, ResultSet rs) throws SQLException {
+    public static DbColumn getColumn(DbContents contents, ResultSet rs)
+            throws SQLException {
         return new DbColumn(contents, rs, false);
     }
 

@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.test.db;
 
@@ -9,7 +9,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -37,7 +38,8 @@ public class TestQueryCache extends TestBase {
     private void test1() throws Exception {
         Connection conn = getConnection("queryCache;QUERY_CACHE_SIZE=10");
         Statement stat = conn.createStatement();
-        stat.execute("create table test(id int, name varchar) as select x, space(100) from system_range(1, 1000)");
+        stat.execute("create table test(id int, name varchar) " +
+                "as select x, space(100) from system_range(1, 1000)");
         PreparedStatement prep;
         conn.prepareStatement("select count(*) from test t1, test t2");
         long time;
@@ -68,13 +70,15 @@ public class TestQueryCache extends TestBase {
 
     private void testClearingCacheWithTableStructureChanges() throws Exception {
         Connection conn = getConnection("queryCache;QUERY_CACHE_SIZE=10");
-        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, conn).prepareStatement("SELECT * FROM TEST");
+        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, conn).
+                prepareStatement("SELECT * FROM TEST");
         Statement stat = conn.createStatement();
         stat.executeUpdate("CREATE TABLE TEST(col1 bigint, col2 varchar(255))");
         PreparedStatement prep = conn.prepareStatement("SELECT * FROM TEST");
         prep.close();
         stat.executeUpdate("DROP TABLE TEST");
-        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, conn).prepareStatement("SELECT * FROM TEST");
+        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, conn).
+                prepareStatement("SELECT * FROM TEST");
         conn.close();
     }
 }

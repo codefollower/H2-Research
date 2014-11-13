@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -38,18 +37,23 @@ public class TestKillProcess {
             int accounts = Integer.parseInt(args[4]);
 
             Random random = new Random();
-            Connection conn1 = DriverManager.getConnection(url, user, password);
+            Connection conn1 = DriverManager.getConnection(
+                    url, user, password);
 
-            PreparedStatement prep1a = conn1.prepareStatement("INSERT INTO LOG(ACCOUNTID, AMOUNT) VALUES(?, ?)");
-            PreparedStatement prep1b = conn1.prepareStatement("UPDATE ACCOUNT SET SUM=SUM+? WHERE ID=?");
+            PreparedStatement prep1a = conn1.prepareStatement(
+                    "INSERT INTO LOG(ACCOUNTID, AMOUNT) VALUES(?, ?)");
+            PreparedStatement prep1b = conn1.prepareStatement(
+                    "UPDATE ACCOUNT SET SUM=SUM+? WHERE ID=?");
             conn1.setAutoCommit(false);
             long time = System.currentTimeMillis();
             String d = null;
             for (int i = 0;; i++) {
                 long t = System.currentTimeMillis();
                 if (t > time + 1000) {
-                    ArrayList<String> list = FileLister.getDatabaseFiles(baseDir, "kill", true);
-                    System.out.println("inserting... i:" + i + " d:" + d + " files:" + list.size());
+                    ArrayList<String> list = FileLister.getDatabaseFiles(
+                            baseDir, "kill", true);
+                    System.out.println("inserting... i:" + i + " d:" + d +
+                            " files:" + list.size());
                     time = t;
                 }
                 if (i > 10000) {
@@ -70,8 +74,12 @@ public class TestKillProcess {
                 if (random.nextInt(100) < 2) {
                     d = "D" + random.nextInt(1000);
                     account = random.nextInt(accounts);
-                    conn1.createStatement().execute("UPDATE TEST_A SET DATA='" + d + "' WHERE ID=" + account);
-                    conn1.createStatement().execute("UPDATE TEST_B SET DATA='" + d + "' WHERE ID=" + account);
+                    conn1.createStatement().execute(
+                            "UPDATE TEST_A SET DATA='" + d +
+                            "' WHERE ID=" + account);
+                    conn1.createStatement().execute(
+                            "UPDATE TEST_B SET DATA='" + d +
+                            "' WHERE ID=" + account);
                 }
             }
         } catch (Throwable e) {

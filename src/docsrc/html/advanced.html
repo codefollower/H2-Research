@@ -1,8 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version 1.0,
+Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0, Version 1.0,
 and under the Eclipse Public License, Version 1.0
-(http://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -52,8 +51,6 @@ Advanced
     Using the Recover Tool</a><br />
 <a href="#file_locking_protocols">
     File Locking Protocols</a><br />
-<a href="#file_locking_serialized">
-    File Locking Method 'Serialized'</a><br />
 <a href="#passwords">
     Using Passwords</a><br />
 <a href="#password_hash">
@@ -140,9 +137,6 @@ should never be used for columns with a maximum size below about 200 bytes.
 The best threshold depends on the use case; reading in-place objects is faster
 than reading from separate files, but slows down the performance of operations
 that don't involve this column.
-</p><p>
-It is possible to configure the database to store LOB objects outside the database file,
-see the <a href="../javadoc/org/h2/constant/SysProperties.html#h2.lobInDatabase">h2.lobInDatabase</a> property.
 </p>
 
 <h3>Large Object Compression</h3>
@@ -168,8 +162,10 @@ You can then access the table in the usual way.
 Whenever the linked table is accessed, the database issues specific queries over JDBC.
 Using the example above, if you issue the query <code>SELECT * FROM LINK WHERE ID=1</code>,
 then the following query is run against the PostgreSQL database: <code>SELECT * FROM TEST WHERE ID=?</code>.
-The same happens for insert and update statements. Only simple statements are executed against the
-target database, that means no joins. Prepared statements are used where possible.
+The same happens for insert and update statements.
+Only simple statements are executed against the target database, that means no joins
+(queries that contain joins are converted to simple queries).
+Prepared statements are used where possible.
 </p>
 <p>
 To view the statements that are executed against the target table, set the trace level to 3.
@@ -394,6 +390,21 @@ SELECT VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME='CLUSTER'
 <p>
 If the result is <code>''</code> (two single quotes), then the cluster mode is disabled. Otherwise, the list of
 servers is returned, enclosed in single quote. Example: <code>'server1:9191,server2:9191'</code>.
+</p>
+
+<p>
+It is also possible to get the list of servers by using Connection.getClientInfo().
+</p>
+
+<p>
+The property list returned from <code>getClientInfo()</code> contains a <code>numServers</code> property that returns the
+number of servers that are in the connection list. To get the actual servers, <code>getClientInfo()</code> also has
+properties <code>server0</code>..<code>serverX</code>, where serverX is the number of servers minus 1.
+</p>
+
+<p>
+Example: To get the 2nd server in the connection list one uses <code>getClientInfo('server1')</code>.
+<b>Note:</b> The <code>serverX</code> property only returns IP addresses and ports and not hostnames.
 </p>
 
 <h3>Clustering Algorithm and Limitations</h3>
@@ -910,7 +921,8 @@ is put to sleep.
 
 <h3>File Locking Method 'File'</h3>
 <p>
-The default method for database file locking is the 'File Method'. The algorithm is:
+The default method for database file locking for version 1.3 and older is the 'File Method'.
+The algorithm is:
 </p>
 <ul>
 <li>If the lock file does not exist, it is created (using the atomic operation
@@ -976,6 +988,7 @@ database files, if they do not have a direct TCP/IP connection.
 
 <h3>File Locking Method 'FS'</h3>
 <p>
+This is the default mode for version 1.4 and newer.
 This database file locking mechanism uses native file system lock on the database file.
 No *.lock.db file is created in this case, and no background thread is started.
 This mechanism may not work on all systems as expected.
@@ -988,27 +1001,6 @@ To enable this feature, append <code>;FILE_LOCK=FS</code> to the database URL.
 <p>
 This feature is relatively new. When using it for production, please ensure
 your system does in fact lock files as expected.
-</p>
-
-<h2 id="file_locking_serialized">File Locking Method 'Serialized'</h2>
-<p>
-This locking mode allows to open multiple connections to the same database.
-The connections may be opened from multiple processes and from different computers.
-When writing to the database, access is automatically synchronized internally. Write operations
-are slower than when using the server mode, and concurrency is relatively poor.
-The advantage of this mode is that there is no need to start a server.
-</p>
-<p>
-To enable this feature, append <code>;FILE_LOCK=SERIALIZED</code> to the database URL.
-</p>
-<p>
-This feature is relatively new. When using it for production, please ensure
-your use case is well tested (if possible with automated test cases).
-</p>
-<p>
-One known limitation when using this mode is: queries that write to the database will fail
-with the exception "The database is read only", if the queries are run using <code>Statement.executeQuery()</code>.
-As a workaround, use <code>Statement.execute()</code>
 </p>
 
 <h2 id="passwords">Using Passwords</h2>
@@ -1277,11 +1269,7 @@ then the iteration count is not required at all.
 
 <h3>File Encryption</h3>
 <p>
-The database files can be encrypted using two different algorithms: AES-128 and
-XTEA (using 32 rounds). The reasons for supporting XTEA is performance
-(XTEA is a bit faster as AES in some environments) and to have an alternative algorithm if AES is suddenly broken.
-Please note that the XTEA implementation used in this database only uses 32 rounds
-and not 64 rounds as recommended by its inventor (as of 2010, the best known attack is on 27 rounds).
+The database files can be encrypted using the AES-128 algorithm.
 </p><p>
 When a user tries to connect to an encrypted database, the combination of
 <code>file@</code> and the file password is hashed using SHA-256. This hash value is
@@ -1293,8 +1281,8 @@ The combination of the file password hash and the salt value is hashed 1024 time
 using SHA-256. The reason for the iteration is to make it harder for an attacker to
 calculate hash values for common passwords.
 </p><p>
-The resulting hash value is used as the key for the block cipher algorithm
-(AES-128 or XTEA with 32 rounds). Then, an initialization vector (IV) key
+The resulting hash value is used as the key for the block cipher algorithm.
+Then, an initialization vector (IV) key
 is calculated by hashing the key again using SHA-256.
 This is to make sure the IV is unknown to the attacker.
 The reason for using a secret IV is to protect against watermark attacks.
@@ -1302,7 +1290,7 @@ The reason for using a secret IV is to protect against watermark attacks.
 Before saving a block of data (each block is 8 bytes long), the following operations are executed:
 first, the IV is calculated by encrypting the block number with the IV key (using the same
 block cipher algorithm). This IV is combined with the plain text using XOR. The resulting data is
-encrypted using the AES-128 or XTEA algorithm.
+encrypted using the AES-128 algorithm.
 </p><p>
 When decrypting, the operation is done in reverse. First, the block is decrypted using the key,
 and then the IV is calculated combined with the decrypted text using XOR.
@@ -1318,7 +1306,7 @@ When he has write access, he can for example replace pieces of files with pieces
 and manipulate data like this.
 </p><p>
 File encryption slows down the performance of the database engine. Compared to unencrypted mode,
-database operations take about 2.2 times longer when using XTEA, and 2.5 times longer using AES (embedded mode).
+database operations take about 2.5 times longer using AES (embedded mode).
 </p>
 
 <h3>Wrong Password / User Name Delay</h3>
@@ -1484,7 +1472,7 @@ The current value of the settings can be read in the table
 </p>
 <p>
 For a complete list of settings, see
-<a href="../javadoc/org/h2/constant/SysProperties.html">SysProperties</a>.
+<a href="../javadoc/org/h2/engine/SysProperties.html">SysProperties</a>.
 </p>
 
 <h2 id="server_bind_address">Setting the Server Bind Address</h2>
@@ -1719,11 +1707,6 @@ OR X = 2 OR X = 2 OR X = 2 OR X = 2 OR X = 2
         <td>Secure Sockets Layer / Transport Layer Security. See also:
         <a href="http://java.sun.com/products/jsse/">Java Secure Socket
         Extension (JSSE)</a></td>
-    </tr>
-    <tr>
-        <td>XTEA</td>
-        <td>A block encryption algorithm. See also: <a
-            href="http://en.wikipedia.org/wiki/XTEA">Wikipedia: XTEA</a></td>
     </tr>
 </table>
 

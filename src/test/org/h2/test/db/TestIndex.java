@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -13,7 +12,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Random;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.result.SortOrder;
 import org.h2.test.TestBase;
 import org.h2.util.New;
@@ -95,7 +95,7 @@ public class TestIndex extends TestBase {
     }
 
     private void testIndexTypes() throws SQLException {
-        Connection conn = getConnection("index;MV_STORE=false");
+        Connection conn = getConnection("index");
         stat = conn.createStatement();
         for (String type : new String[] { "unique", "hash", "unique hash" }) {
             stat.execute("create table test(id int)");
@@ -131,7 +131,8 @@ public class TestIndex extends TestBase {
         testErrorMessage("PRIMARY", "KEY", " ON PUBLIC.TEST(NAME)");
         stat.execute("create table test(id int, name int, unique(name))");
         testErrorMessage("CONSTRAINT_INDEX_2 ON PUBLIC.TEST(NAME)");
-        stat.execute("create table test(id int, name int, constraint abc unique(name, id))");
+        stat.execute("create table test(id int, name int, " +
+                "constraint abc unique(name, id))");
         testErrorMessage("ABC_INDEX_2 ON PUBLIC.TEST(NAME, ID)");
     }
 
@@ -145,7 +146,7 @@ public class TestIndex extends TestBase {
             int start = m.indexOf('\"'), end = m.indexOf('\"', start + 1);
             String s = m.substring(start + 1, end);
             for (String t : expected) {
-                assertTrue(t + " not in " + s, s.indexOf(t) >= 0);
+                assertTrue(t + " not in " + s, s.contains(t));
             }
         }
         stat.execute("drop table test");
@@ -162,8 +163,9 @@ public class TestIndex extends TestBase {
         } catch (SQLException ex) {
             assertEquals(ErrorCode.DUPLICATE_KEY_1, ex.getErrorCode());
             String m = ex.getMessage();
-            // The format of the VALUES clause varies a little depending on the type
-            // of the index, so just test that we're getting useful info back.
+            // The format of the VALUES clause varies a little depending on the
+            // type of the index, so just test that we're getting useful info
+            // back.
             assertContains(m, "IDX_TEST_NAME ON PUBLIC.TEST(NAME)");
             assertContains(m, "'Hello'");
         }
@@ -175,9 +177,12 @@ public class TestIndex extends TestBase {
         stat.execute("create memory table test(id bigint, data bigint)");
         stat.execute("create hash index on test(id)");
         Random rand = new Random(1);
-        PreparedStatement prepInsert = conn.prepareStatement("insert into test values(?, ?)");
-        PreparedStatement prepDelete = conn.prepareStatement("delete from test where id=?");
-        PreparedStatement prepSelect = conn.prepareStatement("select count(*) from test where id=?");
+        PreparedStatement prepInsert = conn.prepareStatement(
+                "insert into test values(?, ?)");
+        PreparedStatement prepDelete = conn.prepareStatement(
+                "delete from test where id=?");
+        PreparedStatement prepSelect = conn.prepareStatement(
+                "select count(*) from test where id=?");
         HashMap<Long, Integer> map = New.hashMap();
         for (int i = 0; i < 1000; i++) {
             long key = rand.nextInt(10) * 1000000000L;
@@ -266,8 +271,10 @@ public class TestIndex extends TestBase {
         stat.execute("create table testA(id int primary key, name varchar)");
         stat.execute("create table testB(id int primary key hash, name varchar)");
         int len = getSize(300, 3000);
-        stat.execute("insert into testA select x, 'Hello' from system_range(1, " + len + ")");
-        stat.execute("insert into testB select x, 'Hello' from system_range(1, " + len + ")");
+        stat.execute("insert into testA select x, 'Hello' from " +
+                "system_range(1, " + len + ")");
+        stat.execute("insert into testB select x, 'Hello' from " +
+                "system_range(1, " + len + ")");
         Random rand = new Random(1);
         for (int i = 0; i < len; i++) {
             int x = rand.nextInt(len);
@@ -323,7 +330,8 @@ public class TestIndex extends TestBase {
         assertEquals("D", rs.getString("ASC_OR_DESC"));
         assertEquals(SortOrder.DESCENDING, rs.getInt("SORT_TYPE"));
         stat.execute("INSERT INTO TEST SELECT X FROM SYSTEM_RANGE(1, 30)");
-        rs = stat.executeQuery("SELECT COUNT(*) FROM TEST WHERE ID BETWEEN 10 AND 20");
+        rs = stat.executeQuery(
+                "SELECT COUNT(*) FROM TEST WHERE ID BETWEEN 10 AND 20");
         rs.next();
         assertEquals(11, rs.getInt(1));
         reconnect();
@@ -331,7 +339,8 @@ public class TestIndex extends TestBase {
         rs.next();
         assertEquals("D", rs.getString("ASC_OR_DESC"));
         assertEquals(SortOrder.DESCENDING, rs.getInt("SORT_TYPE"));
-        rs = stat.executeQuery("SELECT COUNT(*) FROM TEST WHERE ID BETWEEN 10 AND 20");
+        rs = stat.executeQuery(
+                "SELECT COUNT(*) FROM TEST WHERE ID BETWEEN 10 AND 20");
         rs.next();
         assertEquals(11, rs.getInt(1));
         stat.execute("DROP TABLE TEST");
@@ -359,7 +368,8 @@ public class TestIndex extends TestBase {
         stat.execute("CREATE TABLE TEST(ID INT, NAME VARCHAR)");
         stat.execute("CREATE INDEX IDXNAME ON TEST(NAME)");
         for (int i = 0; i < 100; i++) {
-            stat.execute("INSERT INTO TEST VALUES(" + i + ", SPACE(" + length + ") || " + i + " )");
+            stat.execute("INSERT INTO TEST VALUES(" + i +
+                    ", SPACE(" + length + ") || " + i + " )");
         }
         ResultSet rs = stat.executeQuery("SELECT * FROM TEST ORDER BY NAME");
         while (rs.next()) {
@@ -383,7 +393,8 @@ public class TestIndex extends TestBase {
         reconnect();
         stat.execute("CREATE TABLE ABC(ID INT, NAME VARCHAR)");
         stat.execute("INSERT INTO ABC VALUES(1, 'Hello')");
-        PreparedStatement prep = conn.prepareStatement("SELECT * FROM ABC WHERE NAME LIKE CAST(? AS VARCHAR)");
+        PreparedStatement prep = conn.prepareStatement(
+                "SELECT * FROM ABC WHERE NAME LIKE CAST(? AS VARCHAR)");
         prep.setString(1, "Hi%");
         prep.execute();
         stat.execute("DROP TABLE ABC");
@@ -394,7 +405,8 @@ public class TestIndex extends TestBase {
             return;
         }
         stat.execute("CREATE TABLE PARENT(ID INT PRIMARY KEY)");
-        stat.execute("CREATE TABLE CHILD(ID INT PRIMARY KEY, PID INT, FOREIGN KEY(PID) REFERENCES PARENT(ID))");
+        stat.execute("CREATE TABLE CHILD(ID INT PRIMARY KEY, " +
+                "PID INT, FOREIGN KEY(PID) REFERENCES PARENT(ID))");
         reconnect();
         stat.execute("DROP TABLE PARENT");
         stat.execute("DROP TABLE CHILD");
@@ -406,7 +418,8 @@ public class TestIndex extends TestBase {
             stat.execute("DROP TABLE IF EXISTS TEST");
             stat.execute("CREATE TABLE TEST(NAME VARCHAR(" + i + "))");
             stat.execute("CREATE INDEX IDXNAME ON TEST(NAME)");
-            PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?)");
+            PreparedStatement prep = conn.prepareStatement(
+                    "INSERT INTO TEST VALUES(?)");
             for (int j = 0; j < getSize(2, 5); j++) {
                 prep.setString(1, getRandomString(i));
                 prep.execute();
@@ -416,7 +429,8 @@ public class TestIndex extends TestBase {
                 conn = getConnection("index");
                 stat = conn.createStatement();
             }
-            ResultSet rs = stat.executeQuery("SELECT COUNT(*) FROM TEST WHERE NAME > 'mdd'");
+            ResultSet rs = stat.executeQuery(
+                    "SELECT COUNT(*) FROM TEST WHERE NAME > 'mdd'");
             rs.next();
             int count = rs.getInt(1);
             trace(i + " count=" + count);
@@ -425,7 +439,8 @@ public class TestIndex extends TestBase {
         stat.execute("DROP TABLE IF EXISTS TEST");
     }
 
-    private void testHashIndex(boolean primaryKey, boolean hash) throws SQLException {
+    private void testHashIndex(boolean primaryKey, boolean hash)
+            throws SQLException {
         if (config.memory) {
             return;
         }
@@ -434,7 +449,8 @@ public class TestIndex extends TestBase {
 
         stat.execute("DROP TABLE IF EXISTS TEST");
         if (primaryKey) {
-            stat.execute("CREATE TABLE TEST(A INT PRIMARY KEY " + (hash ? "HASH" : "") + ", B INT)");
+            stat.execute("CREATE TABLE TEST(A INT PRIMARY KEY " +
+                    (hash ? "HASH" : "") + ", B INT)");
         } else {
             stat.execute("CREATE TABLE TEST(A INT, B INT)");
             stat.execute("CREATE UNIQUE " + (hash ? "HASH" : "") + " INDEX ON TEST(A)");
@@ -446,8 +462,10 @@ public class TestIndex extends TestBase {
             prep.setInt(1, a);
             prep.setInt(2, a);
             prep.execute();
-            assertEquals(1, getValue("SELECT COUNT(*) FROM TEST WHERE A=" + a));
-            assertEquals(0, getValue("SELECT COUNT(*) FROM TEST WHERE A=-1-" + a));
+            assertEquals(1,
+                    getValue("SELECT COUNT(*) FROM TEST WHERE A=" + a));
+            assertEquals(0,
+                    getValue("SELECT COUNT(*) FROM TEST WHERE A=-1-" + a));
         }
 
         reconnect();
@@ -455,7 +473,8 @@ public class TestIndex extends TestBase {
         prep = conn.prepareStatement("DELETE FROM TEST WHERE A=?");
         for (int a = 0; a < len; a++) {
             if (getValue("SELECT COUNT(*) FROM TEST WHERE A=" + a) != 1) {
-                assertEquals(1, getValue("SELECT COUNT(*) FROM TEST WHERE A=" + a));
+                assertEquals(1,
+                        getValue("SELECT COUNT(*) FROM TEST WHERE A=" + a));
             }
             prep.setInt(1, a);
             assertEquals(1, prep.executeUpdate());
@@ -479,7 +498,8 @@ public class TestIndex extends TestBase {
         prep = conn.prepareStatement("DELETE FROM TEST WHERE A=?");
         for (int a = 0; a < len; a++) {
             log("SELECT * FROM TEST");
-            assertEquals(2, getValue("SELECT COUNT(*) FROM TEST WHERE A=" + (len - a - 1)));
+            assertEquals(2,
+                    getValue("SELECT COUNT(*) FROM TEST WHERE A=" + (len - a - 1)));
             assertEquals((len - a) * 2, getValue("SELECT COUNT(*) FROM TEST"));
             prep.setInt(1, len - a - 1);
             prep.execute();
@@ -510,7 +530,8 @@ public class TestIndex extends TestBase {
 
         reconnect();
 
-        prep = conn.prepareStatement("UPDATE TEST SET DATA=DATA||? WHERE A=? AND B=?");
+        prep = conn.prepareStatement(
+                "UPDATE TEST SET DATA=DATA||? WHERE A=? AND B=?");
         for (int a = 0; a < len; a++) {
             for (int b = 0; b < len; b += 2) {
                 prep.setString(1, "u(" + a + "," + b + ")");
@@ -522,7 +543,8 @@ public class TestIndex extends TestBase {
 
         reconnect();
 
-        ResultSet rs = stat.executeQuery("SELECT * FROM TEST WHERE DATA <> 'i('||a||','||b||')u('||a||','||b||')'");
+        ResultSet rs = stat.executeQuery(
+                "SELECT * FROM TEST WHERE DATA <> 'i('||a||','||b||')u('||a||','||b||')'");
         assertFalse(rs.next());
         assertEquals(len * (len / 2), getValue("SELECT COUNT(*) FROM TEST"));
         stat.execute("DROP TABLE TEST");
@@ -534,11 +556,13 @@ public class TestIndex extends TestBase {
         stat.execute("create memory table hash_index_test as " +
                 "select x as id, x % 10 as data from (select *  from system_range(1, 100))");
         stat.execute("create hash index idx2 on hash_index_test(data)");
-        assertEquals(10, getValue("select count(*) from hash_index_test where data = 1"));
+        assertEquals(10,
+                getValue("select count(*) from hash_index_test where data = 1"));
 
         stat.execute("drop index idx2");
         stat.execute("create unique hash index idx2 on hash_index_test(id)");
-        assertEquals(1, getValue("select count(*) from hash_index_test where id = 1"));
+        assertEquals(1,
+                getValue("select count(*) from hash_index_test where id = 1"));
     }
 
     private int getValue(String sql) throws SQLException {

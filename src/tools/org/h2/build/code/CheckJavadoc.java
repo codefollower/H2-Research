@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.code;
@@ -18,7 +17,7 @@ import java.io.RandomAccessFile;
 public class CheckJavadoc {
 
     private static final int MAX_COMMENT_LINE_SIZE = 80;
-    private static final int MAX_SOURCE_LINE_SIZE = 120;
+    private static final int MAX_SOURCE_LINE_SIZE = 100;
     private int errorCount;
 
     /**
@@ -55,7 +54,9 @@ public class CheckJavadoc {
                 }
             }
             if (foundJava && !foundPackageHtml) {
-                System.out.println("No package.html file, but a Java file found at: " + file.getAbsolutePath());
+                System.out.println(
+                        "No package.html file, but a Java file found at: "
+                        + file.getAbsolutePath());
                 errorCount++;
             }
         } else {
@@ -88,12 +89,16 @@ public class CheckJavadoc {
             if (next < 0) {
                 break;
             }
-            String line = text.substring(pos, next).trim();
+            String rawLine = text.substring(pos, next);
+            if (rawLine.endsWith("\r")) {
+                rawLine = rawLine.substring(0, rawLine.length() - 1);
+            }
+            String line = rawLine.trim();
             if (line.startsWith("/*")) {
                 inComment = true;
             }
             if (inComment) {
-                if (line.length() > MAX_COMMENT_LINE_SIZE
+                if (rawLine.length() > MAX_COMMENT_LINE_SIZE
                         && !line.trim().startsWith("* http://")) {
                     System.out.println("Long line : " + file.getAbsolutePath()
                             + " (" + file.getName() + ":" + lineNumber + ")");
@@ -104,14 +109,15 @@ public class CheckJavadoc {
                 }
             }
             if (!inComment && line.startsWith("//")
-                    && line.length() > MAX_COMMENT_LINE_SIZE
+                    && rawLine.length() > MAX_COMMENT_LINE_SIZE
                     && !line.trim().startsWith("// http://")) {
                 System.out.println("Long line: " + file.getAbsolutePath()
                         + " (" + file.getName() + ":" + lineNumber + ")");
                 errorCount++;
-            } else if (!inComment && line.length() > MAX_SOURCE_LINE_SIZE) {
+            } else if (!inComment && rawLine.length() > MAX_SOURCE_LINE_SIZE) {
                 System.out.println("Long line: " + file.getAbsolutePath()
                         + " (" + file.getName() + ":" + lineNumber + ")");
+                errorCount++;
             }
             lineNumber++;
             pos = next + 1;

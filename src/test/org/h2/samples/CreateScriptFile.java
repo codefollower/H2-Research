@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -117,7 +116,8 @@ public class CreateScriptFile {
             } else {
                 out = FileUtils.newOutputStream(fileName, false);
                 out = new BufferedOutputStream(out, Constants.IO_BUFFER_SIZE);
-                out = CompressTool.wrapOutputStream(out, compressionAlgorithm, "script.sql");
+                out = CompressTool.wrapOutputStream(out,
+                        compressionAlgorithm, "script.sql");
             }
             return new PrintWriter(new OutputStreamWriter(out, charset));
         } catch (Exception e) {
@@ -145,7 +145,8 @@ public class CreateScriptFile {
                 byte[] key = SHA256.getKeyPasswordHash("script", password.toCharArray());
                 FileStore store = FileStore.open(null, fileName, "rw", cipher, key);
                 store.init();
-                in = new FileStoreInputStream(store, null, compressionAlgorithm != null, false);
+                in = new FileStoreInputStream(store, null,
+                        compressionAlgorithm != null, false);
                 in = new BufferedInputStream(in, Constants.IO_BUFFER_SIZE_COMPRESS);
             } else {
                 in = FileUtils.newInputStream(fileName);

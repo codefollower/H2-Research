@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.server;
@@ -70,12 +69,14 @@ public class TestAutoServer extends TestBase {
             url += ";AUTO_SERVER_PORT=11111";
         }
         String user = getUser(), password = getPassword();
-        Connection connServer = getConnection(url + ";OPEN_NEW=TRUE", user, password);
+        Connection connServer = getConnection(url + ";OPEN_NEW=TRUE",
+                user, password);
 
         int i = ITERATIONS;
         for (; i > 0; i--) {
             Thread.sleep(100);
-            SortedProperties prop = SortedProperties.loadProperties(getBaseDir() + "/autoServer.lock.db");
+            SortedProperties prop = SortedProperties.loadProperties(
+                    getBaseDir() + "/autoServer.lock.db");
             String key = prop.getProperty("id");
             String server = prop.getProperty("server");
             if (server != null) {
@@ -111,7 +112,8 @@ public class TestAutoServer extends TestBase {
     /**
      * Tests recreation of temporary linked tables on reconnect
      */
-    private void testLinkedLocalTablesWithAutoServerReconnect() throws SQLException {
+    private void testLinkedLocalTablesWithAutoServerReconnect()
+            throws SQLException {
         if (config.memory || config.networked) {
             return;
         }
@@ -126,13 +128,15 @@ public class TestAutoServer extends TestBase {
         statLinked.execute("CREATE TABLE TEST(ID VARCHAR)");
 
         // Server is connection 1
-        Connection connAutoServer1 = getConnection(url + ";OPEN_NEW=TRUE", user, password);
+        Connection connAutoServer1 = getConnection(
+                url + ";OPEN_NEW=TRUE", user, password);
         Statement statAutoServer1 = connAutoServer1.createStatement();
         statAutoServer1.execute("CREATE LOCAL TEMPORARY LINKED TABLE T('', '" +
                 urlLinked + "', '" + user + "', '" + password + "', 'TEST')");
 
         // Connection 2 connects
-        Connection connAutoServer2 = getConnection(url + ";OPEN_NEW=TRUE", user, password);
+        Connection connAutoServer2 = getConnection(
+                url + ";OPEN_NEW=TRUE", user, password);
         Statement statAutoServer2 = connAutoServer2.createStatement();
         statAutoServer2.execute("CREATE LOCAL TEMPORARY LINKED TABLE T('', '" +
                 urlLinked + "', '" + user + "', '" + password + "', 'TEST')");

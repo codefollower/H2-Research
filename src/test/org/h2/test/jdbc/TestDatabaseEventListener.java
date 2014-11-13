@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -14,7 +13,7 @@ import java.util.Properties;
 
 import org.h2.Driver;
 import org.h2.api.DatabaseEventListener;
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
 /**
@@ -25,8 +24,9 @@ public class TestDatabaseEventListener extends TestBase {
     /**
      * A flag to mark that the given method was called.
      */
-    static boolean calledOpened, calledClosingDatabase, calledScan, calledCreateIndex,
-        calledStatementStart, calledStatementEnd, calledStatementProgress;
+    static boolean calledOpened, calledClosingDatabase, calledScan,
+            calledCreateIndex, calledStatementStart, calledStatementEnd,
+            calledStatementProgress;
 
     /**
      * Run just this test.
@@ -139,7 +139,8 @@ public class TestDatabaseEventListener extends TestBase {
         conn = DriverManager.getConnection(url, p);
         conn.close();
         calledCreateIndex = false;
-        p.put("DATABASE_EVENT_LISTENER", MyDatabaseEventListener.class.getName());
+        p.put("DATABASE_EVENT_LISTENER",
+                MyDatabaseEventListener.class.getName());
         conn = org.h2.Driver.load().connect(url, p);
         conn.close();
         assertTrue(!calledCreateIndex);
@@ -171,7 +172,8 @@ public class TestDatabaseEventListener extends TestBase {
         stat.execute("insert into test select 1");
         conn.close();
         calledCreateIndex = false;
-        p.put("DATABASE_EVENT_LISTENER", MyDatabaseEventListener.class.getName());
+        p.put("DATABASE_EVENT_LISTENER",
+                MyDatabaseEventListener.class.getName());
         conn = org.h2.Driver.load().connect(url, p);
         conn.close();
         assertTrue(!calledCreateIndex);
@@ -190,7 +192,8 @@ public class TestDatabaseEventListener extends TestBase {
         Connection conn = DriverManager.getConnection(url, p);
         Statement stat = conn.createStatement();
         stat.execute("create table test(id int primary key, name varchar)");
-        stat.execute("insert into test select x, space(1000) from system_range(1,1000)");
+        stat.execute("insert into test select x, space(1000) " +
+                "from system_range(1,1000)");
         if (shutdown) {
             stat.execute("shutdown");
         }
@@ -244,7 +247,8 @@ public class TestDatabaseEventListener extends TestBase {
     /**
      * The database event listener for this test.
      */
-    public static final class MyDatabaseEventListener implements DatabaseEventListener {
+    public static final class MyDatabaseEventListener implements
+            DatabaseEventListener {
 
         @Override
         public void closingDatabase() {

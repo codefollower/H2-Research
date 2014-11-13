@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -54,7 +53,8 @@ public class SQLInjection {
      * @param user the user name
      * @param password the password
      */
-    void run(String driver, String url, String user, String password) throws Exception {
+    void run(String driver, String url, String user, String password)
+            throws Exception {
         Class.forName(driver);
         conn = DriverManager.getConnection(url, user, password);
         stat = conn.createStatement();
@@ -147,7 +147,8 @@ public class SQLInjection {
      * @param password the password
      * @return a result set with the user record if the password matches
      */
-    public static ResultSet getUser(Connection conn, String userName, String password) throws Exception {
+    public static ResultSet getUser(Connection conn, String userName,
+            String password) throws Exception {
         PreparedStatement prep = conn.prepareStatement(
                 "SELECT * FROM USERS WHERE NAME=? AND PASSWORD=?");
         prep.setString(1, userName);
@@ -164,7 +165,8 @@ public class SQLInjection {
      * @param password the password
      * @return the new password
      */
-    public static String changePassword(Connection conn, String userName, String password) throws Exception {
+    public static String changePassword(Connection conn, String userName,
+            String password) throws Exception {
         PreparedStatement prep = conn.prepareStatement(
                 "UPDATE USERS SET PASSWORD=? WHERE NAME=?");
         prep.setString(1, password);
@@ -394,7 +396,8 @@ public class SQLInjection {
         stat.execute("CREATE CONSTANT HASH_ITERATIONS VALUE 100");
         stat.execute("CREATE CONSTANT HASH_ALGORITHM VALUE 'SHA256'");
         stat.execute("UPDATE USERS2 SET " +
-                "HASH=HASH(HASH_ALGORITHM, STRINGTOUTF8('abc' || SALT), HASH_ITERATIONS) " +
+                "HASH=HASH(HASH_ALGORITHM, " +
+                "STRINGTOUTF8('abc' || SALT), HASH_ITERATIONS) " +
                 "WHERE ID=1");
         String user = input("user?");
         String password = input("password?");

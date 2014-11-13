@@ -1,21 +1,23 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.message;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
+import org.h2.engine.Constants;
 import org.h2.jdbc.JdbcSQLException;
 import org.h2.util.SortedProperties;
 import org.h2.util.StringUtils;
@@ -36,17 +38,20 @@ public class DbException extends RuntimeException {
 
     static {
         try {
-            byte[] messages = Utils.getResource("/org/h2/res/_messages_en.prop");
+            byte[] messages = Utils.getResource(
+                    "/org/h2/res/_messages_en.prop");
             if (messages != null) {
                 MESSAGES.load(new ByteArrayInputStream(messages));
             }
             String language = Locale.getDefault().getLanguage();
             if (!"en".equals(language)) {
-                byte[] translations = Utils.getResource("/org/h2/res/_messages_" + language + ".prop");
+                byte[] translations = Utils.getResource(
+                        "/org/h2/res/_messages_" + language + ".prop");
                 // message: translated message + english
                 // (otherwise certain applications don't work)
                 if (translations != null) {
-                    Properties p = SortedProperties.fromLines(new String(translations, "UTF-8"));
+                    Properties p = SortedProperties.fromLines(
+                            new String(translations, Constants.UTF8));
                     for (Entry<Object, Object> e : p.entrySet()) {
                         String key = (String) e.getKey();
                         String translation = (String) e.getValue();
@@ -59,9 +64,9 @@ public class DbException extends RuntimeException {
                 }
             }
         } catch (OutOfMemoryError e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         } catch (IOException e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         }
     }
 
@@ -124,7 +129,8 @@ public class DbException extends RuntimeException {
             }
             return this;
         }
-        e = new JdbcSQLException(e.getMessage(), sql, e.getSQLState(), e.getErrorCode(), e, null);
+        e = new JdbcSQLException(e.getMessage(), sql, e.getSQLState(),
+                e.getErrorCode(), e, null);
         return new DbException(e);
     }
 
@@ -157,7 +163,8 @@ public class DbException extends RuntimeException {
      * @param params the list of parameters of the message
      * @return the exception
      */
-    public static DbException get(int errorCode, Throwable cause, String... params) {
+    public static DbException get(int errorCode, Throwable cause,
+            String... params) {
         return new DbException(getJdbcSQLException(errorCode, cause, params));
     }
 
@@ -192,9 +199,11 @@ public class DbException extends RuntimeException {
      * @param message the message
      * @return the exception
      */
-    public static DbException getSyntaxError(String sql, int index, String message) {
+    public static DbException getSyntaxError(String sql, int index,
+            String message) {
         sql = StringUtils.addAsterisk(sql, index);
-        return new DbException(getJdbcSQLException(ErrorCode.SYNTAX_ERROR_2, null, sql, message));
+        return new DbException(getJdbcSQLException(ErrorCode.SYNTAX_ERROR_2,
+                null, sql, message));
     }
 
     /**
@@ -214,8 +223,10 @@ public class DbException extends RuntimeException {
      * @param value the value passed
      * @return the IllegalArgumentException object
      */
-    public static DbException getInvalidValueException(String param, Object value) {
-        return get(ErrorCode.INVALID_VALUE_2, value == null ? "null" : value.toString(), param);
+    public static DbException getInvalidValueException(String param,
+            Object value) {
+        return get(ErrorCode.INVALID_VALUE_2,
+                value == null ? "null" : value.toString(), param);
     }
 
     /**
@@ -229,7 +240,7 @@ public class DbException extends RuntimeException {
      */
     public static RuntimeException throwInternalError(String s) {
         RuntimeException e = new RuntimeException(s);
-        TraceSystem.traceThrowable(e);
+        DbException.traceThrowable(e);
         throw e;
     }
 
@@ -291,7 +302,8 @@ public class DbException extends RuntimeException {
      * @param message the added message or null
      * @return the database exception object
      */
-    public static DbException convertInvocation(InvocationTargetException te, String message) {
+    public static DbException convertInvocation(InvocationTargetException te,
+            String message) {
         Throwable t = te.getTargetException();
         if (t instanceof SQLException || t instanceof DbException) {
             return convert(t);
@@ -326,7 +338,8 @@ public class DbException extends RuntimeException {
      * @param params the list of parameters of the message
      * @return the SQLException object
      */
-    private static JdbcSQLException getJdbcSQLException(int errorCode, Throwable cause, String... params) {
+    private static JdbcSQLException getJdbcSQLException(int errorCode,
+            Throwable cause, String... params) {
         String sqlstate = ErrorCode.getState(errorCode);
         String message = translate(sqlstate, params);
         return new JdbcSQLException(message, null, sqlstate, errorCode, cause, null);
@@ -357,6 +370,18 @@ public class DbException extends RuntimeException {
 
     public void setSource(Object source) {
         this.source = source;
+    }
+
+    /**
+     * Write the exception to the driver manager log writer if configured.
+     *
+     * @param e the exception
+     */
+    public static void traceThrowable(Throwable e) {
+        PrintWriter writer = DriverManager.getLogWriter();
+        if (writer != null) {
+            e.printStackTrace(writer);
+        }
     }
 
 }

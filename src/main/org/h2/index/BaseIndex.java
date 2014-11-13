@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.Mode;
@@ -76,7 +75,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         for (IndexColumn c : columns) {
             int type = c.column.getType();
             if (type == Value.CLOB || type == Value.BLOB) {
-                throw DbException.getUnsupportedException("Index on BLOB or CLOB column: " + c.column.getCreateSQL());
+                throw DbException.getUnsupportedException(
+                        "Index on BLOB or CLOB column: " + c.column.getCreateSQL());
             }
         }
     }
@@ -94,7 +94,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @return the exception
      */
     protected DbException getDuplicateKeyException(String key) {
-        String sql = getName() + " ON " + table.getSQL() + "(" + getColumnListSQL() + ")";
+        String sql = getName() + " ON " + table.getSQL() +
+                "(" + getColumnListSQL() + ")";
         if (key != null) {
             sql += " VALUES " + key;
         }
@@ -128,7 +129,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
 
     /**
      * Find a row or a list of rows that is larger and create a cursor to
-     * iterate over the result. The base implementation doesn't support this feature.
+     * iterate over the result. The base implementation doesn't support this
+     * feature.
      *
      * @param session the session
      * @param higherThan the lower limit (excluding)
@@ -152,7 +154,12 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @param sortOrder the sort order
      * @return the estimated cost
      */
+<<<<<<< HEAD
     protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) { //无子类覆盖
+=======
+    protected long getCostRangeIndex(int[] masks, long rowCount,
+            TableFilter filter, SortOrder sortOrder) {
+>>>>>>> remotes/git-svn
         rowCount += Constants.COST_ROW_OFFSET;
         long cost = rowCount;
         long rows = rowCount;
@@ -177,8 +184,14 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
                     cost = 3;
                     break;
                 }
+<<<<<<< HEAD
                 totalSelectivity = 100 - ((100 - totalSelectivity) * (100 - column.getSelectivity()) / 100);
                 long distinctRows = rowCount * totalSelectivity / 100; //totalSelectivity变大时distinctRows变大
+=======
+                totalSelectivity = 100 - ((100 - totalSelectivity) *
+                        (100 - column.getSelectivity()) / 100);
+                long distinctRows = rowCount * totalSelectivity / 100;
+>>>>>>> remotes/git-svn
                 if (distinctRows <= 0) {
                     distinctRows = 1;
                 }
@@ -327,7 +340,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      *
      * @param rowData the first row
      * @param compare the second row
-     * @return 0 if both rows are equal, -1 if the first row is smaller, otherwise 1
+     * @return 0 if both rows are equal, -1 if the first row is smaller,
+     *         otherwise 1
      */
     int compareKeys(SearchRow rowData, SearchRow compare) {
         long k1 = rowData.getKey();

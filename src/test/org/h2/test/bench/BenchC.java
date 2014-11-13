@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.bench;
@@ -23,8 +22,9 @@ public class BenchC implements Bench {
 
     private static final int COMMIT_EVERY = 1000;
 
-    private static final String[] TABLES = { "WAREHOUSE", "DISTRICT", "CUSTOMER", "HISTORY", "ORDERS",
-            "NEW_ORDER", "ITEM", "STOCK", "ORDER_LINE", "RESULTS" };
+    private static final String[] TABLES = { "WAREHOUSE", "DISTRICT",
+            "CUSTOMER", "HISTORY", "ORDERS", "NEW_ORDER", "ITEM", "STOCK",
+            "ORDER_LINE", "RESULTS" };
 
     private static final String[] CREATE_SQL = {
             "CREATE TABLE  WAREHOUSE(\n" +
@@ -167,7 +167,7 @@ public class BenchC implements Bench {
             " SUCCESSFUL INT,\n" +
             " NOW TIMESTAMP)" };
 
-    int warehouses = 1;
+    int warehouses = 2;
     int items = 10000;
     int districtsPerWarehouse = 10;
     int customersPerDistrict = 300;
@@ -186,7 +186,7 @@ public class BenchC implements Bench {
         random = new BenchCRandom();
 
         items = size * 10;
-        warehouses = 1;
+        warehouses = 2;
         districtsPerWarehouse = Math.max(1, size / 100);
         customersPerDistrict = Math.max(1, size / 100);
         ordersPerDistrict = Math.max(1, size / 1000);

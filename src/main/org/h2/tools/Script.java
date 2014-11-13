@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -56,7 +55,7 @@ public class Script extends Tool {
     @Override
     public void runTool(String... args) throws SQLException {
         String url = null;
-        String user = "sa";
+        String user = "";
         String password = "";
         String file = "backup.sql";
         String options1 = null, options2 = null;
@@ -129,7 +128,8 @@ public class Script extends Tool {
      * @param password the password
      * @param fileName the script file
      */
-    public static void execute(String url, String user, String password, String fileName) throws SQLException {
+    public static void execute(String url, String user, String password,
+            String fileName) throws SQLException {
         OutputStream o = null;
         try {
             o = FileUtils.newOutputStream(fileName, false);
@@ -150,7 +150,8 @@ public class Script extends Tool {
      * @param password the password
      * @param out the output stream
      */
-    public static void execute(String url, String user, String password, OutputStream out) throws SQLException {
+    public static void execute(String url, String user, String password,
+            OutputStream out) throws SQLException {
         Connection conn = null;
         try {
             org.h2.Driver.load();

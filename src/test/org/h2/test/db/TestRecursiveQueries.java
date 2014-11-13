@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -38,9 +37,11 @@ public class TestRecursiveQueries extends TestBase {
         Statement stat;
         stat = conn.createStatement();
         stat.execute("create table test(parent varchar(255), child varchar(255))");
-        stat.execute("insert into test values('/', 'a'), ('a', 'b1'), ('a', 'b2'), ('a', 'c'), ('c', 'd1'), ('c', 'd2')");
+        stat.execute("insert into test values('/', 'a'), ('a', 'b1'), " +
+                "('a', 'b2'), ('a', 'c'), ('c', 'd1'), ('c', 'd2')");
 
-        ResultSet rs = stat.executeQuery("with recursive rec_test(depth, parent, child) as (" +
+        ResultSet rs = stat.executeQuery(
+                "with recursive rec_test(depth, parent, child) as (" +
                 "select 0, parent, child from test where parent = '/' " +
                 "union all " +
                 "select depth+1, r.parent, r.child from test i join rec_test r " +

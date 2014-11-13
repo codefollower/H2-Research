@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: James Moger
  */
 package org.h2.jaqu;
@@ -59,8 +58,8 @@ public interface SQLDialect {
     boolean supportsMemoryTables();
 
     /**
-     *  Default implementation of an SQL dialect.
-     *  Designed for an H2 database, and may be suitable for others.
+     * Default implementation of an SQL dialect. Designed for an H2 database,
+     * and may be suitable for others.
      */
     public static class DefaultSQLDialect implements SQLDialect {
 
@@ -78,10 +77,11 @@ public interface SQLDialect {
         }
 
         @Override
-        public String getCreateIndex(String schema, String table, IndexDefinition index) {
+        public String getCreateIndex(String schema, String table,
+                IndexDefinition index) {
             StatementBuilder buff = new StatementBuilder();
             buff.append("CREATE ");
-            switch(index.type) {
+            switch (index.type) {
             case STANDARD:
                 break;
             case UNIQUE:
@@ -99,7 +99,7 @@ public interface SQLDialect {
             buff.append(" ON ");
             buff.append(table);
             buff.append("(");
-            for (String col:index.columnNames) {
+            for (String col : index.columnNames) {
                 buff.appendExceptFirst(", ");
                 buff.append(col);
             }

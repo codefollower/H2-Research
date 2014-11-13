@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.test.store;
 
@@ -17,10 +17,11 @@ import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
 
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.jdbc.JdbcConnection;
+import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.db.TransactionStore;
 import org.h2.store.fs.FileUtils;
@@ -47,6 +48,13 @@ public class TestMVTableEngine extends TestBase {
 
     @Override
     public void test() throws Exception {
+        testLowRetentionTime();
+        testOldAndNew();
+        testTemporaryTables();
+        testUniqueIndex();
+        testSecondaryIndex();
+        testGarbageCollectionForLOB();
+        testSpatial();
         testCount();
         testMinMaxWithNull();
         testTimeout();
@@ -70,6 +78,184 @@ public class TestMVTableEngine extends TestBase {
         testDataTypes();
         testLocking();
         testSimple();
+    }
+
+    private void testLowRetentionTime() throws SQLException {
+        deleteDb("testLowRetentionTime");
+        Connection conn = getConnection(
+                "testLowRetentionTime;RETENTION_TIME=10;WRITE_DELAY=10");
+        Statement stat = conn.createStatement();
+        Connection conn2 = getConnection("testLowRetentionTime");
+        Statement stat2 = conn2.createStatement();
+        stat.execute("create alias sleep as " +
+                "$$void sleep(int ms) throws Exception { Thread.sleep(ms); }$$");
+        stat.execute("create table test(id identity, name varchar) " +
+                "as select x, 'Init' from system_range(0, 1999)");
+        for (int i = 0; i < 10; i++) {
+            stat.execute("insert into test values(null, 'Hello')");
+            // create and delete a large table: this will force compaction
+            stat.execute("create table temp(id identity, name varchar) as " +
+                    "select x, space(1000000) from system_range(0, 10)");
+            stat.execute("drop table temp");
+        }
+        ResultSet rs = stat2
+                .executeQuery("select *, sleep(1) from test order by id");
+        for (int i = 0; i < 2000 + 10; i++) {
+            assertTrue(rs.next());
+            assertEquals(i, rs.getInt(1));
+        }
+        assertFalse(rs.next());
+        conn2.close();
+        conn.close();
+    }
+
+    private void testOldAndNew() throws SQLException {
+        FileUtils.deleteRecursive(getBaseDir(), true);
+        Connection conn;
+
+        String urlOld = getURL("mvstore;MV_STORE=FALSE", true);
+        String urlNew = getURL("mvstore;MV_STORE=TRUE", true);
+        String url = getURL("mvstore", true);
+
+        conn = getConnection(urlOld);
+        conn.createStatement().execute("create table test_old(id int)");
+        conn.close();
+        conn = getConnection(url);
+        conn.createStatement().execute("select * from test_old");
+        conn.close();
+        conn = getConnection(urlNew);
+        conn.createStatement().execute("create table test_new(id int)");
+        conn.close();
+        conn = getConnection(url);
+        conn.createStatement().execute("select * from test_new");
+        conn.close();
+        conn = getConnection(urlOld);
+        conn.createStatement().execute("select * from test_old");
+        conn.close();
+        conn = getConnection(urlNew);
+        conn.createStatement().execute("select * from test_new");
+        conn.close();
+    }
+
+    private void testTemporaryTables() throws SQLException {
+        FileUtils.deleteRecursive(getBaseDir(), true);
+        Connection conn;
+        Statement stat;
+        String url = "mvstore;MV_STORE=TRUE";
+        url = getURL(url, true);
+        conn = getConnection(url);
+        stat = conn.createStatement();
+        stat.execute("set max_memory_rows 100");
+        stat.execute("create table t1 as select x from system_range(1, 200)");
+        stat.execute("create table t2 as select x from system_range(1, 200)");
+        for (int i = 0; i < 20; i++) {
+            // this will create temporary results that
+            // internally use temporary tables, which are not all closed
+            stat.execute("select count(*) from t1 where t1.x in (select t2.x from t2)");
+        }
+        conn.close();
+        conn = getConnection(url);
+        stat = conn.createStatement();
+        for (int i = 0; i < 20; i++) {
+            stat.execute("create table a" + i + "(id int primary key)");
+            ResultSet rs = stat.executeQuery("select count(*) from a" + i);
+            rs.next();
+            assertEquals(0, rs.getInt(1));
+        }
+        conn.close();
+    }
+
+    private void testUniqueIndex() throws SQLException {
+        FileUtils.deleteRecursive(getBaseDir(), true);
+        Connection conn;
+        Statement stat;
+        String url = "mvstore;MV_STORE=TRUE";
+        url = getURL(url, true);
+        conn = getConnection(url);
+        stat = conn.createStatement();
+        stat.execute("create table test as select x, 0 from system_range(1, 5000)");
+        stat.execute("create unique index on test(x)");
+        ResultSet rs = stat.executeQuery("select * from test where x=1");
+        assertTrue(rs.next());
+        assertFalse(rs.next());
+        conn.close();
+    }
+
+    private void testSecondaryIndex() throws SQLException {
+        FileUtils.deleteRecursive(getBaseDir(), true);
+        Connection conn;
+        Statement stat;
+        String url = "mvstore;MV_STORE=TRUE";
+        url = getURL(url, true);
+        conn = getConnection(url);
+        stat = conn.createStatement();
+        stat.execute("create table test(id int)");
+        int size = 8 * 1024;
+        stat.execute("insert into test select mod(x * 111, " + size + ") " +
+                "from system_range(1, " + size + ")");
+        stat.execute("create index on test(id)");
+        ResultSet rs = stat.executeQuery(
+                "select count(*) from test inner join " +
+                "system_range(1, " + size + ") where " +
+                "id = mod(x * 111, " + size + ")");
+        rs.next();
+        assertEquals(size, rs.getInt(1));
+        conn.close();
+    }
+
+    private void testGarbageCollectionForLOB() throws SQLException {
+        FileUtils.deleteRecursive(getBaseDir(), true);
+        Connection conn;
+        Statement stat;
+        String url = "mvstore;MV_STORE=TRUE";
+        url = getURL(url, true);
+        conn = getConnection(url);
+        stat = conn.createStatement();
+        stat.execute("create table test(id int, data blob)");
+        stat.execute("insert into test select x, repeat('0', 10000) " +
+                "from system_range(1, 10)");
+        stat.execute("drop table test");
+        stat.equals("call @temp := cast(repeat('0', 10000) as blob)");
+        stat.execute("create table test2(id int, data blob)");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test2 values(?, ?)");
+        prep.setInt(1, 1);
+        assertThrows(ErrorCode.IO_EXCEPTION_1, prep).
+            setBinaryStream(1, createFailingStream(new IOException()));
+        prep.setInt(1, 2);
+        assertThrows(ErrorCode.IO_EXCEPTION_1, prep).
+            setBinaryStream(1, createFailingStream(new IllegalStateException()));
+        conn.close();
+        MVStore s = MVStore.open(getBaseDir()+ "/mvstore.mv.db");
+        assertTrue(s.hasMap("lobData"));
+        MVMap<Long, byte[]> lobData = s.openMap("lobData");
+        assertEquals(0, lobData.sizeAsLong());
+        assertTrue(s.hasMap("lobMap"));
+        MVMap<Long, byte[]> lobMap = s.openMap("lobMap");
+        assertEquals(0, lobMap.sizeAsLong());
+        assertTrue(s.hasMap("lobRef"));
+        MVMap<Long, byte[]> lobRef = s.openMap("lobRef");
+        assertEquals(0, lobRef.sizeAsLong());
+        s.close();
+    }
+
+    private void testSpatial() throws SQLException {
+        FileUtils.deleteRecursive(getBaseDir(), true);
+        Connection conn;
+        Statement stat;
+        String url = "mvstore;MV_STORE=TRUE";
+        url = getURL(url, true);
+        conn = getConnection(url);
+        stat = conn.createStatement();
+        stat.execute("call rand(1)");
+        stat.execute("create table coordinates as select rand()*50 x, " +
+                "rand()*50 y from system_range(1, 5000)");
+        stat.execute("create table test(id identity, data geometry)");
+        stat.execute("create spatial index on test(data)");
+        stat.execute("insert into test(data) select 'polygon(('||" +
+                "(1+x)||' '||(1+y)||', '||(2+x)||' '||(2+y)||', "+
+                "'||(3+x)||' '||(1+y)||', '||(1+x)||' '||(1+y)||'))' from coordinates;");
+        conn.close();
     }
 
     private void testCount() throws Exception {
@@ -124,7 +310,7 @@ public class TestMVTableEngine extends TestBase {
         rs.next();
         plan = rs.getString(1);
         // transaction log is larger than the table, so read the table
-        assertTrue(plan, plan.indexOf("reads:") >= 0);
+        assertTrue(plan, plan.contains("reads:"));
         rs = stat2.executeQuery("select count(*) from test");
         rs.next();
         assertEquals(10000, rs.getInt(1));
@@ -206,7 +392,7 @@ public class TestMVTableEngine extends TestBase {
         rs.next();
         String plan = rs.getString(1);
         // expect about 249 reads
-        assertTrue(plan, plan.indexOf("reads: 2") >= 0);
+        assertTrue(plan, plan.contains("reads: 2"));
         conn.close();
     }
 
@@ -264,10 +450,12 @@ public class TestMVTableEngine extends TestBase {
             assertTrue(rs.next());
             assertEquals(retentionTime, rs.getInt(1));
             stat.execute("create table test(id int primary key, data varchar)");
-            stat.execute("insert into test select x, space(100) from system_range(1, 1000)");
+            stat.execute("insert into test select x, space(100) " +
+                    "from system_range(1, 1000)");
             // this table is kept
             if (i < 10) {
-                stat.execute("create table test" + i + "(id int primary key, data varchar) " +
+                stat.execute("create table test" + i +
+                        "(id int primary key, data varchar) " +
                         "as select x, space(10) from system_range(1, 100)");
             }
             // force writing the chunk
@@ -444,7 +632,8 @@ public class TestMVTableEngine extends TestBase {
         stat = conn.createStatement();
         stat.execute("create table test(id int primary key, name varchar)");
         stat.execute("create index idx_name on test(name, id)");
-        stat.execute("insert into test select x, x || space(200 * x) from system_range(1, 10)");
+        stat.execute("insert into test select x, x || space(200 * x) " +
+                "from system_range(1, 10)");
         conn.setAutoCommit(false);
         stat.execute("delete from test where id > 5");
         stat.execute("backup to '" + getBaseDir() + "/backup.zip'");
@@ -495,7 +684,9 @@ public class TestMVTableEngine extends TestBase {
                     "foreign key(pid) references parent(id)");
             fail();
         } catch (SQLException e) {
-            assertEquals(ErrorCode.REFERENTIAL_INTEGRITY_VIOLATED_PARENT_MISSING_1, e.getErrorCode());
+            assertEquals(
+                    ErrorCode.REFERENTIAL_INTEGRITY_VIOLATED_PARENT_MISSING_1,
+                    e.getErrorCode());
         }
         stat.execute("update child set pid=1");
         stat.execute("drop table child, parent");
@@ -509,7 +700,9 @@ public class TestMVTableEngine extends TestBase {
                         "foreign key(pid) references parent(id)");
             fail();
         } catch (SQLException e) {
-            assertEquals(ErrorCode.REFERENTIAL_INTEGRITY_VIOLATED_PARENT_MISSING_1, e.getErrorCode());
+            assertEquals(
+                    ErrorCode.REFERENTIAL_INTEGRITY_VIOLATED_PARENT_MISSING_1,
+                    e.getErrorCode());
         }
         stat.execute("drop table child, parent");
 
@@ -605,7 +798,8 @@ public class TestMVTableEngine extends TestBase {
         conn = getConnection(dbName);
         stat = conn.createStatement();
         stat.execute("create table test(id int, name blob)");
-        PreparedStatement prep = conn.prepareStatement("insert into test values(1, ?)");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test values(1, ?)");
         prep.setBinaryStream(1,  new ByteArrayInputStream(new byte[129]));
         prep.execute();
         conn.close();
@@ -646,7 +840,7 @@ public class TestMVTableEngine extends TestBase {
 
     private void testExclusiveLock() throws Exception {
         FileUtils.deleteRecursive(getBaseDir(), true);
-        String dbName = "mvstore;MV_STORE=TRUE";
+        String dbName = "mvstore;MV_STORE=TRUE;MVCC=FALSE";
         Connection conn, conn2;
         Statement stat, stat2;
         conn = getConnection(dbName);
@@ -658,7 +852,8 @@ public class TestMVTableEngine extends TestBase {
         stat.executeQuery("select * from test for update");
         conn2 = getConnection(dbName);
         stat2 = conn2.createStatement();
-        ResultSet rs2 = stat2.executeQuery("select * from information_schema.locks");
+        ResultSet rs2 = stat2.executeQuery(
+                "select * from information_schema.locks");
         assertTrue(rs2.next());
         assertEquals("TEST", rs2.getString("table_name"));
         assertEquals("WRITE", rs2.getString("lock_type"));
@@ -676,9 +871,11 @@ public class TestMVTableEngine extends TestBase {
         stat = conn.createStatement();
         stat.execute("create table test(id int)");
         conn.close();
-        FileUtils.setReadOnly(getBaseDir() + "/mvstore" + Constants.SUFFIX_MV_FILE);
+        FileUtils.setReadOnly(getBaseDir() + "/mvstore" +
+                Constants.SUFFIX_MV_FILE);
         conn = getConnection(dbName);
-        Database db = (Database) ((JdbcConnection) conn).getSession().getDataHandler();
+        Database db = (Database) ((JdbcConnection) conn).getSession()
+                .getDataHandler();
         assertTrue(db.getMvStore().getStore().getFileStore().isReadOnly());
         conn.close();
         FileUtils.deleteRecursive(getBaseDir(), true);
@@ -692,11 +889,13 @@ public class TestMVTableEngine extends TestBase {
         long maxSize = 0;
         for (int i = 0; i < 20; i++) {
             conn = getConnection(dbName);
-            Database db = (Database) ((JdbcConnection) conn).getSession().getDataHandler();
+            Database db = (Database) ((JdbcConnection) conn).
+                    getSession().getDataHandler();
             db.getMvStore().getStore().setRetentionTime(0);
             stat = conn.createStatement();
             stat.execute("create table test(id int primary key, data varchar)");
-            stat.execute("insert into test select x, space(1000) from system_range(1, 1000)");
+            stat.execute("insert into test select x, space(1000) " +
+                    "from system_range(1, 1000)");
             stat.execute("drop table test");
             conn.close();
             long size = FileUtils.size(getBaseDir() + "/mvstore"
@@ -738,10 +937,12 @@ public class TestMVTableEngine extends TestBase {
         stat.execute("insert into test values(1, 'vc', 'ch', true, 8, 16, 64, "
                 + "123.00, 64.0, 32.0, '10:00:00', '2001-01-01', "
                 + "'2010-10-10 10:10:10', x'00', 0, x'b1', 'clob')");
-        stat.execute("insert into test values(-1, 'quite a long string \u1234 \u00ff', 'ch', false, -8, -16, -64, "
+        stat.execute("insert into test values(-1, "
+                + "'quite a long string \u1234 \u00ff', 'ch', false, -8, -16, -64, "
                 + "0, 0, 0, '10:00:00', '2001-01-01', "
                 + "'2010-10-10 10:10:10', SECURE_RAND(100), 0, x'b1', 'clob')");
-        stat.execute("insert into test values(-1000, space(1000), 'ch', false, -8, -16, -64, "
+        stat.execute("insert into test values(-1000, space(1000), 'ch', "
+                + "false, -8, -16, -64, "
                 + "1, 1, 1, '10:00:00', '2001-01-01', "
                 + "'2010-10-10 10:10:10', SECURE_RAND(100), 0, x'b1', 'clob')");
         if (!config.memory) {
@@ -766,7 +967,8 @@ public class TestMVTableEngine extends TestBase {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10.0", rs.getString(13));
         assertEquals(1, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000", rs.getString(15));
+        assertEquals("00000000-0000-0000-0000-000000000000",
+                rs.getString(15));
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
         rs.next();
@@ -784,12 +986,14 @@ public class TestMVTableEngine extends TestBase {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10.0", rs.getString(13));
         assertEquals(1, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000", rs.getString(15));
+        assertEquals("00000000-0000-0000-0000-000000000000",
+                rs.getString(15));
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
         rs.next();
         assertEquals(-1, rs.getInt(1));
-        assertEquals("quite a long string \u1234 \u00ff", rs.getString(2));
+        assertEquals("quite a long string \u1234 \u00ff",
+                rs.getString(2));
         assertEquals("ch", rs.getString(3));
         assertFalse(rs.getBoolean(4));
         assertEquals(-8, rs.getByte(5));
@@ -802,7 +1006,8 @@ public class TestMVTableEngine extends TestBase {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10.0", rs.getString(13));
         assertEquals(100, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000", rs.getString(15));
+        assertEquals("00000000-0000-0000-0000-000000000000",
+                rs.getString(15));
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
         rs.next();
@@ -820,14 +1025,17 @@ public class TestMVTableEngine extends TestBase {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10.0", rs.getString(13));
         assertEquals(100, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000", rs.getString(15));
+        assertEquals("00000000-0000-0000-0000-000000000000",
+                rs.getString(15));
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
 
         stat.execute("drop table test");
 
-        stat.execute("create table test(id int, obj object, rs result_set, arr array, ig varchar_ignorecase)");
-        PreparedStatement prep = conn.prepareStatement("insert into test values(?, ?, ?, ?, ?)");
+        stat.execute("create table test(id int, obj object, " +
+                "rs result_set, arr array, ig varchar_ignorecase)");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test values(?, ?, ?, ?, ?)");
         prep.setInt(1, 1);
         prep.setObject(2, new java.lang.AssertionError());
         prep.setObject(3, stat.executeQuery("select 1 from dual"));
@@ -837,7 +1045,9 @@ public class TestMVTableEngine extends TestBase {
         prep.setInt(1, 1);
         prep.setObject(2, new java.lang.AssertionError());
         prep.setObject(3, stat.executeQuery("select 1 from dual"));
-        prep.setObject(4, new Object[]{new BigDecimal(new String(new char[1000]).replace((char) 0, '1'))});
+        prep.setObject(4, new Object[]{
+                new BigDecimal(new String(
+                new char[1000]).replace((char) 0, '1'))});
         prep.setObject(5, "test");
         prep.execute();
         if (!config.memory) {
@@ -860,7 +1070,7 @@ public class TestMVTableEngine extends TestBase {
 
     private void testLocking() throws Exception {
         FileUtils.deleteRecursive(getBaseDir(), true);
-        String dbName = "mvstore;MV_STORE=TRUE";
+        String dbName = "mvstore;MV_STORE=TRUE;MVCC=FALSE";
         Connection conn = getConnection(dbName);
         Statement stat = conn.createStatement();
         stat.execute("set lock_timeout 1000");
@@ -925,7 +1135,8 @@ public class TestMVTableEngine extends TestBase {
         assertFalse(rs.next());
 
         stat.execute("create unique index idx_name on test(name)");
-        rs = stat.executeQuery("select * from test where name = 'Hello' order by name");
+        rs = stat.executeQuery("select * from test " +
+                "where name = 'Hello' order by name");
         assertTrue(rs.next());
         assertEquals(1, rs.getInt(1));
         assertEquals("Hello", rs.getString(2));
@@ -938,7 +1149,8 @@ public class TestMVTableEngine extends TestBase {
             assertEquals(e.toString(), ErrorCode.DUPLICATE_KEY_1, e.getErrorCode());
         }
 
-        rs = stat.executeQuery("select min(id), max(id), min(name), max(name) from test");
+        rs = stat.executeQuery("select min(id), max(id), " +
+                "min(name), max(name) from test");
         rs.next();
         assertEquals(1, rs.getInt(1));
         assertEquals(2, rs.getInt(2));

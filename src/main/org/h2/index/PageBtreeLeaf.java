@@ -1,16 +1,16 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
 import java.util.Arrays;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.result.SearchRow;
 import org.h2.store.Data;
@@ -63,8 +63,10 @@ public class PageBtreeLeaf extends PageBtree {
      * @param parentPageId the parent
      * @return the page
      */
-    static PageBtreeLeaf create(PageBtreeIndex index, int pageId, int parentPageId) {
-        PageBtreeLeaf p = new PageBtreeLeaf(index, pageId, index.getPageStore().createData());
+    static PageBtreeLeaf create(PageBtreeIndex index, int pageId,
+            int parentPageId) {
+        PageBtreeLeaf p = new PageBtreeLeaf(index, pageId, index.getPageStore()
+                .createData());
         index.getPageStore().logUndo(p, null);
         p.rows = SearchRow.EMPTY_ARRAY;
         p.parentPageId = parentPageId;
@@ -159,10 +161,15 @@ public class PageBtreeLeaf extends PageBtree {
                 byte[] d = data.getBytes();
                 int dataStart = offsets[entryCount - 1]; //offsets总是降序的，所以offsets[entryCount - 1]是data的最小下标
                 int dataEnd = offset;
+<<<<<<< HEAD
                 //将data数组中dataStart下标开始的dataEnd - dataStart + rowLength个元素往左移到dataStart - rowLength开始处
                 //(即: 把数据移到dataStart位置的左边，因为dataStart前的位置还没写数据，所以整体往前挪rowLength, 右边挪出的空位置
                 //用来放新的row，这个row的位置就是offset)
                 System.arraycopy(d, dataStart, d, dataStart - rowLength, dataEnd - dataStart + rowLength);
+=======
+                System.arraycopy(d, dataStart, d, dataStart - rowLength,
+                        dataEnd - dataStart + rowLength);
+>>>>>>> remotes/git-svn
             }
             index.writeRow(data, offset, row, onlyPosition);
         }
@@ -195,7 +202,8 @@ public class PageBtreeLeaf extends PageBtree {
             if (writtenData) {
                 byte[] d = data.getBytes();
                 int dataStart = offsets[entryCount];
-                System.arraycopy(d, dataStart, d, dataStart + rowLength, offsets[at] - dataStart);
+                System.arraycopy(d, dataStart, d,
+                        dataStart + rowLength, offsets[at] - dataStart);
                 Arrays.fill(d, dataStart, dataStart + rowLength, (byte) 0);
             }
         }
@@ -237,7 +245,8 @@ public class PageBtreeLeaf extends PageBtree {
         int at = find(row, false, false, true);
         SearchRow delete = getRow(at);
         if (index.compareRows(row, delete) != 0 || delete.getKey() != row.getKey()) {
-            throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1, index.getSQL() + ": " + row);
+            throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
+                    index.getSQL() + ": " + row);
         }
         index.getPageStore().logUndo(this, data);
         if (entryCount == 1) {
@@ -279,7 +288,8 @@ public class PageBtreeLeaf extends PageBtree {
 
     private void writeHead() {
         data.reset();
-        data.writeByte((byte) (Page.TYPE_BTREE_LEAF | (onlyPosition ? 0 : Page.FLAG_LAST)));
+        data.writeByte((byte) (Page.TYPE_BTREE_LEAF |
+                (onlyPosition ? 0 : Page.FLAG_LAST)));
         data.writeShortInt(0);
         data.writeInt(parentPageId);
         data.writeVarInt(index.getId());
@@ -361,8 +371,13 @@ public class PageBtreeLeaf extends PageBtree {
 
     @Override
     public String toString() {
+<<<<<<< HEAD
     	return tree();
         //return "page[" + getPos() + "] b-tree leaf table:" + index.getId() + " entries:" + entryCount;
+=======
+        return "page[" + getPos() + "] b-tree leaf table:" +
+                index.getId() + " entries:" + entryCount;
+>>>>>>> remotes/git-svn
     }
 
     @Override

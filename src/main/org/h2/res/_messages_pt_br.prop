@@ -38,6 +38,7 @@
 90008=Valor inválido {0} para o parâmetro {1}
 90009=#Unable to create or alter sequence {0} because of invalid attributes (start value {1}, min value {2}, max value {3}, increment {4})
 90010=#Invalid TO_CHAR format {0}
+90011=#A file path that is implicitly relative to the current working directory is not allowed in the database URL {0}. Use an absolute path, ~/name, ./name, or the baseDir setting instead.
 90012=Parâmetro {0} não esta definido
 90013=Base de dados {0} não encontrada
 90014=Erro na conversão {0}
@@ -47,6 +48,7 @@
 90018=A conecção foi fechada pela aplicação e retirada da memória
 90019=Não pode remover o usuário corrente
 90020=A base de dados talvez esteja em uso: {0}. Solução possível: fechar todas as outras conecções; use o modo servidor
+90021=#This combination of database settings is not supported: {0}
 90022=Função {0} não encontrada
 90023=Coluna {0} não deve permitir valor nulo
 90024=Erro ao renomear arquivo {0} para {1}
@@ -114,7 +116,6 @@
 90089=A coleção não pode ser alterada, porque existe uma tabela de dados: {0}
 90090=Esquema {0} não pode ser apagado
 90091=Regra {0} não pode ser apagada
-90092=Esta versão do Java não é suportada (Java 1.4 é requerido no mínimo)
 90093=Erro de clusterização - base de dados rodando no modo standalone no momento
 90094=Erro de clusterização - base de dados rodando no modo cluster, lista do servidor: {0}
 90095=Erro no formato da string: {0}
@@ -122,7 +123,6 @@
 90097=Base de dados é somente leitura
 90098=Base de dados foi fechada
 90099=Erro na definição do evento listener {0} da base de dados, causa: {1}
-90100=Não há espaço em disco suficiente
 90101=Formato XID incorreto: {0}
 90102=Não é suportado as opções de compressão: {0}
 90103=Não é suportado o algorítimo de compressão: {0}

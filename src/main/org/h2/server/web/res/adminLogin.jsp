@@ -1,24 +1,13 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <!--
-Copyright 2004-2013 H2 Group.
-Multiple-Licensed under the H2 License, Version 1.0,
-and under the Eclipse Public License, Version 1.0
-(http://h2database.com/html/license.html).
+Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+and the EPL 1.0 (http://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
 <html><head>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
     <title>${text.a.title}</title>
     <link rel="stylesheet" type="text/css" href="stylesheet.css" />
-
-    <script type="text/javascript">
-        <!--
-        if(self != top) {
-            top.location = "adminLogin.jsp";
-        }
-        //-->
-    </script>
-
 </head>
 <body style="margin: 20px">
     <form name="adminLogin" method="post" action="admin.do?jsessionid=${sessionId}">

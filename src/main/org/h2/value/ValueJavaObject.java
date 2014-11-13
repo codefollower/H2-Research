@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -10,8 +9,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 
-import org.h2.constant.SysProperties;
+import org.h2.engine.SysProperties;
 import org.h2.store.DataHandler;
+import org.h2.util.JdbcUtils;
 import org.h2.util.Utils;
 
 /**
@@ -19,7 +19,8 @@ import org.h2.util.Utils;
  */
 public class ValueJavaObject extends ValueBytes {
 
-    private static final ValueJavaObject EMPTY = new ValueJavaObject(Utils.EMPTY_BYTES, null);
+    private static final ValueJavaObject EMPTY =
+            new ValueJavaObject(Utils.EMPTY_BYTES, null);
     private final DataHandler dataHandler;
 
     protected ValueJavaObject(byte[] v, DataHandler dataHandler) {
@@ -36,14 +37,15 @@ public class ValueJavaObject extends ValueBytes {
      * @param dataHandler provides the object serializer
      * @return the value
      */
-    public static ValueJavaObject getNoCopy(Object javaObject, byte[] b, DataHandler dataHandler) {
+    public static ValueJavaObject getNoCopy(Object javaObject, byte[] b,
+            DataHandler dataHandler) {
         if (b != null && b.length == 0) {
             return EMPTY;
         }
         ValueJavaObject obj;
         if (SysProperties.serializeJavaObject) {
             if (b == null) {
-                b = Utils.serialize(javaObject, dataHandler);
+                b = JdbcUtils.serialize(javaObject, dataHandler);
             }
             obj = new ValueJavaObject(b, dataHandler);
         } else {
@@ -61,8 +63,9 @@ public class ValueJavaObject extends ValueBytes {
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        Object obj = Utils.deserialize(getBytesNoCopy(), getDataHandler());
+    public void set(PreparedStatement prep, int parameterIndex)
+            throws SQLException {
+        Object obj = JdbcUtils.deserialize(getBytesNoCopy(), getDataHandler());
         prep.setObject(parameterIndex, obj, Types.JAVA_OBJECT);
     }
 
@@ -84,14 +87,15 @@ public class ValueJavaObject extends ValueBytes {
         }
 
         @Override
-        public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
+        public void set(PreparedStatement prep, int parameterIndex)
+                throws SQLException {
             prep.setObject(parameterIndex, getObject(), Types.JAVA_OBJECT);
         }
 
         @Override
         public byte[] getBytesNoCopy() {
             if (value == null) {
-                value = Utils.serialize(javaObject, null);
+                value = JdbcUtils.serialize(javaObject, null);
             }
             return value;
         }
@@ -159,7 +163,7 @@ public class ValueJavaObject extends ValueBytes {
         @Override
         public Object getObject() {
             if (javaObject == null) {
-                javaObject = Utils.deserialize(value, getDataHandler());
+                javaObject = JdbcUtils.deserialize(value, getDataHandler());
             }
             return javaObject;
         }

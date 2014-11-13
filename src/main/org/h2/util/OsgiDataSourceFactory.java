@@ -1,18 +1,21 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.util;
 
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
+
 import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
 import javax.sql.XADataSource;
+
 import org.h2.engine.Constants;
 import org.h2.jdbcx.JdbcDataSource;
+import org.osgi.framework.BundleContext;
 import org.osgi.service.jdbc.DataSourceFactory;
 
 /**
@@ -50,7 +53,8 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
      * @return a new data source.
      */
     @Override
-    public DataSource createDataSource(Properties properties) throws SQLException {
+    public DataSource createDataSource(Properties properties)
+            throws SQLException {
         // Make copy of properties
         Properties propertiesCopy = new Properties();
         if (properties != null) {
@@ -79,7 +83,8 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
      * @return a new data source.
      */
     @Override
-    public ConnectionPoolDataSource createConnectionPoolDataSource(Properties properties) throws SQLException {
+    public ConnectionPoolDataSource createConnectionPoolDataSource(
+            Properties properties) throws SQLException {
         // Make copy of properties
         Properties propertiesCopy = new Properties();
         if (properties != null) {
@@ -108,7 +113,8 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
      * @return a new data source.
      */
     @Override
-    public XADataSource createXADataSource(Properties properties) throws SQLException {
+    public XADataSource createXADataSource(Properties properties)
+            throws SQLException {
         // Make copy of properties
         Properties propertiesCopy = new Properties();
         if (properties != null) {
@@ -136,7 +142,8 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
      * @return a driver.
      */
     @Override
-    public java.sql.Driver createDriver(Properties properties) throws SQLException {
+    public java.sql.Driver createDriver(Properties properties)
+            throws SQLException {
         if (properties != null && !properties.isEmpty()) {
             // No properties supported
             throw new SQLException();
@@ -148,19 +155,22 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
      * Checker method that will throw if any unsupported standard OSGi options
      * is present.
      *
-     * @param properties the properties to check
+     * @param p the properties to check
      * @throws SQLFeatureNotSupportedException if unsupported properties are
      *             present
      */
-    private static void rejectUnsupportedOptions(Properties properties) throws SQLFeatureNotSupportedException {
+    private static void rejectUnsupportedOptions(Properties p)
+            throws SQLFeatureNotSupportedException {
         // Unsupported standard properties in OSGi
-        if (properties.containsKey(DataSourceFactory.JDBC_ROLE_NAME)) {
-            throw new SQLFeatureNotSupportedException("The " + DataSourceFactory.JDBC_ROLE_NAME
-                    + " property is not supported by H2");
+        if (p.containsKey(DataSourceFactory.JDBC_ROLE_NAME)) {
+            throw new SQLFeatureNotSupportedException("The " +
+                    DataSourceFactory.JDBC_ROLE_NAME +
+                    " property is not supported by H2");
         }
-        if (properties.containsKey(DataSourceFactory.JDBC_DATASOURCE_NAME)) {
-            throw new SQLFeatureNotSupportedException("The " + DataSourceFactory.JDBC_DATASOURCE_NAME
-                    + " property is not supported by H2");
+        if (p.containsKey(DataSourceFactory.JDBC_DATASOURCE_NAME)) {
+            throw new SQLFeatureNotSupportedException("The " +
+                    DataSourceFactory.JDBC_DATASOURCE_NAME +
+                    " property is not supported by H2");
         }
     }
 
@@ -169,55 +179,63 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
      * properties will be applied as H2 options.
      *
      * @param dataSource the data source to configure
-     * @param properties the properties to apply to the data source
+     * @param p the properties to apply to the data source
      */
-    private static void setupH2DataSource(JdbcDataSource dataSource, Properties properties) {
+    private static void setupH2DataSource(JdbcDataSource dataSource,
+            Properties p) {
         // Setting user and password
-        if (properties.containsKey(DataSourceFactory.JDBC_USER)) {
-            dataSource.setUser((String) properties.remove(DataSourceFactory.JDBC_USER));
+        if (p.containsKey(DataSourceFactory.JDBC_USER)) {
+            dataSource.setUser((String) p.remove(DataSourceFactory.JDBC_USER));
         }
-        if (properties.containsKey(DataSourceFactory.JDBC_PASSWORD)) {
-            dataSource.setPassword((String) properties.remove(DataSourceFactory.JDBC_PASSWORD));
+        if (p.containsKey(DataSourceFactory.JDBC_PASSWORD)) {
+            dataSource.setPassword((String) p
+                    .remove(DataSourceFactory.JDBC_PASSWORD));
         }
 
         // Setting description
-        if (properties.containsKey(DataSourceFactory.JDBC_DESCRIPTION)) {
-            dataSource.setDescription((String) properties.remove(DataSourceFactory.JDBC_DESCRIPTION));
+        if (p.containsKey(DataSourceFactory.JDBC_DESCRIPTION)) {
+            dataSource.setDescription((String) p
+                    .remove(DataSourceFactory.JDBC_DESCRIPTION));
         }
 
         // Setting URL
         StringBuffer connectionUrl = new StringBuffer();
-        if (properties.containsKey(DataSourceFactory.JDBC_URL)) {
+        if (p.containsKey(DataSourceFactory.JDBC_URL)) {
             // Use URL if specified
-            connectionUrl.append(properties.remove(DataSourceFactory.JDBC_URL));
+            connectionUrl.append(p.remove(DataSourceFactory.JDBC_URL));
             // Remove individual properties
-            properties.remove(DataSourceFactory.JDBC_NETWORK_PROTOCOL);
-            properties.remove(DataSourceFactory.JDBC_SERVER_NAME);
-            properties.remove(DataSourceFactory.JDBC_PORT_NUMBER);
-            properties.remove(DataSourceFactory.JDBC_DATABASE_NAME);
+            p.remove(DataSourceFactory.JDBC_NETWORK_PROTOCOL);
+            p.remove(DataSourceFactory.JDBC_SERVER_NAME);
+            p.remove(DataSourceFactory.JDBC_PORT_NUMBER);
+            p.remove(DataSourceFactory.JDBC_DATABASE_NAME);
         } else {
             // Creating URL from individual properties
             connectionUrl.append(Constants.START_URL);
 
             // Set network protocol (tcp/ssl) or DB type (mem/file)
             String protocol = "";
-            if (properties.containsKey(DataSourceFactory.JDBC_NETWORK_PROTOCOL)) {
-                protocol = (String) properties.remove(DataSourceFactory.JDBC_NETWORK_PROTOCOL);
+            if (p.containsKey(DataSourceFactory.JDBC_NETWORK_PROTOCOL)) {
+                protocol = (String) p.remove(DataSourceFactory.JDBC_NETWORK_PROTOCOL);
                 connectionUrl.append(protocol).append(":");
             }
 
             // Host name and/or port
-            if (properties.containsKey(DataSourceFactory.JDBC_SERVER_NAME)) {
-                connectionUrl.append("//").append(properties.remove(DataSourceFactory.JDBC_SERVER_NAME));
+            if (p.containsKey(DataSourceFactory.JDBC_SERVER_NAME)) {
+                connectionUrl.append("//").append(
+                        p.remove(DataSourceFactory.JDBC_SERVER_NAME));
 
-                if (properties.containsKey(DataSourceFactory.JDBC_PORT_NUMBER)) {
-                    connectionUrl.append(":").append(properties.remove(DataSourceFactory.JDBC_PORT_NUMBER));
+                if (p.containsKey(DataSourceFactory.JDBC_PORT_NUMBER)) {
+                    connectionUrl.append(":").append(
+                            p.remove(DataSourceFactory.JDBC_PORT_NUMBER));
                 }
 
                 connectionUrl.append("/");
-            } else if (properties.containsKey(DataSourceFactory.JDBC_PORT_NUMBER)) {
+            } else if (p.containsKey(
+                    DataSourceFactory.JDBC_PORT_NUMBER)) {
                 // Assume local host if only port was set
-                connectionUrl.append("//localhost:").append(properties.remove(DataSourceFactory.JDBC_PORT_NUMBER))
+                connectionUrl
+                        .append("//localhost:")
+                        .append(p.remove(DataSourceFactory.JDBC_PORT_NUMBER))
                         .append("/");
             } else if (protocol.equals("tcp") || protocol.equals("ssl")) {
                 // Assume local host if network protocol is set, but no host or
@@ -226,14 +244,16 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
             }
 
             // DB path and name
-            if (properties.containsKey(DataSourceFactory.JDBC_DATABASE_NAME)) {
-                connectionUrl.append(properties.remove(DataSourceFactory.JDBC_DATABASE_NAME));
+            if (p.containsKey(DataSourceFactory.JDBC_DATABASE_NAME)) {
+                connectionUrl.append(
+                        p.remove(DataSourceFactory.JDBC_DATABASE_NAME));
             }
         }
 
         // Add remaining properties as options
-        for (Object option : properties.keySet()) {
-            connectionUrl.append(";").append(option).append("=").append(properties.get(option));
+        for (Object option : p.keySet()) {
+            connectionUrl.append(";").append(option).append("=")
+                    .append(p.get(option));
         }
 
         if (connectionUrl.length() > Constants.START_URL.length()) {
@@ -245,18 +265,43 @@ public class OsgiDataSourceFactory implements DataSourceFactory {
      * Checker method that will throw if any pooling related standard OSGi
      * options are present.
      *
-     * @param properties the properties to check
+     * @param p the properties to check
      * @throws SQLFeatureNotSupportedException if unsupported properties are
      *             present
      */
-    private static void rejectPoolingOptions(Properties properties) throws SQLFeatureNotSupportedException {
-        if (properties.containsKey(DataSourceFactory.JDBC_INITIAL_POOL_SIZE)
-                || properties.containsKey(DataSourceFactory.JDBC_MAX_IDLE_TIME)
-                || properties.containsKey(DataSourceFactory.JDBC_MAX_POOL_SIZE)
-                || properties.containsKey(DataSourceFactory.JDBC_MAX_STATEMENTS)
-                || properties.containsKey(DataSourceFactory.JDBC_MIN_POOL_SIZE)
-                || properties.containsKey(DataSourceFactory.JDBC_PROPERTY_CYCLE)) {
-            throw new SQLFeatureNotSupportedException("Pooling properties are not supported by H2");
+    private static void rejectPoolingOptions(Properties p)
+            throws SQLFeatureNotSupportedException {
+        if (p.containsKey(DataSourceFactory.JDBC_INITIAL_POOL_SIZE) ||
+                p.containsKey(DataSourceFactory.JDBC_MAX_IDLE_TIME) ||
+                p.containsKey(DataSourceFactory.JDBC_MAX_POOL_SIZE) ||
+                p.containsKey(DataSourceFactory.JDBC_MAX_STATEMENTS) ||
+                p.containsKey(DataSourceFactory.JDBC_MIN_POOL_SIZE) ||
+                p.containsKey(DataSourceFactory.JDBC_PROPERTY_CYCLE)) {
+            throw new SQLFeatureNotSupportedException(
+                    "Pooling properties are not supported by H2");
         }
+    }
+
+    /**
+     * Register the H2 JDBC driver service.
+     *
+     * @param bundleContext the bundle context
+     * @param driver the driver
+     */
+    static void registerService(BundleContext bundleContext,
+            org.h2.Driver driver) {
+        Properties properties = new Properties();
+        properties.put(
+                DataSourceFactory.OSGI_JDBC_DRIVER_CLASS,
+                org.h2.Driver.class.getName());
+        properties.put(
+                DataSourceFactory.OSGI_JDBC_DRIVER_NAME,
+                "H2 JDBC Driver");
+        properties.put(
+                DataSourceFactory.OSGI_JDBC_DRIVER_VERSION,
+                Constants.getFullVersion());
+        bundleContext.registerService(
+                DataSourceFactory.class.getName(),
+                new OsgiDataSourceFactory(driver), properties);
     }
 }

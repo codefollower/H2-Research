@@ -38,6 +38,7 @@
 90008=Nesprávna hodnota {0} parametra {1}
 90009=#Unable to create or alter sequence {0} because of invalid attributes (start value {1}, min value {2}, max value {3}, increment {4})
 90010=#Invalid TO_CHAR format {0}
+90011=#A file path that is implicitly relative to the current working directory is not allowed in the database URL {0}. Use an absolute path, ~/name, ./name, or the baseDir setting instead.
 90012=Parameter {0} nie je nastavený
 90013=Databáza {0} nenájdená
 90014=Chyba rozobrania (parse) {0}
@@ -47,6 +48,7 @@
 90018=Spojenie neuzatvorené aplikáciou bolo zrušené
 90019=Nemôžem zmazať aktuálneho používateľa
 90020=Databáza sa už asi používa: {0}. Možné riešenia: zatvorte všetky dalšie spojenia; použite serverový mód
+90021=#This combination of database settings is not supported: {0}
 90022=Funkcia {0} nenájdená
 90023=Stĺpec {0} nesmie umožniť vložiť NULL
 90024=Chyba pri premenovaní súboru {0} na {1}
@@ -114,7 +116,6 @@
 90089=Kolácia (collation) nemôže byť zmenená pretože tu je dátová tabuľka: {0}
 90090=Schéma {0} nemôže byť zmazaná
 90091=Rola {0} nemôže byť zmazaná
-90092=Táto verzia Javy nie je podporovaná (Min. Java 1.4 je požadovaná)
 90093=Chyba klustra - databáza je teraz v nezáviaslom (standalone) móde
 90094=Chyba klustra - databáza je teraz v kluster móde, zoznam serverov: {0}
 90095=Chyba formátu reťazca: {0}
@@ -122,7 +123,6 @@
 90097=Databáza je iba na čítanie
 90098=Databáza bola zatvorená
 90099=Chyba nastavenia poslucháča udalostí (event listener) {0} pre databázu, dôvod: {1}
-90100=Málo miesta na disku
 90101=Nesprávny XID formát: {0}
 90102=Nepodporované prepínače kompresie: {0}
 90103=Nepodporovaný algoritmus kompresie: {0}

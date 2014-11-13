@@ -1,17 +1,17 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
 import org.h2.command.Prepared;
-import org.h2.constant.ErrorCode;
 import org.h2.constraint.Constraint;
 import org.h2.constraint.ConstraintReferential;
 import org.h2.engine.Database;
@@ -106,7 +106,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
             checkNoNullValues(); //如果要修改的列有NULL值，那么不允许把列修改为NOT NULL
             oldColumn.setNullable(false);
-            db.update(session, table);
+            db.updateMeta(session, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_NULL: {
@@ -116,7 +116,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
             checkNullable(); //如果要修改的列是主键索引或hash索引的列，那么不允许把列修改为NULL
             oldColumn.setNullable(true);
-            db.update(session, table);
+            db.updateMeta(session, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT: {
@@ -124,7 +124,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             oldColumn.setSequence(null);
             oldColumn.setDefaultExpression(session, defaultExpression);
             removeSequence(sequence);
-            db.update(session, table);
+            db.updateMeta(session, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE: {
@@ -134,7 +134,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             if (oldColumn.isWideningConversion(newColumn)) {
                 convertAutoIncrementColumn(newColumn);
                 oldColumn.copy(newColumn);
-                db.update(session, table);
+                db.updateMeta(session, table);
             } else {
                 oldColumn.setSequence(null);
                 oldColumn.setDefaultExpression(session, null);
@@ -151,18 +151,29 @@ public class AlterTableAlterColumn extends SchemaCommand {
         }
         case CommandInterface.ALTER_TABLE_ADD_COLUMN: {
             // ifNotExists only supported for single column add
-            if (ifNotExists && columnsToAdd.size() == 1 && table.doesColumnExist(columnsToAdd.get(0).getName())) {
+            if (ifNotExists && columnsToAdd.size() == 1 &&
+                    table.doesColumnExist(columnsToAdd.get(0).getName())) {
                 break;
             }
             for (Column column : columnsToAdd) {
-                convertAutoIncrementColumn(column);
+                if (column.isAutoIncrement()) {
+                    int objId = getObjectId();
+                    column.convertAutoIncrementToSequence(session, getSchema(), objId,
+                            table.isTemporary());
+                }
             }
             copyData();
             break;
         }
         case CommandInterface.ALTER_TABLE_DROP_COLUMN: {
+<<<<<<< HEAD
             if (table.getColumns().length == 1) { //不能删除最后一列
                 throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, oldColumn.getSQL());
+=======
+            if (table.getColumns().length == 1) {
+                throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN,
+                        oldColumn.getSQL());
+>>>>>>> remotes/git-svn
             }
             table.dropSingleColumnConstraintsAndIndexes(session, oldColumn);
             copyData();
@@ -171,7 +182,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_SELECTIVITY: {
             int value = newSelectivity.optimize(session).getValue(session).getInt();
             oldColumn.setSelectivity(value);
-            db.update(session, table);
+            db.updateMeta(session, table);
             break;
         }
         default:
@@ -185,10 +196,12 @@ public class AlterTableAlterColumn extends SchemaCommand {
             return;
         }
         HashSet<DbObject> dependencies = New.hashSet();
-        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
+        ExpressionVisitor visitor = ExpressionVisitor
+                .getDependenciesVisitor(dependencies);
         defaultExpression.isEverything(visitor);
         if (dependencies.contains(table)) {
-            throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, defaultExpression.getSQL());
+            throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1,
+                    defaultExpression.getSQL());
         }
     }
 
@@ -197,8 +210,14 @@ public class AlterTableAlterColumn extends SchemaCommand {
             if (c.isPrimaryKey()) {
                 c.setOriginalSQL("IDENTITY");
             } else {
+<<<<<<< HEAD
                 int objId = getObjectId(); //作为自动生成的Sequence的对象id
                 c.convertAutoIncrementToSequence(session, getSchema(), objId, table.isTemporary());
+=======
+                int objId = getObjectId();
+                c.convertAutoIncrementToSequence(session, getSchema(), objId,
+                        table.isTemporary());
+>>>>>>> remotes/git-svn
             }
         }
     }
@@ -270,11 +289,18 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
         }
     }
+<<<<<<< HEAD
     
     //columns是原先表的列，newColumns放新列，一开始为空list
     //不仅仅是拷贝表结构，还会适当增删改列，然后拷贝数据(用create ... as select ...的方式)
     private Table cloneTableStructure(Column[] columns, Database db, String tempName, ArrayList<Column> newColumns) {
         for (Column col : columns) { //刚好ColumnId就是从0开始的
+=======
+
+    private Table cloneTableStructure(Column[] columns, Database db,
+            String tempName, ArrayList<Column> newColumns) {
+        for (Column col : columns) {
+>>>>>>> remotes/git-svn
             newColumns.add(col.getClone());
         }
         //调整位置
@@ -324,7 +350,8 @@ public class AlterTableAlterColumn extends SchemaCommand {
             if (columnList.length() > 0) {
                 columnList.append(", ");
             }
-            if (type == CommandInterface.ALTER_TABLE_ADD_COLUMN && columnsToAdd.contains(nc)) {
+            if (type == CommandInterface.ALTER_TABLE_ADD_COLUMN &&
+                    columnsToAdd.contains(nc)) {
                 Expression def = nc.getDefaultExpression();
                 //SELECT F1, F2, NULL这样的SQL也是可以的，所以用NULL表示，这样新的列默认是NULL值
                 columnList.append(def == null ? "NULL" : def.getSQL());
@@ -462,18 +489,23 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
             IndexType indexType = index.getIndexType();
             if (indexType.isPrimaryKey() || indexType.isHash()) {
-                throw DbException.get(ErrorCode.COLUMN_IS_PART_OF_INDEX_1, index.getSQL());
+                throw DbException.get(
+                        ErrorCode.COLUMN_IS_PART_OF_INDEX_1, index.getSQL());
             }
         }
     }
 
     private void checkNoNullValues() {
-        String sql = "SELECT COUNT(*) FROM " + table.getSQL() + " WHERE " + oldColumn.getSQL() + " IS NULL";
+        String sql = "SELECT COUNT(*) FROM " +
+                table.getSQL() + " WHERE " +
+                oldColumn.getSQL() + " IS NULL";
         Prepared command = session.prepare(sql);
         ResultInterface result = command.query(0);
         result.next();
         if (result.currentRow()[0].getInt() > 0) {
-            throw DbException.get(ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1, oldColumn.getSQL());
+            throw DbException.get(
+                    ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1,
+                    oldColumn.getSQL());
         }
     }
 

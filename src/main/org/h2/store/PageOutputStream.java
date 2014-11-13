@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store;
@@ -43,7 +42,8 @@ public class PageOutputStream {
      * @param logKey the log key of the first trunk page
      * @param atEnd whether only pages at the end of the file should be used
      */
-    public PageOutputStream(PageStore store, int trunkPage, BitField exclude, int logKey, boolean atEnd) {
+    public PageOutputStream(PageStore store, int trunkPage, BitField exclude,
+            int logKey, boolean atEnd) {
         this.trace = store.getTrace();
         this.store = store;
         this.trunkPageId = trunkPage;
@@ -104,12 +104,21 @@ public class PageOutputStream {
             //在上面的org.h2.store.PageOutputStream.reserve(int)中已多分配了一个pageId
             trunkNext = reservedPages.get(len); //下一个PageStreamTrunk的pageId
             logKey++;
+<<<<<<< HEAD
             //第一个PageStreamTrunk的parent和trunkPageId一样
             trunk = PageStreamTrunk.create(store, parent, trunkPageId, trunkNext, logKey, pageIds);
             trunkIndex = 0; //重新置0，因为是新的PageStreamTrunk了
             pageCount++; //这里pageCount加1是对应新的PageStreamTrunk
             trunk.write(); //完整的写PageStreamTrunk了，写到store中
             reservedPages.removeRange(0, len + 1); //删除PageStreamTrunk对应的id和它的所有pageIds
+=======
+            trunk = PageStreamTrunk.create(store, parent, trunkPageId,
+                    trunkNext, logKey, pageIds);
+            trunkIndex = 0;
+            pageCount++;
+            trunk.write();
+            reservedPages.removeRange(0, len + 1);
+>>>>>>> remotes/git-svn
             nextData = trunk.getPageData(trunkIndex++);
         }
         data = PageStreamData.create(store, nextData, trunk.getPos(), logKey);

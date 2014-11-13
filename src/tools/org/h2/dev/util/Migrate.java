@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.dev.util;
@@ -34,8 +33,10 @@ public class Migrate {
     private static final String USER = "sa";
     private static final String PASSWORD  = "sa";
     private static final File OLD_H2_FILE = new File("./h2-1.2.127.jar");
-    private static final String DOWNLOAD_URL = "http://repo2.maven.org/maven2/com/h2database/h2/1.2.127/h2-1.2.127.jar";
-    private static final String CHECKSUM = "056e784c7cf009483366ab9cd8d21d02fe47031a";
+    private static final String DOWNLOAD_URL =
+            "http://repo2.maven.org/maven2/com/h2database/h2/1.2.127/h2-1.2.127.jar";
+    private static final String CHECKSUM =
+            "056e784c7cf009483366ab9cd8d21d02fe47031a";
     private static final String TEMP_SCRIPT = "backup.sql";
     private final PrintStream sysOut = System.out;
     private boolean quiet;
@@ -47,7 +48,8 @@ public class Migrate {
      * @throws Exception if conversion fails
      */
     public static void main(String... args) throws Exception {
-        new Migrate().execute(new File(args.length == 1 ? args[0] : "."), true, USER, PASSWORD, false);
+        new Migrate().execute(new File(args.length == 1 ? args[0] : "."), true,
+                USER, PASSWORD, false);
     }
 
     /**
@@ -61,7 +63,8 @@ public class Migrate {
      * @param runQuiet to run in quiet mode
      * @throws Exception if conversion fails
      */
-    public void execute(File file, boolean recursive, String user, String password, boolean runQuiet) throws Exception {
+    public void execute(File file, boolean recursive, String user,
+            String password, boolean runQuiet) throws Exception {
         String pathToJavaExe = getJavaExecutablePath();
         this.quiet = runQuiet;
         if (file.isDirectory() && recursive) {
@@ -97,9 +100,11 @@ public class Migrate {
     private static String getJavaExecutablePath() {
         String pathToJava;
         if (File.separator.equals("\\")) {
-            pathToJava = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java.exe";
+            pathToJava = System.getProperty("java.home") + File.separator
+                    + "bin" + File.separator + "java.exe";
         } else {
-            pathToJava = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+            pathToJava = System.getProperty("java.home") + File.separator
+                    + "bin" + File.separator + "java";
         }
         if (!new File(pathToJava).exists()) {
             // Fallback to old behaviour

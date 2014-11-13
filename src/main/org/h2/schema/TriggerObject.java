@@ -1,23 +1,23 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.schema;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+
+import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.Parser;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.Row;
 import org.h2.table.Table;
-import org.h2.util.Utils;
+import org.h2.util.JdbcUtils;
 import org.h2.util.StatementBuilder;
 import org.h2.value.DataType;
 import org.h2.value.Value;
@@ -66,9 +66,10 @@ public class TriggerObject extends SchemaObjectBase {
         try {
             Session sysSession = database.getSystemSession();
             Connection c2 = sysSession.createConnection(false);
-            Object obj = Utils.loadUserClass(triggerClassName).newInstance();
+            Object obj = JdbcUtils.loadUserClass(triggerClassName).newInstance();
             triggerCallback = (Trigger) obj;
-            triggerCallback.init(c2, getSchema().getName(), getName(), table.getName(), before, typeMask);
+            triggerCallback.init(c2, getSchema().getName(), getName(),
+                    table.getName(), before, typeMask);
         } catch (Throwable e) {
             // try again later
             triggerCallback = null;
@@ -155,8 +156,13 @@ public class TriggerObject extends SchemaObjectBase {
      * @param rollback when the operation occurred within a rollback
      * @return true if no further action is required (for 'instead of' triggers)
      */
+<<<<<<< HEAD
     public boolean fireRow(Session session, Row oldRow, Row newRow, boolean beforeAction, boolean rollback) {
     	//rowBased=false说明是一个非FOR EACH ROW触发器，这个方法是在增加、删除、修改单行的前后调用的，对非FOR EACH ROW触发器无效
+=======
+    public boolean fireRow(Session session, Row oldRow, Row newRow,
+            boolean beforeAction, boolean rollback) {
+>>>>>>> remotes/git-svn
         if (!rowBased || before != beforeAction) {
             return false;
         }

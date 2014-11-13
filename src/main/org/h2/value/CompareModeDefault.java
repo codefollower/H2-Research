@@ -1,14 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
 
 import java.text.CollationKey;
 import java.text.Collator;
-import org.h2.constant.SysProperties;
+
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.util.SmallLRUCache;
 
@@ -20,7 +20,8 @@ public class CompareModeDefault extends CompareMode {
     private final Collator collator;
     private final SmallLRUCache<String, CollationKey> collationKeys;
 
-    protected CompareModeDefault(String name, int strength, boolean binaryUnsigned) {
+    protected CompareModeDefault(String name, int strength,
+            boolean binaryUnsigned) {
         super(name, strength, binaryUnsigned);
         collator = CompareMode.getCollator(name);
         if (collator == null) {
@@ -54,8 +55,10 @@ public class CompareModeDefault extends CompareMode {
     }
 
     @Override
-    public boolean equalsChars(String a, int ai, String b, int bi, boolean ignoreCase) {
-        return compareString(a.substring(ai, ai + 1), b.substring(bi, bi + 1), ignoreCase) == 0;
+    public boolean equalsChars(String a, int ai, String b, int bi,
+            boolean ignoreCase) {
+        return compareString(a.substring(ai, ai + 1), b.substring(bi, bi + 1),
+                ignoreCase) == 0;
     }
 
     private CollationKey getKey(String a) {

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.dev.util;
@@ -124,7 +123,8 @@ public class FileViewer extends Tool {
         }
     }
 
-    private static long find(RandomAccessFile file, byte[] find, boolean quiet) throws IOException {
+    private static long find(RandomAccessFile file, byte[] find, boolean quiet)
+            throws IOException {
         long pos = file.getFilePointer();
         long length = file.length();
         int bufferSize = 4 * 1024;
@@ -176,7 +176,8 @@ public class FileViewer extends Tool {
         System.out.println("-----------------------------------------------");
     }
 
-    private static ArrayList<String> readLines(RandomAccessFile file, int maxLines) throws IOException {
+    private static ArrayList<String> readLines(RandomAccessFile file,
+            int maxLines) throws IOException {
         ArrayList<String> lines = new ArrayList<String>();
         ByteArrayOutputStream buff = new ByteArrayOutputStream(100);
         boolean lastNewline = false;

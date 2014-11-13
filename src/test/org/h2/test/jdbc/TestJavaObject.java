@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -15,7 +14,8 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.UUID;
-import org.h2.constant.SysProperties;
+
+import org.h2.engine.SysProperties;
 import org.h2.test.TestBase;
 
 /**
@@ -50,7 +50,8 @@ public class TestJavaObject extends TestBase {
             doTest(Arrays.asList(UUID.randomUUID(), null),
                     Arrays.asList(UUID.randomUUID(), UUID.randomUUID()), true);
             // doTest(new Timestamp(System.currentTimeMillis()),
-            //         new Timestamp(System.currentTimeMillis() + 10000), false);
+            //         new Timestamp(System.currentTimeMillis() + 10000),
+            //         false);
             doTest(200, 100, false);
             doTest(200, 100L, true);
             // doTest(new Date(System.currentTimeMillis() + 1000),
@@ -72,7 +73,8 @@ public class TestJavaObject extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("create table t(id identity, val other)");
 
-        PreparedStatement ins = conn.prepareStatement("insert into t(val) values(?)");
+        PreparedStatement ins = conn.prepareStatement(
+                "insert into t(val) values(?)");
 
         ins.setObject(1, o1, Types.JAVA_OBJECT);
         assertEquals(1, ins.executeUpdate());
@@ -80,14 +82,16 @@ public class TestJavaObject extends TestBase {
         ins.setObject(1, o2, Types.JAVA_OBJECT);
         assertEquals(1, ins.executeUpdate());
 
-        ResultSet rs = stat.executeQuery("select val from t order by val limit 1");
+        ResultSet rs = stat.executeQuery(
+                "select val from t order by val limit 1");
 
         assertTrue(rs.next());
 
         Object smallest;
         if (hash) {
             if (o1.getClass() != o2.getClass()) {
-                smallest = o1.getClass().getName().compareTo(o2.getClass().getName()) < 0 ? o1 : o2;
+                smallest = o1.getClass().getName().compareTo(
+                        o2.getClass().getName()) < 0 ? o1 : o2;
             } else {
                 assertFalse(o1.hashCode() == o2.hashCode());
                 smallest = o1.hashCode() < o2.hashCode() ? o1 : o2;
@@ -107,7 +111,8 @@ public class TestJavaObject extends TestBase {
         assertFalse(rs.next());
         rs.close();
 
-        PreparedStatement prep = conn.prepareStatement("select id from t where val = ?");
+        PreparedStatement prep = conn.prepareStatement(
+                "select id from t where val = ?");
 
         prep.setObject(1, o1, Types.JAVA_OBJECT);
         rs = prep.executeQuery();
@@ -128,7 +133,8 @@ public class TestJavaObject extends TestBase {
 
         conn.close();
         deleteDb("javaObject");
-        // trace("ok: " + o1.getClass().getName() + " vs " + o2.getClass().getName());
+        // trace("ok: " + o1.getClass().getName() + " vs " +
+        // o2.getClass().getName());
     }
 
     /**

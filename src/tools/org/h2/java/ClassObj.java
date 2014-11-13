@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.java;
@@ -58,17 +57,20 @@ public class ClassObj {
     /**
      * The per-instance fields.
      */
-    LinkedHashMap<String, FieldObj> instanceFields = new LinkedHashMap<String, FieldObj>();
+    LinkedHashMap<String, FieldObj> instanceFields =
+            new LinkedHashMap<String, FieldObj>();
 
     /**
      * The static fields of this class.
      */
-    LinkedHashMap<String, FieldObj> staticFields = new LinkedHashMap<String, FieldObj>();
+    LinkedHashMap<String, FieldObj> staticFields =
+            new LinkedHashMap<String, FieldObj>();
 
     /**
      * The methods.
      */
-    LinkedHashMap<String, ArrayList<MethodObj>> methods = new LinkedHashMap<String, ArrayList<MethodObj>>();
+    LinkedHashMap<String, ArrayList<MethodObj>> methods =
+            new LinkedHashMap<String, ArrayList<MethodObj>>();
 
     /**
      * The list of native statements.
@@ -125,6 +127,7 @@ public class ClassObj {
         staticFields.put(field.name, field);
     }
 
+    @Override
     public String toString() {
         if (isPrimitive) {
             return "j" + className;
@@ -178,10 +181,12 @@ public class ClassObj {
         return instanceFields.get(name);
     }
 
+    @Override
     public int hashCode() {
         return className.hashCode();
     }
 
+    @Override
     public boolean equals(Object other) {
         if (other instanceof ClassObj) {
             ClassObj c = (ClassObj) other;
@@ -240,7 +245,8 @@ class MethodObj {
     /**
      * The parameter list.
      */
-    LinkedHashMap<String, FieldObj> parameters = new LinkedHashMap<String, FieldObj>();
+    LinkedHashMap<String, FieldObj> parameters =
+            new LinkedHashMap<String, FieldObj>();
 
     /**
      * Whether this method is final.
@@ -262,6 +268,7 @@ class MethodObj {
      */
     boolean isConstructor;
 
+    @Override
     public String toString() {
         return name;
     }
@@ -328,6 +335,7 @@ class FieldObj {
      */
     ClassObj declaredClass;
 
+    @Override
     public String toString() {
         return name;
     }
@@ -368,6 +376,7 @@ class Type {
         return arrayLevel > 0 || !classObj.isPrimitive;
     }
 
+    @Override
     public String toString() {
         return asString();
     }
@@ -414,14 +423,17 @@ class Type {
         return buff.toString();
     }
 
+    @Override
     public int hashCode() {
         return toString().hashCode();
     }
 
+    @Override
     public boolean equals(Object other) {
         if (other instanceof Type) {
             Type t = (Type) other;
-            return t.classObj.equals(classObj) && t.arrayLevel == arrayLevel && t.isVarArgs == isVarArgs;
+            return t.classObj.equals(classObj) && t.arrayLevel == arrayLevel
+                    && t.isVarArgs == isVarArgs;
         }
         return false;
     }

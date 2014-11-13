@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: James Moger
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: James Moger
  */
 package org.h2.jaqu;
 
@@ -39,7 +39,8 @@ public interface DbUpgrader {
      * @return true for successful upgrade. If the upgrade is successful, the
      *         version registry is automatically updated.
      */
-    boolean upgradeTable(Db db, String schema, String table, int fromVersion, int toVersion);
+    boolean upgradeTable(Db db, String schema, String table, int fromVersion,
+            int toVersion);
 
     /**
      * The default database upgrader. It throws runtime exception instead of
@@ -50,12 +51,15 @@ public interface DbUpgrader {
 
         @Override
         public boolean upgradeDatabase(Db db, int fromVersion, int toVersion) {
-            throw new RuntimeException("Please provide your own DbUpgrader implementation.");
+            throw new RuntimeException(
+                    "Please provide your own DbUpgrader implementation.");
         }
 
         @Override
-        public boolean upgradeTable(Db db, String schema, String table, int fromVersion, int toVersion) {
-            throw new RuntimeException("Please provide your own DbUpgrader implementation.");
+        public boolean upgradeTable(Db db, String schema, String table,
+                int fromVersion, int toVersion) {
+            throw new RuntimeException(
+                    "Please provide your own DbUpgrader implementation.");
         }
 
     }

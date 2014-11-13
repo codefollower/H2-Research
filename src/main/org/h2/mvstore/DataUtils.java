@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore;
@@ -69,6 +68,12 @@ public class DataUtils {
     public static final int ERROR_SERIALIZATION = 8;
 
     /**
+     * The application was trying to read data from a chunk that is no longer
+     * available.
+     */
+    public static final int ERROR_CHUNK_NOT_FOUND = 9;
+
+    /**
      * The transaction store is corrupt.
      */
     public static final int ERROR_TRANSACTION_CORRUPT = 100;
@@ -94,9 +99,14 @@ public class DataUtils {
     public static final int PAGE_TYPE_NODE = 1;
 
     /**
-     * The bit mask for compressed pages.
+     * The bit mask for compressed pages (compression level fast).
      */
     public static final int PAGE_COMPRESSED = 2;
+
+    /**
+     * The bit mask for compressed pages (compression level high).
+     */
+    public static final int PAGE_COMPRESSED_HIGH = 2 + 4;
 
     /**
      * The maximum length of a variable size int.
@@ -131,9 +141,19 @@ public class DataUtils {
     public static final int PAGE_MEMORY_CHILD = 16;
 
     /**
-     * Name of the character encoding format.
+     * The marker size of a very large page.
+     */
+    public static final int PAGE_LARGE = 2 * 1024 * 1024;
+
+    /**
+     * The UTF-8 character encoding format.
      */
     public static final Charset UTF8 = Charset.forName("UTF-8");
+
+    /**
+     * The ISO Latin character encoding format.
+     */
+    public static final Charset LATIN = Charset.forName("ISO-8859-1");
 
     /**
      * An 0-size byte array.
@@ -274,7 +294,8 @@ public class DataUtils {
      * @param len the number of characters
      * @return the byte buffer
      */
-    public static ByteBuffer writeStringData(ByteBuffer buff, String s, int len) {
+    public static ByteBuffer writeStringData(ByteBuffer buff,
+            String s, int len) {
         buff = DataUtils.ensureCapacity(buff, 3 * len);
         for (int i = 0; i < len; i++) {
             int c = s.charAt(i);
@@ -306,7 +327,8 @@ public class DataUtils {
             if (x < 0x80) {
                 chars[i] = (char) x;
             } else if (x >= 0xe0) {
-                chars[i] = (char) (((x & 0xf) << 12) + ((buff.get() & 0x3f) << 6) + (buff.get() & 0x3f));
+                chars[i] = (char) (((x & 0xf) << 12)
+                        + ((buff.get() & 0x3f) << 6) + (buff.get() & 0x3f));
             } else {
                 chars[i] = (char) (((x & 0x1f) << 6) + (buff.get() & 0x3f));
             }
@@ -334,7 +356,8 @@ public class DataUtils {
      * @param out the output stream
      * @param x the value
      */
-    public static void writeVarLong(OutputStream out, long x) throws IOException {
+    public static void writeVarLong(OutputStream out, long x)
+            throws IOException {
         while ((x & ~0x7f) != 0) {
             out.write((byte) (0x80 | (x & 0x7f)));
             x >>>= 7;
@@ -350,12 +373,14 @@ public class DataUtils {
      * @param oldSize the size of the old array
      * @param gapIndex the index of the gap
      */
-    public static void copyWithGap(Object src, Object dst, int oldSize, int gapIndex) {
+    public static void copyWithGap(Object src, Object dst, int oldSize,
+            int gapIndex) {
         if (gapIndex > 0) {
             System.arraycopy(src, 0, dst, 0, gapIndex);
         }
         if (gapIndex < oldSize) {
-            System.arraycopy(src, gapIndex, dst, gapIndex + 1, oldSize - gapIndex);
+            System.arraycopy(src, gapIndex, dst, gapIndex + 1, oldSize
+                    - gapIndex);
         }
     }
 
@@ -367,22 +392,25 @@ public class DataUtils {
      * @param oldSize the size of the old array
      * @param removeIndex the index of the entry to remove
      */
-    public static void copyExcept(Object src, Object dst, int oldSize, int removeIndex) {
+    public static void copyExcept(Object src, Object dst, int oldSize,
+            int removeIndex) {
         if (removeIndex > 0 && oldSize > 0) {
             System.arraycopy(src, 0, dst, 0, removeIndex);
         }
         if (removeIndex < oldSize) {
-            System.arraycopy(src, removeIndex + 1, dst, removeIndex, oldSize - removeIndex - 1);
+            System.arraycopy(src, removeIndex + 1, dst, removeIndex, oldSize
+                    - removeIndex - 1);
         }
     }
 
     /**
-     * Read from a file channel until the buffer is full, or end-of-file
-     * has been reached. The buffer is rewind after reading.
+     * Read from a file channel until the buffer is full.
+     * The buffer is rewind after reading.
      *
      * @param file the file channel
      * @param pos the absolute position within the file
      * @param dst the byte buffer
+     * @throws IllegalStateException if some data could not be read
      */
     public static void readFully(FileChannel file, long pos, ByteBuffer dst) {
         try {
@@ -403,7 +431,8 @@ public class DataUtils {
             }
             throw newIllegalStateException(
                     ERROR_READING_FAILED,
-                    "Reading from {0} failed; file length {1} read length {2} at {3}",
+                    "Reading from {0} failed; file length {1} " +
+                    "read length {2} at {3}",
                     file, size, dst.remaining(), pos, e);
         }
     }
@@ -475,7 +504,7 @@ public class DataUtils {
 
     /**
      * Get the maximum length for the given code.
-     * For the code 31, Integer.MAX_VALUE is returned.
+     * For the code 31, PAGE_LARGE is returned.
      *
      * @param pos the position
      * @return the maximum length
@@ -483,7 +512,7 @@ public class DataUtils {
     public static int getPageMaxLength(long pos) {
         int code = (int) ((pos >> 1) & 31);
         if (code == 31) {
-            return Integer.MAX_VALUE;
+            return PAGE_LARGE;
         }
         return (2 + (code & 1)) << ((code >> 1) + 4);
     }
@@ -519,7 +548,8 @@ public class DataUtils {
      * @param type the page type (1 for node, 0 for leaf)
      * @return the position
      */
-    public static long getPagePos(int chunkId, int offset, int length, int type) {
+    public static long getPagePos(int chunkId, int offset,
+            int length, int type) {
         long pos = (long) chunkId << 38;
         pos |= (long) offset << 6;
         pos |= encodeLength(length) << 1;
@@ -546,7 +576,8 @@ public class DataUtils {
      * @param map the map
      * @return the string builder
      */
-    public static StringBuilder appendMap(StringBuilder buff, HashMap<String, ?> map) {
+    public static StringBuilder appendMap(StringBuilder buff,
+            HashMap<String, ?> map) {
         ArrayList<String> list = New.arrayList(map.keySet());
         Collections.sort(list);
         for (String k : list) {
@@ -569,9 +600,16 @@ public class DataUtils {
             buff.append(',');
         }
         buff.append(key).append(':');
-        String v = value.toString();
+        String v;
+        if (value instanceof Long) {
+            v = Long.toHexString((Long) value);
+        } else if (value instanceof Integer) {
+            v = Integer.toHexString((Integer) value);
+        } else {
+            v = value.toString();
+        }
         if (v.indexOf(',') < 0 && v.indexOf('\"') < 0) {
-            buff.append(value);
+            buff.append(v);
         } else {
             buff.append('\"');
             for (int i = 0, size = v.length(); i < size; i++) {
@@ -635,18 +673,25 @@ public class DataUtils {
      * Calculate the Fletcher32 checksum.
      *
      * @param bytes the bytes
-     * @param length the message length (must be a multiple of 2)
+     * @param length the message length (if odd, 0 is appended)
      * @return the checksum
      */
     public static int getFletcher32(byte[] bytes, int length) {
         int s1 = 0xffff, s2 = 0xffff;
-        for (int i = 0; i < length;) {
-            for (int end = Math.min(i + 718, length); i < end;) {
+        int i = 0, evenLength = length / 2 * 2;
+        while (i < evenLength) {
+            // reduce after 360 words (each word is two bytes)
+            for (int end = Math.min(i + 720, evenLength); i < end;) {
                 int x = ((bytes[i++] & 0xff) << 8) | (bytes[i++] & 0xff);
                 s2 += s1 += x;
             }
             s1 = (s1 & 0xffff) + (s1 >>> 16);
             s2 = (s2 & 0xffff) + (s2 >>> 16);
+        }
+        if (i < length) {
+            // odd length: append 0
+            int x = (bytes[i] & 0xff) << 8;
+            s2 += s1 += x;
         }
         s1 = (s1 & 0xffff) + (s1 >>> 16);
         s2 = (s2 & 0xffff) + (s2 >>> 16);
@@ -661,7 +706,8 @@ public class DataUtils {
      * @param arguments the arguments
      * @throws IllegalArgumentException if the argument is invalid
      */
-    public static void checkArgument(boolean test, String message, Object... arguments) {
+    public static void checkArgument(boolean test, String message,
+            Object... arguments) {
         if (!test) {
             throw newIllegalArgumentException(message, arguments);
         }
@@ -687,8 +733,8 @@ public class DataUtils {
      * @param message the message
      * @return the exception
      */
-    public static UnsupportedOperationException newUnsupportedOperationException(
-            String message) {
+    public static UnsupportedOperationException
+            newUnsupportedOperationException(String message) {
         return new UnsupportedOperationException(formatMessage(0, message));
     }
 
@@ -698,8 +744,8 @@ public class DataUtils {
      * @param message the message
      * @return the exception
      */
-    public static ConcurrentModificationException newConcurrentModificationException(
-            String message) {
+    public static ConcurrentModificationException
+            newConcurrentModificationException(String message) {
         return new ConcurrentModificationException(formatMessage(0, message));
     }
 
@@ -729,12 +775,17 @@ public class DataUtils {
         return e;
     }
 
-    private static String formatMessage(int errorCode, String message, Object... arguments) {
+    private static String formatMessage(int errorCode, String message,
+            Object... arguments) {
         // convert arguments to strings, to avoid locale specific formatting
         for (int i = 0; i < arguments.length; i++) {
             Object a = arguments[i];
             if (!(a instanceof Exception)) {
-                arguments[i] = a == null ? "null" : a.toString();
+                String s = a == null ? "null" : a.toString();
+                if (s.length() > 1000) {
+                    s = s.substring(0, 1000) + "...";
+                }
+                arguments[i] = s;
             }
         }
         return MessageFormat.format(message, arguments) +
@@ -817,41 +868,93 @@ public class DataUtils {
     }
 
     /**
-     * Parse a string as a number.
+     * Read a hex long value from a map.
      *
-     * @param x the number
-     * @param defaultValue if x is null
+     * @param map the map
+     * @param key the key
+     * @param defaultValue if the value is null
      * @return the parsed value
      * @throws IllegalStateException if parsing fails
      */
-    public static long parseLong(String x, long defaultValue) {
-        if (x == null) {
+    public static long readHexLong(Map<String, ? extends Object> map,
+            String key, long defaultValue) {
+        Object v = map.get(key);
+        if (v == null) {
             return defaultValue;
+        } else if (v instanceof Long) {
+            return (Long) v;
         }
         try {
-            return Long.parseLong(x);
+            return parseHexLong((String) v);
         } catch (NumberFormatException e) {
             throw newIllegalStateException(ERROR_FILE_CORRUPT,
-                    "Error parsing the value {0} as a long", x, e);
+                    "Error parsing the value {0}", v, e);
         }
     }
 
     /**
-     * Try to parse a string as a number.
+     * Parse an unsigned, hex long.
      *
-     * @param x the number
-     * @param defaultValue if x is null
-     * @param errorValue if parsing fails
-     * @return the parsed value if parsing is possible
+     * @param x the string
+     * @return the parsed value
+     * @throws IllegalStateException if parsing fails
      */
-    public static long parseLong(String x, long defaultValue, long errorValue) {
-        if (x == null) {
+    public static long parseHexLong(String x) {
+        try {
+            if (x.length() == 16) {
+                // avoid problems with overflow
+                // in Java 8, this special case is not needed
+                return (Long.parseLong(x.substring(0, 8), 16) << 32) |
+                        Long.parseLong(x.substring(8, 16), 16);
+            }
+            return Long.parseLong(x, 16);
+        } catch (NumberFormatException e) {
+            throw newIllegalStateException(ERROR_FILE_CORRUPT,
+                    "Error parsing the value {0}", x, e);
+        }
+    }
+
+    /**
+     * Parse an unsigned, hex long.
+     *
+     * @param x the string
+     * @return the parsed value
+     * @throws IllegalStateException if parsing fails
+     */
+    public static int parseHexInt(String x) {
+        try {
+            // avoid problems with overflow
+            // in Java 8, we can use Integer.parseLong(x, 16);
+            return (int) Long.parseLong(x, 16);
+        } catch (NumberFormatException e) {
+            throw newIllegalStateException(ERROR_FILE_CORRUPT,
+                    "Error parsing the value {0}", x, e);
+        }
+    }
+
+    /**
+     * Read a hex int value from a map.
+     *
+     * @param map the map
+     * @param key the key
+     * @param defaultValue if the value is null
+     * @return the parsed value
+     * @throws IllegalStateException if parsing fails
+     */
+    public static int readHexInt(HashMap<String, ? extends Object> map,
+            String key, int defaultValue) {
+        Object v = map.get(key);
+        if (v == null) {
             return defaultValue;
+        } else if (v instanceof Integer) {
+            return (Integer) v;
         }
         try {
-            return Long.parseLong(x);
+            // support unsigned hex value
+            return (int) Long.parseLong((String) v, 16);
         } catch (NumberFormatException e) {
-            return errorValue;
+            throw newIllegalStateException(ERROR_FILE_CORRUPT,
+                    "Error parsing the value {0}", v, e);
         }
     }
 

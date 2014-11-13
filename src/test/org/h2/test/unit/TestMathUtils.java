@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -56,8 +55,10 @@ public class TestMathUtils extends TestBase {
 
     private void testReverse() {
         assertEquals(Integer.reverse(0), Integer.reverse(0));
-        assertEquals(Integer.reverse(Integer.MAX_VALUE), Integer.reverse(Integer.MAX_VALUE));
-        assertEquals(Integer.reverse(Integer.MIN_VALUE), Integer.reverse(Integer.MIN_VALUE));
+        assertEquals(Integer.reverse(Integer.MAX_VALUE),
+                Integer.reverse(Integer.MAX_VALUE));
+        assertEquals(Integer.reverse(Integer.MIN_VALUE),
+                Integer.reverse(Integer.MIN_VALUE));
         assertEquals(Long.reverse(0), Long.reverse(0L));
         assertEquals(Long.reverse(Long.MAX_VALUE), Long.reverse(Long.MAX_VALUE));
         assertEquals(Long.reverse(Long.MIN_VALUE), Long.reverse(Long.MIN_VALUE));

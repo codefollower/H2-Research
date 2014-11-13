@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.doc;
@@ -119,7 +118,8 @@ public class XMLParser {
     }
 
     private void error(String expected) {
-        throw new RuntimeException("Expected: " + expected + " got: " + xml.substring(pos, Math.min(pos + 1000, xml.length())));
+        throw new RuntimeException("Expected: " + expected + " got: "
+                + xml.substring(pos, Math.min(pos + 1000, xml.length())));
     }
 
     private void read(String chars) {
@@ -343,7 +343,8 @@ public class XMLParser {
             if (localNameStart == start) {
                 addAttributeName("", xml.substring(localNameStart, end));
             } else {
-                addAttributeName(xml.substring(start, localNameStart - 1), xml.substring(localNameStart, end));
+                addAttributeName(xml.substring(start, localNameStart - 1),
+                        xml.substring(localNameStart, end));
             }
             if (noValue) {
                 noValue = false;
@@ -512,7 +513,8 @@ public class XMLParser {
      * @return the full name
      */
     public String getName() {
-        return prefix == null || prefix.length() == 0 ? localName : prefix + ":" + localName;
+        return prefix == null || prefix.length() == 0 ? localName : prefix
+                + ":" + localName;
     }
 
     /**

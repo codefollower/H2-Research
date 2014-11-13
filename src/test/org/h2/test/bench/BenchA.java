@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.bench;
@@ -32,10 +31,10 @@ public class BenchA implements Bench {
     @Override
     public void init(Database db, int size) throws SQLException {
         this.database = db;
-        transactions = size * 30;
+        transactions = size * 6;
 
-        int scale = 1;
-        accounts = size * 50;
+        int scale = 2;
+        accounts = size * 30;
         tellers = Math.max(accounts / 10, 1);
         branches = Math.max(tellers / 10, 1);
 
@@ -48,10 +47,16 @@ public class BenchA implements Bench {
         db.dropTable("ACCOUNTS");
         db.dropTable("HISTORY");
 
-        String[] create = { "CREATE TABLE BRANCHES(BID INT NOT NULL PRIMARY KEY, BBALANCE DECIMAL(15,2), FILLER VARCHAR(88))",
-                "CREATE TABLE TELLERS(TID INT NOT NULL PRIMARY KEY, BID INT, TBALANCE DECIMAL(15,2), FILLER VARCHAR(84))",
-                "CREATE TABLE ACCOUNTS(AID INT NOT NULL PRIMARY KEY, BID INT, ABALANCE DECIMAL(15,2), FILLER VARCHAR(84))",
-                "CREATE TABLE HISTORY(TID INT, BID INT, AID INT, DELTA DECIMAL(15,2), HTIME DATETIME, FILLER VARCHAR(40))" };
+        String[] create = {
+                "CREATE TABLE BRANCHES(BID INT NOT NULL PRIMARY KEY, " +
+                "BBALANCE DECIMAL(15,2), FILLER VARCHAR(88))",
+                "CREATE TABLE TELLERS(TID INT NOT NULL PRIMARY KEY, " +
+                "BID INT, TBALANCE DECIMAL(15,2), FILLER VARCHAR(84))",
+                "CREATE TABLE ACCOUNTS(AID INT NOT NULL PRIMARY KEY, " +
+                "BID INT, ABALANCE DECIMAL(15,2), FILLER VARCHAR(84))",
+                "CREATE TABLE HISTORY(TID INT, " +
+                "BID INT, AID INT, DELTA DECIMAL(15,2), HTIME DATETIME, " +
+                "FILLER VARCHAR(40))" };
 
         for (String sql : create) {
             db.update(sql);
@@ -60,7 +65,9 @@ public class BenchA implements Bench {
         PreparedStatement prep;
         db.setAutoCommit(false);
         int commitEvery = 1000;
-        prep = db.prepare("INSERT INTO BRANCHES(BID,BBALANCE,FILLER) VALUES(?,10000.00,'" + FILLER + "')");
+        prep = db.prepare(
+                "INSERT INTO BRANCHES(BID, BBALANCE, FILLER) " +
+                "VALUES(?, 10000.00, '" + FILLER + "')");
         for (int i = 0; i < branches * scale; i++) {
             prep.setInt(1, i);
             db.update(prep, "insertBranches");
@@ -69,7 +76,9 @@ public class BenchA implements Bench {
             }
         }
         db.commit();
-        prep = db.prepare("INSERT INTO TELLERS(TID,BID,TBALANCE,FILLER) VALUES(?,?,10000.00,'" + FILLER + "')");
+        prep = db.prepare(
+                "INSERT INTO TELLERS(TID, BID, TBALANCE, FILLER) " +
+                "VALUES(?, ?, 10000.00, '" + FILLER + "')");
         for (int i = 0; i < tellers * scale; i++) {
             prep.setInt(1, i);
             prep.setInt(2, i / tellers);
@@ -80,7 +89,9 @@ public class BenchA implements Bench {
         }
         db.commit();
         int len = accounts * scale;
-        prep = db.prepare("INSERT INTO ACCOUNTS(AID,BID,ABALANCE,FILLER) VALUES(?,?,10000.00,'" + FILLER + "')");
+        prep = db.prepare(
+                "INSERT INTO ACCOUNTS(AID, BID, ABALANCE, FILLER) " +
+                "VALUES(?, ?, 10000.00, '" + FILLER + "')");
         for (int i = 0; i < len; i++) {
             prep.setInt(1, i);
             prep.setInt(2, i / accounts);
@@ -129,7 +140,8 @@ public class BenchA implements Bench {
         PreparedStatement updateBranch = database.prepare(
                 "UPDATE BRANCHES SET BBALANCE=BBALANCE+? WHERE BID=?");
         PreparedStatement insertHistory = database.prepare(
-                "INSERT INTO HISTORY(AID,TID,BID,DELTA,HTIME,FILLER) VALUES(?,?,?,?,?,?)");
+                "INSERT INTO HISTORY(AID, TID, BID, DELTA, HTIME, FILLER) " +
+                "VALUES(?, ?, ?, ?, ?, ?)");
         int accountsPerBranch = accounts / branches;
         database.setAutoCommit(false);
 

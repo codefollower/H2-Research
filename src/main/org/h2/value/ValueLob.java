@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -15,8 +14,8 @@ import java.io.Reader;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.mvstore.DataUtils;
 import org.h2.store.DataHandler;
@@ -65,8 +64,9 @@ public class ValueLob extends Value {
     private boolean compressed;
     private FileStore tempFile;
 
-    private ValueLob(int type, DataHandler handler, String fileName, int tableId, int objectId, boolean linked,
-            long precision, boolean compressed) {
+    private ValueLob(int type, DataHandler handler, String fileName,
+            int tableId, int objectId, boolean linked, long precision,
+            boolean compressed) {
         this.type = type;
         this.handler = handler;
         this.fileName = fileName;
@@ -104,16 +104,18 @@ public class ValueLob extends Value {
      * @param small the byte array
      * @return the lob value
      */
-    public static ValueLob createSmallLob(int type, byte[] small) {
+    private static ValueLob createSmallLob(int type, byte[] small) {
         return new ValueLob(type, small);
     }
 
-    private static String getFileName(DataHandler handler, int tableId, int objectId) {
+    private static String getFileName(DataHandler handler, int tableId,
+            int objectId) {
         if (SysProperties.CHECK && tableId == 0 && objectId == 0) {
             DbException.throwInternalError("0 LOB");
         }
         String table = tableId < 0 ? ".temp" : ".t" + tableId;
-        return getFileNamePrefix(handler.getDatabasePath(), objectId) + table + Constants.SUFFIX_LOB_FILE;
+        return getFileNamePrefix(handler.getDatabasePath(), objectId) +
+                table + Constants.SUFFIX_LOB_FILE;
     }
 
     /**
@@ -130,7 +132,8 @@ public class ValueLob extends Value {
     public static ValueLob openLinked(int type, DataHandler handler,
             int tableId, int objectId, long precision, boolean compression) {
         String fileName = getFileName(handler, tableId, objectId);
-        return new ValueLob(type, handler, fileName, tableId, objectId, true/*linked*/, precision, compression);
+        return new ValueLob(type, handler, fileName, tableId, objectId,
+                true/* linked */, precision, compression);
     }
 
     /**
@@ -146,8 +149,10 @@ public class ValueLob extends Value {
      * @return the value object
      */
     public static ValueLob openUnlinked(int type, DataHandler handler,
-            int tableId, int objectId, long precision, boolean compression, String fileName) {
-        return new ValueLob(type, handler, fileName, tableId, objectId, false/*linked*/, precision, compression);
+            int tableId, int objectId, long precision, boolean compression,
+            String fileName) {
+        return new ValueLob(type, handler, fileName, tableId, objectId,
+                false/* linked */, precision, compression);
     }
 
     /**
@@ -158,7 +163,8 @@ public class ValueLob extends Value {
      * @param handler the data handler
      * @return the lob value
      */
-    public static ValueLob createClob(Reader in, long length, DataHandler handler) {
+    private static ValueLob createClob(Reader in, long length,
+            DataHandler handler) {
         try {
             if (handler == null) {
                 String s = IOUtils.readStringAndClose(in, (int) length);
@@ -178,7 +184,6 @@ public class ValueLob extends Value {
             } else {
                 buff = new char[len];
                 len = IOUtils.readFully(in, buff, len);
-                len = len < 0 ? 0 : len;
             }
             if (len <= handler.getMaxLengthInplaceLob()) {
                 byte[] small = new String(buff, 0, len).getBytes(Constants.UTF8);
@@ -192,17 +197,19 @@ public class ValueLob extends Value {
         }
     }
 
-    private static int getBufferSize(DataHandler handler, boolean compress, long remaining) {
+    private static int getBufferSize(DataHandler handler, boolean compress,
+            long remaining) {
         if (remaining < 0 || remaining > Integer.MAX_VALUE) {
             remaining = Integer.MAX_VALUE;
         }
         int inplace = handler.getMaxLengthInplaceLob();
-        long m = compress ? Constants.IO_BUFFER_SIZE_COMPRESS : Constants.IO_BUFFER_SIZE;
+        long m = compress ?
+                Constants.IO_BUFFER_SIZE_COMPRESS : Constants.IO_BUFFER_SIZE;
         if (m < remaining && m <= inplace) {
             // using "1L" to force long arithmetic
             m = Math.min(remaining, inplace + 1L);
-            // the buffer size must be bigger than the inplace lob, otherwise we can't
-            // know if it must be stored in-place or not
+            // the buffer size must be bigger than the inplace lob, otherwise we
+            // can't know if it must be stored in-place or not
             m = MathUtils.roundUpLong(m, Constants.IO_BUFFER_SIZE);
         }
         m = Math.min(remaining, m);
@@ -213,7 +220,8 @@ public class ValueLob extends Value {
         return (int) m;
     }
 
-    private void createFromReader(char[] buff, int len, Reader in, long remaining, DataHandler h) throws IOException {
+    private void createFromReader(char[] buff, int len, Reader in,
+            long remaining, DataHandler h) throws IOException {
         FileStoreOutputStream out = initLarge(h);
         boolean compress = h.getLobCompressionAlgorithm(Value.CLOB) != null;
         try {
@@ -227,7 +235,7 @@ public class ValueLob extends Value {
                 }
                 len = getBufferSize(h, compress, remaining);
                 len = IOUtils.readFully(in, buff, len);
-                if (len <= 0) {
+                if (len == 0) {
                     break;
                 }
             }
@@ -247,17 +255,20 @@ public class ValueLob extends Value {
         objectId /= SysProperties.LOB_FILES_PER_DIRECTORY;
         while (objectId > 0) {
             f = objectId % SysProperties.LOB_FILES_PER_DIRECTORY;
-            name = SysProperties.FILE_SEPARATOR + f + Constants.SUFFIX_LOBS_DIRECTORY + name;
+            name = SysProperties.FILE_SEPARATOR + f +
+                    Constants.SUFFIX_LOBS_DIRECTORY + name;
             objectId /= SysProperties.LOB_FILES_PER_DIRECTORY;
         }
-        name = FileUtils.toRealPath(path + Constants.SUFFIX_LOBS_DIRECTORY + name);
+        name = FileUtils.toRealPath(path +
+                Constants.SUFFIX_LOBS_DIRECTORY + name);
         return name;
     }
 
     private static int getNewObjectId(DataHandler h) {
         String path = h.getDatabasePath();
         if ((path != null) && (path.length() == 0)) {
-            path = new File(Utils.getProperty("java.io.tmpdir", "."), SysProperties.PREFIX_TEMP_FILE).getAbsolutePath();
+            path = new File(Utils.getProperty("java.io.tmpdir", "."),
+                    SysProperties.PREFIX_TEMP_FILE).getAbsolutePath();
         }
         int newId = 0;
         int lobsPerDir = SysProperties.LOB_FILES_PER_DIRECTORY;
@@ -301,10 +312,11 @@ public class ValueLob extends Value {
                 newId = 0;
                 dirCounter = MathUtils.randomInt(lobsPerDir - 1) * lobsPerDir;
             } else {
-                // calculate the directory
-                // start with 1 (otherwise we don't know the number of directories)
-                // it doesn't really matter what directory is used, it might as well be random
-                // (but that would generate more directories):
+                // calculate the directory.
+                // start with 1 (otherwise we don't know the number of
+                // directories).
+                // it doesn't really matter what directory is used, it might as
+                // well be random (but that would generate more directories):
                 // int dirId = RandomUtils.nextInt(lobsPerDir - 1) + 1;
                 int dirId = (dirCounter++ / (lobsPerDir - 1)) + 1;
                 newId = newId * lobsPerDir;
@@ -312,14 +324,6 @@ public class ValueLob extends Value {
             }
         }
         return newId;
-    }
-
-    /**
-     * Reset the directory counter as if the process was stopped. This method is
-     * for debugging only (to simulate stopping a process).
-     */
-    public static void resetDirCounter() {
-        dirCounter = 0;
     }
 
     private static void invalidateFileList(DataHandler h, String dir) {
@@ -356,7 +360,8 @@ public class ValueLob extends Value {
      * @param handler the data handler
      * @return the lob value
      */
-    public static ValueLob createBlob(InputStream in, long length, DataHandler handler) {
+    private static ValueLob createBlob(InputStream in, long length,
+            DataHandler handler) {
         try {
             if (handler == null) {
                 byte[] data = IOUtils.readBytesAndClose(in, (int) length);
@@ -374,7 +379,7 @@ public class ValueLob extends Value {
                 len = buff.length;
             } else {
                 buff = DataUtils.newBytes(len);
-                len = IOUtils.readFully(in, buff, 0, len);
+                len = IOUtils.readFully(in, buff, len);
             }
             if (len <= handler.getMaxLengthInplaceLob()) {
                 byte[] small = DataUtils.newBytes(len);
@@ -401,18 +406,21 @@ public class ValueLob extends Value {
         synchronized (h) {
             String path = h.getDatabasePath();
             if ((path != null) && (path.length() == 0)) {
-                path = new File(Utils.getProperty("java.io.tmpdir", "."), SysProperties.PREFIX_TEMP_FILE).getAbsolutePath();
+                path = new File(Utils.getProperty("java.io.tmpdir", "."),
+                        SysProperties.PREFIX_TEMP_FILE).getAbsolutePath();
             }
             objectId = getNewObjectId(h);
             fileName = getFileNamePrefix(path, objectId) + Constants.SUFFIX_TEMP_FILE;
             tempFile = h.openFile(fileName, "rw", false);
             tempFile.autoDelete();
         }
-        FileStoreOutputStream out = new FileStoreOutputStream(tempFile, h, compressionAlgorithm);
+        FileStoreOutputStream out = new FileStoreOutputStream(tempFile, h,
+                compressionAlgorithm);
         return out;
     }
 
-    private void createFromStream(byte[] buff, int len, InputStream in, long remaining, DataHandler h) throws IOException {
+    private void createFromStream(byte[] buff, int len, InputStream in,
+            long remaining, DataHandler h) throws IOException {
         FileStoreOutputStream out = initLarge(h);
         boolean compress = h.getLobCompressionAlgorithm(Value.BLOB) != null;
         try {
@@ -424,7 +432,7 @@ public class ValueLob extends Value {
                     break;
                 }
                 len = getBufferSize(h, compress, remaining);
-                len = IOUtils.readFully(in, buff, 0, len);
+                len = IOUtils.readFully(in, buff, len);
                 if (len <= 0) {
                     break;
                 }
@@ -560,7 +568,8 @@ public class ValueLob extends Value {
 
     @Override
     public String getString() {
-        int len = precision > Integer.MAX_VALUE || precision == 0 ? Integer.MAX_VALUE : (int) precision;
+        int len = precision > Integer.MAX_VALUE || precision == 0 ?
+                Integer.MAX_VALUE : (int) precision;
         try {
             if (type == Value.CLOB) {
                 if (small != null) {
@@ -600,7 +609,8 @@ public class ValueLob extends Value {
             return small;
         }
         try {
-            return IOUtils.readBytesAndClose(getInputStream(), Integer.MAX_VALUE);
+            return IOUtils.readBytesAndClose(
+                    getInputStream(), Integer.MAX_VALUE);
         } catch (IOException e) {
             throw DbException.convertIOException(e, fileName);
         }
@@ -652,12 +662,14 @@ public class ValueLob extends Value {
         }
         FileStore store = handler.openFile(fileName, "r", true);
         boolean alwaysClose = SysProperties.lobCloseBetweenReads;
-        return new BufferedInputStream(new FileStoreInputStream(store, handler, compressed, alwaysClose),
+        return new BufferedInputStream(
+                new FileStoreInputStream(store, handler, compressed, alwaysClose),
                 Constants.IO_BUFFER_SIZE);
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
+    public void set(PreparedStatement prep, int parameterIndex)
+            throws SQLException {
         long p = getPrecision();
         if (p > Integer.MAX_VALUE || p <= 0) {
             p = -1;
@@ -729,9 +741,11 @@ public class ValueLob extends Value {
                 int len = getBufferSize(h, compress, Long.MAX_VALUE);
                 int tabId = tableId;
                 if (type == Value.BLOB) {
-                    createFromStream(DataUtils.newBytes(len), 0, getInputStream(), Long.MAX_VALUE, h);
+                    createFromStream(
+                            DataUtils.newBytes(len), 0, getInputStream(), Long.MAX_VALUE, h);
                 } else {
-                    createFromReader(new char[len], 0, getReader(), Long.MAX_VALUE, h);
+                    createFromReader(
+                            new char[len], 0, getReader(), Long.MAX_VALUE, h);
                 }
                 Value v2 = link(h, tabId);
                 if (SysProperties.CHECK && v2 != this) {
@@ -752,7 +766,8 @@ public class ValueLob extends Value {
         return compressed;
     }
 
-    private static synchronized void deleteFile(DataHandler handler, String fileName) {
+    private static synchronized void deleteFile(DataHandler handler,
+            String fileName) {
         // synchronize on the database, to avoid concurrent temp file creation /
         // deletion / backup
         synchronized (handler.getLobSyncObject()) {
@@ -760,14 +775,15 @@ public class ValueLob extends Value {
         }
     }
 
-    private static synchronized void renameFile(DataHandler handler, String oldName, String newName)
-            {
+    private static synchronized void renameFile(DataHandler handler,
+            String oldName, String newName) {
         synchronized (handler.getLobSyncObject()) {
-            FileUtils.moveTo(oldName, newName);
+            FileUtils.move(oldName, newName);
         }
     }
 
-    private static void copyFileTo(DataHandler h, String sourceFileName, String targetFileName) {
+    private static void copyFileTo(DataHandler h, String sourceFileName,
+            String targetFileName) {
         synchronized (h.getLobSyncObject()) {
             try {
                 IOUtils.copyFiles(sourceFileName, targetFileName);
@@ -783,29 +799,6 @@ public class ValueLob extends Value {
             return small.length + 104;
         }
         return 140;
-    }
-
-    /**
-     * Remove all lobs for a given table id.
-     *
-     * @param handler the data handler
-     * @param tableId the table id
-     */
-    public static void removeAllForTable(DataHandler handler, int tableId) {
-        String dir = ValueLob.getFileNamePrefix(handler.getDatabasePath(), 0);
-        removeAllForTable(handler, dir, tableId);
-    }
-
-    private static void removeAllForTable(DataHandler handler, String dir, int tableId) {
-        for (String name : FileUtils.newDirectoryStream(dir)) {
-            if (FileUtils.isDirectory(name)) {
-                removeAllForTable(handler, name, tableId);
-            } else {
-                if (name.endsWith(".t" + tableId + Constants.SUFFIX_LOB_FILE)) {
-                    ValueLob.deleteFile(handler, name);
-                }
-            }
-        }
     }
 
     /**

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
@@ -11,13 +10,14 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+
+import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.command.Prepared;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
 import org.h2.security.SHA256;
@@ -115,7 +115,8 @@ abstract class ScriptBase extends Prepared implements DataHandler {
         Database db = session.getDatabase();
         byte[] key = null;
         if (cipher != null && password != null) {
-            char[] pass = password.optimize(session).getValue(session).getString().toCharArray();
+            char[] pass = password.optimize(session).
+                    getValue(session).getString().toCharArray();
             key = SHA256.getKeyPasswordHash("script", pass);
         }
         String file = getFileName();
@@ -249,7 +250,8 @@ abstract class ScriptBase extends Prepared implements DataHandler {
     }
 
     @Override
-    public int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length) {
+    public int readLob(long lobId, byte[] hmac, long offset, byte[] buff,
+            int off, int length) {
         throw DbException.throwInternalError();
     }
 

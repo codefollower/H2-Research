@@ -1,14 +1,12 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import org.h2.constant.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.Data;
 import org.h2.store.FileStore;
@@ -157,9 +155,15 @@ public class UndoLog {
         records.add(entry);
         if (largeTransactions) {
             memoryUndo++;
+<<<<<<< HEAD
             //maxMemoryUndo默认是50000，可通过SET MAX_MEMORY_UNDO xxx调整
             //当MVCC为true时，哪怕memoryUndo > database.getMaxMemoryUndo()了，也不把undo日志存到临时文件
             if (memoryUndo > database.getMaxMemoryUndo() && database.isPersistent() && !database.isMultiVersion()) {
+=======
+            if (memoryUndo > database.getMaxMemoryUndo() &&
+                    database.isPersistent() &&
+                    !database.isMultiVersion()) {
+>>>>>>> remotes/git-svn
                 if (file == null) {
                     String fileName = database.createTempFile();
                     file = database.openFile(fileName, "rw", false);
@@ -187,7 +191,9 @@ public class UndoLog {
             if (!entry.isStored()) {
                 memoryUndo++;
             }
-            if (memoryUndo > database.getMaxMemoryUndo() && database.isPersistent() && !database.isMultiVersion()) {
+            if (memoryUndo > database.getMaxMemoryUndo() &&
+                    database.isPersistent() &&
+                    !database.isMultiVersion()) {
                 if (file == null) {
                     String fileName = database.createTempFile();
                     file = database.openFile(fileName, "rw", false);

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -26,6 +25,7 @@ public class MultiDimension implements Comparator<long[]> {
 
     protected MultiDimension() {
         // don't allow construction by normal code
+        // but allow tests
     }
 
     /**
@@ -76,11 +76,11 @@ public class MultiDimension implements Comparator<long[]> {
     }
 
     /**
-     * Convert the multi-dimensional value into a one-dimensional (scalar) value.
-     * This is done by interleaving the bits of the values.
-     * Each values must be between 0 (including) and the maximum value
-     * for the given number of dimensions (getMaxValue, excluding).
-     * To normalize values to this range, use the normalize function.
+     * Convert the multi-dimensional value into a one-dimensional (scalar)
+     * value. This is done by interleaving the bits of the values. Each values
+     * must be between 0 (including) and the maximum value for the given number
+     * of dimensions (getMaxValue, excluding). To normalize values to this
+     * range, use the normalize function.
      *
      * @param values the multi-dimensional value
      * @return the scalar value
@@ -146,22 +146,24 @@ public class MultiDimension implements Comparator<long[]> {
     }
 
     /**
-     * Generates an optimized multi-dimensional range query.
-     * The query contains parameters. It can only be used with the H2 database.
+     * Generates an optimized multi-dimensional range query. The query contains
+     * parameters. It can only be used with the H2 database.
      *
      * @param table the table name
      * @param columns the list of columns
      * @param scalarColumn the column name of the computed scalar column
      * @return the query
      */
-    public String generatePreparedQuery(String table, String scalarColumn, String[] columns) {
+    public String generatePreparedQuery(String table, String scalarColumn,
+            String[] columns) {
         StringBuilder buff = new StringBuilder("SELECT D.* FROM ");
         buff.append(StringUtils.quoteIdentifier(table)).
             append(" D, TABLE(_FROM_ BIGINT=?, _TO_ BIGINT=?) WHERE ").
             append(StringUtils.quoteIdentifier(scalarColumn)).
             append(" BETWEEN _FROM_ AND _TO_");
         for (String col : columns) {
-            buff.append(" AND ").append(StringUtils.quoteIdentifier(col)).append("+1 BETWEEN ?+1 AND ?+1");
+            buff.append(" AND ").append(StringUtils.quoteIdentifier(col)).
+                append("+1 BETWEEN ?+1 AND ?+1");
         }
         return buff.toString();
     }
@@ -174,7 +176,8 @@ public class MultiDimension implements Comparator<long[]> {
      * @param max the upper values
      * @return the result set
      */
-    public ResultSet getResult(PreparedStatement prep, int[] min, int[] max) throws SQLException {
+    public ResultSet getResult(PreparedStatement prep, int[] min, int[] max)
+            throws SQLException {
         long[][] ranges = getMortonRanges(min, max);
         int len = ranges.length;
         Long[] from = new Long[len];
@@ -266,7 +269,8 @@ public class MultiDimension implements Comparator<long[]> {
         return a[0] > b[0] ? 1 : -1;
     }
 
-    private void addMortonRanges(ArrayList<long[]> list, int[] min, int[] max, int len, int level) {
+    private void addMortonRanges(ArrayList<long[]> list, int[] min, int[] max,
+            int len, int level) {
         if (level > 100) {
             throw new IllegalArgumentException("" + level);
         }

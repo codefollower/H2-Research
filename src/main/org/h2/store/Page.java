@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store;
@@ -110,10 +109,15 @@ public abstract class Page extends CacheObject {
             result = old;
         } else {
             // according to a test, this is as fast as "new Row[..]"
+<<<<<<< HEAD
             result = (T[]) Array.newInstance(old.getClass().getComponentType(), oldSize + 1 + COPY_THRESHOLD);
             //当pos等于0时就不复制了，是因为下面System.arraycopy(old, pos, result, pos + 1, oldSize - pos);
             //会为result预留一个位置(pos+1)说明当pos是0是，result数姐从下标1的地方复制，
             //紧接着result[pos] = x;就把x放位下标为o的位置处了。
+=======
+            result = (T[]) Array.newInstance(
+                    old.getClass().getComponentType(), oldSize + 1 + COPY_THRESHOLD);
+>>>>>>> remotes/git-svn
             if (pos > 0) {
                 System.arraycopy(old, 0, result, 0, pos); //复制pos位置前的元素
             }
@@ -141,7 +145,8 @@ public abstract class Page extends CacheObject {
             result = old;
         } else {
             // according to a test, this is as fast as "new Row[..]"
-            result = (T[]) Array.newInstance(old.getClass().getComponentType(), oldSize - 1);
+            result = (T[]) Array.newInstance(
+                    old.getClass().getComponentType(), oldSize - 1);
             System.arraycopy(old, 0, result, 0, Math.min(oldSize - 1, pos));
         }
         if (pos < oldSize) {

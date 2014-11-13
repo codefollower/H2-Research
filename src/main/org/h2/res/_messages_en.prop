@@ -38,6 +38,7 @@
 90008=Invalid value {0} for parameter {1}
 90009=Unable to create or alter sequence {0} because of invalid attributes (start value {1}, min value {2}, max value {3}, increment {4})
 90010=Invalid TO_CHAR format {0}
+90011=A file path that is implicitly relative to the current working directory is not allowed in the database URL {0}. Use an absolute path, ~/name, ./name, or the baseDir setting instead.
 90012=Parameter {0} is not set
 90013=Database {0} not found
 90014=Error parsing {0}
@@ -47,6 +48,7 @@
 90018=The connection was not closed by the application and is garbage collected
 90019=Cannot drop the current user
 90020=Database may be already in use: {0}. Possible solutions: close all other connection(s); use the server mode
+90021=This combination of database settings is not supported: {0}
 90022=Function {0} not found
 90023=Column {0} must not be nullable
 90024=Error while renaming file {0} to {1}
@@ -114,7 +116,6 @@
 90089=Collation cannot be changed because there is a data table: {0}
 90090=Schema {0} cannot be dropped
 90091=Role {0} cannot be dropped
-90092=This Java version is not supported (Java 1.4 is required)
 90093=Clustering error - database currently runs in standalone mode
 90094=Clustering error - database currently runs in cluster mode, server list: {0}
 90095=String format error: {0}
@@ -122,7 +123,6 @@
 90097=The database is read only
 90098=The database has been closed
 90099=Error setting database event listener {0}, cause: {1}
-90100=No disk space available
 90101=Wrong XID format: {0}
 90102=Unsupported compression options: {0}
 90103=Unsupported compression algorithm: {0}

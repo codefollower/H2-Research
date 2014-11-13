@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -79,12 +78,20 @@ public class TestBnf extends TestBase {
         assertTrue(dbContents.isSQLite());
     }
 
-    private void testProcedures(Connection conn, boolean isMySQLMode) throws Exception {
+    private void testProcedures(Connection conn, boolean isMySQLMode)
+            throws Exception {
         // Register a procedure and check if it is present in DbContents
-        conn.createStatement().execute("DROP ALIAS IF EXISTS CUSTOM_PRINT");
-        conn.createStatement().execute("CREATE ALIAS CUSTOM_PRINT AS $$ void print(String s) { System.out.println(s); } $$");
-        conn.createStatement().execute("DROP TABLE IF EXISTS TABLE_WITH_STRING_FIELD");
-        conn.createStatement().execute("CREATE TABLE TABLE_WITH_STRING_FIELD (STRING_FIELD VARCHAR(50), INT_FIELD integer)");
+        conn.createStatement().execute(
+                "DROP ALIAS IF EXISTS CUSTOM_PRINT");
+        conn.createStatement().execute(
+                "CREATE ALIAS CUSTOM_PRINT " +
+                "AS $$ void print(String s) { System.out.println(s); } $$");
+        conn.createStatement().execute(
+                "DROP TABLE IF EXISTS " +
+                "TABLE_WITH_STRING_FIELD");
+        conn.createStatement().execute(
+                "CREATE TABLE " +
+                "TABLE_WITH_STRING_FIELD (STRING_FIELD VARCHAR(50), INT_FIELD integer)");
         DbContents dbContents = new DbContents();
         dbContents.readContents("jdbc:h2:test", conn);
         assertTrue(dbContents.isH2());
@@ -126,9 +133,11 @@ public class TestBnf extends TestBase {
 
         // Test completion
         Bnf bnf = Bnf.getInstance(null);
-        DbContextRule columnRule = new DbContextRule(dbContents, DbContextRule.COLUMN);
+        DbContextRule columnRule = new
+                DbContextRule(dbContents, DbContextRule.COLUMN);
         bnf.updateTopic("column_name", columnRule);
-        bnf.updateTopic("expression", new DbContextRule(dbContents, DbContextRule.PROCEDURE));
+        bnf.updateTopic("expression", new
+                DbContextRule(dbContents, DbContextRule.PROCEDURE));
         bnf.linkStatements();
         // Test partial
         Map<String, String> tokens = bnf.getNextTokenList("SELECT CUSTOM_PR");

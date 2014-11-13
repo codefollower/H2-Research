@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -13,10 +12,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
 
+import org.h2.api.ErrorCode;
 import org.h2.command.dml.SetTypes;
-import org.h2.constant.DbSettings;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.message.DbException;
 import org.h2.security.SHA256;
 import org.h2.store.fs.FilePathEncrypt;
@@ -188,7 +185,9 @@ public class ConnectionInfo implements Cloneable {
                 throw DbException.get(ErrorCode.IO_EXCEPTION_1, normalizedName + " outside " +
                         absDir);
             }
-            if (normalizedName.charAt(absDir.length()) != '/') {
+            if (absDir.endsWith("/") || absDir.endsWith("\\")) {
+                // no further checks are needed for C:/ and similar
+            } else if (normalizedName.charAt(absDir.length()) != '/') {
                 // database must be within the directory
                 // (with baseDir=/test, the database name must not be
                 // /test2/x and not /test2)
@@ -347,8 +346,13 @@ public class ConnectionInfo implements Cloneable {
         userPasswordHash = hashPassword(passwordHash, user, password);
     }
 
+<<<<<<< HEAD
     private static byte[] hashPassword(boolean passwordHash, String userName, char[] password) {
 		//如果PASSWORD_HASH参数是true那么不再进行SHA256
+=======
+    private static byte[] hashPassword(boolean passwordHash, String userName,
+            char[] password) {
+>>>>>>> remotes/git-svn
         if (passwordHash) {
             return StringUtils.convertHexToBytes(new String(password));
         }
@@ -413,6 +417,23 @@ public class ConnectionInfo implements Cloneable {
     public String getName() {
         if (persistent) {
             if (nameNormalized == null) {
+                if (!SysProperties.IMPLICIT_RELATIVE_PATH) {
+                    if (!FileUtils.isAbsolute(name)) {
+                        if (name.indexOf("./") < 0 &&
+                                name.indexOf(".\\") < 0 &&
+                                name.indexOf(":/") < 0 &&
+                                name.indexOf(":\\") < 0) {
+                            // the name could start with "./", or
+                            // it could start with a prefix such as "nio:./"
+                            // for Windows, the path "\test" is not considered
+                            // absolute as the drive letter is missing,
+                            // but we consider it absolute
+                            throw DbException.get(
+                                    ErrorCode.URL_RELATIVE_TO_CWD,
+                                    originalURL);
+                        }
+                    }
+                }
                 String suffix = Constants.SUFFIX_PAGE_FILE;
                 String n;
                 if (FileUtils.exists(name + suffix)) {

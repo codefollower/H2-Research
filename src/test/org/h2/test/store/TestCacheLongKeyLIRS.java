@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.test.store;
 
@@ -34,6 +34,7 @@ public class TestCacheLongKeyLIRS extends TestBase {
     }
 
     private void testCache() {
+        testResize();
         testRandomSmallCache();
         testEdgeCases();
         testSize();
@@ -44,6 +45,21 @@ public class TestCacheLongKeyLIRS extends TestBase {
         testLimitNonResident();
         testScanResistance();
         testRandomOperations();
+    }
+
+    private void testResize() {
+        // cache with 100 memory, average memory 10
+        // (that means 10 entries)
+        CacheLongKeyLIRS<Integer> t1 =
+                new CacheLongKeyLIRS<Integer>(100, 10, 1, 0);
+        // another cache with more entries
+        CacheLongKeyLIRS<Integer> t2 =
+                new CacheLongKeyLIRS<Integer>(100, 1, 1, 0);
+        for (int i = 0; i < 200; i++) {
+            t1.put(i, i, 1);
+            t2.put(i, i, 1);
+        }
+        assertEquals(toString(t2), toString(t1));
     }
 
     private static void testRandomSmallCache() {
@@ -57,7 +73,8 @@ public class TestCacheLongKeyLIRS extends TestBase {
                 switch (r.nextInt(3)) {
                 case 0:
                     int memory = r.nextInt(5) + 1;
-                    buff.append("add ").append(key).append(' ').append(memory).append('\n');
+                    buff.append("add ").append(key).append(' ').
+                            append(memory).append('\n');
                     test.put(key, j, memory);
                     break;
                 case 1:
@@ -341,7 +358,8 @@ public class TestCacheLongKeyLIRS extends TestBase {
         for (int i = 0; i < 20; i++) {
             test.put(i, 10 * i);
         }
-        verify(test, "mem: 4 stack: 19 18 17 16 3 2 1 cold: 19 non-resident: 18 17 16");
+        verify(test, "mem: 4 stack: 19 18 17 16 3 2 1 " +
+                "cold: 19 non-resident: 18 17 16");
     }
 
     private void testScanResistance() {
@@ -490,7 +508,8 @@ public class TestCacheLongKeyLIRS extends TestBase {
         return createCache(maxElements, 1);
     }
 
-    private static <V> CacheLongKeyLIRS<V> createCache(int maxSize, int averageSize) {
+    private static <V> CacheLongKeyLIRS<V> createCache(int maxSize,
+            int averageSize) {
         return new CacheLongKeyLIRS<V>(maxSize, averageSize, 1, 0);
     }
 

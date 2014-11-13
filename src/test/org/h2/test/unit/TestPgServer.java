@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -54,14 +53,17 @@ public class TestPgServer extends TestBase {
             return;
         }
         deleteDb("test");
-        Connection conn = getConnection("test;DATABASE_TO_UPPER=false", "sa", "sa");
+        Connection conn = getConnection(
+                "test;DATABASE_TO_UPPER=false", "sa", "sa");
         Statement stat = conn.createStatement();
         stat.execute("create table test(id int, name varchar(255))");
-        Server server = Server.createPgServer("-baseDir", getBaseDir(), "-pgPort", "5535", "-pgDaemon");
+        Server server = Server.createPgServer(
+                "-baseDir", getBaseDir(), "-pgPort", "5535", "-pgDaemon");
         server.start();
         try {
             Connection conn2;
-            conn2 = DriverManager.getConnection("jdbc:postgresql://localhost:5535/test", "sa", "sa");
+            conn2 = DriverManager.getConnection(
+                    "jdbc:postgresql://localhost:5535/test", "sa", "sa");
             stat = conn2.createStatement();
             stat.execute("select * from test");
             conn2.close();
@@ -84,7 +86,8 @@ public class TestPgServer extends TestBase {
 
     private void testPgAdapter() throws SQLException {
         deleteDb("test");
-        Server server = Server.createPgServer("-baseDir", getBaseDir(), "-pgPort", "5535", "-pgDaemon");
+        Server server = Server.createPgServer(
+                "-baseDir", getBaseDir(), "-pgPort", "5535", "-pgDaemon");
         assertEquals(5535, server.getPort());
         assertEquals("Not started", server.getStatus());
         server.start();
@@ -103,12 +106,14 @@ public class TestPgServer extends TestBase {
             return;
         }
 
-        Server server = Server.createPgServer("-pgPort", "5535", "-pgDaemon", "-key", "test", "mem:test");
+        Server server = Server.createPgServer(
+                "-pgPort", "5535", "-pgDaemon", "-key", "test", "mem:test");
         server.start();
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
-            Connection conn = DriverManager.getConnection("jdbc:postgresql://localhost:5535/test", "sa", "sa");
+            Connection conn = DriverManager.getConnection(
+                    "jdbc:postgresql://localhost:5535/test", "sa", "sa");
             final Statement stat = conn.createStatement();
             stat.execute("create alias sleep for \"java.lang.Thread.sleep\"");
 
@@ -133,7 +138,8 @@ public class TestPgServer extends TestBase {
                 future.get();
                 throw new IllegalStateException();
             } catch (ExecutionException e) {
-                assertStartsWith(e.getCause().getMessage(), "ERROR: canceling statement due to user request");
+                assertStartsWith(e.getCause().getMessage(),
+                        "ERROR: canceling statement due to user request");
             } finally {
                 conn.close();
             }
@@ -145,7 +151,8 @@ public class TestPgServer extends TestBase {
     }
 
     private void testPgClient() throws SQLException {
-        Connection conn = DriverManager.getConnection("jdbc:postgresql://localhost:5535/test", "sa", "sa");
+        Connection conn = DriverManager.getConnection(
+                "jdbc:postgresql://localhost:5535/test", "sa", "sa");
         Statement stat = conn.createStatement();
         assertThrows(SQLException.class, stat).
                 execute("select ***");
@@ -156,7 +163,8 @@ public class TestPgServer extends TestBase {
         stat.close();
         conn.close();
 
-        conn = DriverManager.getConnection("jdbc:postgresql://localhost:5535/test", "test", "test");
+        conn = DriverManager.getConnection(
+                "jdbc:postgresql://localhost:5535/test", "test", "test");
         stat = conn.createStatement();
         ResultSet rs;
 
@@ -189,7 +197,9 @@ public class TestPgServer extends TestBase {
         assertEquals(1, rs.getInt(1));
         assertEquals("Hello", rs.getString(2));
         assertFalse(rs.next());
-        prep = conn.prepareStatement("select * from test where id = ? and name = ?");
+        prep = conn.prepareStatement(
+                "select * from test " +
+                "where id = ? and name = ?");
         prep.setInt(1, 1);
         prep.setString(2, "Hello");
         rs = prep.executeQuery();
@@ -216,11 +226,12 @@ public class TestPgServer extends TestBase {
         // rs.next();
         // assertEquals("TEST", rs.getString("TABLE_NAME"));
         assertFalse(rs.next());
-        rs = stat.executeQuery("select version(), pg_postmaster_start_time(), current_schema()");
+        rs = stat.executeQuery(
+                "select version(), pg_postmaster_start_time(), current_schema()");
         rs.next();
         String s = rs.getString(1);
-        assertTrue(s.indexOf("H2") >= 0);
-        assertTrue(s.indexOf("PostgreSQL") >= 0);
+        assertTrue(s.contains("H2"));
+        assertTrue(s.contains("PostgreSQL"));
         s = rs.getString(2);
         s = rs.getString(3);
         assertEquals(s, "PUBLIC");
@@ -237,7 +248,8 @@ public class TestPgServer extends TestBase {
         assertEquals("Hallo", rs.getString(2));
         assertFalse(rs.next());
 
-        rs = stat.executeQuery("select id, name, pg_get_userbyid(id) from information_schema.users order by id");
+        rs = stat.executeQuery("select id, name, pg_get_userbyid(id) " +
+                "from information_schema.users order by id");
         rs.next();
         assertEquals(rs.getString(2), rs.getString(3));
         assertFalse(rs.next());
@@ -292,16 +304,21 @@ public class TestPgServer extends TestBase {
         rs.next();
         assertEquals("", rs.getString(1));
 
-        rs = stat.executeQuery("select id from information_schema.indexes where index_name='IDX_TEST_NAME'");
+        rs = stat.executeQuery("select id from information_schema.indexes " +
+                "where index_name='IDX_TEST_NAME'");
         rs.next();
         int indexId = rs.getInt(1);
 
         rs = stat.executeQuery("select pg_get_indexdef("+indexId+", 0, false)");
         rs.next();
-        assertEquals("CREATE INDEX PUBLIC.IDX_TEST_NAME ON PUBLIC.TEST(NAME, ID)", rs.getString(1));
+        assertEquals(
+                "CREATE INDEX PUBLIC.IDX_TEST_NAME ON PUBLIC.TEST(NAME, ID)",
+                rs.getString(1));
         rs = stat.executeQuery("select pg_get_indexdef("+indexId+", null, false)");
         rs.next();
-        assertEquals("CREATE INDEX PUBLIC.IDX_TEST_NAME ON PUBLIC.TEST(NAME, ID)", rs.getString(1));
+        assertEquals(
+                "CREATE INDEX PUBLIC.IDX_TEST_NAME ON PUBLIC.TEST(NAME, ID)",
+                rs.getString(1));
         rs = stat.executeQuery("select pg_get_indexdef("+indexId+", 1, false)");
         rs.next();
         assertEquals("NAME", rs.getString(1));
@@ -316,16 +333,20 @@ public class TestPgServer extends TestBase {
         if (!getPgJdbcDriver()) {
             return;
         }
-        Server server = Server.createPgServer("-pgPort", "5535", "-pgDaemon", "-key", "test", "mem:test");
+        Server server = Server.createPgServer(
+                "-pgPort", "5535", "-pgDaemon", "-key", "test", "mem:test");
         server.start();
         try {
-            Connection conn = DriverManager.getConnection("jdbc:postgresql://localhost:5535/test", "sa", "sa");
+            Connection conn = DriverManager.getConnection(
+                    "jdbc:postgresql://localhost:5535/test", "sa", "sa");
             Statement stat = conn.createStatement();
 
             // confirm that we've got the in memory implementation
             // by creating a table and checking flags
             stat.execute("create table test(id int primary key, name varchar)");
-            ResultSet rs = stat.executeQuery("select storage_type from information_schema.tables where table_name = 'TEST'");
+            ResultSet rs = stat.executeQuery(
+                    "select storage_type from information_schema.tables " +
+                    "where table_name = 'TEST'");
             assertTrue(rs.next());
             assertEquals("MEMORY", rs.getString(1));
 
@@ -340,16 +361,21 @@ public class TestPgServer extends TestBase {
             return;
         }
 
-        Server server = Server.createPgServer("-pgPort", "5535", "-pgDaemon", "-key", "test", "mem:test");
+        Server server = Server.createPgServer(
+                "-pgPort", "5535", "-pgDaemon", "-key", "test", "mem:test");
         server.start();
         try {
-            Connection conn = DriverManager.getConnection("jdbc:postgresql://localhost:5535/test", "sa", "sa");
+            Connection conn = DriverManager.getConnection(
+                    "jdbc:postgresql://localhost:5535/test", "sa", "sa");
             Statement stat = conn.createStatement();
 
-            stat.execute("create table test(x1 varchar, x2 int, x3 smallint, x4 bigint, x5 double, x6 float, " +
-                "x7 real, x8 boolean, x9 char, x10 bytea)");
+            stat.execute(
+                    "create table test(x1 varchar, x2 int, " +
+                    "x3 smallint, x4 bigint, x5 double, x6 float, " +
+                    "x7 real, x8 boolean, x9 char, x10 bytea)");
 
-            PreparedStatement ps = conn.prepareStatement("insert into test values (?,?,?,?,?,?,?,?,?,?)");
+            PreparedStatement ps = conn.prepareStatement(
+                    "insert into test values (?,?,?,?,?,?,?,?,?,?)");
             ps.setString(1, "test");
             ps.setInt(2, 12345678);
             ps.setShort(3, (short) 12345);

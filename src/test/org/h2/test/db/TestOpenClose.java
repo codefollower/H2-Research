@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License, Version
- * 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html). Initial Developer: H2 Group
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
  */
 package org.h2.test.db;
 
@@ -14,7 +14,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.api.DatabaseEventListener;
-import org.h2.constant.ErrorCode;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
@@ -75,14 +75,15 @@ public class TestOpenClose extends TestBase {
         String url = "jdbc:h2:split:18:" + getBaseDir() + "/openClose2";
         url = getURL(url, true);
         conn = DriverManager.getConnection(url);
-        conn.createStatement().execute("create table test(id int, name varchar) as select 1, space(1000000)");
+        conn.createStatement().execute("create table test(id int, name varchar) " +
+                "as select 1, space(1000000)");
         conn.close();
         FileChannel c = FileUtils.open(fn+".1.part", "rw");
         c.position(c.size() * 2 - 1);
         c.write(ByteBuffer.wrap(new byte[1]));
         c.close();
         if (config.mvStore) {
-            assertThrows(ErrorCode.FILE_CORRUPTED_1, this).getConnection(url);
+            assertThrows(ErrorCode.IO_EXCEPTION_1, this).getConnection(url);
         } else {
             assertThrows(ErrorCode.IO_EXCEPTION_2, this).getConnection(url);
         }
@@ -138,13 +139,15 @@ public class TestOpenClose extends TestBase {
 
         deleteDb("openClose");
         String user = getUser(), password = getPassword();
-        String url = getURL("openClose;DATABASE_EVENT_LISTENER='" + MyDatabaseEventListener.class.getName() + "'", true);
+        String url = getURL("openClose;DATABASE_EVENT_LISTENER='" +
+                MyDatabaseEventListener.class.getName() + "'", true);
         Connection conn = DriverManager.getConnection(url, user, password);
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(ID IDENTITY, NAME VARCHAR)");
         stat.execute("SET MAX_MEMORY_UNDO 100000");
         stat.execute("CREATE INDEX IDXNAME ON TEST(NAME)");
-        stat.execute("INSERT INTO TEST SELECT X, X || ' Data' FROM SYSTEM_RANGE(1, 1000)");
+        stat.execute("INSERT INTO TEST SELECT X, X || ' Data' " +
+                "FROM SYSTEM_RANGE(1, 1000)");
         stat.close();
         conn.close();
         conn = DriverManager.getConnection(url, user, password);
@@ -175,7 +178,8 @@ public class TestOpenClose extends TestBase {
         final String user = getUser(), password = getPassword();
         Connection conn = DriverManager.getConnection(url, user, password);
         conn.createStatement().execute("drop table employee if exists");
-        conn.createStatement().execute("create table employee(id int primary key, name varchar, salary int)");
+        conn.createStatement().execute(
+                "create table employee(id int primary key, name varchar, salary int)");
         conn.close();
         // previously using getSize(200, 1000);
         // but for Ubuntu, the default ulimit is 1024,
@@ -187,7 +191,8 @@ public class TestOpenClose extends TestBase {
                 @Override
                 public void call() throws SQLException {
                     Connection c = DriverManager.getConnection(url, user, password);
-                    PreparedStatement prep = c.prepareStatement("insert into employee values(?, ?, 0)");
+                    PreparedStatement prep = c
+                            .prepareStatement("insert into employee values(?, ?, 0)");
                     int id = getNextId();
                     prep.setInt(1, id);
                     prep.setString(2, "employee " + id);
@@ -204,7 +209,8 @@ public class TestOpenClose extends TestBase {
             tasks[i].get();
         }
         conn = DriverManager.getConnection(url, user, password);
-        ResultSet rs = conn.createStatement().executeQuery("select count(*) from employee");
+        ResultSet rs = conn.createStatement().executeQuery(
+                "select count(*) from employee");
         rs.next();
         assertEquals(len, rs.getInt(1));
         conn.close();
@@ -217,7 +223,8 @@ public class TestOpenClose extends TestBase {
     /**
      * A database event listener used in this test.
      */
-    public static final class MyDatabaseEventListener implements DatabaseEventListener {
+    public static final class MyDatabaseEventListener implements
+            DatabaseEventListener {
 
         @Override
         public void exceptionThrown(SQLException e, String sql) {

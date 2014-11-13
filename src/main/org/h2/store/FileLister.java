@@ -1,18 +1,21 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.store;
 
+import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.message.TraceSystem;
+import org.h2.store.fs.FilePath;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.New;
 
@@ -33,16 +36,38 @@ public class FileLister {
      * @param message the text to include in the error message
      * @throws SQLException if it failed
      */
-    public static void tryUnlockDatabase(List<String> files, String message) throws SQLException {
+    public static void tryUnlockDatabase(List<String> files, String message)
+            throws SQLException {
         for (String fileName : files) {
             if (fileName.endsWith(Constants.SUFFIX_LOCK_FILE)) {
-                FileLock lock = new FileLock(new TraceSystem(null), fileName, Constants.LOCK_SLEEP);
+                FileLock lock = new FileLock(new TraceSystem(null), fileName,
+                        Constants.LOCK_SLEEP);
                 try {
                     lock.lock(FileLock.LOCK_FILE);
                     lock.unlock();
                 } catch (DbException e) {
                     throw DbException.get(
-                            ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1, message).getSQLException();
+                            ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1,
+                            message).getSQLException();
+                }
+            } else if (fileName.endsWith(Constants.SUFFIX_MV_FILE)) {
+                FileChannel f = null;
+                try {
+                    f = FilePath.get(fileName).open("r");
+                    java.nio.channels.FileLock lock = f.tryLock(0, Long.MAX_VALUE, true);
+                    lock.release();
+                } catch (Exception e) {
+                    throw DbException.get(
+                            ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1, e,
+                            message).getSQLException();
+                } finally {
+                    if (f != null) {
+                        try {
+                            f.close();
+                        } catch (IOException e) {
+                            // ignore
+                        }
+                    }
                 }
             }
         }
@@ -71,7 +96,8 @@ public class FileLister {
      *            and lob files are returned
      * @return the list of files
      */
-    public static ArrayList<String> getDatabaseFiles(String dir, String db, boolean all) {
+    public static ArrayList<String> getDatabaseFiles(String dir, String db,
+            boolean all) {
         ArrayList<String> files = New.arrayList();
         // for Windows, File.getCanonicalPath("...b.") returns just "...b"
         String start = db == null ? null : (FileUtils.toRealPath(dir + "/" + db) + ".");

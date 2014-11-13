@@ -1,9 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <!--
-Copyright 2004-2013 H2 Group.
-Multiple-Licensed under the H2 License, Version 1.0,
-and under the Eclipse Public License, Version 1.0
-(http://h2database.com/html/license.html).
+Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+and the EPL 1.0 (http://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
 <html>
@@ -17,7 +15,7 @@ Initial Developer: H2 Group
         <table class="toolbar" cellspacing="0" cellpadding="0">
             <tr class="toolbar">
                 <td class="toolbar">
-                    <a href="logout.do?jsessionid=${sessionId}" target="_top">
+                    <a href="logout.do?jsessionid=${sessionId}" target="_parent">
                         <img src="icon_disconnect.gif"
                             onmouseover="this.className ='icon_hover'"
                             onmouseout="this.className ='icon'"
@@ -36,7 +34,7 @@ Initial Developer: H2 Group
                 </td>
                 <td class="toolbar">
                     <input type="checkbox" name="autoCommit" value="autoCommit" onclick=
-                        "javascript:top.frames['h2result'].document.location='query.do?jsessionid=${sessionId}&amp;sql=@autocommit_' + (document.header.autoCommit.checked ? 'true' : 'false') + '.';"/>
+                        "javascript:parent.h2result.document.location='query.do?jsessionid=${sessionId}&amp;sql=@autocommit_' + (document.header.autoCommit.checked ? 'true' : 'false') + '.';"/>
                 </td>
                 <td class="toolbar">
                     ${text.toolbar.autoCommit}&nbsp;
@@ -63,7 +61,7 @@ Initial Developer: H2 Group
                 </td>
                 <td class="toolbar">
                     <select name="rowcount" size="1" onchange=
-                    "javascript:top.frames['h2result'].document.location='query.do?jsessionid=${sessionId}&amp;sql=@maxrows+'+header.rowcount.value+'.';">
+                    "javascript:parent.h2result.document.location='query.do?jsessionid=${sessionId}&amp;sql=@maxrows+'+header.rowcount.value+'.';">
                     <option value="0">
                             ${text.toolbar.all}
                         </option>
@@ -82,7 +80,7 @@ Initial Developer: H2 Group
                     </select>&nbsp;
                 </td>
                 <td class="toolbar">
-                    <a href="javascript:top.frames['h2query'].submitAll();">
+                    <a href="javascript:parent.h2query.submitAll();">
                         <img src="icon_run.gif"
                             onmouseover="this.className ='icon_hover'"
                             onmouseout="this.className ='icon'"
@@ -91,7 +89,7 @@ Initial Developer: H2 Group
                     </a>
                 </td>
                 <td class="toolbar">
-                    <a href="javascript:top.frames['h2query'].submitSelected();">
+                    <a href="javascript:parent.h2query.submitSelected();">
                         <img src="icon_run_selected.gif"
                             onmouseover="this.className ='icon_hover'"
                             onmouseout="this.className ='icon'"
@@ -120,11 +118,11 @@ Initial Developer: H2 Group
                 <td class="toolbar">
                     ${text.toolbar.autoComplete}&nbsp;
                     <select name="autoComplete" size="1"
-                        onchange="javascript:top.frames['h2query'].setAutoComplete(this.value)">
-                        <option value="0">
+                        onchange="javascript:parent.h2query.setAutoComplete(this.value)">
+                        <option selected="selected" value="0">
                             ${text.toolbar.autoComplete.off}
                         </option>
-                        <option selected="selected" value="1">
+                        <option value="1">
                             ${text.toolbar.autoComplete.normal}
                         </option>
                         <option value="2">

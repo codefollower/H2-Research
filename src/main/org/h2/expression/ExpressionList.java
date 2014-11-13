@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
@@ -129,7 +128,8 @@ public class ExpressionList extends Expression {
         ExpressionColumn[] expr = new ExpressionColumn[list.length];
         for (int i = 0; i < list.length; i++) {
             Expression e = list[i];
-            Column col = new Column("C" + (i + 1), e.getType(), e.getPrecision(), e.getScale(),
+            Column col = new Column("C" + (i + 1),
+                    e.getType(), e.getPrecision(), e.getScale(),
                     e.getDisplaySize());
             expr[i] = new ExpressionColumn(session.getDatabase(), col);
         }

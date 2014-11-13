@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.bnf.context;
@@ -118,7 +117,8 @@ public class DbContents {
      * @param url the database URL
      * @param conn the connection
      */
-    public synchronized void readContents(String url, Connection conn) throws SQLException {
+    public synchronized void readContents(String url, Connection conn)
+            throws SQLException {
         isH2 = url.startsWith("jdbc:h2:");
         if (isH2) {
             PreparedStatement prep = conn.prepareStatement(
@@ -135,7 +135,8 @@ public class DbContents {
         }
         isSQLite = url.startsWith("jdbc:sqlite:");
         isOracle = url.startsWith("jdbc:oracle:");
-        isPostgreSQL = url.startsWith("jdbc:postgresql:");
+        // the Vertica engine is based on PostgreSQL
+        isPostgreSQL = url.startsWith("jdbc:postgresql:") || url.startsWith("jdbc:vertica:");
         // isHSQLDB = url.startsWith("jdbc:hsqldb:");
         isMySQL = url.startsWith("jdbc:mysql:");
         isDerby = url.startsWith("jdbc:derby:");
@@ -147,14 +148,15 @@ public class DbContents {
         schemas = new DbSchema[schemaNames.length];
         for (int i = 0; i < schemaNames.length; i++) {
             String schemaName = schemaNames[i];
-            boolean isDefault = defaultSchemaName == null || defaultSchemaName.equals(schemaName);
+            boolean isDefault = defaultSchemaName == null ||
+                    defaultSchemaName.equals(schemaName);
             DbSchema schema = new DbSchema(this, schemaName, isDefault);
             if (isDefault) {
                 defaultSchema = schema;
             }
             schemas[i] = schema;
-            String[] tableTypes = { "TABLE", "SYSTEM TABLE", "VIEW", "SYSTEM VIEW",
-                    "TABLE LINK", "SYNONYM", "EXTERNAL" };
+            String[] tableTypes = { "TABLE", "SYSTEM TABLE", "VIEW",
+                    "SYSTEM VIEW", "TABLE LINK", "SYNONYM", "EXTERNAL" };
             schema.readTables(meta, tableTypes);
             if (!isPostgreSQL) {
                 schema.readProcedures(meta);
@@ -168,7 +170,9 @@ public class DbContents {
                     defaultSchema = schema;
                     break;
                 }
-                if (defaultSchema == null || best == null || schema.name.length() < best.length()) {
+                if (defaultSchema == null ||
+                        best == null ||
+                        schema.name.length() < best.length()) {
                     best = schema.name;
                     defaultSchema = schema;
                 }

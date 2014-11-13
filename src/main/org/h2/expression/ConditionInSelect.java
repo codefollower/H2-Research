@@ -1,13 +1,12 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
+import org.h2.api.ErrorCode;
 import org.h2.command.dml.Query;
-import org.h2.constant.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.index.IndexCondition;
@@ -32,7 +31,8 @@ public class ConditionInSelect extends Condition {
     private final int compareType;
     private int queryLevel; //没看到用处
 
-    public ConditionInSelect(Database database, Expression left, Query query, boolean all, int compareType) {
+    public ConditionInSelect(Database database, Expression left, Query query,
+            boolean all, int compareType) {
         this.database = database;
         this.left = left;
         this.query = query;
@@ -43,7 +43,9 @@ public class ConditionInSelect extends Condition {
     @Override
     public Value getValue(Session session) {
         query.setSession(session);
+        query.setDistinct(true);
         LocalResult rows = query.query(0);
+<<<<<<< HEAD
         session.addTemporaryResult(rows);
         Value l = left.getValue(session);
         
@@ -71,8 +73,38 @@ public class ConditionInSelect extends Condition {
         int dataType = rows.getColumnType(0);
         //如果列的类型是null，那么返回false
         if (dataType == Value.NULL) {
+=======
+        try {
+            Value l = left.getValue(session);
+            if (rows.getRowCount() == 0) {
+                return ValueBoolean.get(all);
+            } else if (l == ValueNull.INSTANCE) {
+                return l;
+            }
+            if (!session.getDatabase().getSettings().optimizeInSelect) {
+                return getValueSlow(rows, l);
+            }
+            if (all || (compareType != Comparison.EQUAL &&
+                    compareType != Comparison.EQUAL_NULL_SAFE)) {
+                return getValueSlow(rows, l);
+            }
+            int dataType = rows.getColumnType(0);
+            if (dataType == Value.NULL) {
+                return ValueBoolean.get(false);
+            }
+            l = l.convertTo(dataType);
+            if (rows.containsDistinct(new Value[] { l })) {
+                return ValueBoolean.get(true);
+            }
+            if (rows.containsDistinct(new Value[] { ValueNull.INSTANCE })) {
+                return ValueNull.INSTANCE;
+            }
+>>>>>>> remotes/git-svn
             return ValueBoolean.get(false);
+        } finally {
+            rows.close();
         }
+<<<<<<< HEAD
         //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它true
         l = l.convertTo(dataType);
         if (rows.containsDistinct(new Value[] { l })) {
@@ -83,6 +115,8 @@ public class ConditionInSelect extends Condition {
             return ValueNull.INSTANCE;
         }
         return ValueBoolean.get(false);
+=======
+>>>>>>> remotes/git-svn
     }
 
     private Value getValueSlow(LocalResult rows, Value l) {

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore;
@@ -41,7 +40,8 @@ public class StreamStore {
     private int minBlockSize = 256;
     private int maxBlockSize = 256 * 1024;
     private final AtomicLong nextKey = new AtomicLong();
-    private final AtomicReference<byte[]> nextBuffer = new AtomicReference<byte[]>();
+    private final AtomicReference<byte[]> nextBuffer =
+            new AtomicReference<byte[]>();
 
     /**
      * Create a stream store instance.
@@ -99,14 +99,19 @@ public class StreamStore {
     public byte[] put(InputStream in) throws IOException {
         ByteArrayOutputStream id = new ByteArrayOutputStream();
         int level = 0;
-        while (true) {
-            if (put(id, in, level)) {
-                break;
+        try {
+            while (true) {
+                if (put(id, in, level)) {
+                    break;
+                }
+                if (id.size() > maxBlockSize / 2) {
+                    id = putIndirectId(id);
+                    level++;
+                }
             }
-            if (id.size() > maxBlockSize / 2) {
-                id = putIndirectId(id);
-                level++;
-            }
+        } catch (IOException e) {
+            remove(id.toByteArray());
+            throw e;
         }
         if (id.size() > minBlockSize * 2) {
             id = putIndirectId(id);
@@ -114,7 +119,8 @@ public class StreamStore {
         return id.toByteArray();
     }
 
-    private boolean put(ByteArrayOutputStream id, InputStream in, int level) throws IOException {
+    private boolean put(ByteArrayOutputStream id, InputStream in, int level)
+            throws IOException {
         if (level > 0) {
             ByteArrayOutputStream id2 = new ByteArrayOutputStream();
             while (true) {
@@ -144,10 +150,12 @@ public class StreamStore {
         }
         boolean eof = len < maxBlockSize;
         if (len < minBlockSize) {
+            // in-place: 0, len (int), data
             id.write(0);
             DataUtils.writeVarInt(id, len);
             id.write(buff);
         } else {
+            // block: 1, len (int), blockId (long)
             id.write(1);
             DataUtils.writeVarInt(id, len);
             DataUtils.writeVarLong(id, writeBlock(buff));
@@ -155,23 +163,30 @@ public class StreamStore {
         return eof;
     }
 
-    private static byte[] read(InputStream in, byte[] target) throws IOException {
+    private static byte[] read(InputStream in, byte[] target)
+            throws IOException {
         int copied = 0;
         int remaining = target.length;
         while (remaining > 0) {
-            int len = in.read(target, copied, remaining);
-            if (len < 0) {
-                return Arrays.copyOf(target, copied);
+            try {
+                int len = in.read(target, copied, remaining);
+                if (len < 0) {
+                    return Arrays.copyOf(target, copied);
+                }
+                copied += len;
+                remaining -= len;
+            } catch (RuntimeException e) {
+                throw new IOException(e);
             }
-            copied += len;
-            remaining -= len;
         }
         return target;
     }
 
-    private ByteArrayOutputStream putIndirectId(ByteArrayOutputStream id) throws IOException {
+    private ByteArrayOutputStream putIndirectId(ByteArrayOutputStream id)
+            throws IOException {
         byte[] data = id.toByteArray();
         id = new ByteArrayOutputStream();
+        // indirect: 2, total len (long), blockId (long)
         id.write(2);
         DataUtils.writeVarLong(id, length(data));
         DataUtils.writeVarLong(id, writeBlock(data));
@@ -195,6 +210,11 @@ public class StreamStore {
         // do nothing by default
     }
 
+    /**
+     * Generate a new key.
+     *
+     * @return the new key
+     */
     private long getAndIncrementNextKey() {
         long key = nextKey.getAndIncrement();
         if (!map.containsKey(key)) {
@@ -227,15 +247,18 @@ public class StreamStore {
         while (idBuffer.hasRemaining()) {
             switch (idBuffer.get()) {
             case 0:
+                // in-place: 0, len (int), data
                 int len = DataUtils.readVarInt(idBuffer);
                 idBuffer.position(idBuffer.position() + len);
                 break;
             case 1:
+                // block: 1, len (int), blockId (long)
                 DataUtils.readVarInt(idBuffer);
                 long k = DataUtils.readVarLong(idBuffer);
                 map.remove(k);
                 break;
             case 2:
+                // indirect: 2, total len (long), blockId (long)
                 DataUtils.readVarLong(idBuffer);
                 long k2 = DataUtils.readVarLong(idBuffer);
                 // recurse
@@ -262,15 +285,18 @@ public class StreamStore {
         while (idBuffer.hasRemaining()) {
             switch (idBuffer.get()) {
             case 0:
+                // in-place: 0, len (int), data
                 int len = DataUtils.readVarInt(idBuffer);
                 idBuffer.position(idBuffer.position() + len);
                 length += len;
                 break;
             case 1:
+                // block: 1, len (int), blockId (long)
                 length += DataUtils.readVarInt(idBuffer);
                 DataUtils.readVarLong(idBuffer);
                 break;
             case 2:
+                // indirect: 2, total len (long), blockId (long)
                 length += DataUtils.readVarLong(idBuffer);
                 DataUtils.readVarLong(idBuffer);
                 break;
@@ -380,6 +406,9 @@ public class StreamStore {
 
         @Override
         public int read(byte[] b, int off, int len) {
+            if (len <= 0) {
+                return 0;
+            }
             while (true) {
                 if (buffer == null) {
                     buffer = nextBuffer();
@@ -424,14 +453,15 @@ public class StreamStore {
                     return new ByteArrayInputStream(data, s, data.length - s);
                 }
                 case 2: {
-                    long len = DataUtils.readVarInt(idBuffer);
+                    long len = DataUtils.readVarLong(idBuffer);
                     long key = DataUtils.readVarLong(idBuffer);
                     if (skip >= len) {
                         skip -= len;
                         continue;
                     }
                     byte[] k = store.getBlock(key);
-                    ByteBuffer newBuffer = ByteBuffer.allocate(k.length + idBuffer.limit() - idBuffer.position());
+                    ByteBuffer newBuffer = ByteBuffer.allocate(k.length
+                            + idBuffer.limit() - idBuffer.position());
                     newBuffer.put(k);
                     newBuffer.put(idBuffer);
                     newBuffer.flip();
@@ -440,7 +470,8 @@ public class StreamStore {
                 }
                 default:
                     throw DataUtils.newIllegalArgumentException(
-                            "Unsupported id {0}", Arrays.toString(idBuffer.array()));
+                            "Unsupported id {0}",
+                            Arrays.toString(idBuffer.array()));
                 }
             }
             return null;

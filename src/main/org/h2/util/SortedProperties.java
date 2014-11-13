@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
@@ -22,8 +21,6 @@ import java.util.Properties;
 import java.util.TreeMap;
 import java.util.Vector;
 import java.util.Map.Entry;
-import org.h2.message.DbException;
-import org.h2.message.TraceSystem;
 import org.h2.store.fs.FileUtils;
 
 /**
@@ -52,12 +49,13 @@ public class SortedProperties extends Properties {
      * @param def the default value
      * @return the value if set, or the default value if not
      */
-    public static boolean getBooleanProperty(Properties prop, String key, boolean def) {
+    public static boolean getBooleanProperty(Properties prop, String key,
+            boolean def) {
         String value = prop.getProperty(key, "" + def);
         try {
             return Boolean.parseBoolean(value);
         } catch (Exception e) {
-            TraceSystem.traceThrowable(e);
+            e.printStackTrace();
             return def;
         }
     }
@@ -75,7 +73,7 @@ public class SortedProperties extends Properties {
         try {
             return Integer.decode(value);
         } catch (Exception e) {
-            TraceSystem.traceThrowable(e);
+            e.printStackTrace();
             return def;
         }
     }
@@ -86,7 +84,8 @@ public class SortedProperties extends Properties {
      * @param fileName the name of the properties file
      * @return the properties object
      */
-    public static synchronized SortedProperties loadProperties(String fileName) throws IOException {
+    public static synchronized SortedProperties loadProperties(String fileName)
+            throws IOException {
         SortedProperties prop = new SortedProperties();
         if (FileUtils.exists(fileName)) {
             InputStream in = null;
@@ -117,7 +116,7 @@ public class SortedProperties extends Properties {
         try {
             w = new OutputStreamWriter(FileUtils.newOutputStream(fileName, false));
         } catch (Exception e) {
-            throw DbException.convertToIOException(e);
+            throw new IOException(e.toString(), e);
         }
         PrintWriter writer = new PrintWriter(new BufferedWriter(w));
         while (true) {

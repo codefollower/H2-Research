@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.web;
@@ -19,7 +18,7 @@ import java.util.Locale;
 import org.h2.bnf.Bnf;
 import org.h2.bnf.context.DbContents;
 import org.h2.bnf.context.DbContextRule;
-import org.h2.message.TraceSystem;
+import org.h2.message.DbException;
 import org.h2.util.New;
 
 /**
@@ -57,7 +56,7 @@ class WebSession {
 
     private final WebServer server;
 
-    private final ArrayList<String> commandHistory = New.arrayList();
+    private final ArrayList<String> commandHistory;
 
     private Connection conn;
     private DatabaseMetaData meta;
@@ -67,6 +66,10 @@ class WebSession {
 
     WebSession(WebServer server) {
         this.server = server;
+        // This must be stored in the session rather than in the server.
+        // Otherwise, one client could allow
+        // saving history for others (insecure).
+        this.commandHistory = server.getCommandHistoryList();
     }
 
     /**
@@ -116,12 +119,18 @@ class WebSession {
     void loadBnf() {
         try {
             Bnf newBnf = Bnf.getInstance(null);
-            DbContextRule columnRule = new DbContextRule(contents, DbContextRule.COLUMN);
-            DbContextRule newAliasRule = new DbContextRule(contents, DbContextRule.NEW_TABLE_ALIAS);
-            DbContextRule aliasRule = new DbContextRule(contents, DbContextRule.TABLE_ALIAS);
-            DbContextRule tableRule = new DbContextRule(contents, DbContextRule.TABLE);
-            DbContextRule schemaRule = new DbContextRule(contents, DbContextRule.SCHEMA);
-            DbContextRule columnAliasRule = new DbContextRule(contents, DbContextRule.COLUMN_ALIAS);
+            DbContextRule columnRule =
+                    new DbContextRule(contents, DbContextRule.COLUMN);
+            DbContextRule newAliasRule =
+                    new DbContextRule(contents, DbContextRule.NEW_TABLE_ALIAS);
+            DbContextRule aliasRule =
+                    new DbContextRule(contents, DbContextRule.TABLE_ALIAS);
+            DbContextRule tableRule =
+                    new DbContextRule(contents, DbContextRule.TABLE);
+            DbContextRule schemaRule =
+                    new DbContextRule(contents, DbContextRule.SCHEMA);
+            DbContextRule columnAliasRule =
+                    new DbContextRule(contents, DbContextRule.COLUMN_ALIAS);
             newBnf.updateTopic("column_name", columnRule);
             newBnf.updateTopic("new_table_alias", newAliasRule);
             newBnf.updateTopic("table_alias", aliasRule);
@@ -167,6 +176,9 @@ class WebSession {
             commandHistory.remove(idx);
         }
         commandHistory.add(sql);
+        if (server.isCommandHistoryAllowed()) {
+            server.saveCommandHistoryList(commandHistory);
+        }
     }
 
     /**
@@ -174,7 +186,7 @@ class WebSession {
      *
      * @return the commands
      */
-    ArrayList<String> getCommands() {
+    ArrayList<String> getCommandHistory() {
         return commandHistory;
     }
 
@@ -188,12 +200,16 @@ class WebSession {
         m.putAll(map);
         m.put("lastAccess", new Timestamp(lastAccess).toString());
         try {
-            m.put("url", conn == null ? "${text.admin.notConnected}" : conn.getMetaData().getURL());
-            m.put("user", conn == null ? "-" : conn.getMetaData().getUserName());
-            m.put("lastQuery", commandHistory.size() == 0 ? "" : commandHistory.get(0));
-            m.put("executing", executingStatement == null ? "${text.admin.no}" : "${text.admin.yes}");
+            m.put("url", conn == null ?
+                    "${text.admin.notConnected}" : conn.getMetaData().getURL());
+            m.put("user", conn == null ?
+                    "-" : conn.getMetaData().getUserName());
+            m.put("lastQuery", commandHistory.size() == 0 ?
+                    "" : commandHistory.get(0));
+            m.put("executing", executingStatement == null ?
+                    "${text.admin.no}" : "${text.admin.yes}");
         } catch (SQLException e) {
-            TraceSystem.traceThrowable(e);
+            DbException.traceThrowable(e);
         }
         return m;
     }

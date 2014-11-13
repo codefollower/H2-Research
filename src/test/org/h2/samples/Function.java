@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -30,13 +29,16 @@ public class Function {
      */
     public static void main(String... args) throws Exception {
         Class.forName("org.h2.Driver");
-        Connection conn = DriverManager.getConnection("jdbc:h2:mem:", "sa", "");
+        Connection conn = DriverManager.getConnection(
+                "jdbc:h2:mem:", "sa", "");
         Statement stat = conn.createStatement();
 
         // Using a custom Java function
-        stat.execute("CREATE ALIAS IS_PRIME FOR \"org.h2.samples.Function.isPrime\" ");
+        stat.execute("CREATE ALIAS IS_PRIME " +
+                "FOR \"org.h2.samples.Function.isPrime\" ");
         ResultSet rs;
-        rs = stat.executeQuery("SELECT IS_PRIME(X), X FROM SYSTEM_RANGE(1, 20) ORDER BY X");
+        rs = stat.executeQuery("SELECT IS_PRIME(X), X " +
+                "FROM SYSTEM_RANGE(1, 20) ORDER BY X");
         while (rs.next()) {
             boolean isPrime = rs.getBoolean(1);
             if (isPrime) {
@@ -49,7 +51,8 @@ public class Function {
         stat.execute("CREATE TABLE TEST(ID INT) AS " +
                 "SELECT X FROM SYSTEM_RANGE(1, 100)");
         PreparedStatement prep;
-        prep = conn.prepareStatement("SELECT * FROM TABLE(X INT=?, O INT=?) J " +
+        prep = conn.prepareStatement(
+                "SELECT * FROM TABLE(X INT=?, O INT=?) J " +
                 "INNER JOIN TEST T ON J.X=T.ID ORDER BY J.O");
         prep.setObject(1, new Integer[] { 30, 20 });
         prep.setObject(2, new Integer[] { 1, 2 });
@@ -61,7 +64,8 @@ public class Function {
         rs.close();
 
         // Using a custom function like table
-        stat.execute("CREATE ALIAS MATRIX FOR \"org.h2.samples.Function.getMatrix\" ");
+        stat.execute("CREATE ALIAS MATRIX " +
+                "FOR \"org.h2.samples.Function.getMatrix\" ");
         prep = conn.prepareStatement("SELECT * FROM MATRIX(?) " +
                 "ORDER BY X, Y");
         prep.setInt(1, 2);

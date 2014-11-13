@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
@@ -22,7 +21,8 @@ public class CacheTQ implements Cache {
 
     private final Cache lru;
     private final Cache fifo;
-    private final SmallLRUCache<Integer, Object> recentlyUsed = SmallLRUCache.newInstance(1024);
+    private final SmallLRUCache<Integer, Object> recentlyUsed =
+            SmallLRUCache.newInstance(1024);
     private int lastUsed = -1;
 
     private int maxMemory;

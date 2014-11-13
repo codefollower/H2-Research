@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.samples;
@@ -82,13 +81,15 @@ public class TriggerPassData implements Trigger {
      * @param trigger the trigger name
      * @param data the data
      */
-    public static void setTriggerData(Connection conn, String trigger, String data) throws SQLException {
+    public static void setTriggerData(Connection conn, String trigger,
+            String data) throws SQLException {
         TRIGGERS.get(getPrefix(conn) + trigger).triggerData = data;
     }
 
     private static String getPrefix(Connection conn) throws SQLException {
         Statement stat = conn.createStatement();
-        ResultSet rs = stat.executeQuery("call ifnull(database_path() || '_', '') || database() || '_'");
+        ResultSet rs = stat.executeQuery(
+                "call ifnull(database_path() || '_', '') || database() || '_'");
         rs.next();
         return rs.getString(1);
     }

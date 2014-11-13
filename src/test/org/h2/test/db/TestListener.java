@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -48,7 +47,8 @@ public class TestListener extends TestBase implements DatabaseEventListener {
         conn = getConnection("listener");
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
-        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, 'Test' || SPACE(100))");
+        PreparedStatement prep = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, 'Test' || SPACE(100))");
         int len = getSize(100, 100000);
         for (int i = 0; i < len; i++) {
             prep.setInt(1, i);
@@ -56,7 +56,8 @@ public class TestListener extends TestBase implements DatabaseEventListener {
         }
         crash(conn);
 
-        conn = getConnection("listener;database_event_listener='" + getClass().getName() + "'");
+        conn = getConnection("listener;database_event_listener='" +
+                getClass().getName() + "'");
         conn.close();
         deleteDb("listener");
     }
@@ -72,7 +73,9 @@ public class TestListener extends TestBase implements DatabaseEventListener {
         if (state == lastState && time < last + 1000) {
             return;
         }
-        if (state == STATE_STATEMENT_START || state == STATE_STATEMENT_END || state == STATE_STATEMENT_PROGRESS) {
+        if (state == STATE_STATEMENT_START ||
+                state == STATE_STATEMENT_END ||
+                state == STATE_STATEMENT_PROGRESS) {
             return;
         }
         if (name.length() > 30) {
@@ -100,12 +103,13 @@ public class TestListener extends TestBase implements DatabaseEventListener {
         } catch (InterruptedException e) {
             // ignore
         }
-        printTime("state: " + stateName + " " + (100 * current / max) + " " + (time - start));
+        printTime("state: " + stateName + " " +
+                (100 * current / max) + " " + (time - start));
     }
 
     @Override
     public void closingDatabase() {
-        if (databaseUrl.toUpperCase().indexOf("CIPHER") >= 0) {
+        if (databaseUrl.toUpperCase().contains("CIPHER")) {
             return;
         }
         Connection conn = null;
@@ -127,7 +131,7 @@ public class TestListener extends TestBase implements DatabaseEventListener {
 
     @Override
     public void opened() {
-        if (databaseUrl.toUpperCase().indexOf("CIPHER") >= 0) {
+        if (databaseUrl.toUpperCase().contains("CIPHER")) {
             return;
         }
         Connection conn = null;

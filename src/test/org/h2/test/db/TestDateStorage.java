@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -14,7 +13,8 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.TimeZone;
-import org.h2.constant.SysProperties;
+
+import org.h2.engine.SysProperties;
 import org.h2.test.TestBase;
 import org.h2.test.unit.TestDate;
 import org.h2.util.DateTimeUtils;
@@ -60,11 +60,12 @@ public class TestDateStorage extends TestBase {
         ArrayList<TimeZone> distinct = TestDate.getDistinctTimeZones();
         try {
             for (TimeZone tz : distinct) {
-                println("insert using " + tz.getID());
+                // println("insert using " + tz.getID());
                 TimeZone.setDefault(tz);
                 DateTimeUtils.resetCalendar();
                 conn = getConnection(db);
-                PreparedStatement prep = conn.prepareStatement("insert into date_list values(?, ?, ?)");
+                PreparedStatement prep = conn.prepareStatement(
+                        "insert into date_list values(?, ?, ?)");
                 prep.setString(1, tz.getID());
                 for (int m = 1; m < 10; m++) {
                     String s = "2000-0" + m + "-01 15:00:00";
@@ -74,9 +75,9 @@ public class TestDateStorage extends TestBase {
                 }
                 conn.close();
             }
-            printTime("inserted");
+            // printTime("inserted");
             for (TimeZone target : distinct) {
-                println("select from " + target.getID());
+                // println("select from " + target.getID());
                 if ("Pacific/Kiritimati".equals(target.getID())) {
                     // there is a problem with this time zone, but it seems
                     // unrelated to this database (possibly wrong timezone
@@ -103,7 +104,7 @@ public class TestDateStorage extends TestBase {
             TimeZone.setDefault(defaultTimeZone);
             DateTimeUtils.resetCalendar();
         }
-        printTime("done");
+        // printTime("done");
         conn = getConnection(db);
         stat = conn.createStatement();
         stat.execute("drop table date_list");
@@ -133,7 +134,7 @@ public class TestDateStorage extends TestBase {
         try {
             ArrayList<TimeZone> distinct = TestDate.getDistinctTimeZones();
             for (TimeZone tz : distinct) {
-                println(tz.getID());
+                // println(tz.getID());
                 TimeZone.setDefault(tz);
                 DateTimeUtils.resetCalendar();
                 for (int d = 101; d < 129; d++) {

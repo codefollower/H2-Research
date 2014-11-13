@@ -1,13 +1,12 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
-import org.h2.constant.SysProperties;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
@@ -143,12 +142,14 @@ public class ConditionAndOr extends Condition {
         // INSERT INTO TEST VALUES(1, NULL);
         // SELECT * FROM TEST WHERE NOT (B=A AND B=0); // no rows
         // SELECT * FROM TEST WHERE NOT (B=A AND B=0 AND A=0); // 1, NULL
-        if (session.getDatabase().getSettings().optimizeTwoEquals && andOrType == AND) {
+        if (session.getDatabase().getSettings().optimizeTwoEquals &&
+                andOrType == AND) {
             // try to add conditions (A=B AND B=1: add A=1)
             if (left instanceof Comparison && right instanceof Comparison) {
                 Comparison compLeft = (Comparison) left;
                 Comparison compRight = (Comparison) right;
-                Expression added = compLeft.getAdditional(session, compRight, true);
+                Expression added = compLeft.getAdditional(
+                        session, compRight, true);
                 if (added != null) {
                     added = added.optimize(session);
                     ConditionAndOr a = new ConditionAndOr(AND, this, added);
@@ -158,32 +159,43 @@ public class ConditionAndOr extends Condition {
         }
         // TODO optimization: convert ((A=1 AND B=2) OR (A=1 AND B=3)) to
         // (A=1 AND (B=2 OR B=3))
-        if (andOrType == OR && session.getDatabase().getSettings().optimizeOr) {
+        if (andOrType == OR &&
+                session.getDatabase().getSettings().optimizeOr) {
             // try to add conditions (A=B AND B=1: add A=1)
-            if (left instanceof Comparison && right instanceof Comparison) {
+            if (left instanceof Comparison &&
+                    right instanceof Comparison) {
                 Comparison compLeft = (Comparison) left;
                 Comparison compRight = (Comparison) right;
-                Expression added = compLeft.getAdditional(session, compRight, false);
+                Expression added = compLeft.getAdditional(
+                        session, compRight, false);
                 if (added != null) {
                     return added.optimize(session);
                 }
-            } else if (left instanceof ConditionIn && right instanceof Comparison) {
-                Expression added = ((ConditionIn) left).getAdditional((Comparison) right);
+            } else if (left instanceof ConditionIn &&
+                    right instanceof Comparison) {
+                Expression added = ((ConditionIn) left).
+                        getAdditional((Comparison) right);
                 if (added != null) {
                     return added.optimize(session);
                 }
-            } else if (right instanceof ConditionIn && left instanceof Comparison) {
-                Expression added = ((ConditionIn) right).getAdditional((Comparison) left);
+            } else if (right instanceof ConditionIn &&
+                    left instanceof Comparison) {
+                Expression added = ((ConditionIn) right).
+                        getAdditional((Comparison) left);
                 if (added != null) {
                     return added.optimize(session);
                 }
-            } else if (left instanceof ConditionInConstantSet && right instanceof Comparison) {
-                Expression added = ((ConditionInConstantSet) left).getAdditional(session, (Comparison) right);
+            } else if (left instanceof ConditionInConstantSet &&
+                    right instanceof Comparison) {
+                Expression added = ((ConditionInConstantSet) left).
+                        getAdditional(session, (Comparison) right);
                 if (added != null) {
                     return added.optimize(session);
                 }
-            } else if (right instanceof ConditionInConstantSet && left instanceof Comparison) {
-                Expression added = ((ConditionInConstantSet) right).getAdditional(session, (Comparison) left);
+            } else if (right instanceof ConditionInConstantSet &&
+                    left instanceof Comparison) {
+                Expression added = ((ConditionInConstantSet) right).
+                        getAdditional(session, (Comparison) left);
                 if (added != null) {
                     return added.optimize(session);
                 }
@@ -276,8 +288,8 @@ public class ConditionAndOr extends Condition {
     /**
      * Get the left or the right sub-expression of this condition.
      *
-     * @param getLeft true to get the left sub-expression, false to get the right
-     *            sub-expression.
+     * @param getLeft true to get the left sub-expression, false to get the
+     *            right sub-expression.
      * @return the sub-expression
      */
     public Expression getExpression(boolean getLeft) {

@@ -1,26 +1,26 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import org.h2.api.DatabaseEventListener;
+import org.h2.api.ErrorCode;
 import org.h2.command.ddl.Analyze;
 import org.h2.command.ddl.CreateTableData;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.constraint.Constraint;
 import org.h2.constraint.ConstraintReferential;
 import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.index.Cursor;
 import org.h2.index.HashIndex;
 import org.h2.index.Index;
@@ -53,8 +53,14 @@ public class RegularTable extends TableBase {
 
     private Index scanIndex; //要么是PageDataIndex，要么是ScanIndex
     private long rowCount;
-    private volatile Session lockExclusive;
-    private HashSet<Session> lockShared = New.hashSet();
+    private volatile Session lockExclusiveSession;
+    private HashSet<Session> lockSharedSessions = New.hashSet();
+
+    /**
+     * The queue of sessions waiting to lock the table. It is a FIFO queue to
+     * prevent starvation, since Java's synchronized locking is biased.
+     */
+    private final ArrayDeque<Session> waitingSessions = new ArrayDeque<Session>();
     private final Trace traceLock;
     private final ArrayList<Index> indexes = New.arrayList();
     private long lastModificationId; //在addRow、commit、removeRow、truncate时改变
@@ -63,13 +69,6 @@ public class RegularTable extends TableBase {
     private int changesSinceAnalyze;
     private int nextAnalyze;
     private Column rowIdColumn;
-
-    /**
-     * True if one thread ever was waiting to lock this table. This is to avoid
-     * calling notifyAll if no session was ever waiting to lock this table. If
-     * set, the flag stays. In theory, it could be reset, however not sure when.
-     */
-    private boolean waitForLock;
 
     public RegularTable(CreateTableData data) {
         super(data);
@@ -91,7 +90,8 @@ public class RegularTable extends TableBase {
             scanIndex = mainIndex;
         } else {
             mainIndex = null;
-            scanIndex = new ScanIndex(this, data.id, IndexColumn.wrap(getColumns()), IndexType.createScan(data.persistData));
+            scanIndex = new ScanIndex(this, data.id,
+                    IndexColumn.wrap(getColumns()), IndexType.createScan(data.persistData));
         }
         indexes.add(scanIndex);
         traceLock = database.getTrace(Trace.LOCK); //在起用debug时，其实就是用来输出debug日志，在lock/unlock时记录debug日志
@@ -146,7 +146,8 @@ public class RegularTable extends TableBase {
                     if (index.getIndexType().isUnique() && index instanceof MultiVersionIndex) {
                         MultiVersionIndex mv = (MultiVersionIndex) index;
                         if (mv.isUncommittedFromOtherSession(session, row)) {
-                            throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, index.getName());
+                            throw DbException.get(
+                                    ErrorCode.CONCURRENT_UPDATE_1, index.getName());
                         }
                     }
                 }
@@ -200,13 +201,15 @@ public class RegularTable extends TableBase {
     }
 
     @Override
-    public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
-            boolean create, String indexComment) {
+    public Index addIndex(Session session, String indexName, int indexId,
+            IndexColumn[] cols, IndexType indexType, boolean create,
+            String indexComment) {
         if (indexType.isPrimaryKey()) {
             for (IndexColumn c : cols) {
                 Column column = c.column;
                 if (column.isNullable()) {
-                    throw DbException.get(ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1, column.getName());
+                    throw DbException.get(
+                            ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1, column.getName());
                 }
                 column.setPrimaryKey(true);
             }
@@ -221,7 +224,8 @@ public class RegularTable extends TableBase {
         //且最初的mainIndex还没有加入记录
         if (isPersistIndexes() && indexType.isPersistent()) {
             int mainIndexColumn;
-            if (database.isStarting() && database.getPageStore().getRootPageId(indexId) != 0) {
+            if (database.isStarting() &&
+                    database.getPageStore().getRootPageId(indexId) != 0) {
                 mainIndexColumn = -1;
             } else if (!database.isStarting() && mainIndex.getRowCount(session) != 0) {
                 mainIndexColumn = -1;
@@ -230,30 +234,41 @@ public class RegularTable extends TableBase {
             }
             if (mainIndexColumn != -1) {
                 mainIndex.setMainIndexColumn(mainIndexColumn);
+<<<<<<< HEAD
                 //PageDelegateIndex在增加行时什么都不做，
                 //满足这个条件的索引: "PrimaryKey索引，并且只有一个字段，并且此字段是byte、short、int、long类型"
                 //实际上在增加行时只有最初的PageDataIndex起作用，
                 //PageDelegateIndex只在查询时有作用
                 index = new PageDelegateIndex(this, indexId, indexName, indexType, mainIndex, create, session);
+=======
+                index = new PageDelegateIndex(this, indexId, indexName,
+                        indexType, mainIndex, create, session);
+>>>>>>> remotes/git-svn
             } else if (indexType.isSpatial()) {
-                index = new SpatialTreeIndex(this, indexId, indexName, cols, indexType, true, create, session);
+                index = new SpatialTreeIndex(this, indexId, indexName, cols,
+                        indexType, true, create, session);
             } else {
-                index = new PageBtreeIndex(this, indexId, indexName, cols, indexType, create, session);
+                index = new PageBtreeIndex(this, indexId, indexName, cols,
+                        indexType, create, session);
             }
         } else {
         	//hash索引最多只有一列
             if (indexType.isHash()) {
                 if (cols.length != 1) {
-                    throw DbException.getUnsupportedException("hash indexes may index only one column");
+                    throw DbException.getUnsupportedException(
+                            "hash indexes may index only one column");
                 }
 
                 if (indexType.isUnique()) {
-                    index = new HashIndex(this, indexId, indexName, cols, indexType);
+                    index = new HashIndex(this, indexId, indexName, cols,
+                            indexType);
                 } else {
-                    index = new NonUniqueHashIndex(this, indexId, indexName, cols, indexType);
+                    index = new NonUniqueHashIndex(this, indexId, indexName,
+                            cols, indexType);
                 }
             } else if (indexType.isSpatial()) {
-                index = new SpatialTreeIndex(this, indexId, indexName, cols, indexType, false, true, session);
+                index = new SpatialTreeIndex(this, indexId, indexName, cols,
+                        indexType, false, true, session);
             } else {
                 index = new TreeIndex(this, indexId, indexName, cols, indexType);
             }
@@ -269,7 +284,7 @@ public class RegularTable extends TableBase {
                 long total = remaining;
                 Cursor cursor = scan.find(session, null, null);
                 long i = 0;
-                int bufferSize = (int) Math.min(rowCount, Constants.DEFAULT_MAX_MEMORY_ROWS);
+                int bufferSize = (int) Math.min(rowCount, SysProperties.MAX_MEMORY_ROWS);
                 ArrayList<Row> buffer = New.arrayList(bufferSize);
                 String n = getName() + ":" + index.getName();
                 int t = MathUtils.convertLongToInt(total);
@@ -285,7 +300,8 @@ public class RegularTable extends TableBase {
                 }
                 addRowsToIndex(session, buffer, index);
                 if (SysProperties.CHECK && remaining != 0) {
-                    DbException.throwInternalError("rowcount remaining=" + remaining + " " + getName());
+                    DbException.throwInternalError("rowcount remaining=" +
+                            remaining + " " + getName());
                 }
             } catch (DbException e) {
                 getSchema().freeUniqueName(indexName);
@@ -343,7 +359,8 @@ public class RegularTable extends TableBase {
         return true;
     }
 
-    private static void addRowsToIndex(Session session, ArrayList<Row> list, Index index) {
+    private static void addRowsToIndex(Session session, ArrayList<Row> list,
+            Index index) {
         final Index idx = index;
         Collections.sort(list, new Comparator<Row>() {
             @Override
@@ -441,7 +458,7 @@ public class RegularTable extends TableBase {
 
     @Override
     public boolean isLockedExclusivelyBy(Session session) {
-        return lockExclusive == session;
+        return lockExclusiveSession == session;
     }
     
     //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
@@ -450,39 +467,60 @@ public class RegularTable extends TableBase {
     //Select的isForUpdate变种在非MVCC下也把force设为true，
     //Insert、Update之类的才设为false
     @Override
+<<<<<<< HEAD
     public void lock(Session session, boolean exclusive, boolean force) { //琐粒度太大，每insert一行都琐表
+=======
+    public void lock(Session session, boolean exclusive,
+            boolean forceLockEvenInMvcc) {
+>>>>>>> remotes/git-svn
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) { //禁用锁
             return;
         }
+<<<<<<< HEAD
         if (!force && database.isMultiVersion()) { //如果使用了MVCC，并且不是强制的，则 不使用排它琐
+=======
+        if (!forceLockEvenInMvcc && database.isMultiVersion()) {
+>>>>>>> remotes/git-svn
             // MVCC: update, delete, and insert use a shared lock.
             // Select doesn't lock except when using FOR UPDATE
             if (exclusive) {
                 exclusive = false; //禁用排它琐
             } else {
-                if (lockExclusive == null) {
+                if (lockExclusiveSession == null) {
                     return;
                 }
             }
         }
-        if (lockExclusive == session) {
+        if (lockExclusiveSession == session) {
             return;
         }
         synchronized (database) {
+            if (lockExclusiveSession == session) {
+                return;
+            }
+            session.setWaitForLock(this, Thread.currentThread());
+            waitingSessions.addLast(session);
             try {
-                doLock(session, lockMode, exclusive);
+                doLock1(session, lockMode, exclusive);
             } finally {
                 session.setWaitForLock(null, null);
+                waitingSessions.remove(session);
             }
         }
     }
+<<<<<<< HEAD
     private void doLock(Session session, int lockMode, boolean exclusive) {
+=======
+
+    private void doLock1(Session session, int lockMode, boolean exclusive) {
+>>>>>>> remotes/git-svn
         traceLock(session, exclusive, "requesting for");
         // don't get the current time unless necessary
         long max = 0;
         boolean checkDeadlock = false;
         while (true) {
+<<<<<<< HEAD
             if (lockExclusive == session) {
                 return;
             }
@@ -520,10 +558,14 @@ public class RegularTable extends TableBase {
                         session.addLock(this);
                         lockShared.add(session);
                     }
+=======
+            // if I'm the next one in the queue
+            if (waitingSessions.getFirst() == session) {
+                if (doLock2(session, lockMode, exclusive)) {
+>>>>>>> remotes/git-svn
                     return;
                 }
             }
-            session.setWaitForLock(this, Thread.currentThread());
             if (checkDeadlock) {
                 ArrayList<Session> sessions = checkDeadlock(session, null, null);
                 if (sessions != null) {
@@ -558,7 +600,6 @@ public class RegularTable extends TableBase {
                 if (sleep == 0) {
                     sleep = 1;
                 }
-                waitForLock = true;
                 database.wait(sleep);
             } catch (InterruptedException e) {
                 // ignore
@@ -566,9 +607,47 @@ public class RegularTable extends TableBase {
         }
     }
 
+    private boolean doLock2(Session session, int lockMode, boolean exclusive) {
+        if (exclusive) {
+            if (lockExclusiveSession == null) {
+                if (lockSharedSessions.isEmpty()) {
+                    traceLock(session, exclusive, "added for");
+                    session.addLock(this);
+                    lockExclusiveSession = session;
+                    return true;
+                } else if (lockSharedSessions.size() == 1 &&
+                        lockSharedSessions.contains(session)) {
+                    traceLock(session, exclusive, "add (upgraded) for ");
+                    lockExclusiveSession = session;
+                    return true;
+                }
+            }
+        } else {
+            if (lockExclusiveSession == null) {
+                if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
+                    if (!database.isMultiThreaded() && !database.isMultiVersion()) {
+                        // READ_COMMITTED: a read lock is acquired,
+                        // but released immediately after the operation
+                        // is complete.
+                        // When allowing only one thread, no lock is
+                        // required.
+                        // Row level locks work like read committed.
+                        return true;
+                    }
+                }
+                if (!lockSharedSessions.contains(session)) {
+                    traceLock(session, exclusive, "ok");
+                    session.addLock(this);
+                    lockSharedSessions.add(session);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
     private static String getDeadlockDetails(ArrayList<Session> sessions) {
-        // We add the thread details here to make it easier for customers to match up
-        // these error messages with their own logs.
+        // We add the thread details here to make it easier for customers to
+        // match up these error messages with their own logs.
         StringBuilder buff = new StringBuilder();
         for (Session s : sessions) {
             Table lock = s.getWaitForLock();
@@ -587,7 +666,7 @@ public class RegularTable extends TableBase {
                 }
                 buff.append(t.toString());
                 if (t instanceof RegularTable) {
-                    if (((RegularTable) t).lockExclusive == s) {
+                    if (((RegularTable) t).lockExclusiveSession == s) {
                         buff.append(" (exclusive)");
                     } else {
                         buff.append(" (shared)");
@@ -615,7 +694,8 @@ public class RegularTable extends TableBase {
 	//    Session #2 (user: SA) is waiting to lock PUBLIC.TEST_B while locking PUBLIC.TEST_A (exclusive).
 	//    Session #4 (user: SA) is waiting to lock PUBLIC.TEST_A while locking PUBLIC.TEST_C (exclusive).
     @Override
-    public ArrayList<Session> checkDeadlock(Session session, Session clash, Set<Session> visited) {
+    public ArrayList<Session> checkDeadlock(Session session, Session clash,
+            Set<Session> visited) {
         // only one deadlock check at any given time
         synchronized (RegularTable.class) {
             if (clash == null) {
@@ -633,7 +713,7 @@ public class RegularTable extends TableBase {
             }
             visited.add(session);
             ArrayList<Session> error = null;
-            for (Session s : lockShared) {
+            for (Session s : lockSharedSessions) {
                 if (s == session) {
                     // it doesn't matter if we have locked the object already
                     continue;
@@ -647,10 +727,10 @@ public class RegularTable extends TableBase {
                     }
                 }
             }
-            if (error == null && lockExclusive != null) {
-                Table t = lockExclusive.getWaitForLock();
+            if (error == null && lockExclusiveSession != null) {
+                Table t = lockExclusiveSession.getWaitForLock();
                 if (t != null) {
-                    error = t.checkDeadlock(lockExclusive, clash, visited);
+                    error = t.checkDeadlock(lockExclusiveSession, clash, visited);
                     if (error != null) {
                         error.add(session);
                     }
@@ -669,23 +749,21 @@ public class RegularTable extends TableBase {
 
     @Override
     public boolean isLockedExclusively() {
-        return lockExclusive != null;
+        return lockExclusiveSession != null;
     }
 
     @Override
     public void unlock(Session s) {
         if (database != null) {
-            traceLock(s, lockExclusive == s, "unlock");
-            if (lockExclusive == s) {
-                lockExclusive = null;
+            traceLock(s, lockExclusiveSession == s, "unlock");
+            if (lockExclusiveSession == s) {
+                lockExclusiveSession = null;
             }
-            if (lockShared.size() > 0) {
-                lockShared.remove(s);
+            if (lockSharedSessions.size() > 0) {
+                lockSharedSessions.remove(s);
             }
-            // TODO lock: maybe we need we fifo-queue to make sure nobody
-            // starves. check what other databases do
             synchronized (database) {
-                if (database.getSessionCount() > 1 && waitForLock) {
+                if (!waitingSessions.isEmpty()) {
                     database.notifyAll();
                 }
             }
@@ -728,6 +806,8 @@ public class RegularTable extends TableBase {
             if (index.getName() != null) {
                 database.removeSchemaObject(session, index);
             }
+            // needed for session temporary indexes
+            indexes.remove(index);
         }
         if (SysProperties.CHECK) {
             for (SchemaObject obj : database.getAllSchemaObjects(DbObject.INDEX)) {
@@ -740,8 +820,8 @@ public class RegularTable extends TableBase {
         scanIndex.remove(session);
         database.removeMeta(session, getId());
         scanIndex = null;
-        lockExclusive = null;
-        lockShared = null;
+        lockExclusiveSession = null;
+        lockSharedSessions = null;
         invalidate();
     }
 

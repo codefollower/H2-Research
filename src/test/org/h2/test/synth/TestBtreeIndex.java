@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -50,7 +49,9 @@ public class TestBtreeIndex extends TestBase {
             Statement stat = conn.createStatement();
             stat.execute("CREATE TABLE TEST(ID bigint primary key)");
             int count = 1000;
-            stat.execute("insert into test select x from system_range(1, " + count + ")");
+            stat.execute(
+                    "insert into test select x from system_range(1, " +
+                    count + ")");
             if (!config.memory) {
                 conn.close();
                 conn = getConnection("index");
@@ -105,9 +106,12 @@ public class TestBtreeIndex extends TestBase {
         try {
             Statement stat = conn.createStatement();
             stat.execute("CREATE TABLE a(text VARCHAR PRIMARY KEY)");
-            PreparedStatement prepInsert = conn.prepareStatement("INSERT INTO a VALUES(?)");
-            PreparedStatement prepDelete = conn.prepareStatement("DELETE FROM a WHERE text=?");
-            PreparedStatement prepDeleteAllButOne = conn.prepareStatement("DELETE FROM a WHERE text <> ?");
+            PreparedStatement prepInsert = conn.prepareStatement(
+                    "INSERT INTO a VALUES(?)");
+            PreparedStatement prepDelete = conn.prepareStatement(
+                    "DELETE FROM a WHERE text=?");
+            PreparedStatement prepDeleteAllButOne = conn.prepareStatement(
+                    "DELETE FROM a WHERE text <> ?");
             int count = 0;
             for (int i = 0; i < 1000; i++) {
                 int y = random.nextInt(distinct);
@@ -153,8 +157,10 @@ public class TestBtreeIndex extends TestBase {
             }
             int testCount;
             testCount = 0;
-            ResultSet rs = stat.executeQuery("SELECT text FROM a ORDER BY text");
-            ResultSet rs2 = conn.createStatement().executeQuery("SELECT text FROM a ORDER BY 'x' || text");
+            ResultSet rs = stat.executeQuery(
+                    "SELECT text FROM a ORDER BY text");
+            ResultSet rs2 = conn.createStatement().executeQuery(
+                    "SELECT text FROM a ORDER BY 'x' || text");
 
 //System.out.println("-----------");
 //while(rs.next()) {
@@ -169,7 +175,7 @@ public class TestBtreeIndex extends TestBase {
             testCount = 0;
             while (rs.next() && rs2.next()) {
                 if (!rs.getString(1).equals(rs2.getString(1))) {
-                    assertEquals("" + testCount, rs.getString(1), rs.getString(2));
+                    assertEquals("" + testCount, rs.getString(1), rs2.getString(1));
                 }
                 testCount++;
             }
@@ -178,7 +184,8 @@ public class TestBtreeIndex extends TestBase {
             if (testCount != count) {
                 printError(seed, "count:" + count + " testCount:" + testCount);
             }
-            rs = stat.executeQuery("SELECT text, count(*) FROM a GROUP BY text HAVING COUNT(*)>1");
+            rs = stat.executeQuery("SELECT text, count(*) FROM a " +
+                    "GROUP BY text HAVING COUNT(*)>1");
             if (rs.next()) {
                 printError(seed, "testCount:" + testCount + " " + rs.getString(1));
             }

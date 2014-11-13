@@ -1,14 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.constraint;
 
 import java.util.HashSet;
 import java.util.Iterator;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
@@ -59,7 +59,8 @@ public class ConstraintCheck extends Constraint {
         if (comment != null) {
             buff.append(" COMMENT ").append(StringUtils.quoteStringSQL(comment));
         }
-        buff.append(" CHECK").append(StringUtils.enclose(expr.getSQL())).append(" NOCHECK");
+        buff.append(" CHECK").append(StringUtils.enclose(expr.getSQL()))
+                .append(" NOCHECK");
         return buff.toString();
     }
 
@@ -98,11 +99,13 @@ public class ConstraintCheck extends Constraint {
         try {
             b = expr.getValue(session).getBoolean();
         } catch (DbException ex) {
-            throw DbException.get(ErrorCode.CHECK_CONSTRAINT_INVALID, ex, getShortDescription());
+            throw DbException.get(ErrorCode.CHECK_CONSTRAINT_INVALID, ex,
+                    getShortDescription());
         }
         // Both TRUE and NULL are ok
         if (Boolean.FALSE.equals(b)) {
-            throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, getShortDescription());
+            throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1,
+                    getShortDescription());
         }
     }
 
@@ -144,10 +147,15 @@ public class ConstraintCheck extends Constraint {
             // don't check at startup
             return;
         }
+<<<<<<< HEAD
         //用NOT，意思就是说只要找到一个反例就与约束冲突了
         //比如，如果是CHECK f1 not null，
         //如果此时表中的f1字段存在null值，那么这个约束就创建失败
         String sql = "SELECT 1 FROM " + filter.getTable().getSQL() + " WHERE NOT(" + expr.getSQL() + ")";
+=======
+        String sql = "SELECT 1 FROM " + filter.getTable().getSQL() +
+                " WHERE NOT(" + expr.getSQL() + ")";
+>>>>>>> remotes/git-svn
         ResultInterface r = session.prepare(sql).query(1);
         if (r.next()) {
             throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, getName());

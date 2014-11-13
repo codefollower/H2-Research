@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore;
@@ -19,8 +18,9 @@ public class Cursor<K, V> implements Iterator<K> {
     private final MVMap<K, ?> map;
     private final K from;
     private CursorPos pos;
-    private K current;
+    private K current, last;
     private V currentValue, lastValue;
+    private Page lastPage;
     private final Page root;
     private boolean initialized;
 
@@ -44,9 +44,20 @@ public class Cursor<K, V> implements Iterator<K> {
     public K next() {
         hasNext();
         K c = current;
+        last = current;
         lastValue = currentValue;
+        lastPage = pos == null ? null : pos.page;
         fetchNext();
         return c;
+    }
+
+    /**
+     * Get the last read key if there was one.
+     *
+     * @return the key or null
+     */
+    public K getKey() {
+        return last;
     }
 
     /**
@@ -56,6 +67,10 @@ public class Cursor<K, V> implements Iterator<K> {
      */
     public V getValue() {
         return lastValue;
+    }
+
+    Page getPage() {
+        return lastPage;
     }
 
     /**

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore;
@@ -17,11 +16,12 @@ import java.util.TreeMap;
  */
 public class OffHeapStore extends FileStore {
 
-    private final TreeMap<Long, ByteBuffer> memory = new TreeMap<Long, ByteBuffer>();
+    private final TreeMap<Long, ByteBuffer> memory =
+            new TreeMap<Long, ByteBuffer>();
 
     @Override
     public void open(String fileName, boolean readOnly, char[] encryptionKey) {
-        // nothing to do
+        memory.clear();
     }
 
     @Override
@@ -33,10 +33,12 @@ public class OffHeapStore extends FileStore {
     public ByteBuffer readFully(long pos, int len) {
         Entry<Long, ByteBuffer> memEntry = memory.floorEntry(pos);
         if (memEntry == null) {
-            throw DataUtils.newIllegalStateException(DataUtils.ERROR_READING_FAILED,
+            throw DataUtils.newIllegalStateException(
+                    DataUtils.ERROR_READING_FAILED,
                     "Could not read from position {0}", pos);
         }
         readCount++;
+        readBytes += len;
         ByteBuffer buff = memEntry.getValue();
         ByteBuffer read = buff.duplicate();
         int offset = (int) (pos - memEntry.getKey());
@@ -50,10 +52,10 @@ public class OffHeapStore extends FileStore {
         freeSpace.free(pos, length);
         ByteBuffer buff = memory.remove(pos);
         if (buff == null) {
-            throw DataUtils.newIllegalStateException(DataUtils.ERROR_READING_FAILED,
-                    "Could not find entry at position {0}", pos);
+            // nothing was written (just allocated)
         } else if (buff.remaining() != length) {
-            throw DataUtils.newIllegalStateException(DataUtils.ERROR_READING_FAILED,
+            throw DataUtils.newIllegalStateException(
+                    DataUtils.ERROR_READING_FAILED,
                     "Partial remove is not supported at position {0}", pos);
         }
     }
@@ -73,24 +75,30 @@ public class OffHeapStore extends FileStore {
         int length = src.remaining();
         if (prevPos == pos) {
             if (prevLength != length) {
-                throw DataUtils.newIllegalStateException(DataUtils.ERROR_READING_FAILED,
-                        "Could not write to position {0}; partial overwrite is not supported", pos);
+                throw DataUtils.newIllegalStateException(
+                        DataUtils.ERROR_READING_FAILED,
+                        "Could not write to position {0}; " +
+                        "partial overwrite is not supported", pos);
             }
             writeCount++;
+            writeBytes += length;
             buff.rewind();
             buff.put(src);
             return;
         }
         if (prevPos + prevLength > pos) {
-            throw DataUtils.newIllegalStateException(DataUtils.ERROR_READING_FAILED,
-                    "Could not write to position {0}; partial overwrite is not supported", pos);
+            throw DataUtils.newIllegalStateException(
+                    DataUtils.ERROR_READING_FAILED,
+                    "Could not write to position {0}; " +
+                    "partial overwrite is not supported", pos);
         }
         writeNewEntry(pos, src);
     }
 
     private void writeNewEntry(long pos, ByteBuffer src) {
-        writeCount++;
         int length = src.remaining();
+        writeCount++;
+        writeBytes += length;
         ByteBuffer buff = ByteBuffer.allocateDirect(length);
         buff.put(src);
         buff.rewind();
@@ -105,6 +113,7 @@ public class OffHeapStore extends FileStore {
             memory.clear();
             return;
         }
+        fileSize = size;
         for (Iterator<Long> it = memory.keySet().iterator(); it.hasNext();) {
             long pos = it.next();
             if (pos < size) {
@@ -112,8 +121,10 @@ public class OffHeapStore extends FileStore {
             }
             ByteBuffer buff = memory.get(pos);
             if (buff.capacity() > size) {
-                throw DataUtils.newIllegalStateException(DataUtils.ERROR_READING_FAILED,
-                        "Could not truncate to {0}; partial truncate is not supported", pos);
+                throw DataUtils.newIllegalStateException(
+                        DataUtils.ERROR_READING_FAILED,
+                        "Could not truncate to {0}; " +
+                        "partial truncate is not supported", pos);
             }
             it.remove();
         }
@@ -121,7 +132,7 @@ public class OffHeapStore extends FileStore {
 
     @Override
     public void close() {
-        // do nothing (keep the data until it is garbage collected)
+        memory.clear();
     }
 
     @Override

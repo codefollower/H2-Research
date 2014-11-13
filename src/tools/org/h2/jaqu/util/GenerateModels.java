@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: James Moger
  */
 package org.h2.jaqu.util;
@@ -71,7 +70,8 @@ public class GenerateModels {
                 try {
                     annotateSchema = Boolean.parseBoolean(args[++i]);
                 } catch (Throwable t) {
-                    throw new SQLException("Can not parse -annotateSchema value");
+                    throw new SQLException(
+                            "Can not parse -annotateSchema value");
                 }
             } else if (arg.equals("-trimStrings")) {
                 try {
@@ -99,14 +99,14 @@ public class GenerateModels {
      * @param schema the schema to read from. null for all schemas.
      * @param table the table to model. null for all tables within schema.
      * @param packageName the package name of the model classes.
-     * @param folder destination folder for model classes (package path not included)
+     * @param folder destination folder for model classes (package path not
+     *            included)
      * @param annotateSchema includes the schema in the table model annotations
      * @param trimStrings automatically trim strings that exceed maxLength
      */
     public static void execute(String url, String user, String password,
             String schema, String table, String packageName, String folder,
-            boolean annotateSchema, boolean trimStrings)
-                throws SQLException {
+            boolean annotateSchema, boolean trimStrings) throws SQLException {
         Connection conn = null;
         try {
             org.h2.Driver.load();
@@ -126,17 +126,21 @@ public class GenerateModels {
             for (String model : models) {
                 Matcher m = p.matcher(model);
                 if (m.find()) {
-                    String className = m.group().substring("class".length()).trim();
+                    String className = m.group().substring("class".length())
+                            .trim();
                     File classFile = new File(parentFile, className + ".java");
                     Writer o = new FileWriter(classFile, false);
                     PrintWriter writer = new PrintWriter(new BufferedWriter(o));
                     writer.write(model);
                     writer.close();
-                    System.out.println("Generated " + classFile.getAbsolutePath());
+                    System.out.println("Generated "
+                            + classFile.getAbsolutePath());
                 }
             }
         } catch (IOException io) {
-            throw DbException.convertIOException(io, "could not generate model").getSQLException();
+            throw DbException
+                    .convertIOException(io, "could not generate model")
+                    .getSQLException();
         } finally {
             JdbcUtils.closeSilently(conn);
         }
@@ -148,14 +152,15 @@ public class GenerateModels {
      * @param option the unsupported option
      * @return this method never returns normally
      */
-    protected SQLException throwUnsupportedOption(String option) throws SQLException {
+    protected SQLException throwUnsupportedOption(String option)
+            throws SQLException {
         showUsage();
         throw new SQLException("Unsupported option: " + option);
     }
 
     protected void showUsage() {
         out.println("GenerateModels");
-        out.println("Usage: java "+getClass().getName());
+        out.println("Usage: java " + getClass().getName());
         out.println();
         out.println("(*) -url jdbc:h2:~test");
         out.println("    -user <string>");

@@ -1,17 +1,17 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Session;
+import org.h2.engine.SysProperties;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
@@ -156,7 +156,8 @@ public class SelectUnion extends Query {
         }
         if (session.getDatabase().getSettings().optimizeInsertFromSelect) {
             if (unionType == UNION_ALL && target != null) {
-                if (sort == null && !distinct && maxRows == 0 && offsetExpr == null && limitExpr == null) {
+                if (sort == null && !distinct && maxRows == 0 &&
+                        offsetExpr == null && limitExpr == null) {
                     left.query(0, target);
                     right.query(0, target);
                     return null;
@@ -192,8 +193,8 @@ public class SelectUnion extends Query {
         default:
             DbException.throwInternalError("type=" + unionType);
         }
-        ResultInterface l = left.query(0);
-        ResultInterface r = right.query(0);
+        LocalResult l = left.query(0);
+        LocalResult r = right.query(0);
         l.reset();
         r.reset();
         switch (unionType) {
@@ -245,6 +246,8 @@ public class SelectUnion extends Query {
                 result.setLimit(v.getInt());
             }
         }
+        l.close();
+        r.close();
         result.done();
         if (target != null) {
             while (result.next()) {
@@ -362,7 +365,8 @@ public class SelectUnion extends Query {
     }
 
     @Override
-    public void addGlobalCondition(Parameter param, int columnId, int comparisonType) {
+    public void addGlobalCondition(Parameter param, int columnId,
+            int comparisonType) {
         addParameter(param);
         switch (unionType) {
         case UNION_ALL:
@@ -407,13 +411,16 @@ public class SelectUnion extends Query {
             buff.append("\nORDER BY ").append(sort.getSQL(exprList, exprList.length));
         }
         if (limitExpr != null) {
-            buff.append("\nLIMIT ").append(StringUtils.unEnclose(limitExpr.getSQL()));
+            buff.append("\nLIMIT ").append(
+                    StringUtils.unEnclose(limitExpr.getSQL()));
             if (offsetExpr != null) {
-                buff.append("\nOFFSET ").append(StringUtils.unEnclose(offsetExpr.getSQL()));
+                buff.append("\nOFFSET ").append(
+                        StringUtils.unEnclose(offsetExpr.getSQL()));
             }
         }
         if (sampleSizeExpr != null) {
-            buff.append("\nSAMPLE_SIZE ").append(StringUtils.unEnclose(sampleSizeExpr.getSQL()));
+            buff.append("\nSAMPLE_SIZE ").append(
+                    StringUtils.unEnclose(sampleSizeExpr.getSQL()));
         }
         if (isForUpdate) {
             buff.append("\nFOR UPDATE");
@@ -423,7 +430,8 @@ public class SelectUnion extends Query {
 
     @Override
     public LocalResult query(int limit, ResultTarget target) {
-        // union doesn't always know the parameter list of the left and right queries
+        // union doesn't always know the parameter list of the left and right
+        // queries
         return queryWithoutCache(limit, target);
     }
 

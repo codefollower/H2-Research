@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
@@ -73,10 +72,15 @@ public class Delete extends Prepared {
             //此时limitRows为0，不删除任何行
             while (limitRows != 0 && tableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
+<<<<<<< HEAD
                 //condition.getBooleanValue(session)内部会取当前行与之比较，
                 //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
                 //然后在从当前行中按列id取当前行value数组中对应元素
                 if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
+=======
+                if (condition == null || Boolean.TRUE.equals(
+                        condition.getBooleanValue(session))) {
+>>>>>>> remotes/git-svn
                     Row row = tableFilter.get();
                     boolean done = false;
                     if (table.fireRow()) {
@@ -119,10 +123,12 @@ public class Delete extends Prepared {
         buff.append("DELETE ");
         buff.append("FROM ").append(tableFilter.getPlanSQL(false));
         if (condition != null) {
-            buff.append("\nWHERE ").append(StringUtils.unEnclose(condition.getSQL()));
+            buff.append("\nWHERE ").append(StringUtils.unEnclose(
+                    condition.getSQL()));
         }
         if (limitExpr != null) {
-            buff.append("\nLIMIT (").append(StringUtils.unEnclose(limitExpr.getSQL())).append(')');
+            buff.append("\nLIMIT (").append(StringUtils.unEnclose(
+                    limitExpr.getSQL())).append(')');
         }
         return buff.toString();
     }

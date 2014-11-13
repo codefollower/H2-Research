@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
@@ -23,8 +22,10 @@ import java.net.URI;
 import java.security.SecureClassLoader;
 import java.util.ArrayList;
 import java.util.HashMap;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+
+import org.h2.api.ErrorCode;
+import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 
@@ -51,7 +52,8 @@ public class SourceCompiler {
 
     private static final Class<?> JAVAC_SUN;
 
-    private static final String COMPILE_DIR = Utils.getProperty("java.io.tmpdir", ".");
+    private static final String COMPILE_DIR =
+            Utils.getProperty("java.io.tmpdir", ".");
 
     /**
      * The class name to source code map.
@@ -113,7 +115,8 @@ public class SourceCompiler {
      * @param packageAndClassName the class name
      * @return the class
      */
-    public Class<?> getClass(String packageAndClassName) throws ClassNotFoundException {
+    public Class<?> getClass(String packageAndClassName)
+            throws ClassNotFoundException {
 
         Class<?> compiledClass = compiled.get(packageAndClassName);
         if (compiledClass != null) {
@@ -237,7 +240,8 @@ public class SourceCompiler {
      * @param source the (possibly shortened) source code
      * @return the full source code
      */
-    static String getCompleteSourceCode(String packageName, String className, String source) {
+    static String getCompleteSourceCode(String packageName, String className,
+            String source) {
         if (source.startsWith("package ")) {
             return source;
         }
@@ -312,7 +316,7 @@ public class SourceCompiler {
             copyInThread(p.getInputStream(), buff);
             copyInThread(p.getErrorStream(), buff);
             p.waitFor();
-            String err = new String(buff.toByteArray(), "UTF-8");
+            String err = new String(buff.toByteArray(), Constants.UTF8);
             throwSyntaxError(err);
             return p.exitValue();
         } catch (Exception e) {
@@ -343,7 +347,7 @@ public class SourceCompiler {
                     "-d", COMPILE_DIR,
                     "-encoding", "UTF-8",
                     javaFile.getAbsolutePath() });
-            String err = new String(buff.toByteArray(), "UTF-8");
+            String err = new String(buff.toByteArray(), Constants.UTF8);
             throwSyntaxError(err);
         } catch (Exception e) {
             throw DbException.convert(e);
@@ -391,7 +395,8 @@ public class SourceCompiler {
                 Utils.callMethod(importCustomizer, "addImports", new Object[] { importsArray });
 
                 // Call the method
-                // CompilerConfiguration.addCompilationCustomizers(ImportCustomizer...)
+                // CompilerConfiguration.addCompilationCustomizers(
+                //         ImportCustomizer...)
                 Object importCustomizerArray = Array.newInstance(importCustomizerClass, 1);
                 Array.set(importCustomizerArray, 0, importCustomizer);
                 Object configuration = Utils.newInstance(
@@ -409,15 +414,18 @@ public class SourceCompiler {
             INIT_FAIL_EXCEPTION = initFailException;
         }
 
-        public static Class<?> parseClass(String source, String packageAndClassName) {
+        public static Class<?> parseClass(String source,
+                String packageAndClassName) {
             if (LOADER == null) {
-                throw new RuntimeException("Compile fail: no Groovy jar in the classpath", INIT_FAIL_EXCEPTION);
+                throw new RuntimeException(
+                        "Compile fail: no Groovy jar in the classpath", INIT_FAIL_EXCEPTION);
             }
             try {
                 Object codeSource = Utils.newInstance("groovy.lang.GroovyCodeSource",
                         source, packageAndClassName + ".groovy", "UTF-8");
                 Utils.callMethod(codeSource, "setCachable", false);
-                Class<?> clazz = (Class<?>) Utils.callMethod(LOADER, "parseClass", codeSource);
+                Class<?> clazz = (Class<?>) Utils.callMethod(
+                        LOADER, "parseClass", codeSource);
                 return clazz;
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -470,7 +478,8 @@ public class SourceCompiler {
     /**
      * An in-memory class file manager.
      */
-    static class ClassFileManager extends ForwardingJavaFileManager<StandardJavaFileManager> {
+    static class ClassFileManager extends
+            ForwardingJavaFileManager<StandardJavaFileManager> {
 
         /**
          * The class (only one class is kept).

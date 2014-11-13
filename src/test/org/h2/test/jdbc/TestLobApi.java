@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -21,7 +20,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Random;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.test.TestBase;
 import org.h2.util.IOUtils;
@@ -40,7 +40,6 @@ public class TestLobApi extends TestBase {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        // System.setProperty("h2.lobInDatabase", "true");
         TestBase.createCaller().init().test();
     }
 
@@ -82,19 +81,30 @@ public class TestLobApi extends TestBase {
         clob.free();
         assertTrue(clob.toString().endsWith("null"));
 
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).truncate(0);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).setAsciiStream(1);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).setString(1, "", 0, 1);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).position("", 0);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).position((Clob) null, 0);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).getCharacterStream(1, 1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).
+                truncate(0);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).
+                setAsciiStream(1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).
+                setString(1, "", 0, 1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).
+                position("", 0);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).
+                position((Clob) null, 0);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, clob).
+                getCharacterStream(1, 1);
 
         Blob blob = rs.getBlob(3);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).truncate(0);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).setBytes(1, new byte[0], 0, 0);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).position(new byte[1], 0);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).position((Blob) null, 0);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).getBinaryStream(1, 1);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).
+                truncate(0);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).
+                setBytes(1, new byte[0], 0, 0);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).
+                position(new byte[1], 0);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).
+                position((Blob) null, 0);
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, blob).
+                getBinaryStream(1, 1);
         assertTrue(blob.toString().endsWith("X'00'"));
         blob.free();
         assertTrue(blob.toString().endsWith("null"));
@@ -111,7 +121,8 @@ public class TestLobApi extends TestBase {
         Connection conn = getConnection("lob");
         stat = conn.createStatement();
         stat.execute("create table test(id identity, c clob, b blob)");
-        PreparedStatement prep = conn.prepareStatement("insert into test values(null, ?, ?)");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test values(null, ?, ?)");
         prep.setString(1, "");
         prep.setBytes(2, new byte[0]);
         prep.execute();
@@ -135,7 +146,9 @@ public class TestLobApi extends TestBase {
         Clob c2 = rs.getClob(2);
         Blob b2 = rs.getBlob(3);
         assertFalse(rs.next());
+        // now close
         rs.close();
+        // but the LOBs must stay open
         assertEquals(0, c1.length());
         assertEquals(0, b1.length());
         assertEquals(chars.length, c2.length());
@@ -148,11 +161,13 @@ public class TestLobApi extends TestBase {
         conn.close();
     }
 
-    private void testInputStreamThrowsException(final boolean ioException) throws Exception {
+    private void testInputStreamThrowsException(final boolean ioException)
+            throws Exception {
         Connection conn = getConnection("lob");
         stat = conn.createStatement();
         stat.execute("create table test(id identity, c clob, b blob)");
-        PreparedStatement prep = conn.prepareStatement("insert into test values(null, ?, ?)");
+        PreparedStatement prep = conn.prepareStatement(
+                "insert into test values(null, ?, ?)");
 
         assertThrows(ErrorCode.IO_EXCEPTION_1, prep).
                 setCharacterStream(1, new Reader() {

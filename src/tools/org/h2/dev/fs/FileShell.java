@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.dev.fs;
@@ -22,8 +21,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import org.h2.command.dml.BackupCommand;
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.IOUtils;
@@ -234,7 +233,7 @@ public class FileShell extends Tool {
             String source = getFile(list[i++]);
             String target = getFile(list[i++]);
             end(list, i);
-            FileUtils.moveTo(source, target);
+            FileUtils.move(source, target);
         } else if ("pwd".equals(c)) {
             end(list, i);
             println(FileUtils.toRealPath(currentWorkingDirectory));
@@ -334,7 +333,8 @@ public class FileShell extends Tool {
         }
     }
 
-    private static void zip(String zipFileName, String base, ArrayList<String> source) {
+    private static void zip(String zipFileName, String base,
+            ArrayList<String> source) {
         FileUtils.delete(zipFileName);
         OutputStream fileOut = null;
         try {
@@ -388,14 +388,17 @@ public class FileShell extends Tool {
                 }
                 String fileName = entry.getName();
                 // restoring windows backups on linux and vice versa
-                fileName = fileName.replace('\\', SysProperties.FILE_SEPARATOR.charAt(0));
-                fileName = fileName.replace('/', SysProperties.FILE_SEPARATOR.charAt(0));
+                fileName = fileName.replace('\\',
+                        SysProperties.FILE_SEPARATOR.charAt(0));
+                fileName = fileName.replace('/',
+                        SysProperties.FILE_SEPARATOR.charAt(0));
                 if (fileName.startsWith(SysProperties.FILE_SEPARATOR)) {
                     fileName = fileName.substring(1);
                 }
                 OutputStream o = null;
                 try {
-                    o = FileUtils.newOutputStream(targetDir + SysProperties.FILE_SEPARATOR + fileName, false);
+                    o = FileUtils.newOutputStream(targetDir
+                            + SysProperties.FILE_SEPARATOR + fileName, false);
                     IOUtils.copy(zipIn, o);
                     o.close();
                 } finally {
@@ -412,7 +415,8 @@ public class FileShell extends Tool {
         }
     }
 
-    private int readFileList(String[] list, int i, ArrayList<String> target, boolean recursive) throws IOException {
+    private int readFileList(String[] list, int i, ArrayList<String> target,
+            boolean recursive) throws IOException {
         while (i < list.length) {
             String c = list[i++];
             if (";".equals(c)) {
@@ -453,23 +457,40 @@ public class FileShell extends Tool {
 
     private void showHelp() {
         println("Commands are case sensitive");
-        println("? or help                  Display this help");
-        println("cat <file>                 Print the contents of the file");
-        println("cd <dir>                   Change the directory");
-        println("chmod -w <file>            Make the file read-only");
-        println("cp <source> <target>       Copy a file");
-        println("head <file>                Print the first few lines of the contents");
-        println("ls [<dir>]                 Print the directory contents");
-        println("mkdir <dir>                Create a directory (including parent directories)");
-        println("mv <source> <target>       Rename a file or directory");
-        println("pwd                        Print the current working directory");
-        println("rm <file>                  Remove a file");
-        println("rm -r <dir>                Remove a directory, recursively");
-        println("rm -rf <dir>               Remove a directory, recursively; force");
-        println("touch <file>               Update the last modified date (creates the file)");
-        println("truncate -s <size> <file>  Set the file length");
-        println("unzip <zip>                Extract all files from the zip file");
-        println("zip [-r] <zip> <files..>   Create a zip file (-r to recurse directories)");
+        println("? or help                  " +
+                "Display this help");
+        println("cat <file>                 " +
+                "Print the contents of the file");
+        println("cd <dir>                   " +
+                "Change the directory");
+        println("chmod -w <file>            " +
+                "Make the file read-only");
+        println("cp <source> <target>       " +
+                "Copy a file");
+        println("head <file>                " +
+                "Print the first few lines of the contents");
+        println("ls [<dir>]                 " +
+                "Print the directory contents");
+        println("mkdir <dir>                " +
+                "Create a directory (including parent directories)");
+        println("mv <source> <target>       " +
+                "Rename a file or directory");
+        println("pwd                        " +
+                "Print the current working directory");
+        println("rm <file>                  " +
+                "Remove a file");
+        println("rm -r <dir>                " +
+                "Remove a directory, recursively");
+        println("rm -rf <dir>               " +
+                "Remove a directory, recursively; force");
+        println("touch <file>               " +
+                "Update the last modified date (creates the file)");
+        println("truncate -s <size> <file>  " +
+                "Set the file length");
+        println("unzip <zip>                " +
+                "Extract all files from the zip file");
+        println("zip [-r] <zip> <files..>   " +
+                "Create a zip file (-r to recurse directories)");
         println("exit                       Exit");
         println("");
     }

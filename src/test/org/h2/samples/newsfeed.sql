@@ -1,23 +1,22 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 
 CREATE TABLE VERSION(ID INT PRIMARY KEY, VERSION VARCHAR, CREATED VARCHAR);
 INSERT INTO VERSION VALUES
+(131, '1.4.181', '2014-08-06'),
+(130, '1.4.180', '2014-07-13'),
+(129, '1.4.179', '2014-06-23'),
+(128, '1.4.178', '2014-05-02'),
+(127, '1.4.177', '2014-04-12'),
+(126, '1.3.176', '2014-04-05'),
 (125, '1.3.175', '2014-01-18'),
 (124, '1.3.174', '2013-10-19'),
 (123, '1.3.173', '2013-07-28'),
 (122, '1.3.172', '2013-05-25'),
 (121, '1.3.171', '2013-03-17'),
-(120, '1.3.170', '2012-11-30'),
-(119, '1.3.169', '2012-09-09'),
-(118, '1.3.168', '2012-07-13'),
-(117, '1.3.167', '2012-05-23'),
-(116, '1.3.166', '2012-04-08'),
-(115, '1.3.165', '2012-03-18'),
 ;
 
 CREATE TABLE CHANNEL(TITLE VARCHAR, LINK VARCHAR, DESC VARCHAR,

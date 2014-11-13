@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -25,9 +24,9 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.IOUtils;
@@ -67,17 +66,6 @@ public class Csv implements SimpleRowSource {
     private int inputBufferEnd;
     private Writer output;
     private boolean endOfLine, endOfFile;
-
-    /**
-     * Get a new object of this class.
-     *
-     * @deprecated use the public constructor instead
-     *
-     * @return the new instance
-     */
-    public static Csv getInstance() {
-        return new Csv();
-    }
 
     private int writeResultSet(ResultSet rs) throws SQLException {
         try {
@@ -153,7 +141,8 @@ public class Csv implements SimpleRowSource {
      *          (see system property file.encoding)
      * @return the number of rows written
      */
-    public int write(String outputFileName, ResultSet rs, String charset) throws SQLException {
+    public int write(String outputFileName, ResultSet rs, String charset)
+            throws SQLException {
         init(outputFileName, charset);
         try {
             initWrite();
@@ -173,7 +162,8 @@ public class Csv implements SimpleRowSource {
      *          (see system property file.encoding)
      * @return the number of rows written
      */
-    public int write(Connection conn, String outputFileName, String sql, String charset) throws SQLException {
+    public int write(Connection conn, String outputFileName, String sql,
+            String charset) throws SQLException {
         Statement stat = conn.createStatement();
         ResultSet rs = stat.executeQuery(sql);
         int rows = write(outputFileName, rs, charset);
@@ -199,7 +189,8 @@ public class Csv implements SimpleRowSource {
      *          (see system property file.encoding)
      * @return the result set
      */
-    public ResultSet read(String inputFileName, String[] colNames, String charset) throws SQLException {
+    public ResultSet read(String inputFileName, String[] colNames,
+            String charset) throws SQLException {
         init(inputFileName, charset);
         try {
             return readResultSet(colNames);
@@ -214,7 +205,8 @@ public class Csv implements SimpleRowSource {
      * until all rows are read or the result set is closed.
      *
      * @param reader the reader
-     * @param colNames or null if the column names should be read from the CSV file
+     * @param colNames or null if the column names should be read from the CSV
+     *            file
      * @return the result set
      */
     public ResultSet read(Reader reader, String[] colNames) throws IOException {
@@ -473,7 +465,8 @@ public class Csv implements SimpleRowSource {
                         break;
                     }
                 }
-                String s = new String(inputBuffer, inputBufferStart, inputBufferPos - inputBufferStart - sep);
+                String s = new String(inputBuffer,
+                        inputBufferStart, inputBufferPos - inputBufferStart - sep);
                 if (containsEscape) {
                     s = unEscape(s);
                 }
@@ -524,7 +517,8 @@ public class Csv implements SimpleRowSource {
                         break;
                     }
                 }
-                String s = new String(inputBuffer, inputBufferStart, inputBufferPos - inputBufferStart - 1);
+                String s = new String(inputBuffer,
+                        inputBufferStart, inputBufferPos - inputBufferStart - 1);
                 if (!preserveWhitespace) {
                     s = s.trim();
                 }

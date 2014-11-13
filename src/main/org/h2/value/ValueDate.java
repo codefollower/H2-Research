@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -9,7 +8,8 @@ package org.h2.value;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.MathUtils;
@@ -55,6 +55,17 @@ public class ValueDate extends Value {
      */
     public static ValueDate get(Date date) {
         return fromDateValue(DateTimeUtils.dateValueFromDate(date.getTime()));
+    }
+
+    /**
+     * Calculate the date value (in the default timezone) from a given time in
+     * milliseconds in UTC.
+     *
+     * @param ms the milliseconds
+     * @return the value
+     */
+    public static ValueDate fromMillis(long ms) {
+        return fromDateValue(DateTimeUtils.dateValueFromDate(ms));
     }
 
     /**
@@ -118,7 +129,8 @@ public class ValueDate extends Value {
         if (this == other) {
             return true;
         }
-        return other instanceof ValueDate && dateValue == (((ValueDate) other).dateValue);
+        return other instanceof ValueDate
+                && dateValue == (((ValueDate) other).dateValue);
     }
 
     @Override
@@ -132,7 +144,8 @@ public class ValueDate extends Value {
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
+    public void set(PreparedStatement prep, int parameterIndex)
+            throws SQLException {
         prep.setDate(parameterIndex, getDate());
     }
 

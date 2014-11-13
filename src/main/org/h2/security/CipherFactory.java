@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.security;
@@ -28,8 +27,9 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import org.h2.constant.ErrorCode;
-import org.h2.constant.SysProperties;
+
+import org.h2.api.ErrorCode;
+import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.IOUtils;
@@ -43,12 +43,17 @@ public class CipherFactory {
     /**
      * The default password to use for the .h2.keystore file
      */
-    public static final String KEYSTORE_PASSWORD = "h2pass";
+    public static final String KEYSTORE_PASSWORD =
+            "h2pass";
 
-    private static final String KEYSTORE = "~/.h2.keystore";
-    private static final String KEYSTORE_KEY = "javax.net.ssl.keyStore";
-    private static final String KEYSTORE_PASSWORD_KEY = "javax.net.ssl.keyStorePassword";
-    private static final String ANONYMOUS_CIPHER_SUITE = "SSL_DH_anon_WITH_RC4_128_MD5";
+    private static final String KEYSTORE =
+            "~/.h2.keystore";
+    private static final String KEYSTORE_KEY =
+            "javax.net.ssl.keyStore";
+    private static final String KEYSTORE_PASSWORD_KEY =
+            "javax.net.ssl.keyStorePassword";
+    private static final String ANONYMOUS_CIPHER_SUITE =
+            "SSL_DH_anon_WITH_RC4_128_MD5";
 
     private CipherFactory() {
         // utility class
@@ -72,13 +77,15 @@ public class CipherFactory {
     }
 
     /**
-     * Create a secure client socket that is connected to the given address and port.
+     * Create a secure client socket that is connected to the given address and
+     * port.
      *
      * @param address the address to connect to
      * @param port the port
      * @return the socket
      */
-    public static Socket createSocket(InetAddress address, int port) throws IOException {
+    public static Socket createSocket(InetAddress address, int port)
+            throws IOException {
         Socket socket = null;
         setKeystore();
         SSLSocketFactory f = (SSLSocketFactory) SSLSocketFactory.getDefault();
@@ -103,7 +110,8 @@ public class CipherFactory {
      *            addresses
      * @return the server socket
      */
-    public static ServerSocket createServerSocket(int port, InetAddress bindAddress) throws IOException {
+    public static ServerSocket createServerSocket(int port,
+            InetAddress bindAddress) throws IOException {
         ServerSocket socket = null;
         setKeystore();
         ServerSocketFactory f = SSLServerSocketFactory.getDefault();
@@ -122,7 +130,8 @@ public class CipherFactory {
         return socket;
     }
 
-    private static byte[] getKeyStoreBytes(KeyStore store, String password) throws IOException {
+    private static byte[] getKeyStoreBytes(KeyStore store, String password)
+            throws IOException {
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         try {
             store.store(bout, password.toCharArray());
@@ -225,7 +234,8 @@ public class CipherFactory {
         Properties p = System.getProperties();
         if (p.getProperty(KEYSTORE_KEY) == null) {
             String fileName = KEYSTORE;
-            byte[] data = getKeyStoreBytes(getKeyStore(KEYSTORE_PASSWORD), KEYSTORE_PASSWORD);
+            byte[] data = getKeyStoreBytes(getKeyStore(
+                    KEYSTORE_PASSWORD), KEYSTORE_PASSWORD);
             boolean needWrite = true;
             if (FileUtils.exists(fileName) && FileUtils.size(fileName) == data.length) {
                 // don't need to overwrite the file if it did not change

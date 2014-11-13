@@ -1,6 +1,5 @@
--- Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
--- Version 1.0, and under the Eclipse Public License, Version 1.0
--- (http://h2database.com/html/license.html).
+-- Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- and the EPL 1.0 (http://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 --- special grammar and test cases ---------------------------------------------------------------------------------------------
@@ -546,7 +545,7 @@ create table folder(id int primary key, name varchar(255), parent int);
 insert into folder values(1, null, null), (2, 'bin', 1), (3, 'docs', 1), (4, 'html', 3), (5, 'javadoc', 3), (6, 'ext', 1), (7, 'service', 1), (8, 'src', 1), (9, 'docsrc', 8), (10, 'installer', 8), (11, 'main', 8), (12, 'META-INF', 11), (13, 'org', 11), (14, 'h2', 13), (15, 'test', 8), (16, 'tools', 8);
 > update count: 16
 
-with link(id, name, level) as (select id, name, 0 from folder where parent is null union all select folder.id, ifnull(link.name || '/', '') || folder.name, level + 1 from link inner join folder on link.id = folder.parent) select name from link where name is not null order by id;
+with link(id, name, level) as (select id, name, 0 from folder where parent is null union all select folder.id, ifnull(link.name || '/', '') || folder.name, level + 1 from link inner join folder on link.id = folder.parent) select name from link where name is not null order by cast(id as int);
 > NAME
 > -----------------
 > bin
@@ -827,6 +826,36 @@ create table test(id int primary key, name varchar);
 
 alter table test alter column id int auto_increment;
 > ok
+
+create table otherTest(id int primary key, name varchar);
+> ok
+
+alter table otherTest add constraint fk foreign key(id) references test(id);
+> ok
+
+alter table otherTest drop foreign key fk;
+> ok
+
+create unique index idx on otherTest(name);
+> ok
+
+alter table otherTest drop index idx;
+> ok
+
+drop table otherTest;
+> ok
+
+insert into test(id) values(1);
+> update count: 1
+
+alter table test change column id id2 int;
+> ok
+
+select id2 from test;
+> ID2
+> ---
+> 1
+> rows: 1
 
 drop table test;
 > ok
@@ -3844,10 +3873,10 @@ call datediff('MS', TIMESTAMP '1900-01-01 00:00:01.000', TIMESTAMP '2008-01-01 0
 > 3408134399000
 > rows: 1
 
-call select 1.0/3.0*3.0, 100.0/2.0, -25.0/100.0, 0.0/3.0, 6.9/2.0;
-> SELECT 0.999999999999999999999999990, 50, -0.25, 0, 3.45 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */ /* scanCount: 2 */
-> ----------------------------------------------------------------------------------------------------------------------------
-> (0.999999999999999999999999990, 50, -0.25, 0, 3.45)
+call select 1.0/3.0*3.0, 100.0/2.0, -25.0/100.0, 0.0/3.0, 6.9/2.0, 0.72179425150347250912311550800000 / 5314251955.21;
+> SELECT 0.999999999999999999999999990, 50, -0.25, 0, 3.45, 1.35822361752313607260107721120531135706133161972E-10 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */ /* scanCount: 2 */
+> -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+> (0.999999999999999999999999990, 50, -0.25, 0, 3.45, 1.35822361752313607260107721120531135706133161972E-10)
 > rows: 1
 
 call dateadd('MS', 1, TIMESTAMP '2001-02-03 04:05:06.789001');
@@ -5172,41 +5201,6 @@ SELECT * FROM TEST ORDER BY NAME;
 > rows (ordered): 4
 
 DROP TABLE IF EXISTS TEST;
-> ok
-
---- old-fashioned Oracle outer joins syntax ---------------------------------------------------------------------------------------------
-CREATE TABLE Customers(CustomerID int);
-> ok
-
-CREATE TABLE Orders(CustomerID int);
-> ok
-
-INSERT INTO Customers VALUES(1), (2), (3);
-> update count: 3
-
-INSERT INTO Orders VALUES(1), (3);
-> update count: 2
-
-SELECT * FROM Customers LEFT OUTER JOIN Orders ON Customers.CustomerID = Orders.CustomerID;
-> CUSTOMERID CUSTOMERID
-> ---------- ----------
-> 1          1
-> 2          null
-> 3          3
-> rows: 3
-
-SELECT * FROM Customers, Orders WHERE Customers.CustomerID = Orders.CustomerID(+);
-> CUSTOMERID CUSTOMERID
-> ---------- ----------
-> 1          1
-> 2          null
-> 3          3
-> rows: 3
-
-DROP TABLE Customers;
-> ok
-
-DROP TABLE Orders;
 > ok
 
 --- complex join ---------------------------------------------------------------------------------------------

@@ -3,6 +3,7 @@ svn up
 ./build.sh spellcheck
 ./build.sh javadocImpl
 ./build.sh docs
+./build.sh jarMVStore (should be about 200 KB)
 Update Constants.java - change version and build number
 Update changelog.html - add new version, remove oldest
 Update newsfeed.sql - add new version, remove oldest
@@ -24,9 +25,9 @@ svn commit
 svn copy: /svn/trunk /svn/tags/version-1.1.x; Version 1.1.x (yyyy-mm-dd)
 Newsletter: prepare (always to BCC)
 Newsletter: send to h2-database-jp@googlegroups.com; h2-database@googlegroups.com; h2database-news@googlegroups.com; ...
-Add to http://freecode.com/
 Add to http://twitter.com
 - tweet: add @geospatialnews for the new geometry type and disk spatial index
 Close bugs: http://code.google.com/p/h2database/issues/list
 Update statistics
+
 

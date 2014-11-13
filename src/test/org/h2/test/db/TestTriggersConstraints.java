@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -14,8 +13,8 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashSet;
 
+import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
-import org.h2.constant.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.tools.TriggerAdapter;
 import org.h2.util.Task;
@@ -59,7 +58,8 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
      */
     public static class DeleteTrigger extends TriggerAdapter {
         @Override
-        public void fire(Connection conn, ResultSet oldRow, ResultSet newRow) throws SQLException {
+        public void fire(Connection conn, ResultSet oldRow, ResultSet newRow)
+                throws SQLException {
             conn.createStatement().execute("delete from test");
         }
     }
@@ -127,7 +127,8 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
         stat.execute("drop table if exists test");
         stat.execute("create table test(id int, c clob, b blob)");
         stat.execute("create table message(name varchar)");
-        stat.execute("create trigger test_insert before insert, update, delete on test " +
+        stat.execute(
+                "create trigger test_insert before insert, update, delete on test " +
                 "for each row call \"" + TestTriggerAdapter.class.getName() + "\"");
         stat.execute("insert into test values(1, 'hello', 'abcd')");
         ResultSet rs;
@@ -163,7 +164,8 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
                     "for each row call \"" + TestTriggerAdapter.class.getName() + "\"");
             fail();
         } catch (SQLException ex) {
-            assertEquals(ErrorCode.TRIGGER_SELECT_AND_ROW_BASED_NOT_SUPPORTED, ex.getErrorCode());
+            assertEquals(ErrorCode.TRIGGER_SELECT_AND_ROW_BASED_NOT_SUPPORTED,
+                    ex.getErrorCode());
         }
         conn.close();
     }
@@ -177,9 +179,11 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
         stat.execute("create table test(id int)");
         stat.execute("create view test_view as select * from test");
         stat.execute("create trigger test_view_insert " +
-                "instead of insert on test_view for each row call \"" + TestView.class.getName() + "\"");
+                "instead of insert on test_view for each row call \"" +
+                TestView.class.getName() + "\"");
         stat.execute("create trigger test_view_delete " +
-                "instead of delete on test_view for each row call \"" + TestView.class.getName() + "\"");
+                "instead of delete on test_view for each row call \"" +
+                TestView.class.getName() + "\"");
         if (!config.memory) {
             conn.close();
             conn = getConnection("trigger");
@@ -204,7 +208,8 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
     public static class TestTriggerAdapter extends TriggerAdapter {
 
         @Override
-        public void fire(Connection conn, ResultSet oldRow, ResultSet newRow) throws SQLException {
+        public void fire(Connection conn, ResultSet oldRow, ResultSet newRow)
+                throws SQLException {
             StringBuilder buff = new StringBuilder();
             if (oldRow != null) {
                 buff.append("-").append(oldRow.getString("id")).append(';');
@@ -227,18 +232,21 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
             if (newRow != null) {
                 if (oldRow == null) {
                     if (newRow.getInt(1) != 1) {
-                        throw new RuntimeException("Expected: 1 got: " + newRow.getString(1));
+                        throw new RuntimeException("Expected: 1 got: " +
+                                newRow.getString(1));
                     }
                 } else {
                     if (newRow.getInt(1) != 2) {
-                        throw new RuntimeException("Expected: 2 got: " + newRow.getString(1));
+                        throw new RuntimeException("Expected: 2 got: " +
+                                newRow.getString(1));
                     }
                 }
                 newRow.getCharacterStream(2);
                 newRow.getBinaryStream(3);
                 newRow.updateInt(1, newRow.getInt(1) * 10);
             }
-            conn.createStatement().execute("insert into message values('" + buff.toString() + "')");
+            conn.createStatement().execute("insert into message values('" +
+                    buff.toString() + "')");
         }
 
     }
@@ -251,13 +259,15 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
         PreparedStatement prepInsert;
 
         @Override
-        public void init(Connection conn, String schemaName, String triggerName, String tableName, boolean before,
-                int type) throws SQLException {
+        public void init(Connection conn, String schemaName,
+                String triggerName, String tableName, boolean before, int type)
+                throws SQLException {
             prepInsert = conn.prepareStatement("insert into test values(?)");
         }
 
         @Override
-        public void fire(Connection conn, Object[] oldRow, Object[] newRow) throws SQLException {
+        public void fire(Connection conn, Object[] oldRow, Object[] newRow)
+                throws SQLException {
             if (newRow != null) {
                 prepInsert.setInt(1, (Integer) newRow[0]);
                 prepInsert.execute();
@@ -316,15 +326,17 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
         PreparedStatement prepMeta;
 
         @Override
-        public void init(Connection conn, String schemaName, String triggerName, String tableName, boolean before,
-                int type) throws SQLException {
+        public void init(Connection conn, String schemaName,
+                String triggerName, String tableName, boolean before, int type)
+                throws SQLException {
             prepMeta = conn.prepareStatement("insert into meta_tables " +
                     "select table_name from information_schema.tables " +
                     "where table_schema='PUBLIC'");
         }
 
         @Override
-        public void fire(Connection conn, Object[] oldRow, Object[] newRow) throws SQLException {
+        public void fire(Connection conn, Object[] oldRow, Object[] newRow)
+                throws SQLException {
             if (oldRow != null || newRow != null) {
                 throw new SQLException("old and new must be null");
             }
@@ -350,13 +362,14 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
     public static class Test implements Trigger {
 
         @Override
-        public void fire(Connection conn, Object[] oldRow, Object[] newRow) throws SQLException {
+        public void fire(Connection conn, Object[] oldRow, Object[] newRow)
+                throws SQLException {
             conn.createStatement().execute("call seq.nextval");
         }
 
         @Override
-        public void init(Connection conn, String schemaName, String triggerName, String tableName, boolean before,
-                int type) {
+        public void init(Connection conn, String schemaName,
+                String triggerName, String tableName, boolean before, int type) {
             // nothing to do
         }
 
@@ -380,7 +393,8 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
         stat.execute("create table test(id int primary key)");
         assertSingleValue(stat, "call seq.nextval", 1);
         conn.setAutoCommit(false);
-        stat.execute("create trigger test_upd before insert on test call \"" + Test.class.getName() + "\"");
+        stat.execute("create trigger test_upd before insert on test call \"" +
+                Test.class.getName() + "\"");
         stat.execute("insert into test values(1)");
         assertSingleValue(stat, "call seq.nextval", 3);
         stat.execute("alter table test add column name varchar");
@@ -552,7 +566,8 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
     }
 
     @Override
-    public void fire(Connection conn, Object[] oldRow, Object[] newRow) throws SQLException {
+    public void fire(Connection conn, Object[] oldRow, Object[] newRow)
+            throws SQLException {
         if (mustNotCallTrigger) {
             throw new AssertionError("must not be called now");
         }
@@ -593,7 +608,8 @@ public class TestTriggersConstraints extends TestBase implements Trigger {
     }
 
     @Override
-    public void init(Connection conn, String schemaName, String trigger, String tableName, boolean before, int type) {
+    public void init(Connection conn, String schemaName, String trigger,
+            String tableName, boolean before, int type) {
         this.triggerName = trigger;
         if (!"TEST".equals(tableName)) {
             throw new AssertionError("supposed to be TEST");

@@ -1,6 +1,5 @@
-# Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
-# Version 1.0, and under the Eclipse Public License, Version 1.0
-# (http://h2database.com/html/license.html).
+# Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+# and the EPL 1.0 (http://h2database.com/html/license.html).
 # Initial Developer: H2 Group)
 "SECTION","TOPIC","SYNTAX","TEXT"
 "Commands (DML)","SELECT","
@@ -155,8 +154,8 @@ CREATE AGGREGATE [ IF NOT EXISTS ] newAggregateName FOR className
 ","
 Creates a new user-defined aggregate function."
 "Commands (DDL)","CREATE ALIAS","
-CREATE ALIAS [ IF NOT EXISTS ] newFunctionAliasName [ DETERMINISTIC ] [ NOBUFFER ]
-{ FOR classAndMethodName | AS sourceCodeString }
+CREATE ALIAS [ IF NOT EXISTS ] newFunctionAliasName [ DETERMINISTIC ]
+[ NOBUFFER ] { FOR classAndMethodName | AS sourceCodeString }
 ","
 Creates a new function alias."
 "Commands (DDL)","CREATE CONSTANT","
@@ -171,13 +170,14 @@ CREATE DOMAIN [ IF NOT EXISTS ] newDomainName AS dataType
 Creates a new data type (domain)."
 "Commands (DDL)","CREATE INDEX","
 CREATE
-{ [ UNIQUE ] [ HASH ] [ SPATIAL] INDEX [ [ IF NOT EXISTS ] newIndexName ]
+{ [ UNIQUE ] [ HASH | SPATIAL] INDEX [ [ IF NOT EXISTS ] newIndexName ]
     | PRIMARY KEY [ HASH ] }
 ON tableName ( indexColumn [,...] )
 ","
 Creates a new index."
 "Commands (DDL)","CREATE LINKED TABLE","
-CREATE [ FORCE ] [ [ GLOBAL | LOCAL ] TEMPORARY ] LINKED TABLE [ IF NOT EXISTS ]
+CREATE [ FORCE ] [ [ GLOBAL | LOCAL ] TEMPORARY ]
+LINKED TABLE [ IF NOT EXISTS ]
 name ( driverString, urlString, userString, passwordString,
 [ originalSchemaString, ] originalTableString ) [ EMIT UPDATES | READONLY ]
 ","
@@ -364,7 +364,8 @@ executed automatically by the system."
 SET BINARY_COLLATION
 { UNSIGNED | SIGNED } ] }
 ","
-Sets the collation used for comparing BINARY columns, the default is SIGNED."
+Sets the collation used for comparing BINARY columns, the default is SIGNED
+for version 1."
 "Commands (Other)","SET COLLATION","
 SET [ DATABASE ] COLLATION
 { OFF | collationName [ STRENGTH { PRIMARY | SECONDARY | TERTIARY | IDENTICAL } ] }
@@ -537,9 +538,9 @@ CASE { WHEN expression THEN expression} [...]
 ","
 Returns the first expression where the condition is true."
 "Other Grammar","Cipher","
-{ AES | XTEA }
+AES
 ","
-Two algorithms are supported: AES (""AES-128"") and XTEA (using 32 rounds)."
+Only the algorithm AES (""AES-128"") is supported currently."
 "Other Grammar","Column Definition","
 columnName dataType
 [ { DEFAULT expression | AS computedColumnExpression } ] [ [ NOT ] NULL ]
@@ -757,11 +758,11 @@ Auto-Increment value."
 ","
 Data type with fixed precision and scale."
 "Data Types","DOUBLE Type","
-{ DOUBLE [ PRECISION ] | FLOAT | FLOAT4 | FLOAT8 }
+{ DOUBLE [ PRECISION ] | FLOAT | FLOAT8 }
 ","
 A floating point number."
 "Data Types","REAL Type","
-REAL
+{ REAL | FLOAT4 }
 ","
 A single precision floating point number."
 "Data Types","TIME Type","
@@ -816,7 +817,7 @@ An array of values."
 "Data Types","GEOMETRY Type","
 GEOMETRY
 ","
-A spatial geometry type, based on the com."
+A spatial geometry type, based on the ""com."
 "Functions (Aggregate)","AVG","
 AVG ( [ DISTINCT ] { numeric } )
 ","
@@ -1187,6 +1188,10 @@ Creates an XML text element."
 TO_CHAR(value [, formatString[, nlsParamString]])
 ","
 Oracle-compatible TO_CHAR function that can format a timestamp, a number, or text."
+"Functions (String)","TRANSLATE","
+TRANSLATE(value , searchString, replacementString]])
+","
+Oracle-compatible TRANSLATE function that replaces a sequence of characters in a string with another set of characters."
 "Functions (Time and Date)","CURRENT_DATE","
 { CURRENT_DATE [ () ] | CURDATE() | SYSDATE | TODAY }
 ","
@@ -1403,7 +1408,8 @@ Returns the name of the default  schema for this session."
 "Functions (System)","SCOPE_IDENTITY","
 SCOPE_IDENTITY()
 ","
-Returns the last inserted identity value for this session for the current scope."
+Returns the last inserted identity value for this session for the current scope
+(ie."
 "Functions (System)","SESSION_ID","
 SESSION_ID()
 ","

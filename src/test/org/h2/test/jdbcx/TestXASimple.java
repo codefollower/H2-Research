@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbcx;
@@ -48,7 +47,8 @@ public class TestXASimple extends TestBase {
 
     }
 
-    private void testTwoPhase(String db, boolean shutdown, boolean commit) throws Exception {
+    private void testTwoPhase(String db, boolean shutdown, boolean commit)
+            throws Exception {
         deleteDb(db);
         JdbcDataSource ds = new JdbcDataSource();
         ds.setPassword(getPassword());
@@ -138,8 +138,10 @@ public class TestXASimple extends TestBase {
         Connection c2 = xa2.getConnection();
         c2.setAutoCommit(false);
 
-        c1.createStatement().executeUpdate("create table test(id int, test varchar(255))");
-        c2.createStatement().executeUpdate("create table test(id int, test varchar(255))");
+        c1.createStatement().executeUpdate(
+                "create table test(id int, test varchar(255))");
+        c2.createStatement().executeUpdate(
+                "create table test(id int, test varchar(255))");
 
         // ut.rollback();
         c1.close();

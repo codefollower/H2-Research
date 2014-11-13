@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jcr;
@@ -79,7 +78,8 @@ public class Railroads {
     }
 
     private void map(String key, ResultSet rs, boolean railroads) throws Exception {
-        ArrayList<HashMap<String, String>> list = new ArrayList<HashMap<String, String>>();
+        ArrayList<HashMap<String, String>> list;
+        list = new ArrayList<HashMap<String, String>>();
         while (rs.next()) {
             HashMap<String, String> map = new HashMap<String, String>();
             ResultSetMetaData meta = rs.getMetaData();
@@ -119,7 +119,8 @@ public class Railroads {
         int div = 3;
         int part = (list.size() + div - 1) / div;
         for (int i = 0, start = 0; i < div; i++, start += part) {
-            List<HashMap<String, String>> listThird = list.subList(start, Math.min(start + part, list.size()));
+            List<HashMap<String, String>> listThird = list.subList(start,
+                    Math.min(start + part, list.size()));
             session.put(key + "-" + i, listThird);
         }
         rs.close();

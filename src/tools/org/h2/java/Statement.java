@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.java;
@@ -30,6 +29,7 @@ public interface Statement {
  */
 abstract class StatementBase implements Statement {
 
+    @Override
     public boolean isEnd() {
         return false;
     }
@@ -48,10 +48,12 @@ class ReturnStatement extends StatementBase {
 
     private MethodObj method;
 
+    @Override
     public void setMethod(MethodObj method) {
         this.method = method;
     }
 
+    @Override
     public String asString() {
         if (expr == null) {
             return "return;";
@@ -84,10 +86,12 @@ class DoWhileStatement extends StatementBase {
      */
     Statement block;
 
+    @Override
     public void setMethod(MethodObj method) {
         block.setMethod(method);
     }
 
+    @Override
     public String asString() {
         return "do {\n" + block + "} while (" + condition.asString() + ");";
     }
@@ -99,10 +103,12 @@ class DoWhileStatement extends StatementBase {
  */
 class ContinueStatement extends StatementBase {
 
+    @Override
     public void setMethod(MethodObj method) {
         // ignore
     }
 
+    @Override
     public String asString() {
         return "continue;";
     }
@@ -114,10 +120,12 @@ class ContinueStatement extends StatementBase {
  */
 class BreakStatement extends StatementBase {
 
+    @Override
     public void setMethod(MethodObj method) {
         // ignore
     }
 
+    @Override
     public String asString() {
         return "break;";
     }
@@ -129,10 +137,12 @@ class BreakStatement extends StatementBase {
  */
 class EmptyStatement extends StatementBase {
 
+    @Override
     public void setMethod(MethodObj method) {
         // ignore
     }
 
+    @Override
     public String asString() {
         return ";";
     }
@@ -146,13 +156,15 @@ class SwitchStatement extends StatementBase {
 
     private StatementBlock defaultBlock;
     private final ArrayList<Expr> cases = new ArrayList<Expr>();
-    private final ArrayList<StatementBlock> blocks = new  ArrayList<StatementBlock>();
+    private final ArrayList<StatementBlock> blocks =
+            new ArrayList<StatementBlock>();
     private final Expr expr;
 
     public SwitchStatement(Expr expr) {
         this.expr = expr;
     }
 
+    @Override
     public void setMethod(MethodObj method) {
         defaultBlock.setMethod(method);
         for (StatementBlock b : blocks) {
@@ -160,6 +172,7 @@ class SwitchStatement extends StatementBase {
         }
     }
 
+    @Override
     public String asString() {
         StringBuilder buff = new StringBuilder();
         buff.append("switch (").append(expr.asString()).append(") {\n");
@@ -203,10 +216,12 @@ class ExprStatement extends StatementBase {
         this.expr = expr;
     }
 
+    @Override
     public void setMethod(MethodObj method) {
         // ignore
     }
 
+    @Override
     public String asString() {
         return expr.asString() + ";";
     }
@@ -228,10 +243,12 @@ class WhileStatement extends StatementBase {
      */
     Statement block;
 
+    @Override
     public void setMethod(MethodObj method) {
         block.setMethod(method);
     }
 
+    @Override
     public String asString() {
         String w = "while (" + condition.asString() + ")";
         String s = block.toString();
@@ -260,6 +277,7 @@ class IfStatement extends StatementBase {
      */
     Statement elseBlock;
 
+    @Override
     public void setMethod(MethodObj method) {
         block.setMethod(method);
         if (elseBlock != null) {
@@ -267,6 +285,7 @@ class IfStatement extends StatementBase {
         }
     }
 
+    @Override
     public String asString() {
         String w = "if (" + condition.asString() + ") {\n";
         String s = block.asString();
@@ -318,10 +337,12 @@ class ForStatement extends StatementBase {
      */
     Expr iterable;
 
+    @Override
     public void setMethod(MethodObj method) {
         block.setMethod(method);
     }
 
+    @Override
     public String asString() {
         StringBuffer buff = new StringBuffer();
         buff.append("for (");
@@ -372,12 +393,14 @@ class StatementBlock extends StatementBase {
      */
     final ArrayList<Statement> instructions = new ArrayList<Statement>();
 
+    @Override
     public void setMethod(MethodObj method) {
         for (Statement s : instructions) {
             s.setMethod(method);
         }
     }
 
+    @Override
     public String asString() {
         StringBuilder buff = new StringBuilder();
         for (Statement s : instructions) {
@@ -404,10 +427,12 @@ class VarDecStatement extends StatementBase {
     private final ArrayList<String> variables = new ArrayList<String>();
     private final ArrayList<Expr> values = new ArrayList<Expr>();
 
+    @Override
     public void setMethod(MethodObj method) {
         // ignore
     }
 
+    @Override
     public String asString() {
         StringBuilder buff = new StringBuilder();
         buff.append(type.asString()).append(' ');
@@ -460,14 +485,17 @@ class StatementNative extends StatementBase {
         this.code = code;
     }
 
+    @Override
     public void setMethod(MethodObj method) {
         // ignore
     }
 
+    @Override
     public String asString() {
         return code;
     }
 
+    @Override
     public boolean isEnd() {
         return code.equals("return;");
     }

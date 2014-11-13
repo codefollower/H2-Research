@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth;
@@ -65,10 +64,12 @@ public class TestMultiThreaded extends TestBase {
                         if (count > 0) {
                             traceThread("delete " + id + " count: " + count);
                             int updateCount = stat.executeUpdate(
-                                    "DELETE FROM TEST WHERE NAME = '"+ id +"' AND ROWNUM()<2");
+                                    "DELETE FROM TEST " +
+                                    "WHERE NAME = '"+ id +"' AND ROWNUM()<2");
                             traceThread("delete done");
                             if (updateCount != 1) {
-                                throw new AssertionError("Expected: 1 Deleted: " + updateCount);
+                                throw new AssertionError(
+                                        "Expected: 1 Deleted: " + updateCount);
                             }
                             count--;
                         }
@@ -76,7 +77,8 @@ public class TestMultiThreaded extends TestBase {
                     case 2:
                         // select the number of rows of this connection
                         traceThread("select " + id + " count: " + count);
-                        rs = stat.executeQuery("SELECT COUNT(*) FROM TEST WHERE NAME = '"+ id +"'");
+                        rs = stat.executeQuery("SELECT COUNT(*) " +
+                                "FROM TEST WHERE NAME = '"+ id +"'");
                         traceThread("select done");
                         rs.next();
                         int got = rs.getInt(1);
@@ -128,12 +130,14 @@ public class TestMultiThreaded extends TestBase {
         int size = getSize(2, 4);
         Connection[] connList = new Connection[size];
         for (int i = 0; i < size; i++) {
-            connList[i] = getConnection("multiThreaded;MULTI_THREADED=1;TRACE_LEVEL_SYSTEM_OUT=1");
+            connList[i] = getConnection("multiThreaded;MULTI_THREADED=1;" +
+                    "TRACE_LEVEL_SYSTEM_OUT=1");
         }
         Connection conn = connList[0];
         Statement stat = conn.createStatement();
         stat.execute("CREATE SEQUENCE TEST_SEQ");
-        stat.execute("CREATE TABLE TEST(ID BIGINT DEFAULT NEXT VALUE FOR TEST_SEQ, NAME VARCHAR)");
+        stat.execute("CREATE TABLE TEST" +
+                "(ID BIGINT DEFAULT NEXT VALUE FOR TEST_SEQ, NAME VARCHAR)");
         // stat.execute("CREATE TABLE TEST(ID IDENTITY, NAME VARCHAR)");
         // stat.execute("CREATE INDEX IDX_TEST_NAME ON TEST(NAME)");
         trace("init done");

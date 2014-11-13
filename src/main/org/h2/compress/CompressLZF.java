@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  *
  * This code is based on the LZF algorithm from Marc Lehmann. It is a
  * re-implementation of the C code:
@@ -43,8 +42,8 @@
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
  * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package org.h2.compress;
@@ -214,9 +213,10 @@ public final class CompressLZF implements Compressor {
                 // move one byte forward to allow for a literal run control byte
                 outPos++;
                 inPos += len;
-                // rebuild the future, and store the last bytes to the hashtable.
-                // Storing hashes of the last bytes in back-reference improves
-                // the compression ratio and only reduces speed slightly.
+                // rebuild the future, and store the last bytes to the
+                // hashtable. Storing hashes of the last bytes in back-reference
+                // improves the compression ratio and only reduces speed
+                // slightly.
                 future = first(in, inPos);
                 future = next(future, in, inPos);
                 hashTab[hash(future)] = inPos++;
@@ -322,9 +322,10 @@ public final class CompressLZF implements Compressor {
                 // move one byte forward to allow for a literal run control byte
                 outPos++;
                 inPos += len;
-                // rebuild the future, and store the last bytes to the hashtable.
-                // Storing hashes of the last bytes in back-reference improves
-                // the compression ratio and only reduces speed slightly.
+                // rebuild the future, and store the last bytes to the
+                // hashtable. Storing hashes of the last bytes in back-reference
+                // improves the compression ratio and only reduces speed
+                // slightly.
                 future = first(in, inPos);
                 future = next(future, in, inPos);
                 hashTab[hash(future)] = inPos++;
@@ -364,7 +365,8 @@ public final class CompressLZF implements Compressor {
     }
 
     @Override
-    public void expand(byte[] in, int inPos, int inLen, byte[] out, int outPos, int outLen) {
+    public void expand(byte[] in, int inPos, int inLen, byte[] out, int outPos,
+            int outLen) {
         // if ((inPos | outPos | outLen) < 0) {
         if (inPos < 0 || outPos < 0 || outLen < 0) {
             throw new IllegalArgumentException();

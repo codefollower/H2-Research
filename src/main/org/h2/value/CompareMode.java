@@ -1,13 +1,14 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
 
 import java.text.Collator;
 import java.util.Locale;
+
+import org.h2.engine.SysProperties;
 import org.h2.util.StringUtils;
 
 /**
@@ -83,10 +84,26 @@ public class CompareMode {
      *
      * @param name the collation name or null
      * @param strength the collation strength
+     * @return the compare mode
+     */
+    public static synchronized CompareMode getInstance(String name,
+            int strength) {
+        return getInstance(name, strength, SysProperties.SORT_BINARY_UNSIGNED);
+    }
+
+    /**
+     * Create a new compare mode with the given collator and strength. If
+     * required, a new CompareMode is created, or if possible the last one is
+     * returned. A cache is used to speed up comparison when using a collator;
+     * CollationKey objects are cached.
+     *
+     * @param name the collation name or null
+     * @param strength the collation strength
      * @param binaryUnsigned whether to compare binaries as unsigned
      * @return the compare mode
      */
-    public static synchronized CompareMode getInstance(String name, int strength, boolean binaryUnsigned) {
+    public static synchronized CompareMode getInstance(String name,
+            int strength, boolean binaryUnsigned) {
         if (lastUsed != null) {
             if (StringUtils.equals(lastUsed.name, name) &&
                     lastUsed.strength == strength &&
@@ -126,7 +143,8 @@ public class CompareMode {
      * @param ignoreCase true if a case-insensitive comparison should be made
      * @return true if the characters are equals
      */
-    public boolean equalsChars(String a, int ai, String b, int bi, boolean ignoreCase) {
+    public boolean equalsChars(String a, int ai, String b, int bi,
+            boolean ignoreCase) {
         char ca = a.charAt(ai);
         char cb = b.charAt(bi);
         if (ignoreCase) {
@@ -160,7 +178,8 @@ public class CompareMode {
      */
     public static String getName(Locale l) {
         Locale english = Locale.ENGLISH;
-        String name = l.getDisplayLanguage(english) + ' ' + l.getDisplayCountry(english) + ' ' + l.getVariant();
+        String name = l.getDisplayLanguage(english) + ' ' +
+                l.getDisplayCountry(english) + ' ' + l.getVariant();
         name = StringUtils.toUpperEnglish(name.trim().replace(' ', '_'));
         return name;
     }
@@ -174,7 +193,8 @@ public class CompareMode {
      * @return true if they match
      */
     static boolean compareLocaleNames(Locale locale, String name) {
-        return name.equalsIgnoreCase(locale.toString()) || name.equalsIgnoreCase(getName(locale));
+        return name.equalsIgnoreCase(locale.toString()) ||
+                name.equalsIgnoreCase(getName(locale));
     }
 
     /**

@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
@@ -128,7 +127,7 @@ public class Shell extends Tool implements Runnable {
                 password = args[++i];
             } else if (arg.equals("-driver")) {
                 String driver = args[++i];
-                Utils.loadUserClass(driver);
+                JdbcUtils.loadUserClass(driver);
             } else if (arg.equals("-sql")) {
                 sql = args[++i];
             } else if (arg.equals("-properties")) {
@@ -162,6 +161,24 @@ public class Shell extends Tool implements Runnable {
                 conn.close();
             }
         }
+    }
+
+    /**
+     * Run the shell tool with the given connection and command line settings.
+     * The connection will be closed when the shell exits.
+     * This is primary used to integrate the Shell into another application.
+     * <p>
+     * Note: using the "-url" option in {@code args} doesn't make much sense
+     * since it will override the {@code conn} parameter.
+     * </p>
+     *
+     * @param conn the connection
+     * @param args the command line settings
+     */
+    public void runTool(Connection conn, String... args) throws SQLException {
+        this.conn = conn;
+        this.stat = conn.createStatement();
+        runTool(args);
     }
 
     private void showHelp() {
@@ -302,14 +319,15 @@ public class Shell extends Tool implements Runnable {
 
     private void connect() throws IOException, SQLException {
         String url = "jdbc:h2:~/test";
-        String user = "sa";
+        String user = "";
         String driver = null;
         try {
             Properties prop;
             if ("null".equals(serverPropertiesDir)) {
                 prop = new Properties();
             } else {
-                prop = SortedProperties.loadProperties(serverPropertiesDir + "/" + Constants.SERVER_PROPERTIES_NAME);
+                prop = SortedProperties.loadProperties(
+                        serverPropertiesDir + "/" + Constants.SERVER_PROPERTIES_NAME);
             }
             String data = null;
             boolean found = false;
@@ -437,7 +455,8 @@ public class Shell extends Tool implements Runnable {
                     rs = stat.getResultSet();
                     int rowCount = printResult(rs, listMode);
                     time = System.currentTimeMillis() - time;
-                    println("(" + rowCount + (rowCount == 1 ? " row, " : " rows, ") + time + " ms)");
+                    println("(" + rowCount + (rowCount == 1 ?
+                            " row, " : " rows, ") + time + " ms)");
                 } else {
                     int updateCount = stat.getUpdateCount();
                     time = System.currentTimeMillis() - time;
@@ -491,7 +510,8 @@ public class Shell extends Tool implements Runnable {
         return rowCount;
     }
 
-    private boolean loadRow(ResultSet rs, int len, ArrayList<String[]> rows) throws SQLException {
+    private boolean loadRow(ResultSet rs, int len, ArrayList<String[]> rows)
+            throws SQLException {
         boolean truncated = false;
         String[] row = new String[len];
         for (int i = 0; i < len; i++) {

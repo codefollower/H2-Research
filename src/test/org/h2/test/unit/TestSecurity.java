@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -39,9 +38,12 @@ public class TestSecurity extends TestBase {
     }
 
     private static void testConnectWithHash() throws SQLException {
-        Connection conn = DriverManager.getConnection("jdbc:h2:mem:test", "sa", "sa");
-        String pwd = StringUtils.convertBytesToHex(SHA256.getKeyPasswordHash("SA", "sa".toCharArray()));
-        Connection conn2 = DriverManager.getConnection("jdbc:h2:mem:test;PASSWORD_HASH=TRUE", "sa", pwd);
+        Connection conn = DriverManager.getConnection(
+                "jdbc:h2:mem:test", "sa", "sa");
+        String pwd = StringUtils.convertBytesToHex(
+                SHA256.getKeyPasswordHash("SA", "sa".toCharArray()));
+        Connection conn2 = DriverManager.getConnection(
+                "jdbc:h2:mem:test;PASSWORD_HASH=TRUE", "sa", pwd);
         conn.close();
         conn2.close();
     }
@@ -74,17 +76,20 @@ public class TestSecurity extends TestBase {
                 "salt".getBytes(), 4096, 32)));
         // take a very long time to calculate
         // assertEquals(
-        //         "cf81c66fe8cfc04d1f31ecb65dab4089f7f179e89b3b0bcb17ad10e3ac6eba46",
+        //         "cf81c66fe8cfc04d1f31ecb65dab4089f7f179e" +
+        //         "89b3b0bcb17ad10e3ac6eba46",
         //         StringUtils.convertBytesToHex(
         //         SHA256.getPBKDF2(
         //         "password".getBytes(),
         //         "salt".getBytes(), 16777216, 32)));
         assertEquals(
-                "348c89dbcbd32b2f32d814b8116e84cf2b17347ebc1800181c4e2a1fb8dd53e1c635518c7dac47e9",
+                "348c89dbcbd32b2f32d814b8116e84cf2b17347e" +
+                "bc1800181c4e2a1fb8dd53e1c635518c7dac47e9",
                 StringUtils.convertBytesToHex(
                 SHA256.getPBKDF2(
                 ("password" + "PASSWORD" + "password").getBytes(),
-                ("salt"+ "SALT"+ "salt"+ "SALT"+ "salt"+ "SALT"+ "salt"+ "SALT"+ "salt").getBytes(), 4096, 40)));
+                ("salt"+ "SALT"+ "salt"+ "SALT"+ "salt"+
+                "SALT"+ "salt"+ "SALT"+ "salt").getBytes(), 4096, 40)));
         assertEquals(
                 "89b69d0516f829893c696226650a8687",
                 StringUtils.convertBytesToHex(
@@ -121,40 +126,56 @@ public class TestSecurity extends TestBase {
     }
 
     private void testOneSHA() {
-        assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        assertEquals(
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 getHashString(new byte[] {}));
-        assertEquals("68aa2e2ee5dff96e3355e6c7ee373e3d6a4e17f75f9518d843709c0c9bc3e3d4",
+        assertEquals(
+                "68aa2e2ee5dff96e3355e6c7ee373e3d6a4e17f75f9518d843709c0c9bc3e3d4",
                 getHashString(new byte[] { 0x19 }));
-        assertEquals("175ee69b02ba9b58e2b0a5fd13819cea573f3940a94f825128cf4209beabb4e8",
+        assertEquals(
+                "175ee69b02ba9b58e2b0a5fd13819cea573f3940a94f825128cf4209beabb4e8",
                 getHashString(
-                        new byte[] { (byte) 0xe3, (byte) 0xd7, 0x25, 0x70, (byte) 0xdc, (byte) 0xdd, 0x78, 0x7c, (byte) 0xe3,
-                                (byte) 0x88, 0x7a, (byte) 0xb2, (byte) 0xcd, 0x68, 0x46, 0x52 }));
-        checkSHA256("",
+                        new byte[] { (byte) 0xe3, (byte) 0xd7, 0x25,
+                        0x70, (byte) 0xdc, (byte) 0xdd, 0x78, 0x7c,
+                        (byte) 0xe3, (byte) 0x88, 0x7a, (byte) 0xb2,
+                        (byte) 0xcd, 0x68, 0x46, 0x52 }));
+        checkSHA256(
+                "",
                 "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855");
-        checkSHA256("a",
+        checkSHA256(
+                "a",
                 "CA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB");
-        checkSHA256("abc",
+        checkSHA256(
+                "abc",
                 "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD");
-        checkSHA256("message digest",
+        checkSHA256(
+                "message digest",
                 "F7846F55CF23E14EEBEAB5B4E1550CAD5B509E3348FBC4EFA3A1413D393CB650");
-        checkSHA256("abcdefghijklmnopqrstuvwxyz",
+        checkSHA256(
+                "abcdefghijklmnopqrstuvwxyz",
                 "71C480DF93D6AE2F1EFAD1447C66C9525E316218CF51FC8D9ED832F2DAF18B73");
-        checkSHA256("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        checkSHA256(
+                "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
                 "248D6A61D20638B8E5C026930C3E6039A33CE45964FF2167F6ECEDD419DB06C1");
-        checkSHA256("12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+        checkSHA256(
+                "123456789012345678901234567890" +
+                        "12345678901234567890" +
+                        "123456789012345678901234567890",
                 "F371BC4A311F2B009EEF952DD83CA80E2B60026C8E935592D0F9C308453C813E");
         StringBuilder buff = new StringBuilder(1000000);
         buff.append('a');
-        checkSHA256(buff.toString(), "CA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB");
+        checkSHA256(buff.toString(),
+                "CA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB");
     }
 
     private void checkSHA256(String message, String expected) {
-        String hash = StringUtils.convertBytesToHex(SHA256.getHash(message.getBytes(), true)).toUpperCase();
+        String hash = StringUtils.convertBytesToHex(
+                SHA256.getHash(message.getBytes(), true)).toUpperCase();
         assertEquals(expected, hash);
     }
 
     private void testBlockCiphers() {
-        for (String algorithm : new String[] { "AES", "XTEA", "FOG" }) {
+        for (String algorithm : new String[] { "AES", "FOG" }) {
             byte[] test = new byte[4096];
             BlockCipher cipher = CipherFactory.getBlockCipher(algorithm);
             cipher.setKey("abcdefghijklmnop".getBytes());

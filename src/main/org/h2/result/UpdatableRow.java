@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
@@ -11,7 +10,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import org.h2.constant.ErrorCode;
+
+import org.h2.api.ErrorCode;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.util.New;
@@ -22,8 +22,8 @@ import org.h2.value.Value;
 import org.h2.value.ValueNull;
 
 /**
- * This class is used for updatable result sets.
- * An updatable row provides functions to update the current row in a result set.
+ * This class is used for updatable result sets. An updatable row provides
+ * functions to update the current row in a result set.
  */
 public class UpdatableRow {
 
@@ -42,7 +42,8 @@ public class UpdatableRow {
      * @param conn the database connection
      * @param result the result
      */
-    public UpdatableRow(JdbcConnection conn, ResultInterface result) throws SQLException {
+    public UpdatableRow(JdbcConnection conn, ResultInterface result)
+            throws SQLException {
         this.conn = conn;
         this.result = result;
         columnCount = result.getVisibleColumnCount();
@@ -176,7 +177,8 @@ public class UpdatableRow {
         }
     }
 
-    private void setKey(PreparedStatement prep, int start, Value[] current) throws SQLException {
+    private void setKey(PreparedStatement prep, int start, Value[] current)
+            throws SQLException {
         for (int i = 0, size = key.size(); i < size; i++) {
             String col = key.get(i);
             int idx = getColumnIndex(col);

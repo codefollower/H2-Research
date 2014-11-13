@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbcx;
@@ -49,7 +48,8 @@ public class TestConnectionPool extends TestBase {
     }
 
     private void testShutdown() throws SQLException {
-        String url = getURL("connectionPool2", true), user = getUser(), password = getPassword();
+        String url = getURL("connectionPool2", true), user = getUser();
+        String password = getPassword();
         JdbcConnectionPool cp = JdbcConnectionPool.create(url, user, password);
         StringWriter w = new StringWriter();
         cp.setLogWriter(new PrintWriter(w));
@@ -63,7 +63,8 @@ public class TestConnectionPool extends TestBase {
     }
 
     private void testWrongUrl() {
-        JdbcConnectionPool cp = JdbcConnectionPool.create("jdbc:wrong:url", "", "");
+        JdbcConnectionPool cp = JdbcConnectionPool.create(
+                "jdbc:wrong:url", "", "");
         try {
             cp.getConnection();
         } catch (SQLException e) {
@@ -73,7 +74,8 @@ public class TestConnectionPool extends TestBase {
     }
 
     private void testTimeout() throws Exception {
-        String url = getURL("connectionPool", true), user = getUser(), password = getPassword();
+        String url = getURL("connectionPool", true), user = getUser();
+        String password = getPassword();
         final JdbcConnectionPool man = JdbcConnectionPool.create(url, user, password);
         man.setLoginTimeout(1);
         createClassProxy(man.getClass());
@@ -101,7 +103,7 @@ public class TestConnectionPool extends TestBase {
             man.getConnection();
             fail();
         } catch (SQLException e) {
-            assertTrue(e.toString().toLowerCase().indexOf("timeout") >= 0);
+            assertTrue(e.toString().toLowerCase().contains("timeout"));
             time = System.currentTimeMillis() - time;
             assertTrue("timeout after " + time + " ms", time > 1000);
         } finally {
@@ -113,7 +115,8 @@ public class TestConnectionPool extends TestBase {
     }
 
     private void testUncommittedTransaction() throws SQLException {
-        String url = getURL("connectionPool", true), user = getUser(), password = getPassword();
+        String url = getURL("connectionPool", true), user = getUser();
+        String password = getPassword();
         JdbcConnectionPool man = JdbcConnectionPool.create(url, user, password);
 
         assertEquals(30, man.getLoginTimeout());
@@ -143,7 +146,8 @@ public class TestConnectionPool extends TestBase {
     }
 
     private void testPerformance() throws SQLException {
-        String url = getURL("connectionPool", true), user = getUser(), password = getPassword();
+        String url = getURL("connectionPool", true), user = getUser();
+        String password = getPassword();
         JdbcConnectionPool man = JdbcConnectionPool.create(url, user, password);
         Connection conn = man.getConnection();
         int len = 1000;
@@ -189,7 +193,9 @@ public class TestConnectionPool extends TestBase {
                     while (!stop[0]) {
                         Connection conn = man.getConnection();
                         if (man.getActiveConnections() >= len + 1) {
-                            throw new Exception("a: " + man.getActiveConnections()  + " is not smaller than b: " + len + 1);
+                            throw new Exception("a: " +
+                                    man.getActiveConnections()  +
+                                    " is not smaller than b: " + len + 1);
                         }
                         Statement stat = conn.createStatement();
                         stat.execute("SELECT 1 FROM DUAL");

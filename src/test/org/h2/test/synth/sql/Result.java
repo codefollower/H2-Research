@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.synth.sql;
@@ -21,7 +20,8 @@ import org.h2.util.New;
  * Represents an in-memory result.
  */
 class Result implements Comparable<Result> {
-    static final int SUCCESS = 0, BOOLEAN = 1, INT = 2, EXCEPTION = 3, RESULT_SET = 4;
+    static final int SUCCESS = 0, BOOLEAN = 1, INT = 2, EXCEPTION = 3,
+            RESULT_SET = 4;
 
     String sql;
 
@@ -91,7 +91,8 @@ class Result implements Comparable<Result> {
         case EXCEPTION: {
             StringWriter w = new StringWriter();
             exception.printStackTrace(new PrintWriter(w));
-            return "exception: " + exception.getSQLState() + ": " + exception.getMessage() + "\r\n" + w.toString();
+            return "exception: " + exception.getSQLState() + ": " +
+                    exception.getMessage() + "\r\n" + w.toString();
         }
         case RESULT_SET:
             String result = "ResultSet { // size=" + rows.size() + "\r\n  ";

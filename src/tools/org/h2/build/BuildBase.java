@@ -1,7 +1,6 @@
 /*
- * Copyright 2004-2013 H2 Group. Multiple-Licensed under the H2 License,
- * Version 1.0, and under the Eclipse Public License, Version 1.0
- * (http://h2database.com/html/license.html).
+ * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build;
@@ -130,7 +129,9 @@ public class BuildBase {
                 pattern = pattern.substring(1);
             }
             if (pattern.indexOf('*') >= 0) {
-                throw new RuntimeException("Unsupported pattern, may only start or end with *:" + pattern);
+                throw new RuntimeException(
+                        "Unsupported pattern, may only start or end with *:"
+                                + pattern);
             }
             // normalize / and \
             pattern = BuildBase.replaceAll(pattern, "/", File.separator);
@@ -211,7 +212,8 @@ public class BuildBase {
     private void runShell() {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String last = "", line;
-        System.out.println("Shell mode. Type the target, then [Enter]. Just [Enter] repeats the last target.");
+        System.out.println("Shell mode. Type the target, then [Enter]. " +
+                "Just [Enter] repeats the last target.");
         while (true) {
             System.out.print("build> ");
             try {
@@ -252,9 +254,9 @@ public class BuildBase {
     }
 
     /**
-     * This method is called if no other target is specified in the command line.
-     * The default behavior is to call projectHelp().
-     * Override this method if you want another default behavior.
+     * This method is called if no other target is specified in the command
+     * line. The default behavior is to call projectHelp(). Override this method
+     * if you want another default behavior.
      */
     protected void all() {
         projectHelp();
@@ -283,7 +285,8 @@ public class BuildBase {
         sysOut.println("Targets:");
         for (Method m : methods) {
             int mod = m.getModifiers();
-            if (!Modifier.isStatic(mod) && Modifier.isPublic(mod) && m.getParameterTypes().length == 0) {
+            if (!Modifier.isStatic(mod) && Modifier.isPublic(mod)
+                    && m.getParameterTypes().length == 0) {
                 sysOut.println(m.getName());
             }
         }
@@ -291,7 +294,7 @@ public class BuildBase {
     }
 
     private static boolean isWindows() {
-        return System.getProperty("os.name").toLowerCase().indexOf("windows") >= 0;
+        return System.getProperty("os.name").toLowerCase().contains("windows");
     }
 
     /**
@@ -374,7 +377,8 @@ public class BuildBase {
             Field field = clazz.getField(fieldName);
             return field.get(null).toString();
         } catch (Exception e) {
-            throw new RuntimeException("Can not read field " + className + "." + fieldName, e);
+            throw new RuntimeException("Can not read field " + className + "."
+                    + fieldName, e);
         }
     }
 
@@ -391,7 +395,8 @@ public class BuildBase {
             Method method = clazz.getMethod(methodName);
             return method.invoke(null).toString();
         } catch (Exception e) {
-            throw new RuntimeException("Can not read value " + className + "." + methodName + "()", e);
+            throw new RuntimeException("Can not read value " + className + "."
+                    + methodName + "()", e);
         }
     }
 
@@ -533,13 +538,15 @@ public class BuildBase {
      * @param version the Maven version id
      * @param sha1Checksum the SHA-1 checksum or null
      */
-    protected void downloadUsingMaven(String target, String group, String artifact, String version, String sha1Checksum) {
+    protected void downloadUsingMaven(String target, String group,
+            String artifact, String version, String sha1Checksum) {
         String repoDir = "http://repo1.maven.org/maven2";
         File targetFile = new File(target);
         if (targetFile.exists()) {
             return;
         }
-        String repoFile = group + "/" + artifact + "/" + version + "/" + artifact + "-" + version + ".jar";
+        String repoFile = group + "/" + artifact + "/" + version + "/"
+                + artifact + "-" + version + ".jar";
         mkdirs(targetFile.getAbsoluteFile().getParentFile());
         String localMavenDir = getLocalMavenDir();
         if (new File(localMavenDir).exists()) {
@@ -561,8 +568,10 @@ public class BuildBase {
                     println("SHA1 checksum: " + got);
                 } else {
                     if (!got.equals(sha1Checksum)) {
-                        throw new RuntimeException("SHA1 checksum mismatch; got: " +
-                                got + " expected: " + sha1Checksum + " for file " + f.getAbsolutePath());
+                        throw new RuntimeException(
+                                "SHA1 checksum mismatch; got: " + got +
+                                        " expected: " + sha1Checksum +
+                                        " for file " + f.getAbsolutePath());
                     }
                 }
                 writeFile(targetFile, data);
@@ -758,7 +767,8 @@ public class BuildBase {
      * @param storeOnly if the files should not be compressed
      * @param sortBySuffix if the file should be sorted by the file suffix
      */
-    protected void zip(String destFile, FileList files, String basePath, boolean storeOnly, boolean sortBySuffix) {
+    protected void zip(String destFile, FileList files, String basePath,
+            boolean storeOnly, boolean sortBySuffix) {
         long kb = zipOrJar(destFile, files, basePath, storeOnly, sortBySuffix, false);
         println("Zip " + destFile + " (" + kb + " KB)");
     }
@@ -785,7 +795,9 @@ public class BuildBase {
         basePath = new File(basePath).getPath();
         try {
             if (new File(destFile).isDirectory()) {
-                throw new IOException("Can't create the file as a directory with this name already exists: " + destFile);
+                throw new IOException(
+                        "Can't create the file as a directory with this name already exists: "
+                                + destFile);
             }
             OutputStream out = new BufferedOutputStream(new FileOutputStream(destFile));
             ZipOutputStream zipOut;
@@ -889,7 +901,8 @@ public class BuildBase {
     }
 
     /**
-     * Create the directory including the parent directories if they don't exist.
+     * Create the directory including the parent directories if they don't
+     * exist.
      *
      * @param dir the directory to create
      */
@@ -897,7 +910,8 @@ public class BuildBase {
         File f = new File(dir);
         if (f.exists()) {
             if (f.isFile()) {
-                throw new RuntimeException("Can not create directory " + dir + " because a file with this name exists");
+                throw new RuntimeException("Can not create directory " + dir
+                        + " because a file with this name exists");
             }
         } else {
             mkdirs(f);
