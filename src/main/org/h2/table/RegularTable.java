@@ -234,16 +234,11 @@ public class RegularTable extends TableBase {
             }
             if (mainIndexColumn != -1) {
                 mainIndex.setMainIndexColumn(mainIndexColumn);
-<<<<<<< HEAD
                 //PageDelegateIndex在增加行时什么都不做，
                 //满足这个条件的索引: "PrimaryKey索引，并且只有一个字段，并且此字段是byte、short、int、long类型"
                 //实际上在增加行时只有最初的PageDataIndex起作用，
                 //PageDelegateIndex只在查询时有作用
                 index = new PageDelegateIndex(this, indexId, indexName, indexType, mainIndex, create, session);
-=======
-                index = new PageDelegateIndex(this, indexId, indexName,
-                        indexType, mainIndex, create, session);
->>>>>>> remotes/git-svn
             } else if (indexType.isSpatial()) {
                 index = new SpatialTreeIndex(this, indexId, indexName, cols,
                         indexType, true, create, session);
@@ -467,21 +462,13 @@ public class RegularTable extends TableBase {
     //Select的isForUpdate变种在非MVCC下也把force设为true，
     //Insert、Update之类的才设为false
     @Override
-<<<<<<< HEAD
-    public void lock(Session session, boolean exclusive, boolean force) { //琐粒度太大，每insert一行都琐表
-=======
     public void lock(Session session, boolean exclusive,
-            boolean forceLockEvenInMvcc) {
->>>>>>> remotes/git-svn
+            boolean forceLockEvenInMvcc) { //琐粒度太大，每insert一行都琐表
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) { //禁用锁
             return;
         }
-<<<<<<< HEAD
-        if (!force && database.isMultiVersion()) { //如果使用了MVCC，并且不是强制的，则 不使用排它琐
-=======
-        if (!forceLockEvenInMvcc && database.isMultiVersion()) {
->>>>>>> remotes/git-svn
+        if (!forceLockEvenInMvcc && database.isMultiVersion()) { //如果使用了MVCC，并且不是强制的，则 不使用排它琐
             // MVCC: update, delete, and insert use a shared lock.
             // Select doesn't lock except when using FOR UPDATE
             if (exclusive) {
@@ -509,60 +496,56 @@ public class RegularTable extends TableBase {
             }
         }
     }
-<<<<<<< HEAD
-    private void doLock(Session session, int lockMode, boolean exclusive) {
-=======
 
     private void doLock1(Session session, int lockMode, boolean exclusive) {
->>>>>>> remotes/git-svn
         traceLock(session, exclusive, "requesting for");
         // don't get the current time unless necessary
         long max = 0;
         boolean checkDeadlock = false;
         while (true) {
-<<<<<<< HEAD
-            if (lockExclusive == session) {
-                return;
-            }
-            if (exclusive) {
-                if (lockExclusive == null) {
-                    if (lockShared.isEmpty()) {
-                        traceLock(session, exclusive, "added for");
-                        session.addLock(this);
-                        lockExclusive = session;
-                        return;
-                    //如果前面有一个读锁，并且是相同的session，那么insert之类的操作不须等待
-                    } else if (lockShared.size() == 1 && lockShared.contains(session)) {
-                        traceLock(session, exclusive, "add (upgraded) for ");
-                        lockExclusive = session;
-                        return;
-                    }
-                }
-            } else {
-            	//如果lockExclusive不为null，说明前面有一个排它锁，不管当前操作是查询还是更新，都必须等待，
-            	//如果lockExclusive为null，那么当前操作可顺利进行
-                if (lockExclusive == null) {
-                    if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
-                        if (!database.isMultiThreaded() && !database.isMultiVersion()) {
-                            // READ_COMMITTED: a read lock is acquired,
-                            // but released immediately after the operation
-                            // is complete.
-                            // When allowing only one thread, no lock is
-                            // required.
-                            // Row level locks work like read committed.
-                            return;
-                        }
-                    }
-                    if (!lockShared.contains(session)) {
-                        traceLock(session, exclusive, "ok");
-                        session.addLock(this);
-                        lockShared.add(session);
-                    }
-=======
+//<<<<<<< HEAD
+//            if (lockExclusive == session) {
+//                return;
+//            }
+//            if (exclusive) {
+//                if (lockExclusive == null) {
+//                    if (lockShared.isEmpty()) {
+//                        traceLock(session, exclusive, "added for");
+//                        session.addLock(this);
+//                        lockExclusive = session;
+//                        return;
+//                    //如果前面有一个读锁，并且是相同的session，那么insert之类的操作不须等待
+//                    } else if (lockShared.size() == 1 && lockShared.contains(session)) {
+//                        traceLock(session, exclusive, "add (upgraded) for ");
+//                        lockExclusive = session;
+//                        return;
+//                    }
+//                }
+//            } else {
+//            	//如果lockExclusive不为null，说明前面有一个排它锁，不管当前操作是查询还是更新，都必须等待，
+//            	//如果lockExclusive为null，那么当前操作可顺利进行
+//                if (lockExclusive == null) {
+//                    if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
+//                        if (!database.isMultiThreaded() && !database.isMultiVersion()) {
+//                            // READ_COMMITTED: a read lock is acquired,
+//                            // but released immediately after the operation
+//                            // is complete.
+//                            // When allowing only one thread, no lock is
+//                            // required.
+//                            // Row level locks work like read committed.
+//                            return;
+//                        }
+//                    }
+//                    if (!lockShared.contains(session)) {
+//                        traceLock(session, exclusive, "ok");
+//                        session.addLock(this);
+//                        lockShared.add(session);
+//                    }
+//=======
             // if I'm the next one in the queue
             if (waitingSessions.getFirst() == session) {
                 if (doLock2(session, lockMode, exclusive)) {
->>>>>>> remotes/git-svn
+
                     return;
                 }
             }

@@ -5,8 +5,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStreamReader;
 
-import org.h2.constant.SysProperties;
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.store.DataHandler;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.MathUtils;
@@ -34,10 +34,10 @@ public class ValueLobTest {
 
 		BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
-		ValueLob.createSmallLob(Value.BLOB, bytes);
-		ValueLob.createSmallLob(Value.CLOB, bytes);
-		ValueLob.createBlob(in, length, handler);
-		ValueLob.createClob(reader, length, handler);
+//		ValueLob.createSmallLob(Value.BLOB, bytes);
+//		ValueLob.createSmallLob(Value.CLOB, bytes);
+//		ValueLob.createBlob(in, length, handler);
+//		ValueLob.createClob(reader, length, handler);
 
 		String p = getFileNamePrefix("a", 1);
 		System.out.println(p);

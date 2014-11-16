@@ -45,18 +45,12 @@ public class ExpressionColumn extends Expression {
         this.tableAlias = null;
         this.columnName = null;
     }
-<<<<<<< HEAD
     
     //对于SELECT public.t.id FROM ExpressionColumnTest as t
     //schemaName = public
     //tableAlias = t
     //columnName = id
     public ExpressionColumn(Database database, String schemaName, String tableAlias, String columnName) {
-=======
-
-    public ExpressionColumn(Database database, String schemaName,
-            String tableAlias, String columnName) {
->>>>>>> remotes/git-svn
         this.database = database;
         this.schemaName = schemaName;
         this.tableAlias = tableAlias;

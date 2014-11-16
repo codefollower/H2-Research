@@ -129,7 +129,6 @@ public class CommandRemote implements CommandInterface {
                 Transfer transfer = transferList.get(i);
                 try {
                     session.traceOperation("COMMAND_GET_META_DATA", id);
-<<<<<<< HEAD
                     //这里得到的ResultRemote也会在server端按objectId缓存一个org.h2.result.LocalResult
                     //但是这个ResultRemote在org.h2.jdbc.JdbcPreparedStatement.getMetaData()中被封装到JdbcResultSetMetaData后
                     //没有机会调用ResultRemote.close来释放server端的相关东西了
@@ -138,10 +137,6 @@ public class CommandRemote implements CommandInterface {
                     //上面理解错了，ResultRemote的构造函数中会触发ResultRemote.fetchRows(boolean)，
                     //因为rowCount是0，所以当下就调用sendClose了
                     transfer.writeInt(SessionRemote.COMMAND_GET_META_DATA).writeInt(id).writeInt(objectId);
-=======
-                    transfer.writeInt(SessionRemote.COMMAND_GET_META_DATA).
-                            writeInt(id).writeInt(objectId);
->>>>>>> remotes/git-svn
                     session.done(transfer);
                     int columnCount = transfer.readInt();
                     result = new ResultRemote(session, transfer, objectId,

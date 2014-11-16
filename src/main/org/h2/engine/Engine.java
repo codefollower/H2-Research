@@ -32,7 +32,10 @@ public class Engine implements SessionFactory {
     private volatile long wrongPasswordDelay =
             SysProperties.DELAY_WRONG_PASSWORD_MIN;
     private boolean jmx;
-<<<<<<< HEAD
+    
+    private Engine() {
+        // use getInstance()
+    }
     
     //调用顺序: 1 (如果是内存数据库，这一步不调用，直接到2)
     public static Engine getInstance() {
@@ -44,19 +47,6 @@ public class Engine implements SessionFactory {
     private Session openSession(ConnectionInfo ci, boolean ifExists, String cipher) {
     	//如果设置了h2.baseDir，如:System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
     	//那么name就包含了h2.baseDir，否则就是当前工作目录
-=======
-
-    private Engine() {
-        // use getInstance()
-    }
-
-    public static Engine getInstance() {
-        return INSTANCE;
-    }
-
-    private Session openSession(ConnectionInfo ci, boolean ifExists,
-            String cipher) {
->>>>>>> remotes/git-svn
         String name = ci.getName();
         Database database;
         ci.removeProperty("NO_UPGRADE", false);
@@ -214,15 +204,10 @@ public class Engine implements SessionFactory {
             //connection相关的参数在org.h2.command.Parser.parseSet()中被转成NoOperation
             String value = ci.getProperty(setting);
             try {
-<<<<<<< HEAD
             	//session.prepareCommand是在本地执行sql，不走jdbc
-                CommandInterface command = session.prepareCommand("SET " + Parser.quoteIdentifier(setting) + " "
-                        + value, Integer.MAX_VALUE);
-=======
                 CommandInterface command = session.prepareCommand(
                         "SET " + Parser.quoteIdentifier(setting) + " " + value,
                         Integer.MAX_VALUE);
->>>>>>> remotes/git-svn
                 command.executeUpdate();
             } catch (DbException e) {
                 if (!ignoreUnknownSetting) {

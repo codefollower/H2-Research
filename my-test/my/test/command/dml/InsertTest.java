@@ -49,7 +49,7 @@ public class InsertTest extends TestBase {
 
 		stmt.executeUpdate("CREATE TRIGGER IF NOT EXISTS TriggerInsertTest BEFORE INSERT ON InsertTest "
 		//+ "FOR EACH ROW CALL \"my.test.sql.InsertTest$MyInsertTrigger\"");
-				+ "CALL \"my.test.sql.InsertTest$MyInsertTrigger\"");
+				+ "CALL \""+MyInsertTrigger.class.getName()+"\"");
 
 		stmt.executeUpdate("DROP TABLE IF EXISTS tmpSelectTest");
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS tmpSelectTest(id int, name varchar(500))");

@@ -172,12 +172,8 @@ public abstract class Query extends Prepared {
      * @param columnId the column index (0 meaning the first column)
      * @param comparisonType the comparison type
      */
-<<<<<<< HEAD
     public abstract void addGlobalCondition(Parameter param, int columnId, int comparisonType); //在ViewIndex中有使用
-=======
-    public abstract void addGlobalCondition(Parameter param, int columnId,
-            int comparisonType);
->>>>>>> remotes/git-svn
+
 
     /**
      * Check whether adding condition to the query is allowed. This is not
@@ -269,13 +265,8 @@ public abstract class Query extends Prepared {
                 !isEverything(ExpressionVisitor.INDEPENDENT_VISITOR)) {
             return false;
         }
-<<<<<<< HEAD
         //数据有变时不使用缓存
         if (db.getModificationDataId() > lastEval && getMaxDataModificationId() > lastEval) {
-=======
-        if (db.getModificationDataId() > lastEval &&
-                getMaxDataModificationId() > lastEval) {
->>>>>>> remotes/git-svn
             return false;
         }
         return true;
@@ -471,14 +462,9 @@ public abstract class Query extends Prepared {
      * @param expressionCount the number of columns in the query
      * @return the {@link SortOrder} object
      */
-<<<<<<< HEAD
     //order by字段列表在select字段列表中的位置索引(从0开始计数)和order by字段排序类型生成两个数组:indexes、sortTypes
     //得到一个综合的SortOrder实例
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
-=======
-    public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList,
-            int expressionCount) {
->>>>>>> remotes/git-svn
         int size = orderList.size();
         int[] index = new int[size];
         int[] columnIndexes = new int[size]; //我加上的
@@ -521,7 +507,8 @@ public abstract class Query extends Prepared {
             sortType[i] = type;
         }
 
-        return new SortOrder(session.getDatabase(), index, sortType, orderList, columnIndexes);
+        //return new SortOrder(session.getDatabase(), index, sortType, orderList, columnIndexes);
+        return new SortOrder(session.getDatabase(), index, sortType, orderList);
     }
 
     public void setOffset(Expression offset) {

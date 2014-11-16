@@ -214,16 +214,9 @@ public class PageStore implements CacheWriter {
      * @param accessMode the access mode
      * @param cacheSizeDefault the default cache size
      */
-<<<<<<< HEAD
     public PageStore(Database database, String fileName, String accessMode, int cacheSizeDefault) {
         this.fileName = fileName; //E:/H2/eclipse-workspace-server/mydb3.h2.db
         this.accessMode = accessMode; //rw
-=======
-    public PageStore(Database database, String fileName, String accessMode,
-            int cacheSizeDefault) {
-        this.fileName = fileName;
-        this.accessMode = accessMode;
->>>>>>> remotes/git-svn
         this.database = database;
         trace = database.getTrace(Trace.PAGE_STORE);
         // if (fileName.endsWith("X.h2.db"))
@@ -1536,14 +1529,9 @@ public class PageStore implements CacheWriter {
      * @param row the row to add
      * @param add true if the row is added, false if it is removed
      */
-<<<<<<< HEAD
     //只有在org.h2.index.PageDataIndex中调用，
     //org.h2.index.PageBtreeIndex不调用
     public synchronized void logAddOrRemoveRow(Session session, int tableId, Row row, boolean add) {
-=======
-    public synchronized void logAddOrRemoveRow(Session session, int tableId,
-            Row row, boolean add) {
->>>>>>> remotes/git-svn
         if (logMode != LOG_MODE_OFF) {
             if (!recoveryRunning) {
                 log.logAddOrRemoveRow(session, tableId, row, add);
@@ -1897,14 +1885,9 @@ public class PageStore implements CacheWriter {
             }
         }
         synchronized (this) {
-<<<<<<< HEAD
         	//只有PageDataIndex是META_TYPE_DATA_INDEX，其他都当成META_TYPE_BTREE_INDEX
         	//PageDelegateIndex也被当成META_TYPE_BTREE_INDEX
             int type = index instanceof PageDataIndex ? META_TYPE_DATA_INDEX : META_TYPE_BTREE_INDEX;
-=======
-            int type = index instanceof PageDataIndex ?
-                    META_TYPE_DATA_INDEX : META_TYPE_BTREE_INDEX;
->>>>>>> remotes/git-svn
             IndexColumn[] columns = index.getIndexColumns();
             StatementBuilder buff = new StatementBuilder();
             for (IndexColumn col : columns) {

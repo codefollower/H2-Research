@@ -72,15 +72,10 @@ public class Delete extends Prepared {
             //此时limitRows为0，不删除任何行
             while (limitRows != 0 && tableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
-<<<<<<< HEAD
                 //condition.getBooleanValue(session)内部会取当前行与之比较，
                 //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
                 //然后在从当前行中按列id取当前行value数组中对应元素
                 if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
-=======
-                if (condition == null || Boolean.TRUE.equals(
-                        condition.getBooleanValue(session))) {
->>>>>>> remotes/git-svn
                     Row row = tableFilter.get();
                     boolean done = false;
                     if (table.fireRow()) {

@@ -1235,18 +1235,11 @@ public class Parser {
                     table = new FunctionTable(mainSchema, session, expr, call);
                 }
             } else if (equalsToken("DUAL", tableName)) {
-<<<<<<< HEAD
                 table = getDualTable(false); //如"FROM DUAL SELECT * "
-            } else if (database.getMode().sysDummy1 && equalsToken("SYSDUMMY1", tableName)) {
-                table = getDualTable(false); //如"FROM SYSDUMMY1 SELECT * "，要适当设置MODE参数
-            } else { //正常的 from tableName语法
-=======
-                table = getDualTable(false);
             } else if (database.getMode().sysDummy1 &&
                     equalsToken("SYSDUMMY1", tableName)) {
-                table = getDualTable(false);
-            } else {
->>>>>>> remotes/git-svn
+                table = getDualTable(false);//如"FROM SYSDUMMY1 SELECT * "，要适当设置MODE参数
+            } else { //正常的 from tableName语法
                 table = readTableOrView(tableName);
             }
         }
@@ -1492,20 +1485,14 @@ public class Parser {
         command.setIfExists(ifExists);
         return command;
     }
-<<<<<<< HEAD
-    
     //如果RIGHT、LEFT、INNER、JOIN这5种JOIN后面没有直接接ON就会出现递归调用readJoin的情况，
     //如: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
     //加ON的话虽然也会递归调用readJoin，但因为紧接着的token是ON，所以实际上readJoin什么都不做
     //参见<<数据库系统基础教程>>p24、p25、p26、p129、p163
-    private TableFilter readJoin(TableFilter top, Select command, boolean nested, boolean fromOuter) { //嵌套、外部
-    	//fromOuter这个参数只有从LEFT/RIGHT OUTER进入readJoin为true
-    	//nested这个参数只有从LEFT OUTER进入readJoin为true
-=======
-
     private TableFilter readJoin(TableFilter top, Select command,
-            boolean nested, boolean fromOuter) {
->>>>>>> remotes/git-svn
+            boolean nested, boolean fromOuter) { //嵌套、外部
+    //fromOuter这个参数只有从LEFT/RIGHT OUTER进入readJoin为true
+    //nested这个参数只有从LEFT OUTER进入readJoin为true
         boolean joined = false;
         TableFilter last = top; //last只对NATURAL JOIN有用
         //NESTED_JOINS参数默认是true
@@ -1651,14 +1638,9 @@ public class Parser {
     }
 
     private TableFilter getNested(TableFilter n) {
-<<<<<<< HEAD
         String joinTable = Constants.PREFIX_JOIN + parseIndex; //如：SYSTEM_JOIN_25
-        TableFilter top = new TableFilter(session, getDualTable(true), joinTable, rightsChecked, currentSelect);
-=======
-        String joinTable = Constants.PREFIX_JOIN + parseIndex;
         TableFilter top = new TableFilter(session, getDualTable(true),
                 joinTable, rightsChecked, currentSelect);
->>>>>>> remotes/git-svn
         top.addJoin(n, false, true, null);
         return top;
     }
@@ -1745,15 +1727,9 @@ public class Parser {
         Query command = parseSelectSub();
         return parseSelectUnionExtension(command, start, false);
     }
-<<<<<<< HEAD
-    
     //只有在parseSelectUnion中调用，unionOnly总为false
-    private Query parseSelectUnionExtension(Query command, int start, boolean unionOnly) {
-=======
-
     private Query parseSelectUnionExtension(Query command, int start,
             boolean unionOnly) {
->>>>>>> remotes/git-svn
         while (true) {
             if (readIf("UNION")) {
                 SelectUnion union = new SelectUnion(session, command);
@@ -2656,14 +2632,9 @@ public class Parser {
         return function;
     }
 
-<<<<<<< HEAD
-    private Expression readWildcardOrSequenceValue(String schema, String objectName) {
-        if (readIf("*")) { //如"select t.* from mytable t"中的"t.*"
-=======
     private Expression readWildcardOrSequenceValue(String schema,
             String objectName) {
-        if (readIf("*")) {
->>>>>>> remotes/git-svn
+        if (readIf("*")) { //如"select t.* from mytable t"中的"t.*"
             return new Wildcard(schema, objectName);
         }
         if (schema == null) {
@@ -2999,13 +2970,8 @@ public class Parser {
             Function function = Function.getFunction(database, "ARRAY_GET");
             function.setParameter(0, r);
             r = readExpression();
-<<<<<<< HEAD
             //ARRAY_GET函数的下标从1开始，所以要加1
             r = new Operation(Operation.PLUS, r, ValueExpression.get(ValueInt.get(1)));
-=======
-            r = new Operation(Operation.PLUS, r, ValueExpression.get(ValueInt
-                    .get(1)));
->>>>>>> remotes/git-svn
             function.setParameter(1, r);
             r = function;
             read("]");
@@ -3017,7 +2983,6 @@ public class Parser {
                 read(".");
             }
             if (readIf("REGCLASS")) {
-<<<<<<< HEAD
             	//如下:
             	//stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS PG_GET_OID FOR \"my.test.ParserTest.testPG_GET_OID\"");
         		//sql = "SELECT 'ddd'::REGCLASS";
@@ -3025,11 +2990,8 @@ public class Parser {
             	//	System.out.println("testPG_GET_OID: " + str);
             	//}
             	//此时r先是'ddd'这个字符串，然后调用PG_GET_OID这个自定义函数
-                FunctionAlias f = findFunctionAlias(Constants.SCHEMA_MAIN, "PG_GET_OID");
-=======
                 FunctionAlias f = findFunctionAlias(Constants.SCHEMA_MAIN,
                         "PG_GET_OID");
->>>>>>> remotes/git-svn
                 if (f == null) {
                     throw getSyntaxError();
                 }
@@ -3371,16 +3333,11 @@ public class Parser {
                         parseIndex = i;
                         return;
                     }
-<<<<<<< HEAD
                     //(number << 4)表示乘以16,而"c - (c >= 'A' ? ('A' - 0xa) : ('0')"是算当前c与'0'或‘A'的差值
                     //如果c>='A'，那么c = 0xa+(c-'A')
                     //如果c>='0',且小于'A'，那么c = '0'+(c-'0');
                     number = (number << 4) + c - (c >= 'A' ? ('A' - 0xa) : ('0'));
                     //16进制值>Integer.MAX_VALUE时转成BigDecimal来表示
-=======
-                    number = (number << 4) + c -
-                            (c >= 'A' ? ('A' - 0xa) : ('0'));
->>>>>>> remotes/git-svn
                     if (number > Integer.MAX_VALUE) {
                         readHexDecimal(start, i);
                         return;
@@ -3475,7 +3432,6 @@ public class Parser {
     //字面值(LITERAL)，比如"123"、"12.999"、字符串"abcdddd"这种
     //text参数为true时说明当前要检查字符串类型的字面值
     private void checkLiterals(boolean text) {
-<<<<<<< HEAD
         if (!session.getAllowLiterals()) { //默认是false
         	
         	//有三种选项
@@ -3494,12 +3450,6 @@ public class Parser {
             	//ALLOW_LITERALS_NUMBERS=1 只允许数字字面值
         		//stmt.executeUpdate("SET ALLOW_LITERALS 1"); //只允许数字字面值
         		//sql = "select id,name from ParserTest where name = 'abc'"; //这时就不允许出现字符串字面值了
-=======
-        if (!session.getAllowLiterals()) {
-            int allowed = database.getAllowLiterals();
-            if (allowed == Constants.ALLOW_LITERALS_NONE ||
-                    (text && allowed != Constants.ALLOW_LITERALS_ALL)) {
->>>>>>> remotes/git-svn
                 throw DbException.get(ErrorCode.LITERALS_ARE_NOT_ALLOWED);
             }
         }
@@ -4432,14 +4382,9 @@ public class Parser {
                 cached = database.getDefaultTableType() == Table.TYPE_CACHED;
             }
             return parseCreateTable(false, false, cached);
-<<<<<<< HEAD
         } else { //这个else分枝是处理建索引语法
-            boolean hash = false, primaryKey = false, unique = false, spatial = false;
-=======
-        } else {
             boolean hash = false, primaryKey = false;
             boolean unique = false, spatial = false;
->>>>>>> remotes/git-svn
             String indexName = null;
             Schema oldSchema = null;
             boolean ifNotExists = false;
@@ -6049,15 +5994,9 @@ public class Parser {
         }
         return command;
     }
-<<<<<<< HEAD
     
     //当CREATE CACHED TABLE时，persistIndexes为true
     private CreateTable parseCreateTable(boolean temp, boolean globalTemp, boolean persistIndexes) {
-=======
-
-    private CreateTable parseCreateTable(boolean temp, boolean globalTemp,
-            boolean persistIndexes) {
->>>>>>> remotes/git-svn
         boolean ifNotExists = readIfNoExists();
         String tableName = readIdentifierWithSchema();
         //如CREATE CACHED GLOBAL TEMPORARY TABLE IF NOT EXISTS TEST9.SESSION.mytable (f1 int)
@@ -6079,17 +6018,13 @@ public class Parser {
         if (readIf("(")) { //可以没有列
             if (!readIf(")")) {
                 do {
-<<<<<<< HEAD
                 	//约束和字段可以分开
                 	//在parseAlterTableAddConstraintIf里头，如果指定的约束字段在字段定义之前也是可以的，
                 	//因为执行AlterTableAddConstraint时，字段已有了
                 	//如CREATE TABLE IF NOT EXISTS mytable3 (f1 int, PRIMARY KEY(f2), f2 int not null)是无错的，
                 	//虽然PRIMARY KEY(f2)在f2字段的定义之前
                     DefineCommand c = parseAlterTableAddConstraintIf(tableName, schema); //定义约束
-=======
-                    DefineCommand c = parseAlterTableAddConstraintIf(tableName,
-                            schema);
->>>>>>> remotes/git-svn
+
                     if (c != null) {
                         command.addConstraintCommand(c);
                     } else {  //定义字段
@@ -6120,14 +6055,9 @@ public class Parser {
                             boolean hash = readIf("HASH");
                             IndexColumn[] cols = { new IndexColumn() };
                             cols[0].columnName = column.getName();
-<<<<<<< HEAD
                             //指定false，意思就是没有带IF NOT EXISTS
                             //字段类型后面紧跟约束定义不能带IF NOT EXISTS
                             AlterTableAddConstraint pk = new AlterTableAddConstraint(session, schema, false);
-=======
-                            AlterTableAddConstraint pk = new AlterTableAddConstraint(
-                                    session, schema, false);
->>>>>>> remotes/git-svn
                             pk.setPrimaryKeyHash(hash);
                             pk.setType(CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY);
                             pk.setTableName(tableName);

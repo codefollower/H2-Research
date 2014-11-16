@@ -723,14 +723,9 @@ public class Session extends SessionWithState {
             // otherwise rollback will try to rollback a not-inserted row
             if (SysProperties.CHECK) {
                 int lockMode = database.getLockMode();
-<<<<<<< HEAD
                 if (lockMode != Constants.LOCK_MODE_OFF && !database.isMultiVersion()) {
                 	//当要记撤消日志时，除了TABLE_LINK、EXTERNAL_TABLE_ENGINE这两种类型的表外，其他表类型必须先锁表
                 	//例如调用org.h2.table.Table.lock(Session, boolean, boolean)
-=======
-                if (lockMode != Constants.LOCK_MODE_OFF &&
-                        !database.isMultiVersion()) {
->>>>>>> remotes/git-svn
                     String tableType = log.getTable().getTableType();
                     if (locks.indexOf(log.getTable()) < 0
                             && !Table.TABLE_LINK.equals(tableType)

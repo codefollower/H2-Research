@@ -60,17 +60,11 @@ public class Right extends DbObjectBase {
         this.grantee = grantee;
         this.grantedRole = grantedRole;
     }
-<<<<<<< HEAD
     
     //将权限 授予RightOwner
     //也就是将grantedRightOnTable表的grantedRight权限 授grantee
     //对应GRANT RIGHT语句
     public Right(Database db, int id, RightOwner grantee, int grantedRight, Table grantedRightOnTable) {
-=======
-
-    public Right(Database db, int id, RightOwner grantee, int grantedRight,
-            Table grantedRightOnTable) {
->>>>>>> remotes/git-svn
         initDbObjectBase(db, id, "" + id, Trace.USER);
         this.grantee = grantee;
         this.grantedRight = grantedRight;

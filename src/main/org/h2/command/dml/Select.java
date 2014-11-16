@@ -599,14 +599,9 @@ public class Select extends Query {
                 }
                 result.addRow(row);
                 rowNumber++;
-<<<<<<< HEAD
                 //如果sort为null，说明不用排序，只要读够那么多行就可以了
                 //同样的，如果sortUsingIndex为true，那么说明当前是按索引先取的，索引是有序的，所以只要读够那么多行也可以了
                 if ((sort == null || sortUsingIndex) && limitRows > 0 && result.getRowCount() >= limitRows) {
-=======
-                if ((sort == null || sortUsingIndex) && limitRows > 0 &&
-                        result.getRowCount() >= limitRows) {
->>>>>>> remotes/git-svn
                     break;
                 }
                 if (sampleSize > 0 && rowNumber >= sampleSize) {
@@ -841,7 +836,6 @@ public class Select extends Query {
             expressionSQL = null;
         }
         if (orderList != null) {
-<<<<<<< HEAD
         	//在select中加distinct时distinct变量为true
         	//此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
         	//比如select distinct name from mytable order by id desc是错的
@@ -849,10 +843,6 @@ public class Select extends Query {
         	//这样就没问题select name from mytable order by id desc
         	//会自动加order by中的字段到select字段列表中
             initOrder(session, expressions, expressionSQL, orderList, visibleColumnCount, distinct, filters);
-=======
-            initOrder(session, expressions, expressionSQL, orderList,
-                    visibleColumnCount, distinct, filters);
->>>>>>> remotes/git-svn
         }
         distinctColumnCount = expressions.size();
         if (having != null) {
@@ -989,7 +979,6 @@ public class Select extends Query {
                 }
             }
         }
-<<<<<<< HEAD
         
         //这里是针对min、max、count三个聚合函数的特别优化，见org.h2.expression.Aggregate.getValue(Session)
         //有group by或having或聚合函数时isGroupQuery=true
@@ -1003,14 +992,6 @@ public class Select extends Query {
                 ExpressionVisitor optimizable = ExpressionVisitor.getOptimizableVisitor(t);
                 //isEverything里再判断所有的select字段表达式对于OPTIMIZABLE_MIN_MAX_COUNT_ALL是否可优化
                 //可参考org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
-=======
-        if (isGroupQuery && groupIndex == null &&
-                havingIndex < 0 && filters.size() == 1) {
-            if (condition == null) {
-                Table t = filters.get(0).getTable();
-                ExpressionVisitor optimizable = ExpressionVisitor.
-                        getOptimizableVisitor(t);
->>>>>>> remotes/git-svn
                 isQuickAggregateQuery = isEverything(optimizable);
             }
         }
@@ -1088,13 +1069,8 @@ public class Select extends Query {
                 }
             }
         }
-<<<<<<< HEAD
         //没有聚合函数，有group by的情型
         if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) {
-=======
-        if (!isQuickAggregateQuery && isGroupQuery &&
-                getGroupByExpressionCount() > 0) {
->>>>>>> remotes/git-svn
             Index index = getGroupSortedIndex();
             Index current = topTableFilter.getIndex();
             if (index != null && (current.getIndexType().isScan() ||

@@ -73,44 +73,7 @@ import org.h2.value.ValueUuid;
  * This class implements most built-in functions of this database.
  */
 public class Function extends Expression implements FunctionCall {
-<<<<<<< HEAD
-	//Numeric Functions: 数值函数39个(LOG和LN等价，所以算一个)
-    public static final int ABS = 0, ACOS = 1, ASIN = 2, ATAN = 3, ATAN2 = 4, BITAND = 5, BITOR = 6, BITXOR = 7,
-            CEILING = 8, COS = 9, COT = 10, DEGREES = 11, EXP = 12, FLOOR = 13, LOG = 14, LOG10 = 15, MOD = 16,
-            PI = 17, POWER = 18, RADIANS = 19, RAND = 20, ROUND = 21, ROUNDMAGIC = 22, SIGN = 23, SIN = 24, SQRT = 25,
-            TAN = 26, TRUNCATE = 27, SECURE_RAND = 28, HASH = 29, ENCRYPT = 30, DECRYPT = 31, COMPRESS = 32,
-            EXPAND = 33, ZERO = 34, RANDOM_UUID = 35, COSH = 36, SINH = 37, TANH = 38, LN = 39;
-    
-    //String Functions: 字符串函数43个(文档只有38个)
-    public static final int ASCII = 50, BIT_LENGTH = 51, CHAR = 52, CHAR_LENGTH = 53, CONCAT = 54, DIFFERENCE = 55,
-            HEXTORAW = 56, INSERT = 57, INSTR = 58, LCASE = 59, LEFT = 60, LENGTH = 61, LOCATE = 62, LTRIM = 63,
-            OCTET_LENGTH = 64, RAWTOHEX = 65, REPEAT = 66, REPLACE = 67, RIGHT = 68, RTRIM = 69, SOUNDEX = 70,
-            SPACE = 71, SUBSTR = 72, SUBSTRING = 73, UCASE = 74, LOWER = 75, UPPER = 76, POSITION = 77, TRIM = 78,
-            STRINGENCODE = 79, STRINGDECODE = 80, STRINGTOUTF8 = 81, UTF8TOSTRING = 82, XMLATTR = 83, XMLNODE = 84,
-            XMLCOMMENT = 85, XMLCDATA = 86, XMLSTARTDOC = 87, XMLTEXT = 88, REGEXP_REPLACE = 89, RPAD = 90, LPAD = 91,
-
-            //CONCAT_WS 表示:concat with separator
-    
-    //Time and Date Functions: 时间与日期函数26个(文档只有20个)
-
-            CONCAT_WS = 92, TO_CHAR = 93;
-
-    public static final int CURDATE = 100, CURTIME = 101, DATE_ADD = 102, DATE_DIFF = 103, DAY_NAME = 104,
-            DAY_OF_MONTH = 105, DAY_OF_WEEK = 106, DAY_OF_YEAR = 107, HOUR = 108, MINUTE = 109, MONTH = 110, MONTH_NAME = 111,
-            NOW = 112, QUARTER = 113, SECOND = 114, WEEK = 115, YEAR = 116, CURRENT_DATE = 117, CURRENT_TIME = 118,
-            CURRENT_TIMESTAMP = 119, EXTRACT = 120, FORMATDATETIME = 121, PARSEDATETIME = 122,
-            ISO_YEAR = 123, ISO_WEEK = 124, ISO_DAY_OF_WEEK = 125;
-
-    //下面的都是System Functions: 系统函数9+31+1=41个(文档只有38个)
-    public static final int DATABASE = 150, USER = 151, CURRENT_USER = 152, IDENTITY = 153, SCOPE_IDENTITY = 154,
-            AUTOCOMMIT = 155, READONLY = 156, DATABASE_PATH = 157, LOCK_TIMEOUT = 158, DISK_SPACE_USED = 159;
-
-    public static final int IFNULL = 200, CASEWHEN = 201, CONVERT = 202, CAST = 203, COALESCE = 204, NULLIF = 205,
-            CASE = 206, NEXTVAL = 207, CURRVAL = 208, ARRAY_GET = 209, CSVREAD = 210, CSVWRITE = 211,
-            MEMORY_FREE = 212, MEMORY_USED = 213, LOCK_MODE = 214, SCHEMA = 215, SESSION_ID = 216, ARRAY_LENGTH = 217,
-            LINK_SCHEMA = 218, GREATEST = 219, LEAST = 220, CANCEL_SESSION = 221, SET = 222, TABLE = 223, TABLE_DISTINCT = 224,
-            FILE_READ = 225, TRANSACTION_ID = 226, TRUNCATE_VALUE = 227, NVL2 = 228, DECODE = 229, ARRAY_CONTAINS = 230;
-=======
+    //Numeric Functions: 数值函数39个(LOG和LN等价，所以算一个)
     public static final int ABS = 0, ACOS = 1, ASIN = 2, ATAN = 3, ATAN2 = 4,
             BITAND = 5, BITOR = 6, BITXOR = 7, CEILING = 8, COS = 9, COT = 10,
             DEGREES = 11, EXP = 12, FLOOR = 13, LOG = 14, LOG10 = 15, MOD = 16,
@@ -119,7 +82,7 @@ public class Function extends Expression implements FunctionCall {
             TRUNCATE = 27, SECURE_RAND = 28, HASH = 29, ENCRYPT = 30,
             DECRYPT = 31, COMPRESS = 32, EXPAND = 33, ZERO = 34,
             RANDOM_UUID = 35, COSH = 36, SINH = 37, TANH = 38, LN = 39;
-
+    //String Functions: 字符串函数43个(文档只有38个)
     public static final int ASCII = 50, BIT_LENGTH = 51, CHAR = 52,
             CHAR_LENGTH = 53, CONCAT = 54, DIFFERENCE = 55, HEXTORAW = 56,
             INSERT = 57, INSTR = 58, LCASE = 59, LEFT = 60, LENGTH = 61,
@@ -132,6 +95,9 @@ public class Function extends Expression implements FunctionCall {
             XMLSTARTDOC = 87, XMLTEXT = 88, REGEXP_REPLACE = 89, RPAD = 90,
             LPAD = 91, CONCAT_WS = 92, TO_CHAR = 93, TRANSLATE = 94;
 
+    //CONCAT_WS 表示:concat with separator
+    
+    //Time and Date Functions: 时间与日期函数26个(文档只有20个)
     public static final int CURDATE = 100, CURTIME = 101, DATE_ADD = 102,
             DATE_DIFF = 103, DAY_NAME = 104, DAY_OF_MONTH = 105,
             DAY_OF_WEEK = 106, DAY_OF_YEAR = 107, HOUR = 108, MINUTE = 109,
@@ -141,6 +107,7 @@ public class Function extends Expression implements FunctionCall {
             FORMATDATETIME = 121, PARSEDATETIME = 122, ISO_YEAR = 123,
             ISO_WEEK = 124, ISO_DAY_OF_WEEK = 125;
 
+    //下面的都是System Functions: 系统函数9+31+1=41个(文档只有38个)
     public static final int DATABASE = 150, USER = 151, CURRENT_USER = 152,
             IDENTITY = 153, SCOPE_IDENTITY = 154, AUTOCOMMIT = 155,
             READONLY = 156, DATABASE_PATH = 157, LOCK_TIMEOUT = 158,
@@ -155,7 +122,6 @@ public class Function extends Expression implements FunctionCall {
             CANCEL_SESSION = 221, SET = 222, TABLE = 223, TABLE_DISTINCT = 224,
             FILE_READ = 225, TRANSACTION_ID = 226, TRUNCATE_VALUE = 227,
             NVL2 = 228, DECODE = 229, ARRAY_CONTAINS = 230;
->>>>>>> remotes/git-svn
 
     /**
      * Used in MySQL-style INSERT ... ON DUPLICATE KEY UPDATE ... VALUES
@@ -539,14 +505,9 @@ public class Function extends Expression implements FunctionCall {
         }
     }
 
-<<<<<<< HEAD
-    private static void addFunction(String name, int type, int parameterCount, int dataType,
-            boolean nullIfParameterIsNull, boolean deterministic, boolean bufferResultSetToLocalTemp) { //7个字段
-=======
     private static void addFunction(String name, int type, int parameterCount,
             int dataType, boolean nullIfParameterIsNull, boolean deterministic,
-            boolean bufferResultSetToLocalTemp) {
->>>>>>> remotes/git-svn
+            boolean bufferResultSetToLocalTemp) { //7个字段
         FunctionInfo info = new FunctionInfo();
         info.name = name;
         info.type = type;
@@ -740,16 +701,10 @@ public class Function extends Expression implements FunctionCall {
             result = ValueBytes.getNoCopy(
                     MathUtils.secureRandomBytes(v0.getInt()));
             break;
-<<<<<<< HEAD
         case EXPAND: //解压，对应COMPRESS函数
         	//sql = "SELECT EXPAND(x'1234')"; //只能接COMPRESS函数
     		//sql = "SELECT UTF8TOSTRING(EXPAND(COMPRESS(STRINGTOUTF8('Test'))))";
             result = ValueBytes.getNoCopy(CompressTool.getInstance().expand(v0.getBytesNoCopy()));
-=======
-        case EXPAND:
-            result = ValueBytes.getNoCopy(
-                    CompressTool.getInstance().expand(v0.getBytesNoCopy()));
->>>>>>> remotes/git-svn
             break;
         case ZERO:
             result = ValueInt.get(0);
@@ -894,15 +849,10 @@ public class Function extends Expression implements FunctionCall {
                     Calendar.DAY_OF_MONTH));
             break;
         case DAY_OF_WEEK:
-<<<<<<< HEAD
         	//周日，周一............................................, 周六
         	//SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
         	//数字是1, 2, 3... , 7，所以周一对应的数字是2
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.DAY_OF_WEEK));
-=======
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
-                    Calendar.DAY_OF_WEEK));
->>>>>>> remotes/git-svn
             break;
         case DAY_OF_YEAR:
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
@@ -921,27 +871,17 @@ public class Function extends Expression implements FunctionCall {
                     Calendar.MONTH));
             break;
         case MONTH_NAME: {
-<<<<<<< HEAD
         	//sql = "SELECT MONTHNAME(CURRENT_DATE)"; //不是MONTH_NAME，没有下划线
             SimpleDateFormat monthName = new SimpleDateFormat("MMMM", Locale.ENGLISH);
-=======
-            SimpleDateFormat monthName = new SimpleDateFormat("MMMM",
-                    Locale.ENGLISH);
->>>>>>> remotes/git-svn
             result = ValueString.get(monthName.format(v0.getDate()),
                     database.getMode().treatEmptyStringsAsNull);
             break;
         }
         case QUARTER:
-<<<<<<< HEAD
         	//第几个季度，用1、2、3、4表示
         	//因为DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)返回的月份加了1，所以这里要减一
         	//0, 1, 2, 3这4个数除以3都是0，所以要加1，同样其他的月份也类似
             result = ValueInt.get((DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH) - 1) / 3 + 1);
-=======
-            result = ValueInt.get((DateTimeUtils.getDatePart(v0.getDate(),
-                    Calendar.MONTH) - 1) / 3 + 1);
->>>>>>> remotes/git-svn
             break;
         case SECOND:
             result = ValueInt.get(DateTimeUtils.getDatePart(v0.getTimestamp(),
@@ -982,8 +922,7 @@ public class Function extends Expression implements FunctionCall {
         case NOW:
         case CURRENT_TIMESTAMP: {
             long now = session.getTransactionStart();
-<<<<<<< HEAD
-            ValueTimestamp vt = ValueTimestamp.get(new Timestamp(now));
+            ValueTimestamp vt = ValueTimestamp.fromMillis(now);
             //NOW(1)表示毫秒数只保留一位，如NOW()="2012-12-03 22:03:44.647" 则NOW(1)="2012-12-03 22:03:44.6"
     		//毫秒数一般是3位，如果NOW(100)，100>3了，所以NOW(100)跟NOW()一样
             if (v0 != null) {
@@ -991,13 +930,6 @@ public class Function extends Expression implements FunctionCall {
                 //org.h2.value.ValueTimestamp.convertScale(boolean, int)忽视convertOnlyToSmallerScale参数
                 //所以convertOnlyToSmallerScale没用的
                 vt = (ValueTimestamp) vt.convertScale(mode.convertOnlyToSmallerScale, v0.getInt());
-=======
-            ValueTimestamp vt = ValueTimestamp.fromMillis(now);
-            if (v0 != null) {
-                Mode mode = database.getMode();
-                vt = (ValueTimestamp) vt.convertScale(
-                        mode.convertOnlyToSmallerScale, v0.getInt());
->>>>>>> remotes/git-svn
             }
             result = vt;
             break;
@@ -1536,9 +1468,6 @@ public class Function extends Expression implements FunctionCall {
                         database.getMode().treatEmptyStringsAsNull);
             }
             break;
-<<<<<<< HEAD
-
-=======
         case TRANSLATE: {
             String matching = v1.getString();
             String replacement = v2.getString();
@@ -1547,13 +1476,11 @@ public class Function extends Expression implements FunctionCall {
                     database.getMode().treatEmptyStringsAsNull);
             break;
         }
->>>>>>> remotes/git-svn
         case H2VERSION:
             result = ValueString.get(Constants.getVersion(),
                     database.getMode().treatEmptyStringsAsNull);
             break;
         case DATE_ADD:
-<<<<<<< HEAD
         	//月份加1，结果是2001-02-28 00:00:00.0 
     		//sql = "SELECT DATEADD('MONTH', 1, DATE '2001-01-31')";
             result = ValueTimestamp.get(dateadd(v0.getString(), v1.getInt(), v2.getTimestamp()));
@@ -1562,14 +1489,6 @@ public class Function extends Expression implements FunctionCall {
         	//用后面的YEAR减去前面的YEAR，1999-2001=-2
     		//sql = "SELECT DATEDIFF('YEAR', DATE '2001-01-31', DATE '1999-01-31')";
             result = ValueLong.get(datediff(v0.getString(), v1.getTimestamp(), v2.getTimestamp()));
-=======
-            result = ValueTimestamp.get(dateadd(
-                    v0.getString(), v1.getInt(), v2.getTimestamp()));
-            break;
-        case DATE_DIFF:
-            result = ValueLong.get(datediff(
-                    v0.getString(), v1.getTimestamp(), v2.getTimestamp()));
->>>>>>> remotes/git-svn
             break;
         case EXTRACT: {
         	//抽取日期和年份 CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 

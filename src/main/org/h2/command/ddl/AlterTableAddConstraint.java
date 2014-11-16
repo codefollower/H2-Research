@@ -133,17 +133,9 @@ public class AlterTableAddConstraint extends SchemaCommand {
                 }
             }
             if (index == null) {
-<<<<<<< HEAD
                 IndexType indexType = IndexType.createPrimaryKey(table.isPersistIndexes(), primaryKeyHash);
                 String indexName = table.getSchema().getUniqueIndexName(session, table, Constants.PREFIX_PRIMARY_KEY);
                 int id = getObjectId(); //会得到新的对象id，作为索引id
-=======
-                IndexType indexType = IndexType.createPrimaryKey(
-                        table.isPersistIndexes(), primaryKeyHash);
-                String indexName = table.getSchema().getUniqueIndexName(
-                        session, table, Constants.PREFIX_PRIMARY_KEY);
-                int id = getObjectId();
->>>>>>> remotes/git-svn
                 try {
                     index = table.addIndex(session, indexName, id,
                             indexColumns, indexType, true, null);
@@ -213,18 +205,12 @@ public class AlterTableAddConstraint extends SchemaCommand {
             }
             boolean isOwner = false;
             IndexColumn.mapColumns(indexColumns, table);
-<<<<<<< HEAD
+            
             //只要index不是Scan索引(即getCreateSQL()不为null)，且index所在表就是table，且索引字段包含所有的indexColumns
-            if (index != null && canUseIndex(index, table, indexColumns)) {
-                isOwner = true;
-                index.getIndexType().setBelongsToConstraint(true);
-            } else {
-                index = getIndex(table, indexColumns); //isOwner同ALTER_TABLE_ADD_CONSTRAINT_UNIQUE中的解释
-=======
             if (index != null && canUseIndex(index, table, indexColumns, false)) {
                 isOwner = true;
                 index.getIndexType().setBelongsToConstraint(true);
-            } else {
+            } else { //isOwner同ALTER_TABLE_ADD_CONSTRAINT_UNIQUE中的解释
                 if (db.isStarting()) {
                     // before version 1.3.176, an existing index was used:
                     // must do the same to avoid
@@ -234,7 +220,6 @@ public class AlterTableAddConstraint extends SchemaCommand {
                 } else {
                     index = getIndex(table, indexColumns, false);
                 }
->>>>>>> remotes/git-svn
                 if (index == null) {
                     index = createIndex(table, indexColumns, false);
                     isOwner = true;

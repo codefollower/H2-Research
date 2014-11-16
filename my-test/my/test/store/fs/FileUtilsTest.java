@@ -62,7 +62,7 @@ public class FileUtilsTest {
 		FileUtils.delete("~/a.txt");
 		p(FileUtils.exists("~/a.txt"));
 		FileUtils.delete("file:~/my2.txt");
-		FileUtils.moveTo(fileName, "file:~/my2.txt");
+		FileUtils.move(fileName, "file:~/my2.txt");
 		FileUtils.delete("file:~/my2.txt");
 		FileUtils.createFile("~/a22.txt");
 		p(FileUtils.newDirectoryStream("~"));
@@ -104,7 +104,7 @@ public class FileUtilsTest {
 		FileUtils.delete("~/a.txt");
 		p(FileUtils.exists("~/a.txt"));
 		FileUtils.delete(scheme+":~/my2.txt");
-		FileUtils.moveTo(fileName, scheme+":~/my2.txt");
+		FileUtils.move(fileName, scheme+":~/my2.txt");
 		FileUtils.delete(scheme+":~/my2.txt");
 		FileUtils.createFile("~/a22.txt");
 		p(FileUtils.newDirectoryStream("~"));

@@ -59,15 +59,9 @@ public class Column {
     /**
      * It is not know whether this column is nullable.
      */
-<<<<<<< HEAD
     public static final int NULLABLE_UNKNOWN = ResultSetMetaData.columnNullableUnknown;
     
     //总共23个字段
-=======
-    public static final int NULLABLE_UNKNOWN =
-            ResultSetMetaData.columnNullableUnknown;
-
->>>>>>> remotes/git-svn
     private final int type;
     private long precision;
     private int scale;

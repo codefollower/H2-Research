@@ -67,7 +67,7 @@ public class JdbcStatement extends TraceObject implements Statement {
         	//org.h2.command.CommandRemote.executeQuery(int, boolean)中生成的objectId用于关联结果集，
         	//objectId在查询时先发给server端，server用objectId对应server端的结果集，
         	//同时objectId被放到ResultRemote中，然后这个ResultRemote又放到JdbcResultSet中，
-        	//当JdbcResultSet下一次要获取更多记录时，会把此objectId再发到server端，这样就可以继续获取后续记录了。
+        	//当JdbcResultSet下一次要获取更多记录时，会把此objectId再发到server端，这样就可以继续获取后续记录了�?
             int id = getNextId(TraceObject.RESULT_SET);
             if (isDebugEnabled()) {
                 debugCodeAssign("ResultSet", TraceObject.RESULT_SET, id,
@@ -936,7 +936,7 @@ public class JdbcStatement extends TraceObject implements Statement {
     /**
      * [Not supported]
      */
-/*## Java 1.7 ##
+//## Java 1.7 ##
     @Override
     public void closeOnCompletion() {
         // not supported
@@ -946,7 +946,7 @@ public class JdbcStatement extends TraceObject implements Statement {
     /**
      * [Not supported]
      */
-/*## Java 1.7 ##
+//## Java 1.7 ##
     @Override
     public boolean isCloseOnCompletion() {
         return true;

@@ -585,13 +585,8 @@ public class PageBtreeNode extends PageBtree {
 
     @Override
     public String toString() {
-<<<<<<< HEAD
     	return tree();
         //return "page[" + getPos() + "] b-tree node table:" + index.getId() + " entries:" + entryCount;
-=======
-        return "page[" + getPos() + "] b-tree node table:" +
-                index.getId() + " entries:" + entryCount;
->>>>>>> remotes/git-svn
     }
 
     @Override

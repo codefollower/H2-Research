@@ -107,13 +107,8 @@ public class CreateView extends SchemaCommand {
             if (view == null) {
                 Schema schema = session.getDatabase().getSchema(session.getCurrentSchemaName());
                 sysSession.setCurrentSchema(schema);
-<<<<<<< HEAD
                 //sysSession = session; //我加上的
                 view = new TableView(getSchema(), id, viewName, querySQL, null, columnNames, sysSession, false);
-=======
-                view = new TableView(getSchema(), id, viewName, querySQL, null,
-                        columnNames, sysSession, false);
->>>>>>> remotes/git-svn
             } else {
             	//sysSession = session; //我加上的
                 view.replace(querySQL, columnNames, sysSession, false, force);

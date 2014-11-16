@@ -594,17 +594,12 @@ public class TableFilter implements ColumnResolver {
      * @param nested if this is a nested join
      * @param on the join condition
      */
-<<<<<<< HEAD
     //没有发现outer、nested同时为true的
     //on这个joinCondition是加到filter参数对应的TableFilter中，也就是右表，而不是左表
     public void addJoin(TableFilter filter, boolean outer, boolean nested, final Expression on) {
     	//给on中的ExpressionColumn设置columnResolver，
     	//TableFilter实现了ColumnResolver接口，所以ExpressionColumn的columnResolver实际上就是TableFilter对象
     	//另外，下面的两个visit能查出多个Table之间的列是否同名
-=======
-    public void addJoin(TableFilter filter, boolean outer, boolean nested,
-            final Expression on) {
->>>>>>> remotes/git-svn
         if (on != null) {
             on.mapColumns(this, 0);
             if (session.getDatabase().getSettings().nestedJoins) {
@@ -660,13 +655,8 @@ public class TableFilter implements ColumnResolver {
                     }
                 } else {
                     if (outer) {
-<<<<<<< HEAD
                         //当nestedJoins为false时，nestedJoin字段不会有值，都是join字段有值，
                         // convert all inner joins on the right hand side to outer joins
-=======
-                        // convert all inner joins on the right hand side to
-                        // outer joins
->>>>>>> remotes/git-svn
                         TableFilter f = filter.join;
                         while (f != null) {
                             f.joinOuter = true;

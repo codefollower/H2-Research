@@ -362,16 +362,12 @@ public abstract class Prepared {
      * Notifies query progress via the DatabaseEventListener
      */
     private void setProgress() {
-<<<<<<< HEAD
     	//等价于((currentRowNumber % 128) == 0)，但是(currentRowNumber & 127)性能更高
-        if ((currentRowNumber & 127) == 0) { //每过128条记录提示一次进度
-            session.getDatabase().setProgress(DatabaseEventListener.STATE_STATEMENT_PROGRESS, sqlStatement, currentRowNumber, 0);
-=======
+        //每过128条记录提示一次进度
         if ((currentRowNumber & 127) == 0) {
             session.getDatabase().setProgress(
                     DatabaseEventListener.STATE_STATEMENT_PROGRESS,
                     sqlStatement, currentRowNumber, 0);
->>>>>>> remotes/git-svn
         }
     }
 

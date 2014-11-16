@@ -161,15 +161,10 @@ public class PageBtreeLeaf extends PageBtree {
                 byte[] d = data.getBytes();
                 int dataStart = offsets[entryCount - 1]; //offsets总是降序的，所以offsets[entryCount - 1]是data的最小下标
                 int dataEnd = offset;
-<<<<<<< HEAD
                 //将data数组中dataStart下标开始的dataEnd - dataStart + rowLength个元素往左移到dataStart - rowLength开始处
                 //(即: 把数据移到dataStart位置的左边，因为dataStart前的位置还没写数据，所以整体往前挪rowLength, 右边挪出的空位置
                 //用来放新的row，这个row的位置就是offset)
                 System.arraycopy(d, dataStart, d, dataStart - rowLength, dataEnd - dataStart + rowLength);
-=======
-                System.arraycopy(d, dataStart, d, dataStart - rowLength,
-                        dataEnd - dataStart + rowLength);
->>>>>>> remotes/git-svn
             }
             index.writeRow(data, offset, row, onlyPosition);
         }
@@ -371,13 +366,8 @@ public class PageBtreeLeaf extends PageBtree {
 
     @Override
     public String toString() {
-<<<<<<< HEAD
     	return tree();
         //return "page[" + getPos() + "] b-tree leaf table:" + index.getId() + " entries:" + entryCount;
-=======
-        return "page[" + getPos() + "] b-tree leaf table:" +
-                index.getId() + " entries:" + entryCount;
->>>>>>> remotes/git-svn
     }
 
     @Override

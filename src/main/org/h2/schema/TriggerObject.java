@@ -156,13 +156,8 @@ public class TriggerObject extends SchemaObjectBase {
      * @param rollback when the operation occurred within a rollback
      * @return true if no further action is required (for 'instead of' triggers)
      */
-<<<<<<< HEAD
     public boolean fireRow(Session session, Row oldRow, Row newRow, boolean beforeAction, boolean rollback) {
     	//rowBased=false说明是一个非FOR EACH ROW触发器，这个方法是在增加、删除、修改单行的前后调用的，对非FOR EACH ROW触发器无效
-=======
-    public boolean fireRow(Session session, Row oldRow, Row newRow,
-            boolean beforeAction, boolean rollback) {
->>>>>>> remotes/git-svn
         if (!rowBased || before != beforeAction) {
             return false;
         }

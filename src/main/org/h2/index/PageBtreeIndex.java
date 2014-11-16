@@ -39,13 +39,8 @@ public class PageBtreeIndex extends PageIndex {
     private int memoryPerPage;
     private int memoryCount;
 
-<<<<<<< HEAD
     //PageDataIndex的id就是表的id，其他索引如PageBtreeIndex的id是自动分配的并不是表的id
     public PageBtreeIndex(RegularTable table, int id, String indexName, IndexColumn[] columns,
-=======
-    public PageBtreeIndex(RegularTable table, int id, String indexName,
-            IndexColumn[] columns,
->>>>>>> remotes/git-svn
             IndexType indexType, boolean create, Session session) {
         initBaseIndex(table, id, indexName, columns, indexType);
         if (!database.isStarting() && create) {

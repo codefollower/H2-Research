@@ -68,15 +68,11 @@ public class BackupCommand extends Prepared {
             OutputStream zip = FileUtils.newOutputStream(fileName, false);
             ZipOutputStream out = new ZipOutputStream(zip);
             db.flush();
-<<<<<<< HEAD
-            String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //返回E:/H2/baseDir/mydb.h2.db
-            backupPageStore(out, fn, db.getPageStore());
-=======
+
             if (db.getPageStore() != null) {
-                String fn = db.getName() + Constants.SUFFIX_PAGE_FILE;
+                String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //返回E:/H2/baseDir/mydb.h2.db
                 backupPageStore(out, fn, db.getPageStore());
             }
->>>>>>> remotes/git-svn
             // synchronize on the database, to avoid concurrent temp file
             // creation / deletion / backup
             String base = FileUtils.getParent(db.getName());
@@ -93,13 +89,9 @@ public class BackupCommand extends Prepared {
                     if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //备份".lob.db"文件
                         backupFile(out, base, n);
                     }
-<<<<<<< HEAD
-                    if (n.endsWith(Constants.SUFFIX_MV_FILE)) { //备份".mv.db"文件
-                        MVStore s = store.getStore();
-=======
-                    if (n.endsWith(Constants.SUFFIX_MV_FILE) && mvStore != null) {
+
+                    if (n.endsWith(Constants.SUFFIX_MV_FILE) && mvStore != null) { //备份".mv.db"文件
                         MVStore s = mvStore.getStore();
->>>>>>> remotes/git-svn
                         boolean before = s.getReuseSpace();
                         s.setReuseSpace(false);
                         try {
@@ -146,16 +138,9 @@ public class BackupCommand extends Prepared {
         backupFile(out, base, fn, in);
     }
 
-<<<<<<< HEAD
     private static void backupFile(ZipOutputStream out, String base, String fn, InputStream in) throws IOException {
         String f = FileUtils.toRealPath(fn); //返回E:/H2/baseDir/mydb.mv.db
         base = FileUtils.toRealPath(base); //返回E:/H2/baseDir
-=======
-    private static void backupFile(ZipOutputStream out, String base, String fn,
-            InputStream in) throws IOException {
-        String f = FileUtils.toRealPath(fn);
-        base = FileUtils.toRealPath(base);
->>>>>>> remotes/git-svn
         if (!f.startsWith(base)) {
             DbException.throwInternalError(f + " does not start with " + base);
         }

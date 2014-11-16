@@ -21,13 +21,8 @@ import org.h2.table.Table;
 /**
  * The base class for constraint checking.
  */
-<<<<<<< HEAD
 //由org.h2.table.Table.fireConstraints(Session, Row, Row, boolean)触发checkRow
 public abstract class Constraint extends SchemaObjectBase implements Comparable<Constraint> {
-=======
-public abstract class Constraint extends SchemaObjectBase implements
-        Comparable<Constraint> {
->>>>>>> remotes/git-svn
 
     /**
      * The constraint type name for check constraints.

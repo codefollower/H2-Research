@@ -75,15 +75,9 @@ public class FilePathDisk extends FilePath {
 	//fileName = "file:~/FileStoreTest/my.txt";
     //则返回的是E:/H2/tmp/FileStoreTest/my.txt
     public static String expandUserHomeDirectory(String fileName) {
-<<<<<<< HEAD
     	//要么是单个~，要么是以~/开头
         if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
             String userDir = SysProperties.USER_HOME; //默认是C:\Users\Administrator
-=======
-        if (fileName.startsWith("~") && (fileName.length() == 1 ||
-                fileName.startsWith("~/"))) {
-            String userDir = SysProperties.USER_HOME;
->>>>>>> remotes/git-svn
             fileName = userDir + fileName.substring(1);
         }
         return fileName;
@@ -307,15 +301,10 @@ public class FilePathDisk extends FilePath {
     public InputStream newInputStream() throws IOException {
         int index = name.indexOf(':');
         if (index > 1 && index < 20) {
-<<<<<<< HEAD
-            // if the ':' is in position 1, a windows file access is assumed: C:.. or D:
-            // if the ':' is not at the beginning, assume its a file name with a colon
         	//如"classpath:my/test/store/fs/FileUtilsTest.class"
-=======
             // if the ':' is in position 1, a windows file access is assumed:
             // C:.. or D:, and if the ':' is not at the beginning, assume its a
             // file name with a colon
->>>>>>> remotes/git-svn
             if (name.startsWith(CLASSPATH_PREFIX)) {
                 String fileName = name.substring(CLASSPATH_PREFIX.length());
                 if (!fileName.startsWith("/")) {

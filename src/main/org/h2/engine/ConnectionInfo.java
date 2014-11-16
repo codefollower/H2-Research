@@ -346,13 +346,8 @@ public class ConnectionInfo implements Cloneable {
         userPasswordHash = hashPassword(passwordHash, user, password);
     }
 
-<<<<<<< HEAD
     private static byte[] hashPassword(boolean passwordHash, String userName, char[] password) {
-		//如果PASSWORD_HASH参数是true那么不再进行SHA256
-=======
-    private static byte[] hashPassword(boolean passwordHash, String userName,
-            char[] password) {
->>>>>>> remotes/git-svn
+		//如果PASSWORD_HASH参数是true那么不再进行SHA256vn
         if (passwordHash) {
             return StringUtils.convertHexToBytes(new String(password));
         }

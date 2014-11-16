@@ -385,7 +385,6 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         databaseName = name.substring(idx + 1); //是"mydb"
         String server = name.substring(0, idx); //是"localhost:9092"
         traceSystem = new TraceSystem(null);
-<<<<<<< HEAD
         //不是跟踪级别文件，是文件跟踪级别
         //跟下面的traceLevelSystemOut对应(SystemOut跟踪级别)
         //两者都是一个数字，如:
@@ -402,19 +401,6 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 if (level > 0 && level < 4) {
                 	//如: E:/H2/eclipse-workspace-client/trace.db/mydb.1647ee04bd9fa205.0.trace.db
                     String file = FileUtils.createTempFile(prefix, Constants.SUFFIX_TRACE_FILE, false, false);
-=======
-        String traceLevelFile = ci.getProperty(
-                SetTypes.TRACE_LEVEL_FILE, null);
-        if (traceLevelFile != null) {
-            int level = Integer.parseInt(traceLevelFile);
-            String prefix = getFilePrefix(
-                    SysProperties.CLIENT_TRACE_DIRECTORY);
-            try {
-                traceSystem.setLevelFile(level);
-                if (level > 0 && level < 4) {
-                    String file = FileUtils.createTempFile(prefix,
-                            Constants.SUFFIX_TRACE_FILE, false, false);
->>>>>>> remotes/git-svn
                     traceSystem.setFileName(file);
                 }
             } catch (IOException e) {
@@ -448,14 +434,10 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             if (className != null) {
                 className = StringUtils.trim(className, true, true, "'");
                 try {
-<<<<<<< HEAD
                 	//在server端还会重新new出实例
                 	//这里的实例只是在client端用
-                    eventListener = (DatabaseEventListener) Utils.loadUserClass(className).newInstance();
-=======
                     eventListener = (DatabaseEventListener) JdbcUtils
                             .loadUserClass(className).newInstance();
->>>>>>> remotes/git-svn
                 } catch (Throwable e) {
                     throw DbException.convert(e);
                 }

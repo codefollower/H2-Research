@@ -47,15 +47,9 @@ public class ScanIndex extends BaseIndex {
     private final HashMap<Integer, Integer> sessionRowCount;
     private HashSet<Row> delta;
     private long rowCount;
-<<<<<<< HEAD
     
     //跟PageDataIndex一样，id都是表id
     public ScanIndex(RegularTable table, int id, IndexColumn[] columns, IndexType indexType) {
-=======
-
-    public ScanIndex(RegularTable table, int id, IndexColumn[] columns,
-            IndexType indexType) {
->>>>>>> remotes/git-svn
         initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
         if (database.isMultiVersion()) {
             sessionRowCount = New.hashMap();

@@ -166,14 +166,8 @@ public class AlterTableAlterColumn extends SchemaCommand {
             break;
         }
         case CommandInterface.ALTER_TABLE_DROP_COLUMN: {
-<<<<<<< HEAD
             if (table.getColumns().length == 1) { //不能删除最后一列
                 throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, oldColumn.getSQL());
-=======
-            if (table.getColumns().length == 1) {
-                throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN,
-                        oldColumn.getSQL());
->>>>>>> remotes/git-svn
             }
             table.dropSingleColumnConstraintsAndIndexes(session, oldColumn);
             copyData();
@@ -210,14 +204,8 @@ public class AlterTableAlterColumn extends SchemaCommand {
             if (c.isPrimaryKey()) {
                 c.setOriginalSQL("IDENTITY");
             } else {
-<<<<<<< HEAD
                 int objId = getObjectId(); //作为自动生成的Sequence的对象id
                 c.convertAutoIncrementToSequence(session, getSchema(), objId, table.isTemporary());
-=======
-                int objId = getObjectId();
-                c.convertAutoIncrementToSequence(session, getSchema(), objId,
-                        table.isTemporary());
->>>>>>> remotes/git-svn
             }
         }
     }
@@ -289,18 +277,11 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
         }
     }
-<<<<<<< HEAD
-    
+
     //columns是原先表的列，newColumns放新列，一开始为空list
     //不仅仅是拷贝表结构，还会适当增删改列，然后拷贝数据(用create ... as select ...的方式)
     private Table cloneTableStructure(Column[] columns, Database db, String tempName, ArrayList<Column> newColumns) {
         for (Column col : columns) { //刚好ColumnId就是从0开始的
-=======
-
-    private Table cloneTableStructure(Column[] columns, Database db,
-            String tempName, ArrayList<Column> newColumns) {
-        for (Column col : columns) {
->>>>>>> remotes/git-svn
             newColumns.add(col.getClone());
         }
         //调整位置

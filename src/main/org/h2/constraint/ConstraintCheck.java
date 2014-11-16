@@ -147,15 +147,10 @@ public class ConstraintCheck extends Constraint {
             // don't check at startup
             return;
         }
-<<<<<<< HEAD
         //用NOT，意思就是说只要找到一个反例就与约束冲突了
         //比如，如果是CHECK f1 not null，
         //如果此时表中的f1字段存在null值，那么这个约束就创建失败
         String sql = "SELECT 1 FROM " + filter.getTable().getSQL() + " WHERE NOT(" + expr.getSQL() + ")";
-=======
-        String sql = "SELECT 1 FROM " + filter.getTable().getSQL() +
-                " WHERE NOT(" + expr.getSQL() + ")";
->>>>>>> remotes/git-svn
         ResultInterface r = session.prepare(sql).query(1);
         if (r.next()) {
             throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, getName());

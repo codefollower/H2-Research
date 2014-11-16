@@ -11,7 +11,7 @@ import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
-import org.h2.constant.SysProperties;
+import org.h2.engine.SysProperties;
 
 /**
  * The base class for wrapping / delegating file systems such as

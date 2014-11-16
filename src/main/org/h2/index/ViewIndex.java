@@ -120,14 +120,8 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     
     //此方法不影响些类的任何字段，只是为了计算cost
     @Override
-<<<<<<< HEAD
     public synchronized double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
         if (recursive) { //对应WITH RECURSIVE开头之类的语句，见my.test.command.ddl.CreateViewTest
-=======
-    public synchronized double getCost(Session session, int[] masks,
-            TableFilter filter, SortOrder sortOrder) {
-        if (recursive) {
->>>>>>> remotes/git-svn
             return 1000;
         }
         IntArray masksArray = new IntArray(masks == null ?
@@ -207,14 +201,10 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     private Cursor find(Session session, SearchRow first, SearchRow last,
             SearchRow intersection) {
         if (recursive) {
-<<<<<<< HEAD
         	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
         	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
         	//不过有bug
-            ResultInterface recResult = view.getRecursiveResult();
-=======
             LocalResult recResult = view.getRecursiveResult();
->>>>>>> remotes/git-svn
             if (recResult != null) {
                 recResult.reset();
                 return new ViewCursor(this, recResult, first, last);

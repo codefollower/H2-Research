@@ -154,12 +154,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @param sortOrder the sort order
      * @return the estimated cost
      */
-<<<<<<< HEAD
     protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) { //无子类覆盖
-=======
-    protected long getCostRangeIndex(int[] masks, long rowCount,
-            TableFilter filter, SortOrder sortOrder) {
->>>>>>> remotes/git-svn
         rowCount += Constants.COST_ROW_OFFSET;
         long cost = rowCount;
         long rows = rowCount;
@@ -184,14 +179,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
                     cost = 3;
                     break;
                 }
-<<<<<<< HEAD
                 totalSelectivity = 100 - ((100 - totalSelectivity) * (100 - column.getSelectivity()) / 100);
                 long distinctRows = rowCount * totalSelectivity / 100; //totalSelectivity变大时distinctRows变大
-=======
-                totalSelectivity = 100 - ((100 - totalSelectivity) *
-                        (100 - column.getSelectivity()) / 100);
-                long distinctRows = rowCount * totalSelectivity / 100;
->>>>>>> remotes/git-svn
                 if (distinctRows <= 0) {
                     distinctRows = 1;
                 }

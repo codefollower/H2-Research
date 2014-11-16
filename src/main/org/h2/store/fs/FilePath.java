@@ -71,17 +71,12 @@ public abstract class FilePath {
 
     private static void registerDefaultProviders() {
         if (providers == null || defaultProvider == null) {
-<<<<<<< HEAD
             Map<String, FilePath> map = Collections.synchronizedMap(New.<String, FilePath>hashMap());
             //默认是org.h2.store.fs.FilePathDisk, 所以这里不包含它
             //但是少了org.h2.store.fs.FilePathRec、org.h2.mvstore.cache.FilePathCache
             //不过org.h2.store.fs.FilePathRec是通过org.h2.store.fs.FilePath.register(FilePath)这个方法注册
             //见org.h2.store.fs.FilePathRec.register(),
             //在org.h2.engine.ConnectionInfo.ConnectionInfo(String, Properties)调用它了
-=======
-            Map<String, FilePath> map = Collections.synchronizedMap(
-                    New.<String, FilePath>hashMap());
->>>>>>> remotes/git-svn
             for (String c : new String[] {
                     "org.h2.store.fs.FilePathDisk",
                     "org.h2.store.fs.FilePathMem",

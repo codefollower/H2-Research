@@ -604,13 +604,8 @@ public class Database implements DataHandler {
                     traceSystem = new TraceSystem(null);
                 }
             } else {
-<<<<<<< HEAD
 				//E:/H2/baseDir/mydb.trace.db
                 traceSystem = new TraceSystem(databaseName + Constants.SUFFIX_TRACE_FILE);
-=======
-                traceSystem = new TraceSystem(databaseName +
-                        Constants.SUFFIX_TRACE_FILE);
->>>>>>> remotes/git-svn
             }
             traceSystem.setLevelFile(traceLevelFile);
             traceSystem.setLevelSystemOut(traceLevelSystemOut);
@@ -724,13 +719,8 @@ public class Database implements DataHandler {
         data.session = systemSession;
         meta = mainSchema.createTable(data);
         IndexColumn[] pkCols = IndexColumn.wrap(new Column[] { columnId });
-<<<<<<< HEAD
         //是TreeIndex，因为createPrimaryKey使用了persistent=false, hash=false
         metaIdIndex = meta.addIndex(systemSession, "SYS_ID", 0, pkCols, IndexType.createPrimaryKey(
-=======
-        metaIdIndex = meta.addIndex(systemSession, "SYS_ID",
-                0, pkCols, IndexType.createPrimaryKey(
->>>>>>> remotes/git-svn
                 false, false), true, null);
         objectIds.set(0);
         
@@ -743,17 +733,11 @@ public class Database implements DataHandler {
             objectIds.set(rec.getId());
             records.add(rec);
         }
-<<<<<<< HEAD
         Collections.sort(records); //按升序排，算法见org.h2.engine.MetaRecord.compareTo(MetaRecord)
-        for (MetaRecord rec : records) {
-            rec.execute(this, systemSession, eventListener);
-=======
-        Collections.sort(records);
         synchronized (systemSession) {
             for (MetaRecord rec : records) {
                 rec.execute(this, systemSession, eventListener);
             }
->>>>>>> remotes/git-svn
         }
         if (mvStore != null) {
             mvStore.initTransactions();
@@ -854,13 +838,8 @@ public class Database implements DataHandler {
         }
         synchronized (infoSchema) {
             if (!metaTablesInitialized) {
-<<<<<<< HEAD
             	//将所有的MetaTable放入INFORMATION_SCHEMA
                 for (int type = 0, count = MetaTable.getMetaTableTypeCount(); type < count; type++) {
-=======
-                for (int type = 0, count = MetaTable.getMetaTableTypeCount();
-                        type < count; type++) {
->>>>>>> remotes/git-svn
                     MetaTable m = new MetaTable(infoSchema, -1 - type, type);
                     infoSchema.add(m);
                 }
@@ -1601,13 +1580,9 @@ public class Database implements DataHandler {
      * @param session the session
      * @param obj the database object
      */
-<<<<<<< HEAD
     //并不会执行obj的相关sql，也不删除或修改Schema或Database中的相关map和obj的子对象
     //仅仅是先删除SYS表中与obj相关的旧sql并添加新的sql
-    public synchronized void update(Session session, DbObject obj) {
-=======
     public synchronized void updateMeta(Session session, DbObject obj) {
->>>>>>> remotes/git-svn
         lockMeta(session);
         int id = obj.getId();
         removeMeta(session, id);
@@ -2304,21 +2279,15 @@ public class Database implements DataHandler {
 
     public void setMultiThreaded(boolean multiThreaded) {
         if (multiThreaded && this.multiThreaded != multiThreaded) {
-<<<<<<< HEAD
         	//不允许类似这样同时设置MULTI_THREADED和MVCC为true
         	//prop.setProperty("MULTI_THREADED", "true");
     		//prop.setProperty("MVCC", "true");
-            if (multiVersion) {
-                // currently the combination of MVCC and MULTI_THREADED is not supported
-                throw DbException.get(ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1, "MVCC & MULTI_THREADED");
-=======
             if (multiVersion && mvStore == null) {
                 // currently the combination of MVCC and MULTI_THREADED is not
                 // supported
                 throw DbException.get(
                         ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
                         "MVCC & MULTI_THREADED");
->>>>>>> remotes/git-svn
             }
             if (lockMode == 0) {
                 // currently the combination of LOCK_MODE=0 and MULTI_THREADED

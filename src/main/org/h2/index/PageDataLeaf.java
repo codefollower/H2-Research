@@ -88,13 +88,8 @@ public class PageDataLeaf extends PageData {
      * @return the page
      */
     static PageDataLeaf create(PageDataIndex index, int pageId, int parentPageId) {
-<<<<<<< HEAD
         PageDataLeaf p = new PageDataLeaf(index, pageId, index.getPageStore().createData());
         //从org.h2.store.PageStore.openNew()转到这时，因为recoveryRunning是true，所以logUndo什么都没做
-=======
-        PageDataLeaf p = new PageDataLeaf(index, pageId, index.getPageStore()
-                .createData());
->>>>>>> remotes/git-svn
         index.getPageStore().logUndo(p, null);
         p.rows = Row.EMPTY_ARRAY;
         p.parentPageId = parentPageId;

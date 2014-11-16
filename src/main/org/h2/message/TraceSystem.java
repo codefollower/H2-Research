@@ -76,14 +76,9 @@ public class TraceSystem implements TraceWriter {
      */
     private static final int DEFAULT_MAX_FILE_SIZE = 64 * 1024 * 1024;
 
-<<<<<<< HEAD
-    private static final int CHECK_SIZE_EACH_WRITES = 128;
-    
     //用于SystemOut的级别，默认关闭
-=======
     private static final int CHECK_SIZE_EACH_WRITES = 4096;
 
->>>>>>> remotes/git-svn
     private int levelSystemOut = DEFAULT_TRACE_LEVEL_SYSTEM_OUT;
     //用于写入文件的级别，默认ERROR
     private int levelFile = DEFAULT_TRACE_LEVEL_FILE;

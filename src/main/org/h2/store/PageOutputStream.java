@@ -104,21 +104,12 @@ public class PageOutputStream {
             //在上面的org.h2.store.PageOutputStream.reserve(int)中已多分配了一个pageId
             trunkNext = reservedPages.get(len); //下一个PageStreamTrunk的pageId
             logKey++;
-<<<<<<< HEAD
             //第一个PageStreamTrunk的parent和trunkPageId一样
             trunk = PageStreamTrunk.create(store, parent, trunkPageId, trunkNext, logKey, pageIds);
             trunkIndex = 0; //重新置0，因为是新的PageStreamTrunk了
             pageCount++; //这里pageCount加1是对应新的PageStreamTrunk
             trunk.write(); //完整的写PageStreamTrunk了，写到store中
             reservedPages.removeRange(0, len + 1); //删除PageStreamTrunk对应的id和它的所有pageIds
-=======
-            trunk = PageStreamTrunk.create(store, parent, trunkPageId,
-                    trunkNext, logKey, pageIds);
-            trunkIndex = 0;
-            pageCount++;
-            trunk.write();
-            reservedPages.removeRange(0, len + 1);
->>>>>>> remotes/git-svn
             nextData = trunk.getPageData(trunkIndex++);
         }
         data = PageStreamData.create(store, nextData, trunk.getPos(), logKey);

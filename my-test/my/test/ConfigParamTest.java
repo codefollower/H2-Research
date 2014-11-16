@@ -3,7 +3,7 @@ package my.test;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import org.h2.constant.DbSettings;
+import org.h2.engine.DbSettings;
 
 public class ConfigParamTest {
 

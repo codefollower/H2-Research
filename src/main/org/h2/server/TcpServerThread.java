@@ -50,12 +50,7 @@ public class TcpServerThread implements Runnable {
     private boolean stop;
     private Thread thread;
     private Command commit;
-<<<<<<< HEAD
     private final SmallMap cache = new SmallMap(SysProperties.SERVER_CACHED_OBJECTS); //默认缓存64个对象
-=======
-    private final SmallMap cache =
-            new SmallMap(SysProperties.SERVER_CACHED_OBJECTS);
->>>>>>> remotes/git-svn
     private final SmallLRUCache<Long, CachedInputStream> lobs =
             SmallLRUCache.newInstance(Math.max(
                 SysProperties.SERVER_CACHED_OBJECTS,

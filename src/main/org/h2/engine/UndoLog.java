@@ -155,15 +155,11 @@ public class UndoLog {
         records.add(entry);
         if (largeTransactions) {
             memoryUndo++;
-<<<<<<< HEAD
             //maxMemoryUndo默认是50000，可通过SET MAX_MEMORY_UNDO xxx调整
             //当MVCC为true时，哪怕memoryUndo > database.getMaxMemoryUndo()了，也不把undo日志存到临时文件
-            if (memoryUndo > database.getMaxMemoryUndo() && database.isPersistent() && !database.isMultiVersion()) {
-=======
             if (memoryUndo > database.getMaxMemoryUndo() &&
                     database.isPersistent() &&
                     !database.isMultiVersion()) {
->>>>>>> remotes/git-svn
                 if (file == null) {
                     String fileName = database.createTempFile();
                     file = database.openFile(fileName, "rw", false);

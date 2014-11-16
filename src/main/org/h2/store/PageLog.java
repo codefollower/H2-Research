@@ -189,15 +189,10 @@ public class PageLog {
                 newFirstTrunkPage, undoAll, logKey, atEnd);
         pageOut.reserve(1);
         // pageBuffer = new BufferedOutputStream(pageOut, 8 * 1024);
-<<<<<<< HEAD
         //更新VariableHeader，一开始logKey为1，newFirstTrunkPage为5，pageOut.getCurrentDataPageId()为6
         //newFirstTrunkPage表示第一个PageStreamTrunk的pageId，
         //pageOut.getCurrentDataPageId()表示第一个PageStreamData的pageId.
         store.setLogFirstPage(logKey, newFirstTrunkPage, pageOut.getCurrentDataPageId());
-=======
-        store.setLogFirstPage(logKey, newFirstTrunkPage,
-                pageOut.getCurrentDataPageId());
->>>>>>> remotes/git-svn
         writeBuffer = store.createData();
     }
 

@@ -416,19 +416,6 @@ public class DateTimeUtils {
      * @return the value
      */
     public static int getDatePart(java.util.Date d, int field) {
-<<<<<<< HEAD
-        Calendar c = getCalendar();
-        synchronized (c) {
-            c.setTime(d);
-            if (field == Calendar.YEAR) {
-                return getYear(c);
-            }
-            int value = c.get(field);
-            if (field == Calendar.MONTH) {
-                return value + 1; //月份是从0开始的，所以要加1
-            }
-            return value;
-=======
         Calendar c = CACHED_CALENDAR.get();
         c.setTime(d);
         if (field == Calendar.YEAR) {
@@ -436,8 +423,7 @@ public class DateTimeUtils {
         }
         int value = c.get(field);
         if (field == Calendar.MONTH) {
-            return value + 1;
->>>>>>> remotes/git-svn
+            return value + 1; //月份是从0开始的，所以要加1
         }
         return value;
     }

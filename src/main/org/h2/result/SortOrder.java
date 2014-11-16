@@ -81,13 +81,8 @@ public class SortOrder implements Comparator<Value[]> {
      * @param sortType the sort order bit masks
      * @param orderList the original query order list (if this is a query)
      */
-<<<<<<< HEAD
-
-    public SortOrder(Database database, int[] queryColumnIndexes, int[] sortType, ArrayList<SelectOrderBy> orderList, int[] columnIndexes) {
-=======
     public SortOrder(Database database, int[] queryColumnIndexes,
             int[] sortType, ArrayList<SelectOrderBy> orderList) {
->>>>>>> remotes/git-svn
         this.database = database;
         this.queryColumnIndexes = queryColumnIndexes;
         this.sortTypes = sortType;
