@@ -279,7 +279,7 @@ public class RegularTable extends TableBase {
                 long total = remaining;
                 Cursor cursor = scan.find(session, null, null);
                 long i = 0;
-                int bufferSize = (int) Math.min(rowCount, SysProperties.MAX_MEMORY_ROWS);
+                int bufferSize = (int) Math.min(rowCount, database.getMaxMemoryRows());
                 ArrayList<Row> buffer = New.arrayList(bufferSize);
                 String n = getName() + ":" + index.getName();
                 int t = MathUtils.convertLongToInt(total);
@@ -462,11 +462,11 @@ public class RegularTable extends TableBase {
     //Select的isForUpdate变种在非MVCC下也把force设为true，
     //Insert、Update之类的才设为false
     @Override
-    public void lock(Session session, boolean exclusive,
+    public boolean lock(Session session, boolean exclusive,
             boolean forceLockEvenInMvcc) { //琐粒度太大，每insert一行都琐表
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) { //禁用锁
-            return;
+            return lockExclusiveSession != null;
         }
         if (!forceLockEvenInMvcc && database.isMultiVersion()) { //如果使用了MVCC，并且不是强制的，则 不使用排它琐
             // MVCC: update, delete, and insert use a shared lock.
@@ -475,16 +475,19 @@ public class RegularTable extends TableBase {
                 exclusive = false; //禁用排它琐
             } else {
                 if (lockExclusiveSession == null) {
-                    return;
+                    return false;
                 }
             }
         }
         if (lockExclusiveSession == session) {
-            return;
+            return true;
         }
         synchronized (database) {
             if (lockExclusiveSession == session) {
-                return;
+                return true;
+            }
+            if (!exclusive && lockSharedSessions.contains(session)) {
+                return true;
             }
             session.setWaitForLock(this, Thread.currentThread());
             waitingSessions.addLast(session);
@@ -495,6 +498,7 @@ public class RegularTable extends TableBase {
                 waitingSessions.remove(session);
             }
         }
+        return false;
     }
 
     private void doLock1(Session session, int lockMode, boolean exclusive) {
@@ -552,7 +556,7 @@ public class RegularTable extends TableBase {
             if (checkDeadlock) {
                 ArrayList<Session> sessions = checkDeadlock(session, null, null);
                 if (sessions != null) {
-                    throw DbException.get(ErrorCode.DEADLOCK_1, getDeadlockDetails(sessions));
+                    throw DbException.get(ErrorCode.DEADLOCK_1, getDeadlockDetails(sessions, exclusive));
                 }
             } else {
                 // check for deadlocks from now on
@@ -628,7 +632,7 @@ public class RegularTable extends TableBase {
         }
         return false;
     }
-    private static String getDeadlockDetails(ArrayList<Session> sessions) {
+    private static String getDeadlockDetails(ArrayList<Session> sessions, boolean exclusive) {
         // We add the thread details here to make it easier for customers to
         // match up these error messages with their own logs.
         StringBuilder buff = new StringBuilder();
@@ -641,6 +645,7 @@ public class RegularTable extends TableBase {
                 append(thread.getName()).
                 append(" is waiting to lock ").
                 append(lock.toString()).
+                append(exclusive ? " (exclusive)" : " (shared)").
                 append(" while locking ");
             int i = 0;
             for (Table t : s.getLocks()) {

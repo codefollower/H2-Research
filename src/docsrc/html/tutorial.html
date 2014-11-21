@@ -180,7 +180,7 @@ Javascript needs to be enabled.
 If you started the server on the same computer as the browser, open the URL <code>http://localhost:8082</code>.
 If you want to connect to the application from another computer, you need to provide the IP address of the server, for example:
 <code>http://192.168.0.2:8082</code>.
-If you enabled SSL on the server side, the URL needs to start with <code>https://</code>.
+If you enabled TLS on the server side, the URL needs to start with <code>https://</code>.
 </p>
 
 <h3>Multiple Concurrent Sessions</h3>
@@ -431,7 +431,7 @@ Supported settings are:
 </p>
 <ul><li><code>webAllowOthers</code>: allow other computers to connect.
 </li><li><code>webPort</code>: the port of the H2 Console
-</li><li><code>webSSL</code>: use encrypted (HTTPS) connections.
+</li><li><code>webSSL</code>: use encrypted TLS (HTTPS) connections.
 </li></ul>
 <p>
 In addition to those settings, the properties of the last recently used connection
@@ -1388,7 +1388,7 @@ There is an incompatibility with the Spring JdbcTemplate and H2 version 1.3.154 
 because of a change in the error code. This will cause the JdbcTemplate to not detect
 a duplicate key condition, and so a <code>DataIntegrityViolationException</code> is thrown instead of
 <code>DuplicateKeyException</code>.
-See also <a href="https://jira.springsource.org/browse/SPR-8235">the issue SPR-8235</a>.
+See also <a href="http://jira.spring.io/browse/SPR-8235">the issue SPR-8235</a>.
 The workaround is to add the following XML file to the root of the classpath:
 </p>
 <pre>

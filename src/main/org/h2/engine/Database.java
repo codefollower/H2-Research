@@ -885,12 +885,15 @@ public class Database implements DataHandler {
      * @param session the session
      * @return whether it was already locked before by this session
      */
-    public synchronized boolean lockMeta(Session session) {
+    public boolean lockMeta(Session session) {
+        // this method can not be synchronized on the database object,
+        // as unlocking is also synchronized on the database object -
+        // so if locking starts just before unlocking, locking could
+        // never be successful
         if (meta == null) {
             return true;
         }
-        boolean wasLocked = meta.isLockedExclusivelyBy(session);
-        meta.lock(session, true, true);
+        boolean wasLocked = meta.lock(session, true, true);
         return wasLocked;
     }
 
@@ -2102,7 +2105,8 @@ public class Database implements DataHandler {
         case Constants.LOCK_MODE_OFF:
             if (multiThreaded) {
                 // currently the combination of LOCK_MODE=0 and MULTI_THREADED
-                // is not supported
+                // is not supported. also see code in
+                // JdbcDatabaseMetaData#supportsTransactionIsolationLevel(int)
                 throw DbException.get(
                         ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
                         "LOCK_MODE=0 & MULTI_THREADED");

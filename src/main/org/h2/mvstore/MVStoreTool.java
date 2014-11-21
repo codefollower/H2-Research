@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.mvstore.type.DataType;
 import org.h2.mvstore.type.StringDataType;
@@ -132,8 +133,16 @@ public class MVStoreTool {
                 int p = block.position();
                 pos += length;
                 int remaining = c.pageCount;
+                TreeMap<Integer, Integer> mapSizes = new TreeMap<Integer, Integer>();
+                int totalSize = 0;
                 while (remaining > 0) {
-                    chunk.position(p);
+                    try {
+                        chunk.position(p);
+                    } catch (IllegalArgumentException e) {
+                        // too far
+                        pw.printf("ERROR illegal position %d%n", p);
+                        break;
+                    }
                     int pageSize = chunk.getInt();
                     // check value (ignored)
                     chunk.getShort();
@@ -152,6 +161,12 @@ public class MVStoreTool {
                             node ? entries + 1 : entries,
                             pageSize);
                     p += pageSize;
+                    Integer mapSize = mapSizes.get(mapId);
+                    if (mapSize == null) {
+                        mapSize = 0;
+                    }
+                    mapSizes.put(mapId, mapSize + pageSize);
+                    totalSize += pageSize;
                     remaining--;
                     long[] children = null;
                     long[] counts = null;
@@ -218,13 +233,22 @@ public class MVStoreTool {
                         }
                     }
                 }
+                for (Integer mapId : mapSizes.keySet()) {
+                    int percent = 100 * mapSizes.get(mapId) / totalSize;
+                    pw.printf("map %x: %d%%%n", mapId, percent);
+                }
                 int footerPos = chunk.limit() - Chunk.FOOTER_LENGTH;
-                chunk.position(footerPos);
-                pw.printf(
-                        "+%0" + len + "x chunkFooter %s%n",
-                        footerPos,
-                        new String(chunk.array(), chunk.position(),
-                                Chunk.FOOTER_LENGTH, DataUtils.LATIN).trim());
+                try {
+                    chunk.position(footerPos);
+                    pw.printf(
+                            "+%0" + len + "x chunkFooter %s%n",
+                            footerPos,
+                            new String(chunk.array(), chunk.position(),
+                                    Chunk.FOOTER_LENGTH, DataUtils.LATIN).trim());
+                } catch (IllegalArgumentException e) {
+                    // too far
+                    pw.printf("ERROR illegal footer position %d%n", footerPos);
+                }
             }
             pw.printf("%n%0" + len + "x eof%n", fileSize);
             pw.printf("\n");
@@ -267,6 +291,7 @@ public class MVStoreTool {
             long chunkLength = 0;
             long maxLength = 0;
             long maxLengthLive = 0;
+            long maxLengthNotEmpty = 0;
             for (Entry<String, String> e : meta.entrySet()) {
                 String k = e.getKey();
                 if (k.startsWith("chunk.")) {
@@ -275,24 +300,37 @@ public class MVStoreTool {
                     chunkLength += c.len * MVStore.BLOCK_SIZE;
                     maxLength += c.maxLen;
                     maxLengthLive += c.maxLenLive;
+                    if (c.maxLenLive > 0) {
+                        maxLengthNotEmpty += c.maxLen;
+                    }
                 }
             }
-            pw.printf("Created: %s\n", formatTimestamp(fileCreated));
+            pw.printf("Created: %s\n", formatTimestamp(fileCreated, fileCreated));
+            pw.printf("Last modified: %s\n",
+                    formatTimestamp(FileUtils.lastModified(fileName), fileCreated));
             pw.printf("File length: %d\n", fileLength);
-            pw.printf("Excluding the last chunk\n");
+            pw.printf("The last chunk is not listed\n");
             pw.printf("Chunk length: %d\n", chunkLength);
             pw.printf("Chunk count: %d\n", chunks.size());
-            pw.printf("Used space: %d%%\n", 100 * chunkLength / fileLength);
+            pw.printf("Used space: %d%%\n", getPercent(chunkLength, fileLength));
             pw.printf("Chunk fill rate: %d%%\n", maxLength == 0 ? 100 :
-                100 * maxLengthLive / maxLength);
+                getPercent(maxLengthLive, maxLength));
+            pw.printf("Chunk fill rate excluding empty chunks: %d%%\n",
+                maxLengthNotEmpty == 0 ? 100 :
+                getPercent(maxLengthLive, maxLengthNotEmpty));
             for (Entry<Integer, Chunk> e : chunks.entrySet()) {
                 Chunk c = e.getValue();
                 long created = fileCreated + c.time;
-                pw.printf("  Chunk %d: %s, %d%% used, %d blocks\n",
-                        c.id, formatTimestamp(created),
-                        100 * c.maxLenLive / c.maxLen,
+                pw.printf("  Chunk %d: %s, %d%% used, %d blocks",
+                        c.id, formatTimestamp(created, fileCreated),
+                        getPercent(c.maxLenLive, c.maxLen),
                         c.len
                         );
+                if (c.maxLenLive == 0) {
+                    pw.printf(", unused: %s",
+                            formatTimestamp(fileCreated + c.unused, fileCreated));
+                }
+                pw.printf("\n");
             }
             pw.printf("\n");
         } catch (Exception e) {
@@ -304,9 +342,20 @@ public class MVStoreTool {
         pw.flush();
     }
 
-    private static String formatTimestamp(long t) {
+    private static String formatTimestamp(long t, long start) {
         String x = new Timestamp(t).toString();
-        return x.substring(0, 19);
+        String s = x.substring(0, 19);
+        s += " (+" + ((t - start) / 1000) + " s)";
+        return s;
+    }
+
+    private static int getPercent(long value, long max) {
+        if (value == 0) {
+            return 0;
+        } else if (value == max) {
+            return 100;
+        }
+        return (int) (1 + 98 * value / max);
     }
 
     /**
@@ -321,13 +370,13 @@ public class MVStoreTool {
      * @param compress whether to compress the data
      */
     public static void compact(String fileName, boolean compress) {
-        String tempName = fileName + ".tempFile";
+        String tempName = fileName + Constants.SUFFIX_MV_STORE_TEMP_FILE;
         FileUtils.delete(tempName);
         compact(fileName, tempName, compress);
         try {
             FileUtils.moveAtomicReplace(tempName, fileName);
         } catch (DbException e) {
-            String newName = fileName + ".newFile";
+            String newName = fileName + Constants.SUFFIX_MV_STORE_NEW_FILE;
             FileUtils.delete(newName);
             FileUtils.move(tempName, newName);
             FileUtils.delete(fileName);
@@ -344,11 +393,11 @@ public class MVStoreTool {
      * @param fileName the file name
      */
     public static void compactCleanUp(String fileName) {
-        String tempName = fileName + ".tempFile";
+        String tempName = fileName + Constants.SUFFIX_MV_STORE_TEMP_FILE;
         if (FileUtils.exists(tempName)) {
             FileUtils.delete(tempName);
         }
-        String newName = fileName + ".newFile";
+        String newName = fileName + Constants.SUFFIX_MV_STORE_NEW_FILE;
         if (FileUtils.exists(newName)) {
             if (FileUtils.exists(fileName)) {
                 FileUtils.delete(newName);

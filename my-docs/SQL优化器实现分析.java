@@ -13,7 +13,7 @@ select、update、delete都可以指定where子句，
 Comparison
 CompareLike
 
-对于下面三个，都要求件left表达式是ExpressionColumn
+对于下面三个，都要求left表达式是ExpressionColumn
 ConditionIn
 ConditionInSelect
 ConditionInConstantSet

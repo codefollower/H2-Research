@@ -143,7 +143,7 @@ public class MVPrimaryIndex extends BaseIndex {
             map.put(key, ValueArray.get(row.getValueList()));
         } catch (IllegalStateException e) {
             throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1,
-                    table.getName());
+                    e, table.getName());
         }
         lastKey = Math.max(lastKey, row.getKey());
     }
@@ -167,29 +167,33 @@ public class MVPrimaryIndex extends BaseIndex {
             }
         } catch (IllegalStateException e) {
             throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1,
-                    table.getName());
+                    e, table.getName());
         }
     }
 
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
         ValueLong min, max;
-        if (first == null || mainIndexColumn < 0) {
+        if (first == null) {
             min = MIN;
+        } else if (mainIndexColumn < 0) {
+            min = ValueLong.get(first.getKey());
         } else {
             ValueLong v = (ValueLong) first.getValue(mainIndexColumn);
             if (v == null) {
-                min = ZERO;
+                min = ValueLong.get(first.getKey());
             } else {
                 min = v;
             }
         }
-        if (last == null || mainIndexColumn < 0) {
+        if (last == null) {
             max = MAX;
+        } else if (mainIndexColumn < 0) {
+            max = ValueLong.get(last.getKey());
         } else {
             ValueLong v = (ValueLong) last.getValue(mainIndexColumn);
             if (v == null) {
-                max = MAX;
+                max = ValueLong.get(last.getKey());
             } else {
                 max = v;
             }
@@ -220,7 +224,7 @@ public class MVPrimaryIndex extends BaseIndex {
             long cost = 10 * (dataMap.sizeAsLongMax() + Constants.COST_ROW_OFFSET);
             return cost;
         } catch (IllegalStateException e) {
-            throw DbException.get(ErrorCode.OBJECT_CLOSED);
+            throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         }
     }
 
@@ -290,7 +294,7 @@ public class MVPrimaryIndex extends BaseIndex {
         try {
             return dataMap.sizeAsLongMax();
         } catch (IllegalStateException e) {
-            throw DbException.get(ErrorCode.OBJECT_CLOSED);
+            throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         }
     }
 

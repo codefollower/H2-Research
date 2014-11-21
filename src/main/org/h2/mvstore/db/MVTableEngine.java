@@ -161,9 +161,7 @@ public class MVTableEngine implements TableEngine {
             this.store = builder.open();
             this.transactionStore = new TransactionStore(
                     store,
-                    new ValueDataType(null, db, null),
-                    db.isMultiThreaded()
-                    );
+                    new ValueDataType(null, db, null));
         }
 
         public MVStore getStore() {
@@ -354,9 +352,6 @@ public class MVTableEngine implements TableEngine {
                     // disk full - ok
                 } else if (errorCode == DataUtils.ERROR_FILE_CORRUPT) {
                     // wrong encryption key - ok
-                } else {
-                    // something else
-                    // TODO log those issues when running unit tests
                 }
                 store.closeImmediately();
                 throw DbException.get(ErrorCode.IO_EXCEPTION_1, e, "Closing");

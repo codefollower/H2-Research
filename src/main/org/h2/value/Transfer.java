@@ -42,7 +42,7 @@ import org.h2.util.Utils;
  */
 public class Transfer {
 
-    private static final int BUFFER_SIZE = 16 * 1024;
+    private static final int BUFFER_SIZE = 64 * 1024;
     private static final int LOB_MAGIC = 0x1234;
     private static final int LOB_MAC_SALT_LENGTH = 16;
 
@@ -761,7 +761,8 @@ public class Transfer {
     public void verifyLobMac(byte[] hmac, long lobId) {
         byte[] result = calculateLobMac(lobId);
         if (!Utils.compareSecure(hmac,  result)) {
-            throw DbException.get(ErrorCode.REMOTE_CONNECTION_NOT_ALLOWED);
+            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1,
+                    "Invalid lob hmac; possibly the connection was re-opened internally");
         }
     }
 

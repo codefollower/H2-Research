@@ -88,8 +88,9 @@ public class FunctionTable extends Table {
     }
 
     @Override
-    public void lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
+    public boolean lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
         // nothing to do
+        return false;
     }
 
     @Override

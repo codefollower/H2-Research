@@ -97,12 +97,11 @@ public class SysProperties {
             Utils.getProperty(H2_BROWSER, null);
 
     /**
-     * System property <code>h2.enableAnonymousSSL</code> (default: true).<br />
-     * When using SSL connection, the anonymous cipher suite
-     * SSL_DH_anon_WITH_RC4_128_MD5 should be enabled.
+     * System property <code>h2.enableAnonymousTLS</code> (default: true).<br />
+     * When using TLS connection, the anonymous cipher suites should be enabled.
      */
-    public static final boolean ENABLE_ANONYMOUS_SSL =
-            Utils.getProperty("h2.enableAnonymousSSL", true);
+    public static final boolean ENABLE_ANONYMOUS_TLS =
+            Utils.getProperty("h2.enableAnonymousTLS", true);
 
     /**
      * System property <code>h2.bindAddress</code> (default: null).<br />
@@ -149,6 +148,30 @@ public class SysProperties {
      */
     public static final int COLLATOR_CACHE_SIZE =
             Utils.getProperty("h2.collatorCacheSize", 32000);
+
+    /**
+     * System property <code>h2.consoleTableIndexes</code>
+     * (default: 100).<br />
+     * Up to this many tables, the column type and indexes are listed.
+     */
+    public static final int CONSOLE_MAX_TABLES_LIST_INDEXES =
+            Utils.getProperty("h2.consoleTableIndexes", 100);
+
+    /**
+     * System property <code>h2.consoleTableColumns</code>
+     * (default: 500).<br />
+     * Up to this many tables, the column names are listed.
+     */
+    public static final int CONSOLE_MAX_TABLES_LIST_COLUMNS =
+            Utils.getProperty("h2.consoleTableColumns", 300);
+
+    /**
+     * System property <code>h2.consoleProcedureColumns</code>
+     * (default: 500).<br />
+     * Up to this many procedures, the column names are listed.
+     */
+    public static final int CONSOLE_MAX_PROCEDURES_LIST_COLUMNS =
+            Utils.getProperty("h2.consoleProcedureColumns", 300);
 
     /**
      * System property <code>h2.consoleStream</code> (default: true).<br />

@@ -19,7 +19,6 @@ import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.message.DbException;
 import org.h2.mvstore.MVMap;
-import org.h2.mvstore.MVMapConcurrent;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.StreamStore;
 import org.h2.mvstore.db.MVTableEngine.Store;
@@ -91,12 +90,9 @@ public class LobStorageMap implements LobStorageInterface {
         } else {
             mvStore = s.getStore();
         }
-        lobMap = mvStore.openMap("lobMap",
-                new MVMapConcurrent.Builder<Long, Object[]>());
-        refMap = mvStore.openMap("lobRef",
-                new MVMapConcurrent.Builder<Object[], Boolean>());
-        dataMap = mvStore.openMap("lobData",
-                new MVMapConcurrent.Builder<Long, byte[]>());
+        lobMap = mvStore.openMap("lobMap");
+        refMap = mvStore.openMap("lobRef");
+        dataMap = mvStore.openMap("lobData");
         streamStore = new StreamStore(dataMap);
     }
 
@@ -125,7 +121,7 @@ public class LobStorageMap implements LobStorageInterface {
             }
             return createLob(in, type);
         } catch (IllegalStateException e) {
-            throw DbException.get(ErrorCode.OBJECT_CLOSED);
+            throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         } catch (IOException e) {
             throw DbException.convertIOException(e, null);
         }
@@ -163,7 +159,7 @@ public class LobStorageMap implements LobStorageInterface {
                     lob.getTableId(), lob.getLobId(), null, in.getLength());
             return lob;
         } catch (IllegalStateException e) {
-            throw DbException.get(ErrorCode.OBJECT_CLOSED);
+            throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         } catch (IOException e) {
             throw DbException.convertIOException(e, null);
         }

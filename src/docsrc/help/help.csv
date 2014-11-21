@@ -59,9 +59,10 @@ INSERT INTO TEST VALUES(1, 'Hello')
 UPDATE tableName [ [ AS ] newTableAlias ] SET
 { { columnName = { DEFAULT | expression } } [,...] } |
     { ( columnName [,...] ) = ( select ) }
-[ WHERE expression ] [ LIMIT expression ]
+[ WHERE expression ] [ ORDER BY order [,...] ] [ LIMIT expression ]
 ","
 Updates data in a table.
+ORDER BY is supported for MySQL compatibility, but it is ignored.
 ","
 UPDATE TEST SET NAME='Hi' WHERE ID=1;
 UPDATE PERSON P SET NAME=(SELECT A.NAME FROM ADDRESS A WHERE A.ID=P.ID);
@@ -1130,6 +1131,10 @@ SET COLLATION ENGLISH
 "Commands (Other)","SET COMPRESS_LOB","
 SET COMPRESS_LOB { NO | LZF | DEFLATE }
 ","
+This feature is only available for the PageStore storage engine.
+For the MVStore engine (the default for H2 version 1.4.x),
+append "";COMPRESS=TRUE"" to the database URL instead.
+
 Sets the compression algorithm for BLOB and CLOB data. Compression is usually
 slower, but needs less disk space. LZF is faster but uses more space.
 
@@ -1845,13 +1850,11 @@ The following options are supported:
 
 ""lineComment"" (disabled by default),
 
-""lineSeparator"",
+""lineSeparator"" (the line separator used for writing; ignored for reading),
 
 ""null"", Note that an empty value is always treated as null.
 This feature for compatibility, it is only here to support reading existing CSV files
 that contain explicit ""null"" delimiters.
-
-""rowSeparator"" (not set by default),
 
 ""preserveWhitespace"" (true or false; disabled by default),
 
@@ -2846,7 +2849,7 @@ PI()
 POWER(numeric, numeric)
 ","
 See also Java ""Math.pow"".
-This method returns a double.
+This method returns the same datatype as it's first parameter.
 ","
 POWER(A, B)
 "

@@ -63,8 +63,8 @@ Advanced
     Restricting Class Loading and Usage</a><br />
 <a href="#security_protocols">
     Security Protocols</a><br />
-<a href="#ssl_tls_connections">
-    SSL/TLS Connections</a><br />
+<a href="#tls_connections">
+    TLS Connections</a><br />
 <a href="#uuid">
     Universally Unique Identifiers (UUID)</a><br />
 <a href="#system_properties">
@@ -141,6 +141,9 @@ that don't involve this column.
 
 <h3>Large Object Compression</h3>
 <p>
+The following feature is only available for the PageStore storage engine.
+For the MVStore engine (the default for H2 version 1.4.x),
+append <code>;COMPRESS=TRUE</code> to the database URL instead.
 CLOB and BLOB values can be compressed by using
 <a href="grammar.html#set_compress_lob" class="notranslate" >SET COMPRESS_LOB</a>.
 The LZF algorithm is faster but needs more disk space. By default compression is disabled, which usually speeds up write
@@ -475,8 +478,8 @@ unless they are quoted (surrounded with double quotes). The list is currently:
 </p><p>
 <code>
 CROSS, CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, DISTINCT, EXCEPT, EXISTS, FALSE,
-FOR, FROM, FULL, GROUP, HAVING, INNER, INTERSECT, IS, JOIN, LIKE, LIMIT, MINUS, NATURAL,
-NOT, NULL, ON, ORDER, PRIMARY, ROWNUM, SELECT, SYSDATE, SYSTIME, SYSTIMESTAMP, TODAY,
+FETCH, FOR, FROM, FULL, GROUP, HAVING, INNER, INTERSECT, IS, JOIN, LIKE, LIMIT, MINUS, NATURAL,
+NOT, NULL, OFFSET, ON, ORDER, PRIMARY, ROWNUM, SELECT, SYSDATE, SYSTIME, SYSTIMESTAMP, TODAY,
 TRUE, UNION, UNIQUE, WHERE
 </code>
 </p><p>
@@ -1193,11 +1196,23 @@ SELECT * FROM USERS WHERE LENGTH(PASSWORD)=ZERO();
 By default this database does not allow connections from other machines when starting the H2 Console,
 the TCP server, or the PG server. Remote access can be enabled using the command line
 options <code>-webAllowOthers, -tcpAllowOthers, -pgAllowOthers</code>.
-If you enable remote access, please also consider using the options
-<code>-baseDir, -ifExists</code>, so that remote
-users can not create new databases or access existing databases with weak passwords.
+</p>
+<p>
+If you enable remote access using
+<code>-tcpAllowOthers</code> or <code>-pgAllowOthers</code>,
+please also consider using the options <code>-baseDir, -ifExists</code>,
+so that remote users can not create new databases
+or access existing databases with weak passwords.
 When using the option <code>-baseDir</code>, only databases within that directory may be accessed.
 Ensure the existing accessible databases are protected using strong passwords.
+</p>
+<p>
+If you enable remote access using <code>-webAllowOthers</code>,
+please ensure the web server can only be accessed from trusted networks.
+The options <code>-baseDir, -ifExists</code> don't protect
+access to the tools section, prevent remote shutdown of the web server,
+changes to the preferences, the saved connection settings,
+or access to other databases accessible from the system.
 </p>
 
 <h2 id="restricting_classes">Restricting Class Loading and Usage</h2>
@@ -1334,11 +1349,10 @@ There is a default self-certified certificate to support an easy starting point,
 custom certificates are supported as well.
 </p>
 
-<h2 id="ssl_tls_connections">SSL/TLS Connections</h2>
+<h2 id="tls_connections">TLS Connections</h2>
 <p>
-Remote SSL/TLS connections are supported using the Java Secure Socket Extension
-(<code>SSLServerSocket, SSLSocket</code>). By default, anonymous SSL is enabled.
-The default cipher suite is <code>SSL_DH_anon_WITH_RC4_128_MD5</code>.
+Remote TLS connections are supported using the Java Secure Socket Extension
+(<code>SSLServerSocket, SSLSocket</code>). By default, anonymous TLS is enabled.
 </p>
 <p>
 To use your own keystore, set the system properties <code>javax.net.ssl.keyStore</code> and
@@ -1348,7 +1362,7 @@ Customizing the Default Key and Trust Stores, Store Types, and Store Passwords</
 for more information.
 </p>
 <p>
-To disable anonymous SSL, set the system property <code>h2.enableAnonymousSSL</code> to false.
+To disable anonymous TLS, set the system property <code>h2.enableAnonymousTLS</code> to false.
 </p>
 
 <h2 id="uuid">Universally Unique Identifiers (UUID)</h2>
@@ -1480,7 +1494,7 @@ For a complete list of settings, see
 Usually server sockets accept connections on any/all local addresses.
 This may be a problem on multi-homed hosts.
 To bind only to one address, use the system property <code>h2.bindAddress</code>.
-This setting is used for both regular server sockets and for SSL server sockets.
+This setting is used for both regular server sockets and for TLS server sockets.
 IPv4 and IPv6 address formats are supported.
 </p>
 

@@ -13,6 +13,7 @@ import java.sql.RowIdLifetime;
 import java.sql.SQLException;
 import org.h2.engine.Constants;
 import org.h2.engine.SysProperties;
+import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.message.TraceObject;
 import org.h2.tools.SimpleResultSet;
@@ -2199,8 +2200,19 @@ public class JdbcDatabaseMetaData extends TraceObject implements
      * @return true
      */
     @Override
-    public boolean supportsTransactionIsolationLevel(int level) {
+    public boolean supportsTransactionIsolationLevel(int level) throws SQLException {
         debugCodeCall("supportsTransactionIsolationLevel");
+        if (level == Connection.TRANSACTION_READ_UNCOMMITTED) {
+            // currently the combination of LOCK_MODE=0 and MULTI_THREADED
+            // is not supported, also see code in Database#setLockMode(int)
+            PreparedStatement prep = conn.prepareAutoCloseStatement(
+                    "SELECT VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME=?");
+            prep.setString(1, "MULTI_THREADED");
+            ResultSet rs = prep.executeQuery();
+            if (rs.next() && rs.getString(1).equals("1")) {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -3072,19 +3084,29 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     }
 
     /**
-     * [Not supported] Return an object of this class if possible.
+     * Return an object of this class if possible.
+     *
+     * @param iface the class
+     * @return this
      */
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        throw unsupported("unwrap");
+        if (isWrapperFor(iface)) {
+            return (T) this;
+        }
+        throw DbException.getInvalidValueException("iface", iface);
     }
 
     /**
-     * [Not supported] Checks if unwrap can return an object of this class.
+     * Checks if unwrap can return an object of this class.
+     *
+     * @param iface the class
+     * @return whether or not the interface is assignable from this class
      */
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        throw unsupported("isWrapperFor");
+        return iface != null && iface.isAssignableFrom(getClass());
     }
 
     /**
