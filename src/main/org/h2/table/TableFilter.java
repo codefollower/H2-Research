@@ -290,6 +290,11 @@ public class TableFilter implements ColumnResolver {
     	//按字段b删除，实际上就是删除b=true的记录
     	//如果没有为字段b建立索引，就在这里删除这个无用条件
     	//这样在org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)中就不会计算无用的索引
+        //另外，会删除那些与当些索引字段无关的indexCondition
+        //例如，为id和name字段都建了索引，
+        //如果条件是:where id>2 and name='a1'
+        //此时因为等号的代价更低，所以选择name对应的索引，
+        //indexConditions.size()就是2，但是会删除id>2这个indexCondition
         for (int i = 0; i < indexConditions.size(); i++) {
             IndexCondition condition = indexConditions.get(i);
             if (!condition.isAlwaysFalse()) {

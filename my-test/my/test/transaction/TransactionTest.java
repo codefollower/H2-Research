@@ -1,10 +1,11 @@
 package my.test.transaction;
 
-import my.test.TestBase;
 import static junit.framework.Assert.assertEquals;
 
 import java.sql.SQLException;
 import java.sql.Savepoint;
+
+import my.test.TestBase;
 
 import org.junit.Assert;
 
@@ -15,14 +16,14 @@ public class TransactionTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-//        create();
-//        insert();
-//        select();
-//
-//        testCommit();
-//        testRollback();
+        //create();
+        //        insert();
+        //        select();
+        //
+        testCommit();
+        //        testRollback();
 
-        testSavepoint();
+        //testSavepoint();
     }
 
     void create() throws Exception {
@@ -54,6 +55,7 @@ public class TransactionTest extends TestBase {
     void insert() throws Exception {
         stmt.executeUpdate("DELETE FROM IndexTest");
 
+        stmt.executeUpdate("INSERT INTO IndexTest(f3, f2, f1) VALUES('d', 40, 400)");
         stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(100, 10, 'a')");
         stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(200, 20, 'b')");
         stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(300, 30, 'c')");
@@ -81,9 +83,9 @@ public class TransactionTest extends TestBase {
 
     void testCommit() throws Exception {
         try {
-            conn.setAutoCommit(false);
+            //conn.setAutoCommit(false);
             insert();
-            conn.commit();
+            //conn.commit();
         } finally {
             conn.setAutoCommit(true);
         }

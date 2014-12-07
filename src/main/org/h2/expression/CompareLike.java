@@ -210,6 +210,8 @@ public class CompareLike extends Condition {
             // (code points)
             String end;
             if (begin.length() > 0) {
+                //例如like 'bcde%'
+                //则建立两个IndexCondition，分别是>=bcde，以及<bcdf
                 filter.addIndexCondition(IndexCondition.get(
                         Comparison.BIGGER_EQUAL, l,
                         ValueExpression.get(ValueString.get(begin))));

@@ -140,7 +140,7 @@ public class ExpressionColumn extends Expression {
             if (schema != null) {
                 Constant constant = schema.findConstant(columnName);
                 if (constant != null) {
-                    return constant.getValue(); //对于常量子段的优化是直接返回ValueExpression
+                    return constant.getValue(); //对于常量字段的优化是直接返回ValueExpression
                 }
             }
             String name = columnName;

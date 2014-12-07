@@ -192,8 +192,9 @@ public abstract class Expression {
      * @param filter the table filter
      */
     //这8种类型的表达式能建立索引条件
-    //Comparison、CompareLike、ConditionIn、ConditionInSelect、ConditionInConstantSet、
-    //ConditionAndOr、ExpressionColumn、ValueExpression
+    //CompareLike、Comparison、
+    //ConditionAndOr、ConditionIn、ConditionInConstantSet、ConditionInSelect、
+    //ExpressionColumn、ValueExpression
     public void createIndexConditions(Session session, TableFilter filter) {
         // default is do nothing
     }

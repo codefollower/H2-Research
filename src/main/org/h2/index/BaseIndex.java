@@ -154,7 +154,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @param sortOrder the sort order
      * @return the estimated cost
      */
-    protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) { //无子类覆盖
+    //子类MVSpatialIndex、SpatialTreeIndex覆盖了此方法
+    protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) {
         rowCount += Constants.COST_ROW_OFFSET;
         long cost = rowCount;
         long rows = rowCount;
@@ -171,7 +172,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             //如果索引字段列表的第一个字段在Where中是RANGE、START、END，那么索引字段列表中的其他字段就不需要再计算cost了，
             //如果是EQUALITY，则还可以继续计算cost，rows变量的值会变小，cost也会变小
             if ((mask & IndexCondition.EQUALITY) == IndexCondition.EQUALITY) {
-            	//索引字段列表中的最后一个在where当中是EQUALITY，确此索引是唯一索引时，cost直接是3
+            	//索引字段列表中的最后一个在where当中是EQUALITY，且此索引是唯一索引时，cost直接是3
             	//因为如果最后一个索引字段是EQUALITY，说明前面的字段全是EQUALITY，
             	//如果是唯一索引则rowCount / distinctRows是1，所以rows = Math.max(rowCount / distinctRows, 1)=1
             	//所以cost = 2 + rows = 3
@@ -203,7 +204,6 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         // it will be cheaper than another index, so adjust the cost accordingly
         if (sortOrder != null) {
             boolean sortOrderMatches = true;
-            //sortOrderIndexes = sortOrder.getColumnIndexes();
             int coveringCount = 0;
             int[] sortTypes = sortOrder.getSortTypes();
             for (int i = 0, len = sortTypes.length; i < len; i++) {
@@ -214,11 +214,6 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
                     // more of the order by columns
                     break;
                 }
-//<<<<<<< .mine
-//                //这样的比较其实是无效的，columnIndexes[i]得到的是列id，
-//                //但是sortOrderIndexes[i]得到的是select字段列表中的位置，并不是列id
-//                if (columnIndexes[i] != sortOrderIndexes[i] || columnSortTypes[i] != sortOrder.getSortTypes()[i]) {
-//=======
                 Column col = sortOrder.getColumn(i, filter);
                 if (col == null) {
                     sortOrderMatches = false;
