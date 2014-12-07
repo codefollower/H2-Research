@@ -5345,13 +5345,10 @@ public class Parser {
     }
 
     private Prepared parseUse() {
-        if (readIf("SCHEMA")) {
-            readIfEqualOrTo();
-            Set command = new Set(session, SetTypes.SCHEMA);
-            command.setString(readAliasIdentifier());
-            return command;
-        }
-        throw getSyntaxError();
+        readIfEqualOrTo();
+        Set command = new Set(session, SetTypes.SCHEMA);
+        command.setString(readAliasIdentifier());
+        return command;
     }
 
     private Set parseSetCollation() {
@@ -6193,6 +6190,12 @@ public class Parser {
                 command.setSortedInsertMode(true);
             }
             command.setQuery(parseSelect());
+        }
+        // for MySQL compatibility
+        if (readIf("ROW_FORMAT")) {
+            if (readIf("=")) {
+                readColumnIdentifier();
+            }
         }
         return command;
     }

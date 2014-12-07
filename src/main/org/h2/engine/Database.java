@@ -2149,7 +2149,7 @@ public class Database implements DataHandler {
 
     @Override
     public int getMaxLengthInplaceLob() {
-        return persistent ? maxLengthInplaceLob : Integer.MAX_VALUE;
+        return maxLengthInplaceLob;
     }
 
     public void setIgnoreCase(boolean b) {
