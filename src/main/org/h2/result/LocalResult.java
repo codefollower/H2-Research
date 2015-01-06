@@ -257,7 +257,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     public int getRowId() {
         return rowId;
     }
-    
+
     private void cloneLobs(Value[] values) {
         for (int i = 0; i < values.length; i++) {
             Value v = values[i];

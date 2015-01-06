@@ -1554,9 +1554,6 @@ public class PageStore implements CacheWriter {
         if (size - logSizeBase > maxLogSize / 2) { //maxLogSize通过"SET MAX_LOG_SIZE xxx"设置，默认16M
             int firstSection = log.getLogFirstSectionId();
             checkpoint();
-            if (ignoreBigLog) {
-                return;
-            }
             int newSection = log.getLogSectionId();
             if (newSection - firstSection <= 2) {
                 // one section is always kept, and checkpoint
@@ -1568,10 +1565,12 @@ public class PageStore implements CacheWriter {
                 ignoreBigLog = false;
                 return;
             }
-            ignoreBigLog = true;
-            trace.error(null,
-                    "Transaction log could not be truncated; size: " +
-                    (newSize / 1024 / 1024) + " MB");
+            if (!ignoreBigLog) {
+                ignoreBigLog = true;
+                trace.error(null,
+                        "Transaction log could not be truncated; size: " +
+                        (newSize / 1024 / 1024) + " MB");
+            }
             logSizeBase = log.getSize();
         }
     }

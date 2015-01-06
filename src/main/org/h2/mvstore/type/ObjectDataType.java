@@ -423,10 +423,10 @@ public class ObjectDataType implements DataType {
         public int compare(Object aObj, Object bObj) {
             AutoDetectDataType aType = getType(aObj);
             AutoDetectDataType bType = getType(bObj);
-            if (aType == bType) {
+            int typeDiff = aType.typeId - bType.typeId;
+            if (typeDiff == 0) {
                 return aType.compare(aObj, bObj);
             }
-            int typeDiff = aType.typeId - bType.typeId;
             return Integer.signum(typeDiff);
         }
 
@@ -1267,7 +1267,9 @@ public class ObjectDataType implements DataType {
                     }
                 }
             }
-            return size;
+            // we say they are larger, because these objects
+            // use quite a lot of disk space
+            return size * 2;
         }
 
         @Override
@@ -1527,7 +1529,9 @@ public class ObjectDataType implements DataType {
                 return;
             }
             byte[] data = serialize(obj);
-            int size = data.length;
+            // we say they are larger, because these objects
+            // use quite a lot of disk space
+            int size = data.length * 2;
             // adjust the average size
             // using an exponential moving average
             averageSize = (size + 15 * averageSize) / 16;

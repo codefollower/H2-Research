@@ -3,8 +3,11 @@
 -- Initial Developer: H2 Group
 --
 --- special grammar and test cases ---------------------------------------------------------------------------------------------
-
--- TODO
+select 1 "a", count(*) from dual group by "a" order by "a";
+> a COUNT(*)
+> - --------
+> 1 1
+> rows (ordered): 1
 
 create table results(eventId int, points int, studentId int);
 > ok
@@ -19,25 +22,38 @@ insert into results values(1, 10, 3), (2, 20, 3), (3, 5, 3);
 > update count: 3
 
 SELECT SUM(points) FROM RESULTS
-    WHERE eventID IN
-    (SELECT eventID FROM RESULTS
-    WHERE studentID = 2
-    ORDER BY points DESC
-    LIMIT 2 )
-    AND studentID = 2;
+WHERE eventID IN
+(SELECT eventID FROM RESULTS
+WHERE studentID = 2
+ORDER BY points DESC
+LIMIT 2 )
+AND studentID = 2;
+> SUM(POINTS)
+> -----------
+> null
+> rows (ordered): 1
 
-SELECT eventID FROM RESULTS
-    WHERE studentID = 2
-    ORDER BY points DESC
-    LIMIT 2;
+SELECT eventID X FROM RESULTS
+WHERE studentID = 2
+ORDER BY points DESC
+LIMIT 2;
+> X
+> -
+> 2
+> 1
+> rows (ordered): 2
 
 SELECT SUM(r.points) FROM RESULTS r,
-    (SELECT eventID FROM RESULTS
-    WHERE studentID = 2
-    ORDER BY points DESC
-    LIMIT 2 ) r2
-    WHERE r2.eventID = r.eventId
-    AND studentID = 2;
+(SELECT eventID FROM RESULTS
+WHERE studentID = 2
+ORDER BY points DESC
+LIMIT 2 ) r2
+WHERE r2.eventID = r.eventId
+AND studentID = 2;
+> SUM(R.POINTS)
+> -------------
+> 30
+> rows (ordered): 1
 
 drop table results;
 > ok
@@ -6402,8 +6418,8 @@ EXPLAIN SELECT * FROM TEST WHERE (ID>=1 AND ID<=2)  OR (ID>0 AND ID<3) AND (ID<>
 
 EXPLAIN SELECT * FROM TEST WHERE ID=1 GROUP BY NAME, ID;
 > PLAN
-> ------------------------------------------------------------------------------------------------------------
-> SELECT TEST.ID, TEST.NAME FROM PUBLIC.TEST /* PUBLIC.PRIMARY_KEY_2: ID = 1 */ WHERE ID = 1 GROUP BY NAME, ID
+> ----------------------------------------------------------------------------------------------------------------------
+> SELECT TEST.ID, TEST.NAME FROM PUBLIC.TEST /* PUBLIC.PRIMARY_KEY_2: ID = 1 */ WHERE ID = 1 GROUP BY TEST.NAME, TEST.ID
 > rows: 1
 
 EXPLAIN PLAN FOR UPDATE TEST SET NAME='Hello', ID=1 WHERE NAME LIKE 'T%' ESCAPE 'x';
@@ -10114,3 +10130,4 @@ create table test(id int, name varchar);
 
 insert into test values(5, 'b'), (5, 'b'), (20, 'a');
 > update count: 3
+

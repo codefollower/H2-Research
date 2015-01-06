@@ -324,7 +324,7 @@ public class Recover extends Tool implements DataHandler {
                         Constants.SUFFIX_PAGE_FILE.length());
                 PrintWriter writer;
                 writer = getWriter(fileName, ".txt");
-                MVStoreTool.dump(fileName, writer);
+                MVStoreTool.dump(fileName, writer, true);
                 MVStoreTool.info(fileName, writer);
                 writer.close();
                 writer = getWriter(f + ".h2.db", ".sql");
@@ -592,6 +592,11 @@ public class Recover extends Tool implements DataHandler {
         writer.println("-- Tables");
         TransactionStore store = new TransactionStore(mv);
         try {
+            store.init();
+        } catch (Throwable e) {
+            writeError(writer, e);
+        }
+        try {
             for (String mapName : mv.getMapNames()) {
                 if (!mapName.startsWith("table.")) {
                     continue;
@@ -676,7 +681,8 @@ public class Recover extends Tool implements DataHandler {
         writer.println("-- LOB");
         writer.println("CREATE TABLE IF NOT EXISTS " +
                 "INFORMATION_SCHEMA.LOB_BLOCKS(" +
-                "LOB_ID BIGINT, SEQ INT, DATA BINARY);");
+                "LOB_ID BIGINT, SEQ INT, DATA BINARY, " +
+                "PRIMARY KEY(LOB_ID, SEQ));");
         for (Entry<Long, Object[]> e : lobMap.entrySet()) {
             long lobId = e.getKey();
             Object[] value = e.getValue();

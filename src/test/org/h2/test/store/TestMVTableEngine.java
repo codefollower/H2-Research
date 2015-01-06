@@ -391,8 +391,11 @@ public class TestMVTableEngine extends TestBase {
         rs = stat.executeQuery("explain analyze select * from test");
         rs.next();
         String plan = rs.getString(1);
-        // expect about 249 reads
-        assertTrue(plan, plan.contains("reads: 2"));
+        // expect about 1000 reads
+        String readCount = plan.substring(plan.indexOf("reads: "));
+        readCount = readCount.substring("reads: ".length(), readCount.indexOf('\n'));
+        int rc = Integer.parseInt(readCount);
+        assertTrue(plan, rc >= 1000 && rc <= 1200);
         conn.close();
     }
 
@@ -421,6 +424,7 @@ public class TestMVTableEngine extends TestBase {
 
         MVStore store = MVStore.open(file);
         TransactionStore t = new TransactionStore(store);
+        t.init();
         assertEquals(0, t.getOpenTransactions().size());
         store.close();
     }

@@ -334,6 +334,17 @@ public abstract class Table extends SchemaObjectBase {
     }
 
     /**
+     * Check whether the table (or view) contains no columns that prevent index
+     * conditions to be used. For example, a view that contains the ROWNUM()
+     * pseudo-column prevents this.
+     *
+     * @return true if the table contains no query-comparable column
+     */
+    public boolean isQueryComparable() {
+        return true;
+    }
+
+    /**
      * Add all objects that this table depends on to the hash set.
      *
      * @param dependencies the current set of dependencies

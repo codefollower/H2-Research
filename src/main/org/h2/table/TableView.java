@@ -310,6 +310,23 @@ public class TableView extends Table {
     }
 
     @Override
+    public boolean isQueryComparable() {
+        if (!super.isQueryComparable()) {
+            return false;
+        }
+        for (Table t : tables) {
+            if (!t.isQueryComparable()) {
+                return false;
+            }
+        }
+        if (topQuery != null &&
+                !topQuery.isEverything(ExpressionVisitor.QUERY_COMPARABLE_VISITOR)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
     public String getDropSQL() {
         return "DROP VIEW IF EXISTS " + getSQL() + " CASCADE";
     }

@@ -294,10 +294,10 @@ public class TestMVStore extends TestBase {
         for (int i = 0; i < 30; i++) {
             map.put(i, data);
             s.commit();
-            if (i < 10) {
+            if (i < 5) {
                 assertEquals(0, s.getCacheSizeUsed());
             } else if (i > 20) {
-                assertEquals(1, s.getCacheSizeUsed());
+                assertTrue(s.getCacheSizeUsed() >= 1);
             }
         }
         s.close();
@@ -431,7 +431,8 @@ public class TestMVStore extends TestBase {
         header.put("format", "2");
         MVMap<Integer, String> m = s.openMap("data");
         // this is to ensure the file header is overwritten
-        for (int i = 0; i < 10; i++) {
+        // the header is written at least every 20 commits
+        for (int i = 0; i < 30; i++) {
             m.put(0, "Hello World " + i);
             s.commit();
             if (i > 5) {
@@ -445,7 +446,8 @@ public class TestMVStore extends TestBase {
                     encryptionKey("007".toCharArray()).
                     fileName(fileName).
                     open();
-            fail();
+            header = s.getStoreHeader();
+            fail(header.toString());
         } catch (IllegalStateException e) {
             assertEquals(DataUtils.ERROR_UNSUPPORTED_FORMAT,
                     DataUtils.getErrorCode(e.getMessage()));
@@ -480,12 +482,12 @@ public class TestMVStore extends TestBase {
                 autoCommitDisabled().
                 open();
         MVMap<Integer, String> m;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             m = s.openMap("data" + i);
             m.put(0, "Hello World");
             s.commit();
         }
-        for (int i = 0; i < 10; i += 2) {
+        for (int i = 0; i < 100; i += 2) {
             m = s.openMap("data" + i);
             s.removeMap(m);
             s.commit();
@@ -751,7 +753,9 @@ public class TestMVStore extends TestBase {
         int format = Integer.parseInt(header.get("format").toString());
         assertEquals(1, format);
         header.put("format", Integer.toString(format + 1));
-        for (int i = 0; i < 10; i++) {
+        // this is to ensure the file header is overwritten
+        // the header is written at least every 20 commits
+        for (int i = 0; i < 30; i++) {
             if (i > 5) {
                 s.setRetentionTime(0);
             }
@@ -888,8 +892,9 @@ public class TestMVStore extends TestBase {
         m.put("test", "123");
         MVMap<Integer, Integer> map = s.openMap("test");
         map.put(10, 100);
-        // ensure the file header is overwritten
-        for (int i = 0; i < 10; i++) {
+        // this is to ensure the file header is overwritten
+        // the header is written at least every 20 commits
+        for (int i = 0; i < 30; i++) {
             if (i > 5) {
                 s.setRetentionTime(0);
             }
@@ -898,7 +903,9 @@ public class TestMVStore extends TestBase {
         }
         s.close();
         s = openStore(fileName);
-        assertEquals("123", s.getStoreHeader().get("test").toString());
+        Object test = s.getStoreHeader().get("test");
+        assertFalse(test == null);
+        assertEquals("123", test.toString());
         s.close();
     }
 
@@ -1750,7 +1757,7 @@ public class TestMVStore extends TestBase {
             }
         }
 
-        assertTrue(chunkCount1 + ">" + chunkCount2 + ">" + chunkCount3, 
+        assertTrue(chunkCount1 + ">" + chunkCount2 + ">" + chunkCount3,
                 chunkCount3 < chunkCount1);
 
         for (int i = 0; i < 10 * factor; i++) {
