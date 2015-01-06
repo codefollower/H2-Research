@@ -17,64 +17,49 @@ public class TransactionTest extends TestBase {
     @Override
     public void startInternal() throws Exception {
         //create();
-        //        insert();
+        insert();
         //        select();
         //
         testCommit();
-        //        testRollback();
-
+        //testRollback();
         //testSavepoint();
     }
 
     void create() throws Exception {
-        //stmt.executeUpdate("DROP TABLE IF EXISTS IndexTest");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS IndexTest (f1 int NOT NULL, f2 int, f3 varchar)");
-        stmt.executeUpdate("CREATE PRIMARY KEY HASH IF NOT EXISTS IndexTest_idx0 ON IndexTest(f1)");
-        stmt.executeUpdate("CREATE UNIQUE HASH INDEX IF NOT EXISTS IndexTest_idx1 ON IndexTest(f2)");
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS IndexTest_idx2 ON IndexTest(f3, f2)");
-
-        //indexFieldWithColumnFamilyPrefix();
-    }
-
-    void indexFieldWithColumnFamilyPrefix() throws Exception {
-        //IndexTest_idx3与IndexTest_idx1一样，只不过索引字段前可加列族前缀，
-        //用CREATE TABLE建立的表是单列族的静态表，列族名称是cf
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS IndexTest_idx3 ON IndexTest(cf.f2)");
-
-        stmt.executeUpdate("CREATE HBASE TABLE IF NOT EXISTS IndexTest2 (" //
-                + "COLUMN FAMILY cf(id int), COLUMN FAMILY cf2(id2 int))");
-
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS IndexTest2_idx1 ON IndexTest2(cf.id)");
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS IndexTest2_idx2 ON IndexTest2(cf2.id2)");
+        stmt.executeUpdate("DROP TABLE IF EXISTS TransactionTest");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TransactionTest (f1 int NOT NULL, f2 int, f3 varchar)");
+        stmt.executeUpdate("CREATE PRIMARY KEY HASH IF NOT EXISTS TransactionTest_idx1 ON TransactionTest(f1)");
+        stmt.executeUpdate("CREATE UNIQUE HASH INDEX IF NOT EXISTS TransactionTest_idx2 ON TransactionTest(f2)");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS TransactionTest_idx3 ON TransactionTest(f3, f2)");
     }
 
     void delete() throws Exception {
-        stmt.executeUpdate("DELETE FROM IndexTest");
+        stmt.executeUpdate("DELETE FROM TransactionTest");
     }
 
     void insert() throws Exception {
-        stmt.executeUpdate("DELETE FROM IndexTest");
+        //delete();
 
-        stmt.executeUpdate("INSERT INTO IndexTest(f3, f2, f1) VALUES('d', 40, 400)");
-        stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(100, 10, 'a')");
-        stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(200, 20, 'b')");
-        stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(300, 30, 'c')");
+        stmt.executeUpdate("INSERT INTO TransactionTest(f3, f2, f1) VALUES('d', 40, 400)");
+        stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(100, 10, 'a')");
+        stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(200, 20, 'b')");
+        stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(300, 30, 'c')");
         try {
-            stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(400, 20, 'd')");
+            stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(400, 20, 'd')");
             Assert.fail("insert duplicate key: 20");
         } catch (SQLException e) {
             //e.printStackTrace();
         }
 
         try {
-            stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(500, 20, 'e')");
+            stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(500, 20, 'e')");
             Assert.fail("insert duplicate key: 20");
         } catch (SQLException e) {
             //e.printStackTrace();
         }
 
         try {
-            stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(600, 20, 'f')");
+            stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(600, 20, 'f')");
             Assert.fail("insert duplicate key: 20");
         } catch (SQLException e) {
             //e.printStackTrace();
@@ -83,23 +68,23 @@ public class TransactionTest extends TestBase {
 
     void testCommit() throws Exception {
         try {
-            //conn.setAutoCommit(false);
+            conn.setAutoCommit(false);
             insert();
-            //conn.commit();
+            conn.commit();
         } finally {
             conn.setAutoCommit(true);
         }
 
-        sql = "SELECT f1, f2, f3 FROM IndexTest";
+        sql = "SELECT f1, f2, f3 FROM TransactionTest";
         printResultSet();
 
-        sql = "SELECT count(*) FROM IndexTest";
-        assertEquals(3, getIntValue(1, true));
+        sql = "SELECT count(*) FROM TransactionTest";
+        assertEquals(4, getIntValue(1, true));
 
-        sql = "DELETE FROM IndexTest";
-        assertEquals(3, stmt.executeUpdate(sql));
+        sql = "DELETE FROM TransactionTest";
+        assertEquals(4, stmt.executeUpdate(sql));
 
-        sql = "SELECT count(*) FROM IndexTest";
+        sql = "SELECT count(*) FROM TransactionTest";
         assertEquals(0, getIntValue(1, true));
     }
 
@@ -112,49 +97,49 @@ public class TransactionTest extends TestBase {
             conn.setAutoCommit(true);
         }
 
-        sql = "SELECT count(*) FROM IndexTest";
+        sql = "SELECT count(*) FROM TransactionTest";
         assertEquals(0, getIntValue(1, true));
 
     }
 
     void select() throws Exception {
-        sql = "SELECT f1, f2, f3 FROM IndexTest";
+        sql = "SELECT f1, f2, f3 FROM TransactionTest";
         printResultSet();
 
-        sql = "SELECT count(*) FROM IndexTest";
+        sql = "SELECT count(*) FROM TransactionTest";
         assertEquals(3, getIntValue(1, true));
 
-        sql = "SELECT f1, f2, f3 FROM IndexTest WHERE f1 >= 200";
+        sql = "SELECT f1, f2, f3 FROM TransactionTest WHERE f1 >= 200";
         printResultSet();
 
-        sql = "SELECT count(*) FROM IndexTest WHERE f1 >= 200";
+        sql = "SELECT count(*) FROM TransactionTest WHERE f1 >= 200";
         assertEquals(2, getIntValue(1, true));
 
-        sql = "SELECT f1, f2, f3 FROM IndexTest WHERE f2 >= 20";
+        sql = "SELECT f1, f2, f3 FROM TransactionTest WHERE f2 >= 20";
         printResultSet();
 
-        sql = "SELECT count(*) FROM IndexTest WHERE f2 >= 20";
+        sql = "SELECT count(*) FROM TransactionTest WHERE f2 >= 20";
         assertEquals(2, getIntValue(1, true));
 
-        sql = "SELECT f1, f2, f3 FROM IndexTest WHERE f3 >= 'b' AND f3 <= 'c'";
+        sql = "SELECT f1, f2, f3 FROM TransactionTest WHERE f3 >= 'b' AND f3 <= 'c'";
         printResultSet();
 
-        sql = "SELECT count(*) FROM IndexTest WHERE f3 >= 'b' AND f3 <= 'c'";
+        sql = "SELECT count(*) FROM TransactionTest WHERE f3 >= 'b' AND f3 <= 'c'";
         assertEquals(2, getIntValue(1, true));
 
-        sql = "DELETE FROM IndexTest WHERE f2 >= 20";
+        sql = "DELETE FROM TransactionTest WHERE f2 >= 20";
         assertEquals(2, stmt.executeUpdate(sql));
     }
 
     void testSavepoint() throws Exception {
-        stmt.executeUpdate("DELETE FROM IndexTest");
+        stmt.executeUpdate("DELETE FROM TransactionTest");
         try {
             conn.setAutoCommit(false);
-            stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(100, 10, 'a')");
-            stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(200, 20, 'b')");
+            stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(100, 10, 'a')");
+            stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(200, 20, 'b')");
             Savepoint savepoint = conn.setSavepoint();
-            stmt.executeUpdate("INSERT INTO IndexTest(f1, f2, f3) VALUES(300, 30, 'c')");
-            sql = "SELECT f1, f2, f3 FROM IndexTest";
+            stmt.executeUpdate("INSERT INTO TransactionTest(f1, f2, f3) VALUES(300, 30, 'c')");
+            sql = "SELECT f1, f2, f3 FROM TransactionTest";
             printResultSet();
             conn.rollback(savepoint);
             //调用rollback(savepoint)后还是需要调用commit
@@ -166,7 +151,7 @@ public class TransactionTest extends TestBase {
             conn.setAutoCommit(true);
         }
 
-        sql = "SELECT f1, f2, f3 FROM IndexTest";
+        sql = "SELECT f1, f2, f3 FROM TransactionTest";
         printResultSet();
     }
 }

@@ -9,7 +9,7 @@ public class MyServer {
 		System.setProperty("h2.lobInDatabase", "false");
 		System.setProperty("h2.lobClientMaxSizeMemory", "1024");
 		System.setProperty("java.io.tmpdir", "./target/mytest/tmp");
-		System.setProperty("h2.baseDir", "./target/mytest/baseDir");
+		System.setProperty("h2.baseDir", "./target/mytest");
 		//System.setProperty("h2.check2", "true");
 		ArrayList<String> list = new ArrayList<String>();
 		// list.add("-tcp");

@@ -161,7 +161,7 @@ public abstract class Command implements CommandInterface {
         }
         if (trace.isInfoEnabled() && startTime > 0) {
             long time = System.currentTimeMillis() - startTime;
-            if (time > Constants.SLOW_QUERY_LIMIT_MS) { //如果一条sql的执行时间小于100毫秒，记下它
+            if (time > Constants.SLOW_QUERY_LIMIT_MS) { //如果一条sql的执行时间大于100毫秒，记下它
                 //trace.info("slow query: {0} ms", time);
             	trace.info("slow query: {0} ms, sql: {1}", time, sql); //我加上的
             }

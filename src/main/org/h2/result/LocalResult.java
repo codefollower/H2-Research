@@ -276,12 +276,9 @@ public class LocalResult implements ResultInterface, ResultTarget {
      */
     @Override
     public void addRow(Value[] values) {
-<<<<<<< HEAD
     	//distinct和randomAccess(通过ConditionInSelect触发)使用ResultTempTable，其他使用ResultDiskBuffer
     	//maxMemoryRows、maxMemoryRowsDistinct默认值都是1万
-=======
         cloneLobs(values);
->>>>>>> remotes/git-svn
         if (distinct) {
             if (distinctRows != null) {
                 ValueArray array = ValueArray.get(values);

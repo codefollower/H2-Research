@@ -43,13 +43,7 @@ public abstract class TestBase {
         initDefaults();
         init();
         if (url == null)
-            url = "jdbc:h2:tcp://localhost:9092/mydb";
-
-        //		int len = 256;
-        //		StringBuilder s = new StringBuilder(len);
-        //		for (int i = 1; i <= len; i++) {
-        //			s.append("a");
-        //		}
+            url = "jdbc:h2:tcp://localhost:5210/mydb";
 
         conn = DriverManager.getConnection(url, prop);
         //conn.setAutoCommit(false);
