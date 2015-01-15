@@ -1206,7 +1206,7 @@ public class DataType {
                 return o;
             }
         }
-        throw DbException.getUnsupportedException(paramClass.getName());
+        throw DbException.getUnsupportedException("converting to class " + paramClass.getName());
     }
 
 }

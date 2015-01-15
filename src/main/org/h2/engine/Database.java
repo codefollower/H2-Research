@@ -569,10 +569,14 @@ public class Database implements DataHandler {
 
     private synchronized void open(int traceLevelFile, int traceLevelSystemOut) {
         if (persistent) {
+<<<<<<< HEAD
 			//databaseName = E:/H2/baseDir/mydb
 			//dataFileName = E:/H2/baseDir/mydb.data.db
 			//pageFileName = E:/H2/baseDir/mydb.h2.db
             String dataFileName = databaseName + ".data.db";
+=======
+            String dataFileName = databaseName + Constants.SUFFIX_OLD_DATABASE_FILE;
+>>>>>>> remotes/git-svn
             boolean existsData = FileUtils.exists(dataFileName);
             String pageFileName = databaseName + Constants.SUFFIX_PAGE_FILE;
             String mvFileName = databaseName + Constants.SUFFIX_MV_FILE;
