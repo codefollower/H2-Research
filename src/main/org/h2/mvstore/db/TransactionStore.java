@@ -143,7 +143,7 @@ public class TransactionStore {
      * @param logId the log id
      * @return the operation id
      */
-    static long getOperationId(int transactionId, long logId) {
+    static long getOperationId(int transactionId, long logId) { //transactionId占前面24位，logId占后面40位
         DataUtils.checkArgument(transactionId >= 0 && transactionId < (1 << 24),
                 "Transaction id out of range: {0}", transactionId);
         DataUtils.checkArgument(logId >= 0 && logId < (1L << 40),
@@ -1053,9 +1053,9 @@ public class TransactionStore {
          * @return true if the value was set, false if there was a concurrent
          *         update
          */
-        public boolean trySet(K key, V value, boolean onlyIfUnchanged) {
+        public boolean trySet(K key, V value, boolean onlyIfUnchanged) { //思考时要注意一点: put和remove都会调用它
             VersionedValue current = map.get(key);
-            if (onlyIfUnchanged) {
+            if (onlyIfUnchanged) { //没有看到为true的调用
                 VersionedValue old = getValue(key, readLogId);
                 if (!map.areValuesEqual(old, current)) {
                     long tx = getTransactionId(current.operationId);
@@ -1193,6 +1193,8 @@ public class TransactionStore {
          * @return the value
          */
         VersionedValue getValue(K key, long maxLog, VersionedValue data) {
+            //基本思路是: data最先是从map中取出的值，如果为null，说明在map中没有了，如果有且operationId是0，说明是已提交的。
+            //不满足这两条件，再从undo log中按operationId找
             while (true) {
                 if (data == null) {
                     // doesn't exist or deleted by a committed transaction

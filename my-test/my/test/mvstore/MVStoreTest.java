@@ -6,241 +6,242 @@
 //import org.h2.store.fs.FileUtils;
 //
 //public class MVStoreTest {
-//	/**
-//	 * @param args
-//	 */
-//	public static void main(String[] args) {
-//		new MVStoreTest().run();
-//	}
-//	public static void p(Object o) {
-//		System.out.println(o);
-//	}
+//    /**
+//     * @param args
+//     */
+//    public static void main(String[] args) {
+//        new MVStoreTest().run();
+//    }
 //
-//	public static void p() {
-//		System.out.println();
-//	}
-//	void run() {
-//		//storeTest();
-//		//rollbackToTest();
+//    public static void p(Object o) {
+//        System.out.println(o);
+//    }
 //
-//		testInMemoryStore();
-//	}
+//    public static void p() {
+//        System.out.println();
+//    }
 //
-//	void testInMemoryStore() {
-//		MVStore store = MVStore.open(null);
+//    void run() {
+//        //storeTest();
+//        //rollbackToTest();
 //
-//		MVMap<Integer, String> map = store.openMap("data");
+//        testInMemoryStore();
+//    }
 //
-//		int n = 100;
-//		for (int i = 0; i < n; i++) {
-//			map.put(i, "Hello" + i);
-//		}
-//		store.compact(50);
-//		store.commit();
-//		
-//		store.store();
-//		
-//		long v = store.incrementVersion();
+//    void testInMemoryStore() {
+//        MVStore store = MVStore.open(null);
 //
-//		map.put(200, "200");
-//		map.put(300, "300");
-//		
-//		store.rollbackTo(v);
+//        MVMap<Integer, String> map = store.openMap("data");
 //
-//		p(map.getSize());
-//		
-//		store.store();
-//		
-//		
-//	}
+//        int n = 100;
+//        for (int i = 0; i < n; i++) {
+//            map.put(i, "Hello" + i);
+//        }
+//        store.compact(50);
+//        store.commit();
 //
-//	void storeTest() {
-//		MVStore store = getMVStore();
-//		store.setReuseSpace(false);
+//        store.store();
 //
-//		MVMap<Integer, String> map = store.openMap("data");
-//		MVMap<Integer, String> map2 = store.openMap("data2");
+//        long v = store.incrementVersion();
 //
-//		System.out.println(store.getCurrentVersion());
+//        map.put(200, "200");
+//        map.put(300, "300");
 //
-//		int n = 100;
-//		for (int i = 0; i < n; i++) {
-//			map.put(i, "Hello" + i);
-//			map2.put(i, "Hello" + i);
-//		}
-//		store.commit();
-//		store.store();
+//        store.rollbackTo(v);
 //
-//		for (int i = 100; i < 150; i++) {
-//			map.put(i, "Hello" + i);
-//			map2.put(i, "Hello" + i);
-//		}
+//        p(map.getSize());
 //
-//		System.out.println(map.getSize());
+//        store.store();
 //
-//		store.commit();
-//		store.store();
+//    }
 //
-//		System.out.println(map.getSize());
+//    void storeTest() {
+//        MVStore store = getMVStore();
+//        store.setReuseSpace(false);
 //
-//		//		long oldVersion = store.getCurrentVersion();
-//		//
-//		//		System.out.println(map.getSize());
-//		//
-//		//		store.incrementVersion();
-//		//
-//		//		map.put(101, "Hello101");
-//		//		map.put(102, "Hello102");
-//		//
-//		//		store.rollbackTo(0);
-//		//		store.rollbackTo(oldVersion + 1);
-//		//
-//		//		store.commit();
-//		//
-//		//		map = store.openMap("data");
-//		//		System.out.println(map.getSize());
+//        MVMap<Integer, String> map = store.openMap("data");
+//        MVMap<Integer, String> map2 = store.openMap("data2");
 //
-//		store.close();
+//        System.out.println(store.getCurrentVersion());
 //
-//		MVStoreTool.main(new String[] { "-dump", "E:/H2/baseDir/MVStoreTest333" });
-//	}
+//        int n = 100;
+//        for (int i = 0; i < n; i++) {
+//            map.put(i, "Hello" + i);
+//            map2.put(i, "Hello" + i);
+//        }
+//        store.commit();
+//        store.store();
 //
-//	void rollbackToTest() {
-//		MVStore store = getMVStore();
+//        for (int i = 100; i < 150; i++) {
+//            map.put(i, "Hello" + i);
+//            map2.put(i, "Hello" + i);
+//        }
 //
-//		MVMap<Integer, String> map = store.openMap("data");
-//		MVMap<Integer, String> map2 = store.openMap("data2");
+//        System.out.println(map.getSize());
 //
-//		System.out.println(store.getCurrentVersion());
+//        store.commit();
+//        store.store();
 //
-//		int n = 100;
-//		for (int i = 0; i < n; i++) {
-//			map.put(i, "Hello" + i);
-//			map2.put(i, "Hello" + i);
-//		}
+//        System.out.println(map.getSize());
 //
-//		long oldVersion = store.getCurrentVersion();
+//        //		long oldVersion = store.getCurrentVersion();
+//        //
+//        //		System.out.println(map.getSize());
+//        //
+//        //		store.incrementVersion();
+//        //
+//        //		map.put(101, "Hello101");
+//        //		map.put(102, "Hello102");
+//        //
+//        //		store.rollbackTo(0);
+//        //		store.rollbackTo(oldVersion + 1);
+//        //
+//        //		store.commit();
+//        //
+//        //		map = store.openMap("data");
+//        //		System.out.println(map.getSize());
 //
-//		System.out.println(map.getSize());
+//        store.close();
 //
-//		store.incrementVersion();
+//        MVStoreTool.main(new String[] { "-dump", "E:/H2/baseDir/MVStoreTest333" });
+//    }
 //
-//		map.put(101, "Hello101");
-//		map.put(102, "Hello102");
+//    void rollbackToTest() {
+//        MVStore store = getMVStore();
 //
-//		store.rollbackTo(0);
-//		store.rollbackTo(oldVersion + 1);
+//        MVMap<Integer, String> map = store.openMap("data");
+//        MVMap<Integer, String> map2 = store.openMap("data2");
 //
-//		store.commit();
+//        System.out.println(store.getCurrentVersion());
 //
-//		map = store.openMap("data");
-//		System.out.println(map.getSize());
+//        int n = 100;
+//        for (int i = 0; i < n; i++) {
+//            map.put(i, "Hello" + i);
+//            map2.put(i, "Hello" + i);
+//        }
 //
-//		store.close();
-//	}
+//        long oldVersion = store.getCurrentVersion();
 //
-//	MVStore getMVStore() {
-//		MVStore.Builder builder = new MVStore.Builder();
-//		builder.cacheSize(10).compressData().readOnly().writeDelay(2000);
+//        System.out.println(map.getSize());
 //
-//		String str = builder.toString();
+//        store.incrementVersion();
 //
-//		System.out.println(str);
-//		builder = MVStore.Builder.fromString(str);
+//        map.put(101, "Hello101");
+//        map.put(102, "Hello102");
 //
-//		// open the store (in-memory if fileName is null)
-//		String fileName = null;
-//		fileName = "E:/H2/baseDir/MVStoreTest333";
-//		MVStore store = null;
-//		//FileUtils.deleteRecursive(fileName, true);
+//        store.rollbackTo(0);
+//        store.rollbackTo(oldVersion + 1);
 //
-//		//store = MVStore.open(fileName);
+//        store.commit();
 //
-//		builder = new MVStore.Builder();
-//		builder.writeDelay(0).fileName(fileName);
+//        map = store.openMap("data");
+//        System.out.println(map.getSize());
 //
-//		store = builder.open();
+//        store.close();
+//    }
 //
-//		return store;
-//	}
+//    MVStore getMVStore() {
+//        MVStore.Builder builder = new MVStore.Builder();
+//        builder.cacheSize(10).compressData().readOnly().writeDelay(2000);
 //
-//	public static void main2(String[] args) {
-//		MVStore.Builder builder = new MVStore.Builder();
-//		builder.cacheSize(10).compressData().readOnly().writeDelay(2000);
+//        String str = builder.toString();
 //
-//		String str = builder.toString();
+//        System.out.println(str);
+//        builder = MVStore.Builder.fromString(str);
 //
-//		System.out.println(str);
-//		builder = MVStore.Builder.fromString(str);
+//        // open the store (in-memory if fileName is null)
+//        String fileName = null;
+//        fileName = "E:/H2/baseDir/MVStoreTest333";
+//        MVStore store = null;
+//        //FileUtils.deleteRecursive(fileName, true);
 //
-//		// open the store (in-memory if fileName is null)
-//		String fileName = null;
-//		fileName = "E:/H2/baseDir/MVStoreTest333";
-//		MVStore store = null;
-//		FileUtils.deleteRecursive(fileName, true);
+//        //store = MVStore.open(fileName);
 //
-//		//store = MVStore.open(fileName);
+//        builder = new MVStore.Builder();
+//        builder.writeDelay(0).fileName(fileName);
 //
-//		builder = new MVStore.Builder();
-//		builder.writeDelay(0).fileName(fileName);
+//        store = builder.open();
 //
-//		store = builder.open();
+//        return store;
+//    }
 //
-//		System.out.println(store.getRetainVersion());
-//		System.out.println(store.getRetentionTime());
-//		System.out.println(store.getReuseSpace());
-//		System.out.println(store.getStoreVersion());
-//		System.out.println(store.getUnsavedPageCount());
+//    public static void main2(String[] args) {
+//        MVStore.Builder builder = new MVStore.Builder();
+//        builder.cacheSize(10).compressData().readOnly().writeDelay(2000);
 //
-//		// create/get the map named "data"
-//		MVMap<Integer, String> map = store.openMap("data");
+//        String str = builder.toString();
 //
-//		int n = 100;
-//		for (int i = 0; i < n; i++) {
-//			map.put(i, "Hello" + i);
+//        System.out.println(str);
+//        builder = MVStore.Builder.fromString(str);
 //
-//			if (i % 20 == 0)
-//				store.incrementVersion();
-//		}
+//        // open the store (in-memory if fileName is null)
+//        String fileName = null;
+//        fileName = "E:/H2/baseDir/MVStoreTest333";
+//        MVStore store = null;
+//        FileUtils.deleteRecursive(fileName, true);
 //
-//		store.commit();
+//        //store = MVStore.open(fileName);
 //
-//		// add some data
-//		map.put(1, "Hello");
-//		map.put(2, "World");
+//        builder = new MVStore.Builder();
+//        builder.writeDelay(0).fileName(fileName);
 //
-//		// get the current version, for later use
-//		long oldVersion = store.getCurrentVersion();
+//        store = builder.open();
 //
-//		// from now on, the old version is read-only
-//		store.incrementVersion();
+//        System.out.println(store.getRetainVersion());
+//        System.out.println(store.getRetentionTime());
+//        System.out.println(store.getReuseSpace());
+//        System.out.println(store.getStoreVersion());
+//        System.out.println(store.getUnsavedPageCount());
 //
-//		// more changes, in the new version
-//		// changes can be rolled back if required
-//		// changes always go into "head" (the newest version)
-//		map.put(1, "Hi");
-//		map.remove(2);
+//        // create/get the map named "data"
+//        MVMap<Integer, String> map = store.openMap("data");
 //
-//		// access the old data (before incrementVersion)
-//		MVMap<Integer, String> oldMap = map.openVersion(oldVersion);
+//        int n = 100;
+//        for (int i = 0; i < n; i++) {
+//            map.put(i, "Hello" + i);
 //
-//		// mark the changes as committed
-//		store.commit();
+//            if (i % 20 == 0)
+//                store.incrementVersion();
+//        }
 //
-//		// print the old version (can be done
-//		// concurrently with further modifications)
-//		// this will print "Hello" and "World":
-//		System.out.println(oldMap.get(1));
-//		System.out.println(oldMap.get(2));
-//		oldMap.close();
+//        store.commit();
 //
-//		// print the newest version ("Hi")
-//		System.out.println(map.get(1));
+//        // add some data
+//        map.put(1, "Hello");
+//        map.put(2, "World");
 //
-//		System.out.println(map.get(2));
+//        // get the current version, for later use
+//        long oldVersion = store.getCurrentVersion();
 //
-//		// close the store - this doesn't write to disk
-//		store.close();
-//	}
+//        // from now on, the old version is read-only
+//        store.incrementVersion();
+//
+//        // more changes, in the new version
+//        // changes can be rolled back if required
+//        // changes always go into "head" (the newest version)
+//        map.put(1, "Hi");
+//        map.remove(2);
+//
+//        // access the old data (before incrementVersion)
+//        MVMap<Integer, String> oldMap = map.openVersion(oldVersion);
+//
+//        // mark the changes as committed
+//        store.commit();
+//
+//        // print the old version (can be done
+//        // concurrently with further modifications)
+//        // this will print "Hello" and "World":
+//        System.out.println(oldMap.get(1));
+//        System.out.println(oldMap.get(2));
+//        oldMap.close();
+//
+//        // print the newest version ("Hi")
+//        System.out.println(map.get(1));
+//
+//        System.out.println(map.get(2));
+//
+//        // close the store - this doesn't write to disk
+//        store.close();
+//    }
 //
 //}

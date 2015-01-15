@@ -16,13 +16,13 @@ public class TransactionTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-        //create();
-        insert();
-        //        select();
-        //
+//        create();
+//        insert();
+//        select();
+
         testCommit();
-        //testRollback();
-        //testSavepoint();
+        testRollback();
+        testSavepoint();
     }
 
     void create() throws Exception {

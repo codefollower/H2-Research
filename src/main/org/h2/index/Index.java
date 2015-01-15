@@ -18,7 +18,7 @@ import org.h2.table.TableFilter;
 /**
  * An index. Indexes are used to speed up searching data.
  */
-//此类的提供的查找方法并没有直接提供模糊查询之类的功能，只有范围查询，
+//此类提供的查找方法并没有直接提供模糊查询之类的功能，只有范围查询，
 //更高级的功能都是通过范围查询获得记录后再在Select那一层通过where条件一一比较和过滤
 public interface Index extends SchemaObject {
 
@@ -87,8 +87,7 @@ public interface Index extends SchemaObject {
      * @param sortOrder the sort order
      * @return the estimated cost
      */
-    double getCost(Session session, int[] masks, TableFilter filter,
-            SortOrder sortOrder);
+    double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder);
 
     /**
      * Remove the index.
