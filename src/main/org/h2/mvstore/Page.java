@@ -510,7 +510,7 @@ public class Page {
      */
     public Object setValue(int index, Object value) {
         Object old = values[index];
-        values = Arrays.copyOf(values, values.length);
+        values = Arrays.copyOf(values, values.length); //只copy引用
         DataType valueType = map.getValueType();
         addMemory(valueType.getMemory(value) -
                 valueType.getMemory(old));
