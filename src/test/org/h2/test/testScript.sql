@@ -3,6 +3,19 @@
 -- Initial Developer: H2 Group
 --
 --- special grammar and test cases ---------------------------------------------------------------------------------------------
+select * from dual join(select x from dual) on 1=1;
+> X X
+> - -
+> 1 1
+> rows: 1
+
+select 0 as x from system_range(1, 2) d group by d.x;
+> X
+> -
+> 0
+> 0
+> rows: 2
+
 select 1 "a", count(*) from dual group by "a" order by "a";
 > a COUNT(*)
 > - --------
@@ -6418,8 +6431,8 @@ EXPLAIN SELECT * FROM TEST WHERE (ID>=1 AND ID<=2)  OR (ID>0 AND ID<3) AND (ID<>
 
 EXPLAIN SELECT * FROM TEST WHERE ID=1 GROUP BY NAME, ID;
 > PLAN
-> ----------------------------------------------------------------------------------------------------------------------
-> SELECT TEST.ID, TEST.NAME FROM PUBLIC.TEST /* PUBLIC.PRIMARY_KEY_2: ID = 1 */ WHERE ID = 1 GROUP BY TEST.NAME, TEST.ID
+> ------------------------------------------------------------------------------------------------------------
+> SELECT TEST.ID, TEST.NAME FROM PUBLIC.TEST /* PUBLIC.PRIMARY_KEY_2: ID = 1 */ WHERE ID = 1 GROUP BY NAME, ID
 > rows: 1
 
 EXPLAIN PLAN FOR UPDATE TEST SET NAME='Hello', ID=1 WHERE NAME LIKE 'T%' ESCAPE 'x';

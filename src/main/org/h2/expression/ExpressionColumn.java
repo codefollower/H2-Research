@@ -255,7 +255,13 @@ public class ExpressionColumn extends Expression {
 
     @Override
     public String getAlias() {
-        return column == null ? columnName : column.getName();
+        if (column != null) {
+            return column.getName();
+        }
+        if (tableAlias != null) {
+            return tableAlias + "." + columnName;
+        }
+        return columnName;
     }
 
     @Override

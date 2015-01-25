@@ -63,6 +63,8 @@ MVStore格式
 		4096字节  FileHeader
 		4096字节  FileHeader
 		[ Chunk ] *
+
+		128字节   ChunkFooter
 	}
 
 	FileHeader {
@@ -79,10 +81,15 @@ MVStore格式
 		fletcher:3bde3c9a (使用Fletcher32算法得到的checksum，是对前面7个属性求checksum)
 	}
 
+	ChunkFooter {
+		chunk:1,block:2,version:1,fletcher:84d0d5f6
+	}
+
 	Chunk {
 		[ ChunkHeader MVMapPage MetaMapPage FileHeader] *
 	}
 
+    //每个ChunkHeader最多占1024字节
 	ChunkHeader {
 		byte    固定是'c'
 		int     length
@@ -178,3 +185,4 @@ chunk:129,block:2,version:129,fletcher:7e97485b
 readChunkHeader:
 ================
 chunk:127,block:3,len:1,map:1f,max:900,next:4,pages:8,root:49c000012743,time:1ad42913,version:127
+chunk:1,block:2,len:1,map:1,max:5a0,next:3,pages:e,root:40000119c4,time:274e1,version:1
