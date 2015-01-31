@@ -8,6 +8,15 @@ import java.sql.Statement;
 import java.util.Properties;
 
 public abstract class TestBase {
+
+    public static void p(Object o) {
+        System.out.println(o);
+    }
+
+    public static void p() {
+        System.out.println();
+    }
+
     protected Properties prop = new Properties();
     protected Connection conn;
     protected Statement stmt;
@@ -68,7 +77,9 @@ public abstract class TestBase {
             conn.close();
     }
 
-    public abstract void startInternal() throws Exception;
+    public void startInternal() throws Exception {
+
+    }
 
     public void executeQuery() throws Exception {
         rs = stmt.executeQuery(sql);

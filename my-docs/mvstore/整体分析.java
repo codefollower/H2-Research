@@ -113,21 +113,25 @@ MVStore格式
 		接下来分两种情况:
 		===========================
 		1. 如果不需压缩: {
-			key count {
-				Object  key
-			}
 			if (type == leaf) {
+				key count {
+					Object  key
+				}
 				key count {
 					Object  value
 				}
 			}
-			if (type == node) {
+			else if (type == node) {
 				key count + 1 {
 					long     child page pos
 				}
 
 				key count + 1 {
 					varLong  child key count
+				}
+				
+				key count {
+					Object  key
 				}
 			}
 		}

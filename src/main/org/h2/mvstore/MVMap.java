@@ -154,7 +154,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         int at = p.getKeyCount() / 2;
         long totalCount = p.getTotalCount();
         Object k = p.getKey(at);
-        Page split = p.split(at);
+        Page split = p.split(at); //p把自己split后被当成左节点
         Object[] keys = { k };
         Page.PageReference[] children = {
                 new Page.PageReference(p, p.getPos(), p.getTotalCount()),
@@ -190,16 +190,17 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         if (index < 0) {
             index = -index - 1;
         } else {
-            index++;
+            index++; //大于等于split key的在右边节点，所以要加1
         }
         Page c = p.getChildPage(index).copy(writeVersion);
+        //如果在这里发生split，可能是树叶也可能是非树叶节点
         if (c.getMemory() > store.getPageSplitSize() && c.getKeyCount() > 1) {
             // split on the way down
             int at = c.getKeyCount() / 2;
             Object k = c.getKey(at);
             Page split = c.split(at);
-            p.setChild(index, split);
-            p.insertNode(index, k, c);
+            p.setChild(index, split); //这里把右边节点替换原来的
+            p.insertNode(index, k, c); //这里把左边节点插入，把前面的往右挪
             // now we are not sure where to add
             return put(p, writeVersion, key, value);
         }
@@ -671,9 +672,9 @@ public class MVMap<K, V> extends AbstractMap<K, V>
             // this child was deleted
             if (p.getKeyCount() == 0) {
                 p.setChild(index, c);
-                c.removePage();
+                c.removePage(); //直接删除最后一个子节点，父节点在remove(Object)那里删除
             } else {
-                p.remove(index);
+                p.remove(index); //删除没有记录的子节点
             }
         }
         return result;
@@ -988,6 +989,8 @@ public class MVMap<K, V> extends AbstractMap<K, V>
      * Forget those old versions that are no longer needed.
      */
     void removeUnusedOldVersions() {
+        //如果只保留3个版本，假设前面已经有5个版本了，版本号是1-5，
+        //如果当前版本号是6，那么oldest的值就是4，版本号小于4的OldRoot都要删除
         long oldest = store.getOldestVersionToKeep();
         if (oldest == -1) {
             return;
