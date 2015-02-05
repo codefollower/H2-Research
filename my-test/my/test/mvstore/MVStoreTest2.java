@@ -41,7 +41,7 @@ public class MVStoreTest2 {
 
     MVStore store;
     MVMap<String, String> map;
-    String fileName = "./target/mvstore-test/MVStoreTest9.mv.db";
+    String fileName = "./target/mvstore-test/MVStoreTest1.mv.db";
 
     void initMVStore() {
         Builder builder = new Builder();
@@ -61,7 +61,7 @@ public class MVStoreTest2 {
     }
 
     void run() {
-        //MVStoreTool.dump(fileName, true);
+        //testMVStoreTool();
 
         initMVStore();
         openMap();
@@ -72,10 +72,21 @@ public class MVStoreTest2 {
         //testBatchPut();
         //testVersion();
         //testGet();
-        
-        testRemove();
+
+        //testRemove();
+
+        testCompact();
 
         store.close();
+    }
+
+    void testMVStoreTool() {
+
+        //MVStoreTool.dump(fileName, true);
+
+        //MVStoreTool.dump(fileName, false);
+
+        MVStoreTool.info(fileName);
     }
 
     void testMVStore() {
@@ -90,6 +101,17 @@ public class MVStoreTest2 {
         for (Map.Entry<String, String> e : meta.entrySet())
             p(e.getKey() + "=" + e.getValue());
         p(meta);
+
+        for (String k : meta.keySet())
+            p(k);
+
+        p("meta.size=" + meta.size());
+    }
+
+    void testCompact() {
+        //store.compactMoveChunks();
+        //store.compact(100, Integer.MAX_VALUE);
+        store.compact(100, 300);
     }
 
     void testGet() {
@@ -127,23 +149,23 @@ public class MVStoreTest2 {
             key = cursor.next();
             p(key);
         }
-        
+
         p(map.getName());
     }
-    
+
     void testRemove() {
         map.put("10", "value_10");
         map.put("30", "value_30");
         map.put("20", "value_20");
-        
+
         map.remove("20");
         map.remove("10");
         map.remove("30");
-        
+
         for (int i = 10; i < 30; i++) {
             map.put("" + i, "value" + i);
         }
-        
+
         for (int i = 10; i < 30; i++) {
             map.remove("" + i);
         }

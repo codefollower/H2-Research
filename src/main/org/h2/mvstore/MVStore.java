@@ -250,7 +250,7 @@ public class MVStore {
     /**
      * The earliest chunk to retain, if any.
      */
-    private Chunk retainChunk;
+    private Chunk retainChunk; //目前没有用处
 
     /**
      * The version of the current store operation (if any).
@@ -606,7 +606,7 @@ public class MVStore {
                     "and the file was not opened in read-only mode",
                     format, FORMAT_WRITE);
         }
-        format = DataUtils.readHexLong(fileHeader, "formatRead", format);
+        format = DataUtils.readHexLong(fileHeader, "formatRead", format); //"formatRead"目前未使用
         if (format > FORMAT_READ) {
             throw DataUtils.newIllegalStateException(
                     DataUtils.ERROR_UNSUPPORTED_FORMAT,
@@ -1325,14 +1325,14 @@ public class MVStore {
         if (c.unused == 0 || c.unused + retentionTime / 2 > time) {
             return false;
         }
-        Chunk r = retainChunk;
+        Chunk r = retainChunk; //retainChunk目前没有用处，是null
         if (r != null && c.version > r.version) {
             return false;
         }
         return true;
     }
 
-    private long getTime() {
+    private long getTime() { //creationTime是当前打开的xxx.mv.db文件的创建时间，这个方法就是返回从创建时间到现在经过的毫秒数
         return System.currentTimeMillis() - creationTime;
     }
 
@@ -1698,7 +1698,7 @@ public class MVStore {
 
         for (Chunk c : chunks.values()) {
             // ignore young chunks, because we don't optimize those
-            if (c.time + retentionTime > time) {
+            if (c.time + retentionTime > time) { //retentionTime默认是45秒钟，见FileStore.getDefaultRetentionTime
                 continue;
             }
             maxLengthSum += c.maxLen;
@@ -1739,7 +1739,7 @@ public class MVStore {
         // sort the list, so the first entry should be collected first
         Collections.sort(old, new Comparator<Chunk>() {
             @Override
-            public int compare(Chunk o1, Chunk o2) {
+            public int compare(Chunk o1, Chunk o2) { //collectPriority小的排在最前面，并且对排在前面的Chunk进行compact
                 int comp = new Integer(o1.collectPriority).
                         compareTo(o2.collectPriority);
                 if (comp == 0) {
@@ -2556,7 +2556,7 @@ public class MVStore {
                 }
                 synchronized (sync) {
                     try {
-                        sync.wait(sleep);
+                        sync.wait(sleep); //在MVStore.stopBackgroundThread()中通知
                     } catch (InterruptedException e) {
                         continue;
                     }

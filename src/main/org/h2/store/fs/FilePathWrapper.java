@@ -44,8 +44,8 @@ public abstract class FilePathWrapper extends FilePath {
     private FilePathWrapper create(String path, FilePath base) {
         try {
             FilePathWrapper p = getClass().newInstance();
-            //我加上的
-            p.name = translateFileName(path); //p.name = path;
+            p.name = translateFileName(path); //我加上的
+            //p.name = path;
             p.base = base;
             return p;
         } catch (Exception e) {
@@ -54,11 +54,12 @@ public abstract class FilePathWrapper extends FilePath {
     }
 
 	private String translateFileName(String fileName) {  //我加上的
-		fileName = fileName.replace('\\', '/');
-		if (fileName.startsWith(getPrefix())) {
-			fileName = fileName.substring(getPrefix().length());
-		}
-		return getPrefix() + expandUserHomeDirectory(fileName);
+        fileName = fileName.replace('\\', '/');
+        String prefix = getScheme() + ":";
+        if (fileName.startsWith(prefix)) {
+            fileName = fileName.substring(prefix.length());
+        }
+		return prefix + expandUserHomeDirectory(fileName);
 	}
 
 	private String expandUserHomeDirectory(String fileName) {  //我加上的

@@ -17,16 +17,21 @@
  */
 package my.test.mvstore;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 import my.test.TestBase;
 
 import org.h2.mvstore.FileStore;
 import org.h2.mvstore.WriteBuffer;
+import org.h2.mvstore.cache.FilePathCache;
+import org.h2.store.fs.FilePath;
+import org.h2.store.fs.FilePathEncrypt;
 
 public class FileStoreTest extends TestBase {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         //Package p = FileStoreTest.class.getPackage();
         //p(p.getName());
         new FileStoreTest().run();
@@ -44,7 +49,12 @@ public class FileStoreTest extends TestBase {
         wb.putInt(i);
     }
 
-    void run() {
+    void run() throws Exception {
+        //testFileStore();
+        testFilePath();
+    }
+
+    void testFileStore() {
         FileStore fs = new FileStore();
 
         try {
@@ -62,6 +72,64 @@ public class FileStoreTest extends TestBase {
 
         } finally {
             fs.close();
+        }
+    }
+
+    void testFilePath() throws IOException {
+        //测FilePathDisk
+        FilePath fp;
+        //fp = FilePath.get(fileName);
+
+        String fileName = this.fileName;
+        //测FilePathNio
+        fileName = "nio:" + this.fileName;
+
+        //测FilePathNio
+        fileName = "cache:encrypt:mypassword:nio:" + this.fileName;
+        FilePath.register(new FilePathCache());
+        FilePathEncrypt.register();
+        fp = FilePath.get(fileName);
+
+        String name = fp.getName();
+        p(name);
+        p(fp.getScheme());
+
+        p(fp.size());
+
+        //fp.moveTo(FilePath.get(fileName + "new"), true);
+
+        for (FilePath f : fp.getParent().newDirectoryStream())
+            p(f.getName());
+
+        p(fp.toRealPath());
+
+        try {
+            p(fp.createTempFile(".my", true, false));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        FileChannel ch = null;
+        try {
+            ch = fp.open("rw");
+
+            //for (int i = 0; i < 3000; i++)
+            //put("abc");
+
+            ByteBuffer buff = wb.getBuffer();
+            buff.flip();
+            long pos = ch.size();
+            p("size=" + pos);
+            ch.write(buff);
+
+            buff.clear();
+
+            ch.read(buff, 0);
+            buff.clear();
+            ch.read(buff, 0);
+        } finally {
+            if (ch != null)
+                ch.close();
         }
     }
 }
