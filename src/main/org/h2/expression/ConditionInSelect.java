@@ -202,4 +202,8 @@ public class ConditionInSelect extends Condition {
         filter.addIndexCondition(IndexCondition.getInQuery(l, query));
     }
 
+    @Override
+    public boolean isDisjunctive() {
+        return true;
+   }
 }

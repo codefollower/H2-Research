@@ -32,6 +32,7 @@ public class CreateTrigger extends SchemaCommand {
     private boolean noWait;
     private String tableName;
     private String triggerClassName;
+    private String triggerSource;
     private boolean force;
     private boolean onRollback;
 
@@ -49,6 +50,10 @@ public class CreateTrigger extends SchemaCommand {
 
     public void setTriggerClassName(String triggerClassName) {
         this.triggerClassName = triggerClassName;
+    }
+
+    public void setTriggerSource(String triggerSource) {
+        this.triggerSource = triggerSource;
     }
 
     public void setTypeMask(int typeMask) {
@@ -106,8 +111,12 @@ public class CreateTrigger extends SchemaCommand {
         trigger.setRowBased(rowBased);
         trigger.setTypeMask(typeMask);
         trigger.setOnRollback(onRollback);
-        trigger.setTriggerClassName(triggerClassName, force);
         //Trigger的信息放到三处:Database的Meta表、Schema对象、Table对象
+        if (this.triggerClassName != null) {
+            trigger.setTriggerClassName(triggerClassName, force);
+        } else {
+            trigger.setTriggerSource(triggerSource, force);
+        }
         db.addSchemaObject(session, trigger);
         table.addTrigger(trigger);
         return 0;

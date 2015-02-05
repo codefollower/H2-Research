@@ -1220,12 +1220,20 @@ public class Parser {
             if (foundLeftBracket) {
                 Schema mainSchema = database.getSchema(Constants.SCHEMA_MAIN);
                 //如"FROM SYSTEM_RANGE(1,100) SELECT * ";
-                if (equalsToken(tableName, RangeTable.NAME)) {
+                if (equalsToken(tableName, RangeTable.NAME)
+                        || equalsToken(tableName, RangeTable.ALIAS)) {
                     Expression min = readExpression();
                     read(",");
                     Expression max = readExpression();
-                    read(")");
-                    table = new RangeTable(mainSchema, min, max, false);
+                    if (readIf(",")) {
+                        Expression step = readExpression();
+                        read(")");
+                        table = new RangeTable(mainSchema, min, max, step,
+                                false);
+                    } else {
+                        read(")");
+                        table = new RangeTable(mainSchema, min, max, false);
+                    }
                 } else {
                 	//如"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
                 	//这个不合法，的FunctionTable中会抛错sql = "FROM USER() SELECT * "; //函数返回值类型必须是RESULT_SET
@@ -4806,8 +4814,12 @@ public class Parser {
             command.setQueueSize(readPositiveInt());
         }
         command.setNoWait(readIf("NOWAIT"));
-        read("CALL");
-        command.setTriggerClassName(readUniqueIdentifier());
+        if (readIf("AS")) {
+            command.setTriggerSource(readString());
+        } else {
+            read("CALL");
+            command.setTriggerClassName(readUniqueIdentifier());
+        }
         return command;
     }
 

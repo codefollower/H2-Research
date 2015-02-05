@@ -285,6 +285,11 @@ public class ConditionAndOr extends Condition {
         return left.getCost() + right.getCost();
     }
 
+    @Override
+    public boolean isDisjunctive() {
+        return andOrType == OR || left.isDisjunctive() || right.isDisjunctive();
+    }
+        
     /**
      * Get the left or the right sub-expression of this condition.
      *

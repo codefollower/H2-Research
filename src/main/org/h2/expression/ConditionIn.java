@@ -99,6 +99,10 @@ public class ConditionIn extends Condition {
             if (allValuesConstant && !e.isConstant()) {
                 allValuesConstant = false;
             }
+            if (left instanceof ExpressionColumn && e instanceof Parameter) {
+                ((Parameter) e)
+                        .setColumn(((ExpressionColumn) left).getColumn());
+            }
             valueList.set(i, e);
         }
         //如delete from ConditionInTest where 2 in(1,2)
@@ -204,6 +208,11 @@ public class ConditionIn extends Condition {
         return cost;
     }
 
+    @Override
+    public boolean isDisjunctive() {
+        return true;
+    }
+        
     /**
      * Add an additional element if possible. Example: given two conditions
      * A IN(1, 2) OR A=3, the constant 3 is added: A IN(1, 2, 3).
