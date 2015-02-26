@@ -1728,6 +1728,7 @@ public class MVStore {
             if (c.time + retentionTime > time) {
                 continue;
             }
+            //年龄越小填充率越高优先级数字越大，移动collectPriority小的，也就是年龄大的填充率低的
             long age = last.version - c.version + 1;
             c.collectPriority = (int) (c.getFillRate() * 1000 / age);
             old.add(c);
