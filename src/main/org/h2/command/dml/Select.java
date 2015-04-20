@@ -23,7 +23,6 @@ import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
-import org.h2.expression.Wildcard;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
 import org.h2.index.IndexCondition;
@@ -34,7 +33,7 @@ import org.h2.result.ResultInterface;
 import org.h2.result.ResultTarget;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
-import org.h2.result.SortOrder; 
+import org.h2.result.SortOrder;
 import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
 import org.h2.table.IndexColumn;
@@ -530,20 +529,19 @@ public class Select extends Query {
     /**
      * Validates the cases where ORDER BY clause do not contains all indexed
      * columns, but the related index path still would be valid for such search.
-     * Sometimes, the absence of a column in the ORDER BY clause does not alter the
-     * expected final result, and an index sorted scan could still be used.
+     * Sometimes, the absence of a column in the ORDER BY clause does not alter
+     * the expected final result, and an index sorted scan could still be used.
      * <pre>
      * CREATE TABLE test(a, b);
      * CREATE UNIQUE INDEX idx_test ON test(a, b);
      * SELECT b FROM test WHERE a=22 AND b>10 order by b;
      * </pre>
-     * More restrictive rule where one table query with indexed column
-     * not present in the ORDER BY clause is filtered with equality conditions
-     * (at least one) of type COLUMN = CONSTANT in a conjunctive fashion.
-     * 
+     * More restrictive rule where one table query with indexed column not
+     * present in the ORDER BY clause is filtered with equality conditions (at
+     * least one) of type COLUMN = CONSTANT in a conjunctive fashion.
+     *
      * @param sortColumn Column to be validated
-     * @return true if the column can be used implicitly, or false
-     *         otherwise.
+     * @return true if the column can be used implicitly, or false otherwise.
      */
     private boolean isSortColumnImplicit(TableFilter tableFilter,
             Column sortColumn) {
@@ -797,17 +795,17 @@ public class Select extends Query {
             
             //如select * from mytable
             if (tableAlias == null) {
-                int temp = i;
                 expressions.remove(i);
                 //有可能是多表join，这时一个*就会先扩展成多表的*，如t1.*，t2.*
                 for (TableFilter filter : filters) {
-                    Wildcard c2 = new Wildcard(filter.getTable().getSchema()
-                            .getName(), filter.getTableAlias());
-                    expressions.add(i++, c2);
+                    i = expandColumnList(filter, i);
                 }
+
                 //继续从Wildcard c2加进的地方进行(temp - 1之后for (int i = 0; i < expressions.size(); i++)中再i++，
                 //所以i跟上次一样)
-                i = temp - 1;
+                //i = temp - 1;
+
+                i--;
             } else {
             	
             	//第2步: 把"表名.*"转成"表名.字段名"
@@ -830,30 +828,46 @@ public class Select extends Query {
                     throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1,
                             tableAlias);
                 }
-                Table t = filter.getTable();
-                String alias = filter.getTableAlias();
                 expressions.remove(i);
-                Column[] columns = t.getColumns();
-                
-                //原先是select * from natural_join_test_table1  natural join natural_join_test_table2
-                //AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
-                //[NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME, NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
-                for (Column c : columns) {
-                	//右边表的filter有Natural Join列，而左边没有
-                    if (filter.isNaturalJoinColumn(c)) { //跳过Natural Join列
-                        continue;
-                    }
-                    ExpressionColumn ec = new ExpressionColumn(
-                            session.getDatabase(), null, alias, c.getName());
-                    expressions.add(i++, ec);
-                }
-                //i--之后for (int i = 0; i < expressions.size(); i++)中再i++, 所以下次实际是展开后的下一个元素开始
-                //比如select public.t.id, *, name from mytable as t where id>199
-                //展开后是select public.t.id, [id, name], name from mytable as t where id>199
-                //下次就从最后一个name的开始
+//<<<<<<< HEAD
+//                Column[] columns = t.getColumns();
+//                
+//                //原先是select * from natural_join_test_table1  natural join natural_join_test_table2
+//                //AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
+//                //[NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME, NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
+//                for (Column c : columns) {
+//                	//右边表的filter有Natural Join列，而左边没有
+//                    if (filter.isNaturalJoinColumn(c)) { //跳过Natural Join列
+//                        continue;
+//                    }
+//                    ExpressionColumn ec = new ExpressionColumn(
+//                            session.getDatabase(), null, alias, c.getName());
+//                    expressions.add(i++, ec);
+//                }
+//                //i--之后for (int i = 0; i < expressions.size(); i++)中再i++, 所以下次实际是展开后的下一个元素开始
+//                //比如select public.t.id, *, name from mytable as t where id>199
+//                //展开后是select public.t.id, [id, name], name from mytable as t where id>199
+//                //下次就从最后一个name的开始
+//=======
+                i = expandColumnList(filter, i);
                 i--;
             }
         }
+    }
+
+    private int expandColumnList(TableFilter filter, int index) {
+        Table t = filter.getTable();
+        String alias = filter.getTableAlias();
+        Column[] columns = t.getColumns();
+        for (Column c : columns) {
+            if (filter.isNaturalJoinColumn(c)) {
+                continue;
+            }
+            ExpressionColumn ec = new ExpressionColumn(
+                    session.getDatabase(), null, alias, c.getName());
+            expressions.add(index++, ec);
+        }
+        return index;
     }
 
     @Override

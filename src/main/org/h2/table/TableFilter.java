@@ -569,7 +569,7 @@ public class TableFilter implements ColumnResolver {
 
     /**
      * Return a list of index condition filtered by a specific column.
-     * 
+     *
      * @param column The column of the condition
      * @return the filtered list
      */

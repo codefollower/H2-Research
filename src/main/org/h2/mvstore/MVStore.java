@@ -49,9 +49,7 @@ MVStore:
     even for a small heap, and so that chunks
     are still relatively big on average
 - make sure serialization / deserialization errors don't corrupt the file
-- FileStore: don't open and close when set using MVStore.Builder.fileStore
 - test and possibly improve compact operation (for large dbs)
-- is data kept in the stream store if the transaction is not committed?
 - automated 'kill process' and 'power failure' test
 - defragment (re-creating maps, specially those with small pages)
 - store number of write operations per page (maybe defragment
@@ -78,7 +76,6 @@ MVStore:
 - temporary file storage
 - simple rollback method (rollback to last committed version)
 - MVMap to implement SortedMap, then NavigableMap
-- Test with OSGi
 - storage that splits database into multiple files,
     to speed up compact and allow using trim
     (by truncating / deleting empty files)
@@ -203,7 +200,7 @@ public class MVStore {
     private final ConcurrentHashMap<Integer, MVMap<?, ?>> maps =
             new ConcurrentHashMap<Integer, MVMap<?, ?>>();
 
-    private HashMap<String, Object> fileHeader = New.hashMap();
+    private HashMap<String, Object> storeHeader = New.hashMap();
 
     private WriteBuffer writeBuffer;
 
@@ -320,7 +317,7 @@ public class MVStore {
             int segmentCount = 16;
             int stackMoveDistance = 8;
             cache = new CacheLongKeyLIRS<Page>(
-                    maxMemoryBytes, 
+                    maxMemoryBytes,
                     segmentCount, stackMoveDistance);
             cacheChunkRef = new CacheLongKeyLIRS<PageChildren>(
                     maxMemoryBytes / 4,
@@ -342,13 +339,13 @@ public class MVStore {
             if (fileStore.size() == 0) {
                 creationTime = getTime();
                 lastCommitTime = creationTime;
-                fileHeader.put("H", 2);
-                fileHeader.put("blockSize", BLOCK_SIZE);
-                fileHeader.put("format", FORMAT_WRITE);
-                fileHeader.put("created", creationTime);
-                writeFileHeader();
+                storeHeader.put("H", 2);
+                storeHeader.put("blockSize", BLOCK_SIZE);
+                storeHeader.put("format", FORMAT_WRITE);
+                storeHeader.put("created", creationTime);
+                writeStoreHeader();
             } else {
-                readFileHeader();
+                readStoreHeader();
             }
         } catch (IllegalStateException e) {
             panic(e);
@@ -548,7 +545,7 @@ public class MVStore {
         metaChanged = true;
     }
 
-    private synchronized void readFileHeader() {
+    private synchronized void readStoreHeader() {
         boolean validHeader = false;
         // we don't know yet which chunk and version are the newest
         long newestVersion = -1;
@@ -583,7 +580,7 @@ public class MVStore {
                 long version = DataUtils.readHexLong(m, "version", 0);
                 if (version > newestVersion) {
                     newestVersion = version;
-                    fileHeader.putAll(m);
+                    storeHeader.putAll(m);
                     chunkBlock = DataUtils.readHexLong(m, "block", 0);
                     creationTime = DataUtils.readHexLong(m, "created", 0);
                     validHeader = true;
@@ -597,7 +594,7 @@ public class MVStore {
                     DataUtils.ERROR_FILE_CORRUPT,
                     "Store header is corrupt: {0}", fileStore);
         }
-        long format = DataUtils.readHexLong(fileHeader, "format", 1);
+        long format = DataUtils.readHexLong(storeHeader, "format", 1);
         if (format > FORMAT_WRITE && !fileStore.isReadOnly()) {
             throw DataUtils.newIllegalStateException(
                     DataUtils.ERROR_UNSUPPORTED_FORMAT,
@@ -606,7 +603,7 @@ public class MVStore {
                     "and the file was not opened in read-only mode",
                     format, FORMAT_WRITE);
         }
-        format = DataUtils.readHexLong(fileHeader, "formatRead", format); //"formatRead"目前未使用
+        format = DataUtils.readHexLong(storeHeader, "formatRead", format); //"formatRead"目前未使用
         if (format > FORMAT_READ) {
             throw DataUtils.newIllegalStateException(
                     DataUtils.ERROR_UNSUPPORTED_FORMAT,
@@ -630,7 +627,7 @@ public class MVStore {
             // the system time was set to the past:
             // we change the creation time
             creationTime = now;
-            fileHeader.put("created", creationTime);
+            storeHeader.put("created", creationTime);
         }
 
         Chunk footer = readChunkFooter(fileStore.size());
@@ -748,14 +745,14 @@ public class MVStore {
         return null;
     }
 
-    private void writeFileHeader() {
+    private void writeStoreHeader() {
         StringBuilder buff = new StringBuilder();
         if (lastChunk != null) {
-            fileHeader.put("block", lastChunk.block);
-            fileHeader.put("chunk", lastChunk.id);
-            fileHeader.put("version", lastChunk.version);
+            storeHeader.put("block", lastChunk.block);
+            storeHeader.put("chunk", lastChunk.id);
+            storeHeader.put("version", lastChunk.version);
         }
-        DataUtils.appendMap(buff, fileHeader);
+        DataUtils.appendMap(buff, storeHeader);
         byte[] bytes = buff.toString().getBytes(DataUtils.LATIN);
         int checksum = DataUtils.getFletcher32(bytes, bytes.length);
         DataUtils.appendMap(buff, "fletcher", checksum);
@@ -876,6 +873,7 @@ public class MVStore {
         int chunkId = DataUtils.getPageChunkId(pos);
         Chunk c = chunks.get(chunkId);
         if (c == null) {
+            checkOpen();
             if (!Thread.holdsLock(this)) {
                 // it could also be unsynchronized metadata
                 // access (if synchronization on this was forgotten)
@@ -1117,28 +1115,28 @@ public class MVStore {
         write(filePos, buff.getBuffer());
         releaseWriteBuffer(buff);
 
-        // whether we need to write the file header
-        boolean needHeader = false;
+        // whether we need to write the store header
+        boolean writeStoreHeader = false;
         if (!storeAtEndOfFile) {
             if (lastChunk == null) {
-                needHeader = true;
+                writeStoreHeader = true;
             } else if (lastChunk.next != c.block) {
                 // the last prediction did not matched
-                needHeader = true;
+                writeStoreHeader = true;
             } else {
                 long headerVersion = DataUtils.readHexLong(
-                        fileHeader, "version", 0);
+                        storeHeader, "version", 0);
                 if (lastChunk.version - headerVersion > 20) {
                     // we write after at least 20 entries
-                    needHeader = true;
+                    writeStoreHeader = true;
                 } else {
-                    int chunkId = DataUtils.readHexInt(fileHeader, "chunk", 0);
+                    int chunkId = DataUtils.readHexInt(storeHeader, "chunk", 0);
                     while (true) {
                         Chunk old = chunks.get(chunkId);
                         if (old == null) {
                             // one of the chunks in between
                             // was removed
-                            needHeader = true;
+                            writeStoreHeader = true;
                             break;
                         }
                         if (chunkId == lastChunk.id) {
@@ -1151,11 +1149,11 @@ public class MVStore {
         }
 
         lastChunk = c;
-        if (needHeader) {
-            writeFileHeader();
+        if (writeStoreHeader) {
+            writeStoreHeader();
         }
         if (!storeAtEndOfFile) {
-            // may only shrink after the file header was written
+            // may only shrink after the store header was written
             shrinkFileIfPossible(1);
         }
 
@@ -1179,7 +1177,7 @@ public class MVStore {
     }
 
     private synchronized void freeUnusedChunks() {
-        if (lastChunk == null) {
+        if (lastChunk == null || !reuseSpace) {
             return;
         }
         Set<Integer> referenced = collectReferencedChunks();
@@ -1223,27 +1221,45 @@ public class MVStore {
                 continue;
             }
             int mapId = DataUtils.parseHexInt(key.substring("root.".length()));
-            collectReferencedChunks(referenced, mapId, pos);
+            collectReferencedChunks(referenced, mapId, pos, 0);
         }
         long pos = lastChunk.metaRootPos;
-        collectReferencedChunks(referenced, 0, pos);
+        collectReferencedChunks(referenced, 0, pos, 0);
         readCount = fileStore.readCount - readCount;
         return referenced;
     }
 
-    private int collectReferencedChunks(Set<Integer> targetChunkSet, int mapId, long pos) {
-        targetChunkSet.add(DataUtils.getPageChunkId(pos));
+    private void collectReferencedChunks(Set<Integer> targetChunkSet,
+            int mapId, long pos, int level) {
+        int c = DataUtils.getPageChunkId(pos);
+        targetChunkSet.add(c);
         if (DataUtils.getPageType(pos) == DataUtils.PAGE_TYPE_LEAF) {
-            return 1;
+            return;
         }
         PageChildren refs = readPageChunkReferences(mapId, pos, -1);
-        int count = 0;
-        if (refs != null) {
-            for (long p : refs.children) {
-                count += collectReferencedChunks(targetChunkSet, mapId, p);
+        if (!refs.chunkList) {
+            Set<Integer> target = New.hashSet();
+            for (int i = 0; i < refs.children.length; i++) {
+                long p = refs.children[i];
+                collectReferencedChunks(target, mapId, p, level + 1);
+            }
+            // we don't need a reference to this chunk
+            target.remove(c);
+            long[] children = new long[target.size()];
+            int i = 0;
+            for (Integer p : target) {
+                children[i++] = DataUtils.getPagePos(p, 0, 0,
+                        DataUtils.PAGE_TYPE_LEAF);
+            }
+            refs.children = children;
+            refs.chunkList = true;
+            if (cacheChunkRef != null) {
+                cacheChunkRef.put(refs.pos, refs, refs.getMemory());
             }
         }
-        return count;
+        for (long p : refs.children) {
+            targetChunkSet.add(DataUtils.getPageChunkId(p));
+        }
     }
 
     private PageChildren readPageChunkReferences(int mapId, long pos, int parentChunk) {
@@ -1257,6 +1273,7 @@ public class MVStore {
             r = null;
         }
         if (r == null) {
+            // if possible, create it from the cached page
             if (cache != null) {
                 Page p = cache.get(pos);
                 if (p != null) {
@@ -1264,6 +1281,7 @@ public class MVStore {
                 }
             }
             if (r == null) {
+                // page was not cached: read the data
                 Chunk c = getChunk(pos);
                 long filePos = c.block * BLOCK_SIZE;
                 filePos += DataUtils.getPageOffset(pos);
@@ -1277,7 +1295,7 @@ public class MVStore {
             }
             r.removeDuplicateChunkReferences();
             if (cacheChunkRef != null) {
-                cacheChunkRef.put(pos, r);
+                cacheChunkRef.put(pos, r, r.getMemory());
             }
         }
         if (r.children.length == 0) {
@@ -1343,8 +1361,7 @@ public class MVStore {
      *
      * @param storeVersion apply up to the given version
      */
-    private Set<Chunk> applyFreedSpace(long storeVersion) {
-        Set<Chunk> removedChunks = New.hashSet();
+    private void applyFreedSpace(long storeVersion) {
         while (true) {
             ArrayList<Chunk> modified = New.arrayList();
             Iterator<Entry<Long, HashMap<Integer, Chunk>>> it;
@@ -1393,7 +1410,6 @@ public class MVStore {
                 break;
             }
         }
-        return removedChunks;
     }
 
     /**
@@ -1515,7 +1531,7 @@ public class MVStore {
      */
     public synchronized boolean compactMoveChunks(int targetFillRate, long moveSize) {
         checkOpen();
-        if (lastChunk == null) {
+        if (lastChunk == null || !reuseSpace) {
             // nothing to do
             return false;
         }
@@ -1670,6 +1686,9 @@ public class MVStore {
      * @return if a chunk was re-written
      */
     public boolean compact(int targetFillRate, int write) {
+        if (!reuseSpace) {
+            return false;
+        }
         synchronized (compactSync) {
             checkOpen();
             ArrayList<Chunk> old;
@@ -2192,8 +2211,8 @@ public class MVStore {
                 releaseWriteBuffer(buff);
                 lastChunk = chunks.get(lastChunk.id - 1);
             }
-            writeFileHeader();
-            readFileHeader();
+            writeStoreHeader();
+            readStoreHeader();
         }
         for (MVMap<?, ?> m : New.arrayList(maps.values())) {
             int id = m.getId();
@@ -2264,7 +2283,7 @@ public class MVStore {
      * @return the store header
      */
     public Map<String, Object> getStoreHeader() {
-        return fileHeader;
+        return storeHeader;
     }
 
     private void checkOpen() {

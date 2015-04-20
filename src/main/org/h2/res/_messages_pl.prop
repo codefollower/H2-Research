@@ -66,6 +66,7 @@
 90036=Sekwencja {0} nie istnieje
 90037=Widok {0} nie istnieje
 90038=Widok {0} już istnieje
+90039=#This CLOB or BLOB reference timed out: {0}
 90040=Uprawnienia administratora są wymagane do wykonania tej operacji
 90041=Wyzwalacz {0} już istnieje
 90042=Wyzwalacz {0} nie istnieje
@@ -163,6 +164,7 @@
 90139=Publiczna, statyczna metoda Java nie znaleziona: {0}
 90140=Wyniki są tylko do odczytu. Być może potrzebujesz użyć conn.createStatement(.., ResultSet.CONCUR_UPDATABLE).
 90141=Serializator nie może być zmieniony ponieważ istnieje tabela z danymi: {0}
+90142=#Step size must not be zero
 HY000=Błąd ogólny: {0}
 HY004=Nieznany typ danych: {0}
 HYC00=Cecha nie jest wspierana: {0}

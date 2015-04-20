@@ -66,6 +66,7 @@
 90036=Sequence {0} not found
 90037=View {0} not found
 90038=View {0} already exists
+90039=This CLOB or BLOB reference timed out: {0}
 90040=Admin rights are required for this operation
 90041=Trigger {0} already exists
 90042=Trigger {0} not found
@@ -163,6 +164,7 @@
 90139=The public static Java method was not found: {0}
 90140=The result set is readonly. You may need to use conn.createStatement(.., ResultSet.CONCUR_UPDATABLE).
 90141=Serializer cannot be changed because there is a data table: {0}
+90142=Step size must not be zero
 HY000=General error: {0}
 HY004=Unknown data type: {0}
 HYC00=Feature not supported: {0}

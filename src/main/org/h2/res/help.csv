@@ -210,7 +210,7 @@ Creates a new table."
 "Commands (DDL)","CREATE TRIGGER","
 CREATE TRIGGER [ IF NOT EXISTS ] newTriggerName { BEFORE | AFTER | INSTEAD OF }
 { INSERT | UPDATE | DELETE | SELECT | ROLLBACK } [,...] ON tableName [ FOR EACH ROW ]
-[ QUEUE int ] [ NOWAIT ] CALL triggeredClassName
+[ QUEUE int ] [ NOWAIT ] { CALL triggeredClassName | AS sourceCodeString }
 ","
 Creates a new trigger."
 "Commands (DDL)","CREATE USER","
@@ -1213,7 +1213,7 @@ Returns the current time."
 ","
 Returns the current timestamp."
 "Functions (Time and Date)","DATEADD","
-{ DATEADD| TIMESTAMPADD } (unitString, addInt, timestamp)
+{ DATEADD| TIMESTAMPADD } (unitString, addIntLong, timestamp)
 ","
 Adds units to a timestamp."
 "Functions (Time and Date)","DATEDIFF","

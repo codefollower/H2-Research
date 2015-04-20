@@ -205,5 +205,6 @@ public class ConditionInSelect extends Condition {
     @Override
     public boolean isDisjunctive() {
         return true;
-   }
+    }
+
 }

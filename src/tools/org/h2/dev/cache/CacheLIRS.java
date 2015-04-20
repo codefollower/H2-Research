@@ -38,7 +38,7 @@ import java.util.Set;
  * of other entries have been moved to the front (8 per segment by default).
  * Write access and moving entries to the top of the stack is synchronized per
  * segment.
- * 
+ *
  * @author Thomas Mueller
  * @param <K> the key type
  * @param <V> the value type
@@ -64,7 +64,7 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
      *
      * @param maxMemory the maximum memory to use (1 or larger)
      */
-    public CacheLIRS(int maxMemory) {
+    public CacheLIRS(long maxMemory) {
         this(maxMemory, 16, 8);
     }
 
@@ -158,7 +158,7 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
             return s.put(key, hash, value, memory);
         }
     }
-    
+
     private Segment<K, V> resizeIfNeeded(Segment<K, V> s, int segmentIndex) {
         int newLen = s.getNewMapLen();
         if (newLen == 0) {
@@ -425,7 +425,7 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
      * @param <V> the value type
      */
     private static class Segment<K, V> {
-        
+
         /**
          * The number of (hot, cold, and non-resident) entries in the map.
          */
@@ -471,11 +471,6 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
         private final int mask;
 
         /**
-         * The LIRS stack size.
-         */
-        private int stackSize;
-
-        /**
          * The stack of recently referenced elements. This includes all hot
          * entries, and the recently referenced cold entries. Resident cold
          * entries that were not recently referenced, as well as non-resident
@@ -484,6 +479,11 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
          * There is always at least one entry: the head entry.
          */
         private final Entry<K, V> stack;
+
+        /**
+         * The number of entries in the stack.
+         */
+        private int stackSize;
 
         /**
          * The queue of resident cold entries.
@@ -573,11 +573,11 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
                 s = s.queuePrev;
             }
         }
-        
+
         /**
          * Calculate the new number of hash table buckets if the internal map
          * should be re-sized.
-         * 
+         *
          * @return 0 if no resizing is needed, or the new length
          */
         int getNewMapLen() {
@@ -724,6 +724,10 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
                 old = e.value;
                 remove(key, hash);
             }
+            if (memory > maxMemory) {
+                // the new entry is too big to fit
+                return old;
+            }
             e = new Entry<K, V>();
             e.key = key;
             e.value = value;
@@ -732,9 +736,15 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
             e.mapNext = entries[index];
             entries[index] = e;
             usedMemory += memory;
-            if (usedMemory > maxMemory && mapSize > 0) {
-                // an old entry needs to be removed
-                evict(e);
+            if (usedMemory > maxMemory) {
+                // old entries needs to be removed
+                evict();
+                // if the cache is full, the new entry is
+                // cold if possible
+                if (stackSize > 0) {
+                    // the new cold entry is at the top of the queue
+                    addToQueue(queue, e);
+                }
             }
             mapSize++;
             // added entries are always added to the stack
@@ -798,23 +808,22 @@ public class CacheLIRS<K, V> extends AbstractMap<K, V> {
          * Evict cold entries (resident and non-resident) until the memory limit
          * is reached. The new entry is added as a cold entry, except if it is
          * the only entry.
-         *
-         * @param newCold a new cold entry
          */
-        private void evict(Entry<K, V> newCold) {
+        private void evict() {
+            do {
+                evictBlock();
+            } while (usedMemory > maxMemory);
+        }
+
+        private void evictBlock() {
             // ensure there are not too many hot entries: right shift of 5 is
             // division by 32, that means if there are only 1/32 (3.125%) or
             // less cold entries, a hot entry needs to become cold
             while (queueSize <= (mapSize >>> 5) && stackSize > 0) {
                 convertOldestHotToCold();
             }
-            if (stackSize > 0) {
-                // the new cold entry is at the top of the queue
-                addToQueue(queue, newCold);
-            }
             // the oldest resident cold entries become non-resident
-            // but at least one cold entry (the new one) must stay
-            while (usedMemory > maxMemory && queueSize > 1) {
+            while (usedMemory > maxMemory && queueSize > 0) {
                 Entry<K, V> e = queue.queuePrev;
                 usedMemory -= e.memory;
                 removeFromQueue(e);

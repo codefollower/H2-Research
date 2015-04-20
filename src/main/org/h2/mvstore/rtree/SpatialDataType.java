@@ -32,6 +32,13 @@ public class SpatialDataType implements DataType {
 
     @Override
     public int compare(Object a, Object b) {
+        if (a == b) {
+            return 0;
+        } else if (a == null) {
+            return -1;
+        } else if (b == null) {
+            return 1;
+        }
         long la = ((SpatialKey) a).getId();
         long lb = ((SpatialKey) b).getId();
         return la < lb ? -1 : la > lb ? 1 : 0;
@@ -45,6 +52,11 @@ public class SpatialDataType implements DataType {
      * @return true if they are equal
      */
     public boolean equals(Object a, Object b) {
+        if (a == b) {
+            return true;
+        } else if (a == null || b == null) {
+            return false;
+        }
         long la = ((SpatialKey) a).getId();
         long lb = ((SpatialKey) b).getId();
         return la == lb;
@@ -71,6 +83,10 @@ public class SpatialDataType implements DataType {
 
     @Override
     public void write(WriteBuffer buff, Object obj) {
+        if (obj == null) {
+            buff.putVarInt(-1);
+            return;
+        }
         SpatialKey k = (SpatialKey) obj;
         int flags = 0;
         for (int i = 0; i < dimensions; i++) {
@@ -91,6 +107,9 @@ public class SpatialDataType implements DataType {
     @Override
     public Object read(ByteBuffer buff) {
         int flags = DataUtils.readVarInt(buff);
+        if (flags == -1) {
+            return null;
+        }
         float[] minMax = new float[dimensions * 2];
         for (int i = 0; i < dimensions; i++) {
             float min = buff.getFloat();

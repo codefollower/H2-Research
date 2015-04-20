@@ -2357,7 +2357,7 @@ public class Parser {
         }
     }
 
-    private Expression readAggregate(int aggregateType) {
+    private Expression readAggregate(int aggregateType, String aggregateName) {
         if (currentSelect == null) {
             throw getSyntaxError();
         }
@@ -2380,14 +2380,24 @@ public class Parser {
                 }
             }
         } else if (aggregateType == Aggregate.GROUP_CONCAT) {
-            boolean distinct = readIf("DISTINCT");
-            Aggregate agg = new Aggregate(Aggregate.GROUP_CONCAT,
+            Aggregate agg = null;
+            if (equalsToken("GROUP_CONCAT", aggregateName)) {
+                boolean distinct = readIf("DISTINCT");
+                agg = new Aggregate(Aggregate.GROUP_CONCAT,
                     readExpression(), currentSelect, distinct);
-            if (readIf("ORDER")) {
-                read("BY");
-                agg.setGroupConcatOrder(parseSimpleOrderList());
-            }
-            if (readIf("SEPARATOR")) {
+                if (readIf("ORDER")) {
+                    read("BY");
+                    agg.setGroupConcatOrder(parseSimpleOrderList());
+                }
+
+                if (readIf("SEPARATOR")) {
+                    agg.setGroupConcatSeparator(readExpression());
+                }
+            } else if (equalsToken("STRING_AGG", aggregateName)) {
+                // PostgreSQL compatibility: string_agg(expression, delimiter)
+                agg = new Aggregate(Aggregate.GROUP_CONCAT,
+                    readExpression(), currentSelect, false);
+                read(",");
                 agg.setGroupConcatSeparator(readExpression());
             }
             r = agg;
@@ -2470,7 +2480,7 @@ public class Parser {
         }
         int agg = getAggregateType(name);
         if (agg >= 0) {
-            return readAggregate(agg);
+            return readAggregate(agg, name);
         }
         Function function = Function.getFunction(database, name);
         if (function == null) {

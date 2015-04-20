@@ -110,7 +110,8 @@ public class IndexCondition {
      */
     public static IndexCondition getInList(ExpressionColumn column,
             List<Expression> list) {
-        IndexCondition cond = new IndexCondition(Comparison.IN_LIST, column, null);
+        IndexCondition cond = new IndexCondition(Comparison.IN_LIST, column,
+                null);
         cond.expressionList = list;
         return cond;
     }
@@ -124,7 +125,8 @@ public class IndexCondition {
      * @return the index condition
      */
     public static IndexCondition getInQuery(ExpressionColumn column, Query query) {
-        IndexCondition cond = new IndexCondition(Comparison.IN_QUERY, column, null);
+        IndexCondition cond = new IndexCondition(Comparison.IN_QUERY, column,
+                null);
         cond.expressionQuery = query;
         return cond;
     }
@@ -186,7 +188,7 @@ public class IndexCondition {
         }
         StatementBuilder buff = new StatementBuilder();
         buff.append(column.getSQL());
-        switch(compareType) {
+        switch (compareType) {
         case Comparison.EQUAL:
             buff.append(" = ");
             break;
@@ -222,7 +224,7 @@ public class IndexCondition {
             buff.append(" && ");
             break;
         default:
-            DbException.throwInternalError("type="+compareType);
+            DbException.throwInternalError("type=" + compareType);
         }
         if (expression != null) {
             buff.append(expression.getSQL());
@@ -336,22 +338,22 @@ public class IndexCondition {
         }
     }
 
-    /**     
+    /**
      * Check if this index condition is of the type equality.
      *
-     * @param constantExpression if the inner node is a constant expression      
+     * @param constantExpression if the inner node is a constant expression
      * @return true if this is a equality condition
      */
     public boolean isEquality(boolean constantExpression) {
         switch (compareType) {
         case Comparison.EQUAL:
-        case Comparison.EQUAL_NULL_SAFE:            
-            return !constantExpression || expression.isConstant();        
+        case Comparison.EQUAL_NULL_SAFE:
+            return !constantExpression || expression.isConstant();
         default:
             return false;
         }
     }
-    
+
     public int getCompareType() {
         return compareType;
     }
@@ -372,7 +374,8 @@ public class IndexCondition {
      */
     public boolean isEvaluatable() {
         if (expression != null) {
-            return expression.isEverything(ExpressionVisitor.EVALUATABLE_VISITOR);
+            return expression
+                    .isEverything(ExpressionVisitor.EVALUATABLE_VISITOR);
         }
         if (expressionList != null) {
             for (Expression e : expressionList) {
@@ -382,7 +385,42 @@ public class IndexCondition {
             }
             return true;
         }
-        return expressionQuery.isEverything(ExpressionVisitor.EVALUATABLE_VISITOR);
+        return expressionQuery
+                .isEverything(ExpressionVisitor.EVALUATABLE_VISITOR);
+    }
+
+    @Override
+    public String toString() {
+        return "column=" + column +
+                ", compareType=" + compareTypeToString(compareType) +
+                ", expression=" + expression +
+                ", expressionList=" + expressionList.toString() +
+                ", expressionQuery=" + expressionQuery;
+    }
+
+    private static String compareTypeToString(int i) {
+        StatementBuilder s = new StatementBuilder();
+        if ((i & EQUALITY) == EQUALITY) {
+            s.appendExceptFirst("&");
+            s.append("EQUALITY");
+        }
+        if ((i & START) == START) {
+            s.appendExceptFirst("&");
+            s.append("START");
+        }
+        if ((i & END) == END) {
+            s.appendExceptFirst("&");
+            s.append("END");
+        }
+        if ((i & ALWAYS_FALSE) == ALWAYS_FALSE) {
+            s.appendExceptFirst("&");
+            s.append("ALWAYS_FALSE");
+        }
+        if ((i & SPATIAL_INTERSECTS) == SPATIAL_INTERSECTS) {
+            s.appendExceptFirst("&");
+            s.append("SPATIAL_INTERSECTS");
+        }
+        return s.toString();
     }
 
 }

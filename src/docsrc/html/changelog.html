@@ -5,9 +5,12 @@ and under the Eclipse Public License, Version 1.0
 Initial Developer: H2 Group
 -->
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
-<head><meta http-equiv="Content-Type" content="text/html;charset=utf-8" /><title>
+<head><meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>
 Change Log
-</title><link rel="stylesheet" type="text/css" href="stylesheet.css" />
+</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" />
 <!-- [search] { -->
 <script type="text/javascript" src="navigation.js"></script>
 </head><body onload="frameMe();">
@@ -17,7 +20,69 @@ Change Log
 <h1>Change Log</h1>
 
 <h2>Next Version (unreleased)</h2>
-<ul><li>MVStore: the maximum cache size was artificially limited to 2 GB 
+<ul><li>-
+</li></ul>
+
+<h2>Version 1.4.187 Beta (2015-04-10)</h2>
+<ul><li>MVStore: concurrent changes to the same row could result in
+    the exception "The transaction log might be corrupt for key ...".
+    This could only be reproduced with 3 or more threads.
+</li><li>Results with CLOB or BLOB data are no longer reused.
+</li><li>References to BLOB and CLOB objects now have a timeout.
+    The configuration setting is LOB_TIMEOUT (default 5 minutes).
+    This should avoid growing the database file if there are many queries that return BLOB or CLOB objects,
+    and the database is not closed for a longer time.
+</li><li>MVStore: when committing a session that removed LOB values,
+    changes were flushed unnecessarily.
+</li><li>Issue 610: possible integer overflow in WriteBuffer.grow().
+</li><li>Issue 609: the spatial index did not support NULL (ClassCastException).
+</li><li>MVStore: in some cases, CLOB/BLOB data blocks were removed
+    incorrectly when opening a database.
+</li><li>MVStore: updates that affected many rows were were slow
+    in some cases if there was a secondary index.
+</li><li>Using "runscript" with autocommit disabled could result
+    in a lock timeout on the internal table "SYS".
+</li><li>Issue 603: there was a memory leak when using H2 in a web application.
+    Apache Tomcat logged an error message: "The web application ...
+    created a ThreadLocal with key of type [org.h2.util.DateTimeUtils$1]".
+</li><li>When using the MVStore,
+    running a SQL script generate by the Recover tool from a PageStore file
+    failed with a strange error message (NullPointerException),
+    now a clear error message is shown.
+</li><li>Issue 605: with version 1.4.186, opening a database could result in
+    an endless loop in LobStorageMap.init.
+</li><li>Queries that use the same table alias multiple times now work.
+    Before, the select expression list was expanded incorrectly.
+    Example: "select * from a as x, b as x".
+</li><li>The MySQL compatibility feature "insert ... on duplicate key update"
+    did not work with a non-default schema.
+</li><li>Issue 599: the condition "in(x, y)" could not be used in the select list
+    when using "group by".
+</li><li>The LIRS cache could grow larger than the allocated memory.
+</li><li>A new file system implementation that re-opens the file if it was closed due
+    to the application calling Thread.interrupt(). File name prefix "retry:".
+    Please note it is strongly recommended to avoid calling Thread.interrupt;
+    this is a problem for various libraries, including Apache Lucene.
+</li><li>MVStore: use RandomAccessFile file system if the file name starts with "file:".
+</li><li>Allow DATEADD to take a long value for count when manipulating milliseconds.
+</li><li>When using MV_STORE=TRUE and the SET CACHE_SIZE setting, the cache size was incorrectly set,
+    so that it was effectively 1024 times smaller than it should be.
+</li><li>Concurrent CREATE TABLE... IF NOT EXISTS in the presence of MULTI_THREAD=TRUE could
+    throw an exception.
+</li><li>Fix bug in MVStore when creating lots of temporary tables, where we could run out of
+    transaction IDs.
+</li><li>Add support for PostgreSQL STRING_AGG function. Patch by Fred Aquiles.
+</li><li>Fix bug in "jdbc:h2:nioMemFS" isRoot() function.
+    Also, the page size was increased to 64 KB.
+</li></ul>
+
+<h2>Version 1.4.186 Beta (2015-03-02)</h2>
+<ul><li>The Servlet API 3.0.1 is now used, instead of 2.4.
+</li><li>MVStore: old chunks no longer removed in append-only mode.
+</li><li>MVStore: the cache for page references could grow far too big, resulting in out of memory in some cases.
+</li><li>MVStore: orphaned lob objects were not correctly removed in some cases,
+    making the database grow unnecessarily.
+</li><li>MVStore: the maximum cache size was artificially limited to 2 GB
     (due to an integer overflow).
 </li><li>MVStore / TransactionStore: concurrent updates could result in a
     "Too many open transactions" exception.
@@ -29,18 +94,18 @@ Change Log
 </li><li>The default limit for in-place LOB objects was changed from 128 to 256 bytes.
     This is because each read creates a reference to a LOB, and maintaining the references
     is a big overhead. With the higher limit, less references are needed.
-</li><li>Tables without columns didn't work. 
+</li><li>Tables without columns didn't work.
     (The use case for such tables is testing.)
-</li><li>The LIRS cache now resizes the table automatically in all cases 
+</li><li>The LIRS cache now resizes the table automatically in all cases
     and no longer needs the averageMemory configuration.
 </li><li>Creating a linked table from an MVStore database to a non-MVStore database
     created a second (non-MVStore) database file.
-</li><li>In version 1.4.184, a bug was introduced that broke queries 
+</li><li>In version 1.4.184, a bug was introduced that broke queries
     that have both joins and wildcards, for example:
     select * from dual join(select x from dual) on 1=1
 </li><li>Issue 598: parser fails on timestamp "24:00:00.1234" - prevent the creation of out-of-range time values.
-</li><li>Allow declaring triggers as source code (like functions). Patch by Sylvain CUAZ.
-</li><li>Make the planner use indexes for sorting when doing a GROUP BY where 
+</li><li>Allow declaring triggers as source code (like functions). Patch by Sylvain Cuaz.
+</li><li>Make the planner use indexes for sorting when doing a GROUP BY where
     all of the GROUP BY columns are not mentioned in the select. Patch by Frederico (zepfred).
 </li><li>PostgreSQL compatibility: generate_series (as an alias for system_range). Patch by litailang.
 </li><li>Fix missing "column" type in right-hand parameter in ConditionIn. Patch by Arnaud Thimel.
@@ -366,53 +431,6 @@ Change Log
 </li><li>Issue 548: TO_CHAR does not format MM and DD correctly when the month or day of
     the month is 1 digit, patch from "the.tucc"
 </li><li>Fix bug in varargs support in ALIAS's, patch from Nicolas Fortin
-</li></ul>
-
-<h2>Version 1.3.175 (2014-01-18)</h2>
-<ul><li>EXPLAIN was incorrect for queries with "ANY" or "SOME" conditions.
-</li><li>CallableStatement with "out" parameters: running the same statement twice
-    could result in an exception ("parameter not set").
-</li><li>Union queries: duplicate rows could be returned if the sub-queries contained "order by".
-</li><li>The GEOMETRY data type now works for user defined functions that return a result set.
-</li><li>PostgreSQL compatibility: the PgServer was not working properly when the setting
-    database_to_upper was set to false.
-</li><li>JdbcDataSource: the methods setUrl and getUrl where added as aliases for setURL and getURL.
-    This should solve problems with the HikariCP (Hikari connection pool).
-</li><li>Issue 537: H2 Console: when loading the schema, incorrect JDBC calls where issued, which caused
-    the exception "Column PRECISION not found".
-</li><li>Improved Geometry processing (issue 535).
-</li><li>The collation can now be set in the database URL, even if there are data tables,
-    if the collection is the same as the current collation.
-</li><li>Improved Oracle compatibility for CASE WHEN and DECODE.
-</li><li>The statement "drop all objects" did not work if a table depends on a view via a constraint.
-</li><li>Subqueries or views with "order by" an alias expression could not be executed
-    due to a regression introduced in version 1.3.174.
-</li><li>Issue 73: MySQL compatibility: support REPLACE, patch by Cemo Koc.
-</li><li>The spatial index now works in MVCC mode when using the MVStore storage.
-</li><li>MVStore: concurrency problems have been fixed.
-    The API has been simplified.
-</li><li>Improve error message when dropping an index that belongs to a constraint,
-    specify constraint in error message.
-</li><li>Issue 518: java.sql.Connection.commit() freezes after LOB modification with EXCLUSIVE connection
-</li><li>Issue 517: Create or replace view statement has no effect on the others already existing JDBC connection
-</li><li>Support 123L syntax as in Java; example: SELECT (2000000000L*2).
-</li><li>Issue 520: Add support for sequence max value, min value and cycle, patch by Daniel Gredler.
-</li><li>Issue 521: ScriptReader should implement Closeable
-</li><li>Issue 524: RunScript.execute does not close its Statement, patch from Gaul.
-</li><li>Add support for DB2 "WITH UR" clause, patch from litailang
-</li><li>Added support for ON DUPLICATE KEY UPDATE like MySQL with the values() function to update with the value that
-    was to be inserted. Patch from Jean-Francois Noel.
-</li><li>Issue 522: Treat empty strings like NULL in Oracle compatibility mode, patch by Daniel Gredler.
-</li><li>Issue 527: Oracle compatibility mode: incorrect scale behavior, patch by Daniel Gredler.
-</li><li>Slightly reduce the memory cost of View metadata.
-</li><li>Extend support of "GRANT ALTER ANY SCHEMA TO &lt;user&gt;" to allow grantee ability to manipulate tables
-</li><li>Issue 532: Javadoc for ErrorCode.ROLES_AND_RIGHT_CANNOT_BE_MIXED looks wrong
-</li><li>Issue 528: Add Oracle-compatible TO_CHAR function, patch by Daniel Gredler.
-</li><li>Issue 534: CREATE ALIAS NOCACHE, Patch by Nicolas Fortin
-</li><li>Fix an issue with storing Unicode surrogate pairs in CLOB columns.
-</li><li>H2 console: add SHIFT+ENTER "run selected" functionality
-</li><li>Fix bug in DB2 syntax "select * from test with ur", patch from litailang
-</li><li>Fix bug in DROP ALL OBJECTS when dealing with inter-schema dependencies.
 </li></ul>
 
 <!-- [close] { --></div></td></tr></table><!-- } --><!-- analytics --></body></html>
