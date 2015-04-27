@@ -195,7 +195,7 @@ public abstract class Prepared {
     /**
      * Prepare this statement.
      */
-    public void prepare() { //只有8种DML类SQL实现了它: Call、Explain、Merge、Delete、Insert、Update、Select、SelectUnion
+    public void prepare() { //只有9种DML实现了它: Call、Explain、Merge、Delete、Insert、Update、Select、SelectUnion、Replace
         // nothing to do
     }
 

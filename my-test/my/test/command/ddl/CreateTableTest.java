@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package my.test.command.ddl;
 
 import my.test.TestBase;
@@ -12,13 +29,13 @@ public class CreateTableTest extends TestBase {
         stmt.executeUpdate("DROP TABLE IF EXISTS mytable3");
         stmt.executeUpdate("DROP TABLE IF EXISTS mytable2");
         stmt.executeUpdate("DROP TABLE IF EXISTS mytable1");
-        
+
         sql = "CREATE MEMORY LOCAL TEMPORARY TABLE IF NOT EXISTS t1";
         //以下三者等价
         sql = "CREATE MEMORY GLOBAL TEMPORARY TABLE IF NOT EXISTS t2";
         sql = "CREATE MEMORY TEMP TABLE IF NOT EXISTS t3";
         sql = "CREATE MEMORY TEMPORARY TABLE IF NOT EXISTS t4";
-        
+
         stmt.executeUpdate(sql);
 
         //stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable1 (f1 int,PRIMARY KEY(f1), f2 int not null)");
@@ -31,7 +48,8 @@ public class CreateTableTest extends TestBase {
         //parseAlterTableAddConstraintIf();
         //parseColumnForTable();
 
-        sql = "CREATE TABLE IF NOT EXISTS mytable3 (" + "f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10), " + //此时CONSTRAINT名无用
+        sql = "CREATE TABLE IF NOT EXISTS mytable3 ("
+                + "f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10), " + //此时CONSTRAINT名无用
                 "f2 int CONSTRAINT c2 UNIQUE, " + //
                 "f3 int CONSTRAINT c3 NOT NULL, " + //
                 "f4 int CONSTRAINT c4 NULL , " + //

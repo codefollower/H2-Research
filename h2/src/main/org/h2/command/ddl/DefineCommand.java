@@ -45,8 +45,10 @@ public abstract class DefineCommand extends Prepared {
         this.transactional = transactional;
     }
 
+    //在org.h2.command.Command.stop()调用org.h2.command.CommandContainer.isTransactional()
+    //然后调用此方法，默认是false，相当于此DDL不在一个事务中，每次执行此DDL时都默认自动提交事务
     @Override
-    public boolean isTransactional() {
+    public boolean isTransactional() { 
         return transactional;
     }
 
