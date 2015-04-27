@@ -43,6 +43,9 @@ public class ExecuteProcedure extends Prepared {
     }
 
     private void setParameters() {
+    	//如: 
+    	//PREPARE mytest (int, varchar2, boolean) AS insert into ExecuteProcedureTest(id, name, b) values(?, ?, ?)
+    	//EXECUTE mytest(4, 'b4', true)
         Prepared prepared = procedure.getPrepared();
         ArrayList<Parameter> params = prepared.getParameters();
         for (int i = 0; params != null && i < params.size() &&

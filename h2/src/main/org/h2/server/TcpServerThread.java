@@ -50,8 +50,7 @@ public class TcpServerThread implements Runnable {
     private boolean stop;
     private Thread thread;
     private Command commit;
-    private final SmallMap cache =
-            new SmallMap(SysProperties.SERVER_CACHED_OBJECTS);
+    private final SmallMap cache = new SmallMap(SysProperties.SERVER_CACHED_OBJECTS); //默认缓存64个对象
     private final SmallLRUCache<Long, CachedInputStream> lobs =
             SmallLRUCache.newInstance(Math.max(
                 SysProperties.SERVER_CACHED_OBJECTS,
@@ -79,6 +78,7 @@ public class TcpServerThread implements Runnable {
             // TODO server: should support a list of allowed databases
             // and a list of allowed clients
             try {
+            	//如果没有加-tcpAllowOthers参数，那么只接受本地连接
                 if (!server.allow(transfer.getSocket())) {
                     throw DbException.get(ErrorCode.REMOTE_CONNECTION_NOT_ALLOWED);
                 }
@@ -117,30 +117,39 @@ public class TcpServerThread implements Runnable {
                         }
                     }
                 }
+                //启动TcpServer时加"-baseDir"或者像这样System.setProperty("h2.baseDir", "E:\\H2\\baseDir")
                 String baseDir = server.getBaseDir();
                 if (baseDir == null) {
                     baseDir = SysProperties.getBaseDir();
                 }
+                //例如启动TcpServer时，指定了"-key mydb mydatabase"，
+                //如果db变量是mydb，那么实际上就是mydatabase，相当于做一次映射
+                //如果db变量不是mydb，那么抛错: org.h2.jdbc.JdbcSQLException: Wrong user name or password [28000-170]
                 db = server.checkKeyAndGetDatabaseName(db);
                 ConnectionInfo ci = new ConnectionInfo(db);
+
                 ci.setOriginalURL(originalURL);
                 ci.setUserName(transfer.readString());
+                //password参数的值已经转换成userPasswordHash和filePasswordHash了，
+                //不能由userPasswordHash和filePasswordHash得到原始的password
                 ci.setUserPasswordHash(transfer.readBytes());
-                ci.setFilePasswordHash(transfer.readBytes());
+                ci.setFilePasswordHash(transfer.readBytes()); //只有指定"CIPHER"参数时filePasswordHash才是非null的
                 int len = transfer.readInt();
                 for (int i = 0; i < len; i++) {
                     ci.setProperty(transfer.readString(), transfer.readString());
                 }
                 // override client's requested properties with server settings
-                if (baseDir != null) {
+                if (baseDir != null) { 
                     ci.setBaseDir(baseDir);
                 }
                 if (server.getIfExists()) {
+                	//启动TcpServer时加"-ifExists"，限制只有数据库存在时客户端才能连接，也就是不允许在客户端创建数据库
                     ci.setProperty("IFEXISTS", "TRUE");
                 }
                 transfer.writeInt(SessionRemote.STATUS_OK);
                 transfer.writeInt(clientVersion);
                 transfer.flush();
+                //每建立一个新的Session对象时，把它保存到内存数据库management_db_9092的SESSIONS表
                 if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_13) {
                     if (ci.getFilePasswordHash() != null) {
                         ci.setFileEncryptionKey(transfer.readBytes());
@@ -252,7 +261,12 @@ public class TcpServerThread implements Runnable {
             p.setValue(transfer.readValue());
         }
     }
-
+    
+    //总共18条命令，这里包含16条
+    //下面这两条在run方法中特殊处理
+    //SESSION_CANCEL_STATEMENT
+    //SESSION_CHECK_KEY
+    //分三种级别，从大到小: SESSION级、COMMAND级、RESULT级
     private void process() throws IOException {
         int operation = transfer.readInt();
         switch (operation) {
@@ -265,6 +279,8 @@ public class TcpServerThread implements Runnable {
             boolean readonly = command.isReadOnly();
             cache.addObject(id, command);
             boolean isQuery = command.isQuery();
+            //在Parser中解析sql时会调用org.h2.command.Prepared.setParameterList(ArrayList<Parameter>)
+            //会保证不为null
             ArrayList<? extends ParameterInterface> params = command.getParameters();
             transfer.writeInt(getState(old)).writeBoolean(isQuery).
                     writeBoolean(readonly).writeInt(params.size());
@@ -284,6 +300,8 @@ public class TcpServerThread implements Runnable {
             break;
         }
         case SessionRemote.COMMAND_COMMIT: {
+        	//并不是通过org.h2.jdbc.JdbcConnection.commit()触发，此方法是通过发送COMMIT SQL触发
+        	//触发SessionRemote.COMMAND_COMMIT的是在集群环境下，通过org.h2.engine.SessionRemote.autoCommitIfCluster()触发
             if (commit == null) {
                 commit = session.prepareLocal("COMMIT");
             }
@@ -338,6 +356,7 @@ public class TcpServerThread implements Runnable {
         case SessionRemote.COMMAND_EXECUTE_UPDATE: {
             int id = transfer.readInt();
             Command command = (Command) cache.getObject(id, false);
+            //if(command!=null)throw new Error();
             setParameters(command);
             int old = session.getModificationId();
             int updateCount;

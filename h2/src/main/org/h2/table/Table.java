@@ -43,6 +43,14 @@ import org.h2.value.ValueNull;
  * This is the base class for most tables.
  * A table contains a list of columns and a list of rows.
  */
+//目前有7个子类
+//FunctionTable
+//MetaTable
+//RangeTable
+//MVTable
+//RegularTable
+//TableLink
+//TableView
 public abstract class Table extends SchemaObjectBase {
 
     /**
@@ -107,8 +115,7 @@ public abstract class Table extends SchemaObjectBase {
     private boolean onCommitDrop, onCommitTruncate;
     private Row nullRow;
 
-    public Table(Schema schema, int id, String name, boolean persistIndexes,
-            boolean persistData) {
+    public Table(Schema schema, int id, String name, boolean persistIndexes, boolean persistData) {
         columnMap = schema.getDatabase().newStringMap();
         initSchemaObjectBase(schema, id, name, Trace.TABLE);
         this.persistIndexes = persistIndexes;
@@ -165,8 +172,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param indexComment the comment
      * @return the index
      */
-    public abstract Index addIndex(Session session, String indexName,
-            int indexId, IndexColumn[] cols, IndexType indexType,
+    public abstract Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
             boolean create, String indexComment);
 
     /**
@@ -219,7 +225,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @throws DbException if it is not supported
      */
-    public abstract void checkSupportAlter();
+    public abstract void checkSupportAlter(); //只有MVTable和RegularTable支持
 
     /**
      * Get the table type name
@@ -269,7 +275,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @return true if it is
      */
-    public abstract boolean isDeterministic();
+    public abstract boolean isDeterministic(); //表TableLink是false，FunctionTable、TableView要看具体情况，其他子类返回true
 
     /**
      * Check if the row count can be retrieved quickly.
@@ -321,7 +327,7 @@ public abstract class Table extends SchemaObjectBase {
     }
 
     @Override
-    public String getCreateSQLForCopy(Table table, String quotedName) {
+    public String getCreateSQLForCopy(Table table, String quotedName) { //只有TableView覆盖了
         throw DbException.throwInternalError();
     }
 
@@ -351,8 +357,7 @@ public abstract class Table extends SchemaObjectBase {
                 dependencies.add(s);
             }
         }
-        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(
-                dependencies);
+        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
         for (Column col : columns) {
             col.isEverything(visitor);
         }
@@ -364,6 +369,7 @@ public abstract class Table extends SchemaObjectBase {
         dependencies.add(this);
     }
 
+    //Table的children有6种: index、constraint、trigger、sequence、view、right
     @Override
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = New.arrayList();
@@ -385,7 +391,7 @@ public abstract class Table extends SchemaObjectBase {
         }
         ArrayList<Right> rights = database.getAllRights();
         for (Right right : rights) {
-            if (right.getGrantedObject() == this) {
+            if (right.getGrantedTable() == this) {
                 children.add(right);
             }
         }
@@ -401,14 +407,12 @@ public abstract class Table extends SchemaObjectBase {
             Column col = columns[i];
             int dataType = col.getType();
             if (dataType == Value.UNKNOWN) {
-                throw DbException.get(
-                        ErrorCode.UNKNOWN_DATA_TYPE_1, col.getSQL());
+                throw DbException.get(ErrorCode.UNKNOWN_DATA_TYPE_1, col.getSQL());
             }
             col.setTable(this, i);
             String columnName = col.getName();
             if (columnMap.get(columnName) != null) {
-                throw DbException.get(
-                        ErrorCode.DUPLICATE_COLUMN_NAME_1, columnName);
+                throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, columnName);
             }
             columnMap.put(columnName, col);
         }
@@ -426,8 +430,7 @@ public abstract class Table extends SchemaObjectBase {
                 continue;
             }
             if (c.getName().equals(newName)) {
-                throw DbException.get(
-                        ErrorCode.DUPLICATE_COLUMN_NAME_1, newName);
+                throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, newName);
             }
         }
         columnMap.remove(column.getName());
@@ -441,7 +444,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param session the session
      * @return true if it is
      */
-    public boolean isLockedExclusivelyBy(Session session) {
+    public boolean isLockedExclusivelyBy(Session session) { //只有RegularTable覆盖此方法
         return false;
     }
 
@@ -464,11 +467,18 @@ public abstract class Table extends SchemaObjectBase {
             }
             Row o = rows.next();
             rows.next();
+            //为什么不是先记撤消日志再删除行呢？因为如果这样的话假设删除行不成功，但是日志记成功了，当rollback时又按日志做insert操作
+            //此时就多了一条记录了，
+            //那假设记撤消日志失败了呢? 这个不会出现的，因为session.log中进一步调用了org.h2.engine.UndoLog.add(UndoLogRecord)
+            //这个UndoLog.add方法的第一行就把UndoLogRecord增加到records中，只要严格确保在出现任何异常前先加入records，
+            //那么在rollback中就能找到之前被删除的行。
             removeRow(session, o);
             session.log(this, UndoLogRecord.DELETE, o);
         }
+        //int c=0;
         // add the new rows
         for (rows.reset(); rows.hasNext();) {
+            //if(c++>2) throw DbException.get(ErrorCode.CANNOT_DROP_2);
             if ((++rowScanCount & 127) == 0) {
                 prepared.checkCanceled();
             }
@@ -510,7 +520,7 @@ public abstract class Table extends SchemaObjectBase {
             database.removeSchemaObject(session, constraint);
         }
         for (Right right : database.getAllRights()) {
-            if (right.getGrantedObject() == this) {
+            if (right.getGrantedTable() == this) {
                 database.removeDatabaseObject(session, right);
             }
         }
@@ -540,8 +550,7 @@ public abstract class Table extends SchemaObjectBase {
      * @throws DbException if the column is referenced by multi-column
      *             constraints or indexes
      */
-    public void dropSingleColumnConstraintsAndIndexes(Session session,
-            Column col) {
+    public void dropSingleColumnConstraintsAndIndexes(Session session, Column col) {
         ArrayList<Constraint> constraintsToDrop = New.arrayList();
         if (constraints != null) {
             for (int i = 0, size = constraints.size(); i < size; i++) {
@@ -553,8 +562,7 @@ public abstract class Table extends SchemaObjectBase {
                 if (columns.size() == 1) {
                     constraintsToDrop.add(constraint);
                 } else {
-                    throw DbException.get(
-                            ErrorCode.COLUMN_IS_REFERENCED_1, constraint.getSQL());
+                    throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, constraint.getSQL());
                 }
             }
         }
@@ -572,8 +580,7 @@ public abstract class Table extends SchemaObjectBase {
                 if (index.getColumns().length == 1) {
                     indexesToDrop.add(index);
                 } else {
-                    throw DbException.get(
-                            ErrorCode.COLUMN_IS_REFERENCED_1, index.getSQL());
+                    throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, index.getSQL());
                 }
             }
         }
@@ -670,13 +677,13 @@ public abstract class Table extends SchemaObjectBase {
      * @param sortOrder the sort order
      * @return the plan item
      */
-    public PlanItem getBestPlanItem(Session session, int[] masks,
-            TableFilter filter, SortOrder sortOrder) {
+    public PlanItem getBestPlanItem(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
         PlanItem item = new PlanItem();
         item.setIndex(getScanIndex(session));
         item.cost = item.getIndex().getCost(session, null, null, null);
         ArrayList<Index> indexes = getIndexes();
         if (indexes != null && masks != null) {
+            //indexes[0]是ScanIndex，所以可以跳过，从1开始
             for (int i = 1, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 double cost = index.getCost(session, masks, filter, sortOrder);
@@ -712,8 +719,7 @@ public abstract class Table extends SchemaObjectBase {
         if (index != null) {
             return index;
         }
-        throw DbException.get(ErrorCode.INDEX_NOT_FOUND_1,
-                Constants.PREFIX_PRIMARY_KEY);
+        throw DbException.get(ErrorCode.INDEX_NOT_FOUND_1, Constants.PREFIX_PRIMARY_KEY);
     }
 
     /**
@@ -892,8 +898,7 @@ public abstract class Table extends SchemaObjectBase {
      *  @return if there are any triggers or rows defined
      */
     public boolean fireRow() {
-        return (constraints != null && constraints.size() > 0) ||
-                (triggers != null && triggers.size() > 0);
+        return (constraints != null && constraints.size() > 0) || (triggers != null && triggers.size() > 0);
     }
 
     /**
@@ -910,8 +915,7 @@ public abstract class Table extends SchemaObjectBase {
         return done;
     }
 
-    private void fireConstraints(Session session, Row oldRow, Row newRow,
-            boolean before) {
+    private void fireConstraints(Session session, Row oldRow, Row newRow, boolean before) {
         if (constraints != null) {
             // don't use enhanced for loop to avoid creating objects
             for (int i = 0, size = constraints.size(); i < size; i++) {
@@ -931,16 +935,14 @@ public abstract class Table extends SchemaObjectBase {
      *  @param newRow the new data or null for a delete
      *  @param rollback when the operation occurred within a rollback
      */
-    public void fireAfterRow(Session session, Row oldRow, Row newRow,
-            boolean rollback) {
+    public void fireAfterRow(Session session, Row oldRow, Row newRow, boolean rollback) {
         fireRow(session, oldRow, newRow, false, rollback);
         if (!rollback) {
             fireConstraints(session, oldRow, newRow, false);
         }
     }
 
-    private boolean fireRow(Session session, Row oldRow, Row newRow,
-            boolean beforeAction, boolean rollback) {
+    private boolean fireRow(Session session, Row oldRow, Row newRow, boolean beforeAction, boolean rollback) {
         if (triggers != null) {
             for (TriggerObject trigger : triggers) {
                 boolean done = trigger.fireRow(session, oldRow, newRow, beforeAction, rollback);
@@ -973,8 +975,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param checkExisting true if existing rows must be checked during this
      *            call
      */
-    public void setCheckForeignKeyConstraints(Session session, boolean enabled,
-            boolean checkExisting) {
+    public void setCheckForeignKeyConstraints(Session session, boolean enabled, boolean checkExisting) {
         if (enabled && checkExisting) {
             if (constraints != null) {
                 for (Constraint c : constraints) {
@@ -1067,8 +1068,7 @@ public abstract class Table extends SchemaObjectBase {
      * @return an object array with the sessions involved in the deadlock, or
      *         null
      */
-    public ArrayList<Session> checkDeadlock(Session session, Session clash,
-            Set<Session> visited) {
+    public ArrayList<Session> checkDeadlock(Session session, Session clash, Set<Session> visited) {
         return null;
     }
 

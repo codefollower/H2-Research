@@ -8,7 +8,7 @@ package org.h2.mvstore;
 /**
  * A position in a cursor
  */
-public class CursorPos {
+public class CursorPos { //遍历B-Tree时通过它能向上或向右指定节点
 
     /**
      * The current page.

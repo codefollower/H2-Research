@@ -106,7 +106,7 @@ public class PageStore implements CacheWriter {
     /**
      * The biggest possible page size.
      */
-    public static final int PAGE_SIZE_MAX = 32768;
+    public static final int PAGE_SIZE_MAX = 32768; //32k
 
     /**
      * This log mode means the transaction log is not used.
@@ -120,7 +120,10 @@ public class PageStore implements CacheWriter {
     public static final int LOG_MODE_SYNC = 2;
     private static final int PAGE_ID_FREE_LIST_ROOT = 3;
     private static final int PAGE_ID_META_ROOT = 4;
+    //MIN_PAGE_COUNT等于5
+    //3个固定头page + metaIndex + PageStreamTrunk
     private static final int MIN_PAGE_COUNT = 5;
+
     private static final int INCREMENT_KB = 1024;
     private static final int INCREMENT_PERCENT_MIN = 35;
     private static final int READ_VERSION = 3;
@@ -136,7 +139,7 @@ public class PageStore implements CacheWriter {
     private String accessMode;
     private int pageSize = Constants.DEFAULT_PAGE_SIZE;
     private int pageSizeShift;
-    private long writeCountBase, writeCount, readCount;
+    private long writeCountBase, writeCount, readCount; //readCount表示读了多少个page
     private int logKey, logFirstTrunkPage, logFirstDataPage;
     private final Cache cache;
     private int freeListPagesPerList;
@@ -211,10 +214,9 @@ public class PageStore implements CacheWriter {
      * @param accessMode the access mode
      * @param cacheSizeDefault the default cache size
      */
-    public PageStore(Database database, String fileName, String accessMode,
-            int cacheSizeDefault) {
-        this.fileName = fileName;
-        this.accessMode = accessMode;
+    public PageStore(Database database, String fileName, String accessMode, int cacheSizeDefault) {
+        this.fileName = fileName; //E:/H2/eclipse-workspace-server/mydb3.h2.db
+        this.accessMode = accessMode; //rw
         this.database = database;
         trace = database.getTrace(Trace.PAGE_STORE);
         // if (fileName.endsWith("X.h2.db"))
@@ -227,7 +229,7 @@ public class PageStore implements CacheWriter {
     /**
      * Start collecting statistics.
      */
-    public void statisticsStart() {
+    public void statisticsStart() { //只在org.h2.command.dml.Explain中有应用
         statistics = New.hashMap();
     }
 
@@ -236,7 +238,7 @@ public class PageStore implements CacheWriter {
      *
      * @return the statistics
      */
-    public HashMap<String, Integer> statisticsEnd() {
+    public HashMap<String, Integer> statisticsEnd() { //只在org.h2.command.dml.Explain中有应用
         HashMap<String, Integer> result = statistics;
         statistics = null;
         return result;
@@ -274,9 +276,11 @@ public class PageStore implements CacheWriter {
      */
     public synchronized void open() {
         try {
-            metaRootPageId.put(META_TABLE_ID, PAGE_ID_META_ROOT);
+            metaRootPageId.put(META_TABLE_ID, PAGE_ID_META_ROOT); //pageId=4的页固定是metaIndex的rootPageId
             if (FileUtils.exists(fileName)) {
                 long length = FileUtils.size(fileName);
+                //MIN_PAGE_COUNT等于6 = 3个固定头page + 至少一个PageFreeList + metaIndex + PageStreamTrunk
+                //PAGE_SIZE_MIN=64，一个page的大小不能低于64字节
                 if (length < MIN_PAGE_COUNT * PAGE_SIZE_MIN) {
                     if (database.isReadOnly()) {
                         throw DbException.get(
@@ -298,16 +302,21 @@ public class PageStore implements CacheWriter {
 
     private void openNew() {
         setPageSize(pageSize);
+        //一个PageFreeList可以填充多少个pageId，pageId的个数=(pageSize-3)*8，
+        //比如pageSize是128字节，那么freeListPagesPerList就是1000
         freeListPagesPerList = PageFreeList.getPagesAddressed(pageSize);
-        file = database.openFile(fileName, accessMode, false);
+        file = database.openFile(fileName, accessMode, false); //这里面会写前面48个字节，见org.h2.store.FileStore.init()
         lockFile();
         recoveryRunning = true;
-        writeStaticHeader();
+        writeStaticHeader(); //这里写了一页pageSize大小的数据
+        //调用完writeStaticHeader后数据还没同步到硬盘，
+        //接下来调用writeVariableHeader时会把上次没同步的同步到硬盘，
+        //在writeVariableHeader()内部更新的数据需要到下次调用writeVariableHeader时才同步到硬盘。
         writeVariableHeader();
         log = new PageLog(this);
-        increaseFileSize(MIN_PAGE_COUNT);
+        increaseFileSize(MIN_PAGE_COUNT); //初始化文件长度为6个pageSize的大小
         openMetaIndex();
-        logFirstTrunkPage = allocatePage();
+        logFirstTrunkPage = allocatePage(); //第一个PageStreamTrunk的pageId是5
         log.openForWriting(logFirstTrunkPage, false);
         isNew = true;
         recoveryRunning = false;
@@ -376,6 +385,10 @@ public class PageStore implements CacheWriter {
     }
 
     private void openForWriting() {
+    	//readMode只有org.h2.store.PageStore.openExisting()调用了一次
+    	//所以通过openForWriting()这里触发log.openForWriting，再触发setLogFirstPage
+    	//进而触发writeVariableHeader同步数据到硬盘中会发生一次，
+    	//writeVariableHeader的触发更多的是通过commit完成
         if (!readMode || database.isReadOnly()) {
             return;
         }
@@ -475,6 +488,7 @@ public class PageStore implements CacheWriter {
      * @param compactMode 0 if no compacting should happen, otherwise
      * TransactionCommand.SHUTDOWN_COMPACT or TransactionCommand.SHUTDOWN_DEFRAG
      */
+    //下面4个方法是一起的，共同完成压缩任务
     public synchronized void compact(int compactMode) {
         if (!database.getSettings().pageStoreTrim) {
             return;
@@ -751,7 +765,8 @@ public class PageStore implements CacheWriter {
         if (type == Page.TYPE_EMPTY) {
             return null;
         }
-        data.readShortInt();
+        data.readShortInt(); //是checksum
+        //除了PageFreeList外，多数是parentPageId，下面的read方法中都会把data reset掉，所以此行代码对PageFreeList无影响
         data.readInt();
         if (!checksumTest(data.getBytes(), pageId, pageSize)) {
             throw DbException.get(ErrorCode.FILE_CORRUPTED_1,
@@ -908,7 +923,7 @@ public class PageStore implements CacheWriter {
             crc.update(page.getBytes(), 4, pageSize - 4);
             int expected = (int) crc.getValue();
             int got = page.readInt();
-            if (expected == got) {
+            if (expected == got) { //如果第一个page的crc出错了，那么再读第二个，因为第一个和第二个是相同的，为了防止损坏
                 writeCountBase = page.readLong();
                 logKey = page.readInt();
                 logFirstTrunkPage = page.readInt();
@@ -925,12 +940,15 @@ public class PageStore implements CacheWriter {
      * @param size the page size
      */
     public void setPageSize(int size) {
+    	//PAGE_SIZE参数必须在64到32768(32K)之间，即64<=PAGE_SIZE<=32768
         if (size < PAGE_SIZE_MIN || size > PAGE_SIZE_MAX) {
             throw DbException.get(ErrorCode.FILE_CORRUPTED_1,
                     fileName + " pageSize: " + size);
         }
         boolean good = false;
         int shift = 0;
+        //判断size是否是2的n次幂(n>=0)，也就是说size必须是1、2、4、8、16、32...
+        //如果不是good为false，shift对应n
         for (int i = 1; i <= size;) {
             if (size == i) {
                 good = true;
@@ -946,7 +964,24 @@ public class PageStore implements CacheWriter {
         emptyPage = createData();
         pageSizeShift = shift;
     }
-
+    
+    //这个是page 0
+    /*
+	    pageId: 0
+	    ========================
+	          文件头 在org.h2.store.FileStore.init()中写入
+	    ---------------------
+	    16      magic
+		16      salt  (如果不使用加密，这16字节就是magic，如果使用了加密，那么是随机生成的)
+		16      magic (如果使用了加密，那么这16字节是对magic加密后的值)
+	
+	    StaticHeader
+	    ---------------------
+	    4       pageSize 默认是2048(2K)
+	    1       WRITE_VERSION 常量3
+	    1       READ_VERSION 常量3
+	    1994          保留
+    */
     private void writeStaticHeader() {
         Data page = Data.create(database, new byte[pageSize - FileStore.HEADER_LENGTH]);
         page.writeInt(pageSize);
@@ -975,10 +1010,24 @@ public class PageStore implements CacheWriter {
         writeVariableHeader();
     }
 
+	/*
+	    VariableHeader
+	    ---------------------
+	    4       CRC
+	    8       writeCount
+	    4       logKey
+	    4       logFirstTrunkPage
+	    4       logFirstDataPage
+	    2024           保留(补够2k)
+	
+	    page 1和2是可变的，随着数据的不断写入，前5个字段会不断的更新
+	*/
+    //如果logMode是LOG_MODE_SYNC，那么每调用一次writeVariableHeader就会把数据同步的硬盘
     private void writeVariableHeader() {
         trace.debug("writeVariableHeader");
         if (logMode == LOG_MODE_SYNC) {
             file.sync();
+            //new Error().printStackTrace(); //我加上的,调试什么时候同步数据到硬盘
         }
         Data page = createData();
         page.writeInt(0);
@@ -987,12 +1036,12 @@ public class PageStore implements CacheWriter {
         page.writeInt(logFirstTrunkPage);
         page.writeInt(logFirstDataPage);
         CRC32 crc = new CRC32();
-        crc.update(page.getBytes(), 4, pageSize - 4);
+        crc.update(page.getBytes(), 4, pageSize - 4); //计算CRC时，排除前4个字节
         page.setInt(0, (int) crc.getValue());
-        file.seek(pageSize);
+        file.seek(pageSize); //跳过第1页
         file.write(page.getBytes(), 0, pageSize);
-        file.seek(pageSize + pageSize);
-        file.write(page.getBytes(), 0, pageSize);
+        file.seek(pageSize + pageSize); //跳过第2页
+        file.write(page.getBytes(), 0, pageSize); //是第2页的冗余
         // don't increment the write counter, because it was just written
     }
 
@@ -1059,8 +1108,8 @@ public class PageStore implements CacheWriter {
         }
         checkOpen();
         database.checkWritingAllowed();
-        if (!recoveryRunning) {
-            int pos = page.getPos();
+        if (!recoveryRunning) { //如果正在recovery过程中，什么都不做
+            int pos = page.getPos(); //这个就是pageId
             if (!log.getUndo(pos)) {
                 if (old == null) {
                     old = readPage(pos);
@@ -1095,7 +1144,13 @@ public class PageStore implements CacheWriter {
         allocatePage(pos);
         cache.update(pos, page);
     }
-
+    
+    //PAGE_ID_FREE_LIST_ROOT等于3，是代表一个".h2.db"文件的前3个page是固定占用的，
+    //见writeStaticHeader和writeVariableHeader
+    //每个PageFreeList能放freeListPagesPerList个page，
+    //假设freeListPagesPerList是1000，pageId是903，那么实际的pageId是900，
+    //说明此page落在第0号PageFreeList中，如果pageId是1006，那么实际的pageId是1003，
+    //说明此page落在第1号PageFreeList中。依此类推。
     private int getFreeListId(int pageId) {
         return (pageId - PAGE_ID_FREE_LIST_ROOT) / freeListPagesPerList;
     }
@@ -1112,6 +1167,10 @@ public class PageStore implements CacheWriter {
                 return list;
             }
         }
+        //算pageId，刚好对应getFreeListId，i就表示freeListId，
+        //freeListId = (pageId - PAGE_ID_FREE_LIST_ROOT) / freeListPagesPerList
+        //现在要求pageId，所以pageId=freeListId * freeListPagesPerList + PAGE_ID_FREE_LIST_ROOT
+        //这里的p是PageFreeList的pageId
         int p = PAGE_ID_FREE_LIST_ROOT + i * freeListPagesPerList;
         while (p >= pageCount) {
             increaseFileSize();
@@ -1120,7 +1179,8 @@ public class PageStore implements CacheWriter {
             list = (PageFreeList) getPage(p);
         }
         if (list == null) {
-            list = PageFreeList.create(this, p);
+            list = PageFreeList.create(this, p); //第一个PageFreeList的pageId是3
+            //System.out.println("PageFreeList: pageId = "+p); //我加上的
             cache.put(list);
         }
         while (freeLists.size() <= i) {
@@ -1217,11 +1277,18 @@ public class PageStore implements CacheWriter {
         increaseFileSize(increment);
     }
 
+    //increment这个参数表示新增加increment个page
+    //那么此时文件的大小就是(老的pageCount + increment) * pageSize
     private void increaseFileSize(int increment) {
+    	//第一次调用时pageCount等于0
+    	//小于pageCount的pageId都是已使用的
         for (int i = pageCount; i < pageCount + increment; i++) {
             freed.set(i);
         }
         pageCount += increment;
+        //2的pageSizeShift次幂=pageSize
+        //所以pageCount << pageSizeShift实际上就是pageCount * pageSize
+        //只不过用移位运算更高效
         long newLength = (long) pageCount << pageSizeShift;
         file.setLength(newLength);
         writeCount++;
@@ -1364,6 +1431,12 @@ public class PageStore implements CacheWriter {
             }
         }
         checksumSet(bytes, pageId);
+		// pageId从0开始计数的
+		//假设pageSize是128，那么pageSizeShift就是7，相当于2的7次方等于128
+        //pageId << pageSizeShift相当于pageId * 128
+        //如果pageId是0，说明是第一个page，0 << pageSizeShift = 0，从0号位置开始写，
+        //假设pageId是3(第一个PageFreeList的pageId就是3)，3 << pageSizeShift = 384，从384号位置开始写。
+        //说明除了头三个固定的page之外，紧接着的就是第一个PageFreeList了。
         file.seek((long) pageId << pageSizeShift);
         file.write(bytes, 0, pageSize);
         writeCount++;
@@ -1456,8 +1529,9 @@ public class PageStore implements CacheWriter {
      * @param row the row to add
      * @param add true if the row is added, false if it is removed
      */
-    public synchronized void logAddOrRemoveRow(Session session, int tableId,
-            Row row, boolean add) {
+    //只有在org.h2.index.PageDataIndex中调用，
+    //org.h2.index.PageBtreeIndex不调用
+    public synchronized void logAddOrRemoveRow(Session session, int tableId, Row row, boolean add) {
         if (logMode != LOG_MODE_OFF) {
             if (!recoveryRunning) {
                 log.logAddOrRemoveRow(session, tableId, row, add);
@@ -1475,7 +1549,9 @@ public class PageStore implements CacheWriter {
         openForWriting();
         log.commit(session.getId());
         long size = log.getSize();
-        if (size - logSizeBase > maxLogSize / 2) {
+
+        //logSizeBase一开始是0，如果size比maxLogSize大，先看一下checkpoint
+        if (size - logSizeBase > maxLogSize / 2) { //maxLogSize通过"SET MAX_LOG_SIZE xxx"设置，默认16M
             int firstSection = log.getLogFirstSectionId();
             checkpoint();
             int newSection = log.getLogSectionId();
@@ -1506,6 +1582,7 @@ public class PageStore implements CacheWriter {
      * @param transaction the name of the transaction
      */
     public synchronized void prepareCommit(Session session, String transaction) {
+    	//对应PREPARE COMMIT newTransactionName语句
         log.prepareCommit(session, transaction);
     }
 
@@ -1602,14 +1679,27 @@ public class PageStore implements CacheWriter {
         cols.add(new Column("OPTIONS", Value.STRING));
         cols.add(new Column("COLUMNS", Value.STRING));
         metaSchema = new Schema(database, 0, "", null, true);
+
+        //在open()方法那里有一行:
+        //metaRootPageId.put(META_TABLE_ID, PAGE_ID_META_ROOT); 
+        //META_TABLE_ID是-1，PAGE_ID_META_ROOT是4
+        //metaTable的create是false，这样在创建metaIndex时，
+        //在PageDataIndex的构造函数中执行rootPageId = store.getRootPageId(id)时从metaRootPageId中取出4
+        //pageId=4的页固定是metaIndex的rootPageId
         data.schema = metaSchema;
         data.tableName = "PAGE_INDEX";
-        data.id = META_TABLE_ID;
+        data.id = META_TABLE_ID; //是-1
         data.temporary = false;
         data.persistData = true;
         data.persistIndexes = true;
         data.create = false;
         data.session = pageStoreSession;
+        
+        //因为RegularTable和PageDataIndex的id都相同
+        //所以metaTable和metaIndex的id都是-1
+        //metaTable中存放了除metaIndex外的所有索引的元数据(里面有此索引的root pageId)
+        //而metaIndex的pageId固定是4，这样在启动时先按4读metaIndex，
+        //再从metaTable中读出所有索引的root pageId，就能根据root pageId来构造整个索引树了
         metaTable = new RegularTable(data);
         metaIndex = (PageDataIndex) metaTable.getScanIndex(
                 pageStoreSession);
@@ -1619,6 +1709,7 @@ public class PageStore implements CacheWriter {
 
     private void readMetaData() {
         Cursor cursor = metaIndex.find(pageStoreSession, null, null);
+        //先读PageDataIndex
         // first, create all tables
         while (cursor.next()) {
             Row row = cursor.get();
@@ -1627,6 +1718,7 @@ public class PageStore implements CacheWriter {
                 addMeta(row, pageStoreSession, false);
             }
         }
+        //再读PageBtreeIndex、PageDelegateIndex
         // now create all secondary indexes
         // otherwise the table might not be created yet
         cursor = metaIndex.find(pageStoreSession, null, null);
@@ -1653,7 +1745,17 @@ public class PageStore implements CacheWriter {
         index.remove(pageStoreSession);
         metaObjects.remove(id);
     }
-
+    
+    //这个方法的作用是把所有索引的id和pageId放到metaRootPageId中，
+    //这样在org.h2.engine.Database.open(int, int)中执行rec.execute(this, systemSession, eventListener)时
+    //会创建新的索引实列，不过create是false，这时就直接按id从metaRootPageId中取出pageId了。
+    
+    //另外，这个方法还设置metaObjects，主要是为了检查PageBtreeIndex、PageDelegateIndex的合法性，
+    //PageDataIndex的id，其实就是PageBtreeIndex、PageDelegateIndex的parent
+    //在recover()方法的最后会清空metaObjects这个map的内容。
+    //addMeta这个方法就是由recover()方法触发的
+    
+    //这个方法创建的数据对象并未加到database和相关的schema中，所以才取了"T" + id这类名字
     private void addMeta(Row row, Session session, boolean redo) {
         int id = row.getValue(0).getInt();
         int type = row.getValue(1).getInt();
@@ -1751,6 +1853,8 @@ public class PageStore implements CacheWriter {
      *
      * @param index the index
      */
+    //只有PageDataIndex、PageBtreeIndex、PageDelegateIndex三种类型的PageIndex
+    //此方法也会把metaIndex加进来
     public synchronized void addIndex(PageIndex index) {
         metaObjects.put(index.getId(), index);
     }
@@ -1761,8 +1865,13 @@ public class PageStore implements CacheWriter {
      * @param index the index to add
      * @param session the session
      */
+    //只有PageDataIndex、PageBtreeIndex、PageDelegateIndex三种类型的PageIndex
+    //因为只有CreateTableData.create为true时才调用addMeta，
+    //而metaIndex的CreateTableData.create为false，所以metaIndex自身的元数据是不会加到metaIndex中的。
     public void addMeta(PageIndex index, Session session) {
         Table table = index.getTable();
+        
+        //如果不是临时表，建索引时要琐住database的meta表
         if (SysProperties.CHECK) {
             if (!table.isTemporary()) {
                 // to prevent ABBA locking problems, we need to always take
@@ -1775,8 +1884,9 @@ public class PageStore implements CacheWriter {
             }
         }
         synchronized (this) {
-            int type = index instanceof PageDataIndex ?
-                    META_TYPE_DATA_INDEX : META_TYPE_BTREE_INDEX;
+        	//只有PageDataIndex是META_TYPE_DATA_INDEX，其他都当成META_TYPE_BTREE_INDEX
+        	//PageDelegateIndex也被当成META_TYPE_BTREE_INDEX
+            int type = index instanceof PageDataIndex ? META_TYPE_DATA_INDEX : META_TYPE_BTREE_INDEX;
             IndexColumn[] columns = index.getIndexColumns();
             StatementBuilder buff = new StatementBuilder();
             for (IndexColumn col : columns) {
@@ -1784,7 +1894,7 @@ public class PageStore implements CacheWriter {
                 int id = col.column.getColumnId();
                 buff.append(id);
                 int sortType = col.sortType;
-                if (sortType != 0) {
+                if (sortType != 0) { //0值是SortOrder.ASCENDING，默认就是SortOrder.ASCENDING，只保存非SortOrder.ASCENDING值
                     buff.append('/');
                     buff.append(sortType);
                 }
@@ -1818,7 +1928,10 @@ public class PageStore implements CacheWriter {
      * @param index the index to remove
      * @param session the session
      */
+    //只有PageDataIndex、PageBtreeIndex、PageDelegateIndex三种类型的Index
+    //把Index index改成PageIndex index更好理解，对应addMeta
     public void removeMeta(Index index, Session session) {
+    	//同addMeta类似，//如果不是临时表，删除索引时要琐住database的meta表
         if (SysProperties.CHECK) {
             if (!index.getTable().isTemporary()) {
                 // to prevent ABBA locking problems, we need to always take
@@ -1838,6 +1951,8 @@ public class PageStore implements CacheWriter {
         }
     }
 
+    //只有PageDataIndex、PageBtreeIndex、PageDelegateIndex三种类型的Index
+    //把Index index改成PageIndex index更好理解，对应addMeta
     private void removeMetaIndex(Index index, Session session) {
         int key = index.getId() + 1;
         Row row = metaIndex.getRow(session, key);
@@ -1954,7 +2069,8 @@ public class PageStore implements CacheWriter {
     public Cache getCache() {
         return cache;
     }
-
+    
+    //计算校验和时并未遍历byte[] d数组中的每个字节，只是取了一些特殊下标的字节做一些特殊运算
     private void checksumSet(byte[] d, int pageId) {
         int ps = pageSize;
         int type = d[0];
@@ -1978,6 +2094,7 @@ public class PageStore implements CacheWriter {
      * @param pageSize the page size
      * @return true if it is correct
      */
+    //跟上面checksumSet方法内部的代码逻辑类似
     public static boolean checksumTest(byte[] d, int pageId, int pageSize) {
         int ps = pageSize;
         int s1 = 255 + (d[0] & 255), s2 = 255 + s1;

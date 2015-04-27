@@ -36,7 +36,7 @@ public class ValueLong extends Value {
 
     /**
      * The maximum display size of a long.
-     * Example: 9223372036854775808
+     * Example: 9223372036854775808 //是 -9223372036854775808，"-9223372036854775808"这个算负号在内总长度是20
      */
     public static final int DISPLAY_SIZE = 20;
 

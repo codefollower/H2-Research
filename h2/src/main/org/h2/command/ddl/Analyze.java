@@ -104,7 +104,7 @@ public class Analyze extends DefineCommand {
         if (sample > 0) {
             buff.append(" LIMIT ? SAMPLE_SIZE ? ");
         }
-        String sql = buff.toString();
+        String sql = buff.toString(); //如: SELECT SELECTIVITY(ID), SELECTIVITY(NAME), SELECTIVITY(B) FROM PUBLIC.REGULARTABLETEST LIMIT 1 SAMPLE_SIZE 10000
         Prepared command = session.prepare(sql);
         if (sample > 0) {
             ArrayList<Parameter> params = command.getParameters();

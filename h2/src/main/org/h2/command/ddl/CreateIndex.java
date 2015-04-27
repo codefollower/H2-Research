@@ -52,7 +52,12 @@ public class CreateIndex extends SchemaCommand {
 
     @Override
     public int update() {
-        if (!transactional) {
+    	//当执行这样的SQL时: create TEMPORARY table myTable(name varchar(500),CONSTRAINT myindex INDEX (name)) TRANSACTIONAL
+        //transactional为true
+    	//在org.h2.command.Parser.parseAlterTableAddConstraintIf(String, Schema)中为INDEX (name)构建一个CreateIndex
+    	//然后执行org.h2.command.ddl.CreateTable.update()时
+    	//在"for (DefineCommand command : constraintCommands)"那里触发此方法
+    	if (!transactional) {
             session.commit(true);
         }
         Database db = session.getDatabase();

@@ -23,7 +23,7 @@ public abstract class RightOwner extends DbObjectBase {
     /**
      * The map of granted rights.
      */
-    private HashMap<DbObject, Right> grantedRights;
+    private HashMap<Table, Right> grantedRights;
 
     protected RightOwner(Database database, int id, String name,
             String traceModule) {
@@ -55,9 +55,7 @@ public abstract class RightOwner extends DbObjectBase {
 
     /**
      * Check if a right is already granted to this object or to objects that
-     * were granted to this object. The rights for schemas takes
-     * precedence over rights of tables, in other words, the rights of schemas
-     * will be valid for every each table in the related schema.
+     * were granted to this object.
      *
      * @param table the table to check
      * @param rightMask the right mask to check
@@ -66,14 +64,6 @@ public abstract class RightOwner extends DbObjectBase {
     boolean isRightGrantedRecursive(Table table, int rightMask) {
         Right right;
         if (grantedRights != null) {
-            if (table != null) {
-                right = grantedRights.get(table.getSchema());
-                if (right != null) {
-                    if ((right.getRightMask() & rightMask) == rightMask) {
-                        return true;
-                    }
-                }
-            }
             right = grantedRights.get(table);
             if (right != null) {
                 if ((right.getRightMask() & rightMask) == rightMask) {
@@ -95,26 +85,26 @@ public abstract class RightOwner extends DbObjectBase {
      * Grant a right for the given table. Only one right object per table is
      * supported.
      *
-     * @param object the object (table or schema)
+     * @param table the table
      * @param right the right
      */
-    public void grantRight(DbObject object, Right right) {
+    public void grantRight(Table table, Right right) {
         if (grantedRights == null) {
             grantedRights = New.hashMap();
         }
-        grantedRights.put(object, right);
+        grantedRights.put(table, right);
     }
 
     /**
-     * Revoke the right for the given object (table or schema).
+     * Revoke the right for the given table.
      *
-     * @param object the object
+     * @param table the table
      */
-    void revokeRight(DbObject object) {
+    void revokeRight(Table table) {
         if (grantedRights == null) {
             return;
         }
-        grantedRights.remove(object);
+        grantedRights.remove(table);
         if (grantedRights.size() == 0) {
             grantedRights = null;
         }
@@ -153,16 +143,16 @@ public abstract class RightOwner extends DbObjectBase {
     }
 
     /**
-     * Get the 'grant schema' right of this object.
+     * Get the 'grant table' right of this object.
      *
-     * @param object the granted object (table or schema)
+     * @param table the granted table
      * @return the right or null if the right has not been granted
      */
-    public Right getRightForObject(DbObject object) {
+    public Right getRightForTable(Table table) {
         if (grantedRights == null) {
             return null;
         }
-        return grantedRights.get(object);
+        return grantedRights.get(table);
     }
 
     /**

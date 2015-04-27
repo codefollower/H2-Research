@@ -216,7 +216,7 @@ public class DbSettings extends SettingsBase {
     public final boolean optimizeInSelect = get("OPTIMIZE_IN_SELECT", true);
 
     /**
-     * Database setting <code>OPTIMIZE_IS_NULL</code> (default: false).<br />
+     * Database setting <code>OPTIMIZE_IS_NULL</code> (default: true).<br />
      * Use an index for condition of the form columnName IS NULL.
      */
     public final boolean optimizeIsNull = get("OPTIMIZE_IS_NULL", true);

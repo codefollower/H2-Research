@@ -21,7 +21,7 @@ import org.h2.util.ScriptReader;
  * This class represents the statement
  * RUNSCRIPT
  */
-public class RunScriptCommand extends ScriptBase {
+public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
 
     /**
      * The byte order mark.

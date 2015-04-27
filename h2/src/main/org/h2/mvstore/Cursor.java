@@ -13,7 +13,7 @@ import java.util.Iterator;
  * @param <K> the key type
  * @param <V> the value type
  */
-public class Cursor<K, V> implements Iterator<K> {
+public class Cursor<K, V> implements Iterator<K> { //深度优先，然后到右边的同节点中的记录，接着过渡到父节点，父节点的右节点...
 
     private final MVMap<K, ?> map;
     private final K from;
@@ -125,7 +125,9 @@ public class Cursor<K, V> implements Iterator<K> {
             } else {
                 x++;
             }
-            pos = new CursorPos(p, x + 1, pos);
+            //遍历完当前leaf page后，就转到parent page，然后就到右边的第一个兄弟page，
+            //所以要x+1
+            pos = new CursorPos(p, x + 1, pos); 
             p = p.getChildPage(x);
         }
     }

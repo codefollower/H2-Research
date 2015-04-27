@@ -99,17 +99,17 @@ public class PageLog {
     /**
      * The recovery stage to undo changes (re-apply the backup).
      */
-    static final int RECOVERY_STAGE_UNDO = 0;
+    static final int RECOVERY_STAGE_UNDO = 0; //撤消改变
 
     /**
      * The recovery stage to allocate pages used by the transaction log.
      */
-    static final int RECOVERY_STAGE_ALLOCATE = 1;
+    static final int RECOVERY_STAGE_ALLOCATE = 1; //分配页面
 
     /**
      * The recovery stage to redo operations.
      */
-    static final int RECOVERY_STAGE_REDO = 2;
+    static final int RECOVERY_STAGE_REDO = 2; //重做
 
     private static final boolean COMPRESS_UNDO = true;
 
@@ -122,6 +122,9 @@ public class PageLog {
     private int firstDataPage;
     private final Data dataBuffer;
     private int logKey;
+    //logPos只有在logAddOrRemoveRow和logTruncate时才增加
+    //checkpoint中重新置为0
+    //而logSectionId只有在checkpoint中才增加
     private int logSectionId, logPos;
     private int firstSectionId;
 
@@ -168,7 +171,7 @@ public class PageLog {
         dataBuffer = store.createData();
         trace = store.getTrace();
         compress = new CompressLZF();
-        compressBuffer = new byte[store.getPageSize() * 2];
+        compressBuffer = new byte[store.getPageSize() * 2]; //pageSize的两倍
     }
 
     /**
@@ -186,8 +189,10 @@ public class PageLog {
                 newFirstTrunkPage, undoAll, logKey, atEnd);
         pageOut.reserve(1);
         // pageBuffer = new BufferedOutputStream(pageOut, 8 * 1024);
-        store.setLogFirstPage(logKey, newFirstTrunkPage,
-                pageOut.getCurrentDataPageId());
+        //更新VariableHeader，一开始logKey为1，newFirstTrunkPage为5，pageOut.getCurrentDataPageId()为6
+        //newFirstTrunkPage表示第一个PageStreamTrunk的pageId，
+        //pageOut.getCurrentDataPageId()表示第一个PageStreamData的pageId.
+        store.setLogFirstPage(logKey, newFirstTrunkPage, pageOut.getCurrentDataPageId());
         writeBuffer = store.createData();
     }
 
@@ -256,6 +261,7 @@ public class PageLog {
      * @param stage the recovery stage
      * @return whether the transaction log was empty
      */
+    //顺序是RECOVERY_STAGE_UNDO => RECOVERY_STAGE_ALLOCATE => RECOVERY_STAGE_REDO
     boolean recover(int stage) {
         if (trace.isDebugEnabled()) {
             trace.debug("log recover stage: " + stage);
@@ -400,7 +406,7 @@ public class PageLog {
                     int count = in.readVarInt();
                     for (int i = 0; i < count; i++) {
                         int pageId = in.readVarInt();
-                        if (stage == RECOVERY_STAGE_REDO) {
+                        if (stage == RECOVERY_STAGE_REDO) { //重新释放pageId对应的页面
                             if (!usedLogPages.get(pageId)) {
                                 store.free(pageId, false);
                             }
@@ -506,10 +512,11 @@ public class PageLog {
         Data buffer = getBuffer();
         buffer.writeByte((byte) UNDO);
         buffer.writeVarInt(pageId);
-        if (page.getBytes()[0] == 0) {
+        if (page.getBytes()[0] == 0) { //page的第一个字节是page类型，如果是0，说明是org.h2.store.Page.TYPE_EMPTY
             buffer.writeVarInt(1);
         } else {
             int pageSize = store.getPageSize();
+            //COMPRESS_UNDO是final的，并且总是true
             if (COMPRESS_UNDO) {
                 int size = compress.compress(page.getBytes(),
                         pageSize, compressBuffer, 0);
@@ -545,7 +552,8 @@ public class PageLog {
         }
         write(buffer);
     }
-
+    
+    //写data到PageStreamData，如果PageStreamData满了会自动切换到下一个PageStreamData
     private void write(Data data) {
         pageOut.write(data.getBytes(), 0, data.length());
         data.reset();
@@ -590,7 +598,7 @@ public class PageLog {
         // store it on a separate log page
         int pageSize = store.getPageSize();
         pageOut.flush();
-        pageOut.fillPage();
+        pageOut.fillPage(); //刷新前面的PageStreamData，使得prepareCommit的数据放到一个新的PageStreamData
         Data buffer = getBuffer();
         buffer.writeByte((byte) PREPARE_COMMIT);
         buffer.writeVarInt(session.getId());
@@ -602,6 +610,9 @@ public class PageLog {
         write(buffer);
         // store it on a separate log page
         flushOut();
+        //刷新prepareCommit的PageStreamData，得到一个新的PageStreamData，
+        //这样接下来的日志不跟prepareCommit共用一个PageStreamData
+        //也就是说prepareCommit要独占一个PageStreamData
         pageOut.fillPage();
         if (store.getDatabase().getFlushOnEachCommit()) {
             flush();
@@ -636,7 +647,7 @@ public class PageLog {
             for (int i = 0; i < columns; i++) {
                 Value v = row.getValue(i);
                 if (v.getType() == Value.BYTES) {
-                    data.writeValue(ValueNull.INSTANCE);
+                    data.writeValue(ValueNull.INSTANCE); //字节类型写null值
                 } else {
                     data.writeValue(v);
                 }
@@ -694,7 +705,7 @@ public class PageLog {
         logSectionId++;
         logPos = 0;
         pageOut.flush();
-        pageOut.fillPage();
+        pageOut.fillPage(); //切换新的PageStreamData
         int currentDataPage = pageOut.getCurrentDataPageId();
         logSectionPageMap.put(logSectionId, currentDataPage);
     }
@@ -739,6 +750,10 @@ public class PageLog {
      * @param firstDataPageToKeep the first data page to keep
      * @return the trunk page of the data page to keep
      */
+    //把在firstDataPageToKeep之前的(小于firstDataPageToKeep的)页面删除了
+    //返回firstDataPageToKeep所在的PageStreamTrunk的pageId，
+    //这个PageStreamTrunk中的PageStreamData不会被删除，哪怕这些PageStreamData的pageId小于firstDataPageToKeep
+    //只是删除在此PageStreamTrunk前的PageStreamTrunk和这些PageStreamTrunk中的PageStreamData
     private int removeUntil(int trunkPage, int firstDataPageToKeep) {
         trace.debug("log.removeUntil " + trunkPage + " " + firstDataPageToKeep);
         int last = trunkPage;

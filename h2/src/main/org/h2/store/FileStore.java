@@ -173,12 +173,13 @@ public class FileStore {
      * required.
      */
     public void init() {
-        int len = Constants.FILE_BLOCK_SIZE;
+        int len = Constants.FILE_BLOCK_SIZE; //16字节
         byte[] salt;
         byte[] magic = HEADER.getBytes(Constants.UTF8);
-        if (length() < HEADER_LENGTH) {
+        if (length() < HEADER_LENGTH) { //HEADER_LENGTH = 48, 第一次建立*.h2.db文件时length为0
             // write unencrypted
             checkedWriting = false;
+            //写入三个"-- H2 0.5/B -- \n"，每个16字节
             writeDirect(magic, 0, len);
             salt = generateSalt();
             writeDirect(salt, 0, len);

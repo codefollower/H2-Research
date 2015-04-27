@@ -18,6 +18,8 @@ import org.h2.table.TableFilter;
 /**
  * An index. Indexes are used to speed up searching data.
  */
+//此类提供的查找方法并没有直接提供模糊查询之类的功能，只有范围查询，
+//更高级的功能都是通过范围查询获得记录后再在Select那一层通过where条件一一比较和过滤
 public interface Index extends SchemaObject {
 
     /**
@@ -25,14 +27,14 @@ public interface Index extends SchemaObject {
      *
      * @return the plan
      */
-    String getPlanSQL();
+    String getPlanSQL(); //用于EXPLAIN语句，是"模式名.索引名"，跟getCreateSQL()不一样，getCreateSQL()是完整的"CREATE INDEX"
 
     /**
      * Close this index.
      *
      * @param session the session used to write data
      */
-    void close(Session session);
+    void close(Session session); //在org.h2.store.PageStore.recover()中调用一次，然后在关闭数据库时又调用一次
 
     /**
      * Add a row to the index.
@@ -48,7 +50,7 @@ public interface Index extends SchemaObject {
      * @param session the session
      * @param row the row
      */
-    void remove(Session session, Row row);
+    void remove(Session session, Row row); //删除单行
 
     /**
      * Find a row or a list of rows and create a cursor to iterate over the
@@ -71,7 +73,7 @@ public interface Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor to iterate over the results
      */
-    Cursor find(TableFilter filter, SearchRow first, SearchRow last);
+    Cursor find(TableFilter filter, SearchRow first, SearchRow last); //默认是调用前一个find(filter.getSession(), first, last);
 
     /**
      * Estimate the cost to search for rows given the search mask.
@@ -85,22 +87,21 @@ public interface Index extends SchemaObject {
      * @param sortOrder the sort order
      * @return the estimated cost
      */
-    double getCost(Session session, int[] masks, TableFilter filter,
-            SortOrder sortOrder);
+    double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder);
 
     /**
      * Remove the index.
      *
      * @param session the session
      */
-    void remove(Session session);
+    void remove(Session session); //删除行并释放page
 
     /**
      * Remove all rows from the index.
      *
      * @param session the session
      */
-    void truncate(Session session);
+    void truncate(Session session); //不释放page，只删除行
 
     /**
      * Check if the index can directly look up the lowest or highest value of a
@@ -115,7 +116,7 @@ public interface Index extends SchemaObject {
      *
      * @return true if it can
      */
-    boolean canFindNext();
+    boolean canFindNext(); //只有PageBtreeIndex返回true
 
     /**
      * Find a row or a list of rows that is larger and create a cursor to
@@ -126,7 +127,10 @@ public interface Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor
      */
-    Cursor findNext(Session session, SearchRow higherThan, SearchRow last);
+    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化
+    //比如这样的SQL: select distinct name from test
+    //就算为name字段建立了索引也不行
+    Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //只有org.h2.index.PageBtreeIndex实现了
 
     /**
      * Find the first (or last) value of this index. The cursor returned is
@@ -137,7 +141,7 @@ public interface Index extends SchemaObject {
      *            value should be returned
      * @return a cursor (never null)
      */
-    Cursor findFirstOrLast(Session session, boolean first);
+    Cursor findFirstOrLast(Session session, boolean first); //用于快束min、max聚合查询
 
     /**
      * Check if the index needs to be rebuilt.
@@ -145,7 +149,7 @@ public interface Index extends SchemaObject {
      *
      * @return true if a rebuild is required.
      */
-    boolean needRebuild();
+    boolean needRebuild(); //构建索引时调用
 
     /**
      * Get the row count of this table, for the given session.
@@ -177,7 +181,7 @@ public interface Index extends SchemaObject {
      * @return 0 if both rows are equal, -1 if the first row is smaller,
      *         otherwise 1
      */
-    int compareRows(SearchRow rowData, SearchRow compare);
+    int compareRows(SearchRow rowData, SearchRow compare); //只比较索引字段，并不一定是所有字段
 
     /**
      * Get the index of a column in the list of index columns
@@ -185,6 +189,8 @@ public interface Index extends SchemaObject {
      * @param col the column
      * @return the index (0 meaning first column)
      */
+    //并不是返回列id，而是索引字段列表中的位置，
+    //PageDataIndex、MVPrimaryIndex直接返回-1，因为这两个类严格说不是索引，而是存放主表的原始记录的
     int getColumnIndex(Column col);
 
     /**
@@ -222,7 +228,8 @@ public interface Index extends SchemaObject {
      * @param operation the operation type
      * @param row the row
      */
-    void commit(int operation, Row row);
+    //如果使用了multiVersion，在提交时删除row
+    void commit(int operation, Row row); //PageDataIndex、ScanIndex、MultiVersionIndex有实现，其他子类什么都没做
 
     /**
      * Get the row with the given key.
@@ -231,21 +238,24 @@ public interface Index extends SchemaObject {
      * @param key the unique key
      * @return the row
      */
-    Row getRow(Session session, long key);
+    //MVSecondaryIndex类没实现，而是在org.h2.mvstore.db.MVSecondaryIndex.MVStoreCursor.get()中调用MVPrimaryIndex的
+    Row getRow(Session session, long key); //按key获取主表的完整记录，PageDataIndex、MVPrimaryIndex才有效
 
     /**
      * Does this index support lookup by row id?
      *
      * @return true if it does
      */
-    boolean isRowIdIndex();
+    //按_ROWID_排序时，直接使用MVPrimaryIndex、PageDataIndex
+    boolean isRowIdIndex(); //只有org.h2.mvstore.db.MVPrimaryIndex和org.h2.index.PageDataIndex返回true
 
     /**
      * Can this index iterate over all rows?
      *
      * @return true if it can
      */
-    boolean canScan();
+    //只看到org.h2.store.PageStore.compact(int)在用
+    boolean canScan(); //HashIndex、NonUniqueHashIndex、FunctionIndex返回false
 
     /**
      * Enable or disable the 'sorted insert' optimizations (rows are inserted in
@@ -254,6 +264,9 @@ public interface Index extends SchemaObject {
      *
      * @param sortedInsertMode the new value
      */
-    void setSortedInsertMode(boolean sortedInsertMode);
+    //只在org.h2.index.PageDataLeaf中用到，
+    //如insert into IndexTestTable(id, name, address) SORTED values(...)
+    //见org.h2.index.PageDataLeaf.addRowTry(Row)，insert加了SORTED后，获取切换点的方式不一样。
+    void setSortedInsertMode(boolean sortedInsertMode); //PageIndex有覆盖此方法
 
 }

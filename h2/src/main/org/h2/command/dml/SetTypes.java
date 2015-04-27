@@ -263,7 +263,7 @@ public class SetTypes {
         list.add(CREATE_BUILD, "CREATE_BUILD");
         list.add(VARIABLE, "@");
         list.add(QUERY_TIMEOUT, "QUERY_TIMEOUT");
-        list.add(REDO_LOG_BINARY, "REDO_LOG_BINARY");
+        list.add(REDO_LOG_BINARY, "REDO_LOG_BINARY"); //官方文档没提到
         list.add(BINARY_COLLATION, "BINARY_COLLATION");
         list.add(JAVA_OBJECT_SERIALIZER, "JAVA_OBJECT_SERIALIZER");
         list.add(RETENTION_TIME, "RETENTION_TIME");

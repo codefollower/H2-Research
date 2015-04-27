@@ -45,9 +45,12 @@ public class ExpressionColumn extends Expression {
         this.tableAlias = null;
         this.columnName = null;
     }
-
-    public ExpressionColumn(Database database, String schemaName,
-            String tableAlias, String columnName) {
+    
+    //对于SELECT public.t.id FROM ExpressionColumnTest as t
+    //schemaName = public
+    //tableAlias = t
+    //columnName = id
+    public ExpressionColumn(Database database, String schemaName, String tableAlias, String columnName) {
         this.database = database;
         this.schemaName = schemaName;
         this.tableAlias = tableAlias;
@@ -125,16 +128,19 @@ public class ExpressionColumn extends Expression {
             }
         }
     }
-
+    
+    //列名不存在的检查是放在这里做
+	//sql = "select name,id3 from mytable order by name";
+    //Column "ID3" not found;
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(Session session) { //在之前已调用mapColumns了，确保columnResolver被适当赋值了
         if (columnResolver == null) {
             Schema schema = session.getDatabase().findSchema(
                     tableAlias == null ? session.getCurrentSchemaName() : tableAlias);
             if (schema != null) {
                 Constant constant = schema.findConstant(columnName);
                 if (constant != null) {
-                    return constant.getValue();
+                    return constant.getValue(); //对于常量字段的优化是直接返回ValueExpression
                 }
             }
             String name = columnName;
@@ -318,6 +324,11 @@ public class ExpressionColumn extends Expression {
 
     @Override
     public void createIndexConditions(Session session, TableFilter filter) {
+    	//如
+    	//create table IF NOT EXISTS DeleteTest(id int, name varchar(500), b boolean)
+    	//delete from DeleteTest where b
+    	//按字段b删除，实际上就是删除b=true的记录
+    	//如果没有为字段b建立索引，就在org.h2.table.TableFilter.prepare()中删除这个无用条件
         TableFilter tf = getTableFilter();
         if (filter == tf && column.getType() == Value.BOOLEAN) {
             IndexCondition cond = IndexCondition.get(

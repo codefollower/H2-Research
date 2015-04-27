@@ -298,6 +298,7 @@ public class Database implements DataHandler {
         }
     }
 
+    //没看到调用
     public static void setInitialPowerOffCount(int count) {
         initialPowerOffCount = count;
     }
@@ -568,6 +569,9 @@ public class Database implements DataHandler {
 
     private synchronized void open(int traceLevelFile, int traceLevelSystemOut) {
         if (persistent) {
+			//databaseName = E:/H2/baseDir/mydb
+			//dataFileName = E:/H2/baseDir/mydb.data.db
+			//pageFileName = E:/H2/baseDir/mydb.h2.db
             String dataFileName = databaseName + Constants.SUFFIX_OLD_DATABASE_FILE;
             boolean existsData = FileUtils.exists(dataFileName);
             String pageFileName = databaseName + Constants.SUFFIX_PAGE_FILE;
@@ -600,8 +604,8 @@ public class Database implements DataHandler {
                     traceSystem = new TraceSystem(null);
                 }
             } else {
-                traceSystem = new TraceSystem(databaseName +
-                        Constants.SUFFIX_TRACE_FILE);
+				//E:/H2/baseDir/mydb.trace.db
+                traceSystem = new TraceSystem(databaseName + Constants.SUFFIX_TRACE_FILE);
             }
             traceSystem.setLevelFile(traceLevelFile);
             traceSystem.setLevelSystemOut(traceLevelSystemOut);
@@ -621,6 +625,7 @@ public class Database implements DataHandler {
                             "inMemory)");
                 }
             }
+			//E:/H2/baseDir/mydb.lock.db
             String lockFileName = databaseName + Constants.SUFFIX_LOCK_FILE;
             if (readOnly) {
                 if (FileUtils.exists(lockFileName)) {
@@ -685,12 +690,12 @@ public class Database implements DataHandler {
                 getPageStore();
             }
         }
-        systemUser = new User(this, 0, SYSTEM_USER_NAME, true);
-        mainSchema = new Schema(this, 0, Constants.SCHEMA_MAIN, systemUser, true);
+        systemUser = new User(this, 0, SYSTEM_USER_NAME, true); //DBA
+        mainSchema = new Schema(this, 0, Constants.SCHEMA_MAIN, systemUser, true); //PUBLIC 不明确指定Schema时，默认就是它
         infoSchema = new Schema(this, -1, "INFORMATION_SCHEMA", systemUser, true);
         schemas.put(mainSchema.getName(), mainSchema);
         schemas.put(infoSchema.getName(), infoSchema);
-        publicRole = new Role(this, 0, Constants.PUBLIC_ROLE_NAME, true);
+        publicRole = new Role(this, 0, Constants.PUBLIC_ROLE_NAME, true); //PUBLIC
         roles.put(Constants.PUBLIC_ROLE_NAME, publicRole);
         systemUser.setAdmin(true);
         systemSession = new Session(this, systemUser, ++nextSessionId);
@@ -717,10 +722,12 @@ public class Database implements DataHandler {
         data.session = systemSession;
         meta = mainSchema.createTable(data);
         IndexColumn[] pkCols = IndexColumn.wrap(new Column[] { columnId });
-        metaIdIndex = meta.addIndex(systemSession, "SYS_ID",
-                0, pkCols, IndexType.createPrimaryKey(
+        //是TreeIndex，因为createPrimaryKey使用了persistent=false, hash=false
+        metaIdIndex = meta.addIndex(systemSession, "SYS_ID", 0, pkCols, IndexType.createPrimaryKey(
                 false, false), true, null);
         objectIds.set(0);
+        
+        //读整个SYS表，取出所有的DDL语句，然后重新执行一遍
         starting = true;
         Cursor cursor = metaIdIndex.find(systemSession, null, null);
         ArrayList<MetaRecord> records = New.arrayList();
@@ -729,7 +736,7 @@ public class Database implements DataHandler {
             objectIds.set(rec.getId());
             records.add(rec);
         }
-        Collections.sort(records);
+        Collections.sort(records); //按升序排，算法见org.h2.engine.MetaRecord.compareTo(MetaRecord)
         synchronized (systemSession) {
             for (MetaRecord rec : records) {
                 rec.execute(this, systemSession, eventListener);
@@ -762,6 +769,8 @@ public class Database implements DataHandler {
             }
         }
         getLobStorage().init();
+
+        addSchemaObject(systemSession, meta); //我加上的，加上这个能调试SYS表
         systemSession.commit(true);
 
         trace.info("opened {0}", databaseName);
@@ -823,7 +832,7 @@ public class Database implements DataHandler {
             if (obj instanceof TableView) {
                 TableView view = (TableView) obj;
                 if (!view.isInvalid()) {
-                    view.recompile(systemSession, true);
+                    view.recompile(systemSession, true); //session就是systemSession
                 }
             }
         }
@@ -835,8 +844,8 @@ public class Database implements DataHandler {
         }
         synchronized (infoSchema) {
             if (!metaTablesInitialized) {
-                for (int type = 0, count = MetaTable.getMetaTableTypeCount();
-                        type < count; type++) {
+            	//将所有的MetaTable放入INFORMATION_SCHEMA
+                for (int type = 0, count = MetaTable.getMetaTableTypeCount(); type < count; type++) {
                     MetaTable m = new MetaTable(infoSchema, -1 - type, type);
                     infoSchema.add(m);
                 }
@@ -901,9 +910,12 @@ public class Database implements DataHandler {
      * @param id the id of the object to remove
      */
     public synchronized void removeMeta(Session session, int id) {
-        if (id > 0 && !starting) {
+    	//比如SYS表的id是0
+        if (id > 0 && !starting) { //如果starting为true，说明数据库是在open过程中，比如在执行MetaRecord
             SearchRow r = meta.getTemplateSimpleRow(false);
             r.setValue(0, ValueInt.get(id));
+            //在调用removeMeta前必须调用过lockMeta了，如果wasLocked为false
+            //说明当前meta表没有调用lockMeta或者被其他session锁住了
             boolean wasLocked = lockMeta(session);
             Cursor cursor = metaIdIndex.find(session, r, r);
             if (cursor.next()) {
@@ -1426,7 +1438,7 @@ public class Database implements DataHandler {
      *
      * @return the id
      */
-    public synchronized int allocateObjectId() {
+    public synchronized int allocateObjectId() { //如果前面的对象id回收了，这里会重复利用前面已回收的id。
         int i = objectIds.nextClearBit(0);
         objectIds.set(i);
         return i;
@@ -1584,6 +1596,8 @@ public class Database implements DataHandler {
      * @param session the session
      * @param obj the database object
      */
+    //并不会执行obj的相关sql，也不删除或修改Schema或Database中的相关map和obj的子对象
+    //仅仅是先删除SYS表中与obj相关的旧sql并添加新的sql
     public synchronized void updateMeta(Session session, DbObject obj) {
         lockMeta(session);
         int id = obj.getId();
@@ -1645,7 +1659,7 @@ public class Database implements DataHandler {
         obj.checkRename();
         int id = obj.getId();
         lockMeta(session);
-        removeMeta(session, id);
+        removeMeta(session, id); //调用了两次，updateWithChildren=>update=>removeMeta
         map.remove(obj.getName());
         obj.rename(newName);
         map.put(newName, obj);
@@ -1717,7 +1731,7 @@ public class Database implements DataHandler {
             removeDatabaseObject(session, comment);
         }
         int id = obj.getId();
-        obj.removeChildrenAndResources(session);
+        obj.removeChildrenAndResources(session);  //里面也有可能调用removeMeta
         map.remove(objName);
         removeMeta(session, id);
     }
@@ -2282,6 +2296,9 @@ public class Database implements DataHandler {
 
     public void setMultiThreaded(boolean multiThreaded) {
         if (multiThreaded && this.multiThreaded != multiThreaded) {
+        	//不允许类似这样同时设置MULTI_THREADED和MVCC为true
+        	//prop.setProperty("MULTI_THREADED", "true");
+    		//prop.setProperty("MVCC", "true");
             if (multiVersion && mvStore == null) {
                 // currently the combination of MVCC and MULTI_THREADED is not
                 // supported
@@ -2399,7 +2416,7 @@ public class Database implements DataHandler {
             if (!readOnly && fileLockMethod == FileLock.LOCK_FS) {
                 pageStore.setLockFile(true);
             }
-            pageStore.setLogMode(logMode);
+            pageStore.setLogMode(logMode); //默认是LOG_MODE_SYNC
             pageStore.open();
         }
         return pageStore;

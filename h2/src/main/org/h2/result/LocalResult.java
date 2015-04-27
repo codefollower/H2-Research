@@ -24,6 +24,9 @@ import org.h2.value.ValueArray;
  * and it is also used directly by the ResultSet class in the embedded mode.
  * If the result does not fit in memory, it is written to a temporary file.
  */
+//RowList用于执行update、delete时存放先读取出来的记录
+//LocalResult用于在server端执行select时存放查询结果
+//ResultRemote用于存放client端从server端返回的结果
 public class LocalResult implements ResultInterface, ResultTarget {
 
     private int maxMemoryRows;
@@ -278,11 +281,13 @@ public class LocalResult implements ResultInterface, ResultTarget {
      */
     @Override
     public void addRow(Value[] values) {
+    	//distinct和randomAccess(通过ConditionInSelect触发)使用ResultTempTable，其他使用ResultDiskBuffer
+    	//maxMemoryRows、maxMemoryRowsDistinct默认值都是1万
         cloneLobs(values);
         if (distinct) {
             if (distinctRows != null) {
                 ValueArray array = ValueArray.get(values);
-                distinctRows.put(array, values);
+                distinctRows.put(array, values); //会触发ValueArray的hashCode方法
                 rowCount = distinctRows.size();
                 if (rowCount > maxMemoryRows) {
                     external = new ResultTempTable(session, expressions, true, sort);

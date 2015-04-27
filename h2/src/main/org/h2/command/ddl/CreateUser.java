@@ -45,14 +45,6 @@ public class CreateUser extends DefineCommand {
         this.password = password;
     }
 
-    /**
-     * Set the salt and hash for the given user.
-     *
-     * @param user the user
-     * @param session the session
-     * @param salt the salt
-     * @param hash the hash
-     */
     static void setSaltAndHash(User user, Session session, Expression salt, Expression hash) {
         user.setSaltAndHash(getByteArray(session, salt), getByteArray(session, hash));
     }
@@ -62,13 +54,6 @@ public class CreateUser extends DefineCommand {
         return s == null ? new byte[0] : StringUtils.convertHexToBytes(s);
     }
 
-    /**
-     * Set the password for the given user.
-     *
-     * @param user the user
-     * @param session the session
-     * @param password the password
-     */
     static void setPassword(User user, Session session, Expression password) {
         String pwd = password.optimize(session).getValue(session).getString();
         char[] passwordChars = pwd == null ? new char[0] : pwd.toCharArray();
@@ -87,7 +72,7 @@ public class CreateUser extends DefineCommand {
         session.getUser().checkAdmin();
         session.commit(true);
         Database db = session.getDatabase();
-        if (db.findRole(userName) != null) {
+        if (db.findRole(userName) != null) { //角色名和用户名不能一样
             throw DbException.get(ErrorCode.ROLE_ALREADY_EXISTS_1, userName);
         }
         if (db.findUser(userName) != null) {

@@ -112,11 +112,16 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
          */
         double cost;
     }
-
+    
+    //在view对应的select语句中加上view中的字段条件
+    //例如:sql = "select * from my_view where f2 > 'b1'";
+    //实际是SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
+    //masks的数组元素是一个view中包含的所有列，如果某一列不是查询条件，那么对应的masks[列id]这个数组元素就是0
+    
+    //此方法不影响些类的任何字段，只是为了计算cost
     @Override
-    public synchronized double getCost(Session session, int[] masks,
-            TableFilter filter, SortOrder sortOrder) {
-        if (recursive) {
+    public synchronized double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+        if (recursive) { //对应WITH RECURSIVE开头之类的语句，见my.test.command.ddl.CreateViewTest
             return 1000;
         }
         IntArray masksArray = new IntArray(masks == null ?
@@ -129,6 +134,12 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
                 return cachedCost.cost;
             }
         }
+        //例如:sql = "select * from my_view where f2 > 'b1'";
+        //CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1,f2)AS SELECT id,name FROM CreateViewTest
+        //这里masks就对应f2 > 'b1'
+        //相当于把f2 > 'b1'这个条件加到SELECT id,name FROM CreateViewTest中，
+        //变成SELECT id,name FROM CreateViewTest where name > 'b1'";
+        //实际是SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
         Query q = (Query) session.prepare(querySQL, true);
         if (masks != null) {
             IntArray paramIndex = new IntArray();
@@ -152,6 +163,10 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
                     q.addGlobalCondition(param, idx, Comparison.SPATIAL_INTERSECTS);
                 } else {
                     if ((mask & IndexCondition.START) != 0) {
+                    	//例如:sql = "select * from my_view where f2 > 'b1'";
+                    	//实际是SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
+                    	//在org.h2.index.IndexCondition.getMask(ArrayList<IndexCondition>)那里把
+                    	//BIGGER_EQUAL、BIGGER都当成了START，而这里统一转成BIGGER_EQUAL，当view要过滤记录时再按大于过滤
                         Parameter param = new Parameter(nextParamIndex);
                         q.addGlobalCondition(param, idx, Comparison.BIGGER_EQUAL);
                     }
@@ -161,6 +176,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
                     }
                 }
             }
+            //实际是SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
             String sql = q.getPlanSQL();
             q = (Query) session.prepare(sql, true);
         }
@@ -185,6 +201,9 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     private Cursor find(Session session, SearchRow first, SearchRow last,
             SearchRow intersection) {
         if (recursive) {
+        	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
+        	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
+        	//不过有bug
             LocalResult recResult = view.getRecursiveResult();
             if (recResult != null) {
                 recResult.reset();
@@ -218,7 +237,12 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             view.setRecursiveResult(r);
             // to ensure the last result is not closed
             right.disableCache();
+            /*
             while (true) {
+            	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
+            	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
+            	//不过有bug
+            	//这里会一直是死循环，因为right.query(0)不会返回一个空结果集
                 r = right.query(0);
                 if (r.getRowCount() == 0) {
                     break;
@@ -228,7 +252,17 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
                 }
                 r.reset();
                 view.setRecursiveResult(r);
-            }
+            }*/
+
+			// 我加上的
+			r = right.query(0);
+			if (r.getRowCount() != 0) {
+				while (r.next()) {
+					result.addRow(r.currentRow());
+				}
+				r.reset();
+			}
+
             view.setRecursiveResult(null);
             result.done();
             return new ViewCursor(this, result, first, last);
@@ -252,6 +286,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         } else {
             len = 0;
         }
+        //view中已给select加了外部条件，所以多了Parameter，这里就是给这些Parameter赋值
         int idx = originalParameters == null ? 0 : originalParameters.size();
         idx += view.getParameterOffset();
         for (int i = 0; i < len; i++) {
@@ -283,12 +318,16 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         Parameter param = paramList.get(x);
         param.setValue(v);
     }
-
+    
+    //目的是为了对indexColumns赋值，indexColumns另有它用
+    //比如在org.h2.command.dml.Select.prepare()中就有应用(cost = preparePlan那行代码之后)
     private Query getQuery(Session session, int[] masks) {
         Query q = (Query) session.prepare(querySQL, true);
         if (masks == null) {
             return q;
         }
+        //比如AS SELECT top 2 id,name FROM CreateViewTest order by id
+        //limitExpr和sort都不为空，此时不允许加全局条件到select中
         if (!q.allowGlobalConditions()) {
             return q;
         }
@@ -304,12 +343,15 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             }
             indexColumnCount++;
             paramIndex.add(i);
+            //为1的bit个数，比如mask=3时，就是0011，所以bitCount=2
+            //mask=6时，就是0110，也就是RANGE = START | END
+            //如select * from my_view where f2 between 'b1' and 'b2'
             if (Integer.bitCount(mask) > 1) {
                 // two parameters for range queries: >= x AND <= y
                 paramIndex.add(i);
             }
         }
-        int len = paramIndex.size();
+        int len = paramIndex.size(); //paramIndex中放的是列id
         ArrayList<Column> columnList = New.arrayList();
         for (int i = 0; i < len;) {
             int idx = paramIndex.get(i);
@@ -342,6 +384,12 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         // reconstruct the index columns from the masks
         this.indexColumns = new IndexColumn[indexColumnCount];
         this.columnIds = new int[indexColumnCount];
+        //type从0到1，也就是循环两次运行子循环
+        //当type为0时，只取where条件中的"等于"关系表达式
+        //当type为1时，只取where条件中的除"等于"关系表达式之上的表达式
+        //如select * from my_view where f1=2 and f2 between 'b1' and 'b2'
+        //当type为0时，只取f1=2
+        //当type为1时，只取f2 between 'b1' and 'b2'
         for (int type = 0, indexColumnId = 0; type < 2; type++) {
             for (int i = 0; i < masks.length; i++) {
                 int mask = masks[i];

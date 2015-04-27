@@ -59,6 +59,8 @@ public class PageBtreeCursor implements Cursor {
         }
         if (i >= current.getEntryCount()) {
             current.nextPage(this);
+            //如果current是最顶层的leaf，那么在nextPage里会调用cursor.setCurrent(null, 0);
+            //此时current变为null了
             if (current == null) {
                 return false;
             }
@@ -80,6 +82,8 @@ public class PageBtreeCursor implements Cursor {
         }
         if (i < 0) {
             current.previousPage(this);
+            //如果current是最顶层的leaf，那么在previousPage里会调用cursor.setCurrent(null, 0);
+            //此时current变为null了
             if (current == null) {
                 return false;
             }

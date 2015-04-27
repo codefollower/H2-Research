@@ -16,6 +16,8 @@ public class Role extends RightOwner {
 
     private final boolean system;
 
+    //org.h2.engine.Database.open(int, int)里预定义了一个publicRole = new Role(this, 0, Constants.PUBLIC_ROLE_NAME, true);
+    //Constants.PUBLIC_ROLE_NAME="PUBLIC"
     public Role(Database database, int id, String roleName, boolean system) {
         super(database, id, roleName, Trace.USER);
         this.system = system;
@@ -38,7 +40,7 @@ public class Role extends RightOwner {
      * @return the SQL statement
      */
     public String getCreateSQL(boolean ifNotExists) {
-        if (system) {
+        if (system) { //system角色不需要生成create语句，在org.h2.engine.Database.open(int, int)里会自动建立
             return null;
         }
         StringBuilder buff = new StringBuilder("CREATE ROLE ");
@@ -58,23 +60,37 @@ public class Role extends RightOwner {
     public int getType() {
         return DbObject.ROLE;
     }
-
+    
+    //dorp role时会调用
+    //删除权限(类似于调用revoke命令)
     @Override
     public void removeChildrenAndResources(Session session) {
+    	//与一个此role相关的权限有三种
+    	//前两种是此role被动授予给其他RightOwner的(包括用户和其他角色)
+    	//另一种是授予给此role自己的
+    	
+    	//此role被授予给哪些user了，那们这些user要把此权限删了
         for (User user : database.getAllUsers()) {
             Right right = user.getRightForRole(this);
             if (right != null) {
+            	//此方法内部会调用Right的removeChildrenAndResources，然后会触发User的revokeRole
                 database.removeDatabaseObject(session, right);
             }
         }
+        
+        //此role被授予给哪些Role了，那们这些Role要把此权限删了
         for (Role r2 : database.getAllRoles()) {
             Right right = r2.getRightForRole(this);
             if (right != null) {
+            	//此方法内部会调用Right的removeChildrenAndResources，然后会触发Role的revokeRole
                 database.removeDatabaseObject(session, right);
             }
         }
+        
+        //授予给此role自己的权限要删除
         for (Right right : database.getAllRights()) {
             if (right.getGrantee() == this) {
+            	//此方法内部会调用Right的removeChildrenAndResources，然后会触发Role的revokeRole
                 database.removeDatabaseObject(session, right);
             }
         }

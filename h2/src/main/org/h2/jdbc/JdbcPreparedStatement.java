@@ -69,6 +69,9 @@ public class JdbcPreparedStatement extends JdbcStatement implements
         super(conn, id, resultSetType, resultSetConcurrency, closeWithResultSet);
         setTrace(session.getTrace(), TraceObject.PREPARED_STATEMENT, id);
         this.sqlStatement = sql;
+        //这里要事先保存好CommandInterface的实例，而JdbcStatement不需要
+        //JdbcStatement每次支持时都重新得到一个CommandInterface的实例，然后用完就关掉，
+        //JdbcPreparedStatement不会关，只有调用close()时才关
         command = conn.prepareCommand(sql, fetchSize);
     }
 
@@ -142,7 +145,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements
             try {
                 return executeUpdateInternal();
             } finally {
-                afterWriting();
+                afterWriting(); //因为在checkClosedForWrite中有可能触发org.h2.engine.Database.beforeWriting()
             }
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -327,7 +330,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements
     public void setInt(int parameterIndex, int x) throws SQLException {
         try {
             if (isDebugEnabled()) {
-                debugCode("setInt("+parameterIndex+", "+x+");");
+                debugCode("setInt("+parameterIndex+", "+x+");"); //例如输出: /**/prep0.setInt(1, 50);
             }
             setParameter(parameterIndex, ValueInt.get(x));
         } catch (Exception e) {
@@ -348,6 +351,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements
             if (isDebugEnabled()) {
                 debugCode("setString("+parameterIndex+", "+quote(x)+");");
             }
+            //(Value)是多余的
             Value v = x == null ? (Value) ValueNull.INSTANCE : ValueString.get(x);
             setParameter(parameterIndex, v);
         } catch (Exception e) {

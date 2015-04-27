@@ -76,6 +76,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
             ObjectName mbeanObjectName = getObjectName(name, path);
             MBEANS.put(path, mbeanObjectName);
             DatabaseInfo info = new DatabaseInfo(database);
+            //用于从"/org/h2/res/javadoc.properties"中取出属性的描述文本
             Object mbean = new DocumentedMBean(info, DatabaseInfoMBean.class);
             mbeanServer.registerMBean(mbean, mbeanObjectName);
         }

@@ -23,7 +23,15 @@ import org.h2.message.DbException;
  * </ul>
  */
 public class PageStreamTrunk extends Page {
-
+	/*
+		头部占17字节
+		data.writeByte((byte) Page.TYPE_STREAM_TRUNK);
+	    data.writeShortInt(0);
+	    data.writeInt(parent);
+	    data.writeInt(logKey);
+	    data.writeInt(nextTrunk);
+	    data.writeShortInt(pageCount);
+    */
     private static final int DATA_START = 17;
 
     /**
@@ -140,6 +148,8 @@ public class PageStreamTrunk extends Page {
      * @param pageSize the page size
      * @return the number of pages
      */
+    //一个PageStreamTrunk能放多少个PageStreamData的pageId(用4字节表示)
+    //(pageSize-17)/4 (一个PageStreamTrunk头就占了17字节)
     static int getPagesAddressed(int pageSize) {
         return (pageSize - DATA_START) / 4;
     }

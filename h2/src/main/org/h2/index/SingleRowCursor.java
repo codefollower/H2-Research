@@ -12,6 +12,7 @@ import org.h2.result.SearchRow;
 /**
  * A cursor with at most one row.
  */
+//对应唯一HashIndex
 public class SingleRowCursor implements Cursor {
     private Row row;
     private boolean end;

@@ -47,6 +47,7 @@ public class JdbcStatement extends TraceObject implements Statement {
         setTrace(session.getTrace(), TraceObject.STATEMENT, id);
         this.resultSetType = resultSetType;
         this.resultSetConcurrency = resultSetConcurrency;
+        //只在org.h2.jdbc.JdbcConnection.prepareAutoCloseStatement(String)中设为true，意思是由ResultSet自己关闭
         this.closedByResultSet = closeWithResultSet;
     }
 
@@ -61,6 +62,11 @@ public class JdbcStatement extends TraceObject implements Statement {
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         try {
+        	//这个id用处不大，仅用于跟踪
+        	//org.h2.command.CommandRemote.executeQuery(int, boolean)中生成的objectId用于关联结果集，
+        	//objectId在查询时先发给server端，server用objectId对应server端的结果集，
+        	//同时objectId被放到ResultRemote中，然后这个ResultRemote又放到JdbcResultSet中，
+        	//当JdbcResultSet下一次要获取更多记录时，会把此objectId再发到server端，这样就可以继续获取后续记录了�?
             int id = getNextId(TraceObject.RESULT_SET);
             if (isDebugEnabled()) {
                 debugCodeAssign("ResultSet", TraceObject.RESULT_SET, id,
@@ -135,7 +141,7 @@ public class JdbcStatement extends TraceObject implements Statement {
             command.close();
             return updateCount;
         } finally {
-            afterWriting();
+            afterWriting(); //因为在checkClosedForWrite中有可能触发org.h2.engine.Database.beforeWriting()
         }
     }
 
@@ -929,7 +935,7 @@ public class JdbcStatement extends TraceObject implements Statement {
     /**
      * [Not supported]
      */
-/*## Java 1.7 ##
+//## Java 1.7 ##
     @Override
     public void closeOnCompletion() {
         // not supported
@@ -939,7 +945,7 @@ public class JdbcStatement extends TraceObject implements Statement {
     /**
      * [Not supported]
      */
-/*## Java 1.7 ##
+//## Java 1.7 ##
     @Override
     public boolean isCloseOnCompletion() {
         return true;

@@ -88,14 +88,15 @@ public class Mode {
      * For unique indexes, NULL is distinct. That means only one row with NULL
      * in one of the columns is allowed.
      */
-    public boolean uniqueIndexSingleNull;
+    public boolean uniqueIndexSingleNull; //Derby/HSQLDB/MSSQLServer对于唯一索引只允许整个表中只有一条记录含有null值
 
     /**
      * When using unique indexes, multiple rows with NULL in all columns
      * are allowed, however it is not allowed to have multiple rows with the
      * same values otherwise.
      */
-    public boolean uniqueIndexSingleNullExceptAllColumnsAreNull;
+    //只有Oracle为true
+    public boolean uniqueIndexSingleNullExceptAllColumnsAreNull; //对于唯一索引，索引记录可以全为null
 
     /**
      * Empty strings are treated like NULL values. Useful for Oracle emulation.

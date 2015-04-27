@@ -6,6 +6,7 @@
 package org.h2.mvstore;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -371,7 +372,7 @@ public class Page {
         return isLeaf() ? splitLeaf(at) : splitNode(at);
     }
 
-    private Page splitLeaf(int at) {
+    private Page splitLeaf(int at) { //小于split key的放在左边，大于等于split key放在右边
         int a = at, b = keys.length - a;
         Object[] aKeys = new Object[a];
         Object[] bKeys = new Object[b];
@@ -390,7 +391,7 @@ public class Page {
                 null,
                 bKeys.length, 0);
         recalculateMemory();
-        newPage.recalculateMemory();
+        //newPage.recalculateMemory(); //create中已经计算过一次了，这里是多于的
         return newPage;
     }
 
@@ -423,7 +424,7 @@ public class Page {
                 bChildren,
                 t, 0);
         recalculateMemory();
-        newPage.recalculateMemory();
+        //newPage.recalculateMemory(); //create中已经计算过一次了，这里是多于的
         return newPage;
     }
 
@@ -518,7 +519,7 @@ public class Page {
     public Object setValue(int index, Object value) {
         Object old = values[index];
         // this is slightly slower:
-        // values = Arrays.copyOf(values, values.length);
+        // values = Arrays.copyOf(values, values.length); //只copy引用
         values = values.clone();
         DataType valueType = map.getValueType();
         addMemory(valueType.getMemory(value) -
@@ -733,8 +734,8 @@ public class Page {
         int typePos = buff.position();
         buff.put((byte) type);
         if (type == DataUtils.PAGE_TYPE_NODE) {
-            writeChildren(buff);
-            for (int i = 0; i <= len; i++) {
+            writeChildren(buff); //此时pagePos可能为0，在writeUnsavedRecursive中再回填一次
+            for (int i = 0; i <= len; i++) { //keys.length + 1 才等于 children.length
                 buff.putVarLong(children[i].count);
             }
         }
@@ -759,6 +760,7 @@ public class Page {
                 }
                 byte[] exp = new byte[expLen];
                 buff.position(compressStart).get(exp);
+                //如果是node，只压缩keys，有可能未压缩时的长度就很小，压缩后反而变长，此时就先申请更大的空间先
                 byte[] comp = new byte[expLen * 2];
                 int compLen = compressor.compress(exp, expLen, comp, 0);
                 int plus = DataUtils.getVarIntLen(compLen - expLen);
@@ -834,7 +836,7 @@ public class Page {
             }
             int old = buff.position();
             buff.position(patch);
-            writeChildren(buff);
+            writeChildren(buff); //write(chunk, buff)中的writeChildren可能为0，在这回填一次
             buff.position(old);
         }
     }

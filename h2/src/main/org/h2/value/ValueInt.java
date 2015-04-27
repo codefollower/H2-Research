@@ -24,7 +24,7 @@ public class ValueInt extends Value {
 
     /**
      * The maximum display size of an int.
-     * Example: -2147483648
+     * Example: -2147483648 //这个是Integer.MIN_VALUE
      */
     public static final int DISPLAY_SIZE = 11;
 
@@ -56,6 +56,7 @@ public class ValueInt extends Value {
         if (i >= 0 && i < STATIC_SIZE) {
             return STATIC_CACHE[i];
         }
+        //求hashMask，使得新值能放到0到255的下标中
         ValueInt v = DYNAMIC_CACHE[i & (DYNAMIC_SIZE - 1)];
         if (v == null || v.value != i) {
             v = new ValueInt(i);
@@ -64,6 +65,7 @@ public class ValueInt extends Value {
         return v;
     }
 
+    //都转成long再运算，避免溢出
     @Override
     public Value add(Value v) {
         ValueInt other = (ValueInt) v;

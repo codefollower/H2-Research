@@ -99,7 +99,7 @@ public class Insert extends Prepared implements ResultTarget {
      *
      * @param expr the list of values
      */
-    public void addRow(Expression[] expr) {
+    public void addRow(Expression[] expr) { //一行的各字段值组成的数组
         list.add(expr);
     }
 
@@ -108,7 +108,7 @@ public class Insert extends Prepared implements ResultTarget {
         Index index = null;
         if (sortedInsertMode) {
             index = table.getScanIndex(session);
-            index.setSortedInsertMode(true);
+            index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
         }
         try {
             return insertRows();
@@ -129,12 +129,13 @@ public class Insert extends Prepared implements ResultTarget {
             int columnLen = columns.length;
             for (int x = 0; x < listSize; x++) {
                 session.startStatementWithinTransaction();
-                Row newRow = table.getTemplateRow();
+                Row newRow = table.getTemplateRow(); //newRow的长度是全表字段的个数，会>=columns的长度
+
                 Expression[] expr = list.get(x);
                 setCurrentRowNumber(x + 1);
                 for (int i = 0; i < columnLen; i++) {
                     Column c = columns[i];
-                    int index = c.getColumnId();
+                    int index = c.getColumnId(); //从0开始
                     Expression e = expr[i];
                     if (e != null) {
                         // e can be null (DEFAULT)
@@ -149,22 +150,28 @@ public class Insert extends Prepared implements ResultTarget {
                 }
                 rowNumber++;
                 table.validateConvertUpdateSequence(session, newRow);
-                boolean done = table.fireBeforeRow(session, null, newRow);
+                boolean done = table.fireBeforeRow(session, null, newRow); //INSTEAD OF触发器会返回true
                 if (!done) {
+                	//直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
                     table.lock(session, true, false);
                     try {
                         table.addRow(session, newRow);
                     } catch (DbException de) {
                         handleOnDuplicate(de);
                     }
+                    //在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
+                    //也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
+                    //这里又记了一次UndoLog
+                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
                     session.log(table, UndoLogRecord.INSERT, newRow);
                     table.fireAfterRow(session, null, newRow, false);
                 }
             }
         } else {
             table.lock(session, true, false);
+            //这种方式主要是避免循环两次，因为query内部己循环一次了，得到记录后像else中的非insertFromSelect一样，还要循环一次
             if (insertFromSelect) {
-                query.query(0, this);
+                query.query(0, this); //每遍历一行会回调下面的addRow方法
             } else {
                 ResultInterface rows = query.query(0);
                 while (rows.next()) {
@@ -252,10 +259,11 @@ public class Insert extends Prepared implements ResultTarget {
     @Override
     public void prepare() {
         if (columns == null) {
+        	//如INSERT INTO InsertTest DEFAULT VALUES
             if (list.size() > 0 && list.get(0).length == 0) {
                 // special case where table is used as a sequence
                 columns = new Column[0];
-            } else {
+            } else { //如INSERT INTO InsertTest(SELECT * FROM tmpSelectTest)
                 columns = table.getColumns();
             }
         }

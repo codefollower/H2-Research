@@ -30,6 +30,8 @@ import org.h2.value.ValueNull;
  * @author Noel Grandin
  * @author Nicolas Fortin, Atelier SIG, IRSTV FR CNRS 24888
  */
+//根据where条件中的值来判断index从哪里开始找从哪里结束，
+//比如where id>10 and id<20，就意味着要找(10，20)这个区间内的记录。
 public class IndexCursor implements Cursor {
 
     private Session session;
@@ -55,6 +57,7 @@ public class IndexCursor implements Cursor {
         this.index = index;
         this.table = index.getTable();
         Column[] columns = table.getColumns();
+        //把表中的所有字段做一下标记，如果是索引字段，那么对应indexColumns数组中的元素不为null
         indexColumns = new IndexColumn[columns.length];
         IndexColumn[] idxCols = index.getIndexColumns();
         if (idxCols != null) {
@@ -85,7 +88,7 @@ public class IndexCursor implements Cursor {
         // don't use enhanced for loop to avoid creating objects
         for (int i = 0, size = indexConditions.size(); i < size; i++) {
             IndexCondition condition = indexConditions.get(i);
-            if (condition.isAlwaysFalse()) {
+            if (condition.isAlwaysFalse()) { //如: "select * from IndexCursorTest where 2>3
                 alwaysFalse = true;
                 break;
             }
@@ -138,6 +141,9 @@ public class IndexCursor implements Cursor {
                     inList = null;
                     inResult = null;
                 }
+                //当OPTIMIZE_IS_NULL设为false时，
+                //对于这样的SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
+                //还是会返回JoinTest1的所有记录，JoinTest2中的全为null
                 if (!session.getDatabase().getSettings().optimizeIsNull) {
                     if (isStart && isEnd) {
                         if (v == ValueNull.INSTANCE) {
@@ -175,6 +181,7 @@ public class IndexCursor implements Cursor {
             return true;
         }
         IndexColumn idxCol = cols[0];
+        //idxCol.column == column这个条件肯定是满足的，因为在根据where构造索引条件时，这个字段就是第一个索引字段
         return idxCol == null || idxCol.column == column;
     }
 
@@ -238,6 +245,8 @@ public class IndexCursor implements Cursor {
             }
         }
         if (!bigger) {
+        	//对于END的场景，比如假设a=10，b=20，所以a.compareTo(b)<0，即comp=-1，所以comp = -comp = 1
+        	//对于f < 10 and f < 20的场景，显然只要f<10就够了，所以comp>0时还是返回a
             comp = -comp;
         }
         return comp > 0 ? a : b;

@@ -59,9 +59,9 @@ public class Column {
     /**
      * It is not know whether this column is nullable.
      */
-    public static final int NULLABLE_UNKNOWN =
-            ResultSetMetaData.columnNullableUnknown;
-
+    public static final int NULLABLE_UNKNOWN = ResultSetMetaData.columnNullableUnknown;
+    
+    //总共23个字段
     private final int type;
     private long precision;
     private int scale;
@@ -280,7 +280,8 @@ public class Column {
         }
         Mode mode = session.getDatabase().getMode();
         if (value == ValueNull.INSTANCE) {
-            if (convertNullToDefault) {
+            //if (convertNullToDefault) { //有bug，见E:\H2\my-h2\my-h2-docs\00 H2代码Bug的第2点
+            if (convertNullToDefault && defaultExpression != null) {
                 synchronized (this) {
                     value = defaultExpression.getValue(session).convertTo(type);
                 }
@@ -376,7 +377,7 @@ public class Column {
             ValueUuid uuid = ValueUuid.getNewRandom();
             String s = uuid.getString();
             s = s.replace('-', '_').toUpperCase();
-            sequenceName = "SYSTEM_SEQUENCE_" + s;
+            sequenceName = "SYSTEM_SEQUENCE_" + s; //例如: SYSTEM_SEQUENCE_D48A68C3_5C35_4228_9587_910712BB727A
             if (schema.findSequence(sequenceName) == null) {
                 break;
             }
@@ -398,7 +399,7 @@ public class Column {
      *
      * @param session the session
      */
-    public void prepareExpression(Session session) {
+    public void prepareExpression(Session session) { //在建表时触发
         if (defaultExpression != null) {
             computeTableFilter = new TableFilter(session, table, null, false, null);
             defaultExpression.mapColumns(computeTableFilter, 0);
@@ -535,7 +536,7 @@ public class Column {
      *
      * @param selectivity the new value
      */
-    public void setSelectivity(int selectivity) {
+    public void setSelectivity(int selectivity) { //小于0时还是0，大于100时还是100
         selectivity = selectivity < 0 ? 0 : (selectivity > 100 ? 100 : selectivity);
         this.selectivity = selectivity;
     }
@@ -723,6 +724,7 @@ public class Column {
      * @param source the source column
      */
     public void copy(Column source) {
+    	//16个字段，还有7个字段未copy，分别是: type、table、columnId、autoIncrement、start、increment、resolver
         checkConstraint = source.checkConstraint;
         checkConstraintSQL = source.checkConstraintSQL;
         displaySize = source.displaySize;

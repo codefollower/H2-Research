@@ -66,12 +66,15 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     public static final int STATUS_OK_STATE_CHANGED = 3;
 
     private static SessionFactory sessionFactory;
-
+    
+    //只有connectionInfo.isRemote()为true时traceSystem才有值，
+    //否则是一个内存数据库，connectEmbeddedOrServer返回的是org.h2.engine.Session,
+    //此时由org.h2.engine.Session得到traceSystem
     private TraceSystem traceSystem;
     private Trace trace;
     private ArrayList<Transfer> transferList = New.arrayList();
     private int nextId;
-    private boolean autoCommit = true;
+    private boolean autoCommit = true; //集群环境上这个参数其实没意义
     private CommandInterface autoCommitFalse, autoCommitTrue;
     private ConnectionInfo connectionInfo;
     private String databaseName;
@@ -241,6 +244,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     }
 
     private void setAutoCommitSend(boolean autoCommit) {
+        //VERSION_8开始通过SESSION_SET_AUTOCOMMIT协议指令，以前的版本通过SET AUTOCOMMIT语句
+        //对于commit和rollback则没有对应的协议指令，只能通过COMMIT、ROLLBACK语句
         if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_8) {
             for (int i = 0, count = 0; i < transferList.size(); i++) {
                 Transfer transfer = transferList.get(i);
@@ -323,10 +328,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
      */
     public SessionInterface connectEmbeddedOrServer(boolean openNew) {
         ConnectionInfo ci = connectionInfo;
+        //TCP远程数据库
         if (ci.isRemote()) {
             connectServer(ci);
             return this;
         }
+        //下面的代码是用于嵌入式或内存数据库的场景
         // create the session using reflection,
         // so that the JDBC layer can be compiled without it
         boolean autoServerMode = Boolean.parseBoolean(
@@ -367,28 +374,33 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     }
 
     private void connectServer(ConnectionInfo ci) {
-        String name = ci.getName();
+        String name = ci.getName(); //例如: "//localhost:9092/mydb"
         if (name.startsWith("//")) {
-            name = name.substring("//".length());
+            name = name.substring("//".length()); //变成"localhost:9092/mydb"
         }
         int idx = name.indexOf('/');
         if (idx < 0) {
             throw ci.getFormatException();
         }
-        databaseName = name.substring(idx + 1);
-        String server = name.substring(0, idx);
+        databaseName = name.substring(idx + 1); //是"mydb"
+        String server = name.substring(0, idx); //是"localhost:9092"
         traceSystem = new TraceSystem(null);
-        String traceLevelFile = ci.getProperty(
-                SetTypes.TRACE_LEVEL_FILE, null);
+        //不是跟踪级别文件，是文件跟踪级别
+        //跟下面的traceLevelSystemOut对应(SystemOut跟踪级别)
+        //两者都是一个数字，如:
+        //-------------------------------
+        //prop.setProperty("TRACE_LEVEL_FILE", "10");
+        //prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
+        //-------------------------------
+        String traceLevelFile = ci.getProperty(SetTypes.TRACE_LEVEL_FILE, null);
         if (traceLevelFile != null) {
             int level = Integer.parseInt(traceLevelFile);
-            String prefix = getFilePrefix(
-                    SysProperties.CLIENT_TRACE_DIRECTORY);
+            String prefix = getFilePrefix(SysProperties.CLIENT_TRACE_DIRECTORY); //如: "trace.db//mydb"
             try {
                 traceSystem.setLevelFile(level);
                 if (level > 0 && level < 4) {
-                    String file = FileUtils.createTempFile(prefix,
-                            Constants.SUFFIX_TRACE_FILE, false, false);
+                	//如: E:/H2/eclipse-workspace-client/trace.db/mydb.1647ee04bd9fa205.0.trace.db
+                    String file = FileUtils.createTempFile(prefix, Constants.SUFFIX_TRACE_FILE, false, false);
                     traceSystem.setFileName(file);
                 }
             } catch (IOException e) {
@@ -422,6 +434,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             if (className != null) {
                 className = StringUtils.trim(className, true, true, "'");
                 try {
+                	//在server端还会重新new出实例
+                	//这里的实例只是在client端用
                     eventListener = (DatabaseEventListener) JdbcUtils
                             .loadUserClass(className).newInstance();
                 } catch (Throwable e) {
@@ -429,9 +443,11 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 }
             }
         }
-        cipher = ci.getProperty("CIPHER");
+        //同一个数据库第一次打开时如果没使用CIPHER，那么接下来打开也不能用CIPHER了，
+		//如果第一次用了CIPHER，那么就一直要用CIPHER连它
+        cipher = ci.getProperty("CIPHER"); //只支持XTEA、AES、FOG
         if (cipher != null) {
-            fileEncryptionKey = MathUtils.secureRandomBytes(32);
+            fileEncryptionKey = MathUtils.secureRandomBytes(32); //只是在client端用
         }
         String[] servers = StringUtils.arraySplit(server, ',', true);
         int len = servers.length;
@@ -452,10 +468,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                     switchOffCluster = true;
                 }
             }
+            //如果没有一台server初始化成功，那么这里直接抛异常了
             checkClosed();
-            if (switchOffCluster) {
+            if (switchOffCluster) { //集群中只要有一台server初始化失败就关掉集群
                 switchOffCluster();
             }
+            //如果是集群，这里头会把所有server对应的session的autoCommit设为false
             checkClusterDisableAutoCommit(serverList);
         } catch (DbException e) {
             traceSystem.close();
@@ -477,7 +495,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
      * @param count the retry count index
      */
     public void removeServer(IOException e, int i, int count) {
-        trace.debug(e, "removing server because of exception");
+        trace.error(e, "removing server because of exception");
         transferList.remove(i);
         if (transferList.size() == 0 && autoReconnect(count)) {
             return;
@@ -499,15 +517,19 @@ public class SessionRemote extends SessionWithState implements DataHandler {
      * @return true if reconnected
      */
     private boolean autoReconnect(int count) {
+    	//如果没有关闭则不重连
         if (!isClosed()) {
             return false;
         }
+        //如果AUTO_RECONNECT参数是false则不重连
         if (!autoReconnect) {
             return false;
         }
+        //非集群环境，并且是非自动提交模式，则不重连
         if (!cluster && !autoCommit) {
             return false;
         }
+        //重连次数大于h2.maxReconnect(默认三次)，则不再重连
         if (count > SysProperties.MAX_RECONNECT) {
             return false;
         }
@@ -555,7 +577,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "session closed");
         }
     }
-
+    
+    //关闭连接时才关session，调用些方法会使用server端释放session相关的资源，比如线程结束
     @Override
     public void close() {
         RuntimeException closeError = null;

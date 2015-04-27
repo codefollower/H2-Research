@@ -108,7 +108,7 @@ public class ConstraintUnique extends Constraint {
     public void removeChildrenAndResources(Session session) {
         table.removeConstraint(this);
         if (indexOwner) {
-            table.removeIndexOrTransferOwnership(session, index);
+            table.removeIndexOrTransferOwnership(session, index); //如果此index没在其他地方使用就删除，否则改变Owner
         }
         database.removeMeta(session, getId());
         index = null;
@@ -117,6 +117,7 @@ public class ConstraintUnique extends Constraint {
         invalidate();
     }
 
+	//因为建立了Index，在Index加记录时已检查是否重复了，见org.h2.command.ddl.AlterTableAddConstraint.tryUpdate()
     @Override
     public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
         // unique index check is enough

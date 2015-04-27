@@ -22,6 +22,7 @@ import org.h2.value.ValueArray;
 /**
  * An expression is a operation, a value, or a function in a query.
  */
+//12个抽象方法
 public abstract class Expression {
 
     private boolean addedToFilter;
@@ -48,6 +49,7 @@ public abstract class Expression {
      * @param resolver the column resolver
      * @param level the subquery nesting level
      */
+    //只有ConditionExists、ConditionInSelect、Subquery这三个子类中对level加1
     public abstract void mapColumns(ColumnResolver resolver, int level);
 
     /**
@@ -65,6 +67,7 @@ public abstract class Expression {
      * @param tableFilter the table filter
      * @param value true if the table filter can return value
      */
+    //这个方法的目的就是给org.h2.expression.ExpressionColumn中的evaluatable字段赋值
     public abstract void setEvaluatable(TableFilter tableFilter, boolean value);
 
     /**
@@ -106,7 +109,11 @@ public abstract class Expression {
      *
      * @param session the session
      */
-    public abstract void updateAggregate(Session session);
+    //用于聚合、分组中
+    //在org.h2.command.dml.Select.queryGroup(int, LocalResult)
+    //和org.h2.command.dml.Select.queryGroupSorted(int, ResultTarget)有用到
+    //在遍历记录的过程中执行，在getValue之前调用
+    public abstract void updateAggregate(Session session); //对Aggregate、JavaAggregate、ExpressionColumn比较有用
 
     /**
      * Check if this expression and all sub-expressions can fulfill a criteria.
@@ -144,7 +151,7 @@ public abstract class Expression {
      *
      * @return if the expression is constant
      */
-    public boolean isConstant() {
+    public boolean isConstant() { //只有ValueExpression、Parameter覆盖了此方法
         return false;
     }
 
@@ -153,7 +160,7 @@ public abstract class Expression {
      *
      * @return true if set
      */
-    public boolean isValueSet() {
+    public boolean isValueSet() { //只有ValueExpression、Parameter覆盖了此方法
         return false;
     }
 
@@ -184,6 +191,10 @@ public abstract class Expression {
      * @param session the session
      * @param filter the table filter
      */
+    //这8种类型的表达式能建立索引条件
+    //CompareLike、Comparison、
+    //ConditionAndOr、ConditionIn、ConditionInConstantSet、ConditionInSelect、
+    //ExpressionColumn、ValueExpression
     public void createIndexConditions(Session session, TableFilter filter) {
         // default is do nothing
     }
@@ -249,7 +260,7 @@ public abstract class Expression {
      *
      * @return if this expression is a wildcard
      */
-    public boolean isWildcard() {
+    public boolean isWildcard() { //只有子类org.h2.expression.Wildcard覆盖了此方法并且返回为true
         return false;
     }
 
@@ -258,7 +269,7 @@ public abstract class Expression {
      *
      * @return the expression
      */
-    public Expression getNonAliasExpression() {
+    public Expression getNonAliasExpression() { //只有子类org.h2.expression.Alias覆盖了此方法
         return this;
     }
 

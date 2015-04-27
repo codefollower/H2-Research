@@ -73,6 +73,13 @@ public class AlterUser extends DefineCommand {
             if (hash != null && salt != null) {
                 CreateUser.setSaltAndHash(user, session, salt, hash);
             } else {
+//<<<<<<< HEAD:src/main/org/h2/command/ddl/AlterUser.java
+//            	//newName肯定为null，因为只有ALTER_USER_RENAME时才设newName
+//                String name = newName == null ? user.getName() : newName;
+//                char[] passwordChars = getCharArray(password);
+//                byte[] userPasswordHash = SHA256.getKeyPasswordHash(name, passwordChars);
+//                user.setUserPasswordHash(userPasswordHash);
+//=======
                 CreateUser.setPassword(user, session, password);
             }
             break;

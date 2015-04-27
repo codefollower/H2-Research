@@ -269,8 +269,71 @@ public class Chunk {
 
     @Override
     public String toString() {
-        return asString();
+        //return asString();
+
+        return asStringMy();
     }
 
+    //我加上的
+    private String asStringMy() {
+        StringBuilder buff = new StringBuilder();
+        appendMap(buff, "chunk", id);
+        appendMap(buff, "block", block);
+        appendMap(buff, "len", len + "");
+
+        appendMap(buff, "collectPriority", collectPriority);
+        appendMap(buff, "fillRate", getFillRate());
+        if (maxLen != maxLenLive) {
+            appendMap(buff, "liveMax", maxLenLive);
+        }
+        if (pageCount != pageCountLive) {
+            appendMap(buff, "livePages", pageCountLive);
+        }
+        appendMap(buff, "map", mapId);
+        appendMap(buff, "max", maxLen);
+        if (next != 0) {
+            appendMap(buff, "next", next);
+        }
+        appendMap(buff, "pages", pageCount);
+        appendMap(buff, "root", metaRootPos);
+        appendMap(buff, "time", time);
+        if (unused != 0) {
+            appendMap(buff, "unused", unused);
+        }
+        appendMap(buff, "version", version);
+        return buff.toString();
+    }
+
+    //我加上的
+    private static void appendMap(StringBuilder buff, String key, Object value) {
+        if (buff.length() > 0) {
+            buff.append(',');
+        }
+        buff.append(key).append(':');
+        String v;
+        //不转成16进制
+        //        if (value instanceof Long) {
+        //            v = Long.toHexString((Long) value);
+        //        } else if (value instanceof Integer) {
+        //            v = Integer.toHexString((Integer) value);
+        //        } else {
+        //            v = value.toString();
+        //        }
+
+        v = value.toString();
+        if (v.indexOf(',') < 0 && v.indexOf('\"') < 0) {
+            buff.append(v);
+        } else {
+            buff.append('\"');
+            for (int i = 0, size = v.length(); i < size; i++) {
+                char c = v.charAt(i);
+                if (c == '\"') {
+                    buff.append('\\');
+                }
+                buff.append(c);
+            }
+            buff.append('\"');
+        }
+    }
 }
 

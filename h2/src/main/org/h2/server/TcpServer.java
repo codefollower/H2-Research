@@ -38,6 +38,9 @@ import org.h2.util.Tool;
  * and at the same time start a TCP server to allow clients to connect to
  * the same database over the network.
  */
+
+//此类中的方法调用顺序是:
+//init => start => isRunning => listen
 public class TcpServer implements Service {
 
     private static final int SHUTDOWN_NORMAL = 0;
@@ -89,12 +92,19 @@ public class TcpServer implements Service {
         prop.setProperty("user", "");
         prop.setProperty("password", managementPassword);
         // avoid using the driver manager
-        Connection conn = Driver.load().connect("jdbc:h2:" +
-                getManagementDbName(port), prop);
+        // url如: jdbc:h2:mem:management_db_9092
+        //内存数据库不走TCP，执行到这里时TcpServer的listenerThread还没启动，
+        //所以下面的sql语句不会在TcpServerThread这个类中收到请求
+        Connection conn = Driver.load().connect("jdbc:h2:" + getManagementDbName(port), prop);
         managementDb = conn;
         Statement stat = null;
         try {
             stat = conn.createStatement();
+            //建立了一个自定义的函数STOP_SERVER，
+            //通过类似这样CALL STOP_SERVER(9092, '', 0)就能关闭H2数据库
+            //调用的是org.h2.server.TcpServer.stopServer(int, String, int)方法
+            //不过因为函数STOP_SERVER是在内存数据库的，所以通过TCP远程调用是不行的，
+            //要在Client端手工再建立同样的函数，见: my.test.server.TcpServerTest
             stat.execute("CREATE ALIAS IF NOT EXISTS STOP_SERVER FOR \"" +
                     TcpServer.class.getName() + ".stopServer\"");
             stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS" +
@@ -130,6 +140,8 @@ public class TcpServer implements Service {
      * @param url the database URL
      * @param user the user name
      */
+    //在org.h2.server.TcpServerThread.run()中调用，
+    //每建立一个新的Session对象时，把它保存到内存数据库management_db_9092的SESSIONS表
     synchronized void addConnection(int id, String url, String user) {
         try {
             managementDbAdd.setInt(1, id);
@@ -146,6 +158,8 @@ public class TcpServer implements Service {
      *
      * @param id the connection id
      */
+    //在org.h2.server.TcpServerThread.closeSession()中调用，
+    //关闭Session对象时，把它从内存数据库management_db_9092的SESSIONS表中删除
     synchronized void removeConnection(int id) {
         try {
             managementDbRemove.setInt(1, id);
@@ -231,25 +245,30 @@ public class TcpServer implements Service {
         try {
             serverSocket = NetUtils.createServerSocket(port, ssl);
         } catch (DbException e) {
+        	//如果启动时没有指定参数-tcpPort，那么在端口被占用时自动选择其他端口，否则直接抛异常
             if (!portIsSet) {
                 serverSocket = NetUtils.createServerSocket(0, ssl);
             } else {
                 throw e;
             }
         }
-        port = serverSocket.getLocalPort();
+        port = serverSocket.getLocalPort(); //这里就能看到自动选择的端口
         initManagementDb();
     }
 
     @Override
     public void listen() {
+    	//在org.h2.tools.Server.start()中的service.getName() + " (" + service.getURL() + ")";
+    	//listener线程名是: H2 TCP Server (tcp://localhost:9092)
         listenerThread = Thread.currentThread();
         String threadName = listenerThread.getName();
         try {
             while (!stop) {
                 Socket s = serverSocket.accept();
+                //s.setSoTimeout(2000); //我加上的
                 TcpServerThread c = new TcpServerThread(s, this, nextThreadId++);
                 running.add(c);
+                //TcpServerThread线程名是: "H2 TCP Server (tcp://localhost:9092) thread"
                 Thread thread = new Thread(c, threadName + " thread");
                 thread.setDaemon(isDaemon);
                 c.setThread(thread);
@@ -263,7 +282,10 @@ public class TcpServer implements Service {
         }
         stopManagementDb();
     }
-
+    
+    //测试是否在本地连得上TcpServer，此时listen()已经执行了
+    //这个方法会触发建立一个TcpServerThread，
+    //不过很快就关掉了，因为没有建立Session对象，也没在SESSIONS表中存入记录。
     @Override
     public synchronized boolean isRunning(boolean traceError) {
         if (serverSocket == null) {
@@ -329,6 +351,7 @@ public class TcpServer implements Service {
      * @param password the password (or null)
      * @param shutdownMode the shutdown mode, SHUTDOWN_NORMAL or SHUTDOWN_FORCE.
      */
+    //通过类似这样CALL STOP_SERVER(9092, '', 0)就能关闭H2数据库，见my.test.server.TcpServerTest
     public static void stopServer(int port, String password, int shutdownMode) {
         if (port == 0) {
             for (int p : SERVERS.keySet().toArray(new Integer[0])) {

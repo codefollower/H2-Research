@@ -21,7 +21,7 @@ public class CreateAggregate extends DefineCommand {
 
     private Schema schema;
     private String name;
-    private String javaClassMethod;
+    private String javaClassMethod; //是className，类名，不是类方法
     private boolean ifNotExists;
     private boolean force;
 

@@ -65,7 +65,7 @@ import org.h2.value.ValueString;
  * This class represents the statement
  * SCRIPT
  */
-public class ScriptCommand extends ScriptBase {
+public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此命令返回结果集，所以要用executeQuery，与RUNSCRIPT相反
 
     private Charset charset = Constants.UTF8;
     private Set<String> schemaNames;
@@ -352,20 +352,13 @@ public class ScriptCommand extends ScriptBase {
             }
             // Generate GRANT ...
             for (Right right : db.getAllRights()) {
-                DbObject object = right.getGrantedObject();
-                if (object != null) {
-                    if (object instanceof Schema) {
-                        if (excludeSchema((Schema) object)) {
-                            continue;
-                        }
-                    } else if (object instanceof Table) {
-                        Table table = (Table) object;
-                        if (excludeSchema(table.getSchema())) {
-                            continue;
-                        }
-                        if (excludeTable(table)) {
-                            continue;
-                        }
+                Table table = right.getGrantedTable();
+                if (table != null) {
+                    if (excludeSchema(table.getSchema())) {
+                        continue;
+                    }
+                    if (excludeTable(table)) {
+                        continue;
                     }
                 }
                 add(right.getCreateSQL(), false);

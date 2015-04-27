@@ -51,7 +51,13 @@ public class CommandRemote implements CommandInterface {
     }
 
     private void prepare(SessionRemote s, boolean createParams) {
-        id = s.getNextId();
+    	//虽然getNextId内部是nextId++;
+    	//但是org.h2.engine.SessionRemote.prepareCommand(String, int)是synchronized的，
+    	//
+    	//另外org.h2.command.CommandRemote.prepareIfRequired()也在synchronized (session)中调用
+    	//所以这里没有并发问题
+    	
+        id = s.getNextId(); //这个id会发往server，用于缓存server对应的command。
         for (int i = 0, count = 0; i < transferList.size(); i++) {
             try {
                 Transfer transfer = transferList.get(i);
@@ -71,6 +77,9 @@ public class CommandRemote implements CommandInterface {
                 int paramCount = transfer.readInt();
                 if (createParams) {
                     parameters.clear();
+                    //prepare阶段每个ParameterRemote只有类型还没有值，会在接下来通过getParameters()传给JdbcPreparedStatement
+                    //然后在JdbcPreparedStatement中设置，如果在executeQuery和executeUpdate中还没有为这些参数设置值，
+                    //那么调用checkParameters时会抛异常
                     for (int j = 0; j < paramCount; j++) {
                         ParameterRemote p = new ParameterRemote(j);
                         p.readMetaData(transfer);
@@ -104,7 +113,9 @@ public class CommandRemote implements CommandInterface {
             prepare(session, false);
         }
     }
-
+    
+    //这个并不是对应java.sql.ResultSetMetaData，而是在org.h2.jdbc.JdbcPreparedStatement.getMetaData()调用
+    //等价于ResultSet.getMetaData()，只不过PreparedStatement.getMetaData()不需要事先执行查询
     @Override
     public ResultInterface getMetaData() {
         synchronized (session) {
@@ -118,8 +129,14 @@ public class CommandRemote implements CommandInterface {
                 Transfer transfer = transferList.get(i);
                 try {
                     session.traceOperation("COMMAND_GET_META_DATA", id);
-                    transfer.writeInt(SessionRemote.COMMAND_GET_META_DATA).
-                            writeInt(id).writeInt(objectId);
+                    //这里得到的ResultRemote也会在server端按objectId缓存一个org.h2.result.LocalResult
+                    //但是这个ResultRemote在org.h2.jdbc.JdbcPreparedStatement.getMetaData()中被封装到JdbcResultSetMetaData后
+                    //没有机会调用ResultRemote.close来释放server端的相关东西了
+                    //这个影响有多大?不过server端的cache是有限制的，并且按session来配置，所以不至于造成OOM
+                    //==========================
+                    //上面理解错了，ResultRemote的构造函数中会触发ResultRemote.fetchRows(boolean)，
+                    //因为rowCount是0，所以当下就调用sendClose了
+                    transfer.writeInt(SessionRemote.COMMAND_GET_META_DATA).writeInt(id).writeInt(objectId);
                     session.done(transfer);
                     int columnCount = transfer.readInt();
                     result = new ResultRemote(session, transfer, objectId,
@@ -154,6 +171,7 @@ public class CommandRemote implements CommandInterface {
                         fetch = fetchSize;
                     }
                     transfer.writeInt(fetch);
+                    //如果是JdbcStatement，没有参数，JdbcPreparedStatement才有
                     sendParameters(transfer);
                     session.done(transfer);
                     int columnCount = transfer.readInt();
@@ -162,6 +180,11 @@ public class CommandRemote implements CommandInterface {
                         result = null;
                     }
                     result = new ResultRemote(session, transfer, objectId, columnCount, fetch);
+                    //对于只读查询只需要从一台server上获得结果就可以了，不需要每台server都查询一次
+                    //select ... for update并不能使readonly为false，
+                    //相反，在where中加上一些NotDeterministic的函数，例如RAND、RANDOM等反而能使readonly为false
+                    //见org.h2.expression.Function.addFunctionNotDeterministic(String, int, int, int)
+                    //例子: select * from SessionRemoteTest where id>? and b=? and id<RAND()
                     if (readonly) {
                         break;
                     }
@@ -174,7 +197,8 @@ public class CommandRemote implements CommandInterface {
             return result;
         }
     }
-
+    
+    //注意: transferList.size大于1时，说明是集群环境，但是并不是XA，也就是说可能有一台server更新成功了，可以允许另一台更新不成功
     @Override
     public int executeUpdate() {
         checkParameters();
@@ -187,17 +211,19 @@ public class CommandRemote implements CommandInterface {
                 try {
                     session.traceOperation("COMMAND_EXECUTE_UPDATE", id);
                     transfer.writeInt(SessionRemote.COMMAND_EXECUTE_UPDATE).writeInt(id);
+                    //如果是JdbcStatement，没有参数，JdbcPreparedStatement才有
                     sendParameters(transfer);
                     session.done(transfer);
                     updateCount = transfer.readInt();
                     autoCommit = transfer.readBoolean();
                 } catch (IOException e) {
+                	//只有所有server都出错时才尝试重连(不过要取决于各种参数)
                     session.removeServer(e, i--, ++count);
                 }
             }
-            session.setAutoCommitFromServer(autoCommit);
-            session.autoCommitIfCluster();
-            session.readSessionState();
+            session.setAutoCommitFromServer(autoCommit); //如果是集群环境，设为false
+            session.autoCommitIfCluster(); //如果是集群环境，通知所有server提交事务
+            session.readSessionState();//当session状态发生改变时，提取INFORMATION_SCHEMA.SESSION_STATE信息，下次可重建session
             return updateCount;
         }
     }
@@ -225,6 +251,9 @@ public class CommandRemote implements CommandInterface {
             session.traceOperation("COMMAND_CLOSE", id);
             for (Transfer transfer : transferList) {
                 try {
+                    //transfer没有立刻flush输出流，可能是考虑到COMMAND_CLOSE命令不需要server端响应，
+                    //也考虑到不立刻flush输出流能一定程度上提高调用close()方法的性能，
+                    //延迟到下一次执行query、update或关闭session时再一并flush出去
                     transfer.writeInt(SessionRemote.COMMAND_CLOSE).writeInt(id);
                 } catch (IOException e) {
                     trace.error(e, "close");
@@ -236,7 +265,7 @@ public class CommandRemote implements CommandInterface {
             for (ParameterInterface p : parameters) {
                 Value v = p.getParamValue();
                 if (v != null) {
-                    v.close();
+                    v.close(); //只对ValueLob、ValueLobDb有用
                 }
             }
         } catch (DbException e) {

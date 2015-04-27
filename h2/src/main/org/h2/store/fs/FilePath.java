@@ -49,6 +49,11 @@ public abstract class FilePath {
     public static FilePath get(String path) {
         path = path.replace('\\', '/');
         int index = path.indexOf(':');
+
+        //如E:\\H2\\tmp\\FileStoreTest\\my.txt
+        //此时index为1，所以要用FilePathDisk
+        //而memFS:E:\\H2\\tmp\\FileStoreTest\\my.txt
+        //index是5，所以用FilePathMem
         registerDefaultProviders();
         if (index < 2) {
             // use the default provider if no prefix or
@@ -66,8 +71,12 @@ public abstract class FilePath {
 
     private static void registerDefaultProviders() {
         if (providers == null || defaultProvider == null) {
-            Map<String, FilePath> map = Collections.synchronizedMap(
-                    New.<String, FilePath>hashMap());
+            Map<String, FilePath> map = Collections.synchronizedMap(New.<String, FilePath>hashMap());
+            //默认是org.h2.store.fs.FilePathDisk, 所以这里不包含它
+            //但是少了org.h2.store.fs.FilePathRec、org.h2.mvstore.cache.FilePathCache
+            //不过org.h2.store.fs.FilePathRec是通过org.h2.store.fs.FilePath.register(FilePath)这个方法注册
+            //见org.h2.store.fs.FilePathRec.register(),
+            //在org.h2.engine.ConnectionInfo.ConnectionInfo(String, Properties)调用它了
             for (String c : new String[] {
                     "org.h2.store.fs.FilePathDisk",
                     "org.h2.store.fs.FilePathMem",

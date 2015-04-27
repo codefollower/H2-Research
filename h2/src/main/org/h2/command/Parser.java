@@ -212,7 +212,7 @@ public class Parser {
 
     public Parser(Session session) {
         this.database = session.getDatabase();
-        this.identifiersToUpper = database.getSettings().databaseToUpper;
+        this.identifiersToUpper = database.getSettings().databaseToUpper; //默认是true，即表名、列名默认会转成大写
         this.session = session;
     }
 
@@ -222,7 +222,7 @@ public class Parser {
      * @param sql the SQL statement to parse
      * @return the prepared object
      */
-    public Prepared prepare(String sql) {
+    public Prepared prepare(String sql) { //比如在初始化Database时要重建数据库对象，只有单条SQL
         Prepared p = parse(sql);
         p.prepare();
         if (currentTokenType != END) {
@@ -238,6 +238,7 @@ public class Parser {
      * @return the command object
      */
     public Command prepareCommand(String sql) {
+    	//比如远程客户端发起的调用，见org.h2.server.TcpServerThread.process()，可以有多条SQL
         try {
             Prepared p = parse(sql);
             boolean hasMore = isToken(";");
@@ -249,7 +250,7 @@ public class Parser {
             if (hasMore) {
                 String remaining = originalSQL.substring(parseIndex);
                 if (remaining.trim().length() != 0) {
-                    CommandList list = new CommandList(this, sql, c, remaining);
+                    CommandList list = new CommandList(this, sql, c, remaining); //在它的executeRemaining中会继续调用这里的代码
                     // list.addCommand(c);
                     // do {
                     // c = parseCommand();
@@ -270,17 +271,21 @@ public class Parser {
      * @param sql the SQL statement to parse
      * @return the prepared object
      */
-    Prepared parse(String sql) {
+    Prepared parse(String sql) { //除此类外，只看到在org.h2.command.CommandContainer.recompileIfRequired()中使用
         Prepared p;
         try {
             // first, try the fast variant
+        	//大多数情况下SQL都是正确的，所以这里做了些优化: 默认不使用expectedList，当出现错误时捕获DbException，
+			//如果是语法错误那么再解析一次，并用expectedList记录SQL在语法层面缺了哪些东西，
+			//如果是非语法错误，则把SQL关联到异常，直接抛出异常。
+        	//如果不起用这个优化，那么因为频繁调用readIf->addExpected会导致expectedList变得很大
             p = parse(sql, false);
         } catch (DbException e) {
             if (e.getErrorCode() == ErrorCode.SYNTAX_ERROR_1) {
                 // now, get the detailed exception
                 p = parse(sql, true);
             } else {
-                throw e.addSQL(sql);
+                throw e.addSQL(sql); //比如update时如果表名不存在就会是ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1
             }
         }
         p.setPrepareAlways(recompileAlways);
@@ -324,6 +329,7 @@ public class Parser {
                 c = parseCall();
                 break;
             case '(':
+            	//比较特殊，没有readIf，而是在parseSelectSub()中readIf
                 c = parseSelect();
                 break;
             case 'a':
@@ -379,6 +385,7 @@ public class Parser {
                 break;
             case 'f':
             case 'F':
+            	//比较特殊，没有readIf，而是在parseSelectSub()中readIf
                 if (isToken("FROM")) {
                     c = parseSelect();
                 }
@@ -429,6 +436,7 @@ public class Parser {
                 break;
             case 's':
             case 'S':
+            	//比较特殊，没有readIf，而是在parseSelectSub()中readIf
                 if (isToken("SELECT")) {
                     c = parseSelect();
                 } else if (readIf("SET")) {
@@ -608,6 +616,8 @@ public class Parser {
         }
         String procedureName = readAliasIdentifier();
         if (readIf("(")) {
+        	//如PREPARE mytest (int, long, date) AS select * from ExecuteProcedureTest
+        	//这个list其实没使用
             ArrayList<Column> list = New.arrayList();
             for (int i = 0;; i++) {
                 Column column = parseColumnForTable("C" + i, true);
@@ -708,6 +718,7 @@ public class Parser {
         TableFilter filter = readSimpleTableFilter();
         command.setTableFilter(filter);
         read("SET");
+        //如: update UpdateTest set(name, id) = ('123',10)
         if (readIf("(")) {
             ArrayList<Column> columns = New.arrayList();
             do {
@@ -731,12 +742,13 @@ public class Parser {
                 }
             }
         } else {
+        	//如: update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3
             do {
                 Column column = readTableColumn(filter);
                 read("=");
                 Expression expression;
                 if (readIf("DEFAULT")) {
-                    expression = ValueExpression.getDefault();
+                    expression = ValueExpression.getDefault(); //实际上是null
                 } else {
                     expression = readExpression();
                 }
@@ -761,7 +773,7 @@ public class Parser {
         return command;
     }
 
-    private TableFilter readSimpleTableFilter() {
+    private TableFilter readSimpleTableFilter() { //只用于Delete和Update，Delete和Update只允许单表
         Table table = readTableOrView();
         String alias = null;
         if (readIf("AS")) {
@@ -780,7 +792,7 @@ public class Parser {
         Delete command = new Delete(session);
         Expression limit = null;
         if (readIf("TOP")) {
-            limit = readTerm().optimize(session);
+            limit = readTerm().optimize(session); //为什么要在这调用optimize见org.h2.command.dml.Delete.prepare()的注释
         }
         currentPrepared = command;
         int start = lastParseIndex;
@@ -970,7 +982,9 @@ public class Parser {
         }
         return prep;
     }
-
+    
+    //isSelect有回溯,读完所有左括号，然后看下一个token是否是select、from
+	//然后再从调用isSelect前的lastParseIndex开始解析，当前token是调用isSelect前的token.
     private boolean isSelect() {
         int start = lastParseIndex;
         while (readIf("(")) {
@@ -1151,11 +1165,13 @@ public class Parser {
         return command;
     }
 
-    private TableFilter readTableFilter(boolean fromOuter) {
+    private TableFilter readTableFilter(boolean fromOuter) { //最开始是从parseSelectSimpleFromPart方法触发
         Table table;
         String alias = null;
-        if (readIf("(")) {
-            if (isSelect()) {
+        if (readIf("(")) { //在from后直接跟左括号，如"from (select 1)"
+        	//isSelect有回溯,读完所有左括号，然后看下一个token是否是select、from
+        	//然后再从调用isSelect前的lastParseIndex开始解析，当前token是调用isSelect前的token.
+            if (isSelect()) { //如"FROM ((select 1) union (select 1))";
                 Query query = parseSelectUnion();
                 read(")");
                 query.setParameterList(New.arrayList(parameters));
@@ -1170,6 +1186,8 @@ public class Parser {
                 table = TableView.createTempView(s, session.getUser(), alias,
                         query, currentSelect);
             } else {
+            	//如"FROM (mytable) SELECT * "
+            	//"FROM (mytable1 RIGHT OUTER JOIN mytable2 ON mytable1.id1=mytable2.id2) AS t SELECT * "
                 TableFilter top;
                 if (database.getSettings().nestedJoins) {
                     top = readTableFilter(false);
@@ -1187,7 +1205,7 @@ public class Parser {
                 return top;
             }
         } else if (readIf("VALUES")) {
-            table = parseValuesTable().getTable();
+            table = parseValuesTable().getTable(); //如"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
         } else {
             String tableName = readIdentifierWithSchema(null);
             Schema schema = getSchema();
@@ -1201,6 +1219,7 @@ public class Parser {
             }
             if (foundLeftBracket) {
                 Schema mainSchema = database.getSchema(Constants.SCHEMA_MAIN);
+                //如"FROM SYSTEM_RANGE(1,100) SELECT * ";
                 if (equalsToken(tableName, RangeTable.NAME)
                         || equalsToken(tableName, RangeTable.ALIAS)) {
                     Expression min = readExpression();
@@ -1216,6 +1235,9 @@ public class Parser {
                         table = new RangeTable(mainSchema, min, max, false);
                     }
                 } else {
+                	//如"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
+                	//这个不合法，的FunctionTable中会抛错sql = "FROM USER() SELECT * "; //函数返回值类型必须是RESULT_SET
+                	//只有CSVREAD、LINK_SCHEMA、TABLE、TABLE_DISTINCT这4个函数的返回值类型是RESULT_SET
                     Expression expr = readFunction(schema, tableName);
                     if (!(expr instanceof FunctionCall)) {
                         throw getSyntaxError();
@@ -1227,11 +1249,11 @@ public class Parser {
                     table = new FunctionTable(mainSchema, session, expr, call);
                 }
             } else if (equalsToken("DUAL", tableName)) {
-                table = getDualTable(false);
+                table = getDualTable(false); //如"FROM DUAL SELECT * "
             } else if (database.getMode().sysDummy1 &&
                     equalsToken("SYSDUMMY1", tableName)) {
-                table = getDualTable(false);
-            } else {
+                table = getDualTable(false);//如"FROM SYSDUMMY1 SELECT * "，要适当设置MODE参数
+            } else { //正常的 from tableName语法
                 table = readTableOrView(tableName);
             }
         }
@@ -1303,7 +1325,7 @@ public class Parser {
         }
         SetComment command = new SetComment(session);
         String objectName;
-        if (column) {
+        if (column) { //如COMMENT ON COLUMN mydb.public.SetCommentTest.f1
             // can't use readIdentifierWithSchema() because
             // it would not read schema.table.column correctly
             // if the db name is equal to the schema name
@@ -1477,11 +1499,17 @@ public class Parser {
         command.setIfExists(ifExists);
         return command;
     }
-
+    //如果RIGHT、LEFT、INNER、JOIN这5种JOIN后面没有直接接ON就会出现递归调用readJoin的情况，
+    //如: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
+    //加ON的话虽然也会递归调用readJoin，但因为紧接着的token是ON，所以实际上readJoin什么都不做
+    //参见<<数据库系统基础教程>>p24、p25、p26、p129、p163
     private TableFilter readJoin(TableFilter top, Select command,
-            boolean nested, boolean fromOuter) {
+            boolean nested, boolean fromOuter) { //嵌套、外部
+    //fromOuter这个参数只有从LEFT/RIGHT OUTER进入readJoin为true
+    //nested这个参数只有从LEFT OUTER进入readJoin为true
         boolean joined = false;
-        TableFilter last = top;
+        TableFilter last = top; //last只对NATURAL JOIN有用
+        //NESTED_JOINS参数默认是true
         boolean nestedJoins = database.getSettings().nestedJoins;
         while (true) {
             if (readIf("RIGHT")) {
@@ -1495,9 +1523,11 @@ public class Parser {
                 if (readIf("ON")) {
                     on = readExpression();
                 }
+                //当t1 RIGHT OUTER JOIN t2时，t2放在前面，t1嵌套在一个DualTable中，然后t2去join这个DualTable
                 if (nestedJoins) {
                     top = getNested(top);
-                    newTop.addJoin(top, true, false, on);
+                    //RIGHT OUTER和LEFT OUTER时，addJoin的第二个参数都是true
+                    newTop.addJoin(top, true, false, on); //外部、嵌套(addJoin和readJoin的顺序刚好相反)
                 } else {
                     newTop.addJoin(top, true, false, on);
                 }
@@ -1511,6 +1541,9 @@ public class Parser {
                 if (nestedJoins) {
                     join = readJoin(join, command, true, true);
                 } else {
+                    //当nestedJoins为false时,
+                    //对于SELECT * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 LEFT OUTER JOIN JoinTest3
+                    //实际上是JoinTest1.join => JoinTest3.join => JoinTest2
                     top = readJoin(top, command, false, true);
                 }
                 Expression on = null;
@@ -1521,7 +1554,7 @@ public class Parser {
                 last = join;
             } else if (readIf("FULL")) {
                 throw getSyntaxError();
-            } else if (readIf("INNER")) {
+            } else if (readIf("INNER")) { //INNER JOIN或JOIN就是θ连接(在笛卡儿积积之上加过滤条件)
                 read("JOIN");
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
@@ -1536,7 +1569,7 @@ public class Parser {
                     top.addJoin(join, fromOuter, false, on);
                 }
                 last = join;
-            } else if (readIf("JOIN")) {
+            } else if (readIf("JOIN")) { //跟INNER JOIN一样
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
                 top = readJoin(top, command, false, false);
@@ -1550,8 +1583,8 @@ public class Parser {
                     top.addJoin(join, fromOuter, false, on);
                 }
                 last = join;
-            } else if (readIf("CROSS")) {
-                read("JOIN");
+            } else if (readIf("CROSS")) { //CROSS JOIN和NATURAL JOIN后面不能再readJoin，因为没有ON子句，但是可以接其他JOIN
+                read("JOIN"); //CROSS JOIN就是求笛卡儿积
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
                 if (nestedJoins) {
@@ -1560,7 +1593,7 @@ public class Parser {
                     top.addJoin(join, fromOuter, false, null);
                 }
                 last = join;
-            } else if (readIf("NATURAL")) {
+            } else if (readIf("NATURAL")) { //CROSS JOIN和NATURAL JOIN后面不能再readJoin，因为没有ON子句，但是可以接其他JOIN
                 read("JOIN");
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
@@ -1569,7 +1602,10 @@ public class Parser {
                 String tableSchema = last.getTable().getSchema().getName();
                 String joinSchema = join.getTable().getSchema().getName();
                 Expression on = null;
-                for (Column tc : tableCols) {
+                //取左边和右边列名相同的列来作为on条件，用等于关系表达式来表示，如果有多个这样的相同列，则用AND拼装
+                //如: SELECT t1.id, t1.b FROM JoinTest1 t1 NATURAL JOIN JoinTest4 t2
+                //则: on = ((PUBLIC.T1.ID = PUBLIC.T2.ID) AND (PUBLIC.T1.NAME = PUBLIC.T2.NAME))
+                for (Column tc : tableCols) { //从左边的表开始
                     String tableColumnName = tc.getName();
                     for (Column c : joinCols) {
                         String joinColumnName = c.getName();
@@ -1602,6 +1638,13 @@ public class Parser {
                 break;
             }
         }
+        //当NESTED_JOINS参数为true是下面这条sql的JoinTest2 JOIN JoinTest3就满足这个if条件
+        //因为JoinTest1 LEFT OUTER JOIN JoinTest2会使得nested为true
+        //SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 JOIN JoinTest3
+        //相当于:
+        //JoinTest1.join => TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest2).join => TableFilter(JoinTest3)
+        //也就是先算JoinTest2 JOIN JoinTest3(假设结果是R)
+        //然后JoinTest1再于R进行LEFT OUTER JOIN
         if (nested && joined) {
             top = getNested(top);
         }
@@ -1609,7 +1652,7 @@ public class Parser {
     }
 
     private TableFilter getNested(TableFilter n) {
-        String joinTable = Constants.PREFIX_JOIN + parseIndex;
+        String joinTable = Constants.PREFIX_JOIN + parseIndex; //如：SYSTEM_JOIN_25
         TableFilter top = new TableFilter(session, getDualTable(true),
                 joinTable, rightsChecked, currentSelect);
         top.addJoin(n, false, true, null);
@@ -1683,13 +1726,22 @@ public class Parser {
         command.init();
         return command;
     }
-
+    
+    /*
+		对于简单的sql，如select name1 from mytable1 order by name1
+		parseSelectSub()负责解析select name1 from mytable1
+		parseSelectUnionExtension负责解析 order by name1
+		
+		如果union sql是select name1 from mytable1 union select name2 from mytable2 order by name1
+		parseSelectSub()负责解析select name1 from mytable1
+		parseSelectUnionExtension负责解析 union select name2 from mytable2 order by name1
+	*/
     private Query parseSelectUnion() {
         int start = lastParseIndex;
         Query command = parseSelectSub();
         return parseSelectUnionExtension(command, start, false);
     }
-
+    //只有在parseSelectUnion中调用，unionOnly总为false
     private Query parseSelectUnionExtension(Query command, int start,
             boolean unionOnly) {
         while (true) {
@@ -1723,7 +1775,13 @@ public class Parser {
         setSQL(command, null, start);
         return command;
     }
-
+    
+    //解析sql中的LIMIT、ordey by、FOR UPDATE
+    //如果是union时LIMIT、ordey by、FOR UPDATE不能放在子句中，要放在最后
+	//比如这条是错误的:
+	//sql = "select name1 from mytable1 order by name1 union select name2 from mytable2";
+	//要改成这样:
+	//sql = "select name1 from mytable1 union select name2 from mytable2 order by name1";
     private void parseEndOfQuery(Query command) {
         if (readIf("ORDER")) {
             read("BY");
@@ -1774,6 +1832,7 @@ public class Parser {
             // http://sqlpro.developpez.com/SQL2008/
             if (readIf("OFFSET")) {
                 command.setOffset(readExpression().optimize(session));
+                //OFFSET 要跟ROW或ROWS，不能少
                 if (!readIf("ROW")) {
                     read("ROWS");
                 }
@@ -1860,7 +1919,7 @@ public class Parser {
     }
 
     private Query parseSelectSub() {
-        if (readIf("(")) {
+        if (readIf("(")) { //在parsePrepared()中没有readIf，所以当前token是"("、from、select之一
             Query command = parseSelectUnion();
             read(")");
             return command;
@@ -1881,7 +1940,10 @@ public class Parser {
         command.addTableFilter(top, true);
         boolean isOuter = false;
         while (true) {
+        	//如sql = "SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN (JoinTest2) ON id>30";
+        	//此时top是TableFilter(JoinTest1)
             TableFilter n = top.getNestedJoin();
+            //n是null
             if (n != null) {
                 n.visit(new TableFilterVisitor() {
                     @Override
@@ -1890,27 +1952,38 @@ public class Parser {
                     }
                 });
             }
+            //join是TableFilter(SYSTEM_JOIN_xxx)
             TableFilter join = top.getJoin();
             if (join == null) {
                 break;
             }
+            
+            //isOuter是true
             isOuter = isOuter | join.isJoinOuter();
             if (isOuter) {
                 command.addTableFilter(join, false);
             } else {
                 // make flat so the optimizer can work better
+            	//如sql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";
+            	//此时on是id>30
+            	//join是JoinTest2
                 Expression on = join.getJoinCondition();
                 if (on != null) {
                     command.addCondition(on);
                 }
                 join.removeJoinCondition();
+                //在JoinTest1中删除join字段，这样JoinTest1和JoinTest2就断开了，
+                //如sql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 ON id>30";
+                //但是在org.h2.command.dml.Optimizer.optimize()
+                //的 f2[i].addJoin(f2[i + 1], false, false, null)中又加上
                 top.removeJoin();
                 command.addTableFilter(join, true);
             }
             top = join;
         }
     }
-
+    
+    //只处理SELECT语句中的Select Expression
     private void parseSelectSimpleSelectPart(Select command) {
         Select temp = currentSelect;
         // make sure aggregate functions will not work in TOP and LIMIT
@@ -1940,6 +2013,7 @@ public class Parser {
                 expressions.add(new Wildcard(null, null));
             } else {
                 Expression expr = readExpression();
+                //name n1, name as n2都可以
                 if (readIf("AS") || currentTokenType == IDENTIFIER) {
                     String alias = readAliasIdentifier();
                     boolean aliasColumnName = database.getSettings().aliasColumnName;
@@ -1951,12 +2025,13 @@ public class Parser {
         } while (readIf(","));
         command.setExpressions(expressions);
     }
-
+    
+    //只处理SELECT语句中的from、Select Expression、where、group by、having子句
     private Select parseSelectSimple() {
         boolean fromFirst;
         if (readIf("SELECT")) {
             fromFirst = false;
-        } else if (readIf("FROM")) {
+        } else if (readIf("FROM")) { //支持from ... select ...语法
             fromFirst = true;
         } else {
             throw getSyntaxError();
@@ -1972,6 +2047,7 @@ public class Parser {
             parseSelectSimpleSelectPart(command);
         } else {
             parseSelectSimpleSelectPart(command);
+            //没有from，如"select 2"
             if (!readIf("FROM")) {
                 // select without FROM: convert to SELECT ... FROM
                 // SYSTEM_RANGE(1,1)
@@ -1983,6 +2059,7 @@ public class Parser {
                 parseSelectSimpleFromPart(command);
             }
         }
+        //下面代码处理where、group by、having子句
         if (readIf("WHERE")) {
             Expression condition = readExpression();
             command.addCondition(condition);
@@ -2071,6 +2148,8 @@ public class Parser {
             boolean not = false;
             if (readIf("NOT")) {
                 not = true;
+                //这样不合法: delete from mytable where name not null
+                //这样才合法: delete from mytable where name is null
                 if (isToken("NULL")) {
                     // this really only works for NOT NULL!
                     parseIndex = backup;
@@ -2114,7 +2193,7 @@ public class Parser {
                 }
             } else if (readIf("IN")) {
                 read("(");
-                if (readIf(")")) {
+                if (readIf(")")) { //对于IN()直接返回false常量
                     r = ValueExpression.get(ValueBoolean.get(false));
                 } else {
                     if (isSelect()) {
@@ -2129,11 +2208,17 @@ public class Parser {
                             v.add(last);
                         } while (readIf(","));
                         if (v.size() == 1 && (last instanceof Subquery)) {
+                        	//如id in(+(select id from SubqueryTest where id=1 and name='a1'))
+                        	//Subquery的记录不能多于1条，所以在前面放+号就可以绕过isSelect()，此时返回的就是一个Subquery
+                        	//但是放减号是不行的，会得到一个Operation
+                        	//+号会转成ConditionInSelect，而不再使用ConditionIn
                             Subquery s = (Subquery) last;
                             Query q = s.getQuery();
                             r = new ConditionInSelect(database, r, q, false,
                                     Comparison.EQUAL);
                         } else {
+                        	//ConditionIn的valueList是可以包含Subquery的
+                        	//如id in(3, (select id from SubqueryTest where id=1 and name='a1'))";
                             r = new ConditionIn(database, r, v);
                         }
                     }
@@ -2227,6 +2312,8 @@ public class Parser {
                 }
                 r = new CompareLike(database, r, readSum(), null, true);
             } else if (readIf("!~")) {
+            	//(NOT (NAME REGEXP 'aaa'))
+            	//(NOT (CAST(NAME AS VARCHAR_IGNORECASE) REGEXP 'aaa'))
                 if (readIf("*")) {
                     Function function = Function.getFunction(database, "CAST");
                     function.setDataType(new Column("X",
@@ -2387,6 +2474,7 @@ public class Parser {
     }
 
     private Expression readFunction(Schema schema, String name) {
+    	//只有FunctionAlias也就是JavaFunction才有schema
         if (schema != null) {
             return readJavaFunction(schema, name);
         }
@@ -2570,7 +2658,7 @@ public class Parser {
 
     private Expression readWildcardOrSequenceValue(String schema,
             String objectName) {
-        if (readIf("*")) {
+        if (readIf("*")) { //如"select t.* from mytable t"中的"t.*"
             return new Wildcard(schema, objectName);
         }
         if (schema == null) {
@@ -2877,6 +2965,11 @@ public class Parser {
             break;
         }
         case ROWNUM:
+        	//ROW_NUMBER函数虽然定义了，但ROW_NUMBER()函数无效，不支持这样的语法
+    		//sql = "SELECT ROW_NUMBER()"; 
+    		//ROWNUM函数虽然没有定义，但ROWNUM()是有效，Parser在解析时把他当成ROWNUM伪字段处理
+    		//当成了org.h2.expression.Rownum，见org.h2.command.Parser.readTerm()
+    		//sql = "SELECT ROWNUM()"; 
             read();
             if (readIf("(")) {
                 read(")");
@@ -2896,11 +2989,13 @@ public class Parser {
             throw getSyntaxError();
         }
         if (readIf("[")) {
+        	//sql = "SELECT ('Hello', 'World')[2]"; //null, 下标要从0开始
+    		//sql = "SELECT ('Hello', 'World')[1]"; //World，
             Function function = Function.getFunction(database, "ARRAY_GET");
             function.setParameter(0, r);
             r = readExpression();
-            r = new Operation(Operation.PLUS, r, ValueExpression.get(ValueInt
-                    .get(1)));
+            //ARRAY_GET函数的下标从1开始，所以要加1
+            r = new Operation(Operation.PLUS, r, ValueExpression.get(ValueInt.get(1)));
             function.setParameter(1, r);
             r = function;
             read("]");
@@ -2912,6 +3007,13 @@ public class Parser {
                 read(".");
             }
             if (readIf("REGCLASS")) {
+            	//如下:
+            	//stmt.executeUpdate("CREATE ALIAS IF NOT EXISTS PG_GET_OID FOR \"my.test.ParserTest.testPG_GET_OID\"");
+        		//sql = "SELECT 'ddd'::REGCLASS";
+            	//public static void testPG_GET_OID(String str) {
+            	//	System.out.println("testPG_GET_OID: " + str);
+            	//}
+            	//此时r先是'ddd'这个字符串，然后调用PG_GET_OID这个自定义函数
                 FunctionAlias f = findFunctionAlias(Constants.SCHEMA_MAIN,
                         "PG_GET_OID");
                 if (f == null) {
@@ -2921,6 +3023,8 @@ public class Parser {
                 JavaFunction func = new JavaFunction(f, args);
                 r = func;
             } else {
+            	//如sql = "SELECT 12::varchar";，表示CAST(12 AS varchar)，把12转成varchar类型
+            	//这里的r先是12，然后变成CAST函数
                 Column col = parseColumnWithType(null);
                 Function function = Function.getFunction(database, "CAST");
                 function.setDataType(col);
@@ -3055,13 +3159,14 @@ public class Parser {
         String s = expr.getValue(session).getString();
         return s;
     }
-
+    
+    //对于mydb.public.mytable
     private String readIdentifierWithSchema(String defaultSchemaName) {
         if (currentTokenType != IDENTIFIER) {
             throw DbException.getSyntaxError(sqlCommand, parseIndex,
                     "identifier");
         }
-        String s = currentToken;
+        String s = currentToken; //mydb
         read();
         schemaName = defaultSchemaName;
         if (readIf(".")) {
@@ -3070,11 +3175,11 @@ public class Parser {
                 throw DbException.getSyntaxError(sqlCommand, parseIndex,
                         "identifier");
             }
-            s = currentToken;
+            s = currentToken; //public
             read();
         }
         if (equalsToken(".", currentToken)) {
-            if (equalsToken(schemaName, database.getShortName())) {
+            if (equalsToken(schemaName, database.getShortName())) { //database.getShortName()=mydb
                 read(".");
                 schemaName = s;
                 if (currentTokenType != IDENTIFIER) {
@@ -3111,13 +3216,20 @@ public class Parser {
     }
 
     private void read(String expected) {
+    	//用`、[]、“包围起来的字符串所代表的Token会使得currentTokenQuoted=true
+		//如"CREATE or `REPLACE` TABLE IF NOT EXISTS
+		//expected = currentToken = REPLACE
+		//currentTokenQuoted = true
         if (currentTokenQuoted || !equalsToken(expected, currentToken)) {
             addExpected(expected);
             throw getSyntaxError();
         }
         read();
     }
-
+    
+    //read与readIf的差别
+	//read: expected与currentToken必须一样，不一样则报语法错误，如是没有语法错误预读下一个token
+	//readIf: 只有token与currentToken一样时才预读下一个token，不相同不会报语法错误
     private boolean readIf(String token) {
         if (!currentTokenQuoted && equalsToken(token, currentToken)) {
             read();
@@ -3126,7 +3238,7 @@ public class Parser {
         addExpected(token);
         return false;
     }
-
+    //与readIf(String token)大部份相同，唯一差别是isToken不会预读下一个token
     private boolean isToken(String token) {
         boolean result = equalsToken(token, currentToken) &&
                 !currentTokenQuoted;
@@ -3136,7 +3248,8 @@ public class Parser {
         addExpected(token);
         return false;
     }
-
+    
+    //如果identifiersToUpper为false时，比较a、b会忽略大小写
     private boolean equalsToken(String a, String b) {
         if (a == null) {
             return b == null;
@@ -3163,12 +3276,12 @@ public class Parser {
         lastParseIndex = parseIndex;
         int i = parseIndex;
         int type = types[i];
-        while (type == 0) {
+        while (type == 0) { //跳过最前面type为0的元素，因为0对应的字符是空白类的
             type = types[++i];
         }
         int start = i;
         char[] chars = sqlCommandChars;
-        char c = chars[i++];
+        char c = chars[i++]; //注意这里，c是当前字符，当下面chars[i]时就是下一个字符了
         currentToken = "";
         switch (type) {
         case CHAR_NAME:
@@ -3186,21 +3299,31 @@ public class Parser {
             return;
         case CHAR_QUOTED: {
             String result = null;
+            //内部的for循环用于找出第一对双引号中包含的字符
+			//如果双引号中包含的字符又有双引号，while循环继续寻找后面的字符
+			//比如对于"aaa""bbb"，i先从第一个a开始，到达第二个"号时，if (chars[i] == '\"')为true，
+			//因为此时result为null，所以result = sqlCommand.substring(begin, i) = aaa
+			//接着退出for循环，因为chars[++i]="，所以while循环继续,此时begin从第一个b开始，
+			//进入到if (chars[i] == '\"')时，因为前面result = aaa，
+			//所以result += sqlCommand.substring(begin - 1, i) = aaa"bbb
+			//也就是说双引号中包含的字符如果是连续的两个""那么就表示"号自身
             while (true) {
                 for (int begin = i;; i++) {
                     if (chars[i] == '\"') {
                         if (result == null) {
                             result = sqlCommand.substring(begin, i);
                         } else {
-                            result += sqlCommand.substring(begin - 1, i);
+                            result += sqlCommand.substring(begin - 1, i); //begin - 1表示把前面的"号也加进来
                         }
                         break;
                     }
                 }
-                if (chars[++i] != '\"') {
+                //到这里时chars[i]是一个双引号，如果下一个字符不是双引号则退出，
+                //如果下一个又是双引号说明是用来表示双引号字符本身
+                if (chars[++i] != '\"') { //比如"aaa""bbb"的场景，最终会转换成aaa"bbb
                     break;
                 }
-                i++;
+                i++; //chars[i]是一个双引号，所以要往下前进一格
             }
             currentToken = StringUtils.fromCacheOrNew(result);
             parseIndex = i;
@@ -3209,6 +3332,7 @@ public class Parser {
             return;
         }
         case CHAR_SPECIAL_2:
+        	//两个CHAR_SPECIAL_2类型的字符要合并。例如!=
             if (types[i] == CHAR_SPECIAL_2) {
                 i++;
             }
@@ -3222,7 +3346,12 @@ public class Parser {
             parseIndex = i;
             return;
         case CHAR_VALUE:
-            if (c == '0' && chars[i] == 'X') {
+        	//如果DATABASE_TO_UPPER是false，那么0x是错的
+        	//如sql = "select id,name from ParserTest where id > 0x2";
+        	//只能用大写0X，并且也只能用A-F，
+        	//否则像where id > 0X2ab，实际是where id > 0X2，但是ab没有读到，
+        	//当判断org.h2.command.Parser.prepareCommand(String)时，(currentTokenType != END)为false就出错
+            if (c == '0' && chars[i] == 'X') { //在initialize中已把x转换成大写X
                 // hex number
                 long number = 0;
                 start += 2;
@@ -3237,8 +3366,11 @@ public class Parser {
                         parseIndex = i;
                         return;
                     }
-                    number = (number << 4) + c -
-                            (c >= 'A' ? ('A' - 0xa) : ('0'));
+                    //(number << 4)表示乘以16,而"c - (c >= 'A' ? ('A' - 0xa) : ('0')"是算当前c与'0'或‘A'的差值
+                    //如果c>='A'，那么c = 0xa+(c-'A')
+                    //如果c>='0',且小于'A'，那么c = '0'+(c-'0');
+                    number = (number << 4) + c - (c >= 'A' ? ('A' - 0xa) : ('0'));
+                    //16进制值>Integer.MAX_VALUE时转成BigDecimal来表示
                     if (number > Integer.MAX_VALUE) {
                         readHexDecimal(start, i);
                         return;
@@ -3276,10 +3408,11 @@ public class Parser {
                 parseIndex = i;
                 return;
             }
-            readDecimal(i - 1, i);
+            readDecimal(i - 1, i); //如".123"时，因为c是点号，c对应i-1，所以要把c包含进来
             return;
-        case CHAR_STRING: {
+        case CHAR_STRING: { //字符串Literal
             String result = null;
+            //与CHAR_QUOTED类似
             while (true) {
                 for (int begin = i;; i++) {
                     if (chars[i] == '\'') {
@@ -3304,9 +3437,9 @@ public class Parser {
             currentTokenType = VALUE;
             return;
         }
-        case CHAR_DOLLAR_QUOTED_STRING: {
+        case CHAR_DOLLAR_QUOTED_STRING: { //$$字符串，用来定义自定义函数和存储过程的java代码
             String result = null;
-            int begin = i - 1;
+            int begin = i - 1; //前面一个字符也是CHAR_DOLLAR_QUOTED_STRING，所以在sqlCommand.substring(begin, i)时要包含
             while (types[i] == CHAR_DOLLAR_QUOTED_STRING) {
                 i++;
             }
@@ -3329,17 +3462,33 @@ public class Parser {
         }
     }
 
+    //字面值(LITERAL)，比如"123"、"12.999"、字符串"abcdddd"这种
+    //text参数为true时说明当前要检查字符串类型的字面值
     private void checkLiterals(boolean text) {
-        if (!session.getAllowLiterals()) {
-            int allowed = database.getAllowLiterals();
-            if (allowed == Constants.ALLOW_LITERALS_NONE ||
-                    (text && allowed != Constants.ALLOW_LITERALS_ALL)) {
+        if (!session.getAllowLiterals()) { //默认是false
+        	
+        	//有三种选项
+        	//ALLOW_LITERALS_ALL 都允许
+        	//ALLOW_LITERALS_NONE 说明不允许出现字面值
+        	//ALLOW_LITERALS_NUMBERS 只允许数字字面值
+            int allowed = database.getAllowLiterals(); //默认是ALLOW_LITERALS_ALL
+            
+            //如果是ALLOW_LITERALS_NONE，说明不允许出现字面值
+            //当text参数为true时说明当前要检查字符串类型的字面值，只有ALLOW_LITERALS_ALL才允许
+            if (allowed == Constants.ALLOW_LITERALS_NONE || (text && allowed != Constants.ALLOW_LITERALS_ALL)) {
+            	//例如:
+            	//sql = "select id,name from ParserTest where id > .123";
+        		//ALLOW_LITERALS_ALL=2 都允许
+            	//ALLOW_LITERALS_NONE=0 说明不允许出现字面值
+            	//ALLOW_LITERALS_NUMBERS=1 只允许数字字面值
+        		//stmt.executeUpdate("SET ALLOW_LITERALS 1"); //只允许数字字面值
+        		//sql = "select id,name from ParserTest where name = 'abc'"; //这时就不允许出现字符串字面值了
                 throw DbException.get(ErrorCode.LITERALS_ARE_NOT_ALLOWED);
             }
         }
     }
 
-    private void readHexDecimal(int start, int i) {
+    private void readHexDecimal(int start, int i) { //16进制值>Integer.MAX_VALUE时转成BigDecimal来表示
         char[] chars = sqlCommandChars;
         char c;
         do {
@@ -3358,7 +3507,8 @@ public class Parser {
         int[] types = characterTypes;
         // go until the first non-number
         while (true) {
-            int t = types[i];
+            int t = types[i]; //刚开始时types[i是CHAR_DOT
+            //比如要找e/E或其他字符比如空格啊，说明数字结束了
             if (t != CHAR_DOT && t != CHAR_VALUE) {
                 break;
             }
@@ -3406,14 +3556,29 @@ public class Parser {
     public Session getSession() {
         return session;
     }
+    
+	//此方法涉及以下实例字段:
+	//originalSQL
+	//sqlCommand
+	//sqlCommandChars
+	//characterTypes
+	//parseIndex(从0开始)
 
+	//types初始化时每个元素都是0
+	//此方法将注释、$$用空格替换, 把"`"、"["换成双引号，
+	//同时对SQL中的每个字符表明其类型，以便下一步在read方法中识别sql中的各种结构。
     private void initialize(String sql) {
         if (sql == null) {
             sql = "";
         }
-        originalSQL = sql;
-        sqlCommand = sql;
+        originalSQL = sql; //不会变，最原始的SQL
+        sqlCommand = sql; //会变
         int len = sql.length() + 1;
+        //command和types的长度要比sql的长度多1，command的最后一个字符command[len]是空格，
+		//types的最后一个元素types[len]是CHAR_END(是1)
+
+		//最终的command和types会分别存到sqlCommandChars和characterTypes字段
+		//command如果有变动，则sqlCommand字段的值重新从command生成
         char[] command = new char[len];
         int[] types = new int[len];
         len--;
@@ -3421,34 +3586,48 @@ public class Parser {
         boolean changed = false;
         command[len] = ' ';
         int startLoop = 0;
-        int lastType = 0;
+        int lastType = 0; //只用来判断$字符是否可以出现在CHAR_NAME和CHAR_VALUE字符后面
         for (int i = 0; i < len; i++) {
             char c = command[i];
             int type = 0;
             switch (c) {
+            //单个"/"表示CHAR_SPECIAL_1字符，"/*"是块注释的开始标志，"//"是单行注释的开始标志
             case '/':
                 if (command[i + 1] == '*') {
                     // block comment
                     changed = true;
                     command[i] = ' ';
                     command[i + 1] = ' ';
+                    //startLoop是"/"号开始的位置，当出现语法错误时才有用，会在它的位置之前放置[*]
+					//例子: Syntax error in SQL statement "DROP [*]/*TABLE TEST";
                     startLoop = i;
                     i += 2;
-                    checkRunOver(i, len, startLoop);
+                    checkRunOver(i, len, startLoop); //检查是否超出sql长度了(i>=len)
                     while (command[i] != '*' || command[i + 1] != '/') {
                         command[i++] = ' ';
                         checkRunOver(i, len, startLoop);
                     }
                     command[i] = ' ';
                     command[i + 1] = ' ';
+                    //这里对i增加后还是指向'/'的位置，
+					//因为type此时是0，所以后面的types[i] = type;　lastType = type;都是0
                     i++;
                 } else if (command[i + 1] == '/') {
                     // single line comment
                     changed = true;
-                    startLoop = i;
+                    startLoop = i; //startLoop是第一个"/"号开始的位置
                     while (true) {
-                        c = command[i];
+                        c = command[i]; //最先开始是第一个"/"
+                        
+                        //i >= len - 1是对应最后一个非回车换行字符
                         if (c == '\n' || c == '\r' || i >= len - 1) {
+
+							//当c == '\n' || c == '\r' || i >= len - 1时这里就退出了，command[i]的值没变
+							//例如"DROP TABLE //TA"，没有回车换行符, 此时i >= len - 1
+							//sql语句变成"DROP TABLE    A "
+							//但是对应"A"的type是0，所以碰巧避免了问题: 
+							//Syntax error in SQL statement "DROP TABLE    A "; 
+							//expected "identifier"; SQL statement: DROP TABLE //TA [42001-170]
                             break;
                         }
                         command[i++] = ' ';
@@ -3458,7 +3637,7 @@ public class Parser {
                     type = CHAR_SPECIAL_1;
                 }
                 break;
-            case '-':
+            case '-': //与"//"相同，都是表示单行注释，单个"-"表示CHAR_SPECIAL_1字符
                 if (command[i + 1] == '-') {
                     // single line comment
                     changed = true;
@@ -3476,6 +3655,12 @@ public class Parser {
                 }
                 break;
             case '$':
+            	//$$...$$用来表示java源代码，通常用于CREATE ALIAS语句(建立自定义的函数，而不是别名)
+            	//见h2文档: Features => User-Defined Functions and Stored Procedures
+            	
+				//(i == 0 || command[i - 1] <= ' ')表示如果sql以$$开始，或者$$前面第一个字符是空格或控制字符，
+				//说明这里用来表示java源代码
+				//ASCII码表中0到31是控制字符, 32是空格
                 if (command[i + 1] == '$' && (i == 0 || command[i - 1] <= ' ')) {
                     // dollar quoted string
                     changed = true;
@@ -3492,10 +3677,17 @@ public class Parser {
                     command[i + 1] = ' ';
                     i++;
                 } else {
+                	//$作为标识符的一部份
                     if (lastType == CHAR_NAME || lastType == CHAR_VALUE) {
                         // $ inside an identifier is supported
                         type = CHAR_NAME;
                     } else {
+                    	//如: 支持自定义的参数顺序，而不是按?出现的顺序排
+                    	//PreparedStatement ps = conn.prepareStatement("delete top ?2 from ParserTest where id>10 and name=?1");
+                		//ps.setString(1, "abc");
+                		//ps.setInt(2, 3);
+                		//ps.executeUpdate();
+                		
                         // but not at the start, to support PostgreSQL $1
                         type = CHAR_SPECIAL_1;
                     }
@@ -3523,20 +3715,20 @@ public class Parser {
             case ':':
             case '&':
             case '~':
-                type = CHAR_SPECIAL_2;
+                type = CHAR_SPECIAL_2; //这类字符可两两组合，如"<="、"!="、"<>“
                 break;
             case '.':
                 type = CHAR_DOT;
                 break;
-            case '\'':
+            case '\'': //字符串，注意在sql里字符串是用单引号括起来，不像java是用双引号
                 type = types[i] = CHAR_STRING;
                 startLoop = i;
                 while (command[++i] != '\'') {
                     checkRunOver(i, len, startLoop);
                 }
                 break;
-            case '[':
-                if (database.getMode().squareBracketQuotedNames) {
+            case '[': //SQL Server alias语法
+                if (database.getMode().squareBracketQuotedNames) { //要加prop.setProperty("MODE", "MSSQLServer");
                     // SQL Server alias for "
                     command[i] = '"';
                     changed = true;
@@ -3550,7 +3742,7 @@ public class Parser {
                     type = CHAR_SPECIAL_1;
                 }
                 break;
-            case '`':
+            case '`': //MySQL alias语法，不过不区分大小写，默认都是大写
                 // MySQL alias for ", but not case sensitive
                 command[i] = '"';
                 changed = true;
@@ -3575,7 +3767,7 @@ public class Parser {
                 break;
             default:
                 if (c >= 'a' && c <= 'z') {
-                    if (identifiersToUpper) {
+                    if (identifiersToUpper) { //如果DATABASE_TO_UPPER参数为true，那么a-z要转成大写
                         command[i] = (char) (c - ('a' - 'A'));
                         changed = true;
                     }
@@ -3585,7 +3777,7 @@ public class Parser {
                 } else if (c >= '0' && c <= '9') {
                     type = CHAR_VALUE;
                 } else {
-                    if (c <= ' ' || Character.isSpaceChar(c)) {
+                    if (c <= ' ' || Character.isSpaceChar(c)) { //控制字符和空白对应的type都是0
                         // whitespace
                     } else if (Character.isJavaIdentifierPart(c)) {
                         type = CHAR_NAME;
@@ -3710,7 +3902,7 @@ public class Parser {
             // if not yet converted to uppercase, do it now
             s = StringUtils.toUpperEnglish(s);
         }
-        return getSaveTokenType(s, database.getMode().supportOffsetFetch);
+        return getSaveTokenType(s, database.getMode().supportOffsetFetch); //DB2、Derby、PostgreSQL支持
     }
 
     private boolean isKeyword(String s) {
@@ -3718,7 +3910,7 @@ public class Parser {
             // if not yet converted to uppercase, do it now
             s = StringUtils.toUpperEnglish(s);
         }
-        return isKeyword(s, false);
+        return isKeyword(s, false); //FETCH和OFFSET此时不算关键字
     }
 
     /**
@@ -3734,6 +3926,63 @@ public class Parser {
         }
         return getSaveTokenType(s, supportOffsetFetch) != IDENTIFIER;
     }
+    
+    /*
+		    总共38个特殊token，不能充当标识符用
+		
+		    7个特殊的日期时间类型:
+		    ---------------------------------------------------
+		    CURRENT_TIMESTAMP、CURRENT_TIME、CURRENT_DATE是三个特殊的token，他们即不是关键字，也不是标识符，
+		         但是不能用它们充当标识符去，比如不能用CURRENT_DATE当表名:
+		    CREATE TABLE current_date 这样的语法是错误的。
+		
+		    SYSTIMESTAMP、SYSTIME、SYSDATE与CURRENT_TIMESTAMP、CURRENT_TIME、CURRENT_DATE等价
+		    TODAY也与CURRENT_DATE等价
+		
+		    3个常量token类型:
+		    ---------------------------------------------------
+		    FALSE
+		    TRUE
+		    NULL
+		
+		    28个KEYWORD(关键字)
+		    ---------------------------------------------------
+		    CROSS
+		    DISTINCT
+		    EXCEPT
+		    EXISTS
+		
+		    FROM
+		    FOR
+		    FULL
+		    FETCH 如果数据库支持supportOffsetFetch(DB2、Derby、PostgreSQL都支持)
+		
+		    GROUP
+		    HAVING
+		    INNER
+		    INTERSECT
+		    IS
+		    JOIN
+		
+		    LIMIT
+		    LIKE
+		    MINUS
+		    NOT
+		    NATURAL
+		
+		    ON
+		    OFFSET  如果数据库支持supportOffsetFetch(DB2、Derby、PostgreSQL都支持)
+		    ORDER
+		    ORDER
+		    PRIMARY
+		
+		    ROWNUM
+		    SELECT
+		
+		    UNIQUE
+		    UNION
+		    WHERE
+    */
 
     private static int getSaveTokenType(String s, boolean supportOffsetFetch) {
         switch (s.charAt(0)) {
@@ -3842,13 +4091,14 @@ public class Parser {
     private Column parseColumnForTable(String columnName,
             boolean defaultNullable) {
         Column column;
-        boolean isIdentity = false;
-        if (readIf("IDENTITY") || readIf("BIGSERIAL")) {
+        boolean isIdentity = false; //无用，没有被设为true，一直是false
+        //IDENTITY和SERIAL相当于字段类型名，是两个特殊的列类型
+        if (readIf("IDENTITY") || readIf("BIGSERIAL")) { //如: CREATE TABLE IF NOT EXISTS mytable (f1 IDENTITY(1,10))
             column = new Column(columnName, Value.LONG);
             column.setOriginalSQL("IDENTITY");
             parseAutoIncrement(column);
             // PostgreSQL compatibility
-            if (!database.getMode().serialColumnIsNotPK) {
+            if (!database.getMode().serialColumnIsNotPK) { //只有PostgreSQL的serialColumnIsNotPK是true
                 column.setPrimaryKey(true);
             }
         } else if (readIf("SERIAL")) {
@@ -3856,11 +4106,11 @@ public class Parser {
             column.setOriginalSQL("SERIAL");
             parseAutoIncrement(column);
             // PostgreSQL compatibility
-            if (!database.getMode().serialColumnIsNotPK) {
+            if (!database.getMode().serialColumnIsNotPK) { //只有PostgreSQL的serialColumnIsNotPK是true
                 column.setPrimaryKey(true);
             }
         } else {
-            column = parseColumnWithType(columnName);
+            column = parseColumnWithType(columnName); //解析列类型
         }
         if (readIf("NOT")) {
             read("NULL");
@@ -3869,10 +4119,11 @@ public class Parser {
             column.setNullable(true);
         } else {
             // domains may be defined as not nullable
+        	//在上面调用过parseAutoIncrement时，column.isNullable()是false
             column.setNullable(defaultNullable & column.isNullable());
         }
-        if (readIf("AS")) {
-            if (isIdentity) {
+        if (readIf("AS")) { //与DEFAULT有点相似
+            if (isIdentity) { //无用，没有被设为true，一直是false
                 getSyntaxError();
             }
             Expression expr = readExpression();
@@ -3959,7 +4210,7 @@ public class Parser {
     }
 
     private Column parseColumnWithType(String columnName) {
-        String original = currentToken;
+        String original = currentToken; //字段类型
         boolean regular = false;
         if (readIf("LONG")) {
             if (readIf("RAW")) {
@@ -4090,14 +4341,19 @@ public class Parser {
         column.setOriginalSQL(original);
         return column;
     }
-
+    
+    //可以用Create建立13种数据库对象
+	//USER ROLE SCHEMA
+	//AGGREGATE ALIAS CONSTANT
+	//SEQUENCE TRIGGER DOMAIN(或TYPE或DATATYPE)
+	//TABLE LINKED_TABLE VIEW INDEX
     private Prepared parseCreate() {
-        boolean orReplace = false;
+        boolean orReplace = false; //只对VIEW真正起作用
         if (readIf("OR")) {
             read("REPLACE");
             orReplace = true;
         }
-        boolean force = readIf("FORCE");
+        boolean force = readIf("FORCE"); //只对VIEW、AGGREGATE、ALIAS、TRIGGER、LINKED_TABLE真正起作用
         if (readIf("VIEW")) {
             return parseCreateView(force, orReplace);
         } else if (readIf("ALIAS")) {
@@ -4125,8 +4381,8 @@ public class Parser {
         } else if (readIf("LINKED")) {
             return parseCreateLinkedTable(false, false, force);
         }
-        // tables or linked tables
-        boolean memory = false, cached = false;
+        // tables or linked tables or 索引(最后一个else部份的代码)
+        boolean memory = false, cached = false; //这两个变量对索引无用
         if (readIf("MEMORY")) {
             memory = true;
         } else if (readIf("CACHED")) {
@@ -4154,21 +4410,27 @@ public class Parser {
             return parseCreateTable(true, true, cached);
         } else if (readIf("TABLE")) {
             if (!cached && !memory) {
+            	//默认就是TYPE_CACHED，所以cached为true，也就是传给parseCreateTable方法时，persistIndexes为true
+            	//可通过SET DEFAULT_TABLE_TYPE xxx修改
                 cached = database.getDefaultTableType() == Table.TYPE_CACHED;
             }
             return parseCreateTable(false, false, cached);
-        } else {
+        } else { //这个else分枝是处理建索引语法
             boolean hash = false, primaryKey = false;
             boolean unique = false, spatial = false;
             String indexName = null;
             Schema oldSchema = null;
             boolean ifNotExists = false;
+            //对于这样的语法:CREATE PRIMARY KEY HASH ON CreateIndexTest(f1)
+            //此时没有INDEX关键字，也没有定义索引名称，在CreateIndex里会自动生成
+            //PRIMARY KEY索引不用INDEX关键字
             if (readIf("PRIMARY")) {
                 read("KEY");
                 if (readIf("HASH")) {
                     hash = true;
                 }
                 primaryKey = true;
+                //如CREATE PRIMARY KEY HASH IF NOT EXISTS idx0 ON CreateIndexTest(f1)
                 if (!isToken("ON")) {
                     ifNotExists = readIfNoExists();
                     indexName = readIdentifierWithSchema(null);
@@ -4262,15 +4524,10 @@ public class Parser {
         }
         if (tableClauseExpected) {
             if (readIf("ON")) {
-                if (readIf("SCHEMA")) {
-                    Schema schema = database.getSchema(readAliasIdentifier());
-                    command.setSchema(schema);
-                } else {
-                    do {
-                        Table table = readTableOrView();
-                        command.addTable(table);
-                    } while (readIf(","));
-                }
+                do {
+                    Table table = readTableOrView();
+                    command.addTable(table);
+                } while (readIf(","));
             }
         }
         if (operationType == CommandInterface.GRANT) {
@@ -4761,7 +5018,7 @@ public class Parser {
         read("RENAME");
         read("TO");
         String newName = readIdentifierWithSchema(old.getName());
-        checkSchema(old);
+        checkSchema(old); //例如 ALTER INDEX mydb.public.idx0 RENAME TO schema0.idx1
         command.setNewName(newName);
         return command;
     }
@@ -5317,6 +5574,8 @@ public class Parser {
     }
 
     private Prepared parseAlterTable() {
+    	//ALTER TABLE命令就分下面5大类: 
+        //增加约束、增加列、重命名表、DROP约束和列、修改列
         Table table = readTableOrView();
         if (readIf("ADD")) {
             Prepared command = parseAlterTableAddConstraintIf(table.getName(),
@@ -5324,6 +5583,8 @@ public class Parser {
             if (command != null) {
                 return command;
             }
+            //ADD COLUMN时不能加约束，比如这个是错的:
+            //ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int PRIMARY KEY
             return parseAlterTableAddColumn(table);
         } else if (readIf("SET")) {
             read("REFERENTIAL_INTEGRITY");
@@ -5383,6 +5644,9 @@ public class Parser {
                 command.setIndexName(idx.getName());
                 return command;
             } else {
+            	//如:
+            	//sql = "ALTER TABLE mytable DROP COLUMN f1";
+                //sql = "ALTER TABLE mytable DROP f1";
                 readIf("COLUMN");
                 boolean ifExists = readIfExists(false);
                 AlterTableAlterColumn command = new AlterTableAlterColumn(
@@ -5574,10 +5838,14 @@ public class Parser {
             Schema schema) {
         String constraintName = null, comment = null;
         boolean ifNotExists = false;
-        boolean allowIndexDefinition = database.getMode().indexDefinitionInCreateTable;
+        boolean allowIndexDefinition = database.getMode().indexDefinitionInCreateTable; //只有MySQL Mode是true
+        
+        //定义约束名称
         if (readIf("CONSTRAINT")) {
             ifNotExists = readIfNoExists();
             constraintName = readIdentifierWithSchema(schema.getName());
+            //表名schema和约束schema必须一样
+            //比如这样是错的: CREATE TABLE  myschema.mytable (f1 int, CONSTRAINT public.my_constraint)
             checkSchema(schema);
             comment = readCommentIf();
             allowIndexDefinition = true;
@@ -5595,6 +5863,8 @@ public class Parser {
             }
             read("(");
             command.setIndexColumns(parseIndexColumnList());
+            //可以指定一个不存在的索引，但是也不会报错
+            //如: PRIMARY KEY HASH(f1,f2) INDEX myindex
             if (readIf("INDEX")) {
                 String indexName = readIdentifierWithSchema();
                 command.setIndex(getSchema().findIndex(session, indexName));
@@ -5605,6 +5875,10 @@ public class Parser {
             // need to read ahead, as it could be a column name
             int start = lastParseIndex;
             read();
+            //例如
+            //CREATE TABLE IF NOT EXISTS mytable (f1 int,CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' INDEX int)
+            //也是合法的，其中“INDEX int”被当成了字段
+            //而“CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha'”被忽视了
             if (DataType.getTypeByName(currentToken) != null) {
                 // known data type
                 parseIndex = start;
@@ -5614,7 +5888,9 @@ public class Parser {
             CreateIndex command = new CreateIndex(session, schema);
             command.setComment(comment);
             command.setTableName(tableName);
+            //或者不指定索引名INDEX(f1,f2)，当执行org.h2.command.ddl.CreateIndex.update()时会自动生成一个索引名(以"INDEX_"开头)
             if (!readIf("(")) {
+            	//指定索引名INDEX myindex(f1,f2)
                 command.setIndexName(readUniqueIdentifier());
                 read("(");
             }
@@ -5636,10 +5912,12 @@ public class Parser {
             command = new AlterTableAddConstraint(session, schema, ifNotExists);
             command.setType(CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_UNIQUE);
             if (!readIf("(")) {
+            	//又可以制定约束名，如UNIQUE KEY INDEX myunique(f1,f2)，覆盖前面CONSTRAINT中定义的约束名
                 constraintName = readUniqueIdentifier();
                 read("(");
             }
             command.setIndexColumns(parseIndexColumnList());
+            //同前面的PRIMARY KEY
             if (readIf("INDEX")) {
                 String indexName = readIdentifierWithSchema();
                 command.setIndex(getSchema().findIndex(session, indexName));
@@ -5654,7 +5932,8 @@ public class Parser {
             read("KEY");
             read("(");
             command.setIndexColumns(parseIndexColumnList());
-            if (readIf("INDEX")) {
+            //同前面的PRIMARY KEY
+            if (readIf("INDEX")) { //指定主表索引
                 String indexName = readIdentifierWithSchema();
                 command.setIndex(schema.findIndex(session, indexName));
             }
@@ -5681,6 +5960,9 @@ public class Parser {
     private void parseReferences(AlterTableAddConstraint command,
             Schema schema, String tableName) {
         if (readIf("(")) {
+        	//相同表中的字段互相引用，如:
+        	//CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int REFERENCES(f1))
+        	//f2引用f1
             command.setRefTableName(schema, tableName);
             command.setRefIndexColumns(parseIndexColumnList());
         } else {
@@ -5690,11 +5972,12 @@ public class Parser {
                 command.setRefIndexColumns(parseIndexColumnList());
             }
         }
-        if (readIf("INDEX")) {
+        //如CREATE TABLE IF NOT EXISTS mytable3 (f1 int REFERENCES mytable1(f2) INDEX myindex ON DELETE CASCADE
+        if (readIf("INDEX")) { //指定引用表索引
             String indexName = readIdentifierWithSchema();
             command.setRefIndex(getSchema().findIndex(session, indexName));
         }
-        while (readIf("ON")) {
+        while (readIf("ON")) { //如果有多个ON DELETE或UPDATE，只有最后一个有效
             if (readIf("DELETE")) {
                 command.setDeleteAction(parseAction());
             } else {
@@ -5722,7 +6005,7 @@ public class Parser {
         command.setTableName(tableName);
         command.setComment(readCommentIf());
         read("(");
-        command.setDriver(readString());
+        command.setDriver(readString()); //readString()要加单引号，如'com.mysql.jdbc.Driver'
         read(",");
         command.setUrl(readString());
         read(",");
@@ -5745,11 +6028,13 @@ public class Parser {
         }
         return command;
     }
-
-    private CreateTable parseCreateTable(boolean temp, boolean globalTemp,
-            boolean persistIndexes) {
+    
+    //当CREATE CACHED TABLE时，persistIndexes为true
+    private CreateTable parseCreateTable(boolean temp, boolean globalTemp, boolean persistIndexes) {
         boolean ifNotExists = readIfNoExists();
         String tableName = readIdentifierWithSchema();
+        //如CREATE CACHED GLOBAL TEMPORARY TABLE IF NOT EXISTS TEST9.SESSION.mytable (f1 int)
+        //SESSION schema与GLOBAL TEMPORARY同时出现时会认为不是global的。
         if (temp && globalTemp && equalsToken("SESSION", schemaName)) {
             // support weird syntax: declare global temporary table session.xy
             // (...) not logged
@@ -5764,14 +6049,19 @@ public class Parser {
         command.setIfNotExists(ifNotExists);
         command.setTableName(tableName);
         command.setComment(readCommentIf());
-        if (readIf("(")) {
+        if (readIf("(")) { //可以没有列
             if (!readIf(")")) {
                 do {
-                    DefineCommand c = parseAlterTableAddConstraintIf(tableName,
-                            schema);
+                	//约束和字段可以分开
+                	//在parseAlterTableAddConstraintIf里头，如果指定的约束字段在字段定义之前也是可以的，
+                	//因为执行AlterTableAddConstraint时，字段已有了
+                	//如CREATE TABLE IF NOT EXISTS mytable3 (f1 int, PRIMARY KEY(f2), f2 int not null)是无错的，
+                	//虽然PRIMARY KEY(f2)在f2字段的定义之前
+                    DefineCommand c = parseAlterTableAddConstraintIf(tableName, schema); //定义约束
+
                     if (c != null) {
                         command.addConstraintCommand(c);
-                    } else {
+                    } else {  //定义字段
                         String columnName = readColumnIdentifier();
                         Column column = parseColumnForTable(columnName, true);
                         if (column.isAutoIncrement() && column.isPrimaryKey()) {
@@ -5787,16 +6077,21 @@ public class Parser {
                         }
                         command.addColumn(column);
                         String constraintName = null;
+                        
+                        //下面部分表示在字段后定义约束，如: name varchar PRIMARY KEY
                         if (readIf("CONSTRAINT")) {
                             constraintName = readColumnIdentifier();
                         }
+                        //如: f1 int CONSTRAINT c1 PRIMARY KEY HASH AUTO_INCREMENT(1000, 10)
+                        //此时CONSTRAINT名无用
                         if (readIf("PRIMARY")) {
                             read("KEY");
                             boolean hash = readIf("HASH");
                             IndexColumn[] cols = { new IndexColumn() };
                             cols[0].columnName = column.getName();
-                            AlterTableAddConstraint pk = new AlterTableAddConstraint(
-                                    session, schema, false);
+                            //指定false，意思就是没有带IF NOT EXISTS
+                            //字段类型后面紧跟约束定义不能带IF NOT EXISTS
+                            AlterTableAddConstraint pk = new AlterTableAddConstraint(session, schema, false);
                             pk.setPrimaryKeyHash(hash);
                             pk.setType(CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY);
                             pk.setTableName(tableName);
@@ -5902,7 +6197,7 @@ public class Parser {
                     read("LOGGED");
                 }
             }
-            if (readIf("TRANSACTIONAL")) {
+            if (readIf("TRANSACTIONAL")) { //只有临时表TRANSACTIONAL才会为true
                 command.setTransactional(true);
             }
         } else if (!persistIndexes && readIf("NOT")) {
@@ -5954,6 +6249,12 @@ public class Parser {
      * @param s the identifier
      * @return the quoted identifier
      */
+    //满足下列三个条件的字符串都要加双引号，并且如果字符串中的字符是双引号则用两个双引号表示
+    //1. 第一个字符不是字母也不是下划线，或者是小写
+    //2. 第二个字符开始的字符不是字母、不是数字、也不是下划线，或者是小写
+    //3. 字符串是一个关键字
+    //调用这个方法而不是直接调用StringUtils.quoteIdentifier性能更好，因为大多数情况就是一个普通的标识符，没有什么特殊的，
+    //这时就不必要再重新构造一个加引号的字符串
     public static String quoteIdentifier(String s) {
         if (s == null || s.length() == 0) {
             return "\"\"";

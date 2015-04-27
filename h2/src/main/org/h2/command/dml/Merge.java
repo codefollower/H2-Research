@@ -31,6 +31,7 @@ import org.h2.value.Value;
  * This class represents the statement
  * MERGE
  */
+//先更新，如果没有记录被更新，说明是一条新的记录，接着再插入
 public class Merge extends Prepared {
 
     private Table table;
@@ -151,6 +152,7 @@ public class Merge extends Prepared {
             Parameter p = k.get(columns.length + i);
             p.setValue(v);
         }
+        //先更新，如果没有记录被更新，说明是一条新的记录，接着再插入
         int count = update.update();
         if (count == 0) {
             try {
@@ -237,11 +239,14 @@ public class Merge extends Prepared {
     @Override
     public void prepare() {
         if (columns == null) {
+        	//例如: MERGE INTO MergeTest VALUES()
+        	//这种情况没用的，应该抛异常才对，否则下面生成update语句时会出错，像这样:
+        	//UPDATE PUBLIC.MERGETEST SET  WHERE ID=?
             if (list.size() > 0 && list.get(0).length == 0) {
                 // special case where table is used as a sequence
                 columns = new Column[0];
             } else {
-                columns = table.getColumns();
+                columns = table.getColumns(); //如: MERGE INTO MergeTest(SELECT * FROM tmpSelectTest)
             }
         }
         if (list.size() > 0) {
@@ -262,13 +267,15 @@ public class Merge extends Prepared {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
             }
         }
-        if (keys == null) {
+        if (keys == null) { //如果没有指定key，表里必须有主键字段
             Index idx = table.getPrimaryKey();
-            if (idx == null) {
+            if (idx == null) { //org.h2.table.Table.getPrimaryKey()里已处理null的情况了，除非有字类覆盖它
                 throw DbException.get(ErrorCode.CONSTRAINT_NOT_FOUND_1, "PRIMARY KEY");
             }
             keys = idx.getColumns();
         }
+        //例如: UPDATE PUBLIC.MERGETEST SET ID=?, NAME=? WHERE ID=?
+        //columns就是要更新的字段，keys当成where条件且用and拼装
         StatementBuilder buff = new StatementBuilder("UPDATE ");
         buff.append(table.getSQL()).append(" SET ");
         for (Column c : columns) {

@@ -435,7 +435,7 @@ public class DateTimeUtils {
         }
         int value = c.get(field);
         if (field == Calendar.MONTH) {
-            return value + 1;
+            return value + 1; //月份是从0开始的，所以要加1
         }
         return value;
     }

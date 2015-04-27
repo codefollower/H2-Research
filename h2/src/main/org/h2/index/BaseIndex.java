@@ -154,8 +154,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @param sortOrder the sort order
      * @return the estimated cost
      */
-    protected long getCostRangeIndex(int[] masks, long rowCount,
-            TableFilter filter, SortOrder sortOrder) {
+    //子类MVSpatialIndex、SpatialTreeIndex覆盖了此方法
+    protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) {
         rowCount += Constants.COST_ROW_OFFSET;
         long cost = rowCount;
         long rows = rowCount;
@@ -167,26 +167,33 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             Column column = columns[i];
             int index = column.getColumnId();
             int mask = masks[index];
+            //代价比较:
+            //EQUALITY < RANGE < END < START
+            //如果索引字段列表的第一个字段在Where中是RANGE、START、END，那么索引字段列表中的其他字段就不需要再计算cost了，
+            //如果是EQUALITY，则还可以继续计算cost，rows变量的值会变小，cost也会变小
             if ((mask & IndexCondition.EQUALITY) == IndexCondition.EQUALITY) {
+            	//索引字段列表中的最后一个在where当中是EQUALITY，且此索引是唯一索引时，cost直接是3
+            	//因为如果最后一个索引字段是EQUALITY，说明前面的字段全是EQUALITY，
+            	//如果是唯一索引则rowCount / distinctRows是1，所以rows = Math.max(rowCount / distinctRows, 1)=1
+            	//所以cost = 2 + rows = 3
                 if (i == columns.length - 1 && getIndexType().isUnique()) {
                     cost = 3;
                     break;
                 }
-                totalSelectivity = 100 - ((100 - totalSelectivity) *
-                        (100 - column.getSelectivity()) / 100);
-                long distinctRows = rowCount * totalSelectivity / 100;
+                totalSelectivity = 100 - ((100 - totalSelectivity) * (100 - column.getSelectivity()) / 100);
+                long distinctRows = rowCount * totalSelectivity / 100; //totalSelectivity变大时distinctRows变大
                 if (distinctRows <= 0) {
                     distinctRows = 1;
                 }
-                rows = Math.max(rowCount / distinctRows, 1);
-                cost = 2 + rows;
-            } else if ((mask & IndexCondition.RANGE) == IndexCondition.RANGE) {
+                rows = Math.max(rowCount / distinctRows, 1); //distinctRows变大，则rowCount / distinctRows变小，rows也变小
+                cost = 2 + rows; //rows也变小，所以cost也变小
+            } else if ((mask & IndexCondition.RANGE) == IndexCondition.RANGE) { //见TableFilter.getBestPlanItem中的注释
                 cost = 2 + rows / 4;
                 break;
             } else if ((mask & IndexCondition.START) == IndexCondition.START) {
                 cost = 2 + rows / 3;
                 break;
-            } else if ((mask & IndexCondition.END) == IndexCondition.END) {
+            } else if ((mask & IndexCondition.END) == IndexCondition.END) { //"<="的代价要小于">="
                 cost = rows / 3;
                 break;
             } else {
@@ -235,14 +242,14 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
     }
 
     @Override
-    public int compareRows(SearchRow rowData, SearchRow compare) {
+    public int compareRows(SearchRow rowData, SearchRow compare) { //只比较索引字段，并不一定是所有字段
         if (rowData == compare) {
             return 0;
         }
         for (int i = 0, len = indexColumns.length; i < len; i++) {
             int index = columnIds[i];
             Value v = compare.getValue(index);
-            if (v == null) {
+            if (v == null) { //只要compare中有null值就认为无法比较，直接认为rowData和compare相等(通常在查询时在where中再比较)
                 // can't compare further
                 return 0;
             }
@@ -265,9 +272,24 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      */
     protected boolean containsNullAndAllowMultipleNull(SearchRow newRow) {
         Mode mode = database.getMode();
+        //1. 对于唯一索引，必须完全唯一，适用于Derby/HSQLDB/MSSQLServer
         if (mode.uniqueIndexSingleNull) {
+        	//不允许出现:
+        	//(x, null)
+        	//(x, null)
+        	//也不允许出现:
+        	//(null, null)
+        	//(null, null)
             return false;
         } else if (mode.uniqueIndexSingleNullExceptAllColumnsAreNull) {
+        	//2. 对于唯一索引，索引记录可以全为null，适用于Oracle
+        	
+        	//不允许出现:
+        	//(x, null)
+        	//(x, null)
+        	//但是允许出现:
+        	//(null, null)
+        	//(null, null)
             for (int index : columnIds) {
                 Value v = newRow.getValue(index);
                 if (v != ValueNull.INSTANCE) {
@@ -276,12 +298,24 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             }
             return true;
         }
+        //3. 对于唯一索引，只要一个为null，就是合法的，适用于REGULAR(即H2)/DB2/MySQL/PostgreSQL
+        
+        //即允许出现:
+    	//(x, null)
+    	//(x, null)
+    	//也允许出现:
+    	//(null, null)
+    	//(null, null)
+        
+        //也就是说，只要相同的两条索引记录包含null即可
         for (int index : columnIds) {
             Value v = newRow.getValue(index);
             if (v == ValueNull.INSTANCE) {
                 return true;
             }
         }
+        
+        //4. 对于唯一索引，没有null时是不允许出现两条相同的索引记录的
         return false;
     }
 
@@ -316,14 +350,14 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             return SortOrder.compareNull(aNull, sortType);
         }
         int comp = table.compareTypeSave(a, b);
-        if ((sortType & SortOrder.DESCENDING) != 0) {
+        if ((sortType & SortOrder.DESCENDING) != 0) { //降序时，把比较结果反过来
             comp = -comp;
         }
         return comp;
     }
 
     @Override
-    public int getColumnIndex(Column col) {
+    public int getColumnIndex(Column col) { //并不是返回列id，而是索引字段列表中的位置
         for (int i = 0, len = columns.length; i < len; i++) {
             if (columns[i].equals(col)) {
                 return i;
@@ -413,7 +447,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
     }
 
     @Override
-    public boolean isRowIdIndex() {
+    public boolean isRowIdIndex() { //只有org.h2.mvstore.db.MVPrimaryIndex和org.h2.index.PageDataIndex返回true
         return false;
     }
 
@@ -423,7 +457,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
     }
 
     @Override
-    public void setSortedInsertMode(boolean sortedInsertMode) {
+    public void setSortedInsertMode(boolean sortedInsertMode) { //只有org.h2.index.PageIndex覆盖
         // ignore
     }
 

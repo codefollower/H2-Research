@@ -17,6 +17,7 @@ import org.h2.table.TableLink;
  * This class represents the statement
  * CREATE LINKED TABLE
  */
+//没有对应的Drop语句，真接用DROP TABLE
 public class CreateLinkedTable extends SchemaCommand {
 
     private String tableName;

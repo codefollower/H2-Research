@@ -8,9 +8,10 @@ package org.h2.util;
 /**
  * A list of bits.
  */
+//下标都是从0开始计数的，data[0]表示0到63，data[1]表示64到127。。。
 public final class BitField {
 
-    private static final int ADDRESS_BITS = 6;
+    private static final int ADDRESS_BITS = 6; //表示2的6次方，刚好等于64, i >> ADDRESS_BITS时能确定是在data中那个下标
     private static final int BITS = 64;
     private static final int ADDRESS_MASK = BITS - 1;
     private long[] data;
@@ -20,7 +21,33 @@ public final class BitField {
         this(64);
     }
 
+	// 我加上的
+	public String toString() {
+		return stringArray2(data);
+	}
+
+	// 我加上的
+	public static String stringArray2(long[] array) {
+		if (array == null) {
+			return "null";
+		}
+		StatementBuilder buff = new StatementBuilder("[");
+		for (Object a : array) {
+			buff.appendExceptFirst(", ");
+			buff.append(a.toString());
+		}
+
+		buff.append("]");
+		return buff.toString();
+	}
+    
+    //capacity表示总位数
     public BitField(int capacity) {
+    	//如果capacity小于8(2的三次方)，那么不预先分配data
+    	//capacity>8时，分配capacity >>> 3个long,一个long能表示64倍，
+    	//所以capacity>8时预分配的data能表示的位数是: (capacity >>> 3) *64 约等于 (capacity/8)*64 = capacity*8
+    	//即是原来capacity的8倍(约等于)
+    	
         data = new long[capacity >>> 3];
     }
 
@@ -34,7 +61,7 @@ public final class BitField {
         int i = fromIndex >> ADDRESS_BITS;
         int max = data.length;
         for (; i < max; i++) {
-            if (data[i] == -1) {
+            if (data[i] == -1) { //long的所有位都是1时，值时-1
                 continue;
             }
             int j = Math.max(fromIndex, i << ADDRESS_BITS);
@@ -118,9 +145,11 @@ public final class BitField {
         }
         data[addr] &= ~getBitMask(i);
     }
-
+    
+    //比如，如果i是63，返回的long值的第64(因为i从0开始，所以是i+1)位是1，
+    //如果i是65，按63取模后是1，返回的long值的第2位是1，
     private static long getBitMask(int i) {
-        return 1L << (i & ADDRESS_MASK);
+        return 1L << (i & ADDRESS_MASK); //(i & ADDRESS_MASK)相当于按63取模(得到的值是0到63)
     }
 
     private void checkCapacity(int size) {

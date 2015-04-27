@@ -24,7 +24,8 @@ public class ConditionExists extends Condition {
     public ConditionExists(Query query) {
         this.query = query;
     }
-
+    
+    //只要query有记录就返回true
     @Override
     public Value getValue(Session session) {
         query.setSession(session);

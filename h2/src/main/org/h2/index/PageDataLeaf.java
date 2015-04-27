@@ -88,8 +88,8 @@ public class PageDataLeaf extends PageData {
      * @return the page
      */
     static PageDataLeaf create(PageDataIndex index, int pageId, int parentPageId) {
-        PageDataLeaf p = new PageDataLeaf(index, pageId, index.getPageStore()
-                .createData());
+        PageDataLeaf p = new PageDataLeaf(index, pageId, index.getPageStore().createData());
+        //从org.h2.store.PageStore.openNew()转到这时，因为recoveryRunning是true，所以logUndo什么都没做
         index.getPageStore().logUndo(p, null);
         p.rows = Row.EMPTY_ARRAY;
         p.parentPageId = parentPageId;
@@ -166,6 +166,10 @@ public class PageDataLeaf extends PageData {
         int rowLength = getRowLength(row);
         int pageSize = index.getPageStore().getPageSize();
         int last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
+        //为什么要加2? 因为写offset时offset占了两个字节
+        //start一开始是11，因为PageDataLeaf的头部占了11字节，
+        //写完头部以后接着按行个数写key和Offset，key是可变long
+        //这里的判断用来保证一个page中能写下头部和key\Offset对，否则要对此page切割成两个
         int keyOffsetPairLen = 2 + Data.getVarLongLen(row.getKey());
         if (entryCount > 0 && last - rowLength < start + keyOffsetPairLen) {
             int x = findInsertionPoint(row.getKey());
@@ -221,20 +225,31 @@ public class PageDataLeaf extends PageData {
         }
         if (offset < start) {
             writtenData = false;
+            //数据Overflow的当前行独占一个新的PageDataLeaf，entryCount为1
             if (entryCount > 1) {
                 DbException.throwInternalError();
             }
             // need to write the overflow page id
             start += 4;
-            int remaining = rowLength - (pageSize - start);
+            
+            //假定key的可变long是1,
+            //数据Overflow的PageDataLeaf如果pageSize是128，那么此时start为18(头部  11+ key和offset 3 + overflow page id 4)
+            //所以此PageDataLeaf只存了pageSize - start个字节，当前行剩余的字节放在PageDataOverflow中，
+            //如果一个PageDataOverflow还放不完当前行，则用多个PageDataOverflow，
+            //多个PageDataOverflow之间会通过他们的next page id串起来
+            
+            //假设rowLength=260，那么此PageDataLeaf存放其中的110个字节
+            //第一个PageDataOverflow存放117个字节(128-11)
+            //第二个PageDataOverflow存放最后33个字节
+            int remaining = rowLength - (pageSize - start); //remaining=150
             // fix offset
             offset = start;
             offsets[x] = offset;
             int previous = getPos();
-            int dataOffset = pageSize;
+            int dataOffset = pageSize; //下一次从 Data all这个字节数组的哪个地方copy字节到PageDataOverflow中
             int page = index.getPageStore().allocatePage();
             firstOverflowPageId = page;
-            this.overflowRowSize = pageSize + rowLength;
+            this.overflowRowSize = pageSize + rowLength; //这个只是尽可能多的估算Data要多大的字节数组
             writeData();
             // free up the space used by the row
             Row r = rows[0];
@@ -377,7 +392,7 @@ public class PageDataLeaf extends PageData {
             if (split != -1) {
                 DbException.throwInternalError("split " + split);
             }
-            removeRow(splitPoint);
+            removeRow(splitPoint); //splitPoint后的元素往前移
         }
         return p2;
     }

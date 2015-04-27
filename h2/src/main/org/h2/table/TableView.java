@@ -40,6 +40,30 @@ import org.h2.value.Value;
  * @author Thomas Mueller
  * @author Nicolas Fortin, Atelier SIG, IRSTV FR CNRS 24888
  */
+/*
+         有三种产生TableView的方式:
+	1. CREATE VIEW语句
+
+	如: CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view COMMENT IS 'my view'(f1,f2) 
+			AS SELECT id,name FROM CreateViewTest
+
+
+	2. 嵌入在FROM中的临时视图
+
+	如: select id,name from (select id,name from CreateViewTest)
+
+
+	3. WITH RECURSIVE语句
+
+	如: WITH RECURSIVE my_tmp_table(f1,f2) 
+			AS (select id,name from CreateViewTest UNION ALL select 1, 2) 
+				select f1, f2 from my_tmp_table
+	RECURSIVE这个关键字是可选的
+
+
+	只有2可以带Parameters，它是通过这个方法调用: org.h2.table.TableView.createTempView(Session, User, String, Query, Query)
+	只有3的recursive是true 
+ */
 public class TableView extends Table {
 
     private static final long ROW_COUNT_APPROXIMATION = 100;
@@ -82,8 +106,13 @@ public class TableView extends Table {
         String oldQuerySQL = this.querySQL;
         String[] oldColumnNames = this.columnNames;
         boolean oldRecursive = this.recursive;
+        //init里执行了一次initColumnsAndTables，虽然执行了两次initColumnsAndTables，但是init中还建立了ViewIndex
+        //所以这里是必须调用init的
         init(querySQL, null, columnNames, session, recursive);
+        //recompile里又执行了一次initColumnsAndTables
         DbException e = recompile(session, force);
+        
+        //如果失败了，按原来的重新来过
         if (e != null) {
             init(oldQuerySQL, null, oldColumnNames, session, oldRecursive);
             recompile(session, true);
@@ -126,6 +155,13 @@ public class TableView extends Table {
                 return e;
             }
         }
+        
+        //如下:
+        //CREATE OR REPLACE FORCE VIEW my_view(f1,f2) AS SELECT id,name FROM CreateViewTest
+		//CREATE OR REPLACE FORCE VIEW view1 AS SELECT f1 FROM my_view
+		//CREATE OR REPLACE FORCE VIEW view2 AS SELECT f2 FROM my_view
+        //view1和view2是建立在my_view这个视图之上，当要recompile my_view时，因为view1和view2依赖了my_view
+        //所以要对他们重新recompile，这里getViews()返回view1和view2
         ArrayList<TableView> views = getViews();
         if (views != null) {
             views = New.arrayList(views);
@@ -148,14 +184,32 @@ public class TableView extends Table {
         Column[] cols;
         removeViewFromTables();
         try {
-            Query query = compileViewQuery(session, querySQL);
+            Query query = compileViewQuery(session, querySQL); //重新对select语句进行解析和prepare
             this.querySQL = query.getPlanSQL();
             tables = New.arrayList(query.getTables());
             ArrayList<Expression> expressions = query.getExpressions();
             ArrayList<Column> list = New.arrayList();
+            
+    		//select字段个数比view字段多的情况，多出来的按select字段原来的算
+    		//这里实际是f1、name
+    		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1) " //
+    		//		+ "AS SELECT id,name FROM CreateViewTest";
+
+    		//select字段个数比view字段少的情况，view中少的字段被忽略
+    		//这里实际是f1，而f2被忽略了，也不提示错误
+    		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
+    		//		+ "AS SELECT id FROM CreateViewTest";
+
+    		//不管加不加FORCE，跟上面也一样
+    		//sql = "CREATE OR REPLACE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
+    		//		+ "AS SELECT id FROM CreateViewTest";
+            
+            //expressions.size有可能大于query.getColumnCount()，因为query.getColumnCount()不包含group by等额外加进来的表达式
             for (int i = 0, count = query.getColumnCount(); i < count; i++) {
                 Expression expr = expressions.get(i);
                 String name = null;
+                //如CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
+                //没有为视图指定字段的时候，用select字段列表中的名字，此时columnNames==null
                 if (columnNames != null && columnNames.length > i) {
                     name = columnNames[i];
                 }

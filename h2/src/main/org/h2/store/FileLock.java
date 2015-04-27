@@ -352,7 +352,7 @@ public class FileLock implements Runnable {
             save();
             sleep(2 * sleep);
             if (!load().equals(properties)) {
-                throw getExceptionAlreadyInUse("Locked by another process: " + fileName);
+                throw getExceptionAlreadyInUse("Locked by another process");
             }
             FileUtils.delete(fileName);
             if (!FileUtils.createFile(fileName)) {
