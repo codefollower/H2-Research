@@ -14,7 +14,7 @@ import org.h2.util.New;
 /**
  * The data required to create a table.
  */
-//总共12个字段，都是默认值(null、false、0等)，只有columns字段不为null
+//总共13个字段，都是默认值(null、false、0等)，只有columns字段不为null
 public class CreateTableData {
 
     /**

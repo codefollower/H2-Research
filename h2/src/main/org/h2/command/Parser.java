@@ -4092,7 +4092,7 @@ public class Parser {
             boolean defaultNullable) {
         Column column;
         boolean isIdentity = false; //无用，没有被设为true，一直是false
-        //IDENTITY和SERIAL相当于字段类型名，是两个特殊的列类型
+        //IDENTITY、BIGSERIAL、SERIAL相当于字段类型名，是3个特殊的列类型
         if (readIf("IDENTITY") || readIf("BIGSERIAL")) { //如: CREATE TABLE IF NOT EXISTS mytable (f1 IDENTITY(1,10))
             column = new Column(columnName, Value.LONG);
             column.setOriginalSQL("IDENTITY");

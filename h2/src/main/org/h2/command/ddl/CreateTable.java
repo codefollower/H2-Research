@@ -132,7 +132,7 @@ public class CreateTable extends SchemaCommand {
             }
         }
         data.id = getObjectId(); //第一次新建时会分配一个id
-        data.create = create;
+        data.create = create; //只有在打开数据库通过MetaRecord的方式执行时create才为false，会调用Prepared.setObjectId(int)
         data.session = session;
         Table table = getSchema().createTable(data);
         ArrayList<Sequence> sequences = New.arrayList();

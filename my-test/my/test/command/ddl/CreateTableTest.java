@@ -36,6 +36,8 @@ public class CreateTableTest extends TestBase {
         sql = "CREATE MEMORY TEMP TABLE IF NOT EXISTS t3";
         sql = "CREATE MEMORY TEMPORARY TABLE IF NOT EXISTS t4";
 
+        sql = "CREATE TABLE IF NOT EXISTS mytable1 COMMENT IS 'my table'";
+
         stmt.executeUpdate(sql);
 
         //stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable1 (f1 int,PRIMARY KEY(f1), f2 int not null)");

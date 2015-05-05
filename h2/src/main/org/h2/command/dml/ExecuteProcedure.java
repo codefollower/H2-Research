@@ -19,6 +19,7 @@ import org.h2.util.New;
  * This class represents the statement
  * EXECUTE
  */
+//参见例子my.test.command.dml.ExecuteProcedureTest
 public class ExecuteProcedure extends Prepared {
 
     private final ArrayList<Expression> expressions = New.arrayList();

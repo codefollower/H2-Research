@@ -17,6 +17,7 @@ import org.h2.util.New;
  * This class represents the statement
  * PREPARE
  */
+//参见例子my.test.command.dml.ExecuteProcedureTest
 public class PrepareProcedure extends DefineCommand {
 
     private String procedureName;
