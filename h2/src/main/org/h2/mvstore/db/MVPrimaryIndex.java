@@ -236,7 +236,7 @@ public class MVPrimaryIndex extends BaseIndex {
     }
 
     @Override
-    public void remove(Session session) {
+    public void remove(Session session) { //对应drop table
         TransactionMap<Value, Value> map = getMap(session);
         if (!map.isClosed()) {
             Transaction t = mvTable.getTransaction(session);
@@ -245,7 +245,7 @@ public class MVPrimaryIndex extends BaseIndex {
     }
 
     @Override
-    public void truncate(Session session) {
+    public void truncate(Session session) { //对应truncate table，只清空记录，不清元数据
         TransactionMap<Value, Value> map = getMap(session);
         if (mvTable.getContainsLargeObject()) {
             database.getLobStorage().removeAllForTable(table.getId());
@@ -259,7 +259,7 @@ public class MVPrimaryIndex extends BaseIndex {
     }
 
     @Override
-    public Cursor findFirstOrLast(Session session, boolean first) {
+    public Cursor findFirstOrLast(Session session, boolean first) { //用于快束min、max聚合查询，只有建立了PRIMARY KEY才有用
         TransactionMap<Value, Value> map = getMap(session);
         ValueLong v = (ValueLong) (first ? map.firstKey() : map.lastKey());
         if (v == null) {

@@ -37,6 +37,9 @@ import org.h2.value.ValueNull;
 /**
  * A table stored in a MVStore.
  */
+//索引数据也放在Map中，
+//map的key由索引字段和MVPrimaryIndex的key组成，把它们合成一个ValueArray，MVPrimaryIndex的key放在ValueArray的最后，
+//map的value总是ValueNull.INSTANCE
 public class MVSecondaryIndex extends BaseIndex implements MVIndex {
 
     /**
@@ -183,7 +186,7 @@ public class MVSecondaryIndex extends BaseIndex implements MVIndex {
         TransactionMap<Value, Value> map = getMap(session);
         ValueArray array = convertToKey(row);
         ValueArray unique = null;
-        if (indexType.isUnique()) {
+        if (indexType.isUnique()) { //为唯一索引的增加记录的代价很高，前后都要检查map一次，是否考虑用HashMap?
             // this will detect committed entries only
             unique = convertToKey(row);
             unique.getList()[keyColumns - 1] = ValueLong.get(Long.MIN_VALUE);

@@ -127,7 +127,7 @@ public interface Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor
      */
-    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化
+    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化(2015-05-06更新: MVSecondaryIndex已支持)
     //比如这样的SQL: select distinct name from test
     //就算为name字段建立了索引也不行
     Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //只有org.h2.index.PageBtreeIndex实现了
