@@ -240,6 +240,7 @@ public class MVTableEngine implements TableEngine {
                     store.removeMap(map);
                 } else if (mapName.startsWith("table.") || mapName.startsWith("index.")) {
                     int id = Integer.parseInt(mapName.substring(1 + mapName.indexOf(".")));
+                    //上层的SYS表中没有对应id的表和索引元数据了，这时与MVStore中的meta表存放的不一致，所以删除
                     if (!objectIds.get(id)) {
                         ValueDataType keyType = new ValueDataType(null, null, null);
                         ValueDataType valueType = new ValueDataType(null, null, null);

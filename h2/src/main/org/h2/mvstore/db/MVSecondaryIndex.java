@@ -186,7 +186,7 @@ public class MVSecondaryIndex extends BaseIndex implements MVIndex {
         TransactionMap<Value, Value> map = getMap(session);
         ValueArray array = convertToKey(row);
         ValueArray unique = null;
-        if (indexType.isUnique()) { //为唯一索引的增加记录的代价很高，前后都要检查map一次，是否考虑用HashMap?
+        if (indexType.isUnique()) { //为唯一索引增加记录的代价很高，前后都要检查map一次，是否考虑用HashMap?
             // this will detect committed entries only
             unique = convertToKey(row);
             unique.getList()[keyColumns - 1] = ValueLong.get(Long.MIN_VALUE);

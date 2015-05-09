@@ -191,10 +191,11 @@ public class TransactionStore {
                 int status;
                 String name;
                 if (data == null) {
+                    //事务的第一条undoLog还存在，说明未提产过，还在打开状态
                     if (undoLog.containsKey(getOperationId(transactionId, 0))) {
                         status = Transaction.STATUS_OPEN;
                     } else {
-                        status = Transaction.STATUS_COMMITTING;
+                        status = Transaction.STATUS_COMMITTING; //事务的第一条undoLog不存在，说明正在提交过程中被中断了
                     }
                     name = null;
                 } else {
@@ -204,7 +205,7 @@ public class TransactionStore {
                 Transaction t = new Transaction(this, transactionId, status,
                         name, logId);
                 list.add(t);
-                key = undoLog.ceilingKey(getOperationId(transactionId + 1, 0));
+                key = undoLog.ceilingKey(getOperationId(transactionId + 1, 0)); //读下一个事务产生的undoLog
             }
             return list;
         }
