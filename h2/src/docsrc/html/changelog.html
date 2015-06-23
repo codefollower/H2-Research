@@ -21,6 +21,27 @@ Change Log
 
 <h2>Next Version (unreleased)</h2>
 <ul>
+<li>Pull request #137: SourceCompiler should not throw a syntax error on javac warning.
+</li>
+<li>MVStore: out of memory while storing could corrupt the store
+    (theoretically, a rollback would be possible, but this case is not yet implemented).
+</li>
+<li>The compressed in-memory file systems (memLZF:) could not be used in the MVStore.
+</li>
+<li>The in-memory file systems (memFS: and memLZF:) did not support files larger than 2 GB
+    due to an integer overflow.
+</li>
+<li>Pull request #138: Added the simple Oracle function: ORA_HASH (+ tests) #138
+</li>
+<li>Timestamps in the trace log follow the format (yyyy-MM-dd HH:mm:ss) instead
+of the old format (MM-dd HH:mm:ss). Patch by Richard Bull.
+</li>
+<li>Pull request #125: Improved Oracle compatibility with "truncate" with timestamps and dates.
+</li>
+<li>Pull request #127: Linked tables now support geometry columns.
+</li>
+<li>ABS(CAST(0.0 AS DOUBLE)) returned -0.0 instead of 0.0.
+</li>
 <li>BNF auto-completion failed with unquoted identifiers.
 </li>
 <li>Oracle compatibility: empty strings were not converted to NULL when using prepared statements.

@@ -1986,7 +1986,8 @@ public class Database implements DataHandler {
             DbException b = backgroundException;
             backgroundException = null;
             if (b != null) {
-                throw b;
+                // wrap the exception, so we see it was thrown here
+                throw DbException.get(b.getErrorCode(), b, b.getMessage());
             }
         }
     }
