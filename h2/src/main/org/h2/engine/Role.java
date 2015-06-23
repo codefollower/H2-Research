@@ -65,7 +65,7 @@ public class Role extends RightOwner {
     //删除权限(类似于调用revoke命令)
     @Override
     public void removeChildrenAndResources(Session session) {
-    	//与一个此role相关的权限有三种
+    	//与一个role相关的权限有三种
     	//前两种是此role被动授予给其他RightOwner的(包括用户和其他角色)
     	//另一种是授予给此role自己的
     	

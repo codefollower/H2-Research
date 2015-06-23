@@ -118,7 +118,7 @@ public class SetComment extends DefineCommand {
                     db.addDatabaseObject(session, comment);
                 }
             } else {
-                if (text == null) {
+                if (text == null) { //例如: COMMENT ON ROLE myrole IS NULL
                     db.removeDatabaseObject(session, comment);
                 } else {
                     comment.setCommentText(text);

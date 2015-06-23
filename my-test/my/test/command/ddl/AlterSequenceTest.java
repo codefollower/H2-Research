@@ -15,25 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package my.test.constraint;
+package my.test.command.ddl;
 
 import my.test.TestBase;
 
-public class ConstraintCheckTest extends TestBase {
+public class AlterSequenceTest extends TestBase {
     public static void main(String[] args) throws Exception {
-        new ConstraintCheckTest().start();
-    }
-
-    @Override
-    public void init() throws Exception {
+        new AlterSequenceTest().start();
     }
 
     @Override
     public void startInternal() throws Exception {
-        executeUpdate("DROP TABLE IF EXISTS ConstraintCheckTest");
-        executeUpdate("CREATE TABLE IF NOT EXISTS ConstraintCheckTest (f1 int)");
+        executeUpdate("DROP TABLE IF EXISTS AlterSequenceTest");
+        executeUpdate("DROP SEQUENCE IF EXISTS myseq");
+        executeUpdate("CREATE SEQUENCE IF NOT EXISTS myseq START WITH 1000 INCREMENT BY 1 CACHE 20");
 
-        executeUpdate("ALTER TABLE ConstraintCheckTest ADD CONSTRAINT mycheck CHECK (f1 > 1)");
-        tryExecuteUpdate("insert into ConstraintCheckTest(f1) values(1)");
+        sql = "CREATE TABLE IF NOT EXISTS AlterSequenceTest (f1 int, f2 int NULL_TO_DEFAULT SEQUENCE myseq) ";
+        executeUpdate(sql);
+
+        sql = "ALTER TABLE AlterSequenceTest ALTER COLUMN f2 RESTART WITH 2000";
+        executeUpdate();
+
+        // f1没有Sequence
+        sql = "ALTER TABLE AlterSequenceTest ALTER COLUMN f1 RESTART WITH 2000";
+        tryExecuteUpdate();
+
+        executeUpdate("ALTER SEQUENCE  myseq RESTART WITH 2000 INCREMENT BY 1 MINVALUE 100 MAXVALUE 10000 CYCLE CACHE 20");
     }
+
 }

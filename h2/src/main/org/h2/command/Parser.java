@@ -5728,7 +5728,7 @@ public class Parser {
                         session, table.getSchema());
                 command.setTable(table);
                 command.setOldColumn(column);
-                command.setType(CommandInterface.ALTER_TABLE_ALTER_COLUMN_NULL);
+                command.setType(CommandInterface.ALTER_TABLE_ALTER_COLUMN_NULL); //DROP NOT NULL相当于设为NULL
                 return command;
             } else if (readIf("TYPE")) {
                 // PostgreSQL compatibility
@@ -5808,7 +5808,7 @@ public class Parser {
                 columnsToAdd.add(column);
             } while (readIf(","));
             read(")");
-            command.setNewColumns(columnsToAdd);
+            command.setNewColumns(columnsToAdd); //这行是多余的
         } else {
             boolean ifNotExists = readIfNoExists();
             command.setIfNotExists(ifNotExists);
@@ -5899,7 +5899,7 @@ public class Parser {
             //而“CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha'”被忽视了
             if (DataType.getTypeByName(currentToken) != null) {
                 // known data type
-                parseIndex = start;
+                parseIndex = start; //重新从"INDEX"或"KEY"开始
                 read();
                 return null;
             }
@@ -6082,6 +6082,8 @@ public class Parser {
                     } else {  //定义字段
                         String columnName = readColumnIdentifier();
                         Column column = parseColumnForTable(columnName, true);
+                        //例如IDENTITY、BIGSERIAL这种类型的字段
+                        //创建PRIMARY_KEY索引，然后在Table.addIndex中又将设用column.setPrimaryKey(true);
                         if (column.isAutoIncrement() && column.isPrimaryKey()) {
                             column.setPrimaryKey(false);
                             IndexColumn[] cols = { new IndexColumn() };

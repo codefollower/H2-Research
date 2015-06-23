@@ -74,7 +74,7 @@ public class ConditionInSelect extends Condition {
             if (dataType == Value.NULL) {
                 return ValueBoolean.get(false);
             }
-            l = l.convertTo(dataType);//把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它true
+            l = l.convertTo(dataType);//把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
             if (rows.containsDistinct(new Value[] { l })) {
                 return ValueBoolean.get(true);
             }

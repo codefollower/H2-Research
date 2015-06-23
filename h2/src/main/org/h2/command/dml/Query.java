@@ -467,16 +467,16 @@ public abstract class Query extends Prepared {
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];
-        int[] columnIndexes = new int[size]; //我加上的
+        //int[] columnIndexes = new int[size]; //我加上的
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
 			SelectOrderBy o = orderList.get(i);
 			int idx;
 			boolean reverse = false;
 			//我加上的
-			if (o.expression instanceof ExpressionColumn && ((ExpressionColumn) o.expression).getColumn() != null ) {
-				columnIndexes[i] = ((ExpressionColumn) o.expression).getColumn().getColumnId();
-			}
+			//if (o.expression instanceof ExpressionColumn && ((ExpressionColumn) o.expression).getColumn() != null ) {
+			//	columnIndexes[i] = ((ExpressionColumn) o.expression).getColumn().getColumnId();
+			//}
 			Expression expr = o.columnIndexExpr;
             Value v = expr.getValue(null);
             if (v == ValueNull.INSTANCE) {
@@ -553,6 +553,7 @@ public abstract class Query extends Prepared {
         if (sampleSizeExpr == null) {
             return 0;
         }
+        //在Parser中已经调用过一次optimize
         Value v = sampleSizeExpr.optimize(session).getValue(session);
         if (v == ValueNull.INSTANCE) {
             return 0;
@@ -561,6 +562,7 @@ public abstract class Query extends Prepared {
     }
 
     public final long getMaxDataModificationId() {
+        //获得SQL语句(包括表达式中)涉及到的表或Sequence的ModificationId的最大值
         ExpressionVisitor visitor = ExpressionVisitor.getMaxModificationIdVisitor();
         isEverything(visitor);
         return visitor.getMaxDataModificationId();

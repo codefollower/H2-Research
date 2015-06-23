@@ -138,6 +138,7 @@ public class JavaAggregate extends Expression {
         }
     }
 
+    //调用了两次，一次在optimize，另一次在updateAggregate
     private Aggregate getInstance() throws SQLException {
         Aggregate agg = userAggregate.getInstance();
         agg.init(userConnection);

@@ -241,7 +241,7 @@ public abstract class Expression {
      *
      * @return the table alias name
      */
-    public String getTableAlias() {
+    public String getTableAlias() { //只有子类Wildcard覆盖了此方法
         return null;
     }
 

@@ -444,7 +444,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param session the session
      * @return true if it is
      */
-    public boolean isLockedExclusivelyBy(Session session) { //只有RegularTable覆盖此方法
+    public boolean isLockedExclusivelyBy(Session session) { //只有RegularTable、MVTable覆盖此方法
         return false;
     }
 

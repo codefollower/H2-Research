@@ -15,25 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package my.test.constraint;
+package my.test.command.ddl;
 
 import my.test.TestBase;
 
-public class ConstraintCheckTest extends TestBase {
+public class TruncateTableTest extends TestBase {
     public static void main(String[] args) throws Exception {
-        new ConstraintCheckTest().start();
-    }
-
-    @Override
-    public void init() throws Exception {
+        new TruncateTableTest().start();
     }
 
     @Override
     public void startInternal() throws Exception {
-        executeUpdate("DROP TABLE IF EXISTS ConstraintCheckTest");
-        executeUpdate("CREATE TABLE IF NOT EXISTS ConstraintCheckTest (f1 int)");
+        executeUpdate("drop table IF EXISTS TruncateTableTest");
+        executeUpdate("create table IF NOT EXISTS TruncateTableTest(id int PRIMARY KEY, name varchar(500), b boolean, f1 int)");
 
-        executeUpdate("ALTER TABLE ConstraintCheckTest ADD CONSTRAINT mycheck CHECK (f1 > 1)");
-        tryExecuteUpdate("insert into ConstraintCheckTest(f1) values(1)");
+        // executeUpdate("ALTER TABLE TruncateTableTest ADD CONSTRAINT myfk FOREIGN KEY (f1) REFERENCES TruncateTableTest(id)");
+
+        executeUpdate("insert into TruncateTableTest(id, name, b) values(1, 'a1', true)");
+        executeUpdate("insert into TruncateTableTest(id, name, b) values(2, 'b1', true)");
+        executeUpdate("insert into TruncateTableTest(id, name, b) values(4, 'a2', false)");
+
+        sql = "select count(*) from TruncateTableTest";
+        executeQuery();
+
+        executeUpdate("truncate table TruncateTableTest");
+        sql = "select count(*) from TruncateTableTest";
+        executeQuery();
     }
 }

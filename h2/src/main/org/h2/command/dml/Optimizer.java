@@ -27,7 +27,7 @@ class Optimizer {
     private BitField switched;
     
     //后面的plan个数等于前面的plan个数乘以后面的filter数
-    //比如和三行是6，等于第三行的filter 3 * 2 = 6
+    //比如第三行是6，等于第三行的filter 3 * 2 = 6
     //  possible plans for filters, if using brute force:
     //  1 filter 1 plan
     //  2 filters 2 plans

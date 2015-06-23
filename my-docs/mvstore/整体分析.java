@@ -47,38 +47,43 @@ TODO undoLog这个MVMap中的opType似乎没用，因为根据oldValue是否为n
 
 
 MVStore.Builder可配置的参数:
-fileName
-encrypt
-readOnly
+autoCommitBufferSize
+autoCompactFillRate
+backgroundExceptionHandler
 cacheSize
-compress
-writeBufferSize
-writeDelay
+compress (LZF和Deflate)
+encryptionKey
+fileName
+fileStore
+pageSplitSize
+readOnly
 
 
 =================================
 MVStore格式
 
 	MVStore {
-		4096字节  FileHeader
-		4096字节  FileHeader
+		4096字节  StoreHeader
+		4096字节  StoreHeader
 		[ Chunk ] *
 
 		128字节   ChunkFooter
 	}
 
-	FileHeader {
+	StoreHeader {
 		4096字节是一个块的大小，上面两个是一样的，防止块损坏，
-		一个FileHeader的大小不固定，取决于具体的值，但是不会超过4096字节，
-		FileHeader有8个属性:
+		一个StoreHeader的大小不固定，取决于具体的值，但是不会超过4096字节，
+		StoreHeader有8个属性:
+		-----------------------
 		H:3,
 		blockSize:4096,
-		creationTime:1368493299954,
+		created:1368493299954,
 		format:1,
-		lastMapId:0,
-		rootChunk:0,
-		version:0,
+		block:0,   //lastChunk.block
+		chunk:0,   //lastChunk.id
+		version:0, //lastChunk.version
 		fletcher:3bde3c9a (使用Fletcher32算法得到的checksum，是对前面7个属性求checksum)
+		-----------------------
 	}
 
 	ChunkFooter {

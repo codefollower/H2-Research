@@ -1745,12 +1745,12 @@ public class Database implements DataHandler {
      */
     public Table getDependentTable(SchemaObject obj, Table except) {
         switch (obj.getType()) {
-        case DbObject.COMMENT:
+        case DbObject.COMMENT: //不是SchemaObject的子类，不可能出现
         case DbObject.CONSTRAINT:
         case DbObject.INDEX:
-        case DbObject.RIGHT:
+        case DbObject.RIGHT: //不是SchemaObject的子类，不可能出现
         case DbObject.TRIGGER:
-        case DbObject.USER:
+        case DbObject.USER: //不是SchemaObject的子类，不可能出现
             return null;
         default:
         }
@@ -1809,7 +1809,7 @@ public class Database implements DataHandler {
         obj.getSchema().remove(obj);
         int id = obj.getId();
         if (!starting) {
-            Table t = getDependentTable(obj, null);
+            Table t = getDependentTable(obj, null); //别的表有用到这个对象时不能删
             if (t != null) {
                 obj.getSchema().add(obj);
                 throw DbException.get(ErrorCode.CANNOT_DROP_2, obj.getSQL(),

@@ -1073,9 +1073,9 @@ public class TransactionStore {
          */
         public boolean trySet(K key, V value, boolean onlyIfUnchanged) { //思考时要注意一点: put和remove都会调用它
             VersionedValue current = map.get(key);
-            if (onlyIfUnchanged) { //没有看到为true的调用
+            if (onlyIfUnchanged) { //没有看到为true的调用，只在测试类TestTransactionStore中有设为true
                 VersionedValue old = getValue(key, readLogId);
-                if (!map.areValuesEqual(old, current)) {
+                if (!map.areValuesEqual(old, current)) { //已经改变了，要么是当前事务，否则返回false，trySet失败
                     long tx = getTransactionId(current.operationId);
                     if (tx == transaction.transactionId) {
                         if (value == null) {

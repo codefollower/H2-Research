@@ -103,13 +103,13 @@ public class AlterTableAddConstraint extends SchemaCommand {
         db.lockMeta(session);
         table.lock(session, true, true);
         Constraint constraint;
-        //四种类型PRIMARY_KEY、UNIQUE、CHECK、REFERENTIAL
+        //四种类型:PRIMARY_KEY、UNIQUE、CHECK、REFERENTIAL
         //其中PRIMARY_KEY、UNIQUE共用一个ConstraintUnique类
         switch (type) {
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY: {
             IndexColumn.mapColumns(indexColumns, table);
             //虽然像这样ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 PRIMARY KEY HASH(f1,f2) INDEX myindex
-            //批定了myindex做为索引，但是其实是无用的，虽然此时index不为null，
+            //指定了myindex做为索引，但是其实是无用的，虽然此时index不为null，
             //但是下面这行代码又把之前index变量的值覆盖了
             index = table.findPrimaryKey();
             ArrayList<Constraint> constraints = table.getConstraints();
@@ -164,8 +164,8 @@ public class AlterTableAddConstraint extends SchemaCommand {
                 isOwner = true;
                 index.getIndexType().setBelongsToConstraint(true);
             } else {
-            	//如查定义约束时没有指定index，但又能从当前表中得到一个满足indexColumns的唯一索引，
-            	//此时isOwner就是false了，也就是说返回的索引不归属约束，还是归属表
+            	//如果定义约束时没有指定index，但又能从当前表中得到一个满足indexColumns的唯一索引，
+            	//此时isOwner就是false了，也就是说返回的索引不归属约束，而是归属表
                 index = getUniqueIndex(table, indexColumns);
                 if (index == null) {
                     index = createIndex(table, indexColumns, true); //用indexColumns创建一个唯一索引

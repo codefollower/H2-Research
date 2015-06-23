@@ -12,6 +12,7 @@ import org.h2.engine.Session;
  * This class represents the statement
  * DEALLOCATE
  */
+//参见例子my.test.command.dml.ExecuteProcedureTest
 public class DeallocateProcedure extends DefineCommand {
 
     private String procedureName;

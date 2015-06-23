@@ -123,7 +123,7 @@ public class Select extends Query {
     /**
      * Called if this query contains aggregate functions.
      */
-    public void setGroupQuery() { //有group by或having或聚合函数时都会调用
+    public void setGroupQuery() { //有group by或having或聚合函数(包括自定义的聚合函数)时都会调用
         isGroupQuery = true;
     }
 
@@ -131,7 +131,7 @@ public class Select extends Query {
         this.group = group;
     }
 
-    public ArrayList<Expression> getGroupBy() {
+    public ArrayList<Expression> getGroupBy() { //未使用
         return group;
     }
 
@@ -800,11 +800,6 @@ public class Select extends Query {
                 for (TableFilter filter : filters) {
                     i = expandColumnList(filter, i);
                 }
-
-                //继续从Wildcard c2加进的地方进行(temp - 1之后for (int i = 0; i < expressions.size(); i++)中再i++，
-                //所以i跟上次一样)
-                //i = temp - 1;
-
                 i--;
             } else {
             	
@@ -829,26 +824,12 @@ public class Select extends Query {
                             tableAlias);
                 }
                 expressions.remove(i);
-//<<<<<<< HEAD
-//                Column[] columns = t.getColumns();
-//                
-//                //原先是select * from natural_join_test_table1  natural join natural_join_test_table2
-//                //AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
-//                //[NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME, NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
-//                for (Column c : columns) {
-//                	//右边表的filter有Natural Join列，而左边没有
-//                    if (filter.isNaturalJoinColumn(c)) { //跳过Natural Join列
-//                        continue;
-//                    }
-//                    ExpressionColumn ec = new ExpressionColumn(
-//                            session.getDatabase(), null, alias, c.getName());
-//                    expressions.add(i++, ec);
-//                }
-//                //i--之后for (int i = 0; i < expressions.size(); i++)中再i++, 所以下次实际是展开后的下一个元素开始
-//                //比如select public.t.id, *, name from mytable as t where id>199
-//                //展开后是select public.t.id, [id, name], name from mytable as t where id>199
-//                //下次就从最后一个name的开始
-//=======
+
+                // i--之后for (int i = 0; i < expressions.size(); i++)中再i++,
+                // 所以下次实际是展开后的下一个元素开始
+                // 比如select public.t.id, *, name from mytable as t where id>199
+                // 展开后是select public.t.id, [id, name], name from mytable as t where id>199
+                // 下次就从最后一个name的开始
                 i = expandColumnList(filter, i);
                 i--;
             }
@@ -858,9 +839,14 @@ public class Select extends Query {
     private int expandColumnList(TableFilter filter, int index) {
         Table t = filter.getTable();
         String alias = filter.getTableAlias();
-        Column[] columns = t.getColumns();
+        Column[] columns = t.getColumns();                
+        // 原先是select * from natural_join_test_table1 natural join natural_join_test_table2
+        // AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
+        // [NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME,
+        // NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
         for (Column c : columns) {
-            if (filter.isNaturalJoinColumn(c)) {
+            // 右边表的filter有Natural Join列，而左边没有
+            if (filter.isNaturalJoinColumn(c)) { // 跳过Natural Join列
                 continue;
             }
             ExpressionColumn ec = new ExpressionColumn(
@@ -919,7 +905,7 @@ public class Select extends Query {
         
         //为groupIndex和groupByExpression两个字段赋值，
         //groupIndex记录了GROUP BY子句中的字段在select字段列表中的位置索引(从0开始计数)
-        //groupByExpression组数的大小跟select字段列表一样，类似于一个bitmap，用来记录了select字段列表中的哪些字段是GROUP BY字段
+        //groupByExpression组数的大小跟select字段列表一样，类似于一个bitmap，用来记录select字段列表中的哪些字段是GROUP BY字段
         //如果GROUP BY子句中的字段不在select字段列表中，那么会把它加到select字段列表
         if (group != null) {
             int size = group.size();
@@ -967,20 +953,6 @@ public class Select extends Query {
         }
         // map columns in select list and condition
         for (TableFilter f : filters) {
-//<<<<<<< .mine
-//            for (Expression expr : expressions) {
-//            	//像这样sql = "select id, name from natural_join_test_table1, natural_join_test_table2";
-//            	//如果natural_join_test_table1和natural_join_test_table2有相同的id,name
-//            	//那么在第一次org.h2.expression.ExpressionColumn.mapColumn(ColumnResolver, Column, int)时
-//            	//columnResolver=null，此时columnResolver设为natural_join_test_table1
-//            	//当第二次mapColumn时，因为id这个ExpressionColumn的columnResolver已经设过了，所以报错:
-//            	//Ambiguous column name "ID";
-//                expr.mapColumns(f, 0);
-//            }
-//            if (condition != null) {
-//                condition.mapColumns(f, 0);
-//            }
-//=======
             mapColumns(f, 0);
 			if (orderList != null) {
 				for (SelectOrderBy o : orderList) {
@@ -1358,7 +1330,7 @@ public class Select extends Query {
         this.having = having;
     }
 
-    public Expression getHaving() {
+    public Expression getHaving() { //未使用
         return having;
     }
 
@@ -1388,6 +1360,14 @@ public class Select extends Query {
     @Override
     public void mapColumns(ColumnResolver resolver, int level) {
         for (Expression e : expressions) {
+            // 像这样sql =
+            // "select id, name from natural_join_test_table1, natural_join_test_table2";
+            // //如果natural_join_test_table1和natural_join_test_table2有相同的id,name
+            // //那么在第一次org.h2.expression.ExpressionColumn.mapColumn(ColumnResolver,
+            // Column, int)时
+            // //columnResolver=null，此时columnResolver设为natural_join_test_table1
+            // //当第二次mapColumn时，因为id这个ExpressionColumn的columnResolver已经设过了，所以报错:
+            // //Ambiguous column name "ID";
             e.mapColumns(resolver, level);
         }
         if (condition != null) {

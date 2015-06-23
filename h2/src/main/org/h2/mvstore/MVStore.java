@@ -242,7 +242,7 @@ public class MVStore {
     private long creationTime;
     private int retentionTime;
 
-    private long lastCommitTime;
+    private long lastCommitTime; //存放与creationTime的差值
 
     /**
      * The earliest chunk to retain, if any.

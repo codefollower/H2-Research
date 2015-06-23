@@ -190,7 +190,7 @@ public class TableFilter implements ColumnResolver {
                 if (condition.isEvaluatable()) {
                 	//对于ConditionAndOr的场景才会出现indexConditions.size>1
                 	//而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
-                	//所以当多个indexCondition通过AND组合时，只有其中一个是false，显然就没有必要再管其他的indexCondition
+                	//所以当多个indexCondition通过AND组合时，只要其中一个是false，显然就没有必要再管其他的indexCondition
                 	//这时把masks设为null
                     if (condition.isAlwaysFalse()) {
                         masks = null;

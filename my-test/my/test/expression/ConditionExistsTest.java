@@ -15,36 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package my.test.command.ddl;
+package my.test.expression;
 
 import my.test.TestBase;
 
-public class CreateFunctionAliasTest extends TestBase {
+public class ConditionExistsTest extends TestBase {
     public static void main(String[] args) throws Exception {
-        new CreateFunctionAliasTest().start();
-    }
-
-    @Override
-    public void init() throws Exception {
+        new ConditionExistsTest().start();
     }
 
     @Override
     public void startInternal() throws Exception {
-        executeUpdate("DROP TABLE IF EXISTS CreateFunctionAliasTest");
-        executeUpdate("DROP ALIAS IF EXISTS my_sqrt");
-        executeUpdate("DROP ALIAS IF EXISTS my_reverse");
+        stmt.executeUpdate("drop table IF EXISTS ConditionExistsTest");
+        stmt.executeUpdate("create table IF NOT EXISTS ConditionExistsTest(id int, name varchar(500))");
 
-        // 必须是static方法
-        executeUpdate("CREATE ALIAS IF NOT EXISTS my_sqrt DETERMINISTIC FOR \"java.lang.Math.sqrt\"");
+        stmt.executeUpdate("insert into ConditionExistsTest(id, name) values(1, 'a1')");
+        stmt.executeUpdate("insert into ConditionExistsTest(id, name) values(1, 'b1')");
+        stmt.executeUpdate("insert into ConditionExistsTest(id, name) values(2, 'a2')");
+        stmt.executeUpdate("insert into ConditionExistsTest(id, name) values(2, 'b2')");
+        stmt.executeUpdate("insert into ConditionExistsTest(id, name) values(3, 'a3')");
+        stmt.executeUpdate("insert into ConditionExistsTest(id, name) values(3, 'b3')");
 
-        executeUpdate("CREATE ALIAS IF NOT EXISTS my_reverse AS "
-                + "$$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } $$");
+        sql = "select * from ConditionExistsTest where name>'b' and EXISTS(select name from ConditionExistsTest where id=1)";
 
-        sql = "select my_sqrt(4.0), my_reverse('abc')";
         executeQuery();
-
-        executeUpdate("CREATE TABLE IF NOT EXISTS CreateFunctionAliasTest(f1 varchar as my_reverse('abc'))");
-        executeUpdate("DROP TABLE IF EXISTS CreateFunctionAliasTest");
-        executeUpdate("DROP ALIAS IF EXISTS my_reverse");
     }
 }
