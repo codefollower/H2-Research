@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
+
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
@@ -903,6 +904,10 @@ public class Database implements DataHandler {
         return wasLocked;
     }
 
+    public void unlockMeta(Session session) {
+      meta.unlock(session);
+    }
+
     /**
      * Remove the given object from the meta data.
      *
@@ -1542,6 +1547,7 @@ public class Database implements DataHandler {
         return cluster;
     }
 
+    @Override
     public CompareMode getCompareMode() {
         return compareMode;
     }
@@ -2359,6 +2365,10 @@ public class Database implements DataHandler {
     public boolean isSysTableLocked() {
         return meta == null || meta.isLockedExclusively();
     }
+
+    public boolean isSysTableLockedBy(Session session) {
+      return meta == null || meta.isLockedExclusivelyBy(session);
+  }
 
     /**
      * Open a new connection or get an existing connection to another database.

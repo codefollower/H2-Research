@@ -266,13 +266,16 @@ public class Column {
      * @return the new or converted value
      */
     public Value validateConvertUpdateSequence(Session session, Value value) {
+	  		// take a local copy of defaultExpression to avoid holding the lock while calling getValue
+	  		final Expression localDefaultExpression;
+	      synchronized (this) {
+	      	localDefaultExpression = defaultExpression;
+	      }
         if (value == null) {
-            if (defaultExpression == null) {
+            if (localDefaultExpression == null) {
                 value = ValueNull.INSTANCE;
             } else {
-                synchronized (this) {
-                    value = defaultExpression.getValue(session).convertTo(type);
-                }
+                value = localDefaultExpression.getValue(session).convertTo(type);
                 if (primaryKey) {
                     session.setLastIdentity(value);
                 }
@@ -280,11 +283,15 @@ public class Column {
         }
         Mode mode = session.getDatabase().getMode();
         if (value == ValueNull.INSTANCE) {
-            //if (convertNullToDefault) { //有bug，见E:\H2\my-h2\my-h2-docs\00 H2代码Bug的第2点
-            if (convertNullToDefault && defaultExpression != null) {
-                synchronized (this) {
-                    value = defaultExpression.getValue(session).convertTo(type);
-                }
+//<<<<<<< HEAD
+//            //if (convertNullToDefault) { //有bug，见E:\H2\my-h2\my-h2-docs\00 H2代码Bug的第2点
+//            if (convertNullToDefault && defaultExpression != null) {
+//                synchronized (this) {
+//                    value = defaultExpression.getValue(session).convertTo(type);
+//                }
+//=======
+            if (convertNullToDefault) {
+                value = localDefaultExpression.getValue(session).convertTo(type);
             }
             if (value == ValueNull.INSTANCE && !nullable) {
                 if (mode.convertInsertNullToZero) {
@@ -347,7 +354,7 @@ public class Column {
             if (update) {
                 sequence.modify(now + inc, null, null, null);
                 session.setLastIdentity(ValueLong.get(now));
-                sequence.flush(session);
+                sequence.flush(session, 0);
             }
         }
     }

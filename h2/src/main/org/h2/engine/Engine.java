@@ -17,6 +17,7 @@ import org.h2.store.FileLock;
 import org.h2.util.MathUtils;
 import org.h2.util.New;
 import org.h2.util.StringUtils;
+import org.h2.util.ThreadDeadlockDetector;
 import org.h2.util.Utils;
 
 /**
@@ -36,6 +37,7 @@ public class Engine implements SessionFactory {
     
     private Engine() {
         // use getInstance()
+    	ThreadDeadlockDetector.init();
     }
     
     //调用顺序: 1 (如果是内存数据库，这一步不调用，直接到2)

@@ -25,7 +25,6 @@ import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
-import org.h2.index.IndexCondition;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
 import org.h2.result.LocalResult;
@@ -494,16 +493,12 @@ public class Select extends Query {
                     Column sortCol = sortCols[j];
 
                     //如果是多字段索引，只有当这个索引的第一个字段与order by字段相同时才使用些索引
-                    boolean implicitSortColumn = false;
+                    //boolean implicitSortColumn = false;
                     if (idxCol.column != sortCol) {
-                        implicitSortColumn = isSortColumnImplicit(
-                                topTableFilter, idxCol.column);
-                        if (!implicitSortColumn) {
-                            ok = false;
-                            break;
-                        }
+                        ok = false;
+                        break;
                     }
-                    if (!implicitSortColumn && idxCol.sortType != sortTypes[j]) {
+                    if (idxCol.sortType != sortTypes[j]) {
                         // NULL FIRST for ascending and NULLS LAST
                         // for descending would actually match the default
                         ok = false;
@@ -526,43 +521,7 @@ public class Select extends Query {
         return null;
     }
 
-    /**
-     * Validates the cases where ORDER BY clause do not contains all indexed
-     * columns, but the related index path still would be valid for such search.
-     * Sometimes, the absence of a column in the ORDER BY clause does not alter
-     * the expected final result, and an index sorted scan could still be used.
-     * <pre>
-     * CREATE TABLE test(a, b);
-     * CREATE UNIQUE INDEX idx_test ON test(a, b);
-     * SELECT b FROM test WHERE a=22 AND b>10 order by b;
-     * </pre>
-     * More restrictive rule where one table query with indexed column not
-     * present in the ORDER BY clause is filtered with equality conditions (at
-     * least one) of type COLUMN = CONSTANT in a conjunctive fashion.
-     *
-     * @param sortColumn Column to be validated
-     * @return true if the column can be used implicitly, or false otherwise.
-     */
-    private boolean isSortColumnImplicit(TableFilter tableFilter,
-            Column sortColumn) {
-        if (filters.size() == 1 && condition != null
-                && !condition.isDisjunctive()) {
-            ArrayList<IndexCondition> conditions = tableFilter
-                    .getIndexConditionsForColumn(sortColumn);
-            if (conditions.isEmpty()) {
-                return false;
-            }
-            for (IndexCondition conditionExp : conditions) {
-                if (!conditionExp.isEquality(true)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
-    }
-
-   //对于select distinct name from mytable, 直接走name的B-tree索引就可以得到name例的值了，不用找PageData索引
+    //对于select distinct name from mytable, 直接走name的B-tree索引就可以得到name例的值了，不用找PageData索引
     private void queryDistinct(ResultTarget result, long limitRows) {
         // limitRows must be long, otherwise we get an int overflow
         // if limitRows is at or near Integer.MAX_VALUE
