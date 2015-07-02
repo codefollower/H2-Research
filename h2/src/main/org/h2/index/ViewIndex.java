@@ -118,7 +118,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     //实际是SELECT ID, NAME FROM CreateViewTest WHERE NAME >= ?1
     //masks的数组元素是一个view中包含的所有列，如果某一列不是查询条件，那么对应的masks[列id]这个数组元素就是0
     
-    //此方法不影响些类的任何字段，只是为了计算cost
+    //此方法不影响此类的任何字段，只是为了计算cost
     @Override
     public synchronized double getCost(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
         if (recursive) { //对应WITH RECURSIVE开头之类的语句，见my.test.command.ddl.CreateViewTest
@@ -237,7 +237,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             view.setRecursiveResult(r);
             // to ensure the last result is not closed
             right.disableCache();
-            /*
+            ///*
             while (true) {
             	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
             	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
@@ -252,9 +252,16 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
                 }
                 r.reset();
                 view.setRecursiveResult(r);
-            }*/
+                
+                //避免死循环，因为此时union all的右边子句不是当前view
+                if (!right.getTables().contains(view)) {
+                    break;
+                }
+            }
+            //*/
 
 			// 我加上的
+            /*
 			r = right.query(0);
 			if (r.getRowCount() != 0) {
 				while (r.next()) {
@@ -262,6 +269,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
 				}
 				r.reset();
 			}
+			*/
 
             view.setRecursiveResult(null);
             result.done();
