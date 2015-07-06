@@ -30,6 +30,7 @@ import java.util.ArrayList;
 /**
  * This class represents the MySQL-compatibility REPLACE statement
  */
+//类似MERGE
 public class Replace extends Prepared {
 
     private Table table;
@@ -59,7 +60,7 @@ public class Replace extends Prepared {
         this.columns = columns;
     }
 
-    public void setKeys(Column[] keys) {
+    public void setKeys(Column[] keys) { //Parser中没有使用
         this.keys = keys;
     }
 

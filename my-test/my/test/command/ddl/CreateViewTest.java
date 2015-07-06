@@ -192,7 +192,9 @@ public class CreateViewTest extends TestBase {
         executeQuery();
 
         executeUpdate("alter view my_view RECOMPILE");
+
+        executeUpdate("CREATE OR REPLACE FORCE VIEW view5 AS SELECT f1 FROM my_view");
+        tryExecuteUpdate("drop view IF EXISTS my_view RESTRICT");
         executeUpdate("drop view IF EXISTS my_view CASCADE");
-        executeUpdate("drop view IF EXISTS my_view RESTRICT");
     }
 }

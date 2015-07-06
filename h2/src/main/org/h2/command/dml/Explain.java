@@ -88,6 +88,12 @@ public class Explain extends Prepared {
                 } else if (mvStore != null) {
                     statistics = mvStore.statisticsEnd();
                 }
+                //输出格式类似这样:
+                /*
+                total: 111
+                key1: 10 (9%)
+                key2: 101 (90%)
+                */ 
                 if (statistics != null) {
                     int total = 0;
                     for (Entry<String, Integer> e : statistics.entrySet()) {

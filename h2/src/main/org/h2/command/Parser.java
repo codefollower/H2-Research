@@ -492,7 +492,7 @@ public class Parser {
                 }
                 parameters = indexedParameterList;
             }
-            if (readIf("{")) {
+            if (readIf("{")) { //例如: "INSERT INTO InsertTest(id, name) VALUES(?,?) {1:600, 2:'abc'}";
                 do {
                     int index = (int) readLong() - 1;
                     if (index < 0 || index >= parameters.size()) {
@@ -5045,7 +5045,7 @@ public class Parser {
         AlterView command = new AlterView(session);
         String viewName = readIdentifierWithSchema();
         Table tableView = getSchema().findTableOrView(session, viewName);
-        if (!(tableView instanceof TableView)) {
+        if (!(tableView instanceof TableView)) { //NULL或者不是TableView都抛异常，就算跟的是一个普通表名
             throw DbException.get(ErrorCode.VIEW_NOT_FOUND_1, viewName);
         }
         TableView view = (TableView) tableView;

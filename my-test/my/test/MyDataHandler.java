@@ -9,6 +9,7 @@ import org.h2.store.LobStorageInterface;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.TempFileDeleter;
+import org.h2.value.CompareMode;
 
 public class MyDataHandler implements DataHandler {
 
@@ -87,6 +88,12 @@ public class MyDataHandler implements DataHandler {
 
     @Override
     public JavaObjectSerializer getJavaObjectSerializer() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public CompareMode getCompareMode() {
         // TODO Auto-generated method stub
         return null;
     }

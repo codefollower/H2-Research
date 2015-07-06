@@ -29,15 +29,15 @@ public abstract class TestBase {
     private void initDefaults() throws Exception {
         prop.setProperty("user", "sa");
         prop.setProperty("password", "");
-        //		prop.setProperty("TRACE_LEVEL_FILE", "10");
-        //		prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
-        //		prop.setProperty("PAGE_SIZE", "1024");
-        //		prop.setProperty("FILE_LOCK", "FS");
+        // prop.setProperty("TRACE_LEVEL_FILE", "10");
+        // prop.setProperty("TRACE_LEVEL_SYSTEM_OUT", "20");
+        // prop.setProperty("PAGE_SIZE", "1024");
+        // prop.setProperty("FILE_LOCK", "FS");
 
-        //prop.setProperty("PAGE_SIZE", "128");
-        //prop.setProperty("MVCC", "true");
+        // prop.setProperty("PAGE_SIZE", "128");
+        // prop.setProperty("MVCC", "true");
 
-        //prop.setProperty("MODE", "DB2"); //支持SYSDUMMY1
+        // prop.setProperty("MODE", "DB2"); //支持SYSDUMMY1
 
     }
 
@@ -55,11 +55,11 @@ public abstract class TestBase {
             url = "jdbc:h2:tcp://localhost:9092/mydb";
 
         conn = DriverManager.getConnection(url, prop);
-        //conn.setAutoCommit(false);
+        // conn.setAutoCommit(false);
         stmt = conn.createStatement();
 
         if (dbCloseDelay)
-            stmt.executeUpdate("SET DB_CLOSE_DELAY -1"); //不马上关闭数据库
+            stmt.executeUpdate("SET DB_CLOSE_DELAY -1"); // 不马上关闭数据库
 
         startInternal();
 
@@ -82,6 +82,10 @@ public abstract class TestBase {
     }
 
     public void executeQuery() throws Exception {
+        executeQuery(sql);
+    }
+
+    public void executeQuery(String sql) throws Exception {
         rs = stmt.executeQuery(sql);
         int n = rs.getMetaData().getColumnCount();
         while (rs.next()) {
@@ -89,7 +93,8 @@ public abstract class TestBase {
                 System.out.print(rs.getString(i) + " ");
             }
             System.out.println();
-            //System.out.println(rs.getString(1) + " " + rs.getString(2) + " " + rs.getString(3) + " " + rs.getString(4));
+            // System.out.println(rs.getString(1) + " " + rs.getString(2) + " " + rs.getString(3) + " " +
+            // rs.getString(4));
         }
     }
 
@@ -100,7 +105,8 @@ public abstract class TestBase {
                 System.out.print(rs.getString(i) + " ");
             }
             System.out.println();
-            //System.out.println(rs.getString(1) + " " + rs.getString(2) + " " + rs.getString(3) + " " + rs.getString(4));
+            // System.out.println(rs.getString(1) + " " + rs.getString(2) + " " + rs.getString(3) + " " +
+            // rs.getString(4));
         }
     }
 

@@ -67,7 +67,7 @@ public class BackupCommand extends Prepared {
             //生成fileName表示的文件，如果已存在则覆盖原有的，也就是文件为空
             OutputStream zip = FileUtils.newOutputStream(fileName, false);
             ZipOutputStream out = new ZipOutputStream(zip);
-            db.flush();
+            db.flush(); //里面又会对MVStore进行flush
 
             if (db.getPageStore() != null) {
                 String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //返回E:/H2/baseDir/mydb.h2.db
@@ -83,13 +83,14 @@ public class BackupCommand extends Prepared {
                 ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
                 
                 //".lob.db"和".mv.db"文件也备份到fileName表示的文件中，
-                //也就是说BACKUP TO 'E:/H2/baseDir/myBackup'这样的SQL除了把基本的“.h2.db”备份外，
+                //也就是说BACKUP TO 'E:/H2/baseDir/myBackup.zip'这样的SQL除了把基本的“.h2.db”备份外，
                 //还备份".lob.db"和".mv.db"文件
                 for (String n : fileList) {
                     if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //备份".lob.db"文件
                         backupFile(out, base, n);
                     }
-
+                    
+                    //应该用else if
                     if (n.endsWith(Constants.SUFFIX_MV_FILE) && mvStore != null) { //备份".mv.db"文件
                         MVStore s = mvStore.getStore();
                         boolean before = s.getReuseSpace();
@@ -146,13 +147,13 @@ public class BackupCommand extends Prepared {
         }
         f = f.substring(base.length()); //返回/mydb.mv.db
         f = correctFileName(f); //返回mydb.mv.db
-        out.putNextEntry(new ZipEntry(f));
+        out.putNextEntry(new ZipEntry(f)); //如果打开backup后的zip文件，里面会有一个以f命名的条目
         IOUtils.copyAndCloseInput(in, out);
         out.closeEntry();
     }
 
     @Override
-    public boolean isTransactional() {
+    public boolean isTransactional() { //如里BACKUP命令在一个事务中执行，需要手工提交
         return true;
     }
 

@@ -63,7 +63,7 @@ public class Call extends Prepared {
     public ResultInterface query(int maxrows) {
         setCurrentRowNumber(1);
         Value v = expression.getValue(session);
-        if (isResultSet) {
+        if (isResultSet) { //例如 "CALL TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World'))"
             v = v.convertTo(Value.RESULT_SET);
             ResultSet rs = v.getResultSet();
             return LocalResult.read(session, rs, maxrows);

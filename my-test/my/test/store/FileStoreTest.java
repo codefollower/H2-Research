@@ -8,6 +8,7 @@ import org.h2.store.LobStorageInterface;
 import org.h2.util.MathUtils;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.TempFileDeleter;
+import org.h2.value.CompareMode;
 
 public class FileStoreTest {
 
@@ -119,6 +120,12 @@ public class FileStoreTest {
 
         @Override
         public JavaObjectSerializer getJavaObjectSerializer() {
+            return null;
+        }
+
+        @Override
+        public CompareMode getCompareMode() {
+            // TODO Auto-generated method stub
             return null;
         }
 

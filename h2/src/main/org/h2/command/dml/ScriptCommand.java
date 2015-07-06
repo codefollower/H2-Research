@@ -516,7 +516,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
      * @return a stream for the combined data
      */
     public static InputStream combineBlob(Connection conn, int id)
-            throws SQLException {
+            throws SQLException { //在writeLobStream中通过CREATE ALIAS来使用
         if (id < 0) {
             return null;
         }
@@ -573,7 +573,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
      * @return a reader for the combined data
      */
     public static Reader combineClob(Connection conn, int id) throws SQLException {
-        if (id < 0) {
+        if (id < 0) { //在writeLobStream中通过CREATE ALIAS来使用
             return null;
         }
         final ResultSet rs = getLobStream(conn, "CDATA", id);

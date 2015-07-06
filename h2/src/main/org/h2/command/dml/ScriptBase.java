@@ -61,7 +61,7 @@ abstract class ScriptBase extends Prepared implements DataHandler {
 
     private String fileName;
 
-    private String cipher;
+    private String cipher; //只能是"XTEA"、"AES"、"FOG"三者之一
     private FileStore store;
     private String compressionAlgorithm;
 
@@ -137,7 +137,7 @@ abstract class ScriptBase extends Prepared implements DataHandler {
             initStore();
             out = new FileStoreOutputStream(store, this, compressionAlgorithm);
             // always use a big buffer, otherwise end-of-block is written a lot
-            out = new BufferedOutputStream(out, Constants.IO_BUFFER_SIZE_COMPRESS);
+            out = new BufferedOutputStream(out, Constants.IO_BUFFER_SIZE_COMPRESS); //128K
         } else {
             OutputStream o;
             try {
@@ -145,7 +145,7 @@ abstract class ScriptBase extends Prepared implements DataHandler {
             } catch (IOException e) {
                 throw DbException.convertIOException(e, null);
             }
-            out = new BufferedOutputStream(o, Constants.IO_BUFFER_SIZE);
+            out = new BufferedOutputStream(o, Constants.IO_BUFFER_SIZE); //4k
             out = CompressTool.wrapOutputStream(out, compressionAlgorithm, SCRIPT_SQL);
         }
     }

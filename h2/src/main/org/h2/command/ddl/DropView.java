@@ -67,7 +67,7 @@ public class DropView extends SchemaCommand {
                 }
             }
 
-            view.lock(session, true, true);
+            view.lock(session, true, true); //什么都没做
             session.getDatabase().removeSchemaObject(session, view);
         }
         return 0;
