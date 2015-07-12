@@ -1182,7 +1182,8 @@ public class Parser {
                 } else {
                     s = session;
                 }
-                alias = session.getNextSystemIdentifier(sqlCommand);
+                alias = session.getNextSystemIdentifier(sqlCommand); //类似“_0”这样的名字
+                //用临时视图表示
                 table = TableView.createTempView(s, session.getUser(), alias,
                         query, currentSelect);
             } else {
@@ -1210,6 +1211,8 @@ public class Parser {
             String tableName = readIdentifierWithSchema(null);
             Schema schema = getSchema();
             boolean foundLeftBracket = readIf("(");
+            //例如："FROM mytable(index mytable_age_index) SELECT * "
+            //但是并没用实现，仅仅是把index mytable_age_index解析出来，然后就忽略了
             if (foundLeftBracket && readIf("INDEX")) {
                 // Sybase compatibility with
                 // "select * from test (index table1_index)"
@@ -1236,7 +1239,7 @@ public class Parser {
                     }
                 } else {
                 	//如"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
-                	//这个不合法，的FunctionTable中会抛错sql = "FROM USER() SELECT * "; //函数返回值类型必须是RESULT_SET
+                	//这个不合法，在FunctionTable中会抛错sql = "FROM USER() SELECT * "; //函数返回值类型必须是RESULT_SET
                 	//只有CSVREAD、LINK_SCHEMA、TABLE、TABLE_DISTINCT这4个函数的返回值类型是RESULT_SET
                     Expression expr = readFunction(schema, tableName);
                     if (!(expr instanceof FunctionCall)) {
@@ -1257,7 +1260,7 @@ public class Parser {
                 table = readTableOrView(tableName);
             }
         }
-        alias = readFromAlias(alias);
+        alias = readFromAlias(alias); //例如"FROM (select 1, 2) as t SELECT * "，此时alias先是"_0"这样的临时名称，然后再变成t
         return new TableFilter(session, table, alias, rightsChecked,
                 currentSelect);
     }
@@ -1268,6 +1271,7 @@ public class Parser {
         } else if (currentTokenType == IDENTIFIER) {
             // left and right are not keywords (because they are functions as
             // well)
+            // 如"FROM mytable t SELECT * ", 此时currentToken是t，只要不是"LEFT"、"RIGHT"、"FULL"即可
             if (!isToken("LEFT") && !isToken("RIGHT") && !isToken("FULL")) {
                 alias = readAliasIdentifier();
             }
@@ -1499,7 +1503,16 @@ public class Parser {
         command.setIfExists(ifExists);
         return command;
     }
-    //如果RIGHT、LEFT、INNER、JOIN这5种JOIN后面没有直接接ON就会出现递归调用readJoin的情况，
+    //共支持5种join:
+    //RIGHT OUTER JOIN(或RIGHT JOIN)
+    //LEFT OUTER JOIN(或LEFT JOIN)
+    //INNER JOIN(或JOIN)
+    //CROSS JOIN
+    //NATURAL JOIN
+    
+    //FULL JOIN不支持，直接抛错
+    
+    //如果RIGHT、LEFT、INNER JOIN/JOIN这3种JOIN后面没有直接接ON就会出现递归调用readJoin的情况，
     //如: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
     //加ON的话虽然也会递归调用readJoin，但因为紧接着的token是ON，所以实际上readJoin什么都不做
     //参见<<数据库系统基础教程>>p24、p25、p26、p129、p163
@@ -1554,7 +1567,7 @@ public class Parser {
                 last = join;
             } else if (readIf("FULL")) {
                 throw getSyntaxError();
-            } else if (readIf("INNER")) { //INNER JOIN或JOIN就是θ连接(在笛卡儿积积之上加过滤条件)
+            } else if (readIf("INNER")) { //INNER JOIN或JOIN就是θ连接(在笛卡儿积之上加过滤条件)
                 read("JOIN");
                 joined = true;
                 TableFilter join = readTableFilter(fromOuter);
@@ -1638,13 +1651,13 @@ public class Parser {
                 break;
             }
         }
-        //当NESTED_JOINS参数为true是下面这条sql的JoinTest2 JOIN JoinTest3就满足这个if条件
-        //因为JoinTest1 LEFT OUTER JOIN JoinTest2会使得nested为true
+        //当NESTED_JOINS参数为true时下面这条sql的JoinTest2 JOIN JoinTest3就满足这个if条件
         //SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 JOIN JoinTest3
+        //因为JoinTest1 LEFT OUTER JOIN JoinTest2会使得nested为true
         //相当于:
         //JoinTest1.join => TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest2).join => TableFilter(JoinTest3)
         //也就是先算JoinTest2 JOIN JoinTest3(假设结果是R)
-        //然后JoinTest1再于R进行LEFT OUTER JOIN
+        //然后JoinTest1再与R进行LEFT OUTER JOIN
         if (nested && joined) {
             top = getNested(top);
         }
@@ -1772,11 +1785,11 @@ public class Parser {
         if (!unionOnly) {
             parseEndOfQuery(command);
         }
-        setSQL(command, null, start);
+        setSQL(command, null, start); //得到完整的sql
         return command;
     }
     
-    //解析sql中的LIMIT、ordey by、FOR UPDATE
+    //解析sql中的LIMIT、OFFSET、ordey by、SAMPLE_SIZE、FOR UPDATE
     //如果是union时LIMIT、ordey by、FOR UPDATE不能放在子句中，要放在最后
 	//比如这条是错误的:
 	//sql = "select name1 from mytable1 order by name1 union select name2 from mytable2";
@@ -1945,6 +1958,8 @@ public class Parser {
             TableFilter n = top.getNestedJoin();
             //n是null
             if (n != null) {
+                //此时Select的filters会有三个：TableFilter(JoinTest1)、TableFilter(SYSTEM_JOIN_xxx)、TableFilter(JoinTest2)
+                //而topFilters只有TableFilter(JoinTest1)
                 n.visit(new TableFilterVisitor() {
                     @Override
                     public void accept(TableFilter f) {
@@ -2027,6 +2042,7 @@ public class Parser {
     }
     
     //只处理SELECT语句中的from、Select Expression、where、group by、having子句
+    //从这里也看出LIMIT、ordey by、FOR UPDATE必须出现在where、group by、having子句后面
     private Select parseSelectSimple() {
         boolean fromFirst;
         if (readIf("SELECT")) {
@@ -2037,7 +2053,9 @@ public class Parser {
             throw getSyntaxError();
         }
         Select command = new Select(session);
-        int start = lastParseIndex;
+        int start = lastParseIndex; //"SELECT"之后的第一个字符的位置，通常是空格
+        //例如"SELECT name FROM t1 WHERE id in (SELECT id from t2)"
+        //当解析到(SELECT id from t2)时，此时的currentSelect就是外层的SELECT name FROM t1
         Select oldSelect = currentSelect;
         currentSelect = command;
         currentPrepared = command;

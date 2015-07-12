@@ -175,7 +175,7 @@ public class TableFilter implements ColumnResolver {
     //而Select要prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
     public PlanItem getBestPlanItem(Session s, int level) {
         PlanItem item;
-        //没有索引条件时直接走扫描索引(RegularTable是PageDataIndex和ScanIndex，而MVTable是MVPrimaryIndex)
+        //没有索引条件时直接走扫描索引(RegularTable是PageDataIndex或ScanIndex(内存)，而MVTable是MVPrimaryIndex)
         if (indexConditions.size() == 0) {
             item = new PlanItem();
             item.setIndex(table.getScanIndex(s));
@@ -188,11 +188,12 @@ public class TableFilter implements ColumnResolver {
             	//如果IndexCondition是expressionQuery，expressionQuery是Select、SelectUnion类型有可能返回false
             	//其他都返回true
                 if (condition.isEvaluatable()) {
+                    //H2数据库目前不支持在or表达式上面建立索引条件，例如id> 40 or name<'b3'，就算id和name字段各自有索引也不会选择它们
                 	//对于ConditionAndOr的场景才会出现indexConditions.size>1
                 	//而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
                 	//所以当多个indexCondition通过AND组合时，只要其中一个是false，显然就没有必要再管其他的indexCondition
                 	//这时把masks设为null
-                    if (condition.isAlwaysFalse()) {
+                    if (condition.isAlwaysFalse()) { //如where id>40 AND 3<2(在condition.optimize时被优化成false了)
                         masks = null;
                         break;
                     }
@@ -215,6 +216,7 @@ public class TableFilter implements ColumnResolver {
             // This is to ensure joins without indexes run quickly:
             // x (x.a=10); y (x.b=y.b) - see issue 113
             //level越大，item.cost就减去一个越小的值，所以join的cost越大
+            //索引条件越多，cost越小
             item.cost -= item.cost * indexConditions.size() / 100 / level;
         }
         if (nestedJoin != null) {
@@ -1009,7 +1011,23 @@ public class TableFilter implements ColumnResolver {
 
     @Override
     public String toString() {
-        return alias != null ? alias : table.toString();
+        //return alias != null ? alias : table.toString();
+        
+        StringBuilder s = new StringBuilder();
+        toS(this, s, "\t");
+        return s.toString();
+    }
+
+    private static void toS(TableFilter t, StringBuilder s, String tabs) {
+        s.append("TableFilter[").append(t.alias != null ? t.alias : t.table.toString()).append("]");
+        if (t.nestedJoin != null) {
+            s.append("\n").append(tabs).append("=>nestedJoin=");
+            toS(t.nestedJoin, s, tabs + "\t");
+        }
+        if (t.join != null) {
+            s.append("\n").append(tabs).append("=>join=");
+            toS(t.join, s, tabs + "\t");
+        }
     }
 
     /**

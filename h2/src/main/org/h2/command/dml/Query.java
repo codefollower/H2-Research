@@ -467,16 +467,11 @@ public abstract class Query extends Prepared {
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];
-        //int[] columnIndexes = new int[size]; //我加上的
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
 			SelectOrderBy o = orderList.get(i);
 			int idx;
 			boolean reverse = false;
-			//我加上的
-			//if (o.expression instanceof ExpressionColumn && ((ExpressionColumn) o.expression).getColumn() != null ) {
-			//	columnIndexes[i] = ((ExpressionColumn) o.expression).getColumn().getColumnId();
-			//}
 			Expression expr = o.columnIndexExpr;
             Value v = expr.getValue(null);
             if (v == ValueNull.INSTANCE) {
@@ -507,7 +502,6 @@ public abstract class Query extends Prepared {
             sortType[i] = type;
         }
 
-        //return new SortOrder(session.getDatabase(), index, sortType, orderList, columnIndexes);
         return new SortOrder(session.getDatabase(), index, sortType, orderList);
     }
 

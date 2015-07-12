@@ -68,6 +68,7 @@ public abstract class Expression {
      * @param value true if the table filter can return value
      */
     //这个方法的目的就是给org.h2.expression.ExpressionColumn中的evaluatable字段赋值
+    //除ExpressionColumn外其他子类的实现都是充当一个传递者的角色
     public abstract void setEvaluatable(TableFilter tableFilter, boolean value);
 
     /**

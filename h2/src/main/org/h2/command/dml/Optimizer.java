@@ -195,7 +195,7 @@ class Optimizer {
         }
     }
 
-    private boolean shuffleTwo(TableFilter[] f) { //随机把数组中的两个元素兑换1交
+    private boolean shuffleTwo(TableFilter[] f) { //随机把数组中的两个元素兑换1次
         int a = 0, b = 0, i = 0;
         for (; i < 20; i++) {
             a = random.nextInt(f.length);

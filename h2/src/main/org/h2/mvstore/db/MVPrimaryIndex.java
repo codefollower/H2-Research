@@ -220,6 +220,7 @@ public class MVPrimaryIndex extends BaseIndex {
     public double getCost(Session session, int[] masks, TableFilter filter,
             SortOrder sortOrder) {
         try {
+            //COST_ROW_OFFSET是1000，避免dataMap.sizeAsLongMax()为0时得到cost=0(代价最小)，从而错误选择索引
             long cost = 10 * (dataMap.sizeAsLongMax() + Constants.COST_ROW_OFFSET);
             return cost;
         } catch (IllegalStateException e) {

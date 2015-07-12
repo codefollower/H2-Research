@@ -62,14 +62,17 @@ import org.h2.value.ValueNull;
 //调用顺序 init=>prepare->query
 public class Select extends Query {
     private TableFilter topTableFilter;
-    private final ArrayList<TableFilter> filters = New.arrayList();
+    private final ArrayList<TableFilter> filters = New.arrayList(); //包含NestedJoin
+    //所有的非NestedJoin都是top filter
+    //例如"select rownum, * from JoinTest1 CROSS JOIN JoinTest2 CROSS JOIN JoinTest3 CROSS JOIN JoinTest4"
+    //就有4个top filter，依次是JoinTest1、JoinTest2、JoinTest3、JoinTest4
     private final ArrayList<TableFilter> topFilters = New.arrayList();
     private ArrayList<Expression> expressions; //select a,b,c from中的a,b,c
     private Expression[] expressionArray;
     private Expression having; //having子句
     private Expression condition; //where子句
-    //visibleColumnCount不包含缺失的order by、GROUP BY字段，还有having表达式
-    //distinctColumnCount包含缺失的order by字段，但不包含GROUP BY字段，还有having表达式
+    //visibleColumnCount不包含缺失的order by、GROUP BY、having字段
+    //distinctColumnCount包含缺失的order by字段，但不包含GROUP BY、having字段
     private int visibleColumnCount, distinctColumnCount;
     private ArrayList<SelectOrderBy> orderList; //对应order by，一个字段对应一个SelectOrderBy
     private ArrayList<Expression> group; //对应group by，一个字段对应一个Expression
@@ -420,7 +423,8 @@ public class Select extends Query {
                 Expression expr = expressions.get(j);
                 row[j] = expr.getValue(session);
             }
-            //根据having条件过滤，having条件也会加入expressions中，所以在上面row[j] = expr.getValue(session)时已经算好了true或false
+            //根据having条件过滤，having条件也会加入expressions中，
+            //所以在上面row[j] = expr.getValue(session)时已经算好了true或false
             if (isHavingNullOrFalse(row)) {
                 continue;
             }
@@ -470,7 +474,7 @@ public class Select extends Query {
         }
         ArrayList<Index> list = topTableFilter.getTable().getIndexes();
         if (list != null) {
-        	//循环遍历当前表的所有索引，对比每个索引的字段是否合orderby字段(可能会有多个)和排序类型是否一样，
+        	//循环遍历当前表的所有索引，对比每个索引的字段是否是orderby字段(可能会有多个)和排序类型是否一样，
         	//如果都一样，那么返回此索引
             for (int i = 0, size = list.size(); i < size; i++) {
                 Index index = list.get(i);
@@ -493,7 +497,6 @@ public class Select extends Query {
                     Column sortCol = sortCols[j];
 
                     //如果是多字段索引，只有当这个索引的第一个字段与order by字段相同时才使用些索引
-                    //boolean implicitSortColumn = false;
                     if (idxCol.column != sortCol) {
                         ok = false;
                         break;
@@ -694,7 +697,7 @@ public class Select extends Query {
             } else if (isGroupQuery) {
                 if (isGroupSortedQuery) {
                     queryGroupSorted(columnCount, to);
-                } else { //isGroupQuery为true且isGroupSortedQuery为false时，result总是为为null的，此时用to也是一样的
+                } else { //isGroupQuery为true且isGroupSortedQuery为false时，result总是为null的，此时用to也是一样的
                     queryGroup(columnCount, result);
                 }
             } else if (isDistinctQuery) {
@@ -728,7 +731,7 @@ public class Select extends Query {
                 visibleColumnCount);
     }
     
-    //把"select *"转成"select 表的所有字段"
+    //把"select *"或"select t.*"转成"select 表的所有字段"
     //也就是把单个Wildcard展开成多个ExpressionColumn
     private void expandColumnList() {
         Database db = session.getDatabase();
@@ -750,19 +753,16 @@ public class Select extends Query {
             //这些注释只是顺便提一下getTableAlias在超类和不同子类中的实现差别
             String tableAlias = expr.getTableAlias();
             
-            //第1步: 把*转成"表名.*"，如果是join就会有多个"表名.*"
-            
-            //如select * from mytable
+            //如"select *"
             if (tableAlias == null) {
                 expressions.remove(i);
-                //有可能是多表join，这时一个*就会先扩展成多表的*，如t1.*，t2.*
+                //有可能是多表join，这时一个*就会先扩展成多表的字段
                 for (TableFilter filter : filters) {
                     i = expandColumnList(filter, i);
                 }
-                i--;
-            } else {
-            	
-            	//第2步: 把"表名.*"转成"表名.字段名"
+                i--; //expandColumnList里多加了1，所以要减一
+                
+            } else { //如"select t.*"
 
             	//如select public.t.* from mytable as t where id>199
             	//其中public是schemaName
@@ -784,17 +784,18 @@ public class Select extends Query {
                 }
                 expressions.remove(i);
 
-                // i--之后for (int i = 0; i < expressions.size(); i++)中再i++,
+                // expandColumnList里多加了1，所以要减一
                 // 所以下次实际是展开后的下一个元素开始
                 // 比如select public.t.id, *, name from mytable as t where id>199
                 // 展开后是select public.t.id, [id, name], name from mytable as t where id>199
-                // 下次就从最后一个name的开始
+                // 下次就从最后一个name开始
                 i = expandColumnList(filter, i);
-                i--;
+                i--;  
             }
         }
     }
 
+    //这个方法已经能够处理没有字段的表
     private int expandColumnList(TableFilter filter, int index) {
         Table t = filter.getTable();
         String alias = filter.getTableAlias();
@@ -864,7 +865,7 @@ public class Select extends Query {
         
         //为groupIndex和groupByExpression两个字段赋值，
         //groupIndex记录了GROUP BY子句中的字段在select字段列表中的位置索引(从0开始计数)
-        //groupByExpression组数的大小跟select字段列表一样，类似于一个bitmap，用来记录select字段列表中的哪些字段是GROUP BY字段
+        //groupByExpression数组的大小跟select字段列表一样，类似于一个bitmap，用来记录select字段列表中的哪些字段是GROUP BY字段
         //如果GROUP BY子句中的字段不在select字段列表中，那么会把它加到select字段列表
         if (group != null) {
             int size = group.size();
@@ -1030,6 +1031,8 @@ public class Select extends Query {
             }
         }
         //有order by，但是没有聚合函数，也没有group by的情型
+        //!isQuickAggregateQuery这个条件是多余的，因为isGroupQuery为false时，isQuickAggregateQuery必定是false
+        //所以改成if (sort != null && !isGroupQuery)就足够了
         if (sort != null && !isQuickAggregateQuery && !isGroupQuery) {
             Index index = getSortIndex();
             if (index != null) {
@@ -1041,6 +1044,7 @@ public class Select extends Query {
                         // another order
                         sortUsingIndex = true;
                     }
+                //见my.test.command.dml.SelectTest.getSortIndex()中的测试
                 } else if (index.getIndexColumns().length >=
                         current.getIndexColumns().length) {
                     IndexColumn[] sortColumns = index.getIndexColumns();
@@ -1051,6 +1055,7 @@ public class Select extends Query {
                             swapIndex = false;
                             break;
                         }
+                        //调用getSortIndex后肯定确认它返回的索引的顺序与order by的排序一样，如果最初选择的索引不一样，那么就替换
                         if (sortColumns[i].sortType != currentColumns[i].sortType) {
                             swapIndex = true;
                         }
@@ -1099,6 +1104,7 @@ public class Select extends Query {
         }
     }
 
+    //注意，只关心top层的TableFilter
     private double preparePlan() {
         TableFilter[] topArray = topFilters.toArray(
                 new TableFilter[topFilters.size()]);

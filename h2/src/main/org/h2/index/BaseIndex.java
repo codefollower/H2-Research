@@ -155,14 +155,17 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      * @return the estimated cost
      */
     //子类MVSpatialIndex、SpatialTreeIndex覆盖了此方法
+    //代价的计算总体上是围绕行数进行的
     protected long getCostRangeIndex(int[] masks, long rowCount, TableFilter filter, SortOrder sortOrder) {
-        rowCount += Constants.COST_ROW_OFFSET;
+        rowCount += Constants.COST_ROW_OFFSET; //为什么加1000，见MVPrimaryIndex.getCost中的注释或COST_ROW_OFFSET的注释
         long cost = rowCount;
         long rows = rowCount;
         int totalSelectivity = 0;
         if (masks == null) {
             return cost;
         }
+        //masks代表基表所有字段中的那一些用于查询条件了，0表示没有用到
+        //columns是索引字段
         for (int i = 0, len = columns.length; i < len; i++) {
             Column column = columns[i];
             int index = column.getColumnId();
@@ -171,6 +174,9 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
             //EQUALITY < RANGE < END < START
             //如果索引字段列表的第一个字段在Where中是RANGE、START、END，那么索引字段列表中的其他字段就不需要再计算cost了，
             //如果是EQUALITY，则还可以继续计算cost，rows变量的值会变小，cost也会变小
+            //这里为什么不直接用(mask == IndexCondition.EQUALITY)？
+            //因为id=40 AND id>30会生成两个索引条件，
+            //在org.h2.table.TableFilter.getBestPlanItem中合成一个mask为3(IndexCondition.EQUALITY|IndexCondition.START)
             if ((mask & IndexCondition.EQUALITY) == IndexCondition.EQUALITY) {
             	//索引字段列表中的最后一个在where当中是EQUALITY，且此索引是唯一索引时，cost直接是3
             	//因为如果最后一个索引字段是EQUALITY，说明前面的字段全是EQUALITY，
@@ -188,7 +194,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
                 rows = Math.max(rowCount / distinctRows, 1); //distinctRows变大，则rowCount / distinctRows变小，rows也变小
                 cost = 2 + rows; //rows也变小，所以cost也变小
             } else if ((mask & IndexCondition.RANGE) == IndexCondition.RANGE) { //见TableFilter.getBestPlanItem中的注释
-                cost = 2 + rows / 4;
+                cost = 2 + rows / 4; //rows开始时加了1000，所以rows / 4总是大于1的
                 break;
             } else if ((mask & IndexCondition.START) == IndexCondition.START) {
                 cost = 2 + rows / 3;
@@ -202,6 +208,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         }
         // if the ORDER BY clause matches the ordering of this index,
         // it will be cheaper than another index, so adjust the cost accordingly
+        //order by中的字段和排序方式与索引字段相同时，cost再减去排序字段个数
+        //注意：排序字段个数不管比索引字段个数多还是少都是没问题的，这里只是尽量匹配
         if (sortOrder != null) {
             boolean sortOrderMatches = true;
             int coveringCount = 0;
