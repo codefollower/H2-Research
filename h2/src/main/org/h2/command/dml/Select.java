@@ -176,7 +176,7 @@ public class Select extends Query {
             if (condition == null ||
                     Boolean.TRUE.equals(condition.getBooleanValue(session))) {
                 rowNumber++;
-                Value[] keyValues = new Value[groupIndex.length];
+                Value[] keyValues = new Value[groupIndex.length]; //group by字段的值组成一个数组
                 // update group
                 for (int i = 0; i < groupIndex.length; i++) {
                     int idx = groupIndex[i];
@@ -195,6 +195,7 @@ public class Select extends Query {
                 }
                 currentGroupRowId++;
 
+                //这里计算非group字段的值
                 for (int i = 0; i < columnCount; i++) {
                 	//groupByExpression字段不可能为null，因为isGroupSortedQuery为true时，getGroupByExpressionCount() > 0
                     if (groupByExpression == null || !groupByExpression[i]) {
@@ -214,11 +215,13 @@ public class Select extends Query {
             ResultTarget result) {
         Value[] row = new Value[columnCount];
         //先填充group by字段
+        //groupIndex字段是不会为null的
         for (int j = 0; groupIndex != null && j < groupIndex.length; j++) {
             row[groupIndex[j]] = keyValues[j];
         }
         //再填充非group by字段
         for (int j = 0; j < columnCount; j++) {
+            //groupByExpression字段不可能为null，因为isGroupSortedQuery为true时，getGroupByExpressionCount() > 0
             if (groupByExpression != null && groupByExpression[j]) {
                 continue;
             }
@@ -258,6 +261,10 @@ public class Select extends Query {
     }
 
     private Index getGroupSortedIndex() {
+        //这两条件，只要判断一个就行了，因为在init时，两者要么都为null，要么都不为null
+        //别外，getGroupSortedIndex()只有在getGroupByExpressionCount() > 0时才调用，
+        //并且getGroupByExpressionCount()中已经判断过groupByExpression == null了，
+        //所以这个if是多于的
         if (groupIndex == null || groupByExpression == null) {
             return null;
         }
@@ -291,7 +298,7 @@ public class Select extends Query {
                 continue;
             }
             Expression expr = expressions.get(i).getNonAliasExpression();
-            if (!(expr instanceof ExpressionColumn)) {
+            if (!(expr instanceof ExpressionColumn)) { //例如group by name, 2
                 return false;
             }
             //看看group by字段是否是索引字段
@@ -316,6 +323,8 @@ public class Select extends Query {
         // bad: index(a, b, c); group by a, c
         //group by字段列表的前后两个字段在index中要同时出现，并且是紧挨着的(不分前后)
         //index(a, b, c); group by a, c就不行，因为"group by a, c"中的a和c虽然都是索引字段，但是在index中不是紧挨着的
+        //group by字段必须是索引字段列表的前缀
+        //group by b, c也返回false
         for (int i = 1; i < grouped.length; i++) {
             if (!grouped[i - 1] && grouped[i]) {
                 return false;
@@ -331,7 +340,7 @@ public class Select extends Query {
         int count = 0;
         for (boolean b : groupByExpression) {
             if (b) {
-                ++count;
+                ++count; //只要找到一个其实就可以退出了
             }
         }
         return count;
@@ -339,6 +348,8 @@ public class Select extends Query {
     
     //看这方法的代码时要时刻想到聚合函数、group by、having都有可能触发它
     private void queryGroup(int columnCount, LocalResult result) {
+        //key是ValueArray类型，如果当前有group by，则key对应group by字段值组成的数组，
+        //否则当前sql只有普通的聚合函数，此时key对应默认的ValueArray.get(new Value[0])
         ValueHashMap<HashMap<Expression, Object>> groups =
                 ValueHashMap.newInstance();
         int rowNumber = 0;
@@ -356,6 +367,10 @@ public class Select extends Query {
                 if (groupIndex == null) { //如select count(id) from mytable where id>0时groupIndex=null
                     key = defaultGroup;
                 } else { //group by、having的情形
+                    //避免在ExpressionColumn.getValue中取到旧值
+                    //例如SELECT id/3 AS A, COUNT(*) FROM mytable GROUP BY A HAVING A>=0
+                    currentGroup = null; //我加上的
+                    
                 	//按当前行，抽取group by字段列表的值，组合成一个key
                 	//例如group by id,name，那么先按id的字段下标从当前行中取出值，放到keyValues[0]中，
                 	//然后取出name字段的值放到keyValues[1]中。
@@ -769,6 +784,8 @@ public class Select extends Query {
             	//t是tableAlias
                 TableFilter filter = null;
                 for (TableFilter f : filters) {
+                    //select mytable.* from mytable as t这种用法是错的，MySQL也报错
+                    //必须这样select t.* from mytable as t或者select mytable.* from mytable
                     if (db.equalsIdentifiers(tableAlias, f.getTableAlias())) {
                         if (schemaName == null ||
                                 db.equalsIdentifiers(schemaName,
@@ -805,8 +822,9 @@ public class Select extends Query {
         // [NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME,
         // NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
         for (Column c : columns) {
-            // 右边表的filter有Natural Join列，而左边没有
-            if (filter.isNaturalJoinColumn(c)) { // 跳过Natural Join列
+            // 跳过Natural Join列，
+            // 右边的表对应的TableFilter有Natural Join列，而左边没有
+            if (filter.isNaturalJoinColumn(c)) {
                 continue;
             }
             ExpressionColumn ec = new ExpressionColumn(
@@ -825,7 +843,7 @@ public class Select extends Query {
         expandColumnList();
         visibleColumnCount = expressions.size(); //visibleColumnCount不包含缺失的order by、GROUP BY字段，还有having表达式
         ArrayList<String> expressionSQL;
-        if (orderList != null || group != null) {
+        if (orderList != null || group != null) { //只有order by和group by里的字段会引用select表达式中名称
             expressionSQL = New.arrayList();
             for (int i = 0; i < visibleColumnCount; i++) {
                 Expression expr = expressions.get(i);
@@ -914,22 +932,16 @@ public class Select extends Query {
         // map columns in select list and condition
         for (TableFilter f : filters) {
             mapColumns(f, 0);
-			if (orderList != null) {
-				for (SelectOrderBy o : orderList) {
-					Expression e = o.expression;
-					if (e == null) {
-						continue;
-					}
-					e.mapColumns(f, 0);
-				}
-			}
         }
-        if (havingIndex >= 0) { //在对expressions进行mapColumns时map过了
-            Expression expr = expressions.get(havingIndex);
-            SelectListColumnResolver res = new SelectListColumnResolver(this);
-            //当having不在visibleColumn的字段列表中时，mapColumns什么都不做
-            expr.mapColumns(res, 0);
-        }
+        // 我注释掉了，改进办法见ExpressionColumn
+        // if (havingIndex >= 0) { //在对expressions进行mapColumns时map过了
+        // Expression expr = expressions.get(havingIndex);
+        // SelectListColumnResolver res = new SelectListColumnResolver(this);
+        // 处理having中出现列别名的场景
+        // //当having不在visibleColumn的字段列表中时，mapColumns什么都不做
+        // expr.mapColumns(res, 0);
+        // }
+
         checkInit = true;
     }
 
@@ -1067,7 +1079,10 @@ public class Select extends Query {
                 }
             }
         }
-        //没有聚合函数，有group by的情型
+        //没有快速聚合函数，有group by的情型
+        //其实不需要调用getGroupByExpressionCount()的，
+        //只要判断groupByExpression!=null即可，此时getGroupByExpressionCount()必定>0
+        //因为在调用init时，如果groupByExpression不为null，必定包含true值的
         if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) {
             Index index = getGroupSortedIndex();
             Index current = topTableFilter.getIndex();
@@ -1481,7 +1496,6 @@ public class Select extends Query {
         return isEverything(ExpressionVisitor.READONLY_VISITOR);
     }
 
-
     @Override
     public boolean isCacheable() {
         return !isForUpdate;
@@ -1503,8 +1517,8 @@ public class Select extends Query {
 	public SortOrder getSortOrder() {
 		return sort;
 	}
-
+	
 	public String toString() { //我加上的
-		return getPlanSQL();
-	}
+        return getPlanSQL();
+    }
 }

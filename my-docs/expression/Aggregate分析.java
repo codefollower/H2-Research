@@ -1,4 +1,4 @@
-有14个聚合方法，有几个方法有不同别名:
+有16个聚合方法，有几个方法有不同别名:
 
 COUNT         COUNT_ALL(count(*)) 和 COUNT(字段)，COUNT_ALL和COUNT合并，不存在COUNT_ALL这样的名字，都用COUNT
 SUM
@@ -15,6 +15,9 @@ VAR_POP       也叫: VARP
 
 BOOL_OR       也叫: SOME
 BOOL_AND      也叫: EVERY
+
+BIT_OR
+BIT_AND
 
 SELECTIVITY
 HISTOGRAM     这个聚合函数在H2的文档中没有介绍

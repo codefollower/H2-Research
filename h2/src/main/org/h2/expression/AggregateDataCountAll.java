@@ -19,6 +19,7 @@ class AggregateDataCountAll extends AggregateData {
 
     @Override
     void add(Database database, int dataType, boolean distinct, Value v) {
+        //在org.h2.command.Parser.readAggregate(int, String)中那里确保使用COUNT_ALL时distinct是false
         if (distinct) {
             throw DbException.throwInternalError();
         }

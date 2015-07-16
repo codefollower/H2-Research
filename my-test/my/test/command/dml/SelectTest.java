@@ -31,15 +31,15 @@ public class SelectTest extends TestBase {
         //
 
         // queryFlat();
-        // select_init();
-        queryGroup();
+        select_init();
+        // queryGroup();
         // queryGroupSorted();
         //
         // queryQuick();
         //
         // queryDistinct();
 
-        prepare();
+        // prepare();
         // queryWithoutCache();
 
         // preparePlan();
@@ -79,6 +79,7 @@ public class SelectTest extends TestBase {
             stmt.executeUpdate("insert into mytable2(id2, name2) values(" + i * 10 + ", 'abcdef1234')");
         }
         stmt.executeUpdate("insert into mytable(id, name, age) values(" + 1 + ", '" + 1 + "abcdef1234', 10)");
+        stmt.executeUpdate("insert into mytable(id, name, age) values(" + 1 + ", '" + 1 + "abcdef12343', 10)");
         stmt.executeUpdate("insert into mytable(id, name, age) values(" + 1 + ", '" + 2 + "abcdef1234', 20)");
         stmt.executeUpdate("insert into mytable(id, name, age) values(" + 2 + ", '" + 3 + "abcdef1234', 30)");
         stmt.executeUpdate("insert into mytable(id, name, age) values(" + 2 + ", '" + 4 + "abcdef1234', 40)");
@@ -355,12 +356,42 @@ public class SelectTest extends TestBase {
     }
 
     void select_init() throws Exception {
-        expandColumnList();
+        // expandColumnList();
         // Query_initOrder();
-        init_havingIndex();
+
+        // sql = "select age, count(id) from mytable group by id,name";
+        // executeQuery();
+        //
+        // sql = "select age, count(id), name from mytable group by id,name";
+        // executeQuery();
+        //
+        // sql = "select age, count(id), name from mytable group by name, 2";
+        // executeQuery();
+        //
+        // 测试havingIndex
+        // sql = "select id,count(id) from mytable group by id having id=3";
+        // executeQuery();
+        // sql = "SELECT X/3 AS A, COUNT(*) FROM SYSTEM_RANGE(1, 1) GROUP BY A HAVING A>=0";
+        // executeQuery();
+        // sql = "SELECT X/3 AS A, COUNT(*) FROM SYSTEM_RANGE(1, 10) GROUP BY A HAVING A>=1";
+        // executeQuery();
+        //
+        // sql = "select id,age, count(*),name from mytable group by id,age HAVING id>0";
+        // executeQuery();
+        //
+        sql = "SELECT id AS A FROM mytable where A>=0";
+        // executeQuery();
+        sql = "SELECT id/3 AS A, COUNT(*) FROM mytable GROUP BY A HAVING A>=0";
+        executeQuery();
     }
 
     void expandColumnList() throws Exception {
+        // 不允许这样
+        sql = "select mytable.* from mytable t";
+        // 只能这样
+        sql = "select t.* from mytable t";
+        executeQuery();
+
         stmt.executeUpdate("drop table IF EXISTS emptytable");
         stmt.executeUpdate("create table IF NOT EXISTS emptytable()");
 
@@ -426,11 +457,6 @@ public class SelectTest extends TestBase {
         sql = "select name,ONE from mytable where name = 'abc' || '123'";
     }
 
-    void init_havingIndex() throws Exception {
-        sql = "select id,count(id) from mytable where id>2  group by id having id=3";
-        executeQuery();
-    }
-
     void queryGroup() throws Exception {
         sql = "select id from mytable group by id";
 
@@ -473,39 +499,41 @@ public class SelectTest extends TestBase {
         executeQuery();
     }
 
-    void queryGroupSorted() {
-        sql = "select id from mytable group by id";
+    void queryGroupSorted() throws Exception {
+        stmt.executeUpdate("drop table IF EXISTS queryGroupSorted");
+        stmt.executeUpdate("create table IF NOT EXISTS queryGroupSorted(id int, name varchar(500), age int)");
+        stmt.executeUpdate("create index IF NOT EXISTS queryGroupSorted_index_id on queryGroupSorted(id)");
+        stmt.executeUpdate("create index IF NOT EXISTS queryGroupSorted_index_name on queryGroupSorted(name)");
+        stmt.executeUpdate("create index IF NOT EXISTS queryGroupSorted_index_id_name_age on queryGroupSorted(id,name,age)");
 
-        sql = "select id from mytable group by id having id>2";
+        stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(1, 'a', 10)");
+        stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(2, 'b', 10)");
+        stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(1, 'a', 20)");
+        stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(2, 'b', 10)");
+        stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(3, 'a', 20)");
+        stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(3, 'b', 10)");
 
-        sql = "select id, count(id) from mytable group by id having id>2";
-        sql = "select id, count(id) from mytable group by id";
-        sql = "select count(id) from mytable group by id";
-        // sql = "select id,name,count(id) from mytable where id>0";
-        sql = "select id,count(id) from mytable where id>0";
-        // sql = "select id,count(id) from mytable where id>0  group by id";
+        // 下面三个都会使用GroupSortedIndex
+        // 也就是走queryGroupSorted_index_id_name_age索引
+        // group by后面字段的顺序是不重要的，谁先谁后都可以，所以下面两条sql会得到一样的结果
+        sql = "select id,name,count(id) from queryGroupSorted group by id,name";
+        executeQuery();
+        sql = "select id,name,count(id) from queryGroupSorted group by name,id";
+        executeQuery();
+        sql = "select id,name,age,count(id) from queryGroupSorted group by id,name,age having id<3";
+        executeQuery();
 
-        // sql = "select max(id), count(id) from mytable where id>1";
+        // 不会使用GroupSortedIndex，因为queryGroupSorted_index_id_name_age是按id, name, age的顺序，而不是id,age
+        sql = "select id,age,count(id) from queryGroupSorted group by id,age";
+        executeQuery();
 
-        sql = "select id,name,count(id) from mytable where id>0  group by id,name";
-
-        sql = "select id,count(id) from mytable where id>2  group by id having id=3";
-
-        // sql = "select count(id) from mytable where id>2 order by id";
-        // //不会触发queryGroupSorted
-        sql = "select id,count(id) from mytable where id>2 group by id having id=3 order by id";
-
-        // 下面几个都不能触发
-        // sql =
-        // "select id,count(id) from mytable where id>2 group by name,id having id=3 order by id";
-        // sql =
-        // "select id,count(id) from mytable where id>2 group by name,id having id=3 order by id,name";
-        // sql =
-        // "select id,count(id) from mytable where id>2 group by name,id having id=3 order by name,id";
-        // sql =
-        // "select id,count(id) from mytable where id>2 group by id,name having id=3 order by id";
-        // sql =
-        // "select id,count(id) from mytable where id>2 group by id,name having id=3 order by id,name";
+        // 不会使用GroupSortedIndex，
+        // group by字段必须是索引字段列表的前缀，这里是后缀了，少了id
+        sql = "select age,name,count(name) from queryGroupSorted group by age,name";
+        executeQuery();
+        // 同上
+        sql = "select name,age,count(name) from queryGroupSorted group by name,age";
+        executeQuery();
     }
 
     void queryQuick() throws Exception {

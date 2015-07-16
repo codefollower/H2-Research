@@ -42,7 +42,7 @@ class AggregateDataSelectivity extends AggregateData {
     @Override
     Value getValue(Database database, int dataType, boolean distinct) {
         if (distinct) {
-            count = 0;
+            count = 0; //加distinct时，意思就是没有重复的字段值了，所以SELECTIVITY就是0
         }
         Value v = null;
         int s = 0;

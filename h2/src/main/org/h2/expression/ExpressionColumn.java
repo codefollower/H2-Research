@@ -37,6 +37,8 @@ public class ExpressionColumn extends Expression {
     private int queryLevel;
     private Column column;
     private boolean evaluatable;
+    
+    private Select select; //我加上的
 
     public ExpressionColumn(Database database, Column column) {
         this.database = database;
@@ -83,6 +85,9 @@ public class ExpressionColumn extends Expression {
 
     @Override
     public void mapColumns(ColumnResolver resolver, int level) {
+        //我加上的
+        if (select == null)
+            select = resolver.getSelect();
         if (tableAlias != null && !database.equalsIdentifiers(
                 tableAlias, resolver.getTableAlias())) {
             return;
@@ -143,6 +148,13 @@ public class ExpressionColumn extends Expression {
                     return constant.getValue(); //对于常量字段的优化是直接返回ValueExpression
                 }
             }
+            //我加上的
+            if (select != null) {
+                for (Expression e : select.getExpressions()) {
+                    if (database.equalsIdentifiers(columnName, e.getAlias()))
+                        return e.getNonAliasExpression().optimize(session);
+                }
+            }
             String name = columnName;
             if (tableAlias != null) {
                 name = tableAlias + "." + name;
@@ -169,11 +181,14 @@ public class ExpressionColumn extends Expression {
         }
         Value v = (Value) values.get(this);
         if (v == null) {
-            values.put(this, now);
+            values.put(this, now); //如果不是非group by字段，则只保留第一次出现的值
         } else {
-            if (!database.areEqual(now, v)) {
-                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
-            }
+            // 如果不注释掉，这样的SQL会出错
+            // SELECT id/3 AS A, COUNT(*) FROM mytable GROUP BY A HAVING A>=0
+            
+            // if (!database.areEqual(now, v)) {
+            // throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
+            // }
         }
     }
 

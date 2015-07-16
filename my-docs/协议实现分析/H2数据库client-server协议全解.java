@@ -28,7 +28,7 @@ keys length个
 	String value
 }
 
-当前支持的协议版本是6、7、8、9、10、11、12
+当前支持的协议版本是6到15
 
 minClientVersion和maxClientVersion用来告诉server端当前client能支持的最小和最大协议版本是多少，
 根据这两个参数，server端会选择一个合适的协议版本与client通信，
@@ -73,6 +73,7 @@ String  sessionId
 server响应: 只有STATUS_OK
 ------------------------------------
 int     STATUS_OK(1)
+boolean autoCommit //从协议版本15开始支持
 ------------------------------------
 
 
