@@ -96,6 +96,8 @@ class CommandContainer extends Command {
 
     @Override
     public boolean isReadOnly() {
+        // call和select这两个语句对应的isReadOnly()会调用Expression.isEverything,
+        // 是一个有点耗时的事，所以最好只调用一次
         if (!readOnlyKnown) {
             readOnly = prepared.isReadOnly();
             readOnlyKnown = true;

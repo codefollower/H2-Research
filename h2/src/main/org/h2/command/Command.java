@@ -259,7 +259,7 @@ public abstract class Command implements CommandInterface {
                     try {
                         return update();
                     } catch (DbException e) {
-                        start = filterConcurrentUpdate(e, start);
+                        start = filterConcurrentUpdate(e, start); //如果是并发更新异常，会进行重试，直到超时为止
                     } catch (OutOfMemoryError e) {
                         callStop = false;
                         database.shutdownImmediately();
