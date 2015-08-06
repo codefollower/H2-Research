@@ -20,7 +20,31 @@ Change Log
 <h1>Change Log</h1>
 
 <h2>Next Version (unreleased)</h2>
+<ul><li>-</li>
+</ul>
+
+<h2>Version 1.4.188 Beta (2015-08-01)</h2>
 <ul>
+<li>Server mode: CLOB processing for texts larger than about 1 MB sometimes did not work.
+</li>
+<li>Server mode: BLOB processing for binaries larger than 2 GB did not work.
+</li>
+<li>Multi-threaded processing: concurrent deleting the same row could throw the exception
+    "Row not found when trying to delete".
+</li>
+<li>MVStore transactions: a thread could see a change of a different thread
+    within a different map. Pull request #153.
+</li>
+<li>H2 Console: improved IBM DB2 compatibility.
+</li>
+<li>A thread deadlock detector (disabled by default) can help
+    detect and analyze Java level deadlocks.
+    To enable, set the system property "h2.threadDeadlockDetector" to true.
+</li>
+<li>Performance improvement for metadata queries that join against the COLUMNS metadata table.
+</li>
+<li>MVStore: power failure could corrupt the store, if writes were re-ordered.
+</li>
 <li>For compatibility with other databases, support for (double and float)
     -0.0 has been removed. 0.0 is used instead.
 </li>

@@ -266,11 +266,12 @@ public class Column {
      * @return the new or converted value
      */
     public Value validateConvertUpdateSequence(Session session, Value value) {
-	  		// take a local copy of defaultExpression to avoid holding the lock while calling getValue
-	  		final Expression localDefaultExpression;
-	      synchronized (this) {
-	      	localDefaultExpression = defaultExpression;
-	      }
+        // take a local copy of defaultExpression to avoid holding the lock
+        // while calling getValue
+        final Expression localDefaultExpression;
+        synchronized (this) {
+            localDefaultExpression = defaultExpression;
+        }
         if (value == null) {
             if (localDefaultExpression == null) {
                 value = ValueNull.INSTANCE;
@@ -354,7 +355,7 @@ public class Column {
             if (update) {
                 sequence.modify(now + inc, null, null, null);
                 session.setLastIdentity(ValueLong.get(now));
-                sequence.flush(session, 0);
+                sequence.flush(session);
             }
         }
     }

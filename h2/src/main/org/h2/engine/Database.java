@@ -14,10 +14,10 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
-
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
+import org.h2.api.TableEngine;
 import org.h2.command.CommandInterface;
 import org.h2.command.ddl.CreateTableData;
 import org.h2.command.dml.SetTypes;
@@ -104,6 +104,7 @@ public class Database implements DataHandler {
     private final HashMap<String, UserDataType> userDataTypes = New.hashMap();
     private final HashMap<String, UserAggregate> aggregates = New.hashMap();
     private final HashMap<String, Comment> comments = New.hashMap();
+    private final HashMap<String, TableEngine> tableEngines = New.hashMap();
 
     private final Set<Session> userSessions =
             Collections.synchronizedSet(new HashSet<Session>());
@@ -904,8 +905,13 @@ public class Database implements DataHandler {
         return wasLocked;
     }
 
+    /**
+     * Unlock the metadata table.
+     *
+     * @param session the session
+     */
     public void unlockMeta(Session session) {
-      meta.unlock(session);
+        meta.unlock(session);
     }
 
     /**
@@ -989,14 +995,16 @@ public class Database implements DataHandler {
      * @param session the session
      * @param obj the object to add
      */
-    public synchronized void addSchemaObject(Session session, SchemaObject obj) {
+    public void addSchemaObject(Session session, SchemaObject obj) {
         int id = obj.getId();
         if (id > 0 && !starting) {
             checkWritingAllowed();
         }
         lockMeta(session);
-        obj.getSchema().add(obj);
-        addMeta(session, obj);
+        synchronized (this) {
+            obj.getSchema().add(obj);
+            addMeta(session, obj);
+        }
     }
 
     /**
@@ -1522,6 +1530,23 @@ public class Database implements DataHandler {
         return list;
     }
 
+    /**
+     * Get the tables with the given name, if any.
+     *
+     * @param name the table name
+     * @return the list
+     */
+    public ArrayList<Table> getTableOrViewByName(String name) {
+        ArrayList<Table> list = New.arrayList();
+        for (Schema schema : schemas.values()) {
+            Table table = schema.getTableOrViewByName(name);
+            if (table != null) {
+                list.add(table);
+            }
+        }
+        return list;
+    }
+
     public ArrayList<Schema> getAllSchemas() {
         initMetaTables();
         return New.arrayList(schemas.values());
@@ -1782,7 +1807,7 @@ public class Database implements DataHandler {
      * @param session the session
      * @param obj the object to be removed
      */
-    public synchronized void removeSchemaObject(Session session,
+    public void removeSchemaObject(Session session,
             SchemaObject obj) {
         int type = obj.getType();
         if (type == DbObject.TABLE_OR_VIEW) {
@@ -1808,22 +1833,24 @@ public class Database implements DataHandler {
         }
         checkWritingAllowed();
         lockMeta(session);
-        Comment comment = findComment(obj);
-        if (comment != null) {
-            removeDatabaseObject(session, comment);
-        }
-        obj.getSchema().remove(obj);
-        int id = obj.getId();
-        if (!starting) {
-            Table t = getDependentTable(obj, null); //别的表有用到这个对象时不能删
-            if (t != null) {
-                obj.getSchema().add(obj);
-                throw DbException.get(ErrorCode.CANNOT_DROP_2, obj.getSQL(),
-                        t.getSQL());
+        synchronized (this) {
+            Comment comment = findComment(obj);
+            if (comment != null) {
+                removeDatabaseObject(session, comment);
             }
-            obj.removeChildrenAndResources(session);
+            obj.getSchema().remove(obj);
+            int id = obj.getId();
+            if (!starting) {
+                Table t = getDependentTable(obj, null); //别的表有用到这个对象时不能删
+                if (t != null) {
+                    obj.getSchema().add(obj);
+                    throw DbException.get(ErrorCode.CANNOT_DROP_2, obj.getSQL(),
+                            t.getSQL());
+                }
+                obj.removeChildrenAndResources(session);
+            }
+            removeMeta(session, id);
         }
-        removeMeta(session, id);
     }
 
     /**
@@ -2366,9 +2393,16 @@ public class Database implements DataHandler {
         return meta == null || meta.isLockedExclusively();
     }
 
+    /**
+     * Checks if the system table (containing the catalog) is locked by the
+     * given session.
+     *
+     * @param session the session
+     * @return true if it is currently locked
+     */
     public boolean isSysTableLockedBy(Session session) {
-      return meta == null || meta.isLockedExclusivelyBy(session);
-  }
+        return meta == null || meta.isLockedExclusivelyBy(session);
+    }
 
     /**
      * Open a new connection or get an existing connection to another database.
@@ -2795,6 +2829,27 @@ public class Database implements DataHandler {
             javaObjectSerializerInitialized = false;
             javaObjectSerializerName = serializerName;
         }
+    }
+
+    /**
+     * Get the table engine class, loading it if needed.
+     *
+     * @param tableEngine the table engine name
+     * @return the class
+     */
+    public TableEngine getTableEngine(String tableEngine) {
+        assert Thread.holdsLock(this);
+
+        TableEngine engine = tableEngines.get(tableEngine);
+        if (engine == null) {
+            try {
+                engine = (TableEngine) JdbcUtils.loadUserClass(tableEngine).newInstance();
+            } catch (Exception e) {
+                throw DbException.convert(e);
+            }
+            tableEngines.put(tableEngine, engine);
+        }
+        return engine;
     }
 
 }

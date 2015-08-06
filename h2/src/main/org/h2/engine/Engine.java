@@ -37,7 +37,9 @@ public class Engine implements SessionFactory {
     
     private Engine() {
         // use getInstance()
-    	ThreadDeadlockDetector.init();
+        if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
+            ThreadDeadlockDetector.init();
+        }
     }
     
     //调用顺序: 1 (如果是内存数据库，这一步不调用，直接到2)

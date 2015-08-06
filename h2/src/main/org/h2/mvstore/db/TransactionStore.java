@@ -934,9 +934,11 @@ public class TransactionStore {
                 long size = 0;
                 Cursor<K, VersionedValue> cursor = map.cursor(null);
                 while (cursor.hasNext()) {
-                    K key = cursor.next();
-                    VersionedValue data = cursor.getValue();
-                    data = getValue(key, readLogId, data);
+                    VersionedValue data;
+                    synchronized (transaction.store.undoLog) {
+                        K key = cursor.next();
+                        data = getValue(key, readLogId, cursor.getValue());
+                    }
                     if (data != null && data.value != null) {
                         size++;
                     }
@@ -1198,8 +1200,14 @@ public class TransactionStore {
         }
 
         private VersionedValue getValue(K key, long maxLog) {
-            VersionedValue data = map.get(key);
-            return getValue(key, maxLog, data);
+            synchronized (getUndoLog()) {
+                VersionedValue data = map.get(key);
+                return getValue(key, maxLog, data);
+            }
+        }
+
+        Object getUndoLog() {
+            return transaction.store.undoLog;
         }
 
         /**
@@ -1213,6 +1221,13 @@ public class TransactionStore {
         VersionedValue getValue(K key, long maxLog, VersionedValue data) {
             //基本思路是: data最先是从map中取出的值，如果为null，说明在map中没有了，如果有且operationId是0，说明是已提交的。
             //不满足这两条件，再从undo log中按operationId找
+            if (MVStore.ASSERT) {
+                if (!Thread.holdsLock(getUndoLog())) {
+                    throw DataUtils.newIllegalStateException(
+                            DataUtils.ERROR_INTERNAL,
+                            "not synchronized on undoLog");
+                }
+            }
             while (true) {
                 if (data == null) {
                     // doesn't exist or deleted by a committed transaction
@@ -1232,9 +1247,7 @@ public class TransactionStore {
                 }
                 // get the value before the uncommitted transaction
                 Object[] d;
-                synchronized (transaction.store.undoLog) {
-                    d = transaction.store.undoLog.get(id);
-                }
+                d = transaction.store.undoLog.get(id);
                 if (d == null) {
                     // this entry should be committed or rolled back
                     // in the meantime (the transaction might still be open)
@@ -1443,37 +1456,39 @@ public class TransactionStore {
 
                 private void fetchNext() {
                     while (cursor.hasNext()) {
-                        K k;
-                        try {
-                            k = cursor.next();
-                        } catch (IllegalStateException e) {
-                            // TODO this is a bit ugly
-                            if (DataUtils.getErrorCode(e.getMessage()) ==
-                                    DataUtils.ERROR_CHUNK_NOT_FOUND) {
-                                cursor = map.cursor(currentKey);
-                                // we (should) get the current key again,
-                                // we need to ignore that one
-                                if (!cursor.hasNext()) {
-                                    break;
-                                }
-                                cursor.next();
-                                if (!cursor.hasNext()) {
-                                    break;
-                                }
+                        synchronized (getUndoLog()) {
+                            K k;
+                            try {
                                 k = cursor.next();
-                            } else {
-                                throw e;
+                            } catch (IllegalStateException e) {
+                                // TODO this is a bit ugly
+                                if (DataUtils.getErrorCode(e.getMessage()) ==
+                                        DataUtils.ERROR_CHUNK_NOT_FOUND) {
+                                    cursor = map.cursor(currentKey);
+                                    // we (should) get the current key again,
+                                    // we need to ignore that one
+                                    if (!cursor.hasNext()) {
+                                        break;
+                                    }
+                                    cursor.next();
+                                    if (!cursor.hasNext()) {
+                                        break;
+                                    }
+                                    k = cursor.next();
+                                } else {
+                                    throw e;
+                                }
                             }
-                        }
-                        final K key = k;
-                        VersionedValue data = cursor.getValue();
-                        data = getValue(key, readLogId, data);
-                        if (data != null && data.value != null) {
-                            @SuppressWarnings("unchecked")
-                            final V value = (V) data.value;
-                            current = new DataUtils.MapEntry<K, V>(key, value);
-                            currentKey = key;
-                            return;
+                            final K key = k;
+                            VersionedValue data = cursor.getValue();
+                            data = getValue(key, readLogId, data);
+                            if (data != null && data.value != null) {
+                                @SuppressWarnings("unchecked")
+                                final V value = (V) data.value;
+                                current = new DataUtils.MapEntry<K, V>(key, value);
+                                currentKey = key;
+                                return;
+                            }
                         }
                     }
                     current = null;

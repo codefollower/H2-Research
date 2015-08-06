@@ -237,7 +237,6 @@ public class MVSecondaryIndex extends BaseIndex implements MVIndex {
         }
     }
 
-
     @Override
     public void remove(Session session, Row row) {
         ValueArray array = convertToKey(row);
