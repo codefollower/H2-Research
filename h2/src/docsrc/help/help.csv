@@ -289,12 +289,13 @@ ALTER TABLE TEST ALTER COLUMN NAME SET NULL;
 "
 
 "Commands (DDL)","ALTER TABLE DROP COLUMN","
-ALTER TABLE tableName DROP COLUMN [ IF EXISTS ] columnName
+ALTER TABLE tableName DROP COLUMN [ IF EXISTS ] ( columnName [,...] )
 ","
-Removes a column from a table.
+Removes column(s) from a table.
 This command commits an open transaction in this connection.
 ","
 ALTER TABLE TEST DROP COLUMN NAME
+ALTER TABLE TEST DROP COLUMN NAME1, NAME2
 "
 
 "Commands (DDL)","ALTER TABLE DROP CONSTRAINT","
@@ -1479,6 +1480,19 @@ This command commits an open transaction in this connection.
 Admin rights are required to execute this command, as it affects all connections.
 ","
 SET QUERY_STATISTICS FALSE
+"
+
+"Commands (Other)","SET QUERY_STATISTICS_MAX_ENTRIES","
+SET QUERY_STATISTICS int
+","
+Set the maximum number of entries in query statistics meta-table.
+Default value is 100.
+
+This setting is not persistent.
+This command commits an open transaction in this connection.
+Admin rights are required to execute this command, as it affects all connections.
+","
+SET QUERY_STATISTICS_MAX_ENTRIES 500
 "
 
 "Commands (Other)","SET QUERY_TIMEOUT","

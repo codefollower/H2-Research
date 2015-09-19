@@ -62,22 +62,49 @@ public class DateTimeUtils {
     private static final ThreadLocal<Calendar> CACHED_CALENDAR =
             new ThreadLocal<Calendar>();
 
+    /**
+     * A cached instance of Calendar used when a timezone is specified.
+     */
+    private static final ThreadLocal<Calendar> CACHED_CALENDAR_NON_DEFAULT_TIMEZONE =
+            new ThreadLocal<Calendar>();
+
     private DateTimeUtils() {
         // utility class
     }
 
     /**
-     * Reset the calendar, for example after changing the default timezone.
+     * Reset the cached calendar for default timezone, for example after
+     * changing the default timezone.
      */
     public static void resetCalendar() {
         CACHED_CALENDAR.remove();
     }
 
+    /**
+     * Get a calendar for the default timezone.
+     *
+     * @return a calendar instance. A cached instance is returned where possible
+     */
     private static Calendar getCalendar() {
         Calendar c = CACHED_CALENDAR.get();
         if (c == null) {
             c = Calendar.getInstance();
             CACHED_CALENDAR.set(c);
+        }
+        return c;
+    }
+
+    /**
+     * Get a calendar for the given timezone.
+     *
+     * @param tz timezone for the calendar, is never null
+     * @return a calendar instance. A cached instance is returned where possible
+     */
+    private static Calendar getCalendar(TimeZone tz) {
+        Calendar c = CACHED_CALENDAR_NON_DEFAULT_TIMEZONE.get();
+        if (c == null || !c.getTimeZone().equals(tz)) {
+            c = Calendar.getInstance(tz);
+            CACHED_CALENDAR_NON_DEFAULT_TIMEZONE.set(c);
         }
         return c;
     }
@@ -394,7 +421,7 @@ public class DateTimeUtils {
         if (tz == null) {
             c = getCalendar();
         } else {
-            c = Calendar.getInstance(tz);
+            c = getCalendar(tz);
         }
         c.clear();
         c.setLenient(lenient);

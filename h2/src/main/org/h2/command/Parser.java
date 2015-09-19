@@ -2398,8 +2398,9 @@ public class Parser {
             }
         } else if (aggregateType == Aggregate.GROUP_CONCAT) {
             Aggregate agg = null;
+            boolean distinct = readIf("DISTINCT");
+
             if (equalsToken("GROUP_CONCAT", aggregateName)) {
-                boolean distinct = readIf("DISTINCT");
                 agg = new Aggregate(Aggregate.GROUP_CONCAT,
                     readExpression(), currentSelect, distinct);
                 if (readIf("ORDER")) {
@@ -2413,9 +2414,13 @@ public class Parser {
             } else if (equalsToken("STRING_AGG", aggregateName)) {
                 // PostgreSQL compatibility: string_agg(expression, delimiter)
                 agg = new Aggregate(Aggregate.GROUP_CONCAT,
-                    readExpression(), currentSelect, false);
+                    readExpression(), currentSelect, distinct);
                 read(",");
                 agg.setGroupConcatSeparator(readExpression());
+                if (readIf("ORDER")) {
+                    read("BY");
+                    agg.setGroupConcatOrder(parseSimpleOrderList());
+                }
             }
             r = agg;
         } else {
@@ -5692,12 +5697,17 @@ public class Parser {
                 AlterTableAlterColumn command = new AlterTableAlterColumn(
                         session, table.getSchema());
                 command.setType(CommandInterface.ALTER_TABLE_DROP_COLUMN);
-                String columnName = readColumnIdentifier();
+                ArrayList<Column> columnsToRemove = New.arrayList();
+                do {
+                    String columnName = readColumnIdentifier();
+                    if (ifExists && !table.doesColumnExist(columnName)) {
+                        return new NoOperation(session);
+                    }
+                    Column column = table.getColumn(columnName);
+                    columnsToRemove.add(column);
+                } while (readIf(","));
                 command.setTable(table);
-                if (ifExists && !table.doesColumnExist(columnName)) {
-                    return new NoOperation(session);
-                }
-                command.setOldColumn(table.getColumn(columnName));
+                command.setColumnsToRemove(columnsToRemove);
                 return command;
             }
         } else if (readIf("CHANGE")) {
@@ -6219,7 +6229,9 @@ public class Parser {
         readIf("DEFAULT");
         if (readIf("CHARSET")) {
             read("=");
-            read("UTF8");
+            if (!readIf("UTF8")) {
+                read("UTF8MB4");
+            }
         }
         if (temp) {
             if (readIf("ON")) {

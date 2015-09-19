@@ -189,6 +189,7 @@ public class Database implements DataHandler {
     private String javaObjectSerializerName;
     private volatile boolean javaObjectSerializerInitialized;
     private boolean queryStatistics;
+    private int queryStatisticsMaxEntries = Constants.QUERY_STATISTICS_MAX_ENTRIES;
     private QueryStatisticsData queryStatisticsData;
 
     public Database(ConnectionInfo ci, String cipher) {
@@ -355,8 +356,8 @@ public class Database implements DataHandler {
      * @return 0 if both values are equal, -1 if the first value is smaller, and
      *         1 otherwise
      */
-    public int compareTypeSave(Value a, Value b) {
-        return a.compareTypeSave(b, compareMode);
+    public int compareTypeSafe(Value a, Value b) {
+        return a.compareTypeSafe(b, compareMode);
     }
 
     public long getModificationDataId() {
@@ -1634,6 +1635,10 @@ public class Database implements DataHandler {
         int id = obj.getId();
         removeMeta(session, id);
         addMeta(session, obj);
+        // for temporary objects
+        if (id > 0) {
+            objectIds.set(id);
+        }
     }
 
     /**
@@ -2270,6 +2275,17 @@ public class Database implements DataHandler {
         return queryStatistics;
     }
 
+    public void setQueryStatisticsMaxEntries(int n) {
+        queryStatisticsMaxEntries = n;
+        if (queryStatisticsData != null) {
+            synchronized (this) {
+                if (queryStatisticsData != null) {
+                    queryStatisticsData.setMaxQueryEntries(queryStatisticsMaxEntries);
+                }
+            }
+        }
+    }
+
     public QueryStatisticsData getQueryStatisticsData() {
         if (!queryStatistics) {
             return null;
@@ -2277,7 +2293,7 @@ public class Database implements DataHandler {
         if (queryStatisticsData == null) {
             synchronized (this) {
                 if (queryStatisticsData == null) {
-                    queryStatisticsData = new QueryStatisticsData();
+                    queryStatisticsData = new QueryStatisticsData(queryStatisticsMaxEntries);
                 }
             }
         }

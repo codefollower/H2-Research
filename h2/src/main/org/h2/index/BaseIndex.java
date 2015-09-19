@@ -256,12 +256,15 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         }
         for (int i = 0, len = indexColumns.length; i < len; i++) {
             int index = columnIds[i];
-            Value v = compare.getValue(index);
-            if (v == null) { //只要compare中有null值就认为无法比较，直接认为rowData和compare相等(通常在查询时在where中再比较)
+
+            Value v1 = rowData.getValue(index);
+            Value v2 = compare.getValue(index);
+            //只要compare中有null值就认为无法比较，直接认为rowData和compare相等(通常在查询时在where中再比较)
+            if (v1 == null || v2 == null) {
                 // can't compare further
                 return 0;
             }
-            int c = compareValues(rowData.getValue(index), v, indexColumns[i].sortType);
+            int c = compareValues(v1, v2, indexColumns[i].sortType);
             if (c != 0) {
                 return c;
             }
@@ -353,11 +356,8 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         if (a == b) {
             return 0;
         }
-        boolean aNull = a == null, bNull = b == null;
-        if (aNull || bNull) {
-            return SortOrder.compareNull(aNull, sortType);
-        }
-        int comp = table.compareTypeSave(a, b);
+
+        int comp = table.compareTypeSafe(a, b);
         if ((sortType & SortOrder.DESCENDING) != 0) { //降序时，把比较结果反过来
             comp = -comp;
         }

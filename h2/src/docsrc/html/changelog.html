@@ -20,7 +20,44 @@ Change Log
 <h1>Change Log</h1>
 
 <h2>Next Version (unreleased)</h2>
-<ul><li>-</li>
+<ul>
+<li>-
+</li>
+</ul>
+
+<h2>Version 1.4.189 Beta (2015-09-13)</h2>
+<ul>
+<li>Add support for dropping multiple columns in ALTER TABLE DROP COLUMN...
+</li>
+<li>Fix bug in XA management when doing rollback after prepare. Patch by Stephane Lacoin.
+</li>
+<li>MVStore CLOB and BLOB: An exception with the message "Block not found" could be thrown
+    when using the MVStore storage, when copying LOB objects
+    (for example due to "alter table" on a table with a LOB object),
+    and then re-opening the database.
+</li>
+<li>Fix for issue #171: Broken QueryStatisticsData duration data when trace level smaller than TraceSystem.INFO
+</li>
+<li>Pull request #170: Added SET QUERY_STATISTICS_MAX_ENTRIES
+</li>
+<li>Pull request #165: Fix compatibility postgresql function string_agg
+</li>
+<li>Pull request #163: improved performance when not using the default timezone.
+</li>
+<li>Local temporary tables with many rows did not work correctly due to automatic analyze.
+</li>
+<li>Server mode: concurrently using the same connection could throw an exception
+    "Connection is broken: unexpected status".
+</li>
+<li>Performance improvement for metadata queries that join against the COLUMNS metadata table.
+</li>
+<li>An ArrayIndexOutOfBoundsException was thrown in some cases
+    when opening an old version 1.3 database, or an 1.4 database with
+    both "mv_store=false" and the system property "h2.storeLocalTime" set to false.
+    It mainly showed up with an index on a time, date, or timestamp column.
+    The system property "h2.storeLocalTime" is no longer supported
+    (MVStore databases always store local time, and PageStore now databases never do).
+</li>
 </ul>
 
 <h2>Version 1.4.188 Beta (2015-08-01)</h2>

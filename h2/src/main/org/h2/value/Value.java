@@ -265,7 +265,7 @@ public abstract class Value {
      */
     static int getOrder(int type) {
     	//当两个值需要发生转换时，order数字小的要转到数字大的，比如a是int，b是long，int是23，long是24，那么在做运算时a要转成long
-        switch(type) {
+        switch (type) {
         case UNKNOWN:
             return 1;
         case NULL:
@@ -749,7 +749,7 @@ public abstract class Value {
                 break;
             }
             case BYTES: {
-                switch(getType()) {
+                switch (getType()) {
                 case JAVA_OBJECT:
                 case BLOB:
                     return ValueBytes.getNoCopy(getBytesNoCopy());
@@ -791,7 +791,7 @@ public abstract class Value {
                 break;
             }
             case JAVA_OBJECT: {
-                switch(getType()) {
+                switch (getType()) {
                 case BYTES:
                 case BLOB:
                     return ValueJavaObject.getNoCopy(
@@ -800,7 +800,7 @@ public abstract class Value {
                 break;
             }
             case BLOB: {
-                switch(getType()) {
+                switch (getType()) {
                 case BYTES:
                     return ValueLobDb.createSmallLob(
                             Value.BLOB, getBytesNoCopy());
@@ -808,13 +808,13 @@ public abstract class Value {
                 break;
             }
             case UUID: {
-                switch(getType()) {
+                switch (getType()) {
                 case BYTES:
                     return ValueUuid.get(getBytesNoCopy());
                 }
             }
             case GEOMETRY:
-                switch(getType()) {
+                switch (getType()) {
                 case BYTES:
                     return ValueGeometry.get(getBytesNoCopy());
                 case JAVA_OBJECT:
@@ -914,7 +914,7 @@ public abstract class Value {
      * @return 0 if both values are equal, -1 if the other value is smaller, and
      *         1 otherwise
      */
-    public final int compareTypeSave(Value v, CompareMode mode) {
+    public final int compareTypeSafe(Value v, CompareMode mode) {
         if (this == v) {
             return 0;
         } else if (this == ValueNull.INSTANCE) {

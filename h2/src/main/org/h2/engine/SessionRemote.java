@@ -245,9 +245,9 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
     }
 
-    private void setAutoCommitSend(boolean autoCommit) {
-        //VERSION_8开始通过SESSION_SET_AUTOCOMMIT协议指令，以前的版本通过SET AUTOCOMMIT语句
-        //对于commit和rollback则没有对应的协议指令，只能通过COMMIT、ROLLBACK语句
+    // VERSION_8开始通过SESSION_SET_AUTOCOMMIT协议指令，以前的版本通过SET AUTOCOMMIT语句
+    // 对于commit和rollback则没有对应的协议指令，只能通过COMMIT、ROLLBACK语句
+    private synchronized void setAutoCommitSend(boolean autoCommit) {
         if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_8) {
             for (int i = 0, count = 0; i < transferList.size(); i++) {
                 Transfer transfer = transferList.get(i);

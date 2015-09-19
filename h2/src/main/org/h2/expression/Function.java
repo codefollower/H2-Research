@@ -568,7 +568,7 @@ public class Function extends Expression implements FunctionCall {
         if (info == null) {
             return null;
         }
-        switch(info.type) {
+        switch (info.type) {
         case TABLE:
         case TABLE_DISTINCT:
             return new TableFunction(database, info, Long.MAX_VALUE);
@@ -1076,7 +1076,7 @@ public class Function extends Expression implements FunctionCall {
                     if (result == ValueNull.INSTANCE) {
                         result = v;
                     } else {
-                        int comp = database.compareTypeSave(result, v);
+                        int comp = database.compareTypeSafe(result, v);
                         if (info.type == GREATEST && comp < 0) {
                             result = v;
                         } else if (info.type == LEAST && comp > 0) {
@@ -1467,7 +1467,7 @@ public class Function extends Expression implements FunctionCall {
                     v2 == null ? null : v2.getInt()));
             break;
         case TO_CHAR:
-            switch(v0.getType()){
+            switch (v0.getType()){
             case Value.TIME:
             case Value.DATE:
             case Value.TIMESTAMP:

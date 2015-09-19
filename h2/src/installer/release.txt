@@ -1,5 +1,4 @@
-Check dictionary.txt
-svn up
+git pull
 ./build.sh spellcheck
 ./build.sh javadocImpl
 ./build.sh docs
@@ -19,10 +18,10 @@ Check docs, versions and links in main, downloads, build numbers
 Check the PDF file size
 
 Upload to SourceForge
+Upload to ftp://h2database.com/javadoc
 Upload to ftp://h2database.com
 Upload to ftp://h2database.com/m2-repo
-svn commit
-svn copy: /svn/trunk /svn/tags/version-1.1.x; Version 1.1.x (yyyy-mm-dd)
+Github: create a release
 Newsletter: prepare (always to BCC)
 Newsletter: send to h2-database-jp@googlegroups.com; h2-database@googlegroups.com; h2database-news@googlegroups.com; ...
 Add to http://twitter.com
@@ -30,4 +29,9 @@ Add to http://twitter.com
 Close bugs: https://github.com/h2database/h2database/issues
 Update statistics
 
-
+Sign files and publish files on Maven Central
+http://central.sonatype.org/pages/ossrh-guide.html
+http://central.sonatype.org/pages/manual-staging-bundle-creation-and-deployment.html
+gpg -u "Thomas Mueller Graf <thomas.tom.mueller@gmail.com>" -ab maven-*
+gpg -u "Thomas Mueller Graf <thomas.tom.mueller@gmail.com>" -ab h2-*
+jar -cvf bundle.jar h2-*

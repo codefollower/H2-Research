@@ -448,7 +448,7 @@ public class MVTableEngine implements TableEngine {
 
         @Override
         public String getState() {
-            switch(state) {
+            switch (state) {
             case IN_DOUBT:
                 return "IN_DOUBT";
             case COMMIT:
