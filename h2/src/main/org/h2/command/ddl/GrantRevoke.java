@@ -10,11 +10,13 @@ import java.util.ArrayList;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.engine.Database;
+import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.RightOwner;
 import org.h2.engine.Role;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
+import org.h2.schema.Schema;
 import org.h2.table.Table;
 import org.h2.util.New;
 
@@ -31,6 +33,7 @@ public class GrantRevoke extends DefineCommand {
     private int operationType;
     private int rightMask;
     private final ArrayList<Table> tables = New.arrayList();
+    private Schema schema;
     private RightOwner grantee;
 
     public GrantRevoke(Session session) {
@@ -105,18 +108,25 @@ public class GrantRevoke extends DefineCommand {
     }
 
     private void grantRight() {
-        Database db = session.getDatabase();
+        if (schema != null) {
+            grantRight(schema);
+        }
         for (Table table : tables) {
-            Right right = grantee.getRightForTable(table);
-            if (right == null) {
-                int id = getObjectId();
-                right = new Right(db, id, grantee, rightMask, table);
-                grantee.grantRight(table, right);
-                db.addDatabaseObject(session, right);
-            } else {
-                right.setRightMask(right.getRightMask() | rightMask);
-                db.updateMeta(session, right);
-            }
+            grantRight(table);
+        }
+    }
+
+    private void grantRight(DbObject object) {
+        Database db = session.getDatabase();
+        Right right = grantee.getRightForObject(object);
+        if (right == null) {
+            int id = getObjectId();
+            right = new Right(db, id, grantee, rightMask, object);
+            grantee.grantRight(object, right);
+            db.addDatabaseObject(session, right);
+        } else {
+            right.setRightMask(right.getRightMask() | rightMask);
+            db.updateMeta(session, right);
         }
     }
 
@@ -126,14 +136,14 @@ public class GrantRevoke extends DefineCommand {
         }
         if (grantee instanceof Role) {
             Role granteeRole = (Role) grantee;
-            //ä¾‹å¦‚: GRANT myrole1 TO myrole2
-            //è¿™é‡Œçš„æ„æ€æ˜¯åˆ¤æ–­myrole1æ˜¯å¦æ›¾æˆä¸ç»™myrole2ï¼Œä¸»è¦æ˜¯ä¸ºäº†ç›‘æµ‹å¾ªç¯æˆäºˆçš„æƒ…å†µ
-            //æ¯”å¦‚ï¼Œå¦‚æœå…ˆæ˜¯GRANT myrole2 TO myrole1ï¼Œ
-            //é‚£ä¹ˆmyrole1çš„grantedRolesä¸­å°±æœ‰myrole2äº†
-            //å½“GRANT myrole1 TO myrole2æ—¶ï¼Œå› ä¸ºgrantedRole=myrole1ï¼Œgrantee=myrole2
-            //æ‰€ä»¥è°ƒç”¨myrole1.isRoleGrantedåœ¨grantedRolesä¸­è‚¯å®šæœ‰myrole2äº†
-            //æ­¤æ—¶å°±è¿”å›true
-            //å½“è‡ªå·±æˆäºˆè‡ªå·±æ—¶ï¼ŒgrantedRole.isRoleGrantedä¹Ÿä¼šè¿”å›true
+            //ÀıÈç: GRANT myrole1 TO myrole2
+            //ÕâÀïµÄÒâË¼ÊÇÅĞ¶Ïmyrole1ÊÇ·ñÔøÊÚÓë¸ømyrole2£¬Ö÷ÒªÊÇÎªÁË¼à²âÑ­»·ÊÚÓèµÄÇé¿ö
+            //±ÈÈç£¬Èç¹ûÏÈÊÇGRANT myrole2 TO myrole1£¬
+            //ÄÇÃ´myrole1µÄgrantedRolesÖĞ¾ÍÓĞmyrole2ÁË
+            //µ±GRANT myrole1 TO myrole2Ê±£¬ÒòÎªgrantedRole=myrole1£¬grantee=myrole2
+            //ËùÒÔµ÷ÓÃmyrole1.isRoleGrantedÔÚgrantedRolesÖĞ¿Ï¶¨ÓĞmyrole2ÁË
+            //´ËÊ±¾Í·µ»Øtrue
+            //µ±×Ô¼ºÊÚÓè×Ô¼ºÊ±£¬grantedRole.isRoleGrantedÒ²»á·µ»Øtrue
             if (grantedRole.isRoleGranted(granteeRole)) {
                 // cyclic role grants are not allowed
                 throw DbException.get(ErrorCode.ROLE_ALREADY_GRANTED_1, grantedRole.getSQL());
@@ -147,22 +157,30 @@ public class GrantRevoke extends DefineCommand {
     }
 
     private void revokeRight() {
+        if (schema != null) {
+            revokeRight(schema);
+        }
         for (Table table : tables) {
-            Right right = grantee.getRightForTable(table);
-            if (right == null) {
-                continue;
-            }
-            int mask = right.getRightMask();
-            int newRight = mask & ~rightMask;
-            Database db = session.getDatabase();
-            if (newRight == 0) {
-                db.removeDatabaseObject(session, right);
-            } else {
-                right.setRightMask(newRight);
-                db.updateMeta(session, right);
-            }
+            revokeRight(table);
         }
     }
+
+    private void revokeRight(DbObject object) {
+        Right right = grantee.getRightForObject(object);
+        if (right == null) {
+            return;
+        }
+        int mask = right.getRightMask();
+        int newRight = mask & ~rightMask;
+        Database db = session.getDatabase();
+        if (newRight == 0) {
+            db.removeDatabaseObject(session, right);
+        } else {
+            right.setRightMask(newRight);
+            db.updateMeta(session, right);
+        }
+    }
+
 
     private void revokeRole(Role grantedRole) {
         Right right = grantee.getRightForRole(grantedRole);
@@ -185,6 +203,15 @@ public class GrantRevoke extends DefineCommand {
      */
     public void addTable(Table table) {
         tables.add(table);
+    }
+
+    /**
+     * Set the specified schema
+     *
+     * @param schema the schema
+     */
+    public void setSchema(Schema schema) {
+        this.schema = schema;
     }
 
     @Override

@@ -42,7 +42,7 @@ import org.h2.value.ValueNull;
  * This is the base class for most tables.
  * A table contains a list of columns and a list of rows.
  */
-//ç›®å‰æœ‰7ä¸ªå­ç±»
+//Ä¿Ç°ÓĞ7¸ö×ÓÀà
 //FunctionTable
 //MetaTable
 //RangeTable
@@ -224,7 +224,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @throws DbException if it is not supported
      */
-    public abstract void checkSupportAlter(); //åªæœ‰MVTableå’ŒRegularTableæ”¯æŒ
+    public abstract void checkSupportAlter(); //Ö»ÓĞMVTableºÍRegularTableÖ§³Ö
 
     /**
      * Get the table type name
@@ -274,7 +274,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @return true if it is
      */
-    public abstract boolean isDeterministic(); //è¡¨TableLinkæ˜¯falseï¼ŒFunctionTableã€TableViewè¦çœ‹å…·ä½“æƒ…å†µï¼Œå…¶ä»–å­ç±»è¿”å›true
+    public abstract boolean isDeterministic(); //±íTableLinkÊÇfalse£¬FunctionTable¡¢TableViewÒª¿´¾ßÌåÇé¿ö£¬ÆäËû×ÓÀà·µ»Øtrue
 
     /**
      * Check if the row count can be retrieved quickly.
@@ -326,7 +326,7 @@ public abstract class Table extends SchemaObjectBase {
     }
 
     @Override
-    public String getCreateSQLForCopy(Table table, String quotedName) { //åªæœ‰TableViewè¦†ç›–äº†
+    public String getCreateSQLForCopy(Table table, String quotedName) { //Ö»ÓĞTableView¸²¸ÇÁË
         throw DbException.throwInternalError();
     }
 
@@ -368,7 +368,7 @@ public abstract class Table extends SchemaObjectBase {
         dependencies.add(this);
     }
 
-    //Tableçš„childrenæœ‰6ç§: indexã€constraintã€triggerã€sequenceã€viewã€right
+    //TableµÄchildrenÓĞ6ÖÖ: index¡¢constraint¡¢trigger¡¢sequence¡¢view¡¢right
     @Override
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = New.arrayList();
@@ -390,7 +390,7 @@ public abstract class Table extends SchemaObjectBase {
         }
         ArrayList<Right> rights = database.getAllRights();
         for (Right right : rights) {
-            if (right.getGrantedTable() == this) {
+            if (right.getGrantedObject() == this) {
                 children.add(right);
             }
         }
@@ -443,7 +443,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param session the session
      * @return true if it is
      */
-    public boolean isLockedExclusivelyBy(Session session) { //åªæœ‰RegularTableã€MVTableè¦†ç›–æ­¤æ–¹æ³•
+    public boolean isLockedExclusivelyBy(Session session) { //Ö»ÓĞRegularTable¡¢MVTable¸²¸Ç´Ë·½·¨
         return false;
     }
 
@@ -467,11 +467,11 @@ public abstract class Table extends SchemaObjectBase {
             Row o = rows.next();
             rows.next(); 
             try {
-                //ä¸ºä»€ä¹ˆä¸æ˜¯å…ˆè®°æ’¤æ¶ˆæ—¥å¿—å†åˆ é™¤è¡Œå‘¢ï¼Ÿå› ä¸ºå¦‚æœè¿™æ ·çš„è¯å‡è®¾åˆ é™¤è¡Œä¸æˆåŠŸï¼Œä½†æ˜¯æ—¥å¿—è®°æˆåŠŸäº†ï¼Œå½“rollbackæ—¶åˆæŒ‰æ—¥å¿—åšinsertæ“ä½œ
-                //æ­¤æ—¶å°±å¤šäº†ä¸€æ¡è®°å½•äº†ï¼Œ
-                //é‚£å‡è®¾è®°æ’¤æ¶ˆæ—¥å¿—å¤±è´¥äº†å‘¢? è¿™ä¸ªä¸ä¼šå‡ºç°çš„ï¼Œå› ä¸ºsession.logä¸­è¿›ä¸€æ­¥è°ƒç”¨äº†org.h2.engine.UndoLog.add(UndoLogRecord)
-                //è¿™ä¸ªUndoLog.addæ–¹æ³•çš„ç¬¬ä¸€è¡Œå°±æŠŠUndoLogRecordå¢åŠ åˆ°recordsä¸­ï¼Œåªè¦ä¸¥æ ¼ç¡®ä¿åœ¨å‡ºç°ä»»ä½•å¼‚å¸¸å‰å…ˆåŠ å…¥recordsï¼Œ
-                //é‚£ä¹ˆåœ¨rollbackä¸­å°±èƒ½æ‰¾åˆ°ä¹‹å‰è¢«åˆ é™¤çš„è¡Œã€‚
+                //ÎªÊ²Ã´²»ÊÇÏÈ¼Ç³·ÏûÈÕÖ¾ÔÙÉ¾³ıĞĞÄØ£¿ÒòÎªÈç¹ûÕâÑùµÄ»°¼ÙÉèÉ¾³ıĞĞ²»³É¹¦£¬µ«ÊÇÈÕÖ¾¼Ç³É¹¦ÁË£¬µ±rollbackÊ±ÓÖ°´ÈÕÖ¾×öinsert²Ù×÷
+                //´ËÊ±¾Í¶àÁËÒ»Ìõ¼ÇÂ¼ÁË£¬
+                //ÄÇ¼ÙÉè¼Ç³·ÏûÈÕÖ¾Ê§°ÜÁËÄØ? Õâ¸ö²»»á³öÏÖµÄ£¬ÒòÎªsession.logÖĞ½øÒ»²½µ÷ÓÃÁËorg.h2.engine.UndoLog.add(UndoLogRecord)
+                //Õâ¸öUndoLog.add·½·¨µÄµÚÒ»ĞĞ¾Í°ÑUndoLogRecordÔö¼Óµ½recordsÖĞ£¬Ö»ÒªÑÏ¸ñÈ·±£ÔÚ³öÏÖÈÎºÎÒì³£Ç°ÏÈ¼ÓÈërecords£¬
+                //ÄÇÃ´ÔÚrollbackÖĞ¾ÍÄÜÕÒµ½Ö®Ç°±»É¾³ıµÄĞĞ¡£
                 removeRow(session, o);
             } catch (DbException e) {
                 if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1) {
@@ -528,7 +528,7 @@ public abstract class Table extends SchemaObjectBase {
             database.removeSchemaObject(session, constraint);
         }
         for (Right right : database.getAllRights()) {
-            if (right.getGrantedTable() == this) {
+            if (right.getGrantedObject() == this) {
                 database.removeDatabaseObject(session, right);
             }
         }
@@ -696,7 +696,7 @@ public abstract class Table extends SchemaObjectBase {
         item.cost = item.getIndex().getCost(session, null, null, null);
         ArrayList<Index> indexes = getIndexes();
         if (indexes != null && masks != null) {
-            //indexes[0]æ˜¯ScanIndexï¼Œæ‰€ä»¥å¯ä»¥è·³è¿‡ï¼Œä»1å¼€å§‹
+            //indexes[0]ÊÇScanIndex£¬ËùÒÔ¿ÉÒÔÌø¹ı£¬´Ó1¿ªÊ¼
             for (int i = 1, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 double cost = index.getCost(session, masks, filter, sortOrder);
