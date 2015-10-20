@@ -645,12 +645,15 @@ public class Session extends SessionWithState {
             entry.undo(this);
             undoLog.removeLast(trimToSize);
         }
+        //这里的rollback是session级的，
+        //而org.h2.mvstore.db.TransactionStore.rollbackTo(Transaction, long, long)是表级的，在MVTable的addRow和removeRow调用
+        //事务有可能更新了多个表，只要其中之一提前 rollback了，此时就需要rollback其他的
         if (transaction != null) {
             long savepointId = savepoint == null ? 0 : savepoint.transactionSavepoint;
             HashMap<String, MVTable> tableMap =
                     database.getMvStore().getTables();
             Iterator<Change> it = transaction.getChanges(savepointId);
-            while (it.hasNext()) {
+            while (it.hasNext()) { 
                 Change c = it.next();
                 MVTable t = tableMap.get(c.mapName);
                 if (t != null) {

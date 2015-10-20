@@ -532,6 +532,7 @@ public class Page {
      */
     void removeAllRecursive() {
         if (children != null) {
+            //不能直接使用getRawChildPageCount， RTreeMap这样的子类会返回getRawChildPageCount() - 1
             for (int i = 0, size = map.getChildPageCount(this); i < size; i++) {
                 PageReference ref = children[i];
                 if (ref.page != null) {

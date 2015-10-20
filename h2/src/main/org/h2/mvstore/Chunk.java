@@ -151,7 +151,7 @@ public class Chunk {
     void writeChunkHeader(WriteBuffer buff, int minLength) {
         long pos = buff.position();
         buff.put(asString().getBytes(DataUtils.LATIN));
-        while (buff.position() - pos < minLength - 1) {
+        while (buff.position() - pos < minLength - 1) { //用空格补够，要minLength - 1是因为下面要写入'\n'
             buff.put((byte) ' ');
         }
         if (minLength != 0 && buff.position() > minLength) {

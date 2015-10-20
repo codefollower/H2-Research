@@ -200,7 +200,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
             Object k = c.getKey(at);
             Page split = c.split(at);
             p.setChild(index, split); //这里把右边节点替换原来的
-            p.insertNode(index, k, c); //这里把左边节点插入，把前面的往右挪
+            p.insertNode(index, k, c); //这里把左边节点插入，把前面的往右挪，同时在keys数组中加入新的k
             // now we are not sure where to add
             return put(p, writeVersion, key, value);
         }
@@ -244,6 +244,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         long offset = 0;
         while (true) {
             if (p.isLeaf()) {
+                //不可能发生，因为前面的if (index < 0 || index >= size())已经保证index是在有效范围内
                 if (index >= offset + p.getKeyCount()) {
                     return null;
                 }
@@ -257,7 +258,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
                 }
                 offset += c;
             }
-            if (i == size) {
+            if (i == size) { //不可能发生，因为前面的if (index < 0 || index >= size())已经保证index是在有效范围内
                 return null;
             }
             p = p.getChildPage(i);
@@ -995,7 +996,7 @@ public class MVMap<K, V> extends AbstractMap<K, V>
         if (oldest == -1) {
             return;
         }
-        Page last = oldRoots.peekLast();
+        Page last = oldRoots.peekLast(); //后面的是最近加入的
         while (true) {
             Page p = oldRoots.peekFirst();
             if (p == null || p.getVersion() >= oldest || p == last) {

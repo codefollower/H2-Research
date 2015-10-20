@@ -490,7 +490,7 @@ public class MVTable extends TableBase {
                 mainIndexColumn = -1;
             }
         } else if (primaryIndex.getRowCountMax() != 0) {
-            mainIndexColumn = -1;
+            mainIndexColumn = -1;mainIndexColumn = -1;
         }
         if (mainIndexColumn != -1) {
             primaryIndex.setMainIndexColumn(mainIndexColumn);

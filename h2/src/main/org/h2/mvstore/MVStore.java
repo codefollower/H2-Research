@@ -1288,7 +1288,7 @@ public class MVStore {
     private Set<Integer> collectReferencedChunks() {
         long testVersion = lastChunk.version;
         DataUtils.checkArgument(testVersion > 0, "Collect references on version 0");
-        long readCount = getFileStore().readCount;
+        long readCount = getFileStore().readCount; //多于的
         Set<Integer> referenced = New.hashSet();
         for (Cursor<String, String> c = meta.cursor("root."); c.hasNext();) {
             String key = c.next();
@@ -1304,12 +1304,12 @@ public class MVStore {
         }
         long pos = lastChunk.metaRootPos;
         collectReferencedChunks(referenced, 0, pos, 0);
-        readCount = fileStore.readCount - readCount;
+        readCount = fileStore.readCount - readCount; //多于的
         return referenced;
     }
 
     private void collectReferencedChunks(Set<Integer> targetChunkSet,
-            int mapId, long pos, int level) {
+            int mapId, long pos, int level) { //level这个参数没用到
         int c = DataUtils.getPageChunkId(pos);
         targetChunkSet.add(c);
         if (DataUtils.getPageType(pos) == DataUtils.PAGE_TYPE_LEAF) {
@@ -1341,8 +1341,8 @@ public class MVStore {
         }
     }
 
-    private PageChildren readPageChunkReferences(int mapId, long pos, int parentChunk) {
-        if (DataUtils.getPageType(pos) == DataUtils.PAGE_TYPE_LEAF) {
+    private PageChildren readPageChunkReferences(int mapId, long pos, int parentChunk) { //parentChunk这个参数目前都是-1
+        if (DataUtils.getPageType(pos) == DataUtils.PAGE_TYPE_LEAF) { //多于的
             return null;
         }
         PageChildren r;
@@ -1379,7 +1379,7 @@ public class MVStore {
         }
         if (r.children.length == 0) {
             int chunk = DataUtils.getPageChunkId(pos);
-            if (chunk == parentChunk) {
+            if (chunk == parentChunk) { //多于的，逻辑也不对，若是返回null，前面那句if (!refs.chunkList)就抛出NPE
                 return null;
             }
         }
