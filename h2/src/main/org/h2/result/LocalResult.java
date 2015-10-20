@@ -209,13 +209,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
         if (distinctRows == null) {
             distinctRows = ValueHashMap.newInstance();
             for (Value[] row : rows) {
-                if (row.length > visibleColumnCount) {
-                    Value[] r2 = new Value[visibleColumnCount];
-                    System.arraycopy(row, 0, r2, 0, visibleColumnCount);
-                    row = r2;
-                }
-                ValueArray array = ValueArray.get(row);
-                distinctRows.put(array, row);
+                ValueArray array = getArrayOfVisible(row);
+                distinctRows.put(array, array.getList());
             }
         }
         ValueArray array = ValueArray.get(values);
@@ -274,6 +269,15 @@ public class LocalResult implements ResultInterface, ResultTarget {
         }
     }
 
+    private ValueArray getArrayOfVisible(Value[] values) {
+        if (values.length > visibleColumnCount) {
+            Value[] v2 = new Value[visibleColumnCount];
+            System.arraycopy(values, 0, v2, 0, visibleColumnCount);
+            values = v2;
+        }
+        return ValueArray.get(values);
+    }
+
     /**
      * Add a row to this object.
      *
@@ -286,7 +290,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
         cloneLobs(values);
         if (distinct) {
             if (distinctRows != null) {
-                ValueArray array = ValueArray.get(values);
+                ValueArray array = getArrayOfVisible(values);
                 distinctRows.put(array, values); //会触发ValueArray的hashCode方法
                 rowCount = distinctRows.size();
                 if (rowCount > maxMemoryRows) {

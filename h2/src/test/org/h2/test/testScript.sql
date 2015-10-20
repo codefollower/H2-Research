@@ -3,6 +3,18 @@
 -- Initial Developer: H2 Group
 --
 --- special grammar and test cases ---------------------------------------------------------------------------------------------
+create table test(id int) as select 1;
+> ok
+
+select * from test where id in (select id from test order by 'x');
+> ID
+> --
+> 1
+> rows (ordered): 1
+
+drop table test;
+> ok
+
 select abs(cast(0.0 as double)) x;
 > X
 > ---
@@ -62,7 +74,7 @@ LIMIT 2 )
 AND studentID = 2;
 > SUM(POINTS)
 > -----------
-> null
+> 30
 > rows (ordered): 1
 
 SELECT eventID X FROM RESULTS
@@ -6814,6 +6826,9 @@ SELECT A.ID AID, A.NAME A_NAME, B.ID BID, B.NAME B_NAME FROM TEST_A A INNER JOIN
 > --- ------ --- ------
 > rows: 0
 
+INSERT INTO TEST_B VALUES(1, 'Hallo'), (2, 'Welt'), (3, 'Rekord');
+> update count: 3
+
 CREATE VIEW IF NOT EXISTS TEST_ALL AS SELECT A.ID AID, A.NAME A_NAME, B.ID BID, B.NAME B_NAME FROM TEST_A A, TEST_B B WHERE A.ID = B.ID;
 > ok
 
@@ -6827,23 +6842,8 @@ CREATE VIEW IF NOT EXISTS TEST_ALL AS
 SELECT * FROM TEST_A;
 > ok
 
-INSERT INTO TEST_A VALUES(1, 'Hello');
-> update count: 1
-
-INSERT INTO TEST_B VALUES(1, 'Hallo');
-> update count: 1
-
-INSERT INTO TEST_A VALUES(2, 'World');
-> update count: 1
-
-INSERT INTO TEST_B VALUES(2, 'Welt');
-> update count: 1
-
-INSERT INTO TEST_A VALUES(3, 'Record');
-> update count: 1
-
-INSERT INTO TEST_B VALUES(3, 'Rekord');
-> update count: 1
+INSERT INTO TEST_A VALUES(1, 'Hello'), (2, 'World'), (3, 'Record');
+> update count: 3
 
 SELECT * FROM TEST_ALL;
 > AID A_NAME BID B_NAME

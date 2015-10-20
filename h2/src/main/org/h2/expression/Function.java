@@ -5,8 +5,7 @@
  */
 package org.h2.expression;
 
-import static org.h2.util.ToChar.toChar;
-
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -47,11 +46,13 @@ import org.h2.tools.CompressTool;
 import org.h2.tools.Csv;
 import org.h2.util.AutoCloseInputStream;
 import org.h2.util.DateTimeUtils;
+import org.h2.util.IOUtils;
 import org.h2.util.JdbcUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
+import org.h2.util.ToChar;
 import org.h2.util.Utils;
 import org.h2.value.DataType;
 import org.h2.value.Value;
@@ -121,7 +122,7 @@ public class Function extends Expression implements FunctionCall {
             ARRAY_LENGTH = 217, LINK_SCHEMA = 218, GREATEST = 219, LEAST = 220,
             CANCEL_SESSION = 221, SET = 222, TABLE = 223, TABLE_DISTINCT = 224,
             FILE_READ = 225, TRANSACTION_ID = 226, TRUNCATE_VALUE = 227,
-            NVL2 = 228, DECODE = 229, ARRAY_CONTAINS = 230;
+            NVL2 = 228, DECODE = 229, ARRAY_CONTAINS = 230, FILE_WRITE = 232;
 
     /**
      * Used in MySQL-style INSERT ... ON DUPLICATE KEY UPDATE ... VALUES
@@ -475,6 +476,8 @@ public class Function extends Expression implements FunctionCall {
                 2, Value.NULL, false, false, true);
         addFunction("FILE_READ", FILE_READ,
                 VAR_ARGS, Value.NULL, false, false, true);
+        addFunction("FILE_WRITE", FILE_WRITE,
+                2, Value.LONG, false, false, true);
         addFunctionNotDeterministic("TRANSACTION_ID", TRANSACTION_ID,
                 0, Value.STRING);
         addFunctionWithNull("DECODE", DECODE,
@@ -1471,7 +1474,7 @@ public class Function extends Expression implements FunctionCall {
             case Value.TIME:
             case Value.DATE:
             case Value.TIMESTAMP:
-                result = ValueString.get(toChar(v0.getTimestamp(),
+                result = ValueString.get(ToChar.toChar(v0.getTimestamp(),
                         v1 == null ? null : v1.getString(),
                         v2 == null ? null : v2.getString()),
                         database.getMode().treatEmptyStringsAsNull);
@@ -1482,7 +1485,7 @@ public class Function extends Expression implements FunctionCall {
             case Value.DECIMAL:
             case Value.DOUBLE:
             case Value.FLOAT:
-                result = ValueString.get(toChar(v0.getBigDecimal(),
+                result = ValueString.get(ToChar.toChar(v0.getBigDecimal(),
                         v1 == null ? null : v1.getString(),
                         v2 == null ? null : v2.getString()),
                         database.getMode().treatEmptyStringsAsNull);
@@ -1683,6 +1686,25 @@ public class Function extends Expression implements FunctionCall {
                         reader = new InputStreamReader(in, v1.getString());
                     }
                     result = database.getLobStorage().createClob(reader, -1);
+                }
+                session.addTemporaryLob(result);
+            } catch (IOException e) {
+                throw DbException.convertIOException(e, fileName);
+            }
+            break;
+        }
+        case FILE_WRITE: {
+            session.getUser().checkAdmin();
+            result = ValueNull.INSTANCE;
+            String fileName = v1.getString();
+            try {
+                FileOutputStream fileOutputStream = new FileOutputStream(fileName);
+                InputStream in = v0.getInputStream();
+                try {
+                    result = ValueLong.get(IOUtils.copyAndClose(in,
+                            fileOutputStream));
+                } finally {
+                    in.close();
                 }
             } catch (IOException e) {
                 throw DbException.convertIOException(e, fileName);

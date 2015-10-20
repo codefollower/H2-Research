@@ -21,8 +21,32 @@ Change Log
 
 <h2>Next Version (unreleased)</h2>
 <ul>
+<li>The condition "in(select...)" did not work correctly in some cases if the subquery had an "order by".
+</li>
+<li>Issue #184: The Platform-independent zip had Windows line endings in Linux scripts.
+</li>
+<li>Issue #186: The "script" command did not include sequences of temporary tables.
+</li>
+</ul>
+
+<h2>Version 1.4.190 Beta (2015-10-11)</h2>
+<ul>
+<li>Pull request #183: optimizer hints (so far without special SQL syntax).
+</li>
+<li>Issue #180: In MVCC mode, executing UPDATE and SELECT ... FOR UPDATE 
+    simultaneously silently can drop rows.
+</li>
+<li>PageStore storage: the cooperative file locking mechanism
+    did not always work as expected (with very slow computers).
+</li>
+<li>Temporary CLOB and BLOB objects are now removed while the database is open
+    (and not just when closing the database).
+</li>
 <li>MVStore CLOB and BLOB larger than about 25 MB: An exception could be thrown
     when using the MVStore storage.
+</li>
+<li>Add FILE_WRITE function. Patch provided by Nicolas Fortin
+    (Lab-STICC - CNRS UMR 6285 and Ecole Centrale de Nantes)
 </li>
 </ul>
 

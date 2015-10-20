@@ -465,13 +465,22 @@ public abstract class Table extends SchemaObjectBase {
                 prepared.checkCanceled();
             }
             Row o = rows.next();
-            rows.next();
-            //为什么不是先记撤消日志再删除行呢？因为如果这样的话假设删除行不成功，但是日志记成功了，当rollback时又按日志做insert操作
-            //此时就多了一条记录了，
-            //那假设记撤消日志失败了呢? 这个不会出现的，因为session.log中进一步调用了org.h2.engine.UndoLog.add(UndoLogRecord)
-            //这个UndoLog.add方法的第一行就把UndoLogRecord增加到records中，只要严格确保在出现任何异常前先加入records，
-            //那么在rollback中就能找到之前被删除的行。
-            removeRow(session, o);
+            rows.next(); 
+            try {
+                //为什么不是先记撤消日志再删除行呢？因为如果这样的话假设删除行不成功，但是日志记成功了，当rollback时又按日志做insert操作
+                //此时就多了一条记录了，
+                //那假设记撤消日志失败了呢? 这个不会出现的，因为session.log中进一步调用了org.h2.engine.UndoLog.add(UndoLogRecord)
+                //这个UndoLog.add方法的第一行就把UndoLogRecord增加到records中，只要严格确保在出现任何异常前先加入records，
+                //那么在rollback中就能找到之前被删除的行。
+                removeRow(session, o);
+            } catch (DbException e) {
+                if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1) {
+                    session.rollbackTo(rollback, false);
+                    session.startStatementWithinTransaction();
+                    rollback = session.setSavepoint();
+                }
+                throw e;
+            }
             session.log(this, UndoLogRecord.DELETE, o);
         }
         //int c=0;
@@ -529,31 +538,29 @@ public abstract class Table extends SchemaObjectBase {
         while (sequences != null && sequences.size() > 0) {
             Sequence sequence = sequences.get(0);
             sequences.remove(0);
-            if (!isTemporary()) {
-                // only remove if no other table depends on this sequence
-                // this is possible when calling ALTER TABLE ALTER COLUMN
-                if (database.getDependentTable(sequence, this) == null) {
-                    database.removeSchemaObject(session, sequence);
-                }
+            // only remove if no other table depends on this sequence
+            // this is possible when calling ALTER TABLE ALTER COLUMN
+            if (database.getDependentTable(sequence, this) == null) {
+                database.removeSchemaObject(session, sequence);
             }
         }
     }
 
     /**
-     * Check that these columns are not referenced by a multi-column constraint or
-     * multi-column index. If it is, an exception is thrown. Single-column
+     * Check that these columns are not referenced by a multi-column constraint
+     * or multi-column index. If it is, an exception is thrown. Single-column
      * references and indexes are dropped.
      *
      * @param session the session
-     * @param columsToDrop the columns to drop
+     * @param columnsToDrop the columns to drop
      * @throws DbException if the column is referenced by multi-column
      *             constraints or indexes
      */
     public void dropMultipleColumnsConstraintsAndIndexes(Session session,
-            ArrayList<Column> columsToDrop) {
+            ArrayList<Column> columnsToDrop) {
         HashSet<Constraint> constraintsToDrop = New.hashSet();
         if (constraints != null) {
-            for (Column col : columsToDrop) {
+            for (Column col : columnsToDrop) {
                 for (int i = 0, size = constraints.size(); i < size; i++) {
                     Constraint constraint = constraints.get(i);
                     HashSet<Column> columns = constraint.getReferencedColumns(this);
@@ -572,7 +579,7 @@ public abstract class Table extends SchemaObjectBase {
         HashSet<Index> indexesToDrop = New.hashSet();
         ArrayList<Index> indexes = getIndexes();
         if (indexes != null) {
-            for (Column col : columsToDrop) {
+            for (Column col : columnsToDrop) {
                 for (int i = 0, size = indexes.size(); i < size; i++) {
                     Index index = indexes.get(i);
                     if (index.getCreateSQL() == null) {

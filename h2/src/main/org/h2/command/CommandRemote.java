@@ -265,7 +265,7 @@ public class CommandRemote implements CommandInterface {
             for (ParameterInterface p : parameters) {
                 Value v = p.getParamValue();
                 if (v != null) {
-                    v.close(); //只对ValueLob、ValueLobDb有用
+                    v.remove(); //只对ValueLob、ValueLobDb有用
                 }
             }
         } catch (DbException e) {

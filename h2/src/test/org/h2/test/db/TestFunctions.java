@@ -6,6 +6,9 @@
 package org.h2.test.db;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -43,6 +46,7 @@ import org.h2.test.TestBase;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.IOUtils;
 import org.h2.util.New;
+import org.h2.util.StringUtils;
 import org.h2.value.Value;
 
 /**
@@ -58,6 +62,8 @@ public class TestFunctions extends TestBase implements AggregateFunction {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
+        // Locale.setDefault(Locale.GERMANY);
+        // Locale.setDefault(Locale.US);
         TestBase.createCaller().init().test();
     }
 
@@ -96,6 +102,7 @@ public class TestFunctions extends TestBase implements AggregateFunction {
         testToCharFromText();
         testTranslate();
         testGenerateSeries();
+        testFileWrite();
 
         deleteDb("functions");
     }
@@ -621,6 +628,36 @@ public class TestFunctions extends TestBase implements AggregateFunction {
         conn.close();
         FileUtils.delete(fileName);
     }
+
+
+    private void testFileWrite() throws Exception {
+        Connection conn = getConnection("functions");
+        Statement stat = conn.createStatement();
+        // Copy data into clob table
+        stat.execute("DROP TABLE TEST IF EXISTS");
+        PreparedStatement pst = conn.prepareStatement(
+                "CREATE TABLE TEST(data clob) AS SELECT ? " + "data");
+        Properties prop = System.getProperties();
+        ByteArrayOutputStream os = new ByteArrayOutputStream(prop.size());
+        prop.store(os, "");
+        pst.setBinaryStream(1, new ByteArrayInputStream(os.toByteArray()));
+        pst.execute();
+        os.close();
+        String fileName = new File(getBaseDir(), "test.txt").getPath();
+        FileUtils.delete(fileName);
+        ResultSet rs = stat.executeQuery("SELECT FILE_WRITE(data, " +
+                StringUtils.quoteStringSQL(fileName) + ") len from test");
+        assertTrue(rs.next());
+        assertEquals(os.size(), rs.getInt(1));
+        InputStreamReader r = new InputStreamReader(FileUtils.newInputStream(fileName));
+        // Compare expected content with written file content
+        String ps2 = IOUtils.readStringAndClose(r, -1);
+        assertEquals(os.toString(), ps2);
+        conn.close();
+        FileUtils.delete(fileName);
+    }
+
+
 
     /**
      * This median implementation keeps all objects in memory.
@@ -1476,7 +1513,8 @@ public class TestFunctions extends TestBase implements AggregateFunction {
                 "SELECT TO_CHAR(12345, '$99999999') FROM DUAL");
         assertResult("     " + cs + "12,345.35", stat,
                 "SELECT TO_CHAR(12345.345, '$99,999,999.99') FROM DUAL");
-        assertResult("     " + cs + "12,345", stat,
+        String expected = String.format("%,d", 12345);
+        assertResult("     " + cs + expected, stat,
                 "SELECT TO_CHAR(12345.345, '$99g999g999') FROM DUAL");
         assertResult("     12,345.35", stat,
                 "SELECT TO_CHAR(12345.345, '99,999,999.99') FROM DUAL");
@@ -1576,7 +1614,8 @@ public class TestFunctions extends TestBase implements AggregateFunction {
                 "SELECT TO_CHAR(123.45, 'U999.99') FROM DUAL");
         assertResult("          " + cs + "123.45", stat,
                 "SELECT TO_CHAR(123.45, 'u999.99') FROM DUAL");
-        assertResult("   .33", stat,
+        expected = String.format("%.2f", 0.33f).substring(1);
+        assertResult("   " + expected, stat,
                 "SELECT TO_CHAR(0.326, '99D99') FROM DUAL");
         assertResult("  1.2E+02", stat,
                 "SELECT TO_CHAR(123.456, '9.9EEEE') FROM DUAL");
@@ -1591,9 +1630,10 @@ public class TestFunctions extends TestBase implements AggregateFunction {
                 "SELECT TO_CHAR(123.456, '00.00000000EEEE') FROM DUAL");
         assertResult("1.23456000E+02", stat,
                 "SELECT TO_CHAR(123.456, 'fm00.00000000EEEE') FROM DUAL");
-        assertResult(" 1,234,567", stat,
+        expected = String.format("%,d", 1234567);
+        assertResult(" " + expected, stat,
                 "SELECT TO_CHAR(1234567, '9G999G999') FROM DUAL");
-        assertResult("-1,234,567", stat,
+        assertResult("-" + expected, stat,
                 "SELECT TO_CHAR(-1234567, '9G999G999') FROM DUAL");
         assertResult("123.45-", stat, "SELECT TO_CHAR(-123.45, '999.99MI') FROM DUAL");
         assertResult("123.45-", stat, "SELECT TO_CHAR(-123.45, '999.99mi') FROM DUAL");
