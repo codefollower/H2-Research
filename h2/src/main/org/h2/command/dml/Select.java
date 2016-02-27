@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-
 import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.CommandInterface;
@@ -36,6 +35,7 @@ import org.h2.result.SortOrder;
 import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
 import org.h2.table.IndexColumn;
+import org.h2.table.JoinBatch;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
 import org.h2.util.New;
@@ -92,6 +92,11 @@ public class Select extends Query {
 
     public Select(Session session) {
         super(session);
+    }
+
+    @Override
+    public boolean isUnion() {
+        return false;
     }
 
     /**
@@ -712,18 +717,25 @@ public class Select extends Query {
         ResultTarget to = result != null ? result : target;
         //如果行数限制是0，那么什么也不做
         if (limitRows != 0) {
-            if (isQuickAggregateQuery) {
-                queryQuick(columnCount, to);
-            } else if (isGroupQuery) {
-                if (isGroupSortedQuery) {
-                    queryGroupSorted(columnCount, to);
-                } else { //isGroupQuery为true且isGroupSortedQuery为false时，result总是为null的，此时用to也是一样的
-                    queryGroup(columnCount, result);
+            try {
+                if (isQuickAggregateQuery) {
+                    queryQuick(columnCount, to);
+                } else if (isGroupQuery) {
+                    if (isGroupSortedQuery) {
+                        queryGroupSorted(columnCount, to);
+                    } else { //isGroupQuery为true且isGroupSortedQuery为false时，result总是为null的，此时用to也是一样的
+                        queryGroup(columnCount, result);
+                    }
+                } else if (isDistinctQuery) {
+                    queryDistinct(to, limitRows);
+                } else {
+                    queryFlat(columnCount, to, limitRows);
                 }
-            } else if (isDistinctQuery) {
-                queryDistinct(to, limitRows);
-            } else {
-                queryFlat(columnCount, to, limitRows);
+            } finally {
+                JoinBatch jb = getJoinBatch();
+                if (jb != null) {
+                    jb.reset(false);
+                }
             }
         }
         if (offsetExpr != null) {
@@ -1005,14 +1017,16 @@ public class Select extends Query {
                 //可参考org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
                 isQuickAggregateQuery = isEverything(optimizable);
             }
-        }
-        cost = preparePlan(); //这一步里头会为topTableFilter选择最合适的索引，只不过下面3个if如果碰到特殊情况再调整索引
-        
-        //以下三个if语句是用来选择不同的index
-        
-        //用select distinct name from mytable测试下面的代码，
-        //为name建立UNIQUE(name,...)(name是第一个字段)，建表时为name字段加SELECTIVITY 10
-        //这样，就不会用其他索引，而是用UNIQUE索引
+        } 
+
+        // 这一步里头会为topTableFilter选择最合适的索引，只不过下面3个if如果碰到特殊情况再调整索引
+        cost = preparePlan(session.isParsingView());
+
+        // 以下三个if语句是用来选择不同的index
+
+        // 用select distinct name from mytable测试下面的代码，
+        // 为name建立UNIQUE(name,...)(name是第一个字段)，建表时为name字段加SELECTIVITY 10
+        // 这样，就不会用其他索引，而是用UNIQUE索引
         if (distinct && session.getDatabase().getSettings().optimizeDistinct &&
                 !isGroupQuery && filters.size() == 1 &&
                 expressions.size() == 1 && condition == null) {
@@ -1052,8 +1066,8 @@ public class Select extends Query {
         //所以改成if (sort != null && !isGroupQuery)就足够了
         if (sort != null && !isQuickAggregateQuery && !isGroupQuery) {
             Index index = getSortIndex();
-            if (index != null) {
-                Index current = topTableFilter.getIndex();
+            Index current = topTableFilter.getIndex();
+            if (index != null && current != null) {
                 if (current.getIndexType().isScan() || current == index) {
                     topTableFilter.setIndex(index);
                     if (!topTableFilter.hasInComparisons()) {
@@ -1091,7 +1105,7 @@ public class Select extends Query {
         if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) {
             Index index = getGroupSortedIndex();
             Index current = topTableFilter.getIndex();
-            if (index != null && (current.getIndexType().isScan() ||
+            if (index != null && current != null && (current.getIndexType().isScan() ||
                     current == index)) {
                 topTableFilter.setIndex(index);
                 isGroupSortedQuery = true;
@@ -1100,6 +1114,30 @@ public class Select extends Query {
         expressionArray = new Expression[expressions.size()];
         expressions.toArray(expressionArray);
         isPrepared = true;
+    }
+
+    @Override
+    public void prepareJoinBatch() {
+        ArrayList<TableFilter> list = New.arrayList();
+        TableFilter f = getTopTableFilter();
+        do {
+            if (f.getNestedJoin() != null) {
+                // we do not support batching with nested joins
+                return;
+            }
+            list.add(f);
+            f = f.getJoin();
+        } while (f != null);
+        TableFilter[] fs = list.toArray(new TableFilter[list.size()]);
+        // prepare join batch
+        JoinBatch jb = null;
+        for (int i = fs.length - 1; i >= 0; i--) {
+            jb = fs[i].prepareJoinBatch(jb, fs, i);
+        }
+    }
+
+    public JoinBatch getJoinBatch() {
+        return getTopTableFilter().getJoinBatch();
     }
 
     @Override
@@ -1125,7 +1163,7 @@ public class Select extends Query {
     }
 
     //注意，只关心top层的TableFilter
-    private double preparePlan() {
+    private double preparePlan(boolean parse) {
         TableFilter[] topArray = topFilters.toArray(
                 new TableFilter[topFilters.size()]);
         for (TableFilter t : topArray) {
@@ -1133,13 +1171,15 @@ public class Select extends Query {
         }
 
         Optimizer optimizer = new Optimizer(topArray, condition, session);
-        optimizer.optimize();
+        optimizer.optimize(parse);
         topTableFilter = optimizer.getTopFilter();
         double planCost = optimizer.getCost();
 
         setEvaluatableRecursive(topTableFilter);
 
-        topTableFilter.prepare();
+        if (!parse) {
+            topTableFilter.prepare();
+        }
         return planCost;
     }
 

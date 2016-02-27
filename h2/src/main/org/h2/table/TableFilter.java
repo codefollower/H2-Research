@@ -6,6 +6,7 @@
 package org.h2.table;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import org.h2.command.Parser;
 import org.h2.command.dml.Select;
 import org.h2.engine.Right;
@@ -19,6 +20,8 @@ import org.h2.expression.ExpressionColumn;
 import org.h2.index.Index;
 import org.h2.index.IndexCondition;
 import org.h2.index.IndexCursor;
+import org.h2.index.IndexLookupBatch;
+import org.h2.index.ViewIndex;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -51,8 +54,15 @@ public class TableFilter implements ColumnResolver {
     private final Select select; //通常只有执行select语句时不为null，update、delete时为null
     private String alias;
     private Index index;
+    private int[] masks;
     private int scanCount;
     private boolean evaluatable;
+
+    /**
+     * Batched join support.
+     */
+    private JoinBatch joinBatch;
+    private int joinFilterId = -1;
 
     /**
      * Indicates that this filter is used in the plan.
@@ -117,6 +127,7 @@ public class TableFilter implements ColumnResolver {
     //如果filterCondition计算是true的话，在Select类的queryXXX方法中又计算一次condition
     private Expression fullCondition;
     private final int hashCode;
+    private final int orderInFrom;
 
     /**
      * Create a new table filter object.
@@ -126,9 +137,11 @@ public class TableFilter implements ColumnResolver {
      * @param alias the alias name
      * @param rightsChecked true if rights are already checked
      * @param select the select statement
+     * @param orderInFrom original order number (index) of this table filter in
+     *            FROM clause (0, 1, 2,...)
      */
     public TableFilter(Session session, Table table, String alias,
-            boolean rightsChecked, Select select) {
+            boolean rightsChecked, Select select, int orderInFrom) {
         this.session = session;
         this.table = table;
         this.alias = alias;
@@ -138,6 +151,21 @@ public class TableFilter implements ColumnResolver {
             session.getUser().checkRight(table, Right.SELECT);
         }
         hashCode = session.nextObjectId();
+        this.orderInFrom = orderInFrom;
+    }
+
+    /**
+     * Get the order number (index) of this table filter in the "from" clause of
+     * the query.
+     *
+     * @return the index (0, 1, 2,...)
+     */
+    public int getOrderInFrom() {
+        return orderInFrom;
+    }
+
+    public IndexCursor getIndexCursor() {
+        return cursor;
     }
 
     @Override
@@ -168,67 +196,109 @@ public class TableFilter implements ColumnResolver {
      * order.
      *
      * @param s the session
-     * @param level 1 for the first table in a join, 2 for the second, and so on
+     * @param filters all joined table filters
+     * @param filter the current table filter index
      * @return the best plan item
      */
-    //对于Delete、Update是在prepare()时直接进来，
-    //而Select要prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
-    public PlanItem getBestPlanItem(Session s, int level) {
-        PlanItem item;
-        //没有索引条件时直接走扫描索引(RegularTable是PageDataIndex或ScanIndex(内存)，而MVTable是MVPrimaryIndex)
+//<<<<<<< HEAD
+//    //对于Delete、Update是在prepare()时直接进来，
+//    //而Select要prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
+//    public PlanItem getBestPlanItem(Session s, int level) {
+//        PlanItem item;
+//        //没有索引条件时直接走扫描索引(RegularTable是PageDataIndex或ScanIndex(内存)，而MVTable是MVPrimaryIndex)
+//        if (indexConditions.size() == 0) {
+//            item = new PlanItem();
+//            item.setIndex(table.getScanIndex(s));
+//            item.cost = item.getIndex().getCost(s, null, null, null);
+//        } else {
+//            int len = table.getColumns().length;
+//            int[] masks = new int[len]; //对应表的所有字段，只有其中的索引字段才有值，其他的不设置，默认为0
+//            for (IndexCondition condition : indexConditions) {
+//            	//如果IndexCondition是expression或expressionList，只有ExpressionColumn类型有可能返回false
+//            	//如果IndexCondition是expressionQuery，expressionQuery是Select、SelectUnion类型有可能返回false
+//            	//其他都返回true
+//                if (condition.isEvaluatable()) {
+//                    //H2数据库目前不支持在or表达式上面建立索引条件，例如id> 40 or name<'b3'，就算id和name字段各自有索引也不会选择它们
+//                	//对于ConditionAndOr的场景才会出现indexConditions.size>1
+//                	//而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
+//                	//所以当多个indexCondition通过AND组合时，只要其中一个是false，显然就没有必要再管其他的indexCondition
+//                	//这时把masks设为null
+//                    if (condition.isAlwaysFalse()) { //如where id>40 AND 3<2(在condition.optimize时被优化成false了)
+//                        masks = null;
+//                        break;
+//                    }
+//                    //condition.getColumn()不可能为null，因为目的是要选合适的索引，而索引建立在字段之上
+//                    //所以IndexCondition中的column变量不可能是null
+//                    int id = condition.getColumn().getColumnId();
+//                    if (id >= 0) {
+//                    	//多个IndexCondition可能是同一个字段
+//                    	//如id>1 and id <10，这样masks[id]最后就变成IndexCondition.RANGE了
+//                        masks[id] |= condition.getMask(indexConditions);
+//                    }
+//                }
+//            }
+//            SortOrder sortOrder = null;
+//            if (select != null) {
+//                sortOrder = select.getSortOrder();
+//            }
+//            item = table.getBestPlanItem(s, masks, this, sortOrder);
+//            // The more index conditions, the earlier the table.
+//            // This is to ensure joins without indexes run quickly:
+//            // x (x.a=10); y (x.b=y.b) - see issue 113
+//            //level越大，item.cost就减去一个越小的值，所以join的cost越大
+//            //索引条件越多，cost越小
+//            item.cost -= item.cost * indexConditions.size() / 100 / level;
+//=======
+    public PlanItem getBestPlanItem(Session s, TableFilter[] filters, int filter,
+            HashSet<Column> allColumnsSet) {
+        PlanItem item1 = null;
+        SortOrder sortOrder = null;
+        if (select != null) {
+            sortOrder = select.getSortOrder();
+        }
         if (indexConditions.size() == 0) {
-            item = new PlanItem();
-            item.setIndex(table.getScanIndex(s));
-            item.cost = item.getIndex().getCost(s, null, null, null);
-        } else {
-            int len = table.getColumns().length;
-            int[] masks = new int[len]; //对应表的所有字段，只有其中的索引字段才有值，其他的不设置，默认为0
-            for (IndexCondition condition : indexConditions) {
-            	//如果IndexCondition是expression或expressionList，只有ExpressionColumn类型有可能返回false
-            	//如果IndexCondition是expressionQuery，expressionQuery是Select、SelectUnion类型有可能返回false
-            	//其他都返回true
-                if (condition.isEvaluatable()) {
-                    //H2数据库目前不支持在or表达式上面建立索引条件，例如id> 40 or name<'b3'，就算id和name字段各自有索引也不会选择它们
-                	//对于ConditionAndOr的场景才会出现indexConditions.size>1
-                	//而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
-                	//所以当多个indexCondition通过AND组合时，只要其中一个是false，显然就没有必要再管其他的indexCondition
-                	//这时把masks设为null
-                    if (condition.isAlwaysFalse()) { //如where id>40 AND 3<2(在condition.optimize时被优化成false了)
-                        masks = null;
-                        break;
-                    }
-                    //condition.getColumn()不可能为null，因为目的是要选合适的索引，而索引建立在字段之上
-                    //所以IndexCondition中的column变量不可能是null
-                    int id = condition.getColumn().getColumnId();
-                    if (id >= 0) {
-                    	//多个IndexCondition可能是同一个字段
-                    	//如id>1 and id <10，这样masks[id]最后就变成IndexCondition.RANGE了
-                        masks[id] |= condition.getMask(indexConditions);
-                    }
+            item1 = new PlanItem();
+            item1.setIndex(table.getScanIndex(s, null, filters, filter, sortOrder, allColumnsSet));
+            item1.cost = item1.getIndex().getCost(s, null, filters, filter, sortOrder, allColumnsSet);
+        }
+        int len = table.getColumns().length;
+        int[] masks = new int[len];
+        for (IndexCondition condition : indexConditions) {
+            if (condition.isEvaluatable()) {
+                if (condition.isAlwaysFalse()) {
+                    masks = null;
+                    break;
+                }
+                int id = condition.getColumn().getColumnId();
+                if (id >= 0) {
+                    masks[id] |= condition.getMask(indexConditions);
                 }
             }
-            SortOrder sortOrder = null;
-            if (select != null) {
-                sortOrder = select.getSortOrder();
-            }
-            item = table.getBestPlanItem(s, masks, this, sortOrder);
-            // The more index conditions, the earlier the table.
-            // This is to ensure joins without indexes run quickly:
-            // x (x.a=10); y (x.b=y.b) - see issue 113
-            //level越大，item.cost就减去一个越小的值，所以join的cost越大
-            //索引条件越多，cost越小
-            item.cost -= item.cost * indexConditions.size() / 100 / level;
         }
+        PlanItem item = table.getBestPlanItem(s, masks, filters, filter, sortOrder, allColumnsSet);
+        item.setMasks(masks);
+        // The more index conditions, the earlier the table.
+        // This is to ensure joins without indexes run quickly:
+        // x (x.a=10); y (x.b=y.b) - see issue 113
+        item.cost -= item.cost * indexConditions.size() / 100 / (filter + 1);
+
+        if (item1 != null && item1.cost < item.cost) {
+            item = item1;
+        }
+
         if (nestedJoin != null) {
             setEvaluatable(nestedJoin);
-            item.setNestedJoinPlan(nestedJoin.getBestPlanItem(s, level));
+            item.setNestedJoinPlan(nestedJoin.getBestPlanItem(s, filters, filter, allColumnsSet));
             // TODO optimizer: calculate cost of a join: should use separate
             // expected row number and lookup cost
             item.cost += item.cost * item.getNestedJoinPlan().cost;
         }
         if (join != null) {
             setEvaluatable(join);
-            item.setJoinPlan(join.getBestPlanItem(s, level));
+            do {
+                filter++;
+            } while (filters[filter] != join);
+            item.setJoinPlan(join.getBestPlanItem(s, filters, filter, allColumnsSet));
             // TODO optimizer: calculate cost of a join: should use separate
             // expected row number and lookup cost
             item.cost += item.cost * item.getJoinPlan().cost;
@@ -256,7 +326,7 @@ public class TableFilter implements ColumnResolver {
     }
 
     /**
-     * Set what plan item (index, cost) to use use.
+     * Set what plan item (index, cost, masks) to use.
      *
      * @param item the plan item
      */
@@ -267,6 +337,7 @@ public class TableFilter implements ColumnResolver {
             return;
         }
         setIndex(item.getIndex());
+        masks = item.getMasks();
         if (nestedJoin != null) {
             if (item.getNestedJoinPlan() != null) {
                 nestedJoin.setPlanItem(item.getNestedJoinPlan());
@@ -349,6 +420,11 @@ public class TableFilter implements ColumnResolver {
      * Reset to the current position.
      */
     public void reset() {
+        if (joinBatch != null && joinFilterId == 0) {
+            // reset join batch only on top table filter
+            joinBatch.reset(true);
+            return;
+        }
         if (nestedJoin != null) {
             nestedJoin.reset();
         }
@@ -357,6 +433,89 @@ public class TableFilter implements ColumnResolver {
         }
         state = BEFORE_FIRST;
         foundOne = false;
+    }
+
+    private boolean isAlwaysTopTableFilter(int filter) {
+        if (filter != 0) {
+            return false;
+        }
+        // check if we are at the top table filters all the way up
+        SubQueryInfo info = session.getSubQueryInfo();
+        for (;;) {
+            if (info == null) {
+                return true;
+            }
+            if (info.getFilter() != 0) {
+                return false;
+            }
+            info = info.getUpper();
+        }
+    }
+
+    /**
+     * Attempt to initialize batched join.
+     *
+     * @param jb join batch if it is already created
+     * @param filters the table filters
+     * @param filter the filter index (0, 1,...)
+     * @return join batch if query runs over index which supports batched
+     *         lookups, {@code null} otherwise
+     */
+    public JoinBatch prepareJoinBatch(JoinBatch jb, TableFilter[] filters, int filter) {
+        joinBatch = null;
+        joinFilterId = -1;
+        if (getTable().isView()) {
+            session.pushSubQueryInfo(masks, filters, filter, select.getSortOrder());
+            try {
+                ((ViewIndex) index).getQuery().prepareJoinBatch();
+            } finally {
+                session.popSubQueryInfo();
+            }
+        }
+        // For globally top table filter we don't need to create lookup batch,
+        // because currently it will not be used (this will be shown in
+        // ViewIndex.getPlanSQL()). Probably later on it will make sense to
+        // create it to better support X IN (...) conditions, but this needs to
+        // be implemented separately. If isAlwaysTopTableFilter is false then we
+        // either not a top table filter or top table filter in a sub-query,
+        // which in turn is not top in outer query, thus we need to enable
+        // batching here to allow outer query run batched join against this
+        // sub-query.
+        IndexLookupBatch lookupBatch = null;
+        if (jb == null && select != null && !isAlwaysTopTableFilter(filter)) {
+            lookupBatch = index.createLookupBatch(this);
+            if (lookupBatch != null) {
+                jb = new JoinBatch(filter + 1, join);
+            }
+        }
+        if (jb != null) {
+            if (nestedJoin != null) {
+                throw DbException.throwInternalError();
+            }
+            joinBatch = jb;
+            joinFilterId = filter;
+            if (lookupBatch == null && !isAlwaysTopTableFilter(filter)) {
+                // createLookupBatch will be called at most once because jb can
+                // be created only if lookupBatch is already not null from the
+                // call above.
+                lookupBatch = index.createLookupBatch(this);
+                if (lookupBatch == null) {
+                    // the index does not support lookup batching, need to fake
+                    // it because we are not top
+                    lookupBatch = JoinBatch.createFakeIndexLookupBatch(this);
+                }
+            }
+            jb.register(this, lookupBatch);
+        }
+        return jb;
+    }
+
+    public int getJoinFilterId() {
+        return joinFilterId;
+    }
+
+    public JoinBatch getJoinBatch() {
+        return joinBatch;
     }
 
     /**
@@ -384,6 +543,11 @@ public class TableFilter implements ColumnResolver {
     //TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest1)
     //TableFilter(SYSTEM_JOIN_xxx).join => TableFilter(JoinTest2)
     public boolean next() {
+        if (joinBatch != null) {
+            // will happen only on topTableFilter since joinBatch.next() does
+            // not call join.next()
+            return joinBatch.next();
+        }
         if (state == AFTER_LAST) {
             return false;
         } else if (state == BEFORE_FIRST) {
@@ -515,7 +679,14 @@ public class TableFilter implements ColumnResolver {
         // scanCount);
     }
 
-    private boolean isOk(Expression condition) {
+    /**
+     * Whether the current value of the condition is true, or there is no
+     * condition.
+     *
+     * @param condition the condition (null for no condition)
+     * @return true if yes
+     */
+    boolean isOk(Expression condition) {
         if (condition == null) {
             return true;
         }
@@ -772,6 +943,19 @@ public class TableFilter implements ColumnResolver {
         if (index != null) {
             buff.append('\n');
             StatementBuilder planBuff = new StatementBuilder();
+            if (joinBatch != null) {
+                IndexLookupBatch lookupBatch = joinBatch.getLookupBatch(joinFilterId);
+                if (lookupBatch == null) {
+                    if (joinFilterId != 0) {
+                        throw DbException.throwInternalError();
+                    }
+                } else {
+                    planBuff.append("batched:");
+                    String batchPlan = lookupBatch.getPlanSQL();
+                    planBuff.append(batchPlan);
+                    planBuff.append(" ");
+                }
+            }
             planBuff.append(index.getPlanSQL());
             if (indexConditions.size() > 0) {
                 planBuff.append(": ");
@@ -819,6 +1003,14 @@ public class TableFilter implements ColumnResolver {
                 indexConditions.remove(i--);
             }
         }
+    }
+
+    public int[] getMasks() {
+        return masks;
+    }
+
+    public ArrayList<IndexCondition> getIndexConditions() {
+        return indexConditions;
     }
 
     public Index getIndex() {
@@ -975,6 +1167,9 @@ public class TableFilter implements ColumnResolver {
 
     @Override
     public Value getValue(Column column) {
+        if (joinBatch != null) {
+            return joinBatch.getValue(joinFilterId, column);
+        }
         if (currentSearchRow == null) {
             return null;
         }
@@ -1139,5 +1334,4 @@ public class TableFilter implements ColumnResolver {
          */
         void accept(TableFilter f);
     }
-
 }

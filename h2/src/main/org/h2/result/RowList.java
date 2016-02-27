@@ -194,7 +194,7 @@ public class RowList {
             }
             values[i] = v;
         }
-        Row row = new Row(values, mem);
+        Row row = session.createRow(values, mem);
         row.setKey(key);
         row.setVersion(version);
         row.setDeleted(deleted);

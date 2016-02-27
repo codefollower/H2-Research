@@ -129,10 +129,13 @@ public class ConditionInSelect extends Condition {
     public Expression optimize(Session session) {
         left = left.optimize(session);
         query.setRandomAccessResult(true);
-        query.prepare();
-        //如where id in(select id,name from ConditionInSelectTest where id=3)
-        //org.h2.jdbc.JdbcSQLException: Subquery is not a single column query
-        //子查询不能多于1个列
+//<<<<<<< HEAD
+//        query.prepare();
+//        //如where id in(select id,name from ConditionInSelectTest where id=3)
+//        //org.h2.jdbc.JdbcSQLException: Subquery is not a single column query
+//        //子查询不能多于1个列
+//=======
+        session.optimizeQueryExpression(query);
         if (query.getColumnCount() != 1) {
             throw DbException.get(ErrorCode.SUBQUERY_IS_NOT_SINGLE_COLUMN);
         }

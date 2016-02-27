@@ -7,10 +7,10 @@ package org.h2.mvstore.db;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TreeSet;
-
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
@@ -355,11 +355,12 @@ public class MVSecondaryIndex extends BaseIndex implements MVIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter filter,
-            SortOrder sortOrder) {
+    public double getCost(Session session, int[] masks,
+            TableFilter[] filters, int filter, SortOrder sortOrder,
+            HashSet<Column> allColumnsSet) {
         try {
-            return 10 * getCostRangeIndex(masks,
-                    dataMap.sizeAsLongMax(), filter, sortOrder);
+            return 10 * getCostRangeIndex(masks, dataMap.sizeAsLongMax(),
+                    filters, filter, sortOrder, false, allColumnsSet);
         } catch (IllegalStateException e) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         }

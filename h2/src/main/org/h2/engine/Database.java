@@ -31,6 +31,7 @@ import org.h2.message.Trace;
 import org.h2.message.TraceSystem;
 import org.h2.mvstore.db.MVTableEngine;
 import org.h2.result.Row;
+import org.h2.result.RowFactory;
 import org.h2.result.SearchRow;
 import org.h2.schema.Schema;
 import org.h2.schema.SchemaObject;
@@ -191,6 +192,7 @@ public class Database implements DataHandler {
     private boolean queryStatistics;
     private int queryStatisticsMaxEntries = Constants.QUERY_STATISTICS_MAX_ENTRIES;
     private QueryStatisticsData queryStatisticsData;
+    private RowFactory rowFactory = RowFactory.DEFAULT;
 
     public Database(ConnectionInfo ci, String cipher) {
         String name = ci.getName();
@@ -249,7 +251,6 @@ public class Database implements DataHandler {
                 ci.getProperty("JAVA_OBJECT_SERIALIZER", null);
         this.multiThreaded =
                 ci.getProperty("MULTI_THREADED", false);
-
         boolean closeAtVmShutdown =
                 dbSettings.dbCloseOnExit;
         int traceLevelFile =
@@ -301,7 +302,25 @@ public class Database implements DataHandler {
         }
     }
 
-    //没看到调用
+    /**
+     * Create a new row for a table.
+     *
+     * @param data the values
+     * @param memory whether the row is in memory
+     * @return the created row
+     */
+    public Row createRow(Value[] data, int memory) {
+        return rowFactory.createRow(data, memory);
+    }
+
+    public RowFactory getRowFactory() {
+        return rowFactory;
+    }
+
+    public void setRowFactory(RowFactory rowFactory) {
+        this.rowFactory = rowFactory;
+    }
+
     public static void setInitialPowerOffCount(int count) {
         initialPowerOffCount = count;
     }
@@ -820,7 +839,7 @@ public class Database implements DataHandler {
                 if (obj instanceof TableView) {
                     TableView view = (TableView) obj;
                     if (view.isInvalid()) {
-                        view.recompile(session, true);
+                        view.recompile(session, true, false);
                         if (!view.isInvalid()) {
                             recompileSuccessful = true;
                         }
@@ -828,17 +847,20 @@ public class Database implements DataHandler {
                 }
             }
         } while (recompileSuccessful);
-        // when opening a database, views are initialized before indexes,
-        // so they may not have the optimal plan yet
-        // this is not a problem, it is just nice to see the newest plan
-        for (Table obj : getAllTablesAndViews(false)) {
-            if (obj instanceof TableView) {
-                TableView view = (TableView) obj;
-                if (!view.isInvalid()) {
-                    view.recompile(systemSession, true); //session就是systemSession
-                }
-            }
-        }
+//<<<<<<< HEAD
+//        // when opening a database, views are initialized before indexes,
+//        // so they may not have the optimal plan yet
+//        // this is not a problem, it is just nice to see the newest plan
+//        for (Table obj : getAllTablesAndViews(false)) {
+//            if (obj instanceof TableView) {
+//                TableView view = (TableView) obj;
+//                if (!view.isInvalid()) {
+//                    view.recompile(systemSession, true); //session就是systemSession
+//                }
+//            }
+//        }
+//=======
+        TableView.clearIndexCaches(session.getDatabase());
     }
 
     private void initMetaTables() {

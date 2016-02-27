@@ -6,6 +6,7 @@
 package org.h2.table;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -42,7 +43,7 @@ import org.h2.value.ValueNull;
  * This is the base class for most tables.
  * A table contains a list of columns and a list of rows.
  */
-//Ä¿Ç°ÓÐ7¸ö×ÓÀà
+//Ä¿Ç°ï¿½ï¿½7ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 //FunctionTable
 //MetaTable
 //RangeTable
@@ -112,7 +113,7 @@ public abstract class Table extends SchemaObjectBase {
     private ArrayList<TableView> views;
     private boolean checkForeignKeyConstraints = true;
     private boolean onCommitDrop, onCommitTruncate;
-    private Row nullRow;
+    private volatile Row nullRow;
 
     public Table(Schema schema, int id, String name, boolean persistIndexes, boolean persistData) {
         columnMap = schema.getDatabase().newStringMap();
@@ -131,6 +132,10 @@ public abstract class Table extends SchemaObjectBase {
                 constraint.rebuild();
             }
         }
+    }
+
+    public boolean isView() {
+        return false;
     }
 
     /**
@@ -224,7 +229,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @throws DbException if it is not supported
      */
-    public abstract void checkSupportAlter(); //Ö»ÓÐMVTableºÍRegularTableÖ§³Ö
+    public abstract void checkSupportAlter(); //Ö»ï¿½ï¿½MVTableï¿½ï¿½RegularTableÖ§ï¿½ï¿½
 
     /**
      * Get the table type name
@@ -240,6 +245,22 @@ public abstract class Table extends SchemaObjectBase {
      * @return the index
      */
     public abstract Index getScanIndex(Session session);
+
+    /**
+     * Get the scan index for this table.
+     *
+     * @param session the session
+     * @param masks the search mask
+     * @param filters the table filters
+     * @param filter the filter index
+     * @param sortOrder the sort order
+     * @return the scan index
+     */
+    public Index getScanIndex(Session session, int[] masks,
+            TableFilter[] filters, int filter, SortOrder sortOrder,
+            HashSet<Column> allColumnsSet) {
+        return getScanIndex(session);
+    }
 
     /**
      * Get any unique index for this table if one exists.
@@ -274,7 +295,7 @@ public abstract class Table extends SchemaObjectBase {
      *
      * @return true if it is
      */
-    public abstract boolean isDeterministic(); //±íTableLinkÊÇfalse£¬FunctionTable¡¢TableViewÒª¿´¾ßÌåÇé¿ö£¬ÆäËû×ÓÀà·µ»Øtrue
+    public abstract boolean isDeterministic(); //ï¿½ï¿½TableLinkï¿½ï¿½falseï¿½ï¿½FunctionTableï¿½ï¿½TableViewÒªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½à·µï¿½ï¿½true
 
     /**
      * Check if the row count can be retrieved quickly.
@@ -326,7 +347,7 @@ public abstract class Table extends SchemaObjectBase {
     }
 
     @Override
-    public String getCreateSQLForCopy(Table table, String quotedName) { //Ö»ÓÐTableView¸²¸ÇÁË
+    public String getCreateSQLForCopy(Table table, String quotedName) { //Ö»ï¿½ï¿½TableViewï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         throw DbException.throwInternalError();
     }
 
@@ -368,7 +389,7 @@ public abstract class Table extends SchemaObjectBase {
         dependencies.add(this);
     }
 
-    //TableµÄchildrenÓÐ6ÖÖ: index¡¢constraint¡¢trigger¡¢sequence¡¢view¡¢right
+    //Tableï¿½ï¿½childrenï¿½ï¿½6ï¿½ï¿½: indexï¿½ï¿½constraintï¿½ï¿½triggerï¿½ï¿½sequenceï¿½ï¿½viewï¿½ï¿½right
     @Override
     public ArrayList<DbObject> getChildren() {
         ArrayList<DbObject> children = New.arrayList();
@@ -443,7 +464,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param session the session
      * @return true if it is
      */
-    public boolean isLockedExclusivelyBy(Session session) { //Ö»ÓÐRegularTable¡¢MVTable¸²¸Ç´Ë·½·¨
+    public boolean isLockedExclusivelyBy(Session session) { //Ö»ï¿½ï¿½RegularTableï¿½ï¿½MVTableï¿½ï¿½ï¿½Ç´Ë·ï¿½ï¿½ï¿½
         return false;
     }
 
@@ -467,11 +488,11 @@ public abstract class Table extends SchemaObjectBase {
             Row o = rows.next();
             rows.next(); 
             try {
-                //ÎªÊ²Ã´²»ÊÇÏÈ¼Ç³·ÏûÈÕÖ¾ÔÙÉ¾³ýÐÐÄØ£¿ÒòÎªÈç¹ûÕâÑùµÄ»°¼ÙÉèÉ¾³ýÐÐ²»³É¹¦£¬µ«ÊÇÈÕÖ¾¼Ç³É¹¦ÁË£¬µ±rollbackÊ±ÓÖ°´ÈÕÖ¾×öinsert²Ù×÷
-                //´ËÊ±¾Í¶àÁËÒ»Ìõ¼ÇÂ¼ÁË£¬
-                //ÄÇ¼ÙÉè¼Ç³·ÏûÈÕÖ¾Ê§°ÜÁËÄØ? Õâ¸ö²»»á³öÏÖµÄ£¬ÒòÎªsession.logÖÐ½øÒ»²½µ÷ÓÃÁËorg.h2.engine.UndoLog.add(UndoLogRecord)
-                //Õâ¸öUndoLog.add·½·¨µÄµÚÒ»ÐÐ¾Í°ÑUndoLogRecordÔö¼Óµ½recordsÖÐ£¬Ö»ÒªÑÏ¸ñÈ·±£ÔÚ³öÏÖÈÎºÎÒì³£Ç°ÏÈ¼ÓÈërecords£¬
-                //ÄÇÃ´ÔÚrollbackÖÐ¾ÍÄÜÕÒµ½Ö®Ç°±»É¾³ýµÄÐÐ¡£
+                //ÎªÊ²Ã´ï¿½ï¿½ï¿½ï¿½ï¿½È¼Ç³ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾ï¿½ï¿½É¾ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½ï¿½ï¿½ï¿½É¾ï¿½ï¿½ï¿½Ð²ï¿½ï¿½É¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾ï¿½Ç³É¹ï¿½ï¿½Ë£ï¿½ï¿½ï¿½rollbackÊ±ï¿½Ö°ï¿½ï¿½ï¿½Ö¾ï¿½ï¿½insertï¿½ï¿½ï¿½ï¿½
+                //ï¿½ï¿½Ê±ï¿½Í¶ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Â¼ï¿½Ë£ï¿½
+                //ï¿½Ç¼ï¿½ï¿½ï¿½Ç³ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾Ê§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÖµÄ£ï¿½ï¿½ï¿½Îªsession.logï¿½Ð½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½org.h2.engine.UndoLog.add(UndoLogRecord)
+                //ï¿½ï¿½ï¿½UndoLog.addï¿½ï¿½ï¿½ï¿½ï¿½Äµï¿½Ò»ï¿½Ð¾Í°ï¿½UndoLogRecordï¿½ï¿½ï¿½Óµï¿½recordsï¿½Ð£ï¿½Ö»Òªï¿½Ï¸ï¿½È·ï¿½ï¿½ï¿½Ú³ï¿½ï¿½ï¿½ï¿½Îºï¿½ï¿½ì³£Ç°ï¿½È¼ï¿½ï¿½ï¿½recordsï¿½ï¿½
+                //ï¿½ï¿½Ã´ï¿½ï¿½rollbackï¿½Ð¾ï¿½ï¿½ï¿½ï¿½Òµï¿½Ö®Ç°ï¿½ï¿½É¾ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½
                 removeRow(session, o);
             } catch (DbException e) {
                 if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1) {
@@ -610,7 +631,7 @@ public abstract class Table extends SchemaObjectBase {
     }
 
     public Row getTemplateRow() {
-        return new Row(new Value[columns.length], Row.MEMORY_CALCULATE);
+        return database.createRow(new Value[columns.length], Row.MEMORY_CALCULATE);
     }
 
     /**
@@ -626,14 +647,16 @@ public abstract class Table extends SchemaObjectBase {
         return new SimpleRow(new Value[columns.length]);
     }
 
-    synchronized Row getNullRow() {
-        if (nullRow == null) {
-            nullRow = new Row(new Value[columns.length], 1);
-            for (int i = 0; i < columns.length; i++) {
-                nullRow.setValue(i, ValueNull.INSTANCE);
-            }
+    Row getNullRow() {
+        Row row = nullRow;
+        if (row == null) {
+            // Here can be concurrently produced more than one row, but it must
+            // be ok.
+            Value[] values = new Value[columns.length];
+            Arrays.fill(values, ValueNull.INSTANCE);
+            nullRow = row = database.createRow(values, 1);
         }
-        return nullRow;
+        return row;
     }
 
     public Column[] getColumns() {
@@ -686,20 +709,32 @@ public abstract class Table extends SchemaObjectBase {
      * @param session the session
      * @param masks per-column comparison bit masks, null means 'always false',
      *              see constants in IndexCondition
-     * @param filter the table filter
+     * @param filters all joined table filters
+     * @param filter the current table filter index
      * @param sortOrder the sort order
      * @return the plan item
      */
-    public PlanItem getBestPlanItem(Session session, int[] masks, TableFilter filter, SortOrder sortOrder) {
+    public PlanItem getBestPlanItem(Session session, int[] masks,
+            TableFilter[] filters, int filter, SortOrder sortOrder,
+            HashSet<Column> allColumnsSet) {
         PlanItem item = new PlanItem();
         item.setIndex(getScanIndex(session));
-        item.cost = item.getIndex().getCost(session, null, null, null);
+        item.cost = item.getIndex().getCost(session, null, filters, filter, null, allColumnsSet);
+        Trace t = session.getTrace();
+        if (t.isDebugEnabled()) {
+            t.debug("Table      :     potential plan item cost {0} index {1}",
+                    item.cost, item.getIndex().getPlanSQL());
+        }
         ArrayList<Index> indexes = getIndexes();
         if (indexes != null && masks != null) {
-            //indexes[0]ÊÇScanIndex£¬ËùÒÔ¿ÉÒÔÌø¹ý£¬´Ó1¿ªÊ¼
+            //indexes[0]ï¿½ï¿½ScanIndexï¿½ï¿½ï¿½ï¿½ï¿½Ô¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½Ê¼
             for (int i = 1, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
-                double cost = index.getCost(session, masks, filter, sortOrder);
+                double cost = index.getCost(session, masks, filters, filter, sortOrder, allColumnsSet);
+                if (t.isDebugEnabled()) {
+                    t.debug("Table      :     potential plan item cost {0} index {1}",
+                            cost, index.getPlanSQL());
+                }
                 if (cost < item.cost) {
                     item.cost = cost;
                     item.setIndex(index);

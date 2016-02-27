@@ -13,6 +13,8 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
@@ -23,6 +25,7 @@ import org.h2.command.ddl.AlterTableAlterColumn;
 import org.h2.command.ddl.AlterTableDropConstraint;
 import org.h2.command.ddl.AlterTableRename;
 import org.h2.command.ddl.AlterTableRenameColumn;
+import org.h2.command.ddl.AlterTableRenameConstraint;
 import org.h2.command.ddl.AlterUser;
 import org.h2.command.ddl.AlterView;
 import org.h2.command.ddl.Analyze;
@@ -177,6 +180,14 @@ public class Parser {
             CURRENT_TIME = 23, ROWNUM = 24;
     private static final int SPATIAL_INTERSECTS = 25;
 
+    private static final Comparator<TableFilter> TABLE_FILTER_COMPARATOR =
+            new Comparator<TableFilter>() {
+        @Override
+        public int compare(TableFilter o1, TableFilter o2) {
+            return o1 == o2 ? 0 : compareTableFilters(o1, o2);
+        }
+    };
+
     private final Database database;
     private final Session session;
     /**
@@ -208,6 +219,7 @@ public class Parser {
     private boolean rightsChecked;
     private boolean recompileAlways;
     private ArrayList<Parameter> indexedParameterList;
+    private int orderInFrom;
 
     public Parser(Session session) {
         this.database = session.getDatabase();
@@ -714,7 +726,7 @@ public class Parser {
         Update command = new Update(session);
         currentPrepared = command;
         int start = lastParseIndex;
-        TableFilter filter = readSimpleTableFilter();
+        TableFilter filter = readSimpleTableFilter(0);
         command.setTableFilter(filter);
         read("SET");
         //如: update UpdateTest set(name, id) = ('123',10)
@@ -772,7 +784,7 @@ public class Parser {
         return command;
     }
 
-    private TableFilter readSimpleTableFilter() { //只用于Delete和Update，Delete和Update只允许单表
+    private TableFilter readSimpleTableFilter(int orderInFrom) { //只用于Delete和Update，Delete和Update只允许单表 
         Table table = readTableOrView();
         String alias = null;
         if (readIf("AS")) {
@@ -784,7 +796,7 @@ public class Parser {
             }
         }
         return new TableFilter(session, table, alias, rightsChecked,
-                currentSelect);
+                currentSelect, orderInFrom);
     }
 
     private Delete parseDelete() {
@@ -796,7 +808,7 @@ public class Parser {
         currentPrepared = command;
         int start = lastParseIndex;
         readIf("FROM");
-        TableFilter filter = readSimpleTableFilter();
+        TableFilter filter = readSimpleTableFilter(0);
         command.setTableFilter(filter);
         if (readIf("WHERE")) {
             Expression condition = readExpression();
@@ -1205,7 +1217,7 @@ public class Parser {
                 return top;
             }
         } else if (readIf("VALUES")) {
-            table = parseValuesTable().getTable(); //如"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
+            table = parseValuesTable(0).getTable(); //如"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
         } else {
             String tableName = readIdentifierWithSchema(null);
             Schema schema = getSchema();
@@ -1261,7 +1273,7 @@ public class Parser {
         }
         alias = readFromAlias(alias); //例如"FROM (select 1, 2) as t SELECT * "，此时alias先是"_0"这样的临时名称，然后再变成t
         return new TableFilter(session, table, alias, rightsChecked,
-                currentSelect);
+                currentSelect, orderInFrom++);
     }
 
     private String readFromAlias(String alias) {
@@ -1666,7 +1678,7 @@ public class Parser {
     private TableFilter getNested(TableFilter n) {
         String joinTable = Constants.PREFIX_JOIN + parseIndex; //如：SYSTEM_JOIN_25
         TableFilter top = new TableFilter(session, getDualTable(true),
-                joinTable, rightsChecked, currentSelect);
+                joinTable, rightsChecked, currentSelect, n.getOrderInFrom());
         top.addJoin(n, false, true, null);
         return top;
     }
@@ -1846,7 +1858,7 @@ public class Parser {
                 command.setOffset(readExpression().optimize(session));
                 //OFFSET 要跟ROW或ROWS，不能少
                 if (!readIf("ROW")) {
-                    read("ROWS");
+                    readIf("ROWS");
                 }
             }
             if (readIf("FETCH")) {
@@ -1945,6 +1957,45 @@ public class Parser {
             TableFilter filter = readTableFilter(false);
             parseJoinTableFilter(filter, command);
         } while (readIf(","));
+
+        // Parser can reorder joined table filters, need to explicitly sort them
+        // to get the order as it was in the original query.
+        if (session.isForceJoinOrder()) {
+            sortTableFilters(command.getTopFilters());
+        }
+    }
+
+    private static void sortTableFilters(ArrayList<TableFilter> filters) {
+        if (filters.size() < 2) {
+            return;
+        }
+        // Most probably we are already sorted correctly.
+        boolean sorted = true;
+        TableFilter prev = filters.get(0);
+        for (int i = 1; i < filters.size(); i++) {
+            TableFilter next = filters.get(i);
+            if (compareTableFilters(prev, next) > 0) {
+                sorted = false;
+                break;
+            }
+            prev = next;
+        }
+        // If not, then sort manually.
+        if (!sorted) {
+            Collections.sort(filters, TABLE_FILTER_COMPARATOR);
+        }
+    }
+
+    /**
+     * Find out which of the table filters appears first in the "from" clause.
+     *
+     * @param o1 the first table filter
+     * @param o2 the second table filter
+     * @return -1 if o1 appears first, and 1 if o2 appears first
+     */
+    static int compareTableFilters(TableFilter o1, TableFilter o2) {
+        assert o1.getOrderInFrom() != o2.getOrderInFrom();
+        return o1.getOrderInFrom() > o2.getOrderInFrom() ? 1 : -1;
     }
 
     private void parseJoinTableFilter(TableFilter top, final Select command) {
@@ -2070,7 +2121,7 @@ public class Parser {
                 // SYSTEM_RANGE(1,1)
                 Table dual = getDualTable(false);
                 TableFilter filter = new TableFilter(session, dual, null,
-                        rightsChecked, currentSelect);
+                        rightsChecked, currentSelect, 0);
                 command.addTableFilter(filter, true);
             } else {
                 parseSelectSimpleFromPart(command);
@@ -4251,6 +4302,11 @@ public class Parser {
             if (readIf("VARYING")) {
                 original += " VARYING";
             }
+        } else if (readIf("TIMESTAMP")) {
+            if (readIf("WITH")) {
+                read("TIMEZONE");
+                original += " WITH TIMEZONE";
+            }
         } else {
             regular = true;
         }
@@ -4592,7 +4648,7 @@ public class Parser {
     private Select parseValues() {
         Select command = new Select(session);
         currentSelect = command;
-        TableFilter filter = parseValuesTable();
+        TableFilter filter = parseValuesTable(0);
         ArrayList<Expression> list = New.arrayList();
         list.add(new Wildcard(null, null));
         command.setExpressions(list);
@@ -4601,7 +4657,7 @@ public class Parser {
         return command;
     }
 
-    private TableFilter parseValuesTable() {
+    private TableFilter parseValuesTable(int orderInFrom) {
         Schema mainSchema = database.getSchema(Constants.SCHEMA_MAIN);
         TableFunction tf = (TableFunction) Function.getFunction(database,
                 "TABLE");
@@ -4677,7 +4733,7 @@ public class Parser {
         tf.doneWithParameters();
         Table table = new FunctionTable(mainSchema, session, tf, tf);
         TableFilter filter = new TableFilter(session, table, null,
-                rightsChecked, currentSelect);
+                rightsChecked, currentSelect, orderInFrom);
         return filter;
     }
 
@@ -5009,8 +5065,14 @@ public class Parser {
                 .substring(parseIndex));
         read("AS");
         try {
-            Query query = parseSelect();
-            query.prepare();
+            Query query;
+            session.setParsingView(true);
+            try {
+                query = parseSelect();
+                query.prepare();
+            } finally {
+                session.setParsingView(false);
+            }
             command.setSelect(query);
         } catch (DbException e) {
             if (force) {
@@ -5650,16 +5712,41 @@ public class Parser {
             }
             return command;
         } else if (readIf("RENAME")) {
-            read("TO");
-            String newName = readIdentifierWithSchema(table.getSchema()
-                    .getName());
-            checkSchema(table.getSchema());
-            AlterTableRename command = new AlterTableRename(session,
-                    getSchema());
-            command.setOldTable(table);
-            command.setNewTableName(newName);
-            command.setHidden(readIf("HIDDEN"));
-            return command;
+            if (readIf("COLUMN")) {
+                // PostgreSQL syntax
+                String columnName = readColumnIdentifier();
+                Column column = table.getColumn(columnName);
+                read("TO");
+                AlterTableRenameColumn command = new AlterTableRenameColumn(
+                        session);
+                command.setTable(table);
+                command.setColumn(column);
+                String newName = readColumnIdentifier();
+                command.setNewColumnName(newName);
+                return command;
+            } else if (readIf("CONSTRAINT")) {
+                String constraintName = readIdentifierWithSchema(table
+                        .getSchema().getName());
+                checkSchema(table.getSchema());
+                read("TO");
+                AlterTableRenameConstraint command = new AlterTableRenameConstraint(
+                        session, table.getSchema());
+                command.setConstraintName(constraintName);
+                String newName = readColumnIdentifier();
+                command.setNewConstraintName(newName);
+                return command;
+            } else {
+                read("TO");
+                String newName = readIdentifierWithSchema(table.getSchema()
+                        .getName());
+                checkSchema(table.getSchema());
+                AlterTableRename command = new AlterTableRename(session,
+                        getSchema());
+                command.setOldTable(table);
+                command.setNewTableName(newName);
+                command.setHidden(readIf("HIDDEN"));
+                return command;
+            }
         } else if (readIf("DROP")) {
             if (readIf("CONSTRAINT")) {
                 boolean ifExists = readIfExists(false);

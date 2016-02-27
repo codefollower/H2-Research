@@ -37,7 +37,7 @@ public class ConditionExists extends Condition {
 
     @Override
     public Expression optimize(Session session) {
-        query.prepare();
+        session.optimizeQueryExpression(query);
         return this;
     }
 

@@ -366,6 +366,7 @@ public class TcpServerThread implements Runnable {
             int status;
             if (session.isClosed()) {
                 status = SessionRemote.STATUS_CLOSED;
+                stop = true;
             } else {
                 status = getState(old);
             }

@@ -10,16 +10,18 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Random;
-
 import org.h2.api.ErrorCode;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
 import org.h2.command.Prepared;
+import org.h2.command.dml.Query;
 import org.h2.command.dml.SetTypes;
 import org.h2.constraint.Constraint;
 import org.h2.index.Index;
+import org.h2.index.ViewIndex;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
@@ -29,11 +31,14 @@ import org.h2.mvstore.db.TransactionStore.Change;
 import org.h2.mvstore.db.TransactionStore.Transaction;
 import org.h2.result.LocalResult;
 import org.h2.result.Row;
+import org.h2.result.SortOrder;
 import org.h2.schema.Schema;
 import org.h2.store.DataHandler;
 import org.h2.store.InDoubtTransaction;
 import org.h2.store.LobStorageFrontend;
+import org.h2.table.SubQueryInfo;
 import org.h2.table.Table;
+import org.h2.table.TableFilter;
 import org.h2.util.New;
 import org.h2.util.SmallLRUCache;
 import org.h2.value.Value;
@@ -109,6 +114,13 @@ public class Session extends SessionWithState {
     private final int queryCacheSize;
     private SmallLRUCache<String, Command> queryCache;
     private long modificationMetaID = -1;
+    private SubQueryInfo subQueryInfo;
+    private int parsingView;
+    private int preparingQueryExpression;
+    private volatile SmallLRUCache<Object, ViewIndex> viewIndexCache;
+    private HashMap<Object, ViewIndex> subQueryIndexCache;
+    private boolean joinBatchEnabled;
+    private boolean forceJoinOrder;
 
     /**
      * Temporary LOBs from result sets. Those are kept for some time. The
@@ -140,6 +152,93 @@ public class Session extends SessionWithState {
         this.lockTimeout = setting == null ?
                 Constants.INITIAL_LOCK_TIMEOUT : setting.getIntValue();
         this.currentSchemaName = Constants.SCHEMA_MAIN;
+    }
+
+    public void setForceJoinOrder(boolean forceJoinOrder) {
+        this.forceJoinOrder = forceJoinOrder;
+    }
+
+    public boolean isForceJoinOrder() {
+        return forceJoinOrder;
+    }
+
+    public void setJoinBatchEnabled(boolean joinBatchEnabled) {
+        this.joinBatchEnabled = joinBatchEnabled;
+    }
+
+    public boolean isJoinBatchEnabled() {
+        return joinBatchEnabled;
+    }
+
+    /**
+     * Create a new row for a table.
+     *
+     * @param data the values
+     * @param memory whether the row is in memory
+     * @return the created row
+     */
+    public Row createRow(Value[] data, int memory) {
+        return database.createRow(data, memory);
+    }
+
+    /**
+     * Add a subquery info on top of the subquery info stack.
+     *
+     * @param masks the mask
+     * @param filters the filters
+     * @param filter the filter index
+     * @param sortOrder the sort order
+     */
+    public void pushSubQueryInfo(int[] masks, TableFilter[] filters, int filter,
+            SortOrder sortOrder) {
+        subQueryInfo = new SubQueryInfo(subQueryInfo, masks, filters, filter, sortOrder);
+    }
+
+    /**
+     * Remove the current subquery info from the stack.
+     */
+    public void popSubQueryInfo() {
+        subQueryInfo = subQueryInfo.getUpper();
+    }
+
+    public SubQueryInfo getSubQueryInfo() {
+        return subQueryInfo;
+    }
+
+    public void setParsingView(boolean parsingView) {
+        // It can be recursive, thus implemented as counter.
+        this.parsingView += parsingView ? 1 : -1;
+        assert this.parsingView >= 0;
+    }
+
+    public boolean isParsingView() {
+        assert parsingView >= 0;
+        return parsingView != 0;
+    }
+
+    /**
+     * Optimize a query. This will remember the subquery info, clear it, prepare
+     * the query, and reset the subquery info.
+     *
+     * @param query the query to prepare
+     */
+    public void optimizeQueryExpression(Query query) {
+        // we have to hide current subQueryInfo if we are going to optimize
+        // query expression
+        SubQueryInfo tmp = subQueryInfo;
+        subQueryInfo = null;
+        preparingQueryExpression++;
+        try {
+            query.prepare();
+        } finally {
+            subQueryInfo = tmp;
+            preparingQueryExpression--;
+        }
+    }
+
+    public boolean isPreparingQueryExpression() {
+        assert preparingQueryExpression >= 0;
+        return preparingQueryExpression != 0;
     }
 
     @Override
@@ -464,7 +563,13 @@ public class Session extends SessionWithState {
             }
         }
         Parser parser = new Parser(this);
-        command = parser.prepareCommand(sql);
+        try {
+            command = parser.prepareCommand(sql);
+        } finally {
+            // we can't reuse sub-query indexes, so just drop the whole cache
+            subQueryIndexCache = null;
+        }
+        command.prepareJoinBatch();
         if (queryCache != null) {
             //只有DML并且是下面的这几类可缓存:
             //Insert、Delete、Update、Merge、TransactionCommand这5个无条件可缓存
@@ -664,7 +769,7 @@ public class Session extends SessionWithState {
                         row = t.getRow(this, key);
                     } else {
                         op = UndoLogRecord.DELETE;
-                        row = new Row(value.getList(), Row.MEMORY_CALCULATE);
+                        row = createRow(value.getList(), Row.MEMORY_CALCULATE);
                     }
                     row.setKey(key);
                     UndoLogRecord log = new UndoLogRecord(t, op, row);
@@ -718,6 +823,7 @@ public class Session extends SessionWithState {
         if (!closed) {
             try {
                 database.checkPowerOff();
+                rollback();
                 removeTemporaryLobs(false);
                 cleanTempTables(true);
                 undoLog.clear();
@@ -838,11 +944,13 @@ public class Session extends SessionWithState {
     private void cleanTempTables(boolean closeSession) {
         if (localTempTables != null && localTempTables.size() > 0) {
             synchronized (database) {
-                for (Table table : New.arrayList(localTempTables.values())) {
+                Iterator<Table> itr = localTempTables.values().iterator();
+                while (itr.hasNext()) {
+                    Table table = itr.next();
                     if (closeSession || table.getOnCommitDrop()) {
                         modificationId++;
                         table.setModified();
-                        localTempTables.remove(table.getName());
+                        itr.remove();
                         table.removeChildrenAndResources(this);
                         if (closeSession) {
                             // need to commit, otherwise recovery might
@@ -1151,6 +1259,10 @@ public class Session extends SessionWithState {
         if (SysProperties.CHECK && !v.isLinkedToTable()) {
             DbException.throwInternalError();
         }
+        if (removeLobMap == null) {
+            removeLobMap = New.hashMap();
+            removeLobMap.put(v.toString(), v);
+        }
     }
 
     /**
@@ -1307,6 +1419,31 @@ public class Session extends SessionWithState {
                 // ignore
             }
         }
+    }
+
+    /**
+     * Get the view cache for this session. There are two caches: the subquery
+     * cache (which is only use for a single query, has no bounds, and is
+     * cleared after use), and the cache for regular views.
+     *
+     * @param subQuery true to get the subquery cache
+     * @return the view cache
+     */
+    public Map<Object, ViewIndex> getViewIndexCache(boolean subQuery) {
+        if (subQuery) {
+            // for sub-queries we don't need to use LRU because the cache should
+            // not grow too large for a single query (we drop the whole cache in
+            // the end of prepareLocal)
+            if (subQueryIndexCache == null) {
+                subQueryIndexCache = New.hashMap();
+            }
+            return subQueryIndexCache;
+        }
+        SmallLRUCache<Object, ViewIndex> cache = viewIndexCache;
+        if (cache == null) {
+            viewIndexCache = cache = SmallLRUCache.newInstance(Constants.VIEW_INDEX_CACHE_SIZE);
+        }
+        return cache;
     }
 
     /**
@@ -1489,6 +1626,13 @@ public class Session extends SessionWithState {
         closeTemporaryResults();
     }
 
+    /**
+     * Clear the view cache for this session.
+     */
+    public void clearViewIndexCache() {
+        viewIndexCache = null;
+    }
+
     @Override
     public void addTemporaryLob(Value v) {
         if (v.getType() != Value.CLOB && v.getType() != Value.BLOB) {
@@ -1545,5 +1689,4 @@ public class Session extends SessionWithState {
         }
 
     }
-
 }

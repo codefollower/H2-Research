@@ -56,16 +56,6 @@ class Optimizer {
     }
 
     /**
-     * Whether join reordering is enabled (it can be disabled by hint).
-     *
-     * @return {@code true} if yes
-     */
-    private static boolean isJoinReorderingEnabled() {
-        OptimizerHints hints = OptimizerHints.get();
-        return hints == null || hints.getJoinReorderEnabled();
-    }
-
-    /**
      * How many filter to calculate using brute force. The remaining filters are
      * selected using a greedy algorithm which has a runtime of (1 + 2 + ... +
      * n) = (n * (n-1) / 2) for n filters. The brute force algorithm has a
@@ -86,17 +76,24 @@ class Optimizer {
     }
 
     private void calculateBestPlan() {
-        start = System.currentTimeMillis();
         cost = -1;
-        if (filters.length == 1 || !isJoinReorderingEnabled()) {
+        if (filters.length == 1 || session.isForceJoinOrder()) {
             testPlan(filters);
-        } else if (filters.length <= MAX_BRUTE_FORCE_FILTERS) {
-            calculateBruteForceAll();
         } else {
-            calculateBruteForceSome();
-            random = new Random(0);
-            calculateGenetic();
+            start = System.currentTimeMillis();
+            if (filters.length <= MAX_BRUTE_FORCE_FILTERS) {
+                calculateBruteForceAll();
+            } else {
+                calculateBruteForceSome();
+                random = new Random(0);
+                calculateGenetic();
+            }
         }
+    }
+
+    private void calculateFakePlan() {
+        cost = -1;
+        bestPlan = new Plan(filters, filters.length, condition);
     }
 
     private boolean canStop(int x) {
@@ -236,15 +233,25 @@ class Optimizer {
 
     /**
      * Calculate the best query plan to use.
+     *
+     * @param parse If we do not need to really get the best plan because it is
+     *            a view parsing stage.
      */
-    void optimize() {
-        calculateBestPlan();
-        bestPlan.removeUnusableIndexConditions();
+    void optimize(boolean parse) {
+        if (parse) {
+            calculateFakePlan();
+        } else {
+            calculateBestPlan();
+            bestPlan.removeUnusableIndexConditions();
+        }
         TableFilter[] f2 = bestPlan.getFilters();
         topFilter = f2[0];
         for (int i = 0; i < f2.length - 1; i++) {
         	//见org.h2.command.Parser.parseJoinTableFilter(TableFilter, Select)中的注释
             f2[i].addJoin(f2[i + 1], false, false, null);
+        }
+        if (parse) {
+            return;
         }
         for (TableFilter f : f2) {
             PlanItem item = bestPlan.getItem(f);
