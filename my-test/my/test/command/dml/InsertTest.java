@@ -44,8 +44,8 @@ public class InsertTest extends TestBase {
         conn.setAutoCommit(false);
 
         stmt.executeUpdate("DROP TABLE IF EXISTS InsertTest");
-        // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS InsertTest(id int not null, name varchar(500) not null)");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS InsertTest(id int, name varchar(500) as '123')");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS InsertTest(id int not null, name varchar(500) not null)");
+        // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS InsertTest(id int, name varchar(500) as '123')");
 
         stmt.executeUpdate("CREATE TRIGGER IF NOT EXISTS TriggerInsertTest BEFORE INSERT ON InsertTest "
         // + "FOR EACH ROW CALL \"my.test.sql.InsertTest$MyInsertTrigger\"");
@@ -119,5 +119,25 @@ public class InsertTest extends TestBase {
 
         sql = "INSERT INTO InsertTest(id, name) VALUES(?,?) {1:600, 2:'abc'}";
         executeUpdate(sql);
+
+        sql = "delete from InsertTest";
+        executeUpdate(sql);
+
+        sql = "INSERT INTO InsertTest(id, name) VALUES(1, 'a')";
+        executeUpdate(sql);
+        sql = "INSERT INTO InsertTest(id, name) VALUES(1, 'b')";
+        executeUpdate(sql);
+        sql = "INSERT INTO InsertTest(id, name) VALUES(1, 'c')";
+        executeUpdate(sql);
+
+        sql = "INSERT INTO InsertTest(id, name) VALUES(2, 'a')";
+        executeUpdate(sql);
+        sql = "INSERT INTO InsertTest(id, name) VALUES(2, 'b')";
+        executeUpdate(sql);
+        sql = "INSERT INTO InsertTest(id, name) VALUES(2, 'c')";
+        executeUpdate(sql);
+
+        sql = "select top 1 id,name from InsertTest group by id";
+        printResultSet();
     }
 }

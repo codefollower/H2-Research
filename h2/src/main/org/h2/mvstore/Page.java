@@ -380,7 +380,7 @@ public class Page {
         keys = aKeys;
         Object[] aValues = new Object[a];
         Object[] bValues = new Object[b];
-        bValues = new Object[b];
+        bValues = new Object[b]; //多于的
         System.arraycopy(values, 0, aValues, 0, a);
         System.arraycopy(values, a, bValues, 0, b);
         values = aValues;
@@ -740,7 +740,7 @@ public class Page {
             }
         }
         int compressStart = buff.position();
-        map.getKeyType().write(buff, keys, len, true);
+        map.getKeyType().write(buff, keys, len, true); //第4个参数目前未使用
         if (type == DataUtils.PAGE_TYPE_LEAF) {
             map.getValueType().write(buff, values, len, false);
         }
