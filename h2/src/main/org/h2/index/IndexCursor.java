@@ -170,7 +170,7 @@ public class IndexCursor implements Cursor {
         if (!alwaysFalse) {
             if (intersects != null && index instanceof SpatialIndex) {
                 cursor = ((SpatialIndex) index).findByGeometry(tableFilter,
-                        intersects);
+                        start, end, intersects);
             } else {
                 cursor = index.find(tableFilter, start, end);
             }

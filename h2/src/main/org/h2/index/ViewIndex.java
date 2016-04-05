@@ -251,8 +251,8 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     }
 
     @Override
-    public Cursor findByGeometry(TableFilter filter, SearchRow intersection) {
-        return find(filter.getSession(), null, null, intersection);
+    public Cursor findByGeometry(TableFilter filter, SearchRow first, SearchRow last, SearchRow intersection) {
+        return find(filter.getSession(), first, last, intersection);
     }
 
 //<<<<<<< HEAD
