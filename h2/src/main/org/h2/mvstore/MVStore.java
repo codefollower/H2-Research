@@ -2576,7 +2576,7 @@ public class MVStore {
                     new BackgroundWriterThread(this, sleep,
                             fileStore.toString());
             t.start();
-            backgroundWriterThread = t;
+            backgroundWriterThread = t; //这行要放在t.start前，否则有可能t运行到run时，backgroundWriterThread还是null
         }
     }
 

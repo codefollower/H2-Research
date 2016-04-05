@@ -22,6 +22,12 @@ Change Log
 <h2>Next Version (unreleased)</h2>
 <<<<<<< .mine
 <ul>
+<li>Issue #255: ConcurrentModificationException with multiple threads in embedded mode and temporary LOBs
+</li>
+<li>Issue #235: Anonymous SSL connections fail in many situations
+</li>
+<li>Fix race condition in FILE_LOCK=SOCKET, which could result in the watchdog thread not running  
+</li>
 <li>Experimental support for datatype TIMESTAMP WITH TIMEZONE
 </li>
 <li>Add support for ALTER TABLE ... RENAME CONSTRAINT .. TO ...

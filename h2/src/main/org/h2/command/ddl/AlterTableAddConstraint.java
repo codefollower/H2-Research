@@ -33,7 +33,8 @@ import org.h2.util.New;
  * This class represents the statement
  * ALTER TABLE ADD CONSTRAINT
  */
-//AlterTableAlterColumn只有执行alter命令时会产生此类的实例，而AlterTableAddConstraint实例在alter和create table命令中都会产生
+//AlterTableAlterColumn只有执行alter命令时会产生此类的实例，
+//而AlterTableAddConstraint实例在alter和create table命令中都会产生
 public class AlterTableAddConstraint extends SchemaCommand {
 
     private int type;

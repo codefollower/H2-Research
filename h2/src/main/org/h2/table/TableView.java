@@ -70,7 +70,7 @@ public class TableView extends Table {
 
     private String querySQL;
     private ArrayList<Table> tables;
-    private String[] columnNames;
+    private Column[] columnTemplates;
     private Query viewQuery;
     private ViewIndex index;
     private boolean recursive;
@@ -83,10 +83,10 @@ public class TableView extends Table {
     private boolean tableExpression;
 
     public TableView(Schema schema, int id, String name, String querySQL,
-            ArrayList<Parameter> params, String[] columnNames, Session session,
+            ArrayList<Parameter> params, Column[] columnTemplates, Session session,
             boolean recursive) {
         super(schema, id, name, false, true);
-        init(querySQL, params, columnNames, session, recursive);
+        init(querySQL, params, columnTemplates, session, recursive);
     }
 
     /**
@@ -102,29 +102,32 @@ public class TableView extends Table {
     public void replace(String querySQL, String[] columnNames, Session session,
             boolean recursive, boolean force) {
         String oldQuerySQL = this.querySQL;
-        String[] oldColumnNames = this.columnNames;
+        Column[] oldColumnTemplates = this.columnTemplates;
         boolean oldRecursive = this.recursive;
-        //init里执行了一次initColumnsAndTables，虽然执行了两次initColumnsAndTables，但是init中还建立了ViewIndex
-        //所以这里是必须调用init的
-        init(querySQL, null, columnNames, session, recursive);
 //<<<<<<< HEAD
-//        //recompile里又执行了一次initColumnsAndTables
-//        DbException e = recompile(session, force);
-//        
-//        //如果失败了，按原来的重新来过
+//        //init里执行了一次initColumnsAndTables，虽然执行了两次initColumnsAndTables，但是init中还建立了ViewIndex
+//        //所以这里是必须调用init的
+//        init(querySQL, null, columnNames, session, recursive);
+////<<<<<<< HEAD
+////        //recompile里又执行了一次initColumnsAndTables
+////        DbException e = recompile(session, force);
+////        
+////        //如果失败了，按原来的重新来过
+////=======
 //=======
+        init(querySQL, null, columnTemplates, session, recursive);
         DbException e = recompile(session, force, true);
         if (e != null) {
-            init(oldQuerySQL, null, oldColumnNames, session, oldRecursive);
+            init(oldQuerySQL, null, oldColumnTemplates, session, oldRecursive);
             recompile(session, true, false);
             throw e;
         }
     }
 
     private synchronized void init(String querySQL, ArrayList<Parameter> params,
-            String[] columnNames, Session session, boolean recursive) {
+            Column[] columnTemplates, Session session, boolean recursive) {
         this.querySQL = querySQL;
-        this.columnNames = columnNames;
+        this.columnTemplates = columnTemplates;
         this.recursive = recursive;
         index = new ViewIndex(this, querySQL, params, recursive);
         initColumnsAndTables(session);
@@ -216,15 +219,23 @@ public class TableView extends Table {
             for (int i = 0, count = query.getColumnCount(); i < count; i++) {
                 Expression expr = expressions.get(i);
                 String name = null;
-                //如CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
-                //没有为视图指定字段的时候，用select字段列表中的名字，此时columnNames==null
-                if (columnNames != null && columnNames.length > i) {
-                    name = columnNames[i];
+//<<<<<<< HEAD
+//                //如CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
+//                //没有为视图指定字段的时候，用select字段列表中的名字，此时columnNames==null
+//                if (columnNames != null && columnNames.length > i) {
+//                    name = columnNames[i];
+//=======
+                int type = Value.UNKNOWN;
+                if (columnTemplates != null && columnTemplates.length > i) {
+                    name = columnTemplates[i].getName();
+                    type = columnTemplates[i].getType();
                 }
                 if (name == null) {
                     name = expr.getAlias();
                 }
-                int type = expr.getType();
+                if (type == Value.UNKNOWN) {
+                    type = expr.getType();
+                }
                 long precision = expr.getPrecision();
                 int scale = expr.getScale();
                 int displaySize = expr.getDisplaySize();
@@ -261,10 +272,10 @@ public class TableView extends Table {
             // database
             tables = New.arrayList();
             cols = new Column[0];
-            if (recursive && columnNames != null) {
-                cols = new Column[columnNames.length];
-                for (int i = 0; i < columnNames.length; i++) {
-                    cols[i] = new Column(columnNames[i], Value.STRING);
+            if (recursive && columnTemplates != null) {
+                cols = new Column[columnTemplates.length];
+                for (int i = 0; i < columnTemplates.length; i++) {
+                    cols[i] = columnTemplates[i].getClone();
                 }
                 index.setRecursive(true);
                 createException = null;
@@ -376,11 +387,11 @@ public class TableView extends Table {
                 buff.append(c.getSQL());
             }
             buff.append(')');
-        } else if (columnNames != null) {
+        } else if (columnTemplates != null) {
             buff.append('(');
-            for (String n : columnNames) {
+            for (Column c : columnTemplates) {
                 buff.appendExceptFirst(", ");
-                buff.append(n);
+                buff.append(c.getName());
             }
             buff.append(')');
         }
@@ -610,8 +621,20 @@ public class TableView extends Table {
         return 0;
     }
 
-    public int getParameterOffset() {
-        return topQuery == null ? 0 : topQuery.getParameters().size();
+    public int getParameterOffset(ArrayList<Parameter> additionalParameters) {
+        int result = topQuery == null ? -1 : getMaxParameterIndex(topQuery.getParameters());
+        if (additionalParameters != null) {
+            result = Math.max(result, getMaxParameterIndex(additionalParameters));
+        }
+        return result + 1;
+    }
+
+    private int getMaxParameterIndex(ArrayList<Parameter> parameters) {
+        int result = -1;
+        for (Parameter p : parameters) {
+            result = Math.max(result, p.getIndex());
+        }
+        return result;
     }
 
     @Override

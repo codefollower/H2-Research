@@ -43,12 +43,13 @@ import org.h2.value.ValueNull;
  * This is the base class for most tables.
  * A table contains a list of columns and a list of rows.
  */
-//Ŀǰ��7������
+//8个子类
 //FunctionTable
 //MetaTable
 //RangeTable
 //MVTable
 //RegularTable
+//MVTable
 //TableLink
 //TableView
 public abstract class Table extends SchemaObjectBase {
