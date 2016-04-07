@@ -211,18 +211,6 @@ public class AlterTableAddConstraint extends SchemaCommand {
             if (index != null && canUseIndex(index, table, indexColumns, false)) {
                 isOwner = true;
                 index.getIndexType().setBelongsToConstraint(true);
-//<<<<<<< HEAD:src/main/org/h2/command/ddl/AlterTableAddConstraint.java
-//            } else { //isOwner同ALTER_TABLE_ADD_CONSTRAINT_UNIQUE中的解释
-//                if (db.isStarting()) {
-//                    // before version 1.3.176, an existing index was used:
-//                    // must do the same to avoid
-//                    // Unique index or primary key violation:
-//                    // "PRIMARY KEY ON """".PAGE_INDEX"
-//                    index = getIndex(table, indexColumns, true);
-//                } else {
-//                    index = getIndex(table, indexColumns, false);
-//                }
-//=======
             } else {
                 index = getIndex(table, indexColumns, true);
                 if (index == null) {
@@ -240,6 +228,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
             }
             boolean isRefOwner = false;
+            //refIndex.getTable() == refTable是多于的，canUseIndex已经判断了
             if (refIndex != null && refIndex.getTable() == refTable &&
                     canUseIndex(refIndex, refTable, refIndexColumns, false)) {
                 isRefOwner = true;

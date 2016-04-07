@@ -27,32 +27,33 @@ public class AlterTableAddConstraintTest extends TestBase {
     // 在eclipse中打断点条件table.getName().equalsIgnoreCase("mytable")
     @Override
     public void startInternal() throws Exception {
-        stmt.executeUpdate("DROP TABLE IF EXISTS mytable");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable (f1 int not null default 10, f2 int not null, f3 int, ch varchar(10))");
+        executeUpdate("DROP TABLE IF EXISTS mytable");
+        executeUpdate("CREATE TABLE IF NOT EXISTS mytable (f1 int not null default 10, f2 int not null, f3 int, ch varchar(10))");
 
         // ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY();
-        ALTER_TABLE_ADD_CONSTRAINT_UNIQUE();
+        // ALTER_TABLE_ADD_CONSTRAINT_INDEX();
         // ALTER_TABLE_ADD_CONSTRAINT_CHECK();
-        // ALTER_TABLE_ADD_CONSTRAINT_REFERENTIAL();
+        // ALTER_TABLE_ADD_CONSTRAINT_UNIQUE();
+        ALTER_TABLE_ADD_CONSTRAINT_REFERENTIAL();
     }
 
     void ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY() throws Exception {
-        stmt.executeUpdate("CREATE PRIMARY KEY HASH IF NOT EXISTS myindex ON mytable(f1, f2)");
+        executeUpdate("CREATE PRIMARY KEY HASH IF NOT EXISTS myindex ON mytable(f1, f2)");
 
-        // stmt.executeUpdate("CREATE INDEX IF NOT EXISTS myindex ON mytable(f1, f2)");
+        // executeUpdate("CREATE INDEX IF NOT EXISTS myindex ON mytable(f1, f2)");
 
         // 指定INDEX
         // myindex其实无用，见org.h2.command.ddl.AlterTableAddConstraint.tryUpdate()中
         // 在ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY那的注释
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 COMMENT IS 'haha0' PRIMARY KEY HASH(f1,f2) INDEX myindex";
 
-        stmt.executeUpdate(sql);
+        executeUpdate(sql);
 
-        stmt.executeUpdate("DROP INDEX IF EXISTS myindex");
+        executeUpdate("DROP INDEX IF EXISTS myindex");
 
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c000 COMMENT IS 'haha0' PRIMARY KEY HASH(f1) INDEX myindex";
 
-        // stmt.executeUpdate(sql);
+        // executeUpdate(sql);
 
         // sql =
         // "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 COMMENT IS 'haha0' PRIMARY KEY HASH(f1)";
@@ -61,16 +62,28 @@ public class AlterTableAddConstraintTest extends TestBase {
 
     }
 
-    void ALTER_TABLE_ADD_CONSTRAINT_UNIQUE() throws Exception {
-        stmt.executeUpdate("DROP TABLE IF EXISTS mytable2");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable2 (f1 int not null, f2 int not null)");
+    void ALTER_TABLE_ADD_CONSTRAINT_INDEX() throws Exception {
+        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c1 COMMENT IS 'haha0' INDEX int";
+        executeUpdate(sql);
+        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c1 COMMENT IS 'haha0' INDEX myindex(f1,f2)";
+        executeUpdate(sql);
+    }
 
-        stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx0 ON mytable2(f1, f2)");
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx1 ON mytable(f1, f2)");
-        stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx2 ON mytable(f1, f2, f3)");
-        stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx3 ON mytable(f2, f3)");
-        stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx4 ON mytable(f1, f2)");
-        stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx5 ON mytable(f1, f2)");
+    void ALTER_TABLE_ADD_CONSTRAINT_CHECK() throws Exception {
+        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c3 COMMENT IS 'haha3' CHECK f1>0 and f2<10 CHECK";
+        executeUpdate(sql);
+    }
+
+    void ALTER_TABLE_ADD_CONSTRAINT_UNIQUE() throws Exception {
+        executeUpdate("DROP TABLE IF EXISTS mytable2");
+        executeUpdate("CREATE TABLE IF NOT EXISTS mytable2 (f1 int not null, f2 int not null)");
+
+        executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx0 ON mytable2(f1, f2)");
+        executeUpdate("CREATE INDEX IF NOT EXISTS idx1 ON mytable(f1, f2)");
+        executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx2 ON mytable(f1, f2, f3)");
+        executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx3 ON mytable(f2, f3)");
+        executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx4 ON mytable(f1, f2)");
+        executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx5 ON mytable(f1, f2)");
 
         // idx0索引是mytable2表的，不是mytable，所以INDEX idx0无效，但是不报错
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c4 UNIQUE KEY INDEX myunique(f1,f2) INDEX idx0 NOCHECK";
@@ -98,40 +111,37 @@ public class AlterTableAddConstraintTest extends TestBase {
         // 不存在满足f1,f3的唯一索引，所以要自动创建一个
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c4 UNIQUE KEY INDEX myunique(f1,f3) NOCHECK";
 
-        stmt.executeUpdate(sql);
+        executeUpdate(sql);
 
         // 因为此时idx4己属于myunique2约束，所以不能删除idx4索引
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c5 UNIQUE KEY INDEX myunique2(f1,f2) INDEX idx4 NOCHECK";
-        stmt.executeUpdate(sql);
+        executeUpdate(sql);
         // 抛异常: Index "IDX4" belongs to a constraint; SQL statement: DROP INDEX
         // IF EXISTS idx4 [90085-171]
-        stmt.executeUpdate("DROP INDEX IF EXISTS idx4");
-    }
-
-    void ALTER_TABLE_ADD_CONSTRAINT_CHECK() throws Exception {
-        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c3 COMMENT IS 'haha3' CHECK f1>0 and f2<10 CHECK";
-        stmt.executeUpdate(sql);
+        tryExecuteUpdate("DROP INDEX IF EXISTS idx4");
     }
 
     void ALTER_TABLE_ADD_CONSTRAINT_REFERENTIAL() throws Exception {
-        stmt.executeUpdate("DROP TABLE IF EXISTS mytable");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable (f1 int default 10, f2 int not null, f3 int, ch varchar(10))");
+        executeUpdate("DROP TABLE IF EXISTS mytable");
+        executeUpdate("CREATE TABLE IF NOT EXISTS mytable (f1 int default 10, f2 int not null, f3 int, ch varchar(10))");
 
-        stmt.executeUpdate("DROP TABLE IF EXISTS mytable2");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int not null)");
+        executeUpdate("DROP TABLE IF EXISTS mytable2");
+        executeUpdate("CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int not null)");
 
-        stmt.executeUpdate("DROP TABLE IF EXISTS mytable3");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable3 (f1 int, f2 int not null)");
+        executeUpdate("DROP TABLE IF EXISTS mytable3");
+        executeUpdate("CREATE TABLE IF NOT EXISTS mytable3 (f1 int, f2 int not null)");
 
         // 如果未指定引用列，则默认使用引用表中的主键列，这里会默认使用mytable2的f1字段，因为f1是PRIMARY KEY
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2";
+        executeUpdate(sql);
 
         // 如果引用表没有PRIMARY KEY，则抛异常:
         // Exception in thread "main" org.h2.jdbc.JdbcSQLException: Index
         // "PRIMARY_KEY_" not found; SQL statement:
         // ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1)
         // REFERENCES mytable3 [42112-171]
-        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable3";
+        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c1 FOREIGN KEY(f1) REFERENCES mytable3";
+        tryExecuteUpdate(sql);
 
         // 外部列与引用列的个数不一样时，也抛错: org.h2.jdbc.JdbcSQLException: Column count does
         // not match;
@@ -143,53 +153,62 @@ public class AlterTableAddConstraintTest extends TestBase {
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON DELETE SET DEFAULT CHECK";
 
         sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE CASCADE CHECK";
-        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE SET DEFAULT CHECK";
+        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c3 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE SET DEFAULT CHECK";
 
-        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE RESTRICT";
+        // sql =
+        // "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c3 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE RESTRICT";
 
         // sql =
         // "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c0 FOREIGN KEY(f1) REFERENCES(f2)";
 
-        stmt.executeUpdate(sql);
+        sql = "ALTER TABLE mytable ADD CONSTRAINT IF NOT EXISTS c4 FOREIGN KEY(f1) REFERENCES mytable2 ON UPDATE SET DEFAULT ON DELETE CASCADE";
 
-        stmt.executeUpdate("insert into mytable2(f1, f2) values(1,1)");
-        stmt.executeUpdate("insert into mytable2(f1, f2) values(2,2)");
-        stmt.executeUpdate("insert into mytable2(f1, f2) values(3,3)");
+        executeUpdate(sql);
 
-        stmt.executeUpdate("insert into mytable(f1, f2) values(2,2)");
-        stmt.executeUpdate("insert into mytable(f1, f2) values(3,3)");
+        executeUpdate("SET REFERENTIAL_INTEGRITY 0");
+        executeUpdate("insert into mytable2(f1, f2) values(1,1)");
+        executeUpdate("SET REFERENTIAL_INTEGRITY 1");
+
+        executeUpdate("ALTER TABLE mytable2 SET REFERENTIAL_INTEGRITY FALSE");
+        executeUpdate("insert into mytable2(f1, f2) values(2,2)");
+        executeUpdate("ALTER TABLE mytable2 SET REFERENTIAL_INTEGRITY TRUE CHECK");
+
+        executeUpdate("insert into mytable2(f1, f2) values(3,3)");
+
+        executeUpdate("insert into mytable(f1, f2) values(2,2)");
+        executeUpdate("insert into mytable(f1, f2) values(3,3)");
 
         // 注意: 为引用字段建立了唯一索引，所以f2是三时，如果是自引用，就抛异常
-        // stmt.executeUpdate("insert into mytable(f1, f2) values(2,3)");
+        // executeUpdate("insert into mytable(f1, f2) values(2,3)");
 
-        stmt.executeUpdate("insert into mytable(f1, f2) values(2,4)");
+        executeUpdate("insert into mytable(f1, f2) values(2,4)");
 
         // Referential integrity constraint violation
-        stmt.executeUpdate("update mytable set f1=20 where f1=2");
+        tryExecuteUpdate("update mytable set f1=20 where f1=2");
 
-        stmt.executeUpdate("insert into mytable(f1, f2) values(null,2)");
+        executeUpdate("insert into mytable(f1, f2) values(null,2)");
 
-        stmt.executeUpdate("update mytable set f1=null where f1=2");
-        stmt.executeUpdate("update mytable set f2=30 where f1=3");
+        executeUpdate("update mytable set f1=null where f1=2");
+        executeUpdate("update mytable set f2=30 where f1=3");
 
-        stmt.executeUpdate("delete from mytable where f1 = 2");
+        executeUpdate("delete from mytable where f1 = 2");
 
-        // stmt.executeUpdate("update mytable2 set f2=10 where f1=1");
+        // executeUpdate("update mytable2 set f2=10 where f1=1");
 
         // 如果是ON UPDATE RESTRICT，当更新引用表的记录在外部表中存在时不允许更新
         // 比如此列f1是2，在mytable中存在，所以不允许更新
         // 如果是ON UPDATE SET DEFAULT，可以为mytable的f1指定一个默认值，比如10，
         // 虽然10不出现在mytable2中，但这是允许的
-        stmt.executeUpdate("update mytable2 set f1=20 where f1=2");
+        executeUpdate("update mytable2 set f1=20 where f1=2");
 
-        stmt.executeUpdate("update mytable2 set f2=30 where f1=3");
+        executeUpdate("update mytable2 set f2=30 where f1=3");
 
         sql = "select * from mytable";
 
         executeQuery();
 
         // 这是允许的，因为在mytable中不存在3
-        // stmt.executeUpdate("update mytable2 set f1=30 where f1=3");
+        // executeUpdate("update mytable2 set f1=30 where f1=3");
 
         //
         // sql =
