@@ -149,12 +149,12 @@ public class ExpressionColumn extends Expression {
                 }
             }
             //我加上的
-            if (select != null) {
-                for (Expression e : select.getExpressions()) {
-                    if (database.equalsIdentifiers(columnName, e.getAlias()))
-                        return e.getNonAliasExpression().optimize(session);
-                }
-            }
+//            if (select != null) {
+//                for (Expression e : select.getExpressions()) {
+//                    if (database.equalsIdentifiers(columnName, e.getAlias()))
+//                        return e.getNonAliasExpression().optimize(session);
+//                }
+//            }
             String name = columnName;
             if (tableAlias != null) {
                 name = tableAlias + "." + name;

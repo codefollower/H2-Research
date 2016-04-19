@@ -785,6 +785,7 @@ public class Parser {
         return command;
     }
 
+    //orderInFrom目前传进来都是0
     private TableFilter readSimpleTableFilter(int orderInFrom) { //只用于Delete和Update，Delete和Update只允许单表 
         Table table = readTableOrView();
         String alias = null;
@@ -4294,6 +4295,11 @@ public class Parser {
     private Column parseColumnWithType(String columnName) {
         String original = currentToken; //字段类型
         boolean regular = false;
+        // 以下4种字段类型名含有空格，所以要分开解析
+        // CHARACTER VARYING
+        // DOUBLE PRECISION
+        // TIMESTAMP WITH TIMEZONE
+        // LONG RAW
         if (readIf("LONG")) {
             if (readIf("RAW")) {
                 original += " RAW";
@@ -6216,7 +6222,7 @@ public class Parser {
                         String columnName = readColumnIdentifier();
                         Column column = parseColumnForTable(columnName, true);
                         //例如IDENTITY、BIGSERIAL这种类型的字段
-                        //创建PRIMARY_KEY索引，然后在Table.addIndex中又将设用column.setPrimaryKey(true);
+                        //创建PRIMARY_KEY索引，然后在Table.addIndex中又将调用column.setPrimaryKey(true);
                         if (column.isAutoIncrement() && column.isPrimaryKey()) {
                             column.setPrimaryKey(false);
                             IndexColumn[] cols = { new IndexColumn() };

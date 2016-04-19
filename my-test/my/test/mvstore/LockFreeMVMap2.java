@@ -44,11 +44,11 @@ public class LockFreeMVMap2<K, V> extends MVMap<K, V> implements Callable<Void> 
 
     private static class ValueHolder<V> {
         final V value;
-        final byte tag;
+        //final byte tag;
 
         ValueHolder(V value, int tag) {
             this.value = value;
-            this.tag = (byte) tag;
+            //this.tag = (byte) tag;
         }
 
         ValueHolder(V value) {

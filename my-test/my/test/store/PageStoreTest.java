@@ -107,13 +107,13 @@ public class PageStoreTest extends TestBase {
 		stmt.executeUpdate("CREATE TABLE IF NOT EXISTS PageStoreTest(id int not null, name varchar(500) not null, address varchar(500))");
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_name ON PageStoreTest(name asc)");
 		//stmt.executeUpdate("CREATE index IF NOT EXISTS idx_name ON PageStoreTest(name desc)");
-		long ii = 1000000001L;
-		for (int i = 1; i <= 200; i++) {
-			//stmt.executeUpdate("insert into PageStoreTest(id, name) values(" + i + ", '" + s + "abcdef1234')");
-			//stmt.executeUpdate("insert into PageStoreTest(id, name, address) values(" + i * 10 + ", 'abcdef1234', 'zzz')");
-			//stmt.executeUpdate("insert into PageStoreTest(id, name, address) SORTED values(" + i + ", '" + ii + "', 'zzz')");
-			ii++;
-		}
+//		long ii = 1000000001L;
+//		for (int i = 1; i <= 200; i++) {
+//			//stmt.executeUpdate("insert into PageStoreTest(id, name) values(" + i + ", '" + s + "abcdef1234')");
+//			//stmt.executeUpdate("insert into PageStoreTest(id, name, address) values(" + i * 10 + ", 'abcdef1234', 'zzz')");
+//			//stmt.executeUpdate("insert into PageStoreTest(id, name, address) SORTED values(" + i + ", '" + ii + "', 'zzz')");
+//			ii++;
+//		}
 		//				//stmt.executeUpdate("insert into PageStoreTest(id, name) values(" + 101 + ", '" + s + "abcdef1234')");
 
 		//			stmt.executeUpdate("insert into PageStoreTest(id, name, address) SORTED values(10, '1000000001', 'a')");

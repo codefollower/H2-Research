@@ -6,6 +6,7 @@
 package org.h2.engine;
 
 import java.util.HashMap;
+
 import org.h2.util.New;
 import org.h2.util.StringUtils;
 
@@ -13,6 +14,7 @@ import org.h2.util.StringUtils;
  * The compatibility modes. There is a fixed set of modes (for example
  * PostgreSQL, MySQL). Each mode has different settings.
  */
+@SuppressWarnings("unused")
 public class Mode {
 
     /**

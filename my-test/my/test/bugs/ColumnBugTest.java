@@ -15,24 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package my.test.command.ddl;
+package my.test.bugs;
 
 import my.test.TestBase;
 
-public class CreateSequenceTest extends TestBase {
+public class ColumnBugTest extends TestBase {
+
     public static void main(String[] args) throws Exception {
-        new CreateSequenceTest().start();
+        new ColumnBugTest().start();
     }
 
     @Override
     public void startInternal() throws Exception {
-        stmt.executeUpdate("DROP SEQUENCE IF EXISTS myseq");
-        // 加了BELONGS_TO_TABLE就删不掉了
-        // stmt.executeUpdate("CREATE SEQUENCE IF NOT EXISTS myseq START WITH 1000 INCREMENT BY 1 CACHE 20 BELONGS_TO_TABLE");
-        stmt.executeUpdate("CREATE SEQUENCE IF NOT EXISTS myseq START WITH 1000 INCREMENT BY 1 CACHE 20");
-
-        // CURRVAL是999，NEXTVAL才是1000
-        sql = "select myseq.CURRVAL, myseq.NEXTVAL";
-        executeQuery();
+        validateConvertUpdateSequence();
     }
+
+    void validateConvertUpdateSequence() throws Exception {
+        sql = "DROP TABLE IF EXISTS ColumnBugTest";
+        executeUpdate(sql);
+        sql = "CREATE TABLE IF NOT EXISTS ColumnBugTest (f1 int, f2 int NULL_TO_DEFAULT)";
+        executeUpdate(sql);
+        executeUpdate("insert into ColumnBugTest(f2, f1) values(20, 10)");
+    }
+
 }

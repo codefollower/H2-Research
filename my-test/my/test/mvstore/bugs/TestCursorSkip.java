@@ -14,7 +14,8 @@ public class TestCursorSkip {
 			map.put(i, "" + i);
 		}
 
-		Cursor<Integer, ?> c = (Cursor<Integer, ?>)map.keyIterator(50);
+		@SuppressWarnings("unchecked")
+        Cursor<Integer, ?> c = (Cursor<Integer, ?>)map.keyIterator(50);
 		c.skip(40);
 		while (c.hasNext()) {
 			System.out.println(c.next());

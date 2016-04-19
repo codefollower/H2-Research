@@ -285,14 +285,8 @@ public class Column {
         }
         Mode mode = session.getDatabase().getMode();
         if (value == ValueNull.INSTANCE) {
-//<<<<<<< HEAD
-//            //if (convertNullToDefault) { //有bug，见E:\H2\my-h2\my-h2-docs\00 H2代码Bug的第2点
-//            if (convertNullToDefault && defaultExpression != null) {
-//                synchronized (this) {
-//                    value = defaultExpression.getValue(session).convertTo(type);
-//                }
-//=======
-            if (convertNullToDefault) {
+            // if (convertNullToDefault) { //有bug，见my.test.bugs.ColumnBugTest
+            if (convertNullToDefault && localDefaultExpression != null) {
                 value = localDefaultExpression.getValue(session).convertTo(type);
             }
             if (value == ValueNull.INSTANCE && !nullable) {
@@ -375,6 +369,7 @@ public class Column {
      * @param temporary true if the sequence is temporary and does not need to
      *            be stored
      */
+    //建表或增加新字段或改变字段类型时，如果字段是autoIncrement的，就调用这个方法
     public void convertAutoIncrementToSequence(Session session, Schema schema,
             int id, boolean temporary) {
         if (!autoIncrement) {
@@ -395,6 +390,7 @@ public class Column {
                 break;
             }
         }
+        //生成的Sequence都是属于表的(belongsToTable=true)e
         Sequence seq = new Sequence(schema, id, sequenceName, start, increment);
         seq.setTemporary(temporary);
         session.getDatabase().addSchemaObject(session, seq);

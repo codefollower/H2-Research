@@ -26,11 +26,12 @@ public class AlterTableAlterColumnTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-        // stmt.executeUpdate("DROP TABLE IF EXISTS mytable3");
-        // stmt.executeUpdate("DROP TABLE IF EXISTS mytable2");
-        stmt.executeUpdate("DROP TABLE IF EXISTS mytable");
+        executeUpdate("DROP TABLE IF EXISTS mytable_view");
+        // executeUpdate("DROP TABLE IF EXISTS mytable3");
+        // executeUpdate("DROP TABLE IF EXISTS mytable2");
+        executeUpdate("DROP TABLE IF EXISTS mytable");
 
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS mytable (f1 int, f2 int not null, ch varchar(10))");
+        executeUpdate("CREATE TABLE IF NOT EXISTS mytable (f1 int, f2 int not null, ch varchar(10))");
         parseAlterTable();
     }
 
@@ -48,10 +49,10 @@ public class AlterTableAlterColumnTest extends TestBase {
         // ALTER_TABLE_ALTER_COLUMN_NULL();
         // ALTER_TABLE_ALTER_COLUMN_DEFAULT();
         // ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE();
-        // ALTER_TABLE_ADD_COLUMN();
+        ALTER_TABLE_ADD_COLUMN();
         // ALTER_TABLE_DROP_COLUMN();
         // ALTER_TABLE_ALTER_COLUMN_SELECTIVITY();
-        ALTER_TABLE_ALTER_COLUMN_DROP();
+        // ALTER_TABLE_ALTER_COLUMN_DROP();
         // ALTER_TABLE_MODIFY_COLUMN();
         // ALTER_TABLE_ALTER_COLUMN_TYPE();
         // ALTER_TABLE_ALTER_COLUMN_SET_DATA_TYPE();
@@ -133,14 +134,26 @@ public class AlterTableAlterColumnTest extends TestBase {
     }
 
     void ALTER_TABLE_ALTER_COLUMN_NOT_NULL() throws Exception {
-        stmt.executeUpdate("INSERT INTO mytable(f1, f2) VALUES(null, 2)");
+        executeUpdate("INSERT INTO mytable(f1, f2) VALUES(null, 2)");
+        sql = "ALTER TABLE mytable ALTER COLUMN f1 SET NOT NULL";
+        tryExecuteUpdate();
+
+        executeUpdate("delete from mytable where f2=2");
         sql = "ALTER TABLE mytable ALTER COLUMN f1 SET NOT NULL";
         executeUpdate();
     }
 
     void ALTER_TABLE_ALTER_COLUMN_NULL() throws Exception {
-        // stmt.executeUpdate("CREATE PRIMARY KEY mytableindex ON mytable(f2)");
-        stmt.executeUpdate("CREATE HASH INDEX mytableindex ON mytable(f2)");
+        executeUpdate("CREATE PRIMARY KEY mytableindex1 ON mytable(f2)");
+        sql = "ALTER TABLE mytable ALTER COLUMN f2 SET NULL";
+        tryExecuteUpdate();
+        executeUpdate("DROP INDEX mytableindex1");
+
+        executeUpdate("CREATE HASH INDEX mytableindex2 ON mytable(f2)");
+        sql = "ALTER TABLE mytable ALTER COLUMN f2 SET NULL";
+        tryExecuteUpdate();
+        executeUpdate("DROP INDEX mytableindex2");
+
         sql = "ALTER TABLE mytable ALTER COLUMN f2 SET NULL";
         executeUpdate();
     }
@@ -161,9 +174,14 @@ public class AlterTableAlterColumnTest extends TestBase {
     }
 
     void ALTER_TABLE_ADD_COLUMN() throws Exception {
-        sql = "ALTER TABLE mytable ADD (f3 int, f4 int)";
+        sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f1 int";
         executeUpdate();
-        sql = "ALTER TABLE mytable ADD COLUMN(f5 int, f6 int)";
+
+        // 增加多列时不能用before
+        sql = "ALTER TABLE mytable ADD (f0 int before f1, f4 int)";
+        tryExecuteUpdate();
+
+        sql = "ALTER TABLE mytable ADD COLUMN(f5 int AUTO_INCREMENT, f6 int)";
         executeUpdate();
 
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f0 int BEFORE f1";
@@ -177,6 +195,33 @@ public class AlterTableAlterColumnTest extends TestBase {
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int IDENTITY AFTER f2";
         sql = "ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int AUTO_INCREMENT AFTER f2";
         executeUpdate();
+
+        // 测试org.h2.command.ddl.AlterTableAlterColumn.checkDefaultReferencesTable(Expression)
+        sql = "ALTER TABLE mytable ADD (f7 int, f8 int default f2*2)";
+        tryExecuteUpdate();
+        sql = "ALTER TABLE mytable ADD (f7 int, f8 int default EXISTS(select f1 from mytable where f1=1))";
+        tryExecuteUpdate();
+
+        sql = "CREATE OR REPLACE FORCE VIEW mytable_view (v_f5) " //
+                + "AS SELECT f5 FROM mytable";
+        executeUpdate();
+        sql = "ALTER TABLE mytable DROP f5";
+        tryExecuteUpdate();
+        sql = "ALTER TABLE mytable ALTER COLUMN f3 RESTART WITH 1";
+        executeUpdate();
+        executeUpdate("INSERT INTO mytable(f1, f2, f3) VALUES(1, 2, null)");
+
+        stmt.executeUpdate("DROP SEQUENCE IF EXISTS myseq10");
+        stmt.executeUpdate("CREATE SEQUENCE IF NOT EXISTS myseq10 START WITH 1000 INCREMENT BY 1 CACHE 20");
+        sql = "ALTER TABLE mytable ADD COLUMN f10 int SEQUENCE myseq10";
+        executeUpdate();
+
+        stmt.executeUpdate("DROP INDEX IF EXISTS mytable_index0");
+        stmt.executeUpdate("CREATE INDEX mytable_index0 ON mytable(f10)");
+
+        sql = "ALTER TABLE mytable DROP COLUMN f3";
+        executeUpdate();
+
     }
 
     void ALTER_TABLE_DROP_COLUMN() throws Exception {

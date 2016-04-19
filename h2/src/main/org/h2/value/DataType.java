@@ -399,12 +399,22 @@ public class DataType {
 
     private static void add(int type, int sqlType, String jdbc,
             DataType dataType, String[] names, int memory) {
+        // System.out.println(); //我加上的
         for (int i = 0; i < names.length; i++) {
             DataType dt = new DataType();
             dt.type = type;
             dt.sqlType = sqlType;
             dt.jdbc = jdbc;
             dt.name = names[i];
+            // System.out.print(dt.name + " "); //我加上的
+            // 以下4种字段类型名含有空格，所以要分开解析
+            // CHARACTER VARYING
+            // DOUBLE PRECISION
+            // TIMESTAMP WITH TIMEZONE
+            // LONG RAW
+            // 见org.h2.command.Parser.parseColumnWithType
+            // if (dt.name.contains(" ")) //我加上的
+            // System.out.println(dt.name);
             dt.autoIncrement = dataType.autoIncrement;
             dt.decimal = dataType.decimal;
             dt.maxPrecision = dataType.maxPrecision;
@@ -424,7 +434,7 @@ public class DataType {
             //隐藏类型在用户在数据库中没有建表时可以覆盖
             //如CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
             //但是非隐藏类型就不能覆盖
-            //如CREATE DATATYPE IF NOT EXISTS int AS VARCHAR(255)
+            //如CREATE DATATYPE IF NOT EXISTS integer AS VARCHAR(255)
             dt.hidden = i > 0;
             dt.memory = memory;
             for (DataType t2 : TYPES) {

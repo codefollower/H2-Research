@@ -120,6 +120,8 @@ public class AlterTableAlterColumn extends SchemaCommand {
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT: {
+            //这个oldColumn == null判断是多余的，如果为null了，下面的oldColumn.setSequence就没意义了，
+            //在Parser里也会设置oldColumn的
             Sequence sequence = oldColumn == null ? null : oldColumn.getSequence();
             checkDefaultReferencesTable(defaultExpression);
             oldColumn.setSequence(null);
@@ -187,6 +189,10 @@ public class AlterTableAlterColumn extends SchemaCommand {
         return 0;
     }
 
+    //ALTER TABLE mytable ADD (f3 int, f4 int default f2*2)在parse阶段就报错了
+    //在org.h2.table.Column.setDefaultExpression(Session, Expression)时找不到列
+    //用ALTER TABLE mytable ADD (f3 int, f4 int default EXISTS(select f1 from mytable where f1=1))
+    //就可以测试下面的COLUMN_IS_REFERENCED_1
     private void checkDefaultReferencesTable(Expression defaultExpression) {
         if (defaultExpression == null) {
             return;
@@ -228,6 +234,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
         Database db = session.getDatabase();
         String baseName = table.getName();
         String tempName = db.getTempTableName(baseName, session);
+        //这两个变量可以放到cloneTableStructure中声明
         Column[] columns = table.getColumns();
         ArrayList<Column> newColumns = New.arrayList();
         Table newTable = cloneTableStructure(columns, db, tempName, newColumns);
@@ -336,7 +343,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
         data.isHidden = table.isHidden();
         data.create = true;
         data.session = session;
-        Table newTable = getSchema().createTable(data);
+        Table newTable = getSchema().createTable(data); //作者在这里创建表我想他只是为了调用getCreateSQL
         newTable.setComment(table.getComment());
         StringBuilder buff = new StringBuilder();
         buff.append(newTable.getCreateSQL());
@@ -355,7 +362,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
         }
         buff.append(" AS SELECT ");
-        if (columnList.length() == 0) {
+        if (columnList.length() == 0) { //根据上面的代码判断，columnList的长度总是大于0的
             // special case: insert into test select * from
             buff.append('*');
         } else {
@@ -388,14 +395,16 @@ public class AlterTableAlterColumn extends SchemaCommand {
             }
             if (child instanceof TableView) {
                 continue;
-            } else if (child.getType() == DbObject.TABLE_OR_VIEW) { //前面的if已排除TableView，所以不可以出现Talbe的子对象是Table
+            //前面的if已排除TableView，所以不可以出现Table的子对象是Table
+            } else if (child.getType() == DbObject.TABLE_OR_VIEW) {
                 DbException.throwInternalError();
             }
             String quotedName = Parser.quoteIdentifier(tempName + "_" + child.getName());
             String sql = null;
             if (child instanceof ConstraintReferential) {
                 ConstraintReferential r = (ConstraintReferential) child;
-                //定义约束的表有可能不等于当前talbe吗? 因为已知ConstraintReferential是table的子对象了？
+                //定义约束的表有可能不等于当前table吗? 因为已知ConstraintReferential是table的子对象了？
+                //有可能啊，在AlterTableAddConstraint里头，ConstraintReferential就被加到主表和引用表中
                 if (r.getTable() != table) {
                     sql = r.getCreateSQLForCopy(r.getTable(), newTable, quotedName, false);
                 }
@@ -417,8 +426,10 @@ public class AlterTableAlterColumn extends SchemaCommand {
         for (Column col : newColumns) {
             Sequence seq = col.getSequence();
             if (seq != null) {
+                //这里可能有潜在的问题，如果接下来检查view失败了，那么table中就少一个Sequence了，
+                //但是目前没有引发问题
                 table.removeSequence(seq);
-                col.setSequence(null);
+                col.setSequence(null); //因为newColumns中的列是通过Clone得来，所以就算之后检查view失败了也不会影响原来的列
             }
         }
         for (String sql : triggers) {
@@ -469,6 +480,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
         }
     }
 
+    //目前调用此方法的地方ddl参数都是true
     private void execute(String sql, boolean ddl) {
         Prepared command = session.prepare(sql);
         command.update();

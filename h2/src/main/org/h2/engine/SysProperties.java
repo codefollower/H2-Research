@@ -29,6 +29,7 @@ import org.h2.util.Utils;
  * System.setProperty(&quot;h2.baseDir&quot;, &quot;/temp&quot;);
  * </pre>
  */
+@SuppressWarnings("unused")
 public class SysProperties {
 
     /**

@@ -42,6 +42,8 @@ public class AlterTableRename extends SchemaCommand {
         Database db = session.getDatabase();
         session.getUser().checkRight(oldTable, Right.ALL);
         Table t = getSchema().findTableOrView(session, newTableName);
+        // 可以通过RENAME TO将表转成HIDDEN
+        // ALTER TABLE AlterTableRenameTest RENAME TO AlterTableRenameTest HIDDEN
         if (t != null && hidden && newTableName.equals(oldTable.getName())) {
             if (!t.isHidden()) {
                 t.setHidden(hidden);
