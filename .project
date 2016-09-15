@@ -13,17 +13,5 @@
 	</buildSpec>
 	<natures>
 		<nature>org.eclipse.jdt.core.javanature</nature>
-	</natures><!--
-	<linkedResources>
-		<link>
-			<name>h2/test</name>
-			<type>2</type>
-			<location>E:/h2/git/h2/src/test</location>
-		</link>
-		<link>
-			<name>h2/tools</name>
-			<type>2</type>
-			<location>E:/h2/git/h2/src/tools</location>
-		</link>
-	</linkedResources>-->
+	</natures>
 </projectDescription>

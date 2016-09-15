@@ -33,20 +33,22 @@ public class CreateViewTest extends TestBase {
     // org.h2.command.ddl.CreateView
     @Override
     public void startInternal() throws Exception {
-        stmt.executeUpdate("drop table IF EXISTS CreateViewTest CASCADE");
-        stmt.executeUpdate("create table IF NOT EXISTS CreateViewTest(id int, name varchar(500), b boolean)");
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS CreateViewTestIndex ON CreateViewTest(name)");
+        executeUpdate("drop table IF EXISTS CreateViewTest CASCADE");
+        executeUpdate("create table IF NOT EXISTS CreateViewTest(id int, name varchar(500), b boolean)");
+        executeUpdate("CREATE INDEX IF NOT EXISTS CreateViewTestIndex ON CreateViewTest(name)");
 
-        stmt.executeUpdate("insert into CreateViewTest(id, name, b) values(1, 'a1', true)");
-        stmt.executeUpdate("insert into CreateViewTest(id, name, b) values(1, 'b1', true)");
-        stmt.executeUpdate("insert into CreateViewTest(id, name, b) values(2, 'a2', false)");
-        stmt.executeUpdate("insert into CreateViewTest(id, name, b) values(2, 'b2', true)");
-        stmt.executeUpdate("insert into CreateViewTest(id, name, b) values(3, 'a3', false)");
-        stmt.executeUpdate("insert into CreateViewTest(id, name, b) values(3, 'b3', true)");
+        executeUpdate("insert into CreateViewTest(id, name, b) values(1, 'a1', true)");
+        executeUpdate("insert into CreateViewTest(id, name, b) values(1, 'b1', true)");
+        executeUpdate("insert into CreateViewTest(id, name, b) values(2, 'a2', false)");
+        executeUpdate("insert into CreateViewTest(id, name, b) values(2, 'b2', true)");
+        executeUpdate("insert into CreateViewTest(id, name, b) values(3, 'a3', false)");
+        executeUpdate("insert into CreateViewTest(id, name, b) values(3, 'b3', true)");
 
-        // stmt.executeUpdate("DROP VIEW IF EXISTS my_view");
+        // executeUpdate("DROP VIEW IF EXISTS my_view");
         sql = "CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view COMMENT IS 'my view'(f1,f2) " //
                 + "AS SELECT id,name FROM CreateViewTest";
+
+        executeUpdate();
 
         sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1,f2) " //
                 + "AS SELECT id,name FROM CreateViewTest";
@@ -68,8 +70,8 @@ public class CreateViewTest extends TestBase {
         sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1,f2) " //
                 + "AS SELECT id,name FROM CreateViewTest";
 
-        stmt.executeUpdate("CREATE OR REPLACE FORCE VIEW view1 AS SELECT f1 FROM my_view");
-        stmt.executeUpdate("CREATE OR REPLACE FORCE VIEW view2 AS SELECT f2 FROM my_view");
+        executeUpdate("CREATE OR REPLACE FORCE VIEW view1 AS SELECT f1 FROM my_view");
+        executeUpdate("CREATE OR REPLACE FORCE VIEW view2 AS SELECT f2 FROM my_view");
 
         // sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1,f2) " //
         // + "AS SELECT top 2 id,name FROM CreateViewTest order by id";
@@ -85,13 +87,16 @@ public class CreateViewTest extends TestBase {
         // ps = conn.prepareStatement(sql);
         // ps.setInt(1, 2);
         // ps.executeUpdate();
-        stmt.executeUpdate(sql);
+        executeUpdate(sql);
 
         sql = "select * from my_view where f1 > 2";
         sql = "select * from my_view where f2 > 'b1'";
         sql = "select * from my_view where f2 between 'b1' and 'b2'";
 
+        // executeUpdate("SET BATCH_JOINS 1");
+
         sql = "select * from my_view where f1=2 and f2 between 'b1' and 'b2'";
+        executeQuery();
 
         // sql = "select name from (select id,name from CreateViewTest where id=? and name=?) where name='b2'";
         // ps = conn.prepareStatement(sql);
@@ -102,9 +107,9 @@ public class CreateViewTest extends TestBase {
         // sql = "select * from CreateViewTest";
 
         // 测试org.h2.command.Parser.parserWith()
-        // stmt.executeUpdate("CREATE LOCAL TEMPORARY TABLE IF NOT EXISTS my_tmp_table(f1 int)");
-        // stmt.executeUpdate("DROP VIEW IF EXISTS my_tmp_table");
-        // stmt.executeUpdate("CREATE OR REPLACE FORCE VIEW my_tmp_table AS SELECT f2 FROM my_view");
+        // executeUpdate("CREATE LOCAL TEMPORARY TABLE IF NOT EXISTS my_tmp_table(f1 int)");
+        // executeUpdate("DROP VIEW IF EXISTS my_tmp_table");
+        // executeUpdate("CREATE OR REPLACE FORCE VIEW my_tmp_table AS SELECT f2 FROM my_view");
         // sql =
         // "WITH RECURSIVE my_tmp_table(f1,f2) AS(select id,name from CreateViewTest) select f1, f2 from my_tmp_table";
         // sql = "WITH my_tmp_table(f1,f2) AS(select id,name from CreateViewTest) select f1, f2 from my_tmp_table";
@@ -113,6 +118,8 @@ public class CreateViewTest extends TestBase {
         sql = "WITH RECURSIVE my_tmp_table(f1,f2) " //
                 + "AS(select id,name from CreateViewTest UNION ALL select 1, 2)" //
                 + "select f1, f2 from my_tmp_table";
+
+        executeQuery();
 
         sql = "WITH RECURSIVE my_tmp_table(f1,f2) " //
                 + "AS(select id,name from CreateViewTest UNION ALL select id,name from CreateViewTest)" //

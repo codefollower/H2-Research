@@ -490,7 +490,7 @@ public class MVTable extends TableBase {
                 mainIndexColumn = -1;
             }
         } else if (primaryIndex.getRowCountMax() != 0) {
-            mainIndexColumn = -1;mainIndexColumn = -1;
+            mainIndexColumn = -1;mainIndexColumn = -1; //重复了
         }
         if (mainIndexColumn != -1) {
             primaryIndex.setMainIndexColumn(mainIndexColumn);
@@ -503,6 +503,8 @@ public class MVTable extends TableBase {
             index = new MVSecondaryIndex(session.getDatabase(), this, indexId,
                     indexName, cols, indexType);
         }
+        //从MVPrimaryIndex中取记录，如果行数不多，直接读到buffer中，然后再写入index中，
+        //或者，当行数很多时，在MVStore中建立多个临时map，然后再从这些临时map中读出来写到index
         if (index.needRebuild()) {
             rebuildIndex(session, index, indexName);
         }

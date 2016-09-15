@@ -26,7 +26,18 @@ public class DistinctQueryTest extends TestBase {
 
         sql = "select distinct * from DistinctQueryTest where f1 > 3";
         sql = "select distinct f1 from DistinctQueryTest";
-        printResultSet();
+        // printResultSet();
+
+        executeUpdate("DROP TABLE IF EXISTS UniqueIndexTest");
+        executeUpdate("CREATE TABLE IF NOT EXISTS UniqueIndexTest (f1 int NOT NULL, f2 int, f3 varchar)");
+
+        executeUpdate("INSERT INTO UniqueIndexTest(f1, f2, f3) VALUES(100, 10, 'a')");
+        executeUpdate("INSERT INTO UniqueIndexTest(f1, f2, f3) VALUES(200, 20, 'b')");
+        executeUpdate("INSERT INTO UniqueIndexTest(f1, f2, f3) VALUES(300, 30, 'c')");
+
+        executeUpdate("SET MAX_MEMORY_ROWS 2");
+        executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS UniqueIndexTest_ui ON UniqueIndexTest(f2, f3)");
+
     }
 
 }

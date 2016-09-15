@@ -47,9 +47,9 @@ public class AlterTableAlterColumnTest extends TestBase {
 
         // ALTER_TABLE_ALTER_COLUMN_NOT_NULL();
         // ALTER_TABLE_ALTER_COLUMN_NULL();
-        // ALTER_TABLE_ALTER_COLUMN_DEFAULT();
+        ALTER_TABLE_ALTER_COLUMN_DEFAULT();
         // ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE();
-        ALTER_TABLE_ADD_COLUMN();
+        // ALTER_TABLE_ADD_COLUMN();
         // ALTER_TABLE_DROP_COLUMN();
         // ALTER_TABLE_ALTER_COLUMN_SELECTIVITY();
         // ALTER_TABLE_ALTER_COLUMN_DROP();
@@ -162,6 +162,18 @@ public class AlterTableAlterColumnTest extends TestBase {
         sql = "ALTER TABLE mytable ALTER COLUMN f2 TYPE int AUTO_INCREMENT";
         executeUpdate();
         sql = "ALTER TABLE mytable ALTER COLUMN f2 SET DEFAULT 100";
+        executeUpdate();
+
+        executeUpdate("DROP SEQUENCE IF EXISTS myseq");
+        executeUpdate("CREATE SEQUENCE IF NOT EXISTS myseq START WITH 1000 INCREMENT BY 1 CACHE 20");
+
+        sql = "ALTER TABLE mytable ADD COLUMN f6 int SEQUENCE myseq";
+        executeUpdate();
+
+        sql = "ALTER TABLE mytable ADD COLUMN f7 int SEQUENCE myseq";
+        executeUpdate();
+
+        sql = "ALTER TABLE mytable ALTER COLUMN f6 SET DEFAULT 100";
         executeUpdate();
     }
 

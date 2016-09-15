@@ -29,6 +29,10 @@ public class CreateIndexTest extends TestBase {
         executeUpdate("DROP TABLE IF EXISTS CreateIndexTest");
         executeUpdate("CREATE TABLE IF NOT EXISTS CreateIndexTest (f1 int NOT NULL, f2 int, f3 int)");
 
+        for (int i = 1; i <= 5000; i++) {
+            stmt.executeUpdate("insert into CreateIndexTest(f1, f2, f3) values(" + i + "," + i + "," + i + ")");
+        }
+
         // executeUpdate("CREATE PRIMARY KEY HASH ON CreateIndexTest(f1)");
         executeUpdate("CREATE PRIMARY KEY HASH IF NOT EXISTS idx0 ON CreateIndexTest(f1)");
 
@@ -47,5 +51,4 @@ public class CreateIndexTest extends TestBase {
         executeUpdate("ALTER TABLE CreateIndexTest ADD CONSTRAINT IF NOT EXISTS c0 PRIMARY KEY HASH(f1) INDEX idx0");
         executeUpdate("DROP INDEX IF EXISTS idx0");
     }
-
 }

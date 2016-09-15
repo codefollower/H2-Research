@@ -255,30 +255,6 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         return find(filter.getSession(), first, last, intersection);
     }
 
-//<<<<<<< HEAD
-//    private Cursor find(Session session, SearchRow first, SearchRow last,
-//            SearchRow intersection) {
-//        if (recursive) {
-//        	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
-//        	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
-//        	//不过有bug
-//            LocalResult recResult = view.getRecursiveResult();
-//            if (recResult != null) {
-//                recResult.reset();
-//                return new ViewCursor(this, recResult, first, last);
-//            }
-//            if (query == null) {
-//                query = (Query) createSession.prepare(querySQL, true);
-//            }
-//            if (!(query instanceof SelectUnion)) {
-//                throw DbException.get(ErrorCode.SYNTAX_ERROR_2,
-//                        "recursive queries without UNION ALL");
-//            }
-//            SelectUnion union = (SelectUnion) query;
-//            if (union.getUnionType() != SelectUnion.UNION_ALL) {
-//                throw DbException.get(ErrorCode.SYNTAX_ERROR_2,
-//                        "recursive queries without UNION ALL");
-//=======
     private static Query prepareSubQuery(String sql, Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder) {
         assert filters != null;
@@ -294,6 +270,9 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
 
     private Cursor findRecursive(SearchRow first, SearchRow last) {
         assert recursive;
+        // 如 WITH RECURSIVE my_tmp_table(f1,f2)
+        // AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
+        // 不过有bug
         LocalResult recResult = view.getRecursiveResult();
         if (recResult != null) {
             recResult.reset();
@@ -331,6 +310,10 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         // to ensure the last result is not closed
         right.disableCache();
         while (true) {
+            // 如 WITH RECURSIVE my_tmp_table(f1,f2)
+            // AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
+            // 不过有bug
+            // 这里会一直是死循环，因为right.query(0)不会返回一个空结果集
             r = right.query(0);
             if (r.getRowCount() == 0) {
                 break;
@@ -340,48 +323,11 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             }
             r.reset();
             view.setRecursiveResult(r);
-//<<<<<<< HEAD
-//            // to ensure the last result is not closed
-//            right.disableCache();
-//            ///*
-//            while (true) {
-//            	//如 WITH RECURSIVE my_tmp_table(f1,f2) 
-//            	//    AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
-//            	//不过有bug
-//            	//这里会一直是死循环，因为right.query(0)不会返回一个空结果集
-//                r = right.query(0);
-//                if (r.getRowCount() == 0) {
-//                    break;
-//                }
-//                while (r.next()) {
-//                    result.addRow(r.currentRow());
-//                }
-//                r.reset();
-//                view.setRecursiveResult(r);
-//                
-//                //避免死循环，因为此时union all的右边子句不是当前view
-//                if (!right.getTables().contains(view)) {
-//                    break;
-//                }
-//            }
-//            //*/
-//
-//			// 我加上的
-//            /*
-//			r = right.query(0);
-//			if (r.getRowCount() != 0) {
-//				while (r.next()) {
-//					result.addRow(r.currentRow());
-//				}
-//				r.reset();
-//			}
-//			*/
-//
-//            view.setRecursiveResult(null);
-//            result.done();
-//            return new ViewCursor(this, result, first, last);
-//=======
-//>>>>>>> 7224c100b094f752ed5218da170dc1bf9c646995
+            // 我加上的
+            // 避免死循环，因为此时union all的右边子句不是当前view
+            if (!right.getTables().contains(view)) {
+                break;
+            }
         }
         view.setRecursiveResult(null);
         result.done();
@@ -456,18 +402,13 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         Parameter param = paramList.get(x);
         param.setValue(v);
     }
-//<<<<<<< HEAD
-//    
-//    //目的是为了对indexColumns赋值，indexColumns另有它用
-//    //比如在org.h2.command.dml.Select.prepare()中就有应用(cost = preparePlan那行代码之后)
-//    private Query getQuery(Session session, int[] masks) {
-//        Query q = (Query) session.prepare(querySQL, true);
-//=======
 
     public Query getQuery() {
         return query;
     }
 
+    // 目的是为了对indexColumns赋值，indexColumns另有它用
+    // 比如在org.h2.command.dml.Select.prepare()中就有应用(cost = preparePlan那行代码之后)
     private Query getQuery(Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder) {
         Query q = prepareSubQuery(querySQL, session, masks, filters, filter, sortOrder);

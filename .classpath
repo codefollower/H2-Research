@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="src" path="h2/src/main"/><!--
-	<classpathentry kind="src" path="h2/tools"/>
-	<classpathentry kind="src" path="h2/test"/>-->
+	<classpathentry kind="src" path="h2/src/main"/>
 	<classpathentry kind="src" path="my-test"/>
 	<classpathentry kind="lib" path="lib/junit-4.8.2.jar"/>
 	<classpathentry kind="lib" path="lib/lucene-core-3.4.0.jar"/>

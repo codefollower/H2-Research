@@ -104,20 +104,13 @@ public class TableView extends Table {
         String oldQuerySQL = this.querySQL;
         Column[] oldColumnTemplates = this.columnTemplates;
         boolean oldRecursive = this.recursive;
-//<<<<<<< HEAD
-//        //init里执行了一次initColumnsAndTables，虽然执行了两次initColumnsAndTables，但是init中还建立了ViewIndex
-//        //所以这里是必须调用init的
-//        init(querySQL, null, columnNames, session, recursive);
-////<<<<<<< HEAD
-////        //recompile里又执行了一次initColumnsAndTables
-////        DbException e = recompile(session, force);
-////        
-////        //如果失败了，按原来的重新来过
-////=======
-//=======
+        // init里执行了一次initColumnsAndTables，虽然执行了两次initColumnsAndTables，但是init中还建立了ViewIndex
+        // 所以这里是必须调用init的
         init(querySQL, null, columnTemplates, session, recursive);
+        // recompile里又执行了一次initColumnsAndTables
         DbException e = recompile(session, force, true);
         if (e != null) {
+            // 如果失败了，按原来的重新来过
             init(oldQuerySQL, null, oldColumnTemplates, session, oldRecursive);
             recompile(session, true, false);
             throw e;
@@ -219,12 +212,8 @@ public class TableView extends Table {
             for (int i = 0, count = query.getColumnCount(); i < count; i++) {
                 Expression expr = expressions.get(i);
                 String name = null;
-//<<<<<<< HEAD
-//                //如CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
-//                //没有为视图指定字段的时候，用select字段列表中的名字，此时columnNames==null
-//                if (columnNames != null && columnNames.length > i) {
-//                    name = columnNames[i];
-//=======
+                //如CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
+                //没有为视图指定字段的时候，用select字段列表中的名字，此时columnTemplates==null
                 int type = Value.UNKNOWN;
                 if (columnTemplates != null && columnTemplates.length > i) {
                     name = columnTemplates[i].getName();

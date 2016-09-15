@@ -55,7 +55,8 @@ public class JoinTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-        // insert();
+        executeUpdate("SET BATCH_JOINS 1");
+        insert();
         sql = "select rownum, * from (JoinTest1 RIGHT OUTER JOIN (JoinTest2))";
         executeQuery();
 
