@@ -57,7 +57,7 @@ public class BuildBase {
     @Target(ElementType.METHOD)
     @Documented
     public static @interface Description {
-      String summary() default "";
+        String summary() default "";
     }
 
     /**
@@ -317,7 +317,8 @@ public class BuildBase {
             if (!Modifier.isStatic(mod) && Modifier.isPublic(mod)
                     && m.getParameterTypes().length == 0) {
                 if (m.isAnnotationPresent(Description.class)) {
-                    description = String.format("%1$-20s %2$s", m.getName(), m.getAnnotation(Description.class).summary());
+                    description = String.format("%1$-20s %2$s",
+                            m.getName(), m.getAnnotation(Description.class).summary());
                 } else {
                     description = m.getName();
                 }
@@ -355,7 +356,8 @@ public class BuildBase {
     }
 
     /**
-     * Execute java in a separate process, but using the java executable of the current JRE.
+     * Execute java in a separate process, but using the java executable of the
+     * current JRE.
      *
      * @param args the command line parameters for the java command
      * @return the exit value
@@ -597,7 +599,7 @@ public class BuildBase {
         if (targetFile.exists()) {
             return;
         }
-        String repoFile = group + "/" + artifact + "/" + version + "/"
+        String repoFile = group.replace('.', '/') + "/" + artifact + "/" + version + "/"
                 + artifact + "-" + version + ".jar";
         mkdirs(targetFile.getAbsoluteFile().getParentFile());
         String localMavenDir = getLocalMavenDir();

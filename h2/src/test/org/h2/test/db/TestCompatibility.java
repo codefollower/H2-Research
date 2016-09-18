@@ -12,7 +12,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 
@@ -218,6 +217,11 @@ public class TestCompatibility extends TestBase {
                 "SELECT LIMIT ? 1 ID FROM TEST");
         prep.setInt(1, 2);
         prep.executeQuery();
+        stat.execute("DROP TABLE TEST IF EXISTS");
+
+        stat.execute("DROP TABLE TEST IF EXISTS");
+        stat.execute("CREATE TABLE TEST(ID INT)");
+        stat.executeQuery("SELECT * FROM TEST WHERE ID IN ()");
         stat.execute("DROP TABLE TEST IF EXISTS");
     }
 

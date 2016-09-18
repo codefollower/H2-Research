@@ -86,6 +86,7 @@ import org.h2.test.jdbc.TestBatchUpdates;
 import org.h2.test.jdbc.TestCallableStatement;
 import org.h2.test.jdbc.TestCancel;
 import org.h2.test.jdbc.TestConcurrentConnectionUsage;
+import org.h2.test.jdbc.TestConnection;
 import org.h2.test.jdbc.TestDatabaseEventListener;
 import org.h2.test.jdbc.TestDriver;
 import org.h2.test.jdbc.TestJavaObject;
@@ -169,6 +170,7 @@ import org.h2.test.unit.TestConnectionInfo;
 import org.h2.test.unit.TestDataPage;
 import org.h2.test.unit.TestDate;
 import org.h2.test.unit.TestDateIso8601;
+import org.h2.test.unit.TestDateTimeUtils;
 import org.h2.test.unit.TestExit;
 import org.h2.test.unit.TestFile;
 import org.h2.test.unit.TestFileLock;
@@ -182,6 +184,7 @@ import org.h2.test.unit.TestIntPerfectHash;
 import org.h2.test.unit.TestJmx;
 import org.h2.test.unit.TestLocale;
 import org.h2.test.unit.TestMathUtils;
+import org.h2.test.unit.TestMode;
 import org.h2.test.unit.TestModifyOnWrite;
 import org.h2.test.unit.TestNetUtils;
 import org.h2.test.unit.TestObjectDeserialization;
@@ -263,7 +266,7 @@ java org.h2.test.TestAll timer
     /**
      * Whether the MVStore storage is used.
      */
-    public final boolean mvStore = Constants.VERSION_MINOR >= 4;
+    public boolean mvStore = Constants.VERSION_MINOR >= 4;
 
     /**
      * If the test should run with many rows.
@@ -294,6 +297,11 @@ java org.h2.test.TestAll timer
      * If the multi version concurrency control mode should be used.
      */
     public boolean mvcc = mvStore;
+
+    /**
+     * If the multi-threaded mode should be used.
+     */
+    public boolean multiThreaded;
 
     /**
      * The cipher to use (null for unencrypted).
@@ -723,6 +731,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestCallableStatement());
         addTest(new TestCancel());
         addTest(new TestConcurrentConnectionUsage());
+        addTest(new TestConnection());
         addTest(new TestDatabaseEventListener());
         addTest(new TestJavaObject());
         addTest(new TestLimitUpdates());
@@ -835,6 +844,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestIntPerfectHash());
         addTest(new TestJmx());
         addTest(new TestMathUtils());
+        addTest(new TestMode());
         addTest(new TestModifyOnWrite());
         addTest(new TestOldVersion());
         addTest(new TestObjectDeserialization());
@@ -867,6 +877,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
 
         // serial
         addTest(new TestDate());
+        addTest(new TestDateTimeUtils());
         addTest(new TestCluster());
         addTest(new TestConcurrent());
         addTest(new TestFileLockSerialized());

@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
@@ -66,8 +67,10 @@ import org.h2.util.SourceCompiler;
 import org.h2.util.StringUtils;
 import org.h2.util.TempFileDeleter;
 import org.h2.util.Utils;
+import org.h2.value.CaseInsensitiveConcurrentMap;
 import org.h2.value.CaseInsensitiveMap;
 import org.h2.value.CompareMode;
+import org.h2.value.NullableKeyConcurrentMap;
 import org.h2.value.Value;
 import org.h2.value.ValueInt;
 
@@ -832,34 +835,37 @@ public class Database implements DataHandler {
     }
 
     private void recompileInvalidViews(Session session) {
-        boolean recompileSuccessful;
+        boolean atLeastOneRecompiledSuccessfully;
         do {
-            recompileSuccessful = false;
+            atLeastOneRecompiledSuccessfully = false;
             for (Table obj : getAllTablesAndViews(false)) {
                 if (obj instanceof TableView) {
                     TableView view = (TableView) obj;
                     if (view.isInvalid()) {
                         view.recompile(session, true, false);
                         if (!view.isInvalid()) {
-                            recompileSuccessful = true;
+                            atLeastOneRecompiledSuccessfully = true;
                         }
                     }
                 }
             }
-        } while (recompileSuccessful);
 //<<<<<<< HEAD
-//        // when opening a database, views are initialized before indexes,
-//        // so they may not have the optimal plan yet
-//        // this is not a problem, it is just nice to see the newest plan
-//        for (Table obj : getAllTablesAndViews(false)) {
-//            if (obj instanceof TableView) {
-//                TableView view = (TableView) obj;
-//                if (!view.isInvalid()) {
-//                    view.recompile(systemSession, true); //session就是systemSession
-//                }
-//            }
-//        }
+//        } while (recompileSuccessful);
+////<<<<<<< HEAD
+////        // when opening a database, views are initialized before indexes,
+////        // so they may not have the optimal plan yet
+////        // this is not a problem, it is just nice to see the newest plan
+////        for (Table obj : getAllTablesAndViews(false)) {
+////            if (obj instanceof TableView) {
+////                TableView view = (TableView) obj;
+////                if (!view.isInvalid()) {
+////                    view.recompile(systemSession, true); //session就是systemSession
+////                }
+////            }
+////        }
+////=======
 //=======
+        } while (atLeastOneRecompiledSuccessfully);
         TableView.clearIndexCaches(session.getDatabase());
     }
 
@@ -1156,10 +1162,13 @@ public class Database implements DataHandler {
      * Create a session for the given user.
      *
      * @param user the user
-     * @return the session
+     * @return the session, or null if the database is currently closing
      * @throws DbException if the database is in exclusive mode
      */
     synchronized Session createSession(User user) {
+        if (closing) {
+            return null;
+        }
         if (exclusiveSession != null) {
             throw DbException.get(ErrorCode.DATABASE_IS_IN_EXCLUSIVE_MODE);
         }
@@ -2289,7 +2298,9 @@ public class Database implements DataHandler {
     public void setQueryStatistics(boolean b) {
         queryStatistics = b;
         synchronized (this) {
-            queryStatisticsData = null;
+            if (!b) {
+                queryStatisticsData = null;
+            }
         }
     }
 
@@ -2797,6 +2808,19 @@ public class Database implements DataHandler {
         return dbSettings.databaseToUpper ?
                 new HashMap<String, V>() :
                 new CaseInsensitiveMap<V>();
+    }
+
+    /**
+     * Create a new hash map. Depending on the configuration, the key is case
+     * sensitive or case insensitive.
+     *
+     * @param <V> the value type
+     * @return the hash map
+     */
+    public <V> ConcurrentHashMap<String, V> newConcurrentStringMap() {
+        return dbSettings.databaseToUpper ?
+                new NullableKeyConcurrentMap<V>() :
+                new CaseInsensitiveConcurrentMap<V>();
     }
 
     /**

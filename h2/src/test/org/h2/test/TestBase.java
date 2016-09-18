@@ -280,6 +280,8 @@ public abstract class TestBase {
         if (config.mvStore) {
             url = addOption(url, "MV_STORE", "true");
             // url = addOption(url, "MVCC", "true");
+        } else {
+            url = addOption(url, "MV_STORE", "false");
         }
         if (!config.memory) {
             if (config.smallLog && admin) {
@@ -309,6 +311,9 @@ public abstract class TestBase {
         }
         if (config.mvcc) {
             url = addOption(url, "MVCC", "TRUE");
+        }
+        if (config.multiThreaded) {
+            url = addOption(url, "MULTI_THREADED", "TRUE");
         }
         if (config.cacheType != null && admin) {
             url = addOption(url, "CACHE_TYPE", config.cacheType);
@@ -676,6 +681,23 @@ public abstract class TestBase {
             } else if (!expected[i].equals(actual[i])) {
                 fail("[" + i + "]: expected: " + expected[i] + " actual: " + actual[i]);
             }
+        }
+    }
+
+    /**
+     * Check if two values are equal, and if not throw an exception.
+     *
+     * @param expected the expected value
+     * @param actual the actual value
+     * @throws AssertionError if the values are not equal
+     */
+    public void assertEquals(Object expected, Object actual) {
+        if (expected == null || actual == null) {
+            assertTrue(expected == actual);
+            return;
+        }
+        if (!expected.equals(actual)) {
+            fail(" expected: " + expected + " actual: " + actual);
         }
     }
 

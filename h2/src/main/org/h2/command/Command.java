@@ -30,7 +30,7 @@ public abstract class Command implements CommandInterface {
     /**
      * The last start time.
      */
-    protected long startTime;
+    protected long startTime_nanos;
 
     /**
      * The trace module.
@@ -127,7 +127,7 @@ public abstract class Command implements CommandInterface {
      */
     void start() {
         if (trace.isInfoEnabled() || session.getDatabase().getQueryStatistics()) {
-            startTime = System.currentTimeMillis();
+            startTime_nanos = System.nanoTime();
         }
     }
 
@@ -163,11 +163,17 @@ public abstract class Command implements CommandInterface {
                 }
             }
         }
-        if (trace.isInfoEnabled() && startTime > 0) {
-            long time = System.currentTimeMillis() - startTime;
-            if (time > Constants.SLOW_QUERY_LIMIT_MS) { //如果一条sql的执行时间大于100毫秒，记下它
-                //trace.info("slow query: {0} ms", time);
-            	trace.info("slow query: {0} ms, sql: {1}", time, sql); //我加上的
+//<<<<<<< HEAD
+//        if (trace.isInfoEnabled() && startTime > 0) {
+//            long time = System.currentTimeMillis() - startTime;
+//            if (time > Constants.SLOW_QUERY_LIMIT_MS) { //如果一条sql的执行时间大于100毫秒，记下它
+//                //trace.info("slow query: {0} ms", time);
+//            	trace.info("slow query: {0} ms, sql: {1}", time, sql); //我加上的
+//=======
+        if (trace.isInfoEnabled() && startTime_nanos > 0) {
+            long time_ms = (System.nanoTime() - startTime_nanos) / 1000 / 1000;
+            if (time_ms > Constants.SLOW_QUERY_LIMIT_MS) {
+                trace.info("slow query: {0} ms", time_ms); 
             }
         }
     }
@@ -182,7 +188,7 @@ public abstract class Command implements CommandInterface {
      */
     @Override
     public ResultInterface executeQuery(int maxrows, boolean scrollable) {
-        startTime = 0;
+        startTime_nanos = 0;
         long start = 0;
         Database database = session.getDatabase();
         //也跟executeUpdate()的情型一样，就算是查询也不例外

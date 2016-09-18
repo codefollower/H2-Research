@@ -230,15 +230,28 @@ public class PgServerThread implements Runnable {
             Prepared p = new Prepared();
             p.name = readString();
             p.sql = getSQL(readString());
-            int count = readShort();
-            p.paramType = new int[count];
-            for (int i = 0; i < count; i++) {
-                int type = readInt();
-                server.checkType(type);
-                p.paramType[i] = type;
+            int paramTypesCount = readShort();
+            int[] paramTypes = null;
+            if (paramTypesCount > 0) {
+                paramTypes = new int[paramTypesCount];
+                for (int i = 0; i < paramTypesCount; i++) {
+                    paramTypes[i] = readInt();
+                }
             }
             try {
                 p.prep = (JdbcPreparedStatement) conn.prepareStatement(p.sql);
+                ParameterMetaData meta = p.prep.getParameterMetaData();
+                p.paramType = new int[meta.getParameterCount()];
+                for (int i = 0; i < p.paramType.length; i++) {
+                    int type;
+                    if (i < paramTypesCount && paramTypes[i] != 0) {
+                        type = paramTypes[i];
+                        server.checkType(type);
+                    } else {
+                        type = PgServer.convertType(meta.getParameterType(i + 1));
+                    }
+                    p.paramType[i] = type;
+                }
                 prepared.put(p.name, p);
                 sendParseComplete();
             } catch (Exception e) {
@@ -308,7 +321,12 @@ public class PgServerThread implements Runnable {
                 if (p == null) {
                     sendErrorResponse("Prepared not found: " + name);
                 } else {
-                    sendParameterDescription(p);
+                    try {
+                        sendParameterDescription(p.prep.getParameterMetaData(), p.paramType);
+                        sendRowDescription(p.prep.getMetaData());
+                    } catch (Exception e) {
+                        sendErrorResponse(e);
+                    }
                 }
             } else if (type == 'P') {
                 Portal p = portals.get(name);
@@ -350,7 +368,7 @@ public class PgServerThread implements Runnable {
                         ResultSet rs = prep.getResultSet();
                         // the meta-data is sent in the prior 'Describe'
                         while (rs.next()) {
-                            sendDataRow(rs);
+                            sendDataRow(rs, p.resultColumnFormat);
                         }
                         sendCommandComplete(prep, 0);
                     } catch (Exception e) {
@@ -396,7 +414,7 @@ public class PgServerThread implements Runnable {
                         try {
                             sendRowDescription(meta);
                             while (rs.next()) {
-                                sendDataRow(rs);
+                                sendDataRow(rs, null);
                             }
                             sendCommandComplete(stat, 0);
                         } catch (Exception e) {
@@ -477,20 +495,31 @@ public class PgServerThread implements Runnable {
         sendMessage();
     }
 
-    private void sendDataRow(ResultSet rs) throws Exception {
+    private void sendDataRow(ResultSet rs, int[] formatCodes) throws Exception {
         ResultSetMetaData metaData = rs.getMetaData();
         int columns = metaData.getColumnCount();
         startMessage('D');
         writeShort(columns);
         for (int i = 1; i <= columns; i++) {
-            writeDataColumn(rs, i, PgServer.convertType(metaData.getColumnType(i)));
+            int pgType = PgServer.convertType(metaData.getColumnType(i));
+            boolean text = formatAsText(pgType);
+            if (formatCodes != null) {
+                if (formatCodes.length == 0) {
+                    text = true;
+                } else if (formatCodes.length == 1) {
+                    text = formatCodes[0] == 0;
+                } else if (i - 1 < formatCodes.length) {
+                    text = formatCodes[i - 1] == 0;
+                }
+            }
+            writeDataColumn(rs, i, pgType, text);
         }
         sendMessage();
     }
 
-    private void writeDataColumn(ResultSet rs, int column, int pgType)
+    private void writeDataColumn(ResultSet rs, int column, int pgType, boolean text)
             throws Exception {
-        if (formatAsText(pgType)) {
+        if (text) {
             // plain text
             switch (pgType) {
             case PgServer.PG_TYPE_BOOL:
@@ -568,7 +597,7 @@ public class PgServerThread implements Runnable {
             // binary
             switch (pgType) {
             case PgServer.PG_TYPE_INT2:
-                checkParamLength(4, paramLen);
+                checkParamLength(2, paramLen);
                 prep.setShort(col, readShort());
                 break;
             case PgServer.PG_TYPE_INT4:
@@ -636,27 +665,21 @@ public class PgServerThread implements Runnable {
         sendMessage();
     }
 
-    private void sendParameterDescription(Prepared p) throws IOException {
-        try {
-            PreparedStatement prep = p.prep;
-            ParameterMetaData meta = prep.getParameterMetaData();
-            int count = meta.getParameterCount();
-            startMessage('t');
-            writeShort(count);
-            for (int i = 0; i < count; i++) {
-                int type;
-                if (p.paramType != null && p.paramType[i] != 0) {
-                    type = p.paramType[i];
-                } else {
-                    type = PgServer.PG_TYPE_VARCHAR;
-                }
-                server.checkType(type);
-                writeInt(type);
+    private void sendParameterDescription(ParameterMetaData meta, int[] paramTypes) throws Exception {
+        int count = meta.getParameterCount();
+        startMessage('t');
+        writeShort(count);
+        for (int i = 0; i < count; i++) {
+            int type;
+            if (paramTypes != null && paramTypes[i] != 0) {
+                type = paramTypes[i];
+            } else {
+                type = PgServer.PG_TYPE_VARCHAR;
             }
-            sendMessage();
-        } catch (Exception e) {
-            sendErrorResponse(e);
+            server.checkType(type);
+            writeInt(type);
         }
+        sendMessage();
     }
 
     private void sendNoData() throws IOException {

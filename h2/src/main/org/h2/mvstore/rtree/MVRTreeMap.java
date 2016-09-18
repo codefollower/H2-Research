@@ -17,7 +17,8 @@ import org.h2.mvstore.type.ObjectDataType;
 import org.h2.util.New;
 
 /**
- * An r-tree implementation. It uses the quadratic split algorithm.
+ * An r-tree implementation. It supports both the linear and the quadratic split
+ * algorithm.
  *
  * @param <V> the value class
  */
@@ -237,6 +238,7 @@ public class MVRTreeMap<V> extends MVMap<SpatialKey, V> {
         if (p.isLeaf()) {
             for (int i = 0; i < p.getKeyCount(); i++) {
                 if (keyType.equals(p.getKey(i), key)) {
+                    p.setKey(i, key);
                     return p.setValue(i, value);
                 }
             }

@@ -39,7 +39,7 @@ import org.h2.value.ValueGeometry;
  */
 public class TestSpatial extends TestBase {
 
-    private static final String url = "spatial";
+    private static final String URL = "spatial";
 
     /**
      * Run just this test.
@@ -93,17 +93,21 @@ public class TestSpatial extends TestBase {
         testNullableGeometryDelete();
         testNullableGeometryInsert();
         testNullableGeometryUpdate();
+        testIndexUpdateNullGeometry();
+        testInsertNull();
     }
-    
+
     private void testBug1() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
 
         stat.execute("CREATE TABLE VECTORS (ID INTEGER NOT NULL, GEOM GEOMETRY, S INTEGER)");
-        stat.execute("INSERT INTO VECTORS(ID, GEOM, S) VALUES(0, 'POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))', 1)");
+        stat.execute("INSERT INTO VECTORS(ID, GEOM, S) " +
+                "VALUES(0, 'POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))', 1)");
 
-        stat.executeQuery("select * from (select * from VECTORS) WHERE S=1 AND GEOM && 'POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))'");
+        stat.executeQuery("select * from (select * from VECTORS) WHERE S=1 " +
+                "AND GEOM && 'POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))'");
         conn.close();
         deleteDb("spatial");
     }
@@ -121,7 +125,7 @@ public class TestSpatial extends TestBase {
 
     private void testSpatialValues() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
 
         stat.execute("create memory table test" +
@@ -186,7 +190,7 @@ public class TestSpatial extends TestBase {
 
     private void testOverlap() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("create memory table test" +
@@ -211,7 +215,7 @@ public class TestSpatial extends TestBase {
     }
     private void testPersistentSpatialIndex() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("create table test" +
@@ -252,7 +256,7 @@ public class TestSpatial extends TestBase {
             return;
         }
 
-        conn = getConnection(url);
+        conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             ResultSet rs = stat.executeQuery(
@@ -269,7 +273,7 @@ public class TestSpatial extends TestBase {
     }
     private void testNotOverlap() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("create memory table test" +
@@ -346,7 +350,7 @@ public class TestSpatial extends TestBase {
 
     private void testSpatialIndexQueryMultipleTable() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             createTestTable(stat);
@@ -387,7 +391,7 @@ public class TestSpatial extends TestBase {
     private void testIndexTransaction() throws SQLException {
         // Check session management in index
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         conn.setAutoCommit(false);
         try {
             Statement stat = conn.createStatement();
@@ -436,7 +440,7 @@ public class TestSpatial extends TestBase {
      */
     private void testMemorySpatialIndex() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
 
         stat.execute("create memory table test(id int primary key, polygon geometry)");
@@ -499,7 +503,7 @@ public class TestSpatial extends TestBase {
      */
     private void testJavaAlias() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("CREATE ALIAS T_GEOM_FROM_TEXT FOR \"" +
@@ -525,7 +529,7 @@ public class TestSpatial extends TestBase {
      */
     private void testJavaAliasTableFunction() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("CREATE ALIAS T_RANDOM_GEOM_TABLE FOR \"" +
@@ -634,7 +638,7 @@ public class TestSpatial extends TestBase {
      */
     private void testValueConversion() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
         stat.execute("CREATE ALIAS OBJ_STRING FOR \"" +
                 TestSpatial.class.getName() +
@@ -692,7 +696,7 @@ public class TestSpatial extends TestBase {
      */
     private void testTableFunctionGeometry() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("CREATE ALIAS POINT_TABLE FOR \"" +
@@ -789,7 +793,7 @@ public class TestSpatial extends TestBase {
 
     private void testTableViewSpatialPredicate() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("drop table if exists test");
@@ -827,7 +831,7 @@ public class TestSpatial extends TestBase {
      */
     private void testValueGeometryScript() throws SQLException {
         ValueGeometry valueGeometry = ValueGeometry.get("POINT(1 1 5)");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             ResultSet rs = conn.createStatement().executeQuery(
                     "SELECT " + valueGeometry.getSQL());
@@ -845,7 +849,7 @@ public class TestSpatial extends TestBase {
      * be updated.
      */
     private void testInPlaceUpdate() throws SQLException {
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             ResultSet rs = conn.createStatement().executeQuery(
                     "SELECT 'POINT(1 1)'::geometry");
@@ -868,7 +872,7 @@ public class TestSpatial extends TestBase {
 
     private void testScanIndexOnNonSpatialQuery() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("drop table if exists test");
@@ -877,7 +881,8 @@ public class TestSpatial extends TestBase {
             stat.execute("create spatial index spatial on test(the_geom)");
             ResultSet rs = stat.executeQuery("explain select * from test where _ROWID_ = 5");
             assertTrue(rs.next());
-            assertContains(rs.getString(1), "/* PUBLIC.SPATIAL: _ROWID_ = 5 */");
+            assertFalse(rs.getString(1).contains("/* PUBLIC.SPATIAL: _ROWID_ = " +
+                    "5 */"));
         } finally {
             // Close the database
             conn.close();
@@ -887,7 +892,7 @@ public class TestSpatial extends TestBase {
 
     private void testStoreCorruption() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("drop table if exists pt_cloud;\n" +
@@ -916,7 +921,7 @@ public class TestSpatial extends TestBase {
 
     private void testExplainSpatialIndexWithPk() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         try {
             Statement stat = conn.createStatement();
             stat.execute("drop table if exists pt_cloud;");
@@ -943,7 +948,7 @@ public class TestSpatial extends TestBase {
 
     private void testNullableGeometry() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
 
         stat.execute("create memory table test"
@@ -997,7 +1002,7 @@ public class TestSpatial extends TestBase {
 
         conn.close();
         if (!config.memory) {
-            conn = getConnection(url);
+            conn = getConnection(URL);
             stat = conn.createStatement();
             rs = stat.executeQuery("select * from test");
             assertTrue(rs.next());
@@ -1010,7 +1015,7 @@ public class TestSpatial extends TestBase {
 
     private void testNullableGeometryDelete() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
         stat.execute("create memory table test"
                 + "(id int primary key, the_geom geometry)");
@@ -1037,7 +1042,7 @@ public class TestSpatial extends TestBase {
 
     private void testNullableGeometryInsert() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
         stat.execute("create memory table test"
                 + "(id identity, the_geom geometry)");
@@ -1055,7 +1060,7 @@ public class TestSpatial extends TestBase {
 
     private void testNullableGeometryUpdate() throws SQLException {
         deleteDb("spatial");
-        Connection conn = getConnection(url);
+        Connection conn = getConnection(URL);
         Statement stat = conn.createStatement();
         stat.execute("create memory table test"
                 + "(id int primary key, the_geom geometry, description varchar2(32))");
@@ -1074,4 +1079,122 @@ public class TestSpatial extends TestBase {
         deleteDb("spatial");
     }
 
+    public void testIndexUpdateNullGeometry() throws SQLException {
+        deleteDb("spatial");
+        Connection conn = getConnection(URL);
+        Statement stat = conn.createStatement();
+        stat.execute("drop table if exists DUMMY_11;");
+        stat.execute("CREATE TABLE PUBLIC.DUMMY_11 (fid serial,  GEOM GEOMETRY);");
+        stat.execute("CREATE SPATIAL INDEX PUBLIC_DUMMY_11_SPATIAL_INDEX on" +
+                " PUBLIC.DUMMY_11(GEOM);");
+        stat.execute("insert into PUBLIC.DUMMY_11(geom) values(null);");
+        stat.execute("update PUBLIC.DUMMY_11 set geom =" +
+                " 'POLYGON ((1 1, 5 1, 5 5, 1 5, 1 1))';");
+        ResultSet rs = stat.executeQuery("select fid, GEOM from DUMMY_11 " +
+                "where  GEOM && " +
+                "'POLYGON" +
+                "((1 1,5 1,5 5,1 5,1 1))';");
+        try {
+            assertTrue(rs.next());
+            assertEquals("POLYGON ((1 1, 5 1, 5 5, 1 5, 1 1))", rs.getString(2));
+        } finally {
+            rs.close();
+        }
+        // Update again the geometry elsewhere
+        stat.execute("update PUBLIC.DUMMY_11 set geom =" +
+                " 'POLYGON ((10 10, 50 10, 50 50, 10 50, 10 10))';");
+
+        rs = stat.executeQuery("select fid, GEOM from DUMMY_11 " +
+                "where  GEOM && " +
+                "'POLYGON ((10 10, 50 10, 50 50, 10 50, 10 10))';");
+        try {
+            assertTrue(rs.next());
+            assertEquals("POLYGON ((10 10, 50 10, 50 50, 10 50, 10 10))", rs.getString(2));
+        } finally {
+            rs.close();
+        }
+        conn.close();
+        deleteDb("spatial");
+    }
+
+    public void testInsertNull() throws SQLException {
+        deleteDb("spatial");
+        Connection conn = getConnection(URL);
+        Statement stat = conn.createStatement();
+        stat.execute("\n" +
+                "drop table if exists PUBLIC.DUMMY_12;\n" +
+                "CREATE TABLE PUBLIC.DUMMY_12 (\n" +
+                "    \"fid\" serial,\n" +
+                "    Z_ID INTEGER,\n" +
+                "    GEOM GEOMETRY,\n" +
+                "    CONSTRAINT CONSTRAINT_DUMMY_12 PRIMARY KEY (\"fid\")\n" +
+                ");\n" +
+                "CREATE INDEX PRIMARY_KEY_DUMMY_12 ON PUBLIC.DUMMY_12 (\"fid\");\n" +
+                "CREATE spatial INDEX PUBLIC_DUMMY_12_SPATIAL_INDEX_ ON PUBLIC.DUMMY_12 (GEOM);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (123,3125163,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (124,3125164,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (125,3125173,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (126,3125174,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (127,3125175,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (128,3125176,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (129,3125177,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (130,3125178,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (131,3125179,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (132,3125180,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (133,3125335,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (134,3125336,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (135,3125165,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (136,3125337,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (137,3125338,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (138,3125339,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (139,3125340,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (140,3125341,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (141,3125342,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (142,3125343,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (143,3125344,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (144,3125345,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (145,3125346,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (146,3125166,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (147,3125347,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (148,3125348,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (149,3125349,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (150,3125350,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (151,3125351,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (152,3125352,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (153,3125353,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (154,3125354,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (155,3125355,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (156,3125356,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (157,3125167,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (158,3125357,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (159,3125358,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (160,3125359,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (161,3125360,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (162,3125361,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (163,3125362,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (164,3125363,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (165,3125364,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (166,3125365,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (167,3125366,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (168,3125168,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (169,3125367,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (170,3125368,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (171,3125369,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (172,3125370,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (173,3125169,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (174,3125170,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (175,3125171,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (176,3125172,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (177,-2,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (178,-1,NULL);\n" +
+                "INSERT INTO PUBLIC.DUMMY_12 (\"fid\",Z_ID,GEOM) VALUES (179," +
+                "-1,NULL);");
+        ResultSet rs = stat.executeQuery("select * from DUMMY_12");
+        try {
+            assertTrue(rs.next());
+        } finally {
+            rs.close();
+        }
+
+    }
 }

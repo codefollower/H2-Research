@@ -254,6 +254,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param filters the table filters
      * @param filter the filter index
      * @param sortOrder the sort order
+     * @param allColumnsSet all columns
      * @return the scan index
      */
     public Index getScanIndex(Session session, int[] masks,
@@ -712,6 +713,7 @@ public abstract class Table extends SchemaObjectBase {
      * @param filters all joined table filters
      * @param filter the current table filter index
      * @param sortOrder the sort order
+     * @param allColumnsSet the set of all columns
      * @return the plan item
      */
     public PlanItem getBestPlanItem(Session session, int[] masks,
@@ -730,7 +732,8 @@ public abstract class Table extends SchemaObjectBase {
             //indexes[0]是ScanIndex，所以可以跳过，从1开始
             for (int i = 1, size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
-                double cost = index.getCost(session, masks, filters, filter, sortOrder, allColumnsSet);
+                double cost = index.getCost(session, masks, filters, filter,
+                        sortOrder, allColumnsSet);
                 if (t.isDebugEnabled()) {
                     t.debug("Table      :     potential plan item cost {0} index {1}",
                             cost, index.getPlanSQL());

@@ -315,9 +315,9 @@ public abstract class Value {
             return 40;
         case BLOB:
             return 41;
-        case UUID:
-            return 42;
         case JAVA_OBJECT:
+            return 42;
+        case UUID:
             return 43;
         case GEOMETRY:
             return 44;
@@ -910,12 +910,22 @@ public abstract class Value {
                 switch (getType()) {
                 case BYTES:
                     return ValueUuid.get(getBytesNoCopy());
+                case JAVA_OBJECT:
+                    Object object = JdbcUtils.deserialize(getBytesNoCopy(), getDataHandler());
+                    if (object instanceof java.util.UUID) {
+                        java.util.UUID uuid = (java.util.UUID) object;
+                        return ValueUuid.get(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
+                    }
+                    else {
+                        throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, getString());
+                    }
                 case TIMESTAMP_TZ:
                     throw DbException.get(
                             ErrorCode.DATA_CONVERSION_ERROR_1, getString());
                 }
+                break;
             }
-            case GEOMETRY:
+            case GEOMETRY: {
                 switch (getType()) {
                 case BYTES:
                     return ValueGeometry.get(getBytesNoCopy());
@@ -928,6 +938,8 @@ public abstract class Value {
                     throw DbException.get(
                             ErrorCode.DATA_CONVERSION_ERROR_1, getString());
                 }
+                break;
+            }
             }
             // conversion by parsing the string value
             String s = getString();

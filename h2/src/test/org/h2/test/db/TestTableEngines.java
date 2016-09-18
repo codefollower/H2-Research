@@ -1348,7 +1348,8 @@ public class TestTableEngines extends TestBase {
         }
 
         @Override
-        public IndexLookupBatch createLookupBatch(final TableFilter filter) {
+        public IndexLookupBatch createLookupBatch(TableFilter[] filters, int f) {
+            final TableFilter filter = filters[f];
             assert0(filter.getMasks() != null || "scan".equals(getName()), "masks");
             final int preferredSize = preferredBatchSize;
             if (preferredSize == 0) {
@@ -1512,9 +1513,11 @@ public class TestTableEngines extends TestBase {
 
         @Override
         public double getCost(Session session, int[] masks,
-                TableFilter[] filters, int filter, SortOrder sortOrder, HashSet<Column> allColumnsSet) {
+                TableFilter[] filters, int filter, SortOrder sortOrder,
+                HashSet<Column> allColumnsSet) {
             doTests(session);
-            return getCostRangeIndex(masks, set.size(), filters, filter, sortOrder, false, allColumnsSet);
+            return getCostRangeIndex(masks, set.size(), filters, filter,
+                    sortOrder, false, allColumnsSet);
         }
 
         @Override

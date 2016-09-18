@@ -51,6 +51,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
     private String comment;
     private boolean checkExisting;
     private boolean primaryKeyHash;
+    private boolean ifTableExists;
     private final boolean ifNotExists;
     private ArrayList<Index> createdIndexes = New.arrayList();
 
@@ -58,6 +59,10 @@ public class AlterTableAddConstraint extends SchemaCommand {
             boolean ifNotExists) {
         super(session, schema);
         this.ifNotExists = ifNotExists;
+    }
+
+    public void setIfTableExists(boolean b) {
+        ifTableExists = b;
     }
 
     private String generateConstraintName(Table table) {
@@ -92,7 +97,13 @@ public class AlterTableAddConstraint extends SchemaCommand {
             session.commit(true); //如果是非事务的，那么就得自动提交
         }
         Database db = session.getDatabase();
-        Table table = getSchema().getTableOrView(session, tableName);
+        Table table = getSchema().findTableOrView(session, tableName);
+        if (table == null) {
+            if (ifTableExists) {
+                return 0;
+            }
+            throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
+        }
         if (getSchema().findConstraint(session, constraintName) != null) {
             if (ifNotExists) {
                 return 0;

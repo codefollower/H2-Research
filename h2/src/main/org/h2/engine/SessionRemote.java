@@ -604,9 +604,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
         traceSystem.close();
         if (embedded != null) {
-            synchronized (embedded) {
-                embedded.close();
-            }
+            embedded.close();
             embedded = null;
         }
         if (closeError != null) {
@@ -877,5 +875,20 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     @Override
     public CompareMode getCompareMode() {
         return compareMode;
+    }
+
+    @Override
+    public boolean isRemote() {
+        return true;
+    }
+
+    @Override
+    public String getCurrentSchemaName() {
+        throw DbException.getUnsupportedException("getSchema && remote session");
+    }
+
+    @Override
+    public void setCurrentSchemaName(String schema) {
+        throw DbException.getUnsupportedException("setSchema && remote session");
     }
 }

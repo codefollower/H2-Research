@@ -6,7 +6,6 @@
 package org.h2.command.ddl;
 
 import java.util.ArrayList;
-
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.dml.Query;
@@ -105,28 +104,36 @@ public class CreateView extends SchemaCommand {
         // The view creates a Prepared command object, which belongs to a
         // session, so we pass the system session down.
         Session sysSession = db.getSystemSession(); //TODO 为什么一定要用system session？换成自己的session运行也没出问题?
-        try {
-            if (view == null) {
-                Schema schema = session.getDatabase().getSchema(session.getCurrentSchemaName());
-                sysSession.setCurrentSchema(schema);
-
-                Column[] columnTemplates = null;
-                if (columnNames != null) {
-                    columnTemplates = new Column[columnNames.length];
-                    for (int i = 0; i < columnNames.length; ++i) {
-                        columnTemplates[i] = new Column(columnNames[i], Value.UNKNOWN);
+        synchronized (sysSession) {
+            try {
+                if (view == null) {
+                    Schema schema = session.getDatabase().getSchema(session.getCurrentSchemaName());
+                    sysSession.setCurrentSchema(schema);
+                    Column[] columnTemplates = null;
+                    if (columnNames != null) {
+                        columnTemplates = new Column[columnNames.length];
+                        for (int i = 0; i < columnNames.length; ++i) {
+                            columnTemplates[i] = new Column(columnNames[i], Value.UNKNOWN);
+                        }
                     }
+                    view = new TableView(getSchema(), id, viewName, querySQL, null,
+                            columnTemplates, sysSession, false);
+                } else {
+                    view.replace(querySQL, columnNames, sysSession, false, force);
+                    view.setModified();
                 }
-                //sysSession = session; //我加上的
-                view = new TableView(getSchema(), id, viewName, querySQL, null,
-                        columnTemplates, sysSession, false);
-            } else {
-            	//sysSession = session; //我加上的
-                view.replace(querySQL, columnNames, sysSession, false, force);
-                view.setModified();
+//<<<<<<< HEAD
+//                //sysSession = session; //我加上的
+//                view = new TableView(getSchema(), id, viewName, querySQL, null,
+//                        columnTemplates, sysSession, false);
+//            } else {
+//            	//sysSession = session; //我加上的
+//                view.replace(querySQL, columnNames, sysSession, false, force);
+//                view.setModified();
+//=======
+            } finally {
+                sysSession.setCurrentSchema(db.getSchema(Constants.SCHEMA_MAIN));
             }
-        } finally {
-            sysSession.setCurrentSchema(db.getSchema(Constants.SCHEMA_MAIN));
         }
         if (comment != null) {
             view.setComment(comment);

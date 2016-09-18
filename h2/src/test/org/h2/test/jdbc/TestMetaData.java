@@ -10,11 +10,9 @@ import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.test.TestBase;
@@ -1199,10 +1197,20 @@ public class TestMetaData extends TestBase {
 
     private void testClientInfo() throws SQLException {
         Connection conn = getConnection("metaData");
-        assertThrows(SQLClientInfoException.class, conn).getClientInfo("xxx");
+        assertNull(conn.getClientInfo("xxx"));
         DatabaseMetaData meta = conn.getMetaData();
         ResultSet rs = meta.getClientInfoProperties();
-        assertFalse(rs.next());
+        int count = 0;
+        while (rs.next()) {
+            count++;
+        }
+        if (config.networked) {
+            // server0, numServers
+            assertEquals(2, count);
+        } else {
+            // numServers
+            assertEquals(1, count);
+        }
         conn.close();
         deleteDb("metaData");
     }

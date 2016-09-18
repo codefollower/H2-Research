@@ -661,7 +661,8 @@ public class Session extends SessionWithState {
 
     private void removeTemporaryLobs(boolean onTimeout) {
         if (SysProperties.CHECK2) {
-            if (!Thread.holdsLock(this) && !Thread.holdsLock(getDatabase())) {
+            if (this == getDatabase().getLobSession()
+                    && !Thread.holdsLock(this) && !Thread.holdsLock(getDatabase())) {
                 throw DbException.throwInternalError();
             }
         }
@@ -828,7 +829,10 @@ public class Session extends SessionWithState {
         if (!closed) {
             try {
                 database.checkPowerOff();
-                rollback(); // release any open table locks
+
+                // release any open table locks
+                rollback();
+
                 removeTemporaryLobs(false);
                 cleanTempTables(true);
                 undoLog.clear();
@@ -949,13 +953,13 @@ public class Session extends SessionWithState {
     private void cleanTempTables(boolean closeSession) {
         if (localTempTables != null && localTempTables.size() > 0) {
             synchronized (database) {
-                Iterator<Table> itr = localTempTables.values().iterator();
-                while (itr.hasNext()) {
-                    Table table = itr.next();
+                Iterator<Table> it = localTempTables.values().iterator();
+                while (it.hasNext()) {
+                    Table table = it.next();
                     if (closeSession || table.getOnCommitDrop()) {
                         modificationId++;
                         table.setModified();
-                        itr.remove();
+                        it.remove();
                         table.removeChildrenAndResources(this);
                         if (closeSession) {
                             // need to commit, otherwise recovery might
@@ -966,7 +970,8 @@ public class Session extends SessionWithState {
                         table.truncate(this);
                     }
                 }
-                // sometimes Table#removeChildrenAndResources will take the meta lock
+                // sometimes Table#removeChildrenAndResources
+                // will take the meta lock
                 if (closeSession) {
                     database.unlockMeta(this);
                 }
@@ -1233,8 +1238,15 @@ public class Session extends SessionWithState {
         this.currentSchemaName = schema.getName();
     }
 
+    @Override
     public String getCurrentSchemaName() {
         return currentSchemaName;
+    }
+
+    @Override
+    public void setCurrentSchemaName(String schemaName) {
+        Schema schema = database.getSchema(schemaName);
+        setCurrentSchema(schema);
     }
 
     /**
@@ -1659,6 +1671,11 @@ public class Session extends SessionWithState {
             }
             temporaryLobs.add(v);
         }
+    }
+
+    @Override
+    public boolean isRemote() {
+        return false;
     }
 
     /**

@@ -7,7 +7,6 @@ package org.h2.index;
 
 import java.util.HashSet;
 import java.util.Iterator;
-import org.h2.engine.Constants;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.mvstore.MVStore;
@@ -168,7 +167,8 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
     }
 
     @Override
-    public Cursor findByGeometry(TableFilter filter, SearchRow first, SearchRow last, SearchRow intersection) {
+    public Cursor findByGeometry(TableFilter filter, SearchRow first,
+            SearchRow last, SearchRow intersection) {
         if (intersection == null) {
             return find(filter.getSession(), first, last);
         }
@@ -185,19 +185,18 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
      * @return Index cost hint
      */
     public static long getCostRangeIndex(int[] masks, long rowCount, Column[] columns) {
-        rowCount += Constants.COST_ROW_OFFSET;
-        long cost = rowCount;
-        if (masks == null) {
-            return cost;
+        // Never use spatial tree index without spatial filter
+        if(columns.length == 0) {
+            return Long.MAX_VALUE;
         }
         for (Column column : columns) {
             int index = column.getColumnId();
             int mask = masks[index];
-            if ((mask & IndexCondition.SPATIAL_INTERSECTS) != 0) {
-                cost = 3 + rowCount / 4;
+            if ((mask & IndexCondition.SPATIAL_INTERSECTS) != IndexCondition.SPATIAL_INTERSECTS) {
+                return Long.MAX_VALUE;
             }
         }
-        return 10 * cost;
+        return 2;
     }
 
     @Override

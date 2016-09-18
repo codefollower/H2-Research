@@ -167,7 +167,13 @@ public class TestValueMemory extends TestBase implements DataHandler {
         case Value.TIMESTAMP_UTC:
             return ValueTimestampUtc.fromMillis(random.nextLong());
         case Value.TIMESTAMP_TZ:
-            return ValueTimestampTimeZone.fromMillis(random.nextLong(), (short)0);
+            // clamp to max legal value
+            long nanos = Math.max(Math.min(random.nextLong(),
+                    24L * 60 * 60 * 1000 * 1000 * 1000 - 1), 0);
+            int timeZoneOffsetMins = (int) (random.nextFloat() * (24 * 60))
+                    - (12 * 60);
+            return ValueTimestampTimeZone.fromDateValueAndNanos(
+                    random.nextLong(), nanos, (short) timeZoneOffsetMins);
         case Value.BYTES:
             return ValueBytes.get(randomBytes(random.nextInt(1000)));
         case Value.STRING:

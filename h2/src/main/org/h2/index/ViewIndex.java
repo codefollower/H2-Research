@@ -8,6 +8,7 @@ package org.h2.index;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
 import org.h2.command.Prepared;
@@ -109,7 +110,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     }
 
     @Override
-    public IndexLookupBatch createLookupBatch(TableFilter filter) {
+    public IndexLookupBatch createLookupBatch(TableFilter[] filters, int filter) {
         if (recursive) {
             // we do not support batching for recursive queries
             return null;
@@ -251,7 +252,8 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     }
 
     @Override
-    public Cursor findByGeometry(TableFilter filter, SearchRow first, SearchRow last, SearchRow intersection) {
+    public Cursor findByGeometry(TableFilter filter, SearchRow first,
+            SearchRow last, SearchRow intersection) {
         return find(filter.getSession(), first, last, intersection);
     }
 
@@ -421,7 +423,10 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             return q;
         }
         int firstIndexParam = view.getParameterOffset(originalParameters);
-        IntArray paramIndex = new IntArray();
+        // the column index of each parameter
+        // (for example: paramColumnIndex {0, 0} mean
+        // param[0] is column 0, and param[1] is also column 0)
+        IntArray paramColumnIndex = new IntArray();
         int indexColumnCount = 0;
         for (int i = 0; i < masks.length; i++) {
             int mask = masks[i];
@@ -429,19 +434,30 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
                 continue;
             }
             indexColumnCount++;
-            paramIndex.add(i);
-            //为1的bit个数，比如mask=3时，就是0011，所以bitCount=2
-            //mask=6时，就是0110，也就是RANGE = START | END
-            //如select * from my_view where f2 between 'b1' and 'b2'
-            if (Integer.bitCount(mask) > 1) {
-                // two parameters for range queries: >= x AND <= y
-                paramIndex.add(i);
+//<<<<<<< HEAD
+//            paramIndex.add(i);
+//            //为1的bit个数，比如mask=3时，就是0011，所以bitCount=2
+//            //mask=6时，就是0110，也就是RANGE = START | END
+//            //如select * from my_view where f2 between 'b1' and 'b2'
+//            if (Integer.bitCount(mask) > 1) {
+//                // two parameters for range queries: >= x AND <= y
+//                paramIndex.add(i);
+//            }
+//        }
+//        int len = paramIndex.size(); //paramIndex中放的是列id
+//=======
+            // the number of parameters depends on the mask;
+            // for range queries it is 2: >= x AND <= y
+            // but bitMask could also be 7 (=, and <=, and >=)
+            int bitCount = Integer.bitCount(mask);
+            for (int j = 0; j < bitCount; j++) {
+                paramColumnIndex.add(i);
             }
         }
-        int len = paramIndex.size(); //paramIndex中放的是列id
+        int len = paramColumnIndex.size();
         ArrayList<Column> columnList = New.arrayList();
         for (int i = 0; i < len;) {
-            int idx = paramIndex.get(i);
+            int idx = paramColumnIndex.get(i);
             columnList.add(table.getColumn(idx));
             int mask = masks[idx];
             if ((mask & IndexCondition.EQUALITY) != 0) {

@@ -15,7 +15,6 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
-
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.value.Value;
@@ -68,6 +67,16 @@ public class DateTimeUtils {
     private static final ThreadLocal<Calendar> CACHED_CALENDAR_NON_DEFAULT_TIMEZONE =
             new ThreadLocal<Calendar>();
 
+    /**
+     * Observed JVM behaviour is that if the timezone of the host computer is changed while the JVM is running,
+     * the zone offset does not change but keeps the initial value. So it is correct to measure this once and use
+     * this value throughout the JVM's lifecycle.
+     *
+     * In any case, it is safer to use a fixed value throughout the duration of the JVM's life, rather than have
+     * this offset change, possibly midway through a long-running query.
+     */
+    private static int zoneOffsetMillis = Calendar.getInstance().get(Calendar.ZONE_OFFSET);
+
     private DateTimeUtils() {
         // utility class
     }
@@ -78,6 +87,7 @@ public class DateTimeUtils {
      */
     public static void resetCalendar() {
         CACHED_CALENDAR.remove();
+        zoneOffsetMillis = Calendar.getInstance().get(Calendar.ZONE_OFFSET);
     }
 
     /**
@@ -314,7 +324,8 @@ public class DateTimeUtils {
     }
 
     /**
-     * Parse a time string. The format is: [-]hour:minute:second[.nanos]
+     * Parse a time string. The format is: [-]hour:minute:second[.nanos] or
+     * alternatively [-]hour.minute.second[.nanos].
      *
      * @param s the string to parse
      * @param start the parse index start
@@ -332,7 +343,15 @@ public class DateTimeUtils {
         int s2 = s.indexOf(':', s1 + 1);
         int s3 = s.indexOf('.', s2 + 1);
         if (s1 <= 0 || s2 <= s1) {
-            throw new IllegalArgumentException(s);
+            // if first try fails try to use IBM DB2 time format
+            // [-]hour.minute.second[.nanos]
+            s1 = s.indexOf('.', start);
+            s2 = s.indexOf('.', s1 + 1);
+            s3 = s.indexOf('.', s2 + 1);
+
+            if (s1 <= 0 || s2 <= s1) {
+                throw new IllegalArgumentException(s);
+            }
         }
         boolean negative;
         hour = Integer.parseInt(s.substring(start, s1));
@@ -491,8 +510,7 @@ public class DateTimeUtils {
      * @return the milliseconds
      */
     public static long getTimeLocalWithoutDst(java.util.Date d) {
-        Calendar calendar = getCalendar();
-        return d.getTime() + calendar.get(Calendar.ZONE_OFFSET);
+        return d.getTime() + zoneOffsetMillis;
     }
 
     /**
@@ -503,8 +521,9 @@ public class DateTimeUtils {
      * @return the number of milliseconds in UTC
      */
     public static long getTimeUTCWithoutDst(long millis) {
-        return millis - getCalendar().get(Calendar.ZONE_OFFSET);
+        return millis - zoneOffsetMillis;
     }
+
     /**
      * Return the day of week according to the ISO 8601 specification. Week
      * starts at Monday. See also http://en.wikipedia.org/wiki/ISO_8601
@@ -674,6 +693,19 @@ public class DateTimeUtils {
         return new Date(millis);
     }
 
+    /**
+     * Convert a date value to millis, using the supplied timezone.
+     *
+     * @param tz the timezone
+     * @param dateValue the date value
+     * @return the date
+     */
+    public static long convertDateValueToMillis(TimeZone tz, long dateValue) {
+        return getMillis(tz,
+                yearFromDateValue(dateValue),
+                monthFromDateValue(dateValue),
+                dayFromDateValue(dateValue), 0, 0, 0, 0);
+    }
     /**
      * Convert a date value / time value to a timestamp, using the default
      * timezone.
