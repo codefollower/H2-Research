@@ -163,17 +163,14 @@ public abstract class Command implements CommandInterface {
                 }
             }
         }
-//<<<<<<< HEAD
-//        if (trace.isInfoEnabled() && startTime > 0) {
-//            long time = System.currentTimeMillis() - startTime;
-//            if (time > Constants.SLOW_QUERY_LIMIT_MS) { //如果一条sql的执行时间大于100毫秒，记下它
-//                //trace.info("slow query: {0} ms", time);
-//            	trace.info("slow query: {0} ms, sql: {1}", time, sql); //我加上的
-//=======
+        //早期的版本就的是System.currentTimeMillis()，
+        //现在改成System.nanoTime()了，性能会好一点
         if (trace.isInfoEnabled() && startTime_nanos > 0) {
             long time_ms = (System.nanoTime() - startTime_nanos) / 1000 / 1000;
+            //如果一条sql的执行时间大于100毫秒，记下它
             if (time_ms > Constants.SLOW_QUERY_LIMIT_MS) {
-                trace.info("slow query: {0} ms", time_ms); 
+                //trace.info("slow query: {0} ms", time_ms); 
+                trace.info("slow query: {0} ms, sql: {1}", time_ms, sql); //我加上的
             }
         }
     }

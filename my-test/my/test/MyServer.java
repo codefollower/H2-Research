@@ -27,7 +27,8 @@ public class MyServer {
 
 		//list.add("-pg");
 		list.add("-tcp");
-		//list.add("-web");
+		list.add("-web");
+		//list.add("-ifExists");
 		org.h2.tools.Server.main(list.toArray(new String[list.size()]));
 	}
 }

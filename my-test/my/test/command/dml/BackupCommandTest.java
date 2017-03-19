@@ -14,9 +14,9 @@ public class BackupCommandTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-        stmt.executeUpdate("drop table IF EXISTS BackupCommandTest");
-        stmt.executeUpdate("create table IF NOT EXISTS BackupCommandTest(id int, name varchar(500), b boolean)");
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS BackupCommandTestIndex ON BackupCommandTest(name)");
+        // stmt.executeUpdate("drop table IF EXISTS BackupCommandTest");
+        // stmt.executeUpdate("create table IF NOT EXISTS BackupCommandTest(id int, name varchar(500), b boolean)");
+        // stmt.executeUpdate("CREATE INDEX IF NOT EXISTS BackupCommandTestIndex ON BackupCommandTest(name)");
 
         stmt.executeUpdate("insert into BackupCommandTest(id, name, b) values(1, 'a1', true)");
         stmt.executeUpdate("insert into BackupCommandTest(id, name, b) values(1, 'b1', true)");
