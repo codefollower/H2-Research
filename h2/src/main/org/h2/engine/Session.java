@@ -12,6 +12,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
@@ -39,6 +41,7 @@ import org.h2.store.LobStorageFrontend;
 import org.h2.table.SubQueryInfo;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
+import org.h2.table.TableType;
 import org.h2.util.New;
 import org.h2.util.SmallLRUCache;
 import org.h2.value.Value;
@@ -78,13 +81,14 @@ public class Session extends SessionWithState {
     private int lockTimeout;
     private Value lastIdentity = ValueLong.get(0);
     private Value lastScopeIdentity = ValueLong.get(0);
+    private Value lastTriggerIdentity;
     private int firstUncommittedLog = Session.LOG_WRITTEN;
     private int firstUncommittedPos = Session.LOG_WRITTEN;
     private HashMap<String, Savepoint> savepoints;
     private HashMap<String, Table> localTempTables;
     private HashMap<String, Index> localTempTableIndexes;
     private HashMap<String, Constraint> localTempTableConstraints;
-    private int throttle;
+    private long throttleNs;
     private long lastThrottle;
     private Command currentCommand;
     private boolean allowLiterals;
@@ -98,7 +102,7 @@ public class Session extends SessionWithState {
     private boolean redoLogBinary = true;
     private boolean autoCommitAtTransactionEnd;
     private String currentTransactionName;
-    private volatile long cancelAt;
+    private volatile long cancelAtNs;
     private boolean closed;
     private final long sessionStart = System.currentTimeMillis();
     private long transactionStart;
@@ -675,8 +679,8 @@ public class Session extends SessionWithState {
             temporaryLobs.clear();
         }
         if (temporaryResultLobs != null && temporaryResultLobs.size() > 0) {
-            long keepYoungerThan = System.currentTimeMillis() -
-                    database.getSettings().lobTimeout;
+            long keepYoungerThan = System.nanoTime() -
+                    TimeUnit.MILLISECONDS.toNanos(database.getSettings().lobTimeout);
             while (temporaryResultLobs.size() > 0) {
                 TimeoutValue tv = temporaryResultLobs.getFirst();
                 if (onTimeout && tv.created >= keepYoungerThan) {
@@ -821,7 +825,7 @@ public class Session extends SessionWithState {
 
     @Override
     public void cancel() {
-        cancelAt = System.currentTimeMillis();
+        cancelAtNs = System.nanoTime();
     }
 
     @Override
@@ -852,7 +856,7 @@ public class Session extends SessionWithState {
     public void addLock(Table table) {
         if (SysProperties.CHECK) {
             if (locks.contains(table)) {
-                DbException.throwInternalError();
+                DbException.throwInternalError(table.toString());
             }
         }
         locks.add(table);
@@ -875,14 +879,15 @@ public class Session extends SessionWithState {
             // otherwise rollback will try to rollback a not-inserted row
             if (SysProperties.CHECK) {
                 int lockMode = database.getLockMode();
-                if (lockMode != Constants.LOCK_MODE_OFF && !database.isMultiVersion()) {
-                	//当要记撤消日志时，除了TABLE_LINK、EXTERNAL_TABLE_ENGINE这两种类型的表外，其他表类型必须先锁表
-                	//例如调用org.h2.table.Table.lock(Session, boolean, boolean)
-                    String tableType = log.getTable().getTableType();
+                if (lockMode != Constants.LOCK_MODE_OFF &&
+                        !database.isMultiVersion()) {
+                    //当要记撤消日志时，除了TABLE_LINK、EXTERNAL_TABLE_ENGINE这两种类型的表外，其他表类型必须先锁表
+                    //例如调用org.h2.table.Table.lock(Session, boolean, boolean)
+                    TableType tableType = log.getTable().getTableType();
                     if (locks.indexOf(log.getTable()) < 0
-                            && !Table.TABLE_LINK.equals(tableType)
-                            && !Table.EXTERNAL_TABLE_ENGINE.equals(tableType)) {
-                        DbException.throwInternalError();
+                            && TableType.TABLE_LINK != tableType
+                            && TableType.EXTERNAL_TABLE_ENGINE != tableType) {
+                        DbException.throwInternalError("" + tableType);
                     }
                 }
             }
@@ -1014,6 +1019,14 @@ public class Session extends SessionWithState {
 
     public Value getLastScopeIdentity() {
         return lastScopeIdentity;
+    }
+
+    public void setLastTriggerIdentity(Value last) {
+        this.lastTriggerIdentity = last;
+    }
+
+    public Value getLastTriggerIdentity() {
+        return lastTriggerIdentity;
     }
 
     /**
@@ -1150,7 +1163,7 @@ public class Session extends SessionWithState {
     }
 
     public void setThrottle(int throttle) {
-        this.throttle = throttle;
+        this.throttleNs = TimeUnit.MILLISECONDS.toNanos(throttle);
     }
 
     /**
@@ -1160,16 +1173,16 @@ public class Session extends SessionWithState {
         if (currentCommandStart == 0) {
             currentCommandStart = System.currentTimeMillis();
         }
-        if (throttle == 0) {
+        if (throttleNs == 0) {
             return;
         }
-        long time = System.currentTimeMillis();
-        if (lastThrottle + Constants.THROTTLE_DELAY > time) {
+        long time = System.nanoTime();
+        if (lastThrottle + TimeUnit.MILLISECONDS.toNanos(Constants.THROTTLE_DELAY) > time) {
             return;
         }
-        lastThrottle = time + throttle;
+        lastThrottle = time + throttleNs;
         try {
-            Thread.sleep(throttle);
+            Thread.sleep(TimeUnit.NANOSECONDS.toMillis(throttleNs));
         } catch (Exception e) {
             // ignore InterruptedException
         }
@@ -1184,9 +1197,9 @@ public class Session extends SessionWithState {
     public void setCurrentCommand(Command command) {
         this.currentCommand = command;
         if (queryTimeout > 0 && command != null) {
-            long now = System.currentTimeMillis();
-            currentCommandStart = now;
-            cancelAt = now + queryTimeout;
+            currentCommandStart = System.currentTimeMillis();
+            long now = System.nanoTime();
+            cancelAtNs = now + TimeUnit.MILLISECONDS.toNanos(queryTimeout);
         }
     }
 
@@ -1198,12 +1211,12 @@ public class Session extends SessionWithState {
      */
     public void checkCanceled() {
         throttle();
-        if (cancelAt == 0) {
+        if (cancelAtNs == 0) {
             return;
         }
-        long time = System.currentTimeMillis();
-        if (time >= cancelAt) {
-            cancelAt = 0;
+        long time = System.nanoTime();
+        if (time >= cancelAtNs) {
+            cancelAtNs = 0;
             throw DbException.get(ErrorCode.STATEMENT_WAS_CANCELED);
         }
     }
@@ -1214,7 +1227,7 @@ public class Session extends SessionWithState {
      * @return the time or 0 if not set
      */
     public long getCancel() {
-        return cancelAt;
+        return cancelAtNs;
     }
 
     public Command getCurrentCommand() {
@@ -1278,7 +1291,7 @@ public class Session extends SessionWithState {
      */
     public void removeAtCommit(Value v) {
         if (SysProperties.CHECK && !v.isLinkedToTable()) {
-            DbException.throwInternalError();
+            DbException.throwInternalError(v.toString());
         }
         if (removeLobMap == null) {
             removeLobMap = New.hashMap();
@@ -1505,7 +1518,7 @@ public class Session extends SessionWithState {
         this.queryTimeout = queryTimeout;
         // must reset the cancel at here,
         // otherwise it is still used
-        this.cancelAt = 0;
+        this.cancelAtNs = 0;
     }
 
     public int getQueryTimeout() {
@@ -1703,7 +1716,7 @@ public class Session extends SessionWithState {
         /**
          * The time when this object was created.
          */
-        final long created = System.currentTimeMillis();
+        final long created = System.nanoTime();
 
         /**
          * The value.

@@ -49,8 +49,7 @@ public class Subquery extends Expression {
     public Value getValue(Session session) {
         query.setSession(session);
         //getValue虽然在主查询有多条记录的情况下都会被调用，但是query内部是有缓存的，只是一个浅拷贝，所以对性能影响不大
-        ResultInterface result = query.query(2);
-        try {
+        try (ResultInterface result = query.query(2)) {
             int rowcount = result.getRowCount();
             if (rowcount > 1) {
                 throw DbException.get(ErrorCode.SCALAR_SUBQUERY_CONTAINS_MORE_THAN_ONE_ROW);
@@ -72,11 +71,14 @@ public class Subquery extends Expression {
                 }
             }
             return v;
-        } finally {
-            //对于org.h2.result.LocalResult只有external不为null时才把closed设为true
-        	//当在org.h2.command.dml.Query.query(int)判断org.h2.result.LocalResult.isClosed()时因为closed为false
-        	//所以这个close方法并没效果。
-            result.close();
+//<<<<<<< HEAD
+//        } finally {
+//            //对于org.h2.result.LocalResult只有external不为null时才把closed设为true
+//        	//当在org.h2.command.dml.Query.query(int)判断org.h2.result.LocalResult.isClosed()时因为closed为false
+//        	//所以这个close方法并没效果。
+//            result.close();
+//=======
+//>>>>>>> 237dda4106a721c6ba606bbc066b67f48e80efbd
         }
     }
 

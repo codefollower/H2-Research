@@ -5,14 +5,12 @@
  */
 package org.h2.jdbc;
 
-import java.sql.SQLException;
-
 /**
- * Allows us to compile on older platforms, while still implementing the methods from the newer JDBC API.
+ * Allows us to compile on older platforms, while still implementing the methods
+ * from the newer JDBC API.
  */
 public interface JdbcCallableStatementBackwardsCompat {
 
-    <T> T getObject(int parameterIndex, Class<T> type) throws SQLException;
+    // compatibility interface
 
-    <T> T getObject(String parameterName, Class<T> type) throws SQLException;
 }

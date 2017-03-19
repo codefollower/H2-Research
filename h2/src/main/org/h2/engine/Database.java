@@ -15,6 +15,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
@@ -54,6 +56,7 @@ import org.h2.table.IndexColumn;
 import org.h2.table.MetaTable;
 import org.h2.table.Table;
 import org.h2.table.TableLinkConnection;
+import org.h2.table.TableType;
 import org.h2.table.TableView;
 import org.h2.tools.DeleteDbFiles;
 import org.h2.tools.Server;
@@ -184,7 +187,7 @@ public class Database implements DataHandler {
     private final int pageSize;
     private int defaultTableType = Table.TYPE_CACHED;
     private final DbSettings dbSettings;
-    private final int reconnectCheckDelay;
+    private final long reconnectCheckDelayNs;
     private int logMode;
     private MVTableEngine.Store mvStore;
     private int retentionTime;
@@ -200,7 +203,7 @@ public class Database implements DataHandler {
     public Database(ConnectionInfo ci, String cipher) {
         String name = ci.getName();
         this.dbSettings = ci.getDbSettings();
-        this.reconnectCheckDelay = dbSettings.reconnectCheckDelay;
+        this.reconnectCheckDelayNs = TimeUnit.MILLISECONDS.toNanos(dbSettings.reconnectCheckDelay);
         this.compareMode = CompareMode.getInstance(null, 0);
         this.persistent = ci.isPersistent();
         this.filePasswordHash = ci.getFilePasswordHash();
@@ -400,7 +403,7 @@ public class Database implements DataHandler {
         }
         try {
             if (pending == reconnectChangePending) {
-                long now = System.currentTimeMillis();
+                long now = System.nanoTime();
                 if (now > reconnectCheckNext) {
                     if (pending) {
                         String pos = pageStore == null ?
@@ -408,7 +411,7 @@ public class Database implements DataHandler {
                         lock.setProperty("logPos", pos);
                         lock.save();
                     }
-                    reconnectCheckNext = now + reconnectCheckDelay;
+                    reconnectCheckNext = now + reconnectCheckDelayNs;
                 }
                 return true;
             }
@@ -418,7 +421,7 @@ public class Database implements DataHandler {
                     return false;
                 }
                 trace.debug("wait before writing");
-                Thread.sleep((int) (reconnectCheckDelay * 1.1));
+                Thread.sleep(TimeUnit.NANOSECONDS.toMillis((long) (reconnectCheckDelayNs * 1.1)));
                 Properties now = lock.load();
                 if (!now.equals(old)) {
                     // somebody else was faster
@@ -435,12 +438,12 @@ public class Database implements DataHandler {
             }
             // ensure that the writer thread will
             // not reset the flag before we are done
-            reconnectCheckNext = System.currentTimeMillis() +
-                    2 * reconnectCheckDelay;
+            reconnectCheckNext = System.nanoTime() +
+                    2 * reconnectCheckDelayNs;
             old = lock.save();
             if (pending) {
                 trace.debug("wait before writing again");
-                Thread.sleep((int) (reconnectCheckDelay * 1.1));
+                Thread.sleep(TimeUnit.NANOSECONDS.toMillis((long) (reconnectCheckDelayNs * 1.1)));
                 Properties now = lock.load();
                 if (!now.equals(old)) {
                     // somebody else was faster
@@ -451,8 +454,7 @@ public class Database implements DataHandler {
             }
             reconnectLastLock = old;
             reconnectChangePending = pending;
-            reconnectCheckNext = System.currentTimeMillis() +
-                    reconnectCheckDelay;
+            reconnectCheckNext = System.nanoTime() + reconnectCheckDelayNs;
             return true;
         } catch (Exception e) {
             trace.error(e, "pending {0}", pending);
@@ -941,6 +943,7 @@ public class Database implements DataHandler {
      */
     public void unlockMeta(Session session) {
         meta.unlock(session);
+        session.unlock(meta);
     }
 
     /**
@@ -1444,7 +1447,8 @@ public class Database implements DataHandler {
                 // otherwise other connections can not detect that
                 if (lock.load().containsKey("changePending")) {
                     try {
-                        Thread.sleep((int) (reconnectCheckDelay * 1.1));
+                        Thread.sleep(TimeUnit.NANOSECONDS
+                                .toMillis((long) (reconnectCheckDelayNs * 1.1)));
                     } catch (InterruptedException e) {
                         trace.error(e, "close");
                     }
@@ -1661,14 +1665,16 @@ public class Database implements DataHandler {
      */
     //并不会执行obj的相关sql，也不删除或修改Schema或Database中的相关map和obj的子对象
     //仅仅是先删除SYS表中与obj相关的旧sql并添加新的sql
-    public synchronized void updateMeta(Session session, DbObject obj) {
+    public void updateMeta(Session session, DbObject obj) {
         lockMeta(session);
-        int id = obj.getId();
-        removeMeta(session, id);
-        addMeta(session, obj);
-        // for temporary objects
-        if (id > 0) {
-            objectIds.set(id);
+        synchronized (this) {
+            int id = obj.getId();
+            removeMeta(session, id);
+            addMeta(session, obj);
+            // for temporary objects
+            if (id > 0) {
+                objectIds.set(id);
+            }
         }
     }
 
@@ -1690,7 +1696,7 @@ public class Database implements DataHandler {
         ArrayList<DbObject> list = obj.getChildren();
         Comment comment = findComment(obj);
         if (comment != null) {
-            DbException.throwInternalError();
+            DbException.throwInternalError(comment.toString());
         }
         updateMeta(session, obj);
         // remember that this scans only one level deep!
@@ -1825,7 +1831,7 @@ public class Database implements DataHandler {
         for (Table t : getAllTablesAndViews(false)) {
             if (except == t) {
                 continue;
-            } else if (Table.VIEW.equals(t.getTableType())) {
+            } else if (TableType.VIEW == t.getTableType()) {
                 continue;
             }
             set.clear();
@@ -2549,11 +2555,11 @@ public class Database implements DataHandler {
         if (reconnectChangePending) {
             return false;
         }
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime();
         if (now < reconnectCheckNext) {
             return false;
         }
-        reconnectCheckNext = now + reconnectCheckDelay;
+        reconnectCheckNext = now + reconnectCheckDelayNs;
         if (lock == null) {
             lock = new FileLock(traceSystem, databaseName +
                     Constants.SUFFIX_LOCK_FILE, Constants.LOCK_SLEEP);
@@ -2567,8 +2573,8 @@ public class Database implements DataHandler {
                 if (prop.getProperty("changePending", null) == null) {
                     break;
                 }
-                if (System.currentTimeMillis() >
-                        now + reconnectCheckDelay * 10) {
+                if (System.nanoTime() >
+                        now + reconnectCheckDelayNs * 10) {
                     if (first.equals(prop)) {
                         // the writing process didn't update the file -
                         // it may have terminated
@@ -2578,7 +2584,7 @@ public class Database implements DataHandler {
                     }
                 }
                 trace.debug("delay (change pending)");
-                Thread.sleep(reconnectCheckDelay);
+                Thread.sleep(TimeUnit.NANOSECONDS.toMillis(reconnectCheckDelayNs));
                 prop = lock.load();
             }
             reconnectLastLock = prop;
@@ -2601,10 +2607,10 @@ public class Database implements DataHandler {
                 readOnly || !reconnectChangePending || closing) {
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now > reconnectCheckNext + reconnectCheckDelay) {
+        long now = System.nanoTime();
+        if (now > reconnectCheckNext + reconnectCheckDelayNs) {
             if (SysProperties.CHECK && checkpointAllowed < 0) {
-                DbException.throwInternalError();
+                DbException.throwInternalError("" + checkpointAllowed);
             }
             synchronized (reconnectSync) {
                 if (checkpointAllowed > 0) {
@@ -2674,13 +2680,13 @@ public class Database implements DataHandler {
             if (reconnectModified(true)) {
                 checkpointAllowed++;
                 if (SysProperties.CHECK && checkpointAllowed > 20) {
-                    throw DbException.throwInternalError();
+                    throw DbException.throwInternalError("" + checkpointAllowed);
                 }
                 return true;
             }
         }
         // make sure the next call to isReconnectNeeded() returns true
-        reconnectCheckNext = System.currentTimeMillis() - 1;
+        reconnectCheckNext = System.nanoTime() - 1;
         reconnectLastLock = null;
         return false;
     }
@@ -2696,7 +2702,7 @@ public class Database implements DataHandler {
             checkpointAllowed--;
         }
         if (SysProperties.CHECK && checkpointAllowed < 0) {
-            throw DbException.throwInternalError();
+            throw DbException.throwInternalError("" + checkpointAllowed);
         }
     }
 

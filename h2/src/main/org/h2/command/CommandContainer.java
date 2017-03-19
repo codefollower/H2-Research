@@ -56,9 +56,12 @@ public class CommandContainer extends Command {
 
     private static void prepareJoinBatch(Prepared prepared) {
         if (prepared.isQuery()) {
-            if (prepared.getType() == CommandInterface.SELECT) {
+            int type = prepared.getType();
+
+            if (type == CommandInterface.SELECT) {
                 ((Query) prepared).prepareJoinBatch();
-            } else if (prepared.getType() == CommandInterface.EXPLAIN) {
+            } else if (type == CommandInterface.EXPLAIN ||
+                    type == CommandInterface.EXPLAIN_ANALYZE) {
                 prepareJoinBatch(((Explain) prepared).getCommand());
             }
         }
@@ -97,7 +100,7 @@ public class CommandContainer extends Command {
         session.setLastScopeIdentity(ValueNull.INSTANCE);
         prepared.checkParameters();
         int updateCount = prepared.update();
-        prepared.trace(startTime_nanos, updateCount);
+        prepared.trace(startTimeNanos, updateCount);
         setProgress(DatabaseEventListener.STATE_STATEMENT_END);
         return updateCount;
     }
@@ -109,7 +112,7 @@ public class CommandContainer extends Command {
         start();
         prepared.checkParameters();
         ResultInterface result = prepared.query(maxrows);
-        prepared.trace(startTime_nanos, result.getRowCount());
+        prepared.trace(startTimeNanos, result.getRowCount());
         setProgress(DatabaseEventListener.STATE_STATEMENT_END);
         return result;
     }

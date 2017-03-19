@@ -23,6 +23,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import javax.sql.ConnectionEvent;
@@ -61,7 +62,8 @@ import org.h2.util.New;
  *      (<a href="http://www.source-code.biz">www.source-code.biz</a>)
  * @author Thomas Mueller
  */
-public class JdbcConnectionPool implements DataSource, ConnectionEventListener, JdbcConnectionPoolBackwardsCompat {
+public class JdbcConnectionPool implements DataSource, ConnectionEventListener,
+        JdbcConnectionPoolBackwardsCompat {
 
     private static final int DEFAULT_TIMEOUT = 30;
     private static final int DEFAULT_MAX_CONNECTIONS = 10;
@@ -191,7 +193,7 @@ public class JdbcConnectionPool implements DataSource, ConnectionEventListener, 
      */
     @Override
     public Connection getConnection() throws SQLException {
-        long max = System.currentTimeMillis() + timeout * 1000;
+        long max = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeout);
         do {
             synchronized (this) {
                 if (activeConnections < maxConnections) {
@@ -203,7 +205,7 @@ public class JdbcConnectionPool implements DataSource, ConnectionEventListener, 
                     // ignore
                 }
             }
-        } while (System.currentTimeMillis() <= max);
+        } while (System.nanoTime() <= max);
         throw new SQLException("Login timeout", "08001", 8001);
     }
 

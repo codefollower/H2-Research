@@ -460,6 +460,16 @@ public interface CommandInterface {
     int ALTER_TABLE_RENAME_CONSTRAINT = 85;
 
     /**
+     * The type of a EXPLAIN ANALYZE statement.
+     */
+    int EXPLAIN_ANALYZE = 86;
+
+    /**
+     * The type of a ALTER TABLE ALTER COLUMN SET INVISIBLE statement.
+     */
+    int ALTER_TABLE_ALTER_COLUMN_VISIBILITY = 87;
+
+    /**
      * Get command type.
      *
      * @return one of the constants above

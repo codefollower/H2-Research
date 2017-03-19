@@ -13,7 +13,6 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-
 import org.h2.engine.Constants;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
@@ -56,6 +55,11 @@ public class ValueLobDb extends Value implements Value.ValueClob,
     private int tableId;
     private int hash;
 
+    //Arbonaut: 13.07.2016
+    // Fix for recovery tool.
+
+    private boolean isRecoveryReference;
+
     private ValueLobDb(int type, DataHandler handler, int tableId, long lobId,
             byte[] hmac, long precision) {
         this.type = type;
@@ -93,9 +97,9 @@ public class ValueLobDb extends Value implements Value.ValueClob,
         this.fileName = createTempLobFileName(handler);
         this.tempFile = this.handler.openFile(fileName, "rw", false);
         this.tempFile.autoDelete();
-        FileStoreOutputStream out = new FileStoreOutputStream(tempFile, null, null);
+
         long tmpPrecision = 0;
-        try {
+        try (FileStoreOutputStream out = new FileStoreOutputStream(tempFile, null, null)) {
             char[] buff = new char[Constants.IO_BUFFER_SIZE];
             while (true) {
                 int len = getBufferSize(this.handler, false, remaining);
@@ -107,8 +111,6 @@ public class ValueLobDb extends Value implements Value.ValueClob,
                 out.write(data);
                 tmpPrecision += len;
             }
-        } finally {
-            out.close();
         }
         this.precision = tmpPrecision;
     }
@@ -667,4 +669,12 @@ public class ValueLobDb extends Value implements Value.ValueClob,
         return new ValueLobDb(type, small, precision);
     }
 
+
+    public void setRecoveryReference(boolean isRecoveryReference) {
+        this.isRecoveryReference = isRecoveryReference;
+    }
+
+    public boolean isRecoveryReference() {
+        return isRecoveryReference;
+    }
 }

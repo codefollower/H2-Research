@@ -33,7 +33,6 @@ import org.h2.value.ValueString;
 import org.h2.value.ValueTime;
 import org.h2.value.ValueTimestamp;
 import org.h2.value.ValueTimestampTimeZone;
-import org.h2.value.ValueTimestampUtc;
 import org.h2.value.ValueUuid;
 
 /**
@@ -87,6 +86,7 @@ public class Column {
     private SingleColumnResolver resolver;
     private String comment;
     private boolean primaryKey;
+    private boolean visible = true;
 
     public Column(String name, int type) {
         this(name, type, -1, -1, -1);
@@ -258,6 +258,14 @@ public class Column {
         nullable = b;
     }
 
+    public boolean getVisible() {
+        return visible;
+    }
+
+    public void setVisible(boolean b) {
+        visible = b;
+    }
+
     /**
      * Validate the value, convert it if required, and update the sequence value
      * if required. If the value is null, the default value (NULL if no default
@@ -297,8 +305,6 @@ public class Column {
                         value = ValueInt.get(0).convertTo(type);
                     } else if (dt.type == Value.TIMESTAMP) {
                         value = ValueTimestamp.fromMillis(session.getTransactionStart());
-                    } else if (dt.type == Value.TIMESTAMP_UTC) {
-                        value = ValueTimestampUtc.fromMillis(session.getTransactionStart());
                     } else if (dt.type == Value.TIMESTAMP_TZ) {
                         long ms = session.getTransactionStart();
                         value = ValueTimestampTimeZone.fromDateValueAndNanos(
@@ -388,7 +394,7 @@ public class Column {
         while (true) {
             ValueUuid uuid = ValueUuid.getNewRandom();
             String s = uuid.getString();
-            s = s.replace('-', '_').toUpperCase();
+            s = StringUtils.toUpperEnglish(s.replace('-', '_'));
             sequenceName = "SYSTEM_SEQUENCE_" + s; //例如: SYSTEM_SEQUENCE_D48A68C3_5C35_4228_9587_910712BB727A
             if (schema.findSequence(sequenceName) == null) {
                 break;
@@ -411,7 +417,8 @@ public class Column {
      */
     public void prepareExpression(Session session) { //在建表时触发
         if (defaultExpression != null) {
-            computeTableFilter = new TableFilter(session, table, null, false, null, 0);
+            computeTableFilter = new TableFilter(session, table, null, false, null, 0,
+                    null);
             defaultExpression.mapColumns(computeTableFilter, 0);
             defaultExpression = defaultExpression.optimize(session);
         }
@@ -441,6 +448,11 @@ public class Column {
             default:
             }
         }
+
+        if (!visible) {
+            buff.append(" INVISIBLE ");
+        }
+
         if (defaultExpression != null) {
             String sql = defaultExpression.getSQL();
             if (sql != null) {
@@ -754,6 +766,7 @@ public class Column {
         isComputed = source.isComputed;
         selectivity = source.selectivity;
         primaryKey = source.primaryKey;
+        visible = source.visible;
     }
 
 }

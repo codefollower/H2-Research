@@ -38,6 +38,7 @@ import org.h2.result.ResultInterface;
 import org.h2.result.UpdatableRow;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.IOUtils;
+import org.h2.util.LocalDateTimeUtils;
 import org.h2.util.New;
 import org.h2.util.StringUtils;
 import org.h2.value.CompareMode;
@@ -57,8 +58,7 @@ import org.h2.value.ValueShort;
 import org.h2.value.ValueString;
 import org.h2.value.ValueTime;
 import org.h2.value.ValueTimestamp;
-
-import com.vividsolutions.jts.geom.Geometry;
+import org.h2.value.ValueTimestampTimeZone;
 
 /**
  * <p>
@@ -77,6 +77,7 @@ import com.vividsolutions.jts.geom.Geometry;
  * </p>
  */
 public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultSetBackwardsCompat {
+
     private final boolean closeStatement;
     private final boolean scrollable;
     private final boolean updatable;
@@ -1018,8 +1019,10 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public Blob getBlob(int columnIndex) throws SQLException {
         try {
             int id = getNextId(TraceObject.BLOB);
-            debugCodeAssign("Blob", TraceObject.BLOB,
-                    id, "getBlob(" + columnIndex + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("Blob", TraceObject.BLOB,
+                                id, "getBlob(" + columnIndex + ")");
+            }
             Value v = get(columnIndex);
             return v == ValueNull.INSTANCE ? null : new JdbcBlob(conn, v, id);
         } catch (Exception e) {
@@ -1039,8 +1042,10 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public Blob getBlob(String columnLabel) throws SQLException {
         try {
             int id = getNextId(TraceObject.BLOB);
-            debugCodeAssign("Blob", TraceObject.BLOB,
-                    id, "getBlob(" + quote(columnLabel) + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("Blob", TraceObject.BLOB,
+                                id, "getBlob(" + quote(columnLabel) + ")");
+            }
             Value v = get(columnLabel);
             return v == ValueNull.INSTANCE ? null : new JdbcBlob(conn, v, id);
         } catch (Exception e) {
@@ -1133,7 +1138,9 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public Clob getClob(int columnIndex) throws SQLException {
         try {
             int id = getNextId(TraceObject.CLOB);
-            debugCodeAssign("Clob", TraceObject.CLOB, id, "getClob(" + columnIndex + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("Clob", TraceObject.CLOB, id, "getClob(" + columnIndex + ")");
+            }
             Value v = get(columnIndex);
             return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
         } catch (Exception e) {
@@ -1153,8 +1160,10 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public Clob getClob(String columnLabel) throws SQLException {
         try {
             int id = getNextId(TraceObject.CLOB);
-            debugCodeAssign("Clob", TraceObject.CLOB, id, "getClob(" +
-                    quote(columnLabel) + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("Clob", TraceObject.CLOB, id, "getClob(" +
+                                quote(columnLabel) + ")");
+            }
             Value v = get(columnLabel);
             return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
         } catch (Exception e) {
@@ -1174,7 +1183,9 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public Array getArray(int columnIndex) throws SQLException {
         try {
             int id = getNextId(TraceObject.ARRAY);
-            debugCodeAssign("Clob", TraceObject.ARRAY, id, "getArray(" + columnIndex + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("Array", TraceObject.ARRAY, id, "getArray(" + columnIndex + ")");
+            }
             Value v = get(columnIndex);
             return v == ValueNull.INSTANCE ? null : new JdbcArray(conn, v, id);
         } catch (Exception e) {
@@ -1194,8 +1205,10 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public Array getArray(String columnLabel) throws SQLException {
         try {
             int id = getNextId(TraceObject.ARRAY);
-            debugCodeAssign("Clob", TraceObject.ARRAY, id, "getArray(" +
-                    quote(columnLabel) + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("Array", TraceObject.ARRAY, id, "getArray(" +
+                                quote(columnLabel) + ")");
+            }
             Value v = get(columnLabel);
             return v == ValueNull.INSTANCE ? null : new JdbcArray(conn, v, id);
         } catch (Exception e) {
@@ -3449,7 +3462,9 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public NClob getNClob(int columnIndex) throws SQLException {
         try {
             int id = getNextId(TraceObject.CLOB);
-            debugCodeAssign("NClob", TraceObject.CLOB, id, "getNClob(" + columnIndex + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("NClob", TraceObject.CLOB, id, "getNClob(" + columnIndex + ")");
+            }
             Value v = get(columnIndex);
             return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
         } catch (Exception e) {
@@ -3469,7 +3484,9 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public NClob getNClob(String columnLabel) throws SQLException {
         try {
             int id = getNextId(TraceObject.CLOB);
-            debugCodeAssign("NClob", TraceObject.CLOB, id, "getNClob(" + columnLabel + ")");
+            if (isDebugEnabled()) {
+                debugCodeAssign("NClob", TraceObject.CLOB, id, "getNClob(" + columnLabel + ")");
+            }
             Value v = get(columnLabel);
             return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
         } catch (Exception e) {
@@ -3666,10 +3683,14 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     @Override
     @SuppressWarnings("unchecked")
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        if (isWrapperFor(iface)) {
-            return (T) this;
+        try {
+            if (isWrapperFor(iface)) {
+                return (T) this;
+            }
+            throw DbException.getInvalidValueException("iface", iface);
+        } catch (Exception e) {
+            throw logAndConvert(e);
         }
-        throw DbException.getInvalidValueException("iface", iface);
     }
 
     /**
@@ -3689,6 +3710,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
      *
      * @param columnIndex the column index (1, 2, ...)
      * @param type the class of the returned value
+     * @return the value
      * @throws SQLException if the column is not found or if the result set is
      *             closed
      */
@@ -3712,6 +3734,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
      *
      * @param columnName the column name
      * @param type the class of the returned value
+     * @return the value
      */
     @Override
     public <T> T getObject(String columnName, Class<T> type) throws SQLException {
@@ -3757,10 +3780,26 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
             return type.cast(value.getTimestamp());
         } else if (type == UUID.class) {
             return type.cast(value.getObject());
+        } else if (type == byte[].class) {
+            return type.cast(value.getBytes());
+        } else if (type == java.sql.Array.class) {
+            int id = getNextId(TraceObject.ARRAY);
+            return type.cast(value == ValueNull.INSTANCE ? null : new JdbcArray(conn, value, id));
         } else if (type == TimestampWithTimeZone.class) {
             return type.cast(value.getObject());
-        } else if (type.isAssignableFrom(Geometry.class)) {
+        } else if (DataType.isGeometryClass(type)) {
             return type.cast(value.getObject());
+        } else if (LocalDateTimeUtils.isLocalDate(type)) {
+            return type.cast(LocalDateTimeUtils.valueToLocalDate(value));
+        } else if (LocalDateTimeUtils.isLocalTime(type)) {
+            return type.cast(LocalDateTimeUtils.valueToLocalTime(value));
+        } else if (LocalDateTimeUtils.isLocalDateTime(type)) {
+            return type.cast(LocalDateTimeUtils.valueToLocalDateTime(
+                            (ValueTimestamp) value));
+        } else if (LocalDateTimeUtils.isOffsetDateTime(type) &&
+                value instanceof ValueTimestampTimeZone) {
+            return type.cast(LocalDateTimeUtils.valueToOffsetDateTime(
+                            (ValueTimestampTimeZone) value));
         } else {
             throw unsupported(type.getClass().getName());
         }

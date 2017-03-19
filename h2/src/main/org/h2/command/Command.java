@@ -30,7 +30,7 @@ public abstract class Command implements CommandInterface {
     /**
      * The last start time.
      */
-    protected long startTime_nanos;
+    protected long startTimeNanos;
 
     /**
      * The trace module.
@@ -127,7 +127,7 @@ public abstract class Command implements CommandInterface {
      */
     void start() {
         if (trace.isInfoEnabled() || session.getDatabase().getQueryStatistics()) {
-            startTime_nanos = System.nanoTime();
+            startTimeNanos = System.nanoTime();
         }
     }
 
@@ -165,12 +165,12 @@ public abstract class Command implements CommandInterface {
         }
         //早期的版本就的是System.currentTimeMillis()，
         //现在改成System.nanoTime()了，性能会好一点
-        if (trace.isInfoEnabled() && startTime_nanos > 0) {
-            long time_ms = (System.nanoTime() - startTime_nanos) / 1000 / 1000;
+        if (trace.isInfoEnabled() && startTimeNanos > 0) {
+            long timeMillis = (System.nanoTime() - startTimeNanos) / 1000 / 1000;
             //如果一条sql的执行时间大于100毫秒，记下它
-            if (time_ms > Constants.SLOW_QUERY_LIMIT_MS) {
-                //trace.info("slow query: {0} ms", time_ms); 
-                trace.info("slow query: {0} ms, sql: {1}", time_ms, sql); //我加上的
+            if (timeMillis > Constants.SLOW_QUERY_LIMIT_MS) {
+                //trace.info("slow query: {0} ms", timeMillis);
+                trace.info("slow query: {0} ms, sql: {1}", timeMillis, sql); //我加上的 
             }
         }
     }
@@ -185,7 +185,7 @@ public abstract class Command implements CommandInterface {
      */
     @Override
     public ResultInterface executeQuery(int maxrows, boolean scrollable) {
-        startTime_nanos = 0;
+        startTimeNanos = 0;
         long start = 0;
         Database database = session.getDatabase();
         //也跟executeUpdate()的情型一样，就算是查询也不例外
@@ -308,6 +308,7 @@ public abstract class Command implements CommandInterface {
     private long filterConcurrentUpdate(DbException e, long start) {
         int errorCode = e.getErrorCode();
         if (errorCode != ErrorCode.CONCURRENT_UPDATE_1 &&
+                errorCode != ErrorCode.ROW_NOT_FOUND_IN_PRIMARY_INDEX &&
                 errorCode != ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1) {
             throw e;
         }

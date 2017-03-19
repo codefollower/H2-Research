@@ -60,7 +60,7 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
                     checkCanceled();
                 }
             }
-            reader.close();
+            r.close();
         } catch (IOException e) {
             throw DbException.convertIOException(e, null);
         } finally {

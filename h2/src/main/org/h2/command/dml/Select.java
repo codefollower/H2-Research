@@ -839,7 +839,10 @@ public class Select extends Query {
         // AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
         // [NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME,
         // NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
-        for (Column c : columns) {
+        for (Column c : columns) { 
+            if (!c.getVisible()) {
+                continue;
+            }
             // 跳过Natural Join列，
             // 右边的表对应的TableFilter有Natural Join列，而左边没有
             if (filter.isNaturalJoinColumn(c)) {
@@ -1077,8 +1080,9 @@ public class Select extends Query {
                         sortUsingIndex = true;
                     }
                 //见my.test.command.dml.SelectTest.getSortIndex()中的测试
-                } else if (index.getIndexColumns().length >=
-                        current.getIndexColumns().length) {
+                } else if (index.getIndexColumns() != null
+                        && index.getIndexColumns().length >= current
+                                .getIndexColumns().length) {
                     IndexColumn[] sortColumns = index.getIndexColumns();
                     IndexColumn[] currentColumns = current.getIndexColumns();
                     boolean swapIndex = false;

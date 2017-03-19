@@ -44,6 +44,8 @@ import org.h2.util.New;
  * ALTER TABLE ALTER COLUMN SET DEFAULT,
  * ALTER TABLE ALTER COLUMN SET NOT NULL,
  * ALTER TABLE ALTER COLUMN SET NULL,
+ * ALTER TABLE ALTER COLUMN SET VISIBLE,
+ * ALTER TABLE ALTER COLUMN SET INVISIBLE,
  * ALTER TABLE DROP COLUMN
  */
 //一次只能修改一个表
@@ -62,6 +64,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
     private boolean ifNotExists;
     private ArrayList<Column> columnsToAdd;
     private ArrayList<Column> columnsToRemove;
+    private boolean newVisibility;
 
     public AlterTableAlterColumn(Session session, Schema schema) {
         super(session, schema);
@@ -162,9 +165,13 @@ public class AlterTableAlterColumn extends SchemaCommand {
                 } else if (!oldColumn.isNullable() && newColumn.isNullable()) {
                     checkNullable(table);
                 }
+                if (oldColumn.getVisible() ^ newColumn.getVisible()) {
+                    oldColumn.setVisible(newColumn.getVisible());
+                }
                 convertAutoIncrementColumn(table, newColumn);
                 copyData(table);
             }
+            table.setModified();
             break;
         }
         case CommandInterface.ALTER_TABLE_ADD_COLUMN: {
@@ -198,6 +205,12 @@ public class AlterTableAlterColumn extends SchemaCommand {
             db.updateMeta(session, table);
             break;
         }
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_VISIBILITY: {
+            oldColumn.setVisible(newVisibility);
+            table.setModified();
+            db.updateMeta(session, table);
+            break;
+        }
         default:
             DbException.throwInternalError("type=" + type);
         }
@@ -208,7 +221,7 @@ public class AlterTableAlterColumn extends SchemaCommand {
     //在org.h2.table.Column.setDefaultExpression(Session, Expression)时找不到列
     //用ALTER TABLE mytable ADD (f3 int, f4 int default EXISTS(select f1 from mytable where f1=1))
     //就可以测试下面的COLUMN_IS_REFERENCED_1
-    private void checkDefaultReferencesTable(Table table, Expression defaultExpression) {
+    private static void checkDefaultReferencesTable(Table table, Expression defaultExpression) {
         if (defaultExpression == null) {
             return;
         }
@@ -572,5 +585,9 @@ public class AlterTableAlterColumn extends SchemaCommand {
 
     public void setColumnsToRemove(ArrayList<Column> columnsToRemove) {
         this.columnsToRemove = columnsToRemove;
+    }
+
+    public void setVisible(boolean visible) {
+        this.newVisibility = visible;
     }
 }

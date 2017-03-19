@@ -14,7 +14,6 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
-
 import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
 import org.h2.engine.Session;
@@ -27,7 +26,6 @@ import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.RowList;
 import org.h2.schema.Schema;
-import org.h2.util.JdbcUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.New;
 import org.h2.util.StatementBuilder;
@@ -168,9 +166,8 @@ public class TableLink extends Table {
             qualifiedTableName = originalTable;
         }
         // check if the table is accessible
-        Statement stat = null;
-        try {
-            stat = conn.getConnection().createStatement();
+
+        try (Statement stat = conn.getConnection().createStatement()) {
             rs = stat.executeQuery("SELECT * FROM " +
                     qualifiedTableName + " T WHERE 1=0");
             if (columnList.size() == 0) {
@@ -196,8 +193,6 @@ public class TableLink extends Table {
         } catch (Exception e) {
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, e,
                     originalTable + "(" + e.toString() + ")");
-        } finally {
-            JdbcUtils.closeSilently(stat);
         }
         Column[] cols = new Column[columnList.size()];
         columnList.toArray(cols);
@@ -558,8 +553,8 @@ public class TableLink extends Table {
     }
 
     @Override
-    public String getTableType() {
-        return Table.TABLE_LINK;
+    public TableType getTableType() {
+        return TableType.TABLE_LINK;
     }
 
     @Override

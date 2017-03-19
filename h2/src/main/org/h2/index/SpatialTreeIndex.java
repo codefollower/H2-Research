@@ -186,7 +186,7 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
      */
     public static long getCostRangeIndex(int[] masks, long rowCount, Column[] columns) {
         // Never use spatial tree index without spatial filter
-        if(columns.length == 0) {
+        if (columns.length == 0) {
             return Long.MAX_VALUE;
         }
         for (Column column : columns) {
@@ -237,7 +237,7 @@ public class SpatialTreeIndex extends BaseIndex implements SpatialIndex {
     @Override
     public Cursor findFirstOrLast(Session session, boolean first) {
         if (closed) {
-            throw DbException.throwInternalError();
+            throw DbException.throwInternalError(toString());
         }
         if (!first) {
             throw DbException.throwInternalError(

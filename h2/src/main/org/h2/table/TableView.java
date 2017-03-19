@@ -442,7 +442,7 @@ public class TableView extends Table {
 
     @Override
     public long getRowCount(Session session) {
-        throw DbException.throwInternalError();
+        throw DbException.throwInternalError(toString());
     }
 
     @Override
@@ -457,8 +457,8 @@ public class TableView extends Table {
     }
 
     @Override
-    public String getTableType() {
-        return Table.VIEW;
+    public TableType getTableType() {
+        return TableType.VIEW;
     }
 
     @Override
@@ -668,7 +668,7 @@ public class TableView extends Table {
         super.addDependencies(dependencies);
         if (tables != null) {
             for (Table t : tables) {
-                if (!Table.VIEW.equals(t.getTableType())) {
+                if (TableType.VIEW != t.getTableType()) {
                     t.addDependencies(dependencies);
                 }
             }

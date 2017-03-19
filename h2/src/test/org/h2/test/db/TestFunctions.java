@@ -113,6 +113,9 @@ public class TestFunctions extends TestBase implements AggregateFunction {
         testTranslate();
         testGenerateSeries();
         testFileWrite();
+        testThatCurrentTimestampIsSane();
+        testThatCurrentTimestampStaysTheSameWithinATransaction();
+        testThatCurrentTimestampUpdatesOutsideATransaction();
         testAnnotationProcessorsOutput();
 
         deleteDb("functions");
@@ -363,7 +366,7 @@ public class TestFunctions extends TestBase implements AggregateFunction {
         ResultSet rs;
         rs = stat.executeQuery("select * from information_schema.views");
         rs.next();
-        assertTrue(rs.getString("VIEW_DEFINITION").contains("SCHEMA2.FUNC"));
+        assertContains(rs.getString("VIEW_DEFINITION"), "SCHEMA2.FUNC");
 
         stat.execute("drop view test");
         stat.execute("drop schema schema2");
@@ -1291,12 +1294,17 @@ public class TestFunctions extends TestBase implements AggregateFunction {
         }
 
         try {
-            ToDateParser.toDate("1-DEC-0000","DD-MON-RRRR");
+            ToDateParser.toDate("1-DEC-0000", "DD-MON-RRRR");
             fail("Oracle to_date should reject year 0 (ORA-01841)");
-        } catch (Exception e) { }
+        } catch (Exception e) {
+            // expected
+        }
     }
 
     private void testToDate() throws ParseException {
+        if (Locale.getDefault() != Locale.ENGLISH) {
+            return;
+        }
 
         final int month = Calendar.getInstance().get(Calendar.MONTH);
 
@@ -1540,7 +1548,7 @@ public class TestFunctions extends TestBase implements AggregateFunction {
         expected = expected.substring(0, 1).toUpperCase() + expected.substring(1);
         String spaces = "         ";
         String first9 = (expected + spaces).substring(0, 9);
-        assertResult(first9.toUpperCase(),
+        assertResult(StringUtils.toUpperEnglish(first9),
                 stat, "SELECT TO_CHAR(X, 'DAY') FROM T");
         assertResult(first9,
                 stat, "SELECT TO_CHAR(X, 'Day') FROM T");
@@ -2000,6 +2008,81 @@ public class TestFunctions extends TestBase implements AggregateFunction {
         } finally {
             System.clearProperty(TestAnnotationProcessor.MESSAGES_KEY);
         }
+    }
+
+    private void testThatCurrentTimestampIsSane() throws SQLException,
+            ParseException {
+        deleteDb("functions");
+
+        Date before = new Date();
+
+        Connection conn = getConnection("functions");
+        conn.setAutoCommit(false);
+        Statement stat = conn.createStatement();
+
+
+        final String formatted;
+        final ResultSet rs = stat.executeQuery(
+                "select to_char(current_timestamp(9), 'YYYY MM DD HH24 MI SS FF3') from dual");
+        rs.next();
+        formatted = rs.getString(1);
+        rs.close();
+
+        Date after = new Date();
+
+        Date parsed = new SimpleDateFormat("y M d H m s S").parse(formatted);
+
+        assertFalse(parsed.before(before));
+        assertFalse(parsed.after(after));
+    }
+
+
+    private void testThatCurrentTimestampStaysTheSameWithinATransaction()
+            throws SQLException, InterruptedException {
+        deleteDb("functions");
+        Connection conn = getConnection("functions");
+        conn.setAutoCommit(false);
+        Statement stat = conn.createStatement();
+
+        Timestamp first;
+        ResultSet rs = stat.executeQuery("select CURRENT_TIMESTAMP from DUAL");
+        rs.next();
+        first = rs.getTimestamp(1);
+        rs.close();
+
+        Thread.sleep(1);
+
+        Timestamp second;
+        rs = stat.executeQuery("select CURRENT_TIMESTAMP from DUAL");
+        rs.next();
+        second = rs.getTimestamp(1);
+        rs.close();
+
+        assertEquals(first, second);
+    }
+
+    private void testThatCurrentTimestampUpdatesOutsideATransaction()
+            throws SQLException, InterruptedException {
+        deleteDb("functions");
+        Connection conn = getConnection("functions");
+        conn.setAutoCommit(true);
+        Statement stat = conn.createStatement();
+
+        Timestamp first;
+        ResultSet rs = stat.executeQuery("select CURRENT_TIMESTAMP from DUAL");
+        rs.next();
+        first = rs.getTimestamp(1);
+        rs.close();
+
+        Thread.sleep(1);
+
+        Timestamp second;
+        rs = stat.executeQuery("select CURRENT_TIMESTAMP from DUAL");
+        rs.next();
+        second = rs.getTimestamp(1);
+        rs.close();
+
+        assertTrue(second.after(first));
     }
 
     private void callCompiledFunction(String functionName) throws SQLException {

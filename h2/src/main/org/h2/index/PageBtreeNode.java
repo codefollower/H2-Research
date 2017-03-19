@@ -506,7 +506,7 @@ public class PageBtreeNode extends PageBtree {
         written = false;
         changeCount = index.getPageStore().getChangeCount();
         if (entryCount < 0) {
-            DbException.throwInternalError();
+            DbException.throwInternalError("" + entryCount);
         }
         if (entryCount > i) {
             int startNext = i > 0 ? offsets[i - 1] : index.getPageStore().getPageSize();
@@ -641,7 +641,7 @@ public class PageBtreeNode extends PageBtree {
                 return;
             }
         }
-        throw DbException.throwInternalError();
+        throw DbException.throwInternalError(oldPos + " " + newPos);
     }
 
 	// 我加上的

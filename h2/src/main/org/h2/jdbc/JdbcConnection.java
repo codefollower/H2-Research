@@ -48,6 +48,7 @@ import org.h2.util.CloseWatcher;
 import org.h2.util.JdbcUtils;
 import org.h2.util.Utils;
 import org.h2.value.CompareMode;
+import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueInt;
 import org.h2.value.ValueNull;
@@ -63,7 +64,8 @@ import org.h2.value.ValueString;
  * connection should only be used in one thread at any time.
  * </p>
  */
-public class JdbcConnection extends TraceObject implements Connection, JdbcConnectionBackwardsCompat {
+public class JdbcConnection extends TraceObject implements Connection,
+        JdbcConnectionBackwardsCompat {
 
     private static final String NUM_SERVERS = "numServers";
     private static final String PREFIX_SERVER = "server";
@@ -879,7 +881,9 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
         try {
-            debugCode("setTypeMap(" + quoteMap(map) + ");");
+            if (isDebugEnabled()) {
+                debugCode("setTypeMap(" + quoteMap(map) + ");");
+            }
             checkMap(map);
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -1041,7 +1045,9 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     public void rollback(Savepoint savepoint) throws SQLException {
         try {
             JdbcSavepoint sp = convertSavepoint(savepoint);
-            debugCode("rollback(" + sp.getTraceObjectName() + ");");
+            if (isDebugEnabled()) {
+                debugCode("rollback(" + sp.getTraceObjectName() + ");");
+            }
             checkClosedForWrite();
             try {
                 sp.rollback();
@@ -1629,12 +1635,24 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     }
 
     /**
-     * [Not supported] Create a new empty Array object.
+     * Create a new Array object.
+     *
+     * @param typeName the type name
+     * @param elements the values
+     * @return the array
      */
     @Override
     public Array createArrayOf(String typeName, Object[] elements)
             throws SQLException {
-        throw unsupported("createArray");
+        try {
+            int id = getNextId(TraceObject.ARRAY);
+            debugCodeAssign("Array", TraceObject.ARRAY, id, "createArrayOf()");
+            checkClosed();
+            Value value = DataType.convertToValue(session, elements, Value.ARRAY);
+            return new JdbcArray(this, value, id);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
@@ -1794,7 +1812,6 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
                 p.setProperty(PREFIX_SERVER + String.valueOf(i), serverList.get(i));
             }
 
-
             return p;
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -1815,6 +1832,9 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
                 debugCodeCall("getClientInfo", name);
             }
             checkClosed();
+            if (name == null) {
+                throw DbException.getInvalidValueException("name", null);
+            }
             return getClientInfo().getProperty(name);
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -1830,10 +1850,14 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     @Override
     @SuppressWarnings("unchecked")
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        if (isWrapperFor(iface)) {
-            return (T) this;
+        try {
+            if (isWrapperFor(iface)) {
+                return (T) this;
+            }
+            throw DbException.getInvalidValueException("iface", iface);
+        } catch (Exception e) {
+            throw logAndConvert(e);
         }
-        throw DbException.getInvalidValueException("iface", iface);
     }
 
     /**
@@ -1888,8 +1912,8 @@ public class JdbcConnection extends TraceObject implements Connection, JdbcConne
     }
 
     /**
-     * Sets the given schema name to access. Current implementation is case sensitive,
-     * i.e. requires schema name to be passed in correct case.
+     * Sets the given schema name to access. Current implementation is case
+     * sensitive, i.e. requires schema name to be passed in correct case.
      *
      * @param schema the schema name
      */

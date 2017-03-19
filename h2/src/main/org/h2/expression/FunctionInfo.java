@@ -25,7 +25,7 @@ class FunctionInfo { //7个字段
     /**
      * The data type of the return value.
      */
-    int dataType;
+    int returnDataType;
 
     /**
      * The number of parameters.
@@ -56,7 +56,7 @@ class FunctionInfo { //7个字段
 //				+ nullIfParameterIsNull + " deterministic=" + deterministic
 //				+ " bufferResultSetToLocalTemp=" + bufferResultSetToLocalTemp;
 		
-		return pad(name, 20) + pad(type, 10) + pad(DataType.getDataType(dataType).name,15) + pad(parameterCount, 6)
+		return pad(name, 20) + pad(type, 10) + pad(DataType.getDataType(returnDataType).name,15) + pad(parameterCount, 6)
 				+ pad(nullIfParameterIsNull, 8) + pad(deterministic, 8) + pad(bufferResultSetToLocalTemp, 8);
 	}
 
@@ -75,7 +75,7 @@ class FunctionInfo { //7个字段
 		return !name.equals(fi.name)
 				&& 
 				type == fi.type //
-				&& dataType == fi.dataType
+				&& returnDataType == fi.returnDataType
 				&& parameterCount == fi.parameterCount //
 				&& nullIfParameterIsNull == fi.nullIfParameterIsNull
 				&& deterministic == fi.deterministic && bufferResultSetToLocalTemp == fi.bufferResultSetToLocalTemp;

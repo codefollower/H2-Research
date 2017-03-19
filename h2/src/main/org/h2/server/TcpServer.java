@@ -97,14 +97,12 @@ public class TcpServer implements Service {
         //所以下面的sql语句不会在TcpServerThread这个类中收到请求
         Connection conn = Driver.load().connect("jdbc:h2:" + getManagementDbName(port), prop);
         managementDb = conn;
-        Statement stat = null;
-        try {
-            stat = conn.createStatement();
-            //建立了一个自定义的函数STOP_SERVER，
-            //通过类似这样CALL STOP_SERVER(9092, '', 0)就能关闭H2数据库
-            //调用的是org.h2.server.TcpServer.stopServer(int, String, int)方法
-            //不过因为函数STOP_SERVER是在内存数据库的，所以通过TCP远程调用是不行的，
-            //要在Client端手工再建立同样的函数，见: my.test.server.TcpServerTest
+        // 建立了一个自定义的函数STOP_SERVER，
+        // 通过类似这样CALL STOP_SERVER(9092, '', 0)就能关闭H2数据库
+        // 调用的是org.h2.server.TcpServer.stopServer(int, String, int)方法
+        // 不过因为函数STOP_SERVER是在内存数据库的，所以通过TCP远程调用是不行的，
+        // 要在Client端手工再建立同样的函数，见: my.test.server.TcpServerTest
+        try (Statement stat = conn.createStatement()) {
             stat.execute("CREATE ALIAS IF NOT EXISTS STOP_SERVER FOR \"" +
                     TcpServer.class.getName() + ".stopServer\"");
             stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS" +
@@ -114,8 +112,6 @@ public class TcpServer implements Service {
                     "INSERT INTO SESSIONS VALUES(?, ?, ?, NOW())");
             managementDbRemove = conn.prepareStatement(
                     "DELETE FROM SESSIONS WHERE ID=?");
-        } finally {
-            JdbcUtils.closeSilently(stat);
         }
         SERVERS.put(port, this);
     }

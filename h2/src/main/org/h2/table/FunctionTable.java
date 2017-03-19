@@ -9,7 +9,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
-
 import org.h2.api.ErrorCode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
@@ -127,7 +126,7 @@ public class FunctionTable extends Table {
 
     @Override
     public boolean canDrop() {
-        throw DbException.throwInternalError();
+        throw DbException.throwInternalError(toString());
     }
 
     @Override
@@ -141,7 +140,7 @@ public class FunctionTable extends Table {
     }
 
     @Override
-    public String getTableType() {
+    public TableType getTableType() {
         return null;
     }
 

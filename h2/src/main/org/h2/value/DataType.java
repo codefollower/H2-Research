@@ -28,12 +28,14 @@ import org.h2.api.TimestampWithTimeZone;
 import org.h2.engine.Constants;
 import org.h2.engine.SessionInterface;
 import org.h2.engine.SysProperties;
+import org.h2.jdbc.JdbcArray;
 import org.h2.jdbc.JdbcBlob;
 import org.h2.jdbc.JdbcClob;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.JdbcUtils;
+import org.h2.util.LocalDateTimeUtils;
 import org.h2.util.New;
 import org.h2.util.Utils;
 
@@ -65,7 +67,7 @@ public class DataType {
      */
     private static final ArrayList<DataType> TYPES = New.arrayList();
     private static final HashMap<String, DataType> TYPES_BY_NAME = New.hashMap();
-    private static final ArrayList<DataType> TYPES_BY_VALUE_TYPE = New.arrayList();
+    private static final HashMap<Integer, DataType> TYPES_BY_VALUE_TYPE = New.hashMap();
 
     /**
      * The value type of this data type.
@@ -185,9 +187,6 @@ public class DataType {
     }
 
     static {
-        for (int i = 0; i < Value.TYPE_COUNT; i++) {
-            TYPES_BY_VALUE_TYPE.add(null);
-        }
         add(Value.NULL, Types.NULL, "Null",
                 new DataType(),
                 new String[]{"NULL"},
@@ -316,17 +315,14 @@ public class DataType {
                 // 24 for ValueTimestamp, 32 for java.sql.Timestamp
                 56
         );
-        add(Value.TIMESTAMP_UTC, Types.TIMESTAMP, "TimestampUtc",
-                createDate(ValueTimestamp.PRECISION, "TIMESTAMP_UTC",
-                        ValueTimestamp.DEFAULT_SCALE, ValueTimestamp.DISPLAY_SIZE),
-                new String[]{"TIMESTAMP_UTC"},
-                // 24 for ValueTimestampUtc, 32 for java.sql.Timestamp
-                56
-        );
-        add(Value.TIMESTAMP_TZ, Types.OTHER, "TimestampTimeZone",
+        // 2014 is the value of Types.TIMESTAMP_WITH_TIMEZONE
+        // use the value instead of the reference because the code has to
+        // compile (on Java 1.7). Can be replaced with
+        // Types.TIMESTAMP_WITH_TIMEZONE once Java 1.8 is required.
+        add(Value.TIMESTAMP_TZ, 2014, "TimestampTimeZone",
                 createDate(ValueTimestampTimeZone.PRECISION, "TIMESTAMP_TZ",
                         ValueTimestampTimeZone.DEFAULT_SCALE, ValueTimestampTimeZone.DISPLAY_SIZE),
-                new String[]{"TIMESTAMP WITH TIMEZONE"},
+                new String[]{"TIMESTAMP WITH TIME ZONE"},
                 // 26 for ValueTimestampUtc, 32 for java.sql.Timestamp
                 58
         );
@@ -347,7 +343,8 @@ public class DataType {
         );
         add(Value.UUID, Types.BINARY, "Bytes",
                 createString(false),
-                new String[]{"UUID"},
+                // UNIQUEIDENTIFIER is the MSSQL mode equivalent
+                new String[]{"UUID", "UNIQUEIDENTIFIER"},
                 32
         );
         add(Value.JAVA_OBJECT, Types.OTHER, "Object",
@@ -388,11 +385,7 @@ public class DataType {
                 new String[]{"RESULT_SET"},
                 400
         );
-        for (int i = 0, size = TYPES_BY_VALUE_TYPE.size(); i < size; i++) {
-            DataType dt = TYPES_BY_VALUE_TYPE.get(i);
-            if (dt == null) {
-                DbException.throwInternalError("unmapped type " + i);
-            }
+        for (Integer i : TYPES_BY_VALUE_TYPE.keySet()) {
             Value.getOrder(i);
         }
     }
@@ -444,7 +437,7 @@ public class DataType {
             }
             TYPES_BY_NAME.put(dt.name, dt);
             if (TYPES_BY_VALUE_TYPE.get(type) == null) {
-                TYPES_BY_VALUE_TYPE.set(type, dt);
+                TYPES_BY_VALUE_TYPE.put(type, dt);
             }
             TYPES.add(dt);
         }
@@ -570,12 +563,6 @@ public class DataType {
                     ValueTimestamp.get(value);
                 break;
             }
-            case Value.TIMESTAMP_UTC: {
-                Timestamp value = rs.getTimestamp(columnIndex);
-                v = value == null ? (Value) ValueNull.INSTANCE :
-                    ValueTimestampUtc.fromMillisNanos(value.getTime(), value.getNanos());
-                break;
-            }
             case Value.TIMESTAMP_TZ: {
                 TimestampWithTimeZone value = (TimestampWithTimeZone) rs.getObject(columnIndex);
                 v = value == null ? (Value) ValueNull.INSTANCE :
@@ -664,9 +651,7 @@ public class DataType {
                 InputStream in = rs.getBinaryStream(columnIndex);
                 v = (in == null) ? (Value) ValueNull.INSTANCE :
                     session.getDataHandler().getLobStorage().createBlob(in, -1);
-                if (session != null) {
-                    session.addTemporaryLob(v);
-                }
+                session.addTemporaryLob(v);
                 break;
             }
             case Value.JAVA_OBJECT: {
@@ -754,7 +739,6 @@ public class DataType {
             // "java.sql.Date";
             return Date.class.getName();
         case Value.TIMESTAMP:
-        case Value.TIMESTAMP_UTC:
             // "java.sql.Timestamp";
             return Timestamp.class.getName();
         case Value.TIMESTAMP_TZ:
@@ -994,6 +978,14 @@ public class DataType {
             return Value.ARRAY;
         } else if (isGeometryClass(x)) {
             return Value.GEOMETRY;
+        } else if (LocalDateTimeUtils.isLocalDate(x)) {
+            return Value.DATE;
+        } else if (LocalDateTimeUtils.isLocalTime(x)) {
+            return Value.TIME;
+        } else if (LocalDateTimeUtils.isLocalDateTime(x)) {
+            return Value.TIMESTAMP;
+        } else if (LocalDateTimeUtils.isOffsetDateTime(x)) {
+            return Value.TIMESTAMP_TZ;
         } else {
             return Value.JAVA_OBJECT;
         }
@@ -1080,6 +1072,13 @@ public class DataType {
             } catch (SQLException e) {
                 throw DbException.convert(e);
             }
+        } else if (x instanceof java.sql.Array) {
+            java.sql.Array array = (java.sql.Array) x;
+            try {
+                return convertToValue(session, array.getArray(), Value.ARRAY);
+            } catch (SQLException e) {
+                throw DbException.convert(e);
+            }
         } else if (x instanceof ResultSet) {
             if (x instanceof SimpleResultSet) {
                 return ValueResultSet.get((ResultSet) x);
@@ -1102,10 +1101,19 @@ public class DataType {
             return ValueStringFixed.get(((Character) x).toString());
         } else if (isGeometry(x)) {
             return ValueGeometry.getFromGeometry(x);
+        } else if (LocalDateTimeUtils.isLocalDate(x.getClass())) {
+            return LocalDateTimeUtils.localDateToDateValue(x);
+        } else if (LocalDateTimeUtils.isLocalTime(x.getClass())) {
+            return LocalDateTimeUtils.localTimeToTimeValue(x);
+        } else if (LocalDateTimeUtils.isLocalDateTime(x.getClass())) {
+            return LocalDateTimeUtils.localDateTimeToValue(x);
+        } else if (LocalDateTimeUtils.isOffsetDateTime(x.getClass())) {
+            return LocalDateTimeUtils.offsetDateTimeToValue(x);
         } else {
             return ValueJavaObject.getNoCopy(x, null, session.getDataHandler());
         }
     }
+
 
     /**
      * Check whether a given class matches the Geometry class.
@@ -1258,6 +1266,8 @@ public class DataType {
             return new JdbcBlob(conn, v, 0);
         } else if (paramClass == Clob.class) {
             return new JdbcClob(conn, v, 0);
+        } else if (paramClass == Array.class) {
+            return new JdbcArray(conn, v, 0);
         }
         if (v.getType() == Value.JAVA_OBJECT) {
             Object o = SysProperties.serializeJavaObject ? JdbcUtils.deserialize(v.getBytes(),

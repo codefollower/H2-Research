@@ -83,8 +83,10 @@ public class Function extends Expression implements FunctionCall {
             ROUNDMAGIC = 22, SIGN = 23, SIN = 24, SQRT = 25, TAN = 26,
             TRUNCATE = 27, SECURE_RAND = 28, HASH = 29, ENCRYPT = 30,
             DECRYPT = 31, COMPRESS = 32, EXPAND = 33, ZERO = 34,
-            RANDOM_UUID = 35, COSH = 36, SINH = 37, TANH = 38, LN = 39;
-    //String Functions: 字符串函数43个(文档只有38个)
+            RANDOM_UUID = 35, COSH = 36, SINH = 37, TANH = 38, LN = 39,
+            BITGET = 40;
+
+    // String Functions: 字符串函数43个(文档只有38个)
     public static final int ASCII = 50, BIT_LENGTH = 51, CHAR = 52,
             CHAR_LENGTH = 53, CONCAT = 54, DIFFERENCE = 55, HEXTORAW = 56,
             INSERT = 57, INSTR = 58, LCASE = 59, LEFT = 60, LENGTH = 61,
@@ -127,7 +129,7 @@ public class Function extends Expression implements FunctionCall {
             NVL2 = 228, DECODE = 229, ARRAY_CONTAINS = 230, FILE_WRITE = 232;
 
     public static final int REGEXP_LIKE = 240;
-    
+
     /**
      * Used in MySQL-style INSERT ... ON DUPLICATE KEY UPDATE ... VALUES
      */
@@ -230,6 +232,7 @@ public class Function extends Expression implements FunctionCall {
         addFunction("ATAN", ATAN, 1, Value.DOUBLE);
         addFunction("ATAN2", ATAN2, 2, Value.DOUBLE);
         addFunction("BITAND", BITAND, 2, Value.LONG);
+        addFunction("BITGET", BITGET, 2, Value.BOOLEAN);
         addFunction("BITOR", BITOR, 2, Value.LONG);
         addFunction("BITXOR", BITXOR, 2, Value.LONG);
         addFunction("CEILING", CEILING, 1, Value.DOUBLE);
@@ -333,8 +336,8 @@ public class Function extends Expression implements FunctionCall {
                 0, Value.DATE);
         addFunctionNotDeterministic("CURDATE", CURDATE,
                 0, Value.DATE);
-        addFunction("TO_DATE", TO_DATE, VAR_ARGS, Value.STRING);
-        addFunction("TO_TIMESTAMP", TO_TIMESTAMP, VAR_ARGS, Value.STRING);
+        addFunction("TO_DATE", TO_DATE, VAR_ARGS, Value.TIMESTAMP);
+        addFunction("TO_TIMESTAMP", TO_TIMESTAMP, VAR_ARGS, Value.TIMESTAMP);
         addFunction("ADD_MONTHS", ADD_MONTHS, 2, Value.TIMESTAMP);
         // alias for MSSQLServer
         addFunctionNotDeterministic("GETDATE", CURDATE,
@@ -518,13 +521,13 @@ public class Function extends Expression implements FunctionCall {
     }
 
     private static void addFunction(String name, int type, int parameterCount,
-            int dataType, boolean nullIfParameterIsNull, boolean deterministic,
+            int returnDataType, boolean nullIfParameterIsNull, boolean deterministic,
             boolean bufferResultSetToLocalTemp) { //7个字段
         FunctionInfo info = new FunctionInfo();
         info.name = name;
         info.type = type;
         info.parameterCount = parameterCount;
-        info.dataType = dataType;
+        info.returnDataType = returnDataType;
         info.nullIfParameterIsNull = nullIfParameterIsNull;
         info.deterministic = deterministic;
         info.bufferResultSetToLocalTemp = bufferResultSetToLocalTemp;
@@ -532,18 +535,18 @@ public class Function extends Expression implements FunctionCall {
     }
 
     private static void addFunctionNotDeterministic(String name, int type,
-            int parameterCount, int dataType) {
-        addFunction(name, type, parameterCount, dataType, true, false, true);
+            int parameterCount, int returnDataType) {
+        addFunction(name, type, parameterCount, returnDataType, true, false, true);
     }
 
     private static void addFunction(String name, int type, int parameterCount,
-            int dataType) {
-        addFunction(name, type, parameterCount, dataType, true, true, true);
+            int returnDataType) {
+        addFunction(name, type, parameterCount, returnDataType, true, true, true);
     }
 
     private static void addFunctionWithNull(String name, int type,
-            int parameterCount, int dataType) {
-        addFunction(name, type, parameterCount, dataType, false, true, true);
+            int parameterCount, int returnDataType) {
+        addFunction(name, type, parameterCount, returnDataType, false, true, true);
     }
 
     /**
@@ -1270,6 +1273,9 @@ public class Function extends Expression implements FunctionCall {
         case BITAND:
             result = ValueLong.get(v0.getLong() & v1.getLong());
             break;
+        case BITGET:
+            result = ValueBoolean.get((v0.getLong() & (1L << v1.getInt())) != 0);
+            break;
         case BITOR:
             result = ValueLong.get(v0.getLong() | v1.getLong());
             break;
@@ -1452,7 +1458,7 @@ public class Function extends Expression implements FunctionCall {
             String regexp = v1.getString();
             String replacement = v2.getString();
             String regexpMode = v3 == null || v3.getString() == null ? "" :
-                    v2.getString();
+                    v3.getString();
             int flags = makeRegexpFlags(regexpMode);
             try {
                 result = ValueString.get(
@@ -1728,12 +1734,9 @@ public class Function extends Expression implements FunctionCall {
             String fileName = v1.getString();
             try {
                 FileOutputStream fileOutputStream = new FileOutputStream(fileName);
-                InputStream in = v0.getInputStream();
-                try {
+                try (InputStream in = v0.getInputStream()) {
                     result = ValueLong.get(IOUtils.copyAndClose(in,
                             fileOutputStream));
-                } finally {
-                    in.close();
                 }
             } catch (IOException e) {
                 throw DbException.convertIOException(e, fileName);
@@ -2240,7 +2243,7 @@ public class Function extends Expression implements FunctionCall {
         return hc;
     }
 
-    public int makeRegexpFlags(String stringFlags) {
+    private static int makeRegexpFlags(String stringFlags) {
         int flags = Pattern.UNICODE_CASE;
         if (stringFlags != null) {
             for (int i = 0; i < stringFlags.length(); ++i) {
@@ -2577,7 +2580,7 @@ public class Function extends Expression implements FunctionCall {
         }
         case SUBSTRING:
         case SUBSTR: {
-            t = info.dataType;
+            t = info.returnDataType;
             p = args[0].getPrecision();
             s = 0;
             if (args[1].isConstant()) {
@@ -2594,7 +2597,7 @@ public class Function extends Expression implements FunctionCall {
             break;
         }
         default:
-            t = info.dataType;
+            t = info.returnDataType;
             DataType type = DataType.getDataType(t);
             p = PRECISION_UNKNOWN;
             d = 0;
