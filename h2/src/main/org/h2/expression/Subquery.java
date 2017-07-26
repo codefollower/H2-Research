@@ -50,15 +50,10 @@ public class Subquery extends Expression {
         query.setSession(session);
         //getValue虽然在主查询有多条记录的情况下都会被调用，但是query内部是有缓存的，只是一个浅拷贝，所以对性能影响不大
         try (ResultInterface result = query.query(2)) {
-            int rowcount = result.getRowCount();
-            if (rowcount > 1) {
-                throw DbException.get(ErrorCode.SCALAR_SUBQUERY_CONTAINS_MORE_THAN_ONE_ROW);
-            }
             Value v;
-            if (rowcount <= 0) {
+            if (!result.next()) {
                 v = ValueNull.INSTANCE;
             } else {
-                result.next();
                 Value[] values = result.currentRow();
                 if (result.getVisibleColumnCount() == 1) {
                     v = values[0];
@@ -68,6 +63,9 @@ public class Subquery extends Expression {
                 	//但进行比较时，左边的id也会转换成一个String数组，最后与ValueArray比较
                 	//所以如果子查询只需要一个列时，就不应该多写一个列，这样性能更高。
                     v = ValueArray.get(values);
+                }
+                if (result.hasNext()) {
+                    throw DbException.get(ErrorCode.SCALAR_SUBQUERY_CONTAINS_MORE_THAN_ONE_ROW);
                 }
             }
             return v;

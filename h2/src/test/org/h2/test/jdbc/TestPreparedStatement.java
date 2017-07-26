@@ -57,6 +57,7 @@ public class TestPreparedStatement extends TestBase {
         testToString(conn);
         testExecuteUpdateCall(conn);
         testPrepareExecute(conn);
+        testEnum(conn);
         testUUID(conn);
         testUUIDAsJavaObject(conn);
         testScopedGeneratedKey(conn);
@@ -94,6 +95,7 @@ public class TestPreparedStatement extends TestBase {
         testColumnMetaDataWithIn(conn);
         conn.close();
         testPreparedStatementWithLiteralsNone();
+        testPreparedStatementWithIndexedParameterAndLiteralsNone();
         deleteDb("preparedStatement");
     }
 
@@ -371,11 +373,11 @@ public class TestPreparedStatement extends TestBase {
             prepareStatement("SELECT * FROM (SELECT ? FROM DUAL)");
         PreparedStatement prep = conn.prepareStatement("SELECT -?");
         prep.setInt(1, 1);
-        prep.execute();
+        execute(prep);
         prep = conn.prepareStatement("SELECT ?-?");
         prep.setInt(1, 1);
         prep.setInt(2, 2);
-        prep.execute();
+        execute(prep);
     }
 
     private void testCancelReuse(Connection conn) throws Exception {
@@ -389,7 +391,7 @@ public class TestPreparedStatement extends TestBase {
         Task t = new Task() {
             @Override
             public void call() throws SQLException {
-                prep.execute();
+                TestPreparedStatement.this.execute(prep);
             }
         };
         t.execute();
@@ -441,6 +443,37 @@ public class TestPreparedStatement extends TestBase {
         rs.next();
         assertEquals("2", rs.getString(1));
         assertFalse(rs.next());
+    }
+
+    private void testEnum(Connection conn) throws SQLException {
+        Statement stat = conn.createStatement();
+        stat.execute("CREATE TABLE test_enum(size ENUM('small', 'medium', 'large'))");
+
+        String[] badSizes = new String[]{"green", "smol", "0"};
+        for (int i = 0; i < badSizes.length; i++) {
+            PreparedStatement prep = conn.prepareStatement(
+                    "INSERT INTO test_enum VALUES(?)");
+            prep.setObject(1, badSizes[i]);
+            assertThrows(ErrorCode.ENUM_VALUE_NOT_PERMITTED, prep).execute();
+        }
+
+        String[] goodSizes = new String[]{"small", "medium", "large"};
+        for (int i = 0; i < goodSizes.length; i++) {
+            PreparedStatement prep = conn.prepareStatement(
+                    "INSERT INTO test_enum VALUES(?)");
+            prep.setObject(1, goodSizes[i]);
+            prep.execute();
+            ResultSet rs = stat.executeQuery("SELECT * FROM test_enum");
+            for (int j = 0; j <= i; j++) {
+                rs.next();
+            }
+            assertEquals(goodSizes[i], rs.getString(1));
+            assertEquals(i, rs.getInt(1));
+            Object o = rs.getObject(1);
+            assertEquals(Integer.class, o.getClass());
+        }
+
+        stat.execute("DROP TABLE test_enum");
     }
 
     private void testUUID(Connection conn) throws SQLException {
@@ -650,6 +683,15 @@ public class TestPreparedStatement extends TestBase {
         rs.next();
         Object offsetDateTime2 = rs.getObject(1, LocalDateTimeUtils.getOffsetDateTimeClass());
         assertEquals(offsetDateTime, offsetDateTime2);
+        assertFalse(rs.next());
+        rs.close();
+
+        prep.setObject(1, offsetDateTime, 2014); // Types.TIMESTAMP_WITH_TIMEZONE
+        rs = prep.executeQuery();
+        rs.next();
+        offsetDateTime2 = rs.getObject(1, LocalDateTimeUtils.getOffsetDateTimeClass());
+        assertEquals(offsetDateTime, offsetDateTime2);
+        assertFalse(rs.next());
         rs.close();
     }
 
@@ -1378,6 +1420,27 @@ public class TestPreparedStatement extends TestBase {
         conn.close();
         deleteDb("preparedStatement");
     }
+
+    private void testPreparedStatementWithIndexedParameterAndLiteralsNone() throws SQLException {
+        // make sure that when the analyze table kicks in,
+        // it works with ALLOW_LITERALS=NONE
+        deleteDb("preparedStatement");
+        Connection conn = getConnection(
+                "preparedStatement;ANALYZE_AUTO=100");
+        conn.createStatement().execute(
+                "SET ALLOW_LITERALS NONE");
+        conn.prepareStatement("CREATE TABLE test (id INT)").execute();
+        PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO test (id) VALUES (?1)");
+
+        ps.setInt(1, 1);
+        ps.executeUpdate();
+
+        conn.close();
+        deleteDb("preparedStatement");
+    }
+
+
 
     private void checkBigDecimal(ResultSet rs, String[] value) throws SQLException {
         for (String v : value) {

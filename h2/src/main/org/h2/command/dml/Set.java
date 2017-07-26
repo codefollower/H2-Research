@@ -514,9 +514,28 @@ public class Set extends Prepared {
             int value = getIntValue();
             if (value != 0 && value != 1) {
                 throw DbException.getInvalidValueException("FORCE_JOIN_ORDER",
-                        getIntValue());
+                        value);
             }
             session.setForceJoinOrder(value == 1);
+            break;
+        }
+        case SetTypes.LAZY_QUERY_EXECUTION: {
+            int value = getIntValue();
+            if (value != 0 && value != 1) {
+                throw DbException.getInvalidValueException("LAZY_QUERY_EXECUTION",
+                        value);
+            }
+            session.setLazyQueryExecution(value == 1);
+            break;
+        }
+        case SetTypes.BUILTIN_ALIAS_OVERRIDE: {
+            session.getUser().checkAdmin();
+            int value = getIntValue();
+            if (value != 0 && value != 1) {
+                throw DbException.getInvalidValueException("BUILTIN_ALIAS_OVERRIDE",
+                        value);
+            }
+            database.setAllowBuiltinAliasOverride(value == 1);
             break;
         }
         default:

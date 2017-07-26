@@ -22,6 +22,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -33,7 +34,6 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.SimpleTimeZone;
 import java.util.concurrent.TimeUnit;
-
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.store.fs.FilePath;
@@ -129,6 +129,7 @@ public abstract class TestBase {
      *
      * @param seed the random seed value
      */
+    @SuppressWarnings("unused")
     public void testCase(int seed) throws Exception {
         // do nothing
     }
@@ -318,6 +319,9 @@ public abstract class TestBase {
         if (config.multiThreaded) {
             url = addOption(url, "MULTI_THREADED", "TRUE");
         }
+        if (config.lazy) {
+            url = addOption(url, "LAZY_QUERY_EXECUTION", "1");
+        }
         if (config.cacheType != null && admin) {
             url = addOption(url, "CACHE_TYPE", config.cacheType);
         }
@@ -330,6 +334,9 @@ public abstract class TestBase {
         }
         if (config.defrag) {
             url = addOption(url, "DEFRAG_ALWAYS", "TRUE");
+        }
+        if (config.collation != null) {
+            url = addOption(url, "COLLATION", config.collation);
         }
         return "jdbc:h2:" + url;
     }
@@ -1056,10 +1063,38 @@ public abstract class TestBase {
     protected void assertThrows(int expectedErrorCode, Statement stat,
             String sql) {
         try {
-            stat.execute(sql);
+            execute(stat, sql);
             fail("Expected error: " + expectedErrorCode);
         } catch (SQLException ex) {
             assertEquals(expectedErrorCode, ex.getErrorCode());
+        }
+    }
+
+    /**
+     * Execute the statement.
+     *
+     * @param stat the statement
+     */
+    protected void execute(PreparedStatement stat) throws SQLException {
+        execute(stat, null);
+    }
+
+    /**
+     * Execute the statement.
+     *
+     * @param stat the statement
+     * @param sql the SQL command
+     */
+    protected void execute(Statement stat, String sql) throws SQLException {
+        boolean query = sql == null ? ((PreparedStatement) stat).execute() :
+            stat.execute(sql);
+
+        if (query && config.lazy) {
+            try (ResultSet rs = stat.getResultSet()) {
+                while (rs.next()) {
+                    // just loop
+                }
+            }
         }
     }
 
@@ -1497,8 +1532,9 @@ public abstract class TestBase {
                     AssertionError ae = new AssertionError(
                             "Expected an SQLException or DbException with error code "
                                     + expectedErrorCode
-                                    + ", but got a " + t.getClass().getName() + " exception "
-                                    + " with error code " + errorCode);
+                                    + ", but got a " + (t == null ? "null" :
+                                            t.getClass().getName() + " exception "
+                                    + " with error code " + errorCode));
                     ae.initCause(t);
                     throw ae;
                 }

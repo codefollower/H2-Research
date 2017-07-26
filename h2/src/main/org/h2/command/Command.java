@@ -21,7 +21,6 @@ import org.h2.util.MathUtils;
  * Represents a SQL statement. This object is only used on the server side.
  */
 public abstract class Command implements CommandInterface {
-
     /**
      * The session.
      */
@@ -112,8 +111,8 @@ public abstract class Command implements CommandInterface {
      * @param maxrows the maximum number of rows returned
      * @return the local result set
      * @throws DbException if the command is not a query
-     */
-    public ResultInterface query(int maxrows) { //子类要实现这个方法
+     */ 
+    public ResultInterface query(int maxrows) { //子类要实现这个方法 
         throw DbException.get(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY);
     }
 
@@ -147,7 +146,8 @@ public abstract class Command implements CommandInterface {
         }
     }
 
-    private void stop() {
+    @Override
+    public void stop() {
         session.endStatement();
         session.setCurrentCommand(null);
         //DDL的isTransactional默认都是false，相当于每执行完一条DDL都默认提交事务
@@ -204,7 +204,9 @@ public abstract class Command implements CommandInterface {
                 while (true) {
                     database.checkPowerOff();
                     try {
-                        return query(maxrows);
+                        ResultInterface result = query(maxrows);
+                        callStop = !result.isLazy();
+                        return result;
                     } catch (DbException e) {
                         start = filterConcurrentUpdate(e, start);
                     } catch (OutOfMemoryError e) {

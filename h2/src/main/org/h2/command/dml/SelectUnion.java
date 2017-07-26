@@ -17,6 +17,7 @@ import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.expression.ValueExpression;
 import org.h2.message.DbException;
+import org.h2.result.LazyResult;
 import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultTarget;
@@ -151,7 +152,7 @@ public class SelectUnion extends Query {
     }
 
     @Override
-    protected LocalResult queryWithoutCache(int maxRows, ResultTarget target) {
+    protected ResultInterface queryWithoutCache(int maxRows, ResultTarget target) {
         if (maxRows != 0) {
             // maxRows is set (maxRows 0 means no limit)
             int l;
@@ -180,6 +181,25 @@ public class SelectUnion extends Query {
             }
         }
         int columnCount = left.getColumnCount();
+        if (session.isLazyQueryExecution() && unionType == UNION_ALL && !distinct &&
+                sort == null && !randomAccessResult && !isForUpdate &&
+                offsetExpr == null && isReadOnly()) {
+            int limit = -1;
+            if (limitExpr != null) {
+                Value v = limitExpr.getValue(session);
+                if (v != ValueNull.INSTANCE) {
+                    limit = v.getInt();
+                }
+            }
+            // limit 0 means no rows
+            if (limit != 0) {
+                LazyResultUnion lazyResult = new LazyResultUnion(expressionArray, columnCount);
+                if (limit > 0) {
+                    lazyResult.setLimit(limit);
+                }
+                return lazyResult;
+            }
+        }
         LocalResult result = new LocalResult(session, expressionArray, columnCount);
         if (sort != null) {
             result.setSortOrder(sort);
@@ -208,8 +228,8 @@ public class SelectUnion extends Query {
         default:
             DbException.throwInternalError("type=" + unionType);
         }
-        LocalResult l = left.query(0);
-        LocalResult r = right.query(0);
+        ResultInterface l = left.query(0);
+        ResultInterface r = right.query(0);
         l.reset();
         r.reset();
         switch (unionType) {
@@ -445,13 +465,6 @@ public class SelectUnion extends Query {
     }
 
     @Override
-    public LocalResult query(int limit, ResultTarget target) {
-        // union doesn't always know the parameter list of the left and right
-        // queries
-        return queryWithoutCache(limit, target);
-    }
-
-    @Override
     public boolean isEverything(ExpressionVisitor visitor) {
         return left.isEverything(visitor) && right.isEverything(visitor);
     }
@@ -483,4 +496,75 @@ public class SelectUnion extends Query {
         return left.allowGlobalConditions() && right.allowGlobalConditions();
     }
 
+    /**
+     * Lazy execution for this union.
+     */
+    private final class LazyResultUnion extends LazyResult {
+
+        int columnCount;
+        ResultInterface l;
+        ResultInterface r;
+        boolean leftDone;
+        boolean rightDone;
+
+        LazyResultUnion(Expression[] expressions, int columnCount) {
+            super(expressions);
+            this.columnCount = columnCount;
+        }
+
+        @Override
+        public int getVisibleColumnCount() {
+            return columnCount;
+        }
+
+        @Override
+        protected Value[] fetchNextRow() {
+            if (rightDone) {
+                return null;
+            }
+            if (!leftDone) {
+                if (l == null) {
+                    l = left.query(0);
+                    l.reset();
+                }
+                if (l.next()) {
+                    return l.currentRow();
+                }
+                leftDone = true;
+            }
+            if (r == null) {
+                r = right.query(0);
+                r.reset();
+            }
+            if (r.next()) {
+                return r.currentRow();
+            }
+            rightDone = true;
+            return null;
+        }
+
+        @Override
+        public void close() {
+            super.close();
+            if (l != null) {
+                l.close();
+            }
+            if (r != null) {
+                r.close();
+            }
+        }
+
+        @Override
+        public void reset() {
+            super.reset();
+            if (l != null) {
+                l.reset();
+            }
+            if (r != null) {
+                r.reset();
+            }
+            leftDone = false;
+            rightDone = false;
+        }
+    }
 }

@@ -54,6 +54,12 @@ public class CommandRemote implements CommandInterface {
         created = session.getLastReconnect();
     }
 
+    @Override
+    public void stop() {
+        // Must never be called, because remote result is not lazy.
+        throw DbException.throwInternalError();
+    }
+
     private void prepare(SessionRemote s, boolean createParams) {
     	//虽然getNextId内部是nextId++;
     	//但是org.h2.engine.SessionRemote.prepareCommand(String, int)是synchronized的，

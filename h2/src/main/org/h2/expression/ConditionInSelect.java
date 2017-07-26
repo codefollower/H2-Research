@@ -11,7 +11,7 @@ import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.index.IndexCondition;
 import org.h2.message.DbException;
-import org.h2.result.LocalResult;
+import org.h2.result.ResultInterface;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.util.StringUtils;
@@ -46,7 +46,6 @@ public class ConditionInSelect extends Condition {
         if (!query.hasOrder()) {
             query.setDistinct(true);
         }
-        LocalResult rows = query.query(0); 
 
         // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
         // 否则为false，
@@ -54,8 +53,9 @@ public class ConditionInSelect extends Condition {
         // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
         // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
         // 如果改成ANY，那么什么记录都不删
+        ResultInterface rows = query.query(0);
         Value l = left.getValue(session);
-        if (rows.getRowCount() == 0) {
+        if (!rows.hasNext()) {
             return ValueBoolean.get(all);
         } else if (l == ValueNull.INSTANCE) { //如果left是null，那么返回null
             return l;
@@ -86,7 +86,7 @@ public class ConditionInSelect extends Condition {
         return ValueBoolean.get(false);
     }
 
-    private Value getValueSlow(LocalResult rows, Value l) {
+    private Value getValueSlow(ResultInterface rows, Value l) {
         // this only returns the correct result if the result has at least one
         // row, and if l is not null
         boolean hasNull = false;

@@ -20,6 +20,7 @@ import org.h2.expression.Comparison;
 import org.h2.expression.Parameter;
 import org.h2.message.DbException;
 import org.h2.result.LocalResult;
+import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
@@ -275,7 +276,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         // 如 WITH RECURSIVE my_tmp_table(f1,f2)
         // AS(select id,name from CreateViewTest UNION ALL select 1, 2) select f1, f2 from my_tmp_table
         // 不过有bug
-        LocalResult recResult = view.getRecursiveResult();
+        ResultInterface recResult = view.getRecursiveResult();
         if (recResult != null) {
             recResult.reset();
             return new ViewCursor(this, recResult, first, last);
@@ -285,20 +286,17 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             parser.setRightsChecked(true);
             parser.setSuppliedParameterList(originalParameters);
             query = (Query) parser.prepare(querySQL);
+            query.setNeverLazy(true);
         }
         if (!query.isUnion()) {
             throw DbException.get(ErrorCode.SYNTAX_ERROR_2,
-                    "recursive queries without UNION ALL");
+                    "recursive queries without UNION");
         }
         SelectUnion union = (SelectUnion) query;
-        if (union.getUnionType() != SelectUnion.UNION_ALL) {
-            throw DbException.get(ErrorCode.SYNTAX_ERROR_2,
-                    "recursive queries without UNION ALL");
-        }
         Query left = union.getLeft();
         // to ensure the last result is not closed
         left.disableCache();
-        LocalResult r = left.query(0);
+        ResultInterface r = left.query(0);
         LocalResult result = union.getEmptyResult();
         // ensure it is not written to disk,
         // because it is not closed normally
@@ -317,7 +315,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             // 不过有bug
             // 这里会一直是死循环，因为right.query(0)不会返回一个空结果集
             r = right.query(0);
-            if (r.getRowCount() == 0) {
+            if (!r.hasNext()) {
                 break;
             }
             while (r.next()) {
@@ -390,7 +388,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
             return findRecursive(first, last);
         }
         setupQueryParameters(session, first, last, intersection);
-        LocalResult result = query.query(0);
+        ResultInterface result = query.query(0);
         return new ViewCursor(this, result, first, last);
     }
 

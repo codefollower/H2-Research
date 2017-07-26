@@ -81,7 +81,7 @@ public class CreateTableData {
      * The table is hidden.
      */
     public boolean isHidden;
-
+    
 	public String toString() { // 我加上的
 		return "CreateTableData[id=" + id + ", tableName=" + tableName
 				+ ", create=" + create + ", persistIndexes=" + persistIndexes

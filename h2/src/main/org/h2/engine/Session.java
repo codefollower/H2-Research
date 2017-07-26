@@ -13,12 +13,12 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
 import org.h2.api.ErrorCode;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
 import org.h2.command.Prepared;
+import org.h2.command.ddl.Analyze;
 import org.h2.command.dml.Query;
 import org.h2.command.dml.SetTypes;
 import org.h2.constraint.Constraint;
@@ -31,7 +31,7 @@ import org.h2.message.TraceSystem;
 import org.h2.mvstore.db.MVTable;
 import org.h2.mvstore.db.TransactionStore.Change;
 import org.h2.mvstore.db.TransactionStore.Transaction;
-import org.h2.result.LocalResult;
+import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.result.SortOrder;
 import org.h2.schema.Schema;
@@ -108,7 +108,7 @@ public class Session extends SessionWithState {
     private long transactionStart;
     private long currentCommandStart;
     private HashMap<String, Value> variables;
-    private HashSet<LocalResult> temporaryResults;
+    private HashSet<ResultInterface> temporaryResults;
     private int queryTimeout;
     private boolean commitOrRollbackDisabled;
     private Table waitForLock;
@@ -125,6 +125,12 @@ public class Session extends SessionWithState {
     private HashMap<Object, ViewIndex> subQueryIndexCache;
     private boolean joinBatchEnabled;
     private boolean forceJoinOrder;
+    private boolean lazyQueryExecution;
+    /**
+     * Tables marked for ANALYZE after the current transaction is committed.
+     * Prevents us calling ANALYZE repeatedly in large transactions.
+     */
+    private HashSet<Table> tablesToAnalyze;
 
     /**
      * Temporary LOBs from result sets. Those are kept for some time. The
@@ -156,6 +162,14 @@ public class Session extends SessionWithState {
         this.lockTimeout = setting == null ?
                 Constants.INITIAL_LOCK_TIMEOUT : setting.getIntValue();
         this.currentSchemaName = Constants.SCHEMA_MAIN;
+    }
+
+    public void setLazyQueryExecution(boolean lazyQueryExecution) {
+        this.lazyQueryExecution = lazyQueryExecution;
+    }
+
+    public boolean isLazyQueryExecution() {
+        return lazyQueryExecution;
     }
 
     public void setForceJoinOrder(boolean forceJoinOrder) {
@@ -661,6 +675,14 @@ public class Session extends SessionWithState {
             }
         }
         endTransaction();
+
+        int rows = getDatabase().getSettings().analyzeSample / 10;
+        if (tablesToAnalyze != null) {
+            for (Table table : tablesToAnalyze) {
+                Analyze.analyzeTable(this, table, rows, false);
+            }
+        }
+        tablesToAnalyze = null;
     }
 
     private void removeTemporaryLobs(boolean onTimeout) {
@@ -1487,7 +1509,7 @@ public class Session extends SessionWithState {
      *
      * @param result the temporary result set
      */
-    public void addTemporaryResult(LocalResult result) {
+    public void addTemporaryResult(ResultInterface result) {
         if (!result.needToClose()) {
             return;
         }
@@ -1502,7 +1524,7 @@ public class Session extends SessionWithState {
 
     private void closeTemporaryResults() {
         if (temporaryResults != null) {
-            for (LocalResult result : temporaryResults) {
+            for (ResultInterface result : temporaryResults) {
                 result.close();
             }
             temporaryResults = null;
@@ -1689,6 +1711,18 @@ public class Session extends SessionWithState {
     @Override
     public boolean isRemote() {
         return false;
+    }
+
+    /**
+     * Mark that the given table needs to be analyzed on commit.
+     *
+     * @param table the table
+     */
+    public void markTableForAnalyze(Table table) {
+        if (tablesToAnalyze == null) {
+            tablesToAnalyze = New.hashSet();
+        }
+        tablesToAnalyze.add(table);
     }
 
     /**

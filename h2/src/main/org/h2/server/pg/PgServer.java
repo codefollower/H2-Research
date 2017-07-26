@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;

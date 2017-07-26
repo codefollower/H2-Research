@@ -7,6 +7,7 @@ package org.h2.result;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import org.h2.engine.Session;
 import org.h2.engine.SessionRemote;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
@@ -51,6 +52,11 @@ public class ResultRemote implements ResultInterface {
         result = New.arrayList();
         this.fetchSize = fetchSize;
         fetchRows(false);
+    }
+
+    @Override
+    public boolean isLazy() {
+        return false;
     }
 
     @Override
@@ -149,6 +155,11 @@ public class ResultRemote implements ResultInterface {
     }
 
     @Override
+    public boolean isAfterLast() {
+        return rowId >= rowCount;
+    }
+
+    @Override
     public int getVisibleColumnCount() {
         return columns.length;
     }
@@ -156,6 +167,11 @@ public class ResultRemote implements ResultInterface {
     @Override
     public int getRowCount() {
         return rowCount;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return rowId < rowCount - 1;
     }
 
     private void sendClose() {
@@ -257,4 +273,20 @@ public class ResultRemote implements ResultInterface {
         return true;
     }
 
+    @Override
+    public ResultInterface createShallowCopy(Session targetSession) {
+        // The operation is not supported on remote result.
+        return null;
+    }
+
+    @Override
+    public boolean isClosed() {
+        return result == null;
+    }
+
+    @Override
+    public boolean containsDistinct(Value[] values) {
+        // We should never do this on remote result.
+        throw DbException.throwInternalError();
+    }
 }

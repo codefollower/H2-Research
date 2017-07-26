@@ -29,7 +29,8 @@ public class TestRecursiveQueries extends TestBase {
     @Override
     public void test() throws Exception {
         testWrongLinkLargeResult();
-        testSimple();
+        testSimpleUnionAll();
+        testSimpleUnion();
     }
 
     private void testWrongLinkLargeResult() throws Exception {
@@ -60,7 +61,7 @@ public class TestRecursiveQueries extends TestBase {
         deleteDb("recursiveQueries");
     }
 
-    private void testSimple() throws Exception {
+    private void testSimpleUnionAll() throws Exception {
         deleteDb("recursiveQueries");
         Connection conn = getConnection("recursiveQueries");
         Statement stat;
@@ -103,7 +104,7 @@ public class TestRecursiveQueries extends TestBase {
         prep2.setInt(1, 10);
         prep2.setInt(2, 2);
         prep2.setInt(3, 14);
-        prep2.execute();
+        assertTrue(prep2.executeQuery().next());
         rs = prep.executeQuery();
         assertTrue(rs.next());
         assertEquals(10, rs.getInt(1));
@@ -116,7 +117,7 @@ public class TestRecursiveQueries extends TestBase {
         prep2.setInt(1, 100);
         prep2.setInt(2, 3);
         prep2.setInt(3, 103);
-        prep2.execute();
+        assertTrue(prep2.executeQuery().next());
         rs = prep.executeQuery();
         assertTrue(rs.next());
         assertEquals(100, rs.getInt(1));
@@ -151,6 +152,28 @@ public class TestRecursiveQueries extends TestBase {
                 + "where x not in (with w(x) as (select 1 union all select x+1 from w where x<3) "
                 + "select x from w)");
         assertResultSetOrdered(rs, new String[][]{{"4"}, {"5"}});
+
+        conn.close();
+        deleteDb("recursiveQueries");
+    }
+
+    private void testSimpleUnion() throws Exception {
+        deleteDb("recursiveQueries");
+        Connection conn = getConnection("recursiveQueries");
+        Statement stat;
+        ResultSet rs;
+
+        stat = conn.createStatement();
+        rs = stat.executeQuery("with recursive t(n) as " +
+                "(select 1 union select n+1 from t where n<3) " +
+                "select * from t");
+        assertTrue(rs.next());
+        assertEquals(1, rs.getInt(1));
+        assertTrue(rs.next());
+        assertEquals(2, rs.getInt(1));
+        assertTrue(rs.next());
+        assertEquals(3, rs.getInt(1));
+        assertFalse(rs.next());
 
         conn.close();
         deleteDb("recursiveQueries");

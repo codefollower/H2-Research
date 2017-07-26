@@ -22,7 +22,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.h2.fulltext.FullText;
 import org.h2.store.fs.FileUtils;
+import org.h2.test.TestAll;
 import org.h2.test.TestBase;
+import org.h2.util.IOUtils;
 import org.h2.util.Task;
 
 /**
@@ -49,10 +51,6 @@ public class TestFullText extends TestBase {
 
     @Override
     public void test() throws Exception {
-        if (config.multiThreaded) {
-            // It is even mentioned in the docs that this is not supported
-            return;
-        }
         testUuidPrimaryKey(false);
         testAutoAnalyze();
         testNativeFeatures();
@@ -70,7 +68,9 @@ public class TestFullText extends TestBase {
                 testCreateDropLucene();
                 testUuidPrimaryKey(true);
                 testMultiThreaded(true);
-                testMultiThreaded(false);
+                if(config.mvStore || !config.multiThreaded) {
+                    testMultiThreaded(false);
+                }
                 testTransaction(true);
                 test(true, "VARCHAR");
                 test(true, "CLOB");
@@ -90,9 +90,9 @@ public class TestFullText extends TestBase {
         deleteDb("fullTextReopen");
     }
 
-    private static void close(Collection<Connection> list) throws SQLException {
+    private static void close(Collection<Connection> list) {
         for (Connection conn : list) {
-            conn.close();
+            IOUtils.closeSilently(conn);
         }
     }
 
@@ -255,7 +255,7 @@ public class TestFullText extends TestBase {
             int len = 2;
             Task[] task = new Task[len];
             for (int i = 0; i < len; i++) {
-                final Connection conn = getConnection("fullText", connList);
+                final Connection conn = getConnection("fullText;LOCK_TIMEOUT=60000", connList);
                 Statement stat = conn.createStatement();
                 initFullText(stat, lucene);
                 initFullText(stat, lucene);
@@ -491,8 +491,7 @@ public class TestFullText extends TestBase {
             return;
         }
         deleteDb("fullText");
-        ArrayList<Connection> connList = new ArrayList<Connection>();
-        Connection conn = getConnection("fullText", connList);
+        Connection conn = getConnection("fullText");
         String prefix = lucene ? "FTL_" : "FT_";
         Statement stat = conn.createStatement();
         String className = lucene ? "FullTextLucene" : "FullText";
@@ -590,15 +589,15 @@ public class TestFullText extends TestBase {
 
         if (!config.memory) {
             conn.close();
+            conn = getConnection("fullText");
         }
 
-        conn = getConnection("fullText", connList);
         stat = conn.createStatement();
         stat.executeQuery("SELECT * FROM " + prefix + "SEARCH('World', 0, 0)");
 
         stat.execute("CALL " + prefix + "DROP_ALL()");
 
-        close(connList);
+        conn.close();
     }
 
     private void testDropIndex(boolean lucene) throws SQLException {
@@ -625,7 +624,6 @@ public class TestFullText extends TestBase {
                 "_CREATE_INDEX('PUBLIC', 'TEST', 'NAME1, NAME2')");
         stat.execute("UPDATE TEST SET NAME2=NULL WHERE ID=1");
         stat.execute("UPDATE TEST SET NAME2='Hello World' WHERE ID=1");
-        conn.close();
 
         conn.close();
         FileUtils.deleteRecursive(getBaseDir() + "/fullTextDropIndex", false);

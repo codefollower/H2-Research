@@ -274,6 +274,7 @@ public class Function extends Expression implements FunctionCall {
         addFunction("ZERO", ZERO, 0, Value.INT);
         addFunctionNotDeterministic("RANDOM_UUID", RANDOM_UUID, 0, Value.UUID);
         addFunctionNotDeterministic("SYS_GUID", RANDOM_UUID, 0, Value.UUID);
+        addFunctionNotDeterministic("UUID", RANDOM_UUID, 0, Value.UUID);
         // string
         addFunction("ASCII", ASCII, 1, Value.INT);
         addFunction("BIT_LENGTH", BIT_LENGTH, 1, Value.LONG);
@@ -336,6 +337,8 @@ public class Function extends Expression implements FunctionCall {
                 0, Value.DATE);
         addFunctionNotDeterministic("CURDATE", CURDATE,
                 0, Value.DATE);
+        addFunctionNotDeterministic("TODAY", CURRENT_DATE,
+                0, Value.DATE);
         addFunction("TO_DATE", TO_DATE, VAR_ARGS, Value.TIMESTAMP);
         addFunction("TO_TIMESTAMP", TO_TIMESTAMP, VAR_ARGS, Value.TIMESTAMP);
         addFunction("ADD_MONTHS", ADD_MONTHS, 2, Value.TIMESTAMP);
@@ -344,9 +347,15 @@ public class Function extends Expression implements FunctionCall {
                 0, Value.DATE);
         addFunctionNotDeterministic("CURRENT_TIME", CURRENT_TIME,
                 0, Value.TIME);
+        addFunctionNotDeterministic("SYSTIME", CURRENT_TIME,
+                0, Value.TIME);
         addFunctionNotDeterministic("CURTIME", CURTIME,
                 0, Value.TIME);
         addFunctionNotDeterministic("CURRENT_TIMESTAMP", CURRENT_TIMESTAMP,
+                VAR_ARGS, Value.TIMESTAMP);
+        addFunctionNotDeterministic("SYSDATE", CURRENT_TIMESTAMP,
+                VAR_ARGS, Value.TIMESTAMP);
+        addFunctionNotDeterministic("SYSTIMESTAMP", CURRENT_TIMESTAMP,
                 VAR_ARGS, Value.TIMESTAMP);
         addFunctionNotDeterministic("NOW", NOW,
                 VAR_ARGS, Value.TIMESTAMP);
@@ -1299,7 +1308,11 @@ public class Function extends Expression implements FunctionCall {
     		//sql = "SELECT ROUND(12.235, 2)"; //12.24
     		//sql = "SELECT ROUND(12.236, 2)"; //12.24
             double f = v1 == null ? 1. : Math.pow(10., v1.getDouble()); //小数位是2，相当于先求10的2次方
-            result = ValueDouble.get(Math.round(v0.getDouble() * f) / f);
+
+            double middleResult = v0.getDouble() * f;
+
+            int oneWithSymbol = middleResult > 0 ? 1 : -1;
+            result = ValueDouble.get(Math.round(Math.abs(middleResult)) / f * oneWithSymbol);
             break;
         }
         case TRUNCATE: {
@@ -1324,7 +1337,7 @@ public class Function extends Expression implements FunctionCall {
             } else if (v0.getType() == Value.STRING) {
                 ValueString vd = (ValueString) v0;
                 Calendar c = Calendar.getInstance();
-                c.setTime(ValueTimestamp.parse(vd.getString()).getDate());
+                c.setTime(ValueTimestamp.parse(vd.getString(), session.getDatabase().getMode()).getDate());
                 c.set(Calendar.HOUR_OF_DAY, 0);
                 c.set(Calendar.MINUTE, 0);
                 c.set(Calendar.SECOND, 0);
@@ -1969,6 +1982,7 @@ public class Function extends Expression implements FunctionCall {
         default:
             break;
         }
+        calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         calendar.setTimeInMillis(t1);
         int year1 = calendar.get(Calendar.YEAR);
         int month1 = calendar.get(Calendar.MONTH);

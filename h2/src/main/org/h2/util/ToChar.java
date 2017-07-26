@@ -121,8 +121,7 @@ public class ToChar {
      * @param nlsParam the NLS parameter (if any)
      * @return the formatted number
      */
-    public static String toChar(BigDecimal number, String format,
-            String nlsParam) {
+    public static String toChar(BigDecimal number, String format, String nlsParam) {
 
         // short-circuit logic for formats that don't follow common logic below
         String formatUp = format != null ? StringUtils.toUpperEnglish(format) : null;

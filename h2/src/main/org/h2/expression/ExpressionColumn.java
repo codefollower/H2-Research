@@ -22,6 +22,7 @@ import org.h2.table.Table;
 import org.h2.table.TableFilter;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
+import org.h2.value.ValueEnum;
 
 /**
  * A expression that represents a column of a table or view.
@@ -207,6 +208,9 @@ public class ExpressionColumn extends Expression {
         if (value == null) {
             columnResolver.getValue(column);
             throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
+        }
+        if (column.getEnumerators() != null) {
+            return ValueEnum.get(column.getEnumerators(), value.getInt());
         }
         return value;
     }

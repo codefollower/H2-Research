@@ -37,6 +37,7 @@ import org.h2.test.db.TestExclusive;
 import org.h2.test.db.TestFullText;
 import org.h2.test.db.TestFunctionOverload;
 import org.h2.test.db.TestFunctions;
+import org.h2.test.db.TestGeneralCommonTableQueries;
 import org.h2.test.db.TestIndex;
 import org.h2.test.db.TestIndexHints;
 import org.h2.test.db.TestLargeBlob;
@@ -66,10 +67,12 @@ import org.h2.test.db.TestScriptSimple;
 import org.h2.test.db.TestSelectCountNonNullColumn;
 import org.h2.test.db.TestSequence;
 import org.h2.test.db.TestSessionsLocks;
+import org.h2.test.db.TestSetCollation;
 import org.h2.test.db.TestShow;
 import org.h2.test.db.TestSpaceReuse;
 import org.h2.test.db.TestSpatial;
 import org.h2.test.db.TestSpeed;
+import org.h2.test.db.TestSynonymForTable;
 import org.h2.test.db.TestTableEngines;
 import org.h2.test.db.TestTempTables;
 import org.h2.test.db.TestTransaction;
@@ -91,6 +94,7 @@ import org.h2.test.jdbc.TestCallableStatement;
 import org.h2.test.jdbc.TestCancel;
 import org.h2.test.jdbc.TestConcurrentConnectionUsage;
 import org.h2.test.jdbc.TestConnection;
+import org.h2.test.jdbc.TestCustomDataTypesHandler;
 import org.h2.test.jdbc.TestDatabaseEventListener;
 import org.h2.test.jdbc.TestDriver;
 import org.h2.test.jdbc.TestJavaObject;
@@ -116,6 +120,7 @@ import org.h2.test.mvcc.TestMvcc2;
 import org.h2.test.mvcc.TestMvcc3;
 import org.h2.test.mvcc.TestMvcc4;
 import org.h2.test.mvcc.TestMvccMultiThreaded;
+import org.h2.test.mvcc.TestMvccMultiThreaded2;
 import org.h2.test.poweroff.TestReorderWrites;
 import org.h2.test.recover.RecoverLobTest;
 import org.h2.test.rowlock.TestRowLocks;
@@ -168,6 +173,7 @@ import org.h2.test.unit.TestBitField;
 import org.h2.test.unit.TestBitStream;
 import org.h2.test.unit.TestBnf;
 import org.h2.test.unit.TestCache;
+import org.h2.test.unit.TestCharsetCollator;
 import org.h2.test.unit.TestClearReferences;
 import org.h2.test.unit.TestCollation;
 import org.h2.test.unit.TestCompress;
@@ -315,6 +321,11 @@ java org.h2.test.TestAll timer
     public boolean multiThreaded;
 
     /**
+     * If lazy queries should be used.
+     */
+    public boolean lazy;
+
+    /**
      * The cipher to use (null for unencrypted).
      */
     public String cipher;
@@ -410,6 +421,10 @@ java org.h2.test.TestAll timer
      */
     String cacheType;
 
+    /** If not null the database should be opened with the collation parameter */
+    public String collation;
+
+
     /**
      * The AB-BA locking detector.
      */
@@ -421,6 +436,7 @@ java org.h2.test.TestAll timer
     ArrayList<TestBase> tests = New.arrayList();
 
     private Server server;
+
 
     /**
      * Run all tests.
@@ -453,8 +469,6 @@ java org.h2.test.TestAll timer
         System.setProperty("h2.useThreadContextClassLoader", "true");
 
         // System.setProperty("h2.modifyOnWrite", "true");
-
-        // System.setProperty("h2.storeLocalTime", "true");
 
         // speedup
         // System.setProperty("h2.syncMethod", "");
@@ -602,6 +616,13 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         test();
         testUnit();
 
+        // lazy
+        lazy = true;
+        memory = true;
+        multiThreaded = true;
+        test();
+        lazy = false;
+
         // but sometimes race conditions need bigger windows
         memory = false;
         multiThreaded = true;
@@ -724,6 +745,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestOutOfMemory());
         addTest(new TestReadOnly());
         addTest(new TestRecursiveQueries());
+        addTest(new TestGeneralCommonTableQueries());
         addTest(new TestRights());
         addTest(new TestRunscript());
         addTest(new TestSQLInjection());
@@ -744,6 +766,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestViewAlterTable());
         addTest(new TestViewDropView());
         addTest(new TestReplace());
+        addTest(new TestSynonymForTable());
 
         // jaqu
         addTest(new AliasMapTest());
@@ -772,6 +795,8 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestTransactionIsolation());
         addTest(new TestUpdatableResultSet());
         addTest(new TestZloty());
+        addTest(new TestCustomDataTypesHandler());
+        addTest(new TestSetCollation());
 
         // jdbcx
         addTest(new TestConnectionPool());
@@ -789,6 +814,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestMvcc3());
         addTest(new TestMvcc4());
         addTest(new TestMvccMultiThreaded());
+        addTest(new TestMvccMultiThreaded2());
         addTest(new TestRowLocks());
 
         // synth
@@ -843,7 +869,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestMVTableEngine());
         addTest(new TestObjectDataType());
         addTest(new TestRandomMapOps());
-        addTest(new TestReorderWrites());
         addTest(new TestSpinLock());
         addTest(new TestStreamStore());
         addTest(new TestTransactionStore());
@@ -856,6 +881,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestBitStream());
         addTest(new TestBnf());
         addTest(new TestCache());
+        addTest(new TestCharsetCollator());
         addTest(new TestClearReferences());
         addTest(new TestCollation());
         addTest(new TestCompress());
@@ -1061,6 +1087,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
     public String toString() {
         StringBuilder buff = new StringBuilder();
         appendIf(buff, fast, "fast");
+        appendIf(buff, lazy, "lazy");
         appendIf(buff, mvStore, "mvStore");
         appendIf(buff, big, "big");
         appendIf(buff, networked, "net");
@@ -1082,6 +1109,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         appendIf(buff, stopOnError, "stopOnError");
         appendIf(buff, defrag, "defrag");
         appendIf(buff, splitFileSystem, "split");
+        appendIf(buff, collation != null, collation);
         return buff.toString();
     }
 

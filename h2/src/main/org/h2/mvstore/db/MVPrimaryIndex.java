@@ -48,11 +48,6 @@ public class MVPrimaryIndex extends BaseIndex {
      */
     static final ValueLong MAX = ValueLong.get(Long.MAX_VALUE);
 
-    /**
-     * The zero long value.
-     */
-    static final ValueLong ZERO = ValueLong.get(0);
-
     private final MVTable mvTable;
     private final String mapName;
     private TransactionMap<Value, Value> dataMap;
@@ -245,6 +240,11 @@ public class MVPrimaryIndex extends BaseIndex {
     public int getColumnIndex(Column col) {
         // can not use this index - use the delegate index instead
         return -1;
+    }
+
+    @Override
+    public boolean isFirstColumn(Column column) {
+        return false;
     }
 
     @Override
