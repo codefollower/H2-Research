@@ -159,6 +159,7 @@ public class TcpServerThread implements Runnable {
                 server.addConnection(threadId, originalURL, ci.getUserName());
                 trace("Connected");
             } catch (Throwable e) {
+                //e.printStackTrace(); //我加上的
                 sendError(e);
                 stop = true;
             }

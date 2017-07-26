@@ -21,6 +21,7 @@ package my.test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -138,6 +139,10 @@ public class JDBCExample {
         stmt.executeUpdate("DROP TABLE IF EXISTS test");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS test (f1 int primary key, f2 long)");
         stmt.executeUpdate("set MULTI_THREADED 1");
+
+        PreparedStatement ps = conn.prepareStatement("delete from test where f1=$1");
+        ps.setInt(1, 3);
+        ps.executeUpdate();
 
         for (int i = 1; i < 50000; i++) {
             String sql = "INSERT INTO test(f1, f2) VALUES(" + i + "," + i * 10 + ")";

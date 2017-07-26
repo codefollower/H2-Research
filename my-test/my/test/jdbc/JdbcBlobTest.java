@@ -22,13 +22,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
-import my.test.TestBase;
-
 import org.h2.jdbc.JdbcBlob;
+
+import my.test.TestBase;
 
 public class JdbcBlobTest extends TestBase {
 
     public static void main(String[] args) throws Exception {
+        System.setProperty("h2.lobClientMaxSizeMemory", "8192");
         new JdbcBlobTest().crud();
     }
 
@@ -38,7 +39,7 @@ public class JdbcBlobTest extends TestBase {
         Statement stmt = conn.createStatement();
 
         stmt.executeUpdate("DROP TABLE IF EXISTS test");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS test (f1 int , f2 long, f3 blob)");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS test (f1 int, f2 long, f3 blob)");
 
         JdbcBlob blob = (JdbcBlob) conn.createBlob();
 

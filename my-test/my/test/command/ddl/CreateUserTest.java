@@ -21,12 +21,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.Properties;
 
-import my.test.TestBase;
-
 import org.h2.engine.Constants;
 import org.h2.security.SHA256;
 import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
+
+import my.test.TestBase;
 
 public class CreateUserTest extends TestBase {
     public static void main(String[] args) throws Exception {
@@ -88,6 +88,9 @@ public class CreateUserTest extends TestBase {
         prop.setProperty("PASSWORD_HASH", "true");
         Connection conn = DriverManager.getConnection("jdbc:h2:tcp://localhost:9092/mydb", prop);
         conn.close();
+
+        // H2的bug，重命名用户后将不能通过原来的密码登录
+        // stmt.executeUpdate("ALTER USER sa RENAME TO root");
     }
 
     void rightTest() throws Exception {
@@ -100,16 +103,19 @@ public class CreateUserTest extends TestBase {
         // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 IDENTITY(1,10),PRIMARY KEY(f1))");
         // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 int,PRIMARY KEY(f1))");
 
-        // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 int,CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' INDEX int)");
+        // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 int,CONSTRAINT IF NOT EXISTS my_constraint
+        // COMMENT IS 'haha' INDEX int)");
 
-        // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 int,f2 int,CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' INDEX my_int(f1,f2))");
+        // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 int,f2 int,CONSTRAINT IF NOT EXISTS
+        // my_constraint COMMENT IS 'haha' INDEX my_int(f1,f2))");
         // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TEST9.public.CreateUserTest (f1 int,f2 int,"
         // + "CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' CHECK f1>0)");
         // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 int,f2 int,"
         // +
-        // "CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' UNIQUE KEY INDEX my_constraint2(f1,f2) INDEX myi)");
+        // "CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' UNIQUE KEY INDEX my_constraint2(f1,f2) INDEX
+        // myi)");
         // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CreateUserTest (f1 int,f2 int,"
-        // + "CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' FOREIGN KEY(f1,f2))  INDEX my-i REFERENCES(f1)");
+        // + "CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' FOREIGN KEY(f1,f2)) INDEX my-i REFERENCES(f1)");
 
         stmt.executeUpdate("CREATE ROLE IF NOT EXISTS myrole1");
         stmt.executeUpdate("CREATE ROLE IF NOT EXISTS myrole2");

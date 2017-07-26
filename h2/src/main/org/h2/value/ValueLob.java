@@ -43,6 +43,9 @@ import org.h2.util.Utils;
  *
  * Data compression is supported.
  */
+//不用于客户端与服务器端的网络传输了，而是用ValueLobDb来替换，
+//这个类用于Data类的readValue和writeValue方法中，
+//兼容老的PageStore存储引擎，存储BLOB/CLOB数据，包括对一些中间记录的BLOB/CLOB字段的序列化与反序列化。
 public class ValueLob extends Value {
 
     /**

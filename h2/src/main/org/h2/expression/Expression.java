@@ -170,7 +170,7 @@ public abstract class Expression {
      *
      * @return true if it is an auto-increment column
      */
-    public boolean isAutoIncrement() {
+    public boolean isAutoIncrement() { //只有子类Alias和ExpressionColumn覆盖了此方法
         return false;
     }
 
@@ -182,7 +182,7 @@ public abstract class Expression {
      * @param session the session
      * @return the result
      */
-    public Boolean getBooleanValue(Session session) {
+    public Boolean getBooleanValue(Session session) { //没有字类覆盖
         return getValue(session).getBoolean();
     }
 
@@ -205,7 +205,7 @@ public abstract class Expression {
      *
      * @return the column name
      */
-    public String getColumnName() {
+    public String getColumnName() { //只有子类Alias和ExpressionColumn覆盖了此方法
         return getAlias();
     }
 
@@ -214,7 +214,7 @@ public abstract class Expression {
      *
      * @return the schema name
      */
-    public String getSchemaName() {
+    public String getSchemaName() { //只有子类Wildcard和ExpressionColumn覆盖了此方法
         return null;
     }
 
@@ -223,7 +223,7 @@ public abstract class Expression {
      *
      * @return the table name
      */
-    public String getTableName() {
+    public String getTableName() { //只有子类Alias和ExpressionColumn覆盖了此方法
         return null;
     }
 
@@ -232,7 +232,7 @@ public abstract class Expression {
      *
      * @return whether NULL is allowed
      */
-    public int getNullable() {
+    public int getNullable() { //只有子类Alias和ExpressionColumn覆盖了此方法
         return Column.NULLABLE_UNKNOWN;
     }
 
@@ -252,7 +252,7 @@ public abstract class Expression {
      *
      * @return the alias name
      */
-    public String getAlias() {
+    public String getAlias() { //只有子类Alias和ExpressionColumn覆盖了此方法
         return StringUtils.unEnclose(getSQL());
     }
 

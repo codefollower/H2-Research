@@ -3772,7 +3772,7 @@ public class Parser {
 							//例如"DROP TABLE //TA"，没有回车换行符, 此时i >= len - 1
 							//sql语句变成"DROP TABLE    A "
 							//但是对应"A"的type是0，所以碰巧避免了问题: 
-							//Syntax error in SQL statement "DROP TABLE    A "; 
+							//Syntax error in SQL statement "DROP TABLE    A "; //所以最好加上command[i] = " "
 							//expected "identifier"; SQL statement: DROP TABLE //TA [42001-170]
                             break;
                         }
@@ -3829,7 +3829,7 @@ public class Parser {
                         type = CHAR_NAME;
                     } else {
                     	//如: 支持自定义的参数顺序，而不是按?出现的顺序排
-                    	//PreparedStatement ps = conn.prepareStatement("delete top ?2 from ParserTest where id>10 and name=?1");
+                    	//PreparedStatement ps = conn.prepareStatement("delete top $2 from ParserTest where id>10 and name=$1");
                 		//ps.setString(1, "abc");
                 		//ps.setInt(2, 3);
                 		//ps.executeUpdate();
@@ -3869,7 +3869,7 @@ public class Parser {
             case '\'': //字符串，注意在sql里字符串是用单引号括起来，不像java是用双引号
                 type = types[i] = CHAR_STRING;
                 startLoop = i;
-                while (command[++i] != '\'') {
+                while (command[++i] != '\'') { //最后一个会在后面赋值types[i] = type = CHAR_STRING
                     checkRunOver(i, len, startLoop);
                 }
                 break;
@@ -5808,11 +5808,8 @@ public class Parser {
     }
 
     private Prepared parseAlterTable() {
-//<<<<<<< HEAD
-//    	//ALTER TABLE命令就分下面5大类: 
-//        //增加约束、增加列、重命名表、DROP约束和列、修改列
-//        Table table = readTableOrView();
-//=======
+    	//ALTER TABLE命令就分下面5大类: 
+        //增加约束、增加列、重命名表、DROP约束和列、修改列
         boolean ifTableExists = readIfExists(false);
         String tableName = readIdentifierWithSchema();
         Schema schema = getSchema();
@@ -5822,11 +5819,8 @@ public class Parser {
             if (command != null) {
                 return command;
             }
-//<<<<<<< HEAD
-//            //ADD COLUMN时不能加约束，比如这个是错的:
-//            //ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int PRIMARY KEY
-//            return parseAlterTableAddColumn(table);
-//=======
+            //ADD COLUMN时不能加约束，比如这个是错的:
+            //ALTER TABLE mytable ADD COLUMN IF NOT EXISTS f3 int PRIMARY KEY
             return parseAlterTableAddColumn(tableName, schema, ifTableExists);
         } else if (readIf("SET")) {
             read("REFERENTIAL_INTEGRITY");

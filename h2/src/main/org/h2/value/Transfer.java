@@ -606,6 +606,8 @@ public class Transfer {
             long length = readLong();
             if (version >= Constants.TCP_PROTOCOL_VERSION_11) {
                 if (length == -1) {
+                    //从服务器端返回lob数据时走这个代码分支，
+                    //注意，这里还没开始传lob字节流，等到客户端发LOB_READ指令时才开始传
                     int tableId = readInt();
                     long id = readLong();
                     byte[] hmac;

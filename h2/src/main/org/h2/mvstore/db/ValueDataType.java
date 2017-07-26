@@ -98,8 +98,11 @@ public class ValueDataType implements DataType {
             int al = ax.length;
             int bl = bx.length;
             int len = Math.min(al, bl);
-            for (int i = 0; i < len; i++) {
-                int sortType = sortTypes[i];
+            for (int i = 0; i < len; i++) {int sortType;
+                // if(sortTypes==null)
+                //    sortType = 0;
+                // else sortType = sortTypes[i];
+                sortType = sortTypes[i];
                 int comp = compareValues(ax[i], bx[i], sortType);
                 if (comp != 0) {
                     return comp;
@@ -133,6 +136,9 @@ public class ValueDataType implements DataType {
         if (aNull || bNull) {
             return SortOrder.compareNull(aNull, sortType);
         }
+        // CompareMode compareMode=this.compareMode;
+        // if(compareMode==null)
+        //    compareMode=CompareMode.getInstance(null, 0);
         int comp = a.compareTypeSafe(b, compareMode);
         if ((sortType & SortOrder.DESCENDING) != 0) {
             comp = -comp;
