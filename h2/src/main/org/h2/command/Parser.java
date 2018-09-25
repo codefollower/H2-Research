@@ -2163,7 +2163,7 @@ public class Parser {
     }
     
     //只处理SELECT语句中的from、Select Expression、where、group by、having子句
-    //从这里也看出LIMIT、ordey by、FOR UPDATE必须出现在where、group by、having子句后面
+    //从这里也看出LIMIT、order by、FOR UPDATE必须出现在where、group by、having子句后面
     private Select parseSelectSimple() {
         boolean fromFirst;
         if (readIf("SELECT")) {
