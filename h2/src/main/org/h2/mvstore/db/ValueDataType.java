@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,6 +13,9 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 import org.h2.api.ErrorCode;
+import org.h2.api.IntervalQualifier;
+import org.h2.engine.Database;
+import org.h2.engine.Mode;
 import org.h2.message.DbException;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
@@ -23,6 +26,7 @@ import org.h2.result.SortOrder;
 import org.h2.store.DataHandler;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.JdbcUtils;
+import org.h2.util.Utils;
 import org.h2.value.CompareMode;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
@@ -35,6 +39,7 @@ import org.h2.value.ValueDouble;
 import org.h2.value.ValueFloat;
 import org.h2.value.ValueGeometry;
 import org.h2.value.ValueInt;
+import org.h2.value.ValueInterval;
 import org.h2.value.ValueJavaObject;
 import org.h2.value.ValueLobDb;
 import org.h2.value.ValueLong;
@@ -72,12 +77,22 @@ public class ValueDataType implements DataType {
 
     final DataHandler handler;
     final CompareMode compareMode;
+    protected final Mode mode;
     final int[] sortTypes;
     SpatialDataType spatialType;
 
-    public ValueDataType(CompareMode compareMode, DataHandler handler,
+    public ValueDataType() {
+        this(CompareMode.getInstance(null, 0), null, null, null);
+    }
+
+    public ValueDataType(Database database, int[] sortTypes) {
+        this(database.getCompareMode(), database.getMode(), database, sortTypes);
+    }
+
+    private ValueDataType(CompareMode compareMode, Mode mode, DataHandler handler,
             int[] sortTypes) {
         this.compareMode = compareMode;
+        this.mode = mode;
         this.handler = handler;
         this.sortTypes = sortTypes;
     }
@@ -100,12 +115,23 @@ public class ValueDataType implements DataType {
             int al = ax.length;
             int bl = bx.length;
             int len = Math.min(al, bl);
-            for (int i = 0; i < len; i++) {int sortType;
-                // if(sortTypes==null)
-                //    sortType = 0;
-                // else sortType = sortTypes[i];
-                sortType = sortTypes[i];
-                int comp = compareValues(ax[i], bx[i], sortType);
+//<<<<<<< HEAD
+//            for (int i = 0; i < len; i++) {int sortType;
+//                // if(sortTypes==null)
+//                //    sortType = 0;
+//                // else sortType = sortTypes[i];
+//                sortType = sortTypes[i];
+//                int comp = compareValues(ax[i], bx[i], sortType);
+//=======
+            for (int i = 0; i < len; i++) {
+                int sortType = sortTypes == null ? SortOrder.ASCENDING : sortTypes[i];
+                Value one = ax[i];
+                Value two = bx[i];
+                if (one == null || two == null) {
+                    return compareValues(ax[len - 1], bx[len - 1], SortOrder.ASCENDING);
+                }
+
+                int comp = compareValues(one, two, sortType);
                 if (comp != 0) {
                     return comp;
                 }
@@ -124,24 +150,18 @@ public class ValueDataType implements DataType {
         if (a == b) {
             return 0;
         }
-        // null is never stored;
-        // comparison with null is used to retrieve all entries
-        // in which case null is always lower than all entries
-        // (even for descending ordered indexes)
-        if (a == null) {
-            return -1;
-        } else if (b == null) {
-            return 1;
-        }
         boolean aNull = a == ValueNull.INSTANCE;
-        boolean bNull = b == ValueNull.INSTANCE;
-        if (aNull || bNull) {
+        if (aNull || b == ValueNull.INSTANCE) {
             return SortOrder.compareNull(aNull, sortType);
         }
-        // CompareMode compareMode=this.compareMode;
-        // if(compareMode==null)
-        //    compareMode=CompareMode.getInstance(null, 0);
-        int comp = a.compareTypeSafe(b, compareMode);
+//<<<<<<< HEAD
+//        // CompareMode compareMode=this.compareMode;
+//        // if(compareMode==null)
+//        //    compareMode=CompareMode.getInstance(null, 0);
+//        int comp = a.compareTypeSafe(b, compareMode);
+//=======
+
+        int comp = a.compareTo(b, mode, compareMode);
         if ((sortType & SortOrder.DESCENDING) != 0) {
             comp = -comp;
         }
@@ -198,8 +218,7 @@ public class ValueDataType implements DataType {
         int type = v.getType();
         switch (type) {
         case Value.BOOLEAN:
-            buff.put((byte) (v.getBoolean().booleanValue() ?
-                    BOOLEAN_TRUE : BOOLEAN_FALSE));
+            buff.put((byte) (v.getBoolean() ? BOOLEAN_TRUE : BOOLEAN_FALSE));
             break;
         case Value.BYTE:
             buff.put((byte) type).put(v.getByte());
@@ -436,6 +455,40 @@ public class ValueDataType implements DataType {
                 put(b);
             break;
         }
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE: {
+            ValueInterval interval = (ValueInterval) v;
+            int ordinal = type - Value.INTERVAL_YEAR;
+            if (interval.isNegative()) {
+                ordinal = ~ordinal;
+            }
+            buff.put((byte) Value.INTERVAL_YEAR).
+                put((byte) ordinal).
+                putVarLong(interval.getLeading());
+            break;
+        }
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND: {
+            ValueInterval interval = (ValueInterval) v;
+            int ordinal = type - Value.INTERVAL_YEAR;
+            if (interval.isNegative()) {
+                ordinal = ~ordinal;
+            }
+            buff.put((byte) Value.INTERVAL_YEAR).
+                put((byte) (ordinal)).
+                putVarLong(interval.getLeading()).
+                putVarLong(interval.getRemaining());
+            break;
+        }
         default:
             if (JdbcUtils.customDataTypesHandler != null) {
                 byte[] b = v.getBytesNoCopy();
@@ -465,11 +518,12 @@ public class ValueDataType implements DataType {
         case Value.NULL:
             return ValueNull.INSTANCE;
         case BOOLEAN_TRUE:
-            return ValueBoolean.get(true);
+            return ValueBoolean.TRUE;
         case BOOLEAN_FALSE:
-            return ValueBoolean.get(false);
+            return ValueBoolean.FALSE;
         case INT_NEG:
             return ValueInt.get(-readVarInt(buff));
+        case Value.ENUM:
         case Value.INT:
             return ValueInt.get(readVarInt(buff));
         case LONG_NEG:
@@ -495,7 +549,7 @@ public class ValueDataType implements DataType {
         case Value.DECIMAL: {
             int scale = readVarInt(buff);
             int len = readVarInt(buff);
-            byte[] buff2 = DataUtils.newBytes(len);
+            byte[] buff2 = Utils.newBytes(len);
             buff.get(buff2, 0, len);
             BigInteger b = new BigInteger(buff2);
             return ValueDecimal.get(new BigDecimal(b, scale));
@@ -520,13 +574,13 @@ public class ValueDataType implements DataType {
         }
         case Value.BYTES: {
             int len = readVarInt(buff);
-            byte[] b = DataUtils.newBytes(len);
+            byte[] b = Utils.newBytes(len);
             buff.get(b, 0, len);
             return ValueBytes.getNoCopy(b);
         }
         case Value.JAVA_OBJECT: {
             int len = readVarInt(buff);
-            byte[] b = DataUtils.newBytes(len);
+            byte[] b = Utils.newBytes(len);
             buff.get(b, 0, len);
             return ValueJavaObject.getNoCopy(null, b, handler);
         }
@@ -538,14 +592,23 @@ public class ValueDataType implements DataType {
             return ValueStringIgnoreCase.get(readString(buff));
         case Value.STRING_FIXED:
             return ValueStringFixed.get(readString(buff));
+        case Value.INTERVAL_YEAR: {
+            int ordinal = buff.get();
+            boolean negative = ordinal < 0;
+            if (negative) {
+                ordinal = ~ordinal;
+            }
+            return ValueInterval.from(IntervalQualifier.valueOf(ordinal), negative, readVarLong(buff),
+                    ordinal < 5 ? 0 : readVarLong(buff));
+        }
         case FLOAT_0_1:
-            return ValueFloat.get(0);
+            return ValueFloat.ZERO;
         case FLOAT_0_1 + 1:
-            return ValueFloat.get(1);
+            return ValueFloat.ONE;
         case DOUBLE_0_1:
-            return ValueDouble.get(0);
+            return ValueDouble.ZERO;
         case DOUBLE_0_1 + 1:
-            return ValueDouble.get(1);
+            return ValueDouble.ONE;
         case Value.DOUBLE:
             return ValueDouble.get(Double.longBitsToDouble(
                     Long.reverse(readVarLong(buff))));
@@ -556,16 +619,15 @@ public class ValueDataType implements DataType {
         case Value.CLOB: {
             int smallLen = readVarInt(buff);
             if (smallLen >= 0) {
-                byte[] small = DataUtils.newBytes(smallLen);
+                byte[] small = Utils.newBytes(smallLen);
                 buff.get(small, 0, smallLen);
                 return ValueLobDb.createSmallLob(type, small);
             } else if (smallLen == -3) {
                 int tableId = readVarInt(buff);
                 long lobId = readVarLong(buff);
                 long precision = readVarLong(buff);
-                ValueLobDb lob = ValueLobDb.create(type,
+                return ValueLobDb.create(type,
                         handler, tableId, lobId, null, precision);
-                return lob;
             } else {
                 throw DbException.get(ErrorCode.FILE_CORRUPTED_1,
                         "lob type: " + smallLen);
@@ -589,10 +651,7 @@ public class ValueDataType implements DataType {
                         readVarInt(buff),
                         readVarInt(buff));
             }
-            while (true) {
-                if (buff.get() == 0) {
-                    break;
-                }
+            while (buff.get() != 0) {
                 Object[] o = new Object[columns];
                 for (int i = 0; i < columns; i++) {
                     o[i] = ((Value) readValue(buff)).getObject();
@@ -603,7 +662,7 @@ public class ValueDataType implements DataType {
         }
         case Value.GEOMETRY: {
             int len = readVarInt(buff);
-            byte[] b = DataUtils.newBytes(len);
+            byte[] b = Utils.newBytes(len);
             buff.get(b, 0, len);
             return ValueGeometry.get(b);
         }
@@ -613,7 +672,7 @@ public class ValueDataType implements DataType {
             if (JdbcUtils.customDataTypesHandler != null) {
                 int customType = readVarInt(buff);
                 int len = readVarInt(buff);
-                byte[] b = DataUtils.newBytes(len);
+                byte[] b = Utils.newBytes(len);
                 buff.get(b, 0, len);
                 return JdbcUtils.customDataTypesHandler.convert(
                         ValueBytes.getNoCopy(b), customType);
@@ -628,7 +687,7 @@ public class ValueDataType implements DataType {
                 return ValueLong.get(type - LONG_0_7);
             } else if (type >= BYTES_0_31 && type < BYTES_0_31 + 32) {
                 int len = type - BYTES_0_31;
-                byte[] b = DataUtils.newBytes(len);
+                byte[] b = Utils.newBytes(len);
                 buff.get(b, 0, len);
                 return ValueBytes.getNoCopy(b);
             } else if (type >= STRING_0_31 && type < STRING_0_31 + 32) {

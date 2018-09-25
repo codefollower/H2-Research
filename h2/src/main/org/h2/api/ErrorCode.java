@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -105,6 +105,12 @@ public class ErrorCode {
      * </pre>
      */
     public static final int NUMERIC_VALUE_OUT_OF_RANGE_1 = 22003;
+
+    /**
+     * The error with code <code>22004</code> is thrown when a value is out of
+     * range when converting to another column's data type.
+     */
+    public static final int NUMERIC_VALUE_OUT_OF_RANGE_2 = 22004;
 
     /**
      * The error with code <code>22007</code> is thrown when
@@ -395,6 +401,17 @@ public class ErrorCode {
      * </pre>
      */
     public static final int COLUMN_NOT_FOUND_1 = 42122;
+
+    /**
+     * The error with code <code>42131</code> is thrown when
+     * identical expressions should be used, but different
+     * exceptions were found.
+     * Example:
+     * <pre>
+     * SELECT MODE(A ORDER BY B) FROM TEST;
+     * </pre>
+     */
+    public static final int IDENTICAL_EXPRESSIONS_SHOULD_BE_USED = 42131;
 
     // 0A: feature not supported
 
@@ -1623,6 +1640,17 @@ public class ErrorCode {
     public static final int VIEW_IS_INVALID_2 = 90109;
 
     /**
+     * The error with code <code>90110</code> is thrown when
+     * trying to compare an array value against a non-array value.
+     * Example:
+     * <pre>
+     * CREATE TABLE test (id INT NOT NULL, name VARCHAR);
+     * select * from test where id = (1, 2);
+     * </pre>
+     */
+    public static final int COMPARING_ARRAY_TO_SCALAR = 90110;
+
+    /**
      * The error with code <code>90111</code> is thrown when
      * an exception occurred while accessing a linked table.
      */
@@ -1740,6 +1768,12 @@ public class ErrorCode {
     public static final int DATABASE_CALLED_AT_SHUTDOWN = 90121;
 
     /**
+     * The error with code <code>90122</code> is thrown when
+     * WITH TIES clause is used without ORDER BY clause.
+     */
+    public static final int WITH_TIES_WITHOUT_ORDER_BY = 90122;
+
+    /**
      * The error with code <code>90123</code> is thrown when
      * trying mix regular parameters and indexed parameters in the same
      * statement. Example:
@@ -1844,7 +1878,7 @@ public class ErrorCode {
      * connections at the same time, or trying to insert two rows with the same
      * key from two connections. Example:
      * <pre>
-     * jdbc:h2:~/test;MVCC=TRUE
+     * jdbc:h2:~/test
      * Session 1:
      * CREATE TABLE TEST(ID INT);
      * INSERT INTO TEST VALUES(1);
@@ -1870,8 +1904,7 @@ public class ErrorCode {
     /**
      * The error with code <code>90133</code> is thrown when
      * trying to change a specific database property while the database is
-     * already open. The MVCC property needs to be set in the first connection
-     * (in the connection opening the database) and can not be changed later on.
+     * already open.
      */
     public static final int CANNOT_CHANGE_SETTING_WHEN_OPEN_1 = 90133;
 
@@ -1895,13 +1928,13 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90136</code> is thrown when
-     * executing a query that used an unsupported outer join condition.
+     * trying to reference a window that does not exist.
      * Example:
      * <pre>
-     * SELECT * FROM DUAL A LEFT JOIN DUAL B ON B.X=(SELECT MAX(X) FROM DUAL);
+     * SELECT LEAD(X) OVER W FROM TEST;
      * </pre>
      */
-    public static final int UNSUPPORTED_OUTER_JOIN_CONDITION_1 = 90136;
+    public static final int WINDOW_NOT_FOUND_1 = 90136;
 
     /**
      * The error with code <code>90137</code> is thrown when
@@ -1973,7 +2006,20 @@ public class ErrorCode {
      */
     public static final int ROW_NOT_FOUND_IN_PRIMARY_INDEX = 90143;
 
-    // next are 90110, 90122, 90144
+    /**
+     * The error with code <code>90144</code> is thrown when
+     * user trying to login into a database with AUTHREALM set and
+     * the target database doesn't have an authenticator defined
+     * <p>Authenticator experimental feature can be enabled by
+     * </p>
+     * <pre>
+     * SET AUTHENTICATOR TRUE
+     * </pre>
+     */
+    public static final int AUTHENTICATOR_NOT_AVAILABLE = 90144;
+
+
+    // next is 90145
 
     private ErrorCode() {
         // utility class
@@ -2033,6 +2079,7 @@ public class ErrorCode {
         case INDEX_NOT_FOUND_1: return "42S12";
         case DUPLICATE_COLUMN_NAME_1: return "42S21";
         case COLUMN_NOT_FOUND_1: return "42S22";
+        case IDENTICAL_EXPRESSIONS_SHOULD_BE_USED: return "42S31";
 
         // 0A: feature not supported
 
@@ -2045,7 +2092,7 @@ public class ErrorCode {
         case FEATURE_NOT_SUPPORTED_1: return "HYC00";
         case LOCK_TIMEOUT_1: return "HYT00";
         default:
-            return "" + errorCode;
+            return Integer.toString(errorCode);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,11 +8,13 @@ package org.h2.util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -44,50 +46,10 @@ public class Utils {
     private static final int MAX_GC = 8;
     private static long lastGC;
 
-    private static final HashMap<String, byte[]> RESOURCES = New.hashMap();
+    private static final HashMap<String, byte[]> RESOURCES = new HashMap<>();
 
     private Utils() {
         // utility class
-    }
-
-    private static int readInt(byte[] buff, int pos) {
-        return (buff[pos++] << 24) +
-                ((buff[pos++] & 0xff) << 16) +
-                ((buff[pos++] & 0xff) << 8) +
-                (buff[pos] & 0xff);
-    }
-
-    /**
-     * Write a long value to the byte array at the given position. The most
-     * significant byte is written first.
-     *
-     * @param buff the byte array
-     * @param pos the position
-     * @param x the value to write
-     */
-    public static void writeLong(byte[] buff, int pos, long x) {
-        writeInt(buff, pos, (int) (x >> 32));
-        writeInt(buff, pos + 4, (int) x);
-    }
-
-    private static void writeInt(byte[] buff, int pos, int x) {
-        buff[pos++] = (byte) (x >> 24);
-        buff[pos++] = (byte) (x >> 16);
-        buff[pos++] = (byte) (x >> 8);
-        buff[pos++] = (byte) x;
-    }
-
-    /**
-     * Read a long value from the byte array at the given position. The most
-     * significant byte is read first.
-     *
-     * @param buff the byte array
-     * @param pos the position
-     * @return the value
-     */
-    public static long readLong(byte[] buff, int pos) {
-        return (((long) readInt(buff, pos)) << 32) +
-                (readInt(buff, pos + 4) & 0xffffffffL);
     }
 
     /**
@@ -178,60 +140,6 @@ public class Utils {
     }
 
     /**
-     * Compare the contents of two byte arrays. If the content or length of the
-     * first array is smaller than the second array, -1 is returned. If the
-     * content or length of the second array is smaller than the first array, 1
-     * is returned. If the contents and lengths are the same, 0 is returned.
-     * <p>
-     * This method interprets bytes as signed.
-     *
-     * @param data1 the first byte array (must not be null)
-     * @param data2 the second byte array (must not be null)
-     * @return the result of the comparison (-1, 1 or 0)
-     */
-    public static int compareNotNullSigned(byte[] data1, byte[] data2) {
-        if (data1 == data2) {
-            return 0;
-        }
-        int len = Math.min(data1.length, data2.length);
-        for (int i = 0; i < len; i++) {
-            byte b = data1[i];
-            byte b2 = data2[i];
-            if (b != b2) {
-                return b > b2 ? 1 : -1;
-            }
-        }
-        return Integer.signum(data1.length - data2.length);
-    }
-
-    /**
-     * Compare the contents of two byte arrays. If the content or length of the
-     * first array is smaller than the second array, -1 is returned. If the
-     * content or length of the second array is smaller than the first array, 1
-     * is returned. If the contents and lengths are the same, 0 is returned.
-     * <p>
-     * This method interprets bytes as unsigned.
-     *
-     * @param data1 the first byte array (must not be null)
-     * @param data2 the second byte array (must not be null)
-     * @return the result of the comparison (-1, 1 or 0)
-     */
-    public static int compareNotNullUnsigned(byte[] data1, byte[] data2) {
-        if (data1 == data2) {
-            return 0;
-        }
-        int len = Math.min(data1.length, data2.length);
-        for (int i = 0; i < len; i++) {
-            int b = data1[i] & 0xff;
-            int b2 = data2[i] & 0xff;
-            if (b != b2) {
-                return b > b2 ? 1 : -1;
-            }
-        }
-        return Integer.signum(data1.length - data2.length);
-    }
-
-    /**
      * Copy the contents of the source array to the target array. If the size if
      * the target array is too small, a larger array is created.
      *
@@ -249,6 +157,62 @@ public class Utils {
     }
 
     /**
+     * Create an array of bytes with the given size. If this is not possible
+     * because not enough memory is available, an OutOfMemoryError with the
+     * requested size in the message is thrown.
+     * <p>
+     * This method should be used if the size of the array is user defined, or
+     * stored in a file, so wrong size data can be distinguished from regular
+     * out-of-memory.
+     * </p>
+     *
+     * @param len the number of bytes requested
+     * @return the byte array
+     * @throws OutOfMemoryError if the allocation was too large
+     */
+    public static byte[] newBytes(int len) {
+        if (len == 0) {
+            return EMPTY_BYTES;
+        }
+        try {
+            return new byte[len];
+        } catch (OutOfMemoryError e) {
+            Error e2 = new OutOfMemoryError("Requested memory: " + len);
+            e2.initCause(e);
+            throw e2;
+        }
+    }
+
+    /**
+     * Creates a copy of array of bytes with the new size. If this is not possible
+     * because not enough memory is available, an OutOfMemoryError with the
+     * requested size in the message is thrown.
+     * <p>
+     * This method should be used if the size of the array is user defined, or
+     * stored in a file, so wrong size data can be distinguished from regular
+     * out-of-memory.
+     * </p>
+     *
+     * @param bytes source array
+     * @param len the number of bytes in the new array
+     * @return the byte array
+     * @throws OutOfMemoryError if the allocation was too large
+     * @see Arrays#copyOf(byte[], int)
+     */
+    public static byte[] copyBytes(byte[] bytes, int len) {
+        if (len == 0) {
+            return EMPTY_BYTES;
+        }
+        try {
+            return Arrays.copyOf(bytes, len);
+        } catch (OutOfMemoryError e) {
+            Error e2 = new OutOfMemoryError("Requested memory: " + len);
+            e2.initCause(e);
+            throw e2;
+        }
+    }
+
+    /**
      * Create a new byte array and copy all the data. If the size of the byte
      * array is zero, the same array is returned.
      *
@@ -263,19 +227,7 @@ public class Utils {
         if (len == 0) {
             return EMPTY_BYTES;
         }
-        byte[] copy = new byte[len];
-        System.arraycopy(b, 0, copy, 0, len);
-        return copy;
-    }
-
-    /**
-     * Calculate the hash code of the given object. The object may be null.
-     *
-     * @param o the object
-     * @return the hash code, or 0 if the object is null
-     */
-    public static int hashCode(Object o) {
-        return o == null ? 0 : o.hashCode();
+        return Arrays.copyOf(b, len);
     }
 
     /**
@@ -314,6 +266,17 @@ public class Utils {
         return max / 1024;
     }
 
+    public static long getGarbageCollectionTime() {
+        long totalGCTime = 0;
+        for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+            long collectionTime = gcMXBean.getCollectionTime();
+            if(collectionTime > 0) {
+                totalGCTime += collectionTime;
+            }
+        }
+        return totalGCTime;
+    }
+
     private static synchronized void collectGarbage() {
         Runtime runtime = Runtime.getRuntime();
         long total = runtime.totalMemory();
@@ -342,6 +305,16 @@ public class Utils {
             return EMPTY_INT_ARRAY;
         }
         return new int[len];
+    }
+
+    /**
+     * Create a new ArrayList with an initial capacity of 4.
+     *
+     * @param <T> the type
+     * @return the object
+     */
+    public static <T> ArrayList<T> newSmallArrayList() {
+        return new ArrayList<>(4);
     }
 
     /**
@@ -683,6 +656,58 @@ public class Utils {
     }
 
     /**
+     * Parses the specified string to boolean value.
+     *
+     * @param value
+     *            string to parse
+     * @param defaultValue
+     *            value to return if value is null or on parsing error
+     * @param throwException
+     *            throw exception on parsing error or return default value instead
+     * @return parsed or default value
+     * @throws IllegalArgumentException
+     *             on parsing error if {@code throwException} is true
+     */
+    public static boolean parseBoolean(String value, boolean defaultValue, boolean throwException) {
+        if (value == null) {
+            return defaultValue;
+        }
+        switch (value.length()) {
+        case 1:
+            if (value.equals("1") || value.equalsIgnoreCase("t") || value.equalsIgnoreCase("y")) {
+                return true;
+            }
+            if (value.equals("0") || value.equalsIgnoreCase("f") || value.equalsIgnoreCase("n")) {
+                return false;
+            }
+            break;
+        case 2:
+            if (value.equalsIgnoreCase("no")) {
+                return false;
+            }
+            break;
+        case 3:
+            if (value.equalsIgnoreCase("yes")) {
+                return true;
+            }
+            break;
+        case 4:
+            if (value.equalsIgnoreCase("true")) {
+                return true;
+            }
+            break;
+        case 5:
+            if (value.equalsIgnoreCase("false")) {
+                return false;
+            }
+        }
+        if (throwException) {
+            throw new IllegalArgumentException(value);
+        }
+        return defaultValue;
+    }
+
+    /**
      * Get the system property. If the system property is not set, or if a
      * security exception occurs, the default value is returned.
      *
@@ -710,7 +735,7 @@ public class Utils {
         String s = getProperty(key, null);
         if (s != null) {
             try {
-                return Integer.decode(s).intValue();
+                return Integer.decode(s);
             } catch (NumberFormatException e) {
                 // ignore
             }
@@ -727,15 +752,7 @@ public class Utils {
      * @return the value
      */
     public static boolean getProperty(String key, boolean defaultValue) {
-        String s = getProperty(key, null);
-        if (s != null) {
-            try {
-                return Boolean.parseBoolean(s);
-            } catch (NumberFormatException e) {
-                // ignore
-            }
-        }
-        return defaultValue;
+        return parseBoolean(getProperty(key, null), defaultValue, false);
     }
 
     /**

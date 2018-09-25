@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,6 +8,7 @@ package org.h2.jdbc;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
@@ -28,10 +29,11 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
 import org.h2.api.ErrorCode;
+import org.h2.api.Interval;
 import org.h2.api.TimestampWithTimeZone;
 import org.h2.command.CommandInterface;
+import org.h2.engine.Mode;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.message.TraceObject;
@@ -40,7 +42,6 @@ import org.h2.result.UpdatableRow;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.IOUtils;
 import org.h2.util.LocalDateTimeUtils;
-import org.h2.util.New;
 import org.h2.util.StringUtils;
 import org.h2.value.CompareMode;
 import org.h2.value.DataType;
@@ -53,6 +54,7 @@ import org.h2.value.ValueDecimal;
 import org.h2.value.ValueDouble;
 import org.h2.value.ValueFloat;
 import org.h2.value.ValueInt;
+import org.h2.value.ValueInterval;
 import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
 import org.h2.value.ValueShort;
@@ -92,7 +94,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     private HashMap<String, Integer> columnLabelMap;
     private HashMap<Integer, Value[]> patchedRows;
     private JdbcPreparedStatement preparedStatement;
-    private CommandInterface command;
+    private final CommandInterface command;
 
     JdbcResultSet(JdbcConnection conn, JdbcStatement stat, CommandInterface command,
             ResultInterface result, int id, boolean closeStatement,
@@ -102,7 +104,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
         this.stat = stat;
         this.command = command;
         this.result = result;
-        columnCount = result.getVisibleColumnCount();
+        this.columnCount = result.getVisibleColumnCount();
         this.closeStatement = closeStatement;
         this.scrollable = scrollable;
         this.updatable = updatable;
@@ -149,9 +151,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
             }
             checkClosed();
             String catalog = conn.getCatalog();
-            JdbcResultSetMetaData meta = new JdbcResultSetMetaData(
-                    this, null, result, catalog, conn.getSession().getTrace(), id);
-            return meta;
+            return new JdbcResultSetMetaData(this, null, result, catalog, conn.getSession().getTrace(), id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -549,8 +549,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public boolean getBoolean(int columnIndex) throws SQLException {
         try {
             debugCodeCall("getBoolean", columnIndex);
-            Boolean v = get(columnIndex).getBoolean();
-            return v == null ? false : v.booleanValue();
+            return get(columnIndex).getBoolean();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -568,8 +567,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public boolean getBoolean(String columnLabel) throws SQLException {
         try {
             debugCodeCall("getBoolean", columnLabel);
-            Boolean v = get(columnLabel).getBoolean();
-            return v == null ? false : v.booleanValue();
+            return get(columnLabel).getBoolean();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1030,7 +1028,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
                                 id, "getBlob(" + columnIndex + ")");
             }
             Value v = get(columnIndex);
-            return v == ValueNull.INSTANCE ? null : new JdbcBlob(conn, v, id);
+            return v == ValueNull.INSTANCE ? null : new JdbcBlob(conn, v, JdbcLob.State.WITH_VALUE, id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1053,7 +1051,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
                                 id, "getBlob(" + quote(columnLabel) + ")");
             }
             Value v = get(columnLabel);
-            return v == ValueNull.INSTANCE ? null : new JdbcBlob(conn, v, id);
+            return v == ValueNull.INSTANCE ? null : new JdbcBlob(conn, v, JdbcLob.State.WITH_VALUE, id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1071,7 +1069,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public byte[] getBytes(int columnIndex) throws SQLException {
         try {
             debugCodeCall("getBytes", columnIndex);
-            return get(columnIndex).getBytes();
+            return get(columnIndex).convertTo(Value.BYTES, conn.getMode()).getBytes();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1148,7 +1146,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
                 debugCodeAssign("Clob", TraceObject.CLOB, id, "getClob(" + columnIndex + ")");
             }
             Value v = get(columnIndex);
-            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
+            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, JdbcLob.State.WITH_VALUE, id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1171,7 +1169,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
                                 quote(columnLabel) + ")");
             }
             Value v = get(columnLabel);
-            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
+            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, JdbcLob.State.WITH_VALUE, id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -2495,19 +2493,55 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     }
 
     /**
-     * [Not supported]
+     * Updates a column in the current or insert row.
+     *
+     * @param columnIndex (1,2,...)
+     * @param x the value
+     * @throws SQLException if the result set is closed or not updatable
      */
     @Override
     public void updateArray(int columnIndex, Array x) throws SQLException {
-        throw unsupported("setArray");
+        try {
+            if (isDebugEnabled()) {
+                debugCode("updateArray(" + columnIndex + ", x);");
+            }
+            checkClosed();
+            Value v;
+            if (x == null) {
+                v = ValueNull.INSTANCE;
+            } else {
+                v = DataType.convertToValue(stat.session, x.getArray(), Value.ARRAY);
+            }
+            update(columnIndex, v);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
-     * [Not supported]
+     * Updates a column in the current or insert row.
+     *
+     * @param columnLabel the column label
+     * @param x the value
+     * @throws SQLException if the result set is closed or not updatable
      */
     @Override
     public void updateArray(String columnLabel, Array x) throws SQLException {
-        throw unsupported("setArray");
+        try {
+            if (isDebugEnabled()) {
+                debugCode("updateArray(" + quote(columnLabel) + ", x);");
+            }
+            checkClosed();
+            Value v;
+            if (x == null) {
+                v = ValueNull.INSTANCE;
+            } else {
+                v = DataType.convertToValue(stat.session, x.getArray(), Value.ARRAY);
+            }
+            update(columnLabel, v);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
@@ -3125,7 +3159,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
         if (columnCount >= 3) {
             // use a hash table if more than 2 columns
             if (columnLabelMap == null) {
-                HashMap<String, Integer> map = New.hashMap(columnCount);
+                HashMap<String, Integer> map = new HashMap<>();
                 // column labels have higher priority
                 for (int i = 0; i < columnCount; i++) {
                     String c = StringUtils.toUpperEnglish(result.getAlias(i));
@@ -3225,7 +3259,14 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
         }
     }
 
-    private Value get(int columnIndex) {
+    /**
+     * INTERNAL
+     *
+     * @param columnIndex
+     *            index of a column
+     * @return internal representation of the value in the specified column
+     */
+    public Value get(int columnIndex) {
         checkColumnIndex(columnIndex);
         checkOnValidRow();
         Value[] list;
@@ -3398,11 +3439,15 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     }
 
     /**
-     * [Not supported]
+     * Updates a column in the current or insert row.
+     *
+     * @param columnIndex (1,2,...)
+     * @param x the value
+     * @throws SQLException if the result set is closed or not updatable
      */
     @Override
     public void updateNClob(int columnIndex, NClob x) throws SQLException {
-        throw unsupported("NClob");
+        updateClob(columnIndex, x);
     }
 
     /**
@@ -3458,11 +3503,15 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     }
 
     /**
-     * [Not supported]
+     * Updates a column in the current or insert row.
+     *
+     * @param columnLabel the column label
+     * @param x the value
+     * @throws SQLException if the result set is closed or not updatable
      */
     @Override
     public void updateNClob(String columnLabel, NClob x) throws SQLException {
-        throw unsupported("NClob");
+        updateClob(columnLabel, x);
     }
 
     /**
@@ -3481,7 +3530,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
                 debugCodeAssign("NClob", TraceObject.CLOB, id, "getNClob(" + columnIndex + ")");
             }
             Value v = get(columnIndex);
-            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
+            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, JdbcLob.State.WITH_VALUE, id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -3503,46 +3552,108 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
                 debugCodeAssign("NClob", TraceObject.CLOB, id, "getNClob(" + columnLabel + ")");
             }
             Value v = get(columnLabel);
-            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, id);
+            return v == ValueNull.INSTANCE ? null : new JdbcClob(conn, v, JdbcLob.State.WITH_VALUE, id);
         } catch (Exception e) {
             throw logAndConvert(e);
         }
     }
 
     /**
-     * [Not supported] Returns the value of the specified column as a SQLXML
-     * object.
+     * Returns the value of the specified column as a SQLXML.
+     *
+     * @param columnIndex (1,2,...)
+     * @return the value
+     * @throws SQLException if the column is not found or if the result set is
+     *             closed
      */
     @Override
     public SQLXML getSQLXML(int columnIndex) throws SQLException {
-        throw unsupported("SQLXML");
+        try {
+            int id = getNextId(TraceObject.SQLXML);
+            if (isDebugEnabled()) {
+                debugCodeAssign("SQLXML", TraceObject.SQLXML, id, "getSQLXML(" + columnIndex + ")");
+            }
+            Value v = get(columnIndex);
+            return v == ValueNull.INSTANCE ? null : new JdbcSQLXML(conn, v, JdbcLob.State.WITH_VALUE, id);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
-     * [Not supported] Returns the value of the specified column as a SQLXML
-     * object.
+     * Returns the value of the specified column as a SQLXML.
+     *
+     * @param columnLabel the column label
+     * @return the value
+     * @throws SQLException if the column is not found or if the result set is
+     *             closed
      */
     @Override
     public SQLXML getSQLXML(String columnLabel) throws SQLException {
-        throw unsupported("SQLXML");
+        try {
+            int id = getNextId(TraceObject.SQLXML);
+            if (isDebugEnabled()) {
+                debugCodeAssign("SQLXML", TraceObject.SQLXML, id, "getSQLXML(" + columnLabel + ")");
+            }
+            Value v = get(columnLabel);
+            return v == ValueNull.INSTANCE ? null : new JdbcSQLXML(conn, v, JdbcLob.State.WITH_VALUE, id);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
-     * [Not supported] Updates a column in the current or insert row.
+     * Updates a column in the current or insert row.
+     *
+     * @param columnIndex (1,2,...)
+     * @param x the value
+     * @throws SQLException if the result set is closed or not updatable
      */
     @Override
     public void updateSQLXML(int columnIndex, SQLXML xmlObject)
             throws SQLException {
-        throw unsupported("SQLXML");
+        try {
+            if (isDebugEnabled()) {
+                debugCode("updateSQLXML("+columnIndex+", x);");
+            }
+            checkClosed();
+            Value v;
+            if (xmlObject == null) {
+                v = ValueNull.INSTANCE;
+            } else {
+                v = conn.createClob(xmlObject.getCharacterStream(), -1);
+            }
+            update(columnIndex, v);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
-     * [Not supported] Updates a column in the current or insert row.
+     * Updates a column in the current or insert row.
+     *
+     * @param columnLabel the column label
+     * @param x the value
+     * @throws SQLException if the result set is closed or not updatable
      */
     @Override
     public void updateSQLXML(String columnLabel, SQLXML xmlObject)
             throws SQLException {
-        throw unsupported("SQLXML");
+        try {
+            if (isDebugEnabled()) {
+                debugCode("updateSQLXML("+quote(columnLabel)+", x);");
+            }
+            checkClosed();
+            Value v;
+            if (xmlObject == null) {
+                v = ValueNull.INSTANCE;
+            } else {
+                v = conn.createClob(xmlObject.getCharacterStream(), -1);
+            }
+            update(columnLabel, v);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
@@ -3771,6 +3882,8 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
         }
         if (type == BigDecimal.class) {
             return type.cast(value.getBigDecimal());
+        } else if (type == BigInteger.class) {
+            return type.cast(value.getBigDecimal().toBigInteger());
         } else if (type == String.class) {
             return type.cast(value.getString());
         } else if (type == Boolean.class) {
@@ -3793,30 +3906,53 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
             return type.cast(value.getTime());
         } else if (type == Timestamp.class) {
             return type.cast(value.getTimestamp());
+        } else if (type == java.util.Date.class) {
+            return type.cast(new java.util.Date(value.getTimestamp().getTime()));
+        } else if (type == Calendar.class) {
+            Calendar calendar = DateTimeUtils.createGregorianCalendar();
+            calendar.setTime(value.getTimestamp());
+            return type.cast(calendar);
         } else if (type == UUID.class) {
             return type.cast(value.getObject());
         } else if (type == byte[].class) {
             return type.cast(value.getBytes());
         } else if (type == java.sql.Array.class) {
             int id = getNextId(TraceObject.ARRAY);
-            return type.cast(value == ValueNull.INSTANCE ? null : new JdbcArray(conn, value, id));
+            return type.cast(new JdbcArray(conn, value, id));
+        } else if (type == Blob.class) {
+            int id = getNextId(TraceObject.BLOB);
+            return type.cast(new JdbcBlob(conn, value, JdbcLob.State.WITH_VALUE, id));
+        } else if (type == Clob.class) {
+            int id = getNextId(TraceObject.CLOB);
+            return type.cast(new JdbcClob(conn, value, JdbcLob.State.WITH_VALUE, id));
+        } else if (type == SQLXML.class) {
+            int id = getNextId(TraceObject.SQLXML);
+            return type.cast(new JdbcSQLXML(conn, value, JdbcLob.State.WITH_VALUE, id));
         } else if (type == TimestampWithTimeZone.class) {
-            return type.cast(value.getObject());
+            ValueTimestampTimeZone v = (ValueTimestampTimeZone) value.convertTo(Value.TIMESTAMP_TZ);
+            return type.cast(new TimestampWithTimeZone(v.getDateValue(), v.getTimeNanos(), v.getTimeZoneOffsetMins()));
+        } else if (type == Interval.class) {
+            if (!(value instanceof ValueInterval)) {
+                value = value.convertTo(Value.INTERVAL_DAY_TO_SECOND);
+            }
+            ValueInterval v = (ValueInterval) value;
+            return type.cast(new Interval(v.getQualifier(), false, v.getLeading(), v.getRemaining()));
         } else if (DataType.isGeometryClass(type)) {
-            return type.cast(value.getObject());
-        } else if (LocalDateTimeUtils.isLocalDate(type)) {
+            return type.cast(value.convertTo(Value.GEOMETRY).getObject());
+        } else if (type == LocalDateTimeUtils.LOCAL_DATE) {
             return type.cast(LocalDateTimeUtils.valueToLocalDate(value));
-        } else if (LocalDateTimeUtils.isLocalTime(type)) {
+        } else if (type == LocalDateTimeUtils.LOCAL_TIME) {
             return type.cast(LocalDateTimeUtils.valueToLocalTime(value));
-        } else if (LocalDateTimeUtils.isLocalDateTime(type)) {
-            return type.cast(LocalDateTimeUtils.valueToLocalDateTime(
-                            (ValueTimestamp) value));
-        } else if (LocalDateTimeUtils.isOffsetDateTime(type) &&
-                value instanceof ValueTimestampTimeZone) {
-            return type.cast(LocalDateTimeUtils.valueToOffsetDateTime(
-                            (ValueTimestampTimeZone) value));
+        } else if (type == LocalDateTimeUtils.LOCAL_DATE_TIME) {
+            return type.cast(LocalDateTimeUtils.valueToLocalDateTime(value));
+        } else if (type == LocalDateTimeUtils.INSTANT) {
+            return type.cast(LocalDateTimeUtils.valueToInstant(value));
+        } else if (type == LocalDateTimeUtils.OFFSET_DATE_TIME) {
+            return type.cast(LocalDateTimeUtils.valueToOffsetDateTime(value));
+        } else if (type == LocalDateTimeUtils.DURATION) {
+            return type.cast(LocalDateTimeUtils.valueToDuration(value));
         } else {
-            throw unsupported(type.getClass().getName());
+            throw unsupported(type.getName());
         }
     }
 
@@ -3828,18 +3964,19 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
         return getTraceObjectName() + ": " + result;
     }
 
-    private void patchCurrentRow(Value[] row) {
+    private void patchCurrentRow(Value[] row) throws SQLException {
         boolean changed = false;
         Value[] current = result.currentRow();
-        CompareMode mode = conn.getCompareMode();
+        Mode databaseMode = conn.getMode();
+        CompareMode compareMode = conn.getCompareMode();
         for (int i = 0; i < row.length; i++) {
-            if (row[i].compareTo(current[i], mode) != 0) {
+            if (row[i].compareTo(current[i], databaseMode, compareMode) != 0) {
                 changed = true;
                 break;
             }
         }
         if (patchedRows == null) {
-            patchedRows = New.hashMap();
+            patchedRows = new HashMap<>();
         }
         Integer rowId = result.getRowId();
         if (!changed) {

@@ -1,18 +1,22 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.h2.command.ddl.CreateTableData;
 import org.h2.engine.Database;
 import org.h2.engine.DbSettings;
+import org.h2.index.IndexType;
 import org.h2.mvstore.db.MVTableEngine;
+import org.h2.result.SearchRow;
+import org.h2.result.SortOrder;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
+import org.h2.value.Value;
 
 /**
  * The base class of a regular table, or a user defined table.
@@ -27,9 +31,36 @@ public abstract class TableBase extends Table {
      */
     private final String tableEngine;
     /** Provided table parameters */
-    private List<String> tableEngineParams = new ArrayList<String>();
+    private final List<String> tableEngineParams;
 
     private final boolean globalTemporary;
+
+    /**
+     * Returns main index column if index is an primary key index and has only
+     * one column with _ROWID_ compatible data type.
+     *
+     * @param indexType type of an index
+     * @param cols columns of the index
+     * @return main index column or {@link SearchRow#ROWID_INDEX}
+     */
+    public static int getMainIndexColumn(IndexType indexType, IndexColumn[] cols) {
+        if (!indexType.isPrimaryKey() || cols.length != 1) {
+            return SearchRow.ROWID_INDEX;
+        }
+        IndexColumn first = cols[0];
+        if (first.sortType != SortOrder.ASCENDING) {
+            return SearchRow.ROWID_INDEX;
+        }
+        switch (first.column.getType()) {
+        case Value.BYTE:
+        case Value.SHORT:
+        case Value.INT:
+        case Value.LONG:
+            return first.column.getColumnId();
+        default:
+            return SearchRow.ROWID_INDEX;
+        }
+    }
 
     public TableBase(CreateTableData data) {
         super(data.schema, data.id, data.tableName,
@@ -38,10 +69,11 @@ public abstract class TableBase extends Table {
         this.globalTemporary = data.globalTemporary;
         if (data.tableEngineParams != null) {
             this.tableEngineParams = data.tableEngineParams;
+        } else {
+            this.tableEngineParams = Collections.emptyList();
         }
         setTemporary(data.temporary);
-        Column[] cols = new Column[data.columns.size()];
-        data.columns.toArray(cols);
+        Column[] cols = data.columns.toArray(new Column[0]);
         setColumns(cols);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,12 +7,12 @@ package org.h2.result;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import org.h2.engine.Session;
+
+import org.h2.engine.SessionInterface;
 import org.h2.engine.SessionRemote;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
-import org.h2.util.New;
 import org.h2.value.Transfer;
 import org.h2.value.Value;
 
@@ -49,7 +49,7 @@ public class ResultRemote implements ResultInterface {
             columns[i] = new ResultColumn(transfer);
         }
         rowId = -1;
-        result = New.arrayList();
+        result = new ArrayList<>(Math.min(fetchSize, rowCount));
         this.fetchSize = fetchSize;
         fetchRows(false);
     }
@@ -274,7 +274,7 @@ public class ResultRemote implements ResultInterface {
     }
 
     @Override
-    public ResultInterface createShallowCopy(Session targetSession) {
+    public ResultInterface createShallowCopy(SessionInterface targetSession) {
         // The operation is not supported on remote result.
         return null;
     }

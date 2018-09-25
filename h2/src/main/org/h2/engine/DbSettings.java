@@ -1,11 +1,13 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
 import java.util.HashMap;
+import org.h2.message.DbException;
+import org.h2.util.Utils;
 
 /**
  * This class contains various database-level settings. To override the
@@ -51,7 +53,7 @@ public class DbSettings extends SettingsBase {
      * Database setting <code>ANALYZE_SAMPLE</code> (default: 10000).<br />
      * The default sample size when analyzing a table.
      */
-    public final int analyzeSample = get("ANALYZE_SAMPLE", 10000);
+    public final int analyzeSample = get("ANALYZE_SAMPLE", 10_000);
 
     /**
      * Database setting <code>DATABASE_TO_UPPER</code> (default: true).<br />
@@ -78,7 +80,7 @@ public class DbSettings extends SettingsBase {
      * performance reasons. Please note the Oracle JDBC driver will try to
      * resolve this database URL if it is loaded before the H2 driver.
      */
-    public boolean defaultConnection = get("DEFAULT_CONNECTION", false);
+    public final boolean defaultConnection = get("DEFAULT_CONNECTION", false);
 
     /**
      * Database setting <code>DEFAULT_ESCAPE</code> (default: \).<br />
@@ -97,7 +99,8 @@ public class DbSettings extends SettingsBase {
 
     /**
      * Database setting <code>DROP_RESTRICT</code> (default: true).<br />
-     * Whether the default action for DROP TABLE and DROP VIEW is RESTRICT.
+     * Whether the default action for DROP TABLE, DROP VIEW, DROP SCHEMA, and
+     * DROP DOMAIN is RESTRICT.
      */
     public final boolean dropRestrict = get("DROP_RESTRICT", true);
 
@@ -128,19 +131,13 @@ public class DbSettings extends SettingsBase {
     public final boolean functionsInSchema = get("FUNCTIONS_IN_SCHEMA", true);
 
     /**
-     * Database setting <code>LARGE_TRANSACTIONS</code> (default: true).<br />
-     * Support very large transactions
-     */
-    public final boolean largeTransactions = get("LARGE_TRANSACTIONS", true);
-
-    /**
      * Database setting <code>LOB_TIMEOUT</code> (default: 300000,
      * which means 5 minutes).<br />
      * The number of milliseconds a temporary LOB reference is kept until it
      * times out. After the timeout, the LOB is no longer accessible using this
      * reference.
      */
-    public final int lobTimeout = get("LOB_TIMEOUT", 300000);
+    public final int lobTimeout = get("LOB_TIMEOUT", 300_000);
 
     /**
      * Database setting <code>MAX_COMPACT_COUNT</code>
@@ -162,13 +159,7 @@ public class DbSettings extends SettingsBase {
      * no limit. Please note the actual query timeout may be set to a lower
      * value.
      */
-    public int maxQueryTimeout = get("MAX_QUERY_TIMEOUT", 0);
-
-    /**
-     * Database setting <code>NESTED_JOINS</code> (default: true).<br />
-     * Whether nested joins should be supported.
-     */
-    public final boolean nestedJoins = get("NESTED_JOINS", true);
+    public final int maxQueryTimeout = get("MAX_QUERY_TIMEOUT", 0);
 
     /**
      * Database setting <code>OPTIMIZE_DISTINCT</code> (default: true).<br />
@@ -332,10 +323,10 @@ public class DbSettings extends SettingsBase {
 
     /**
      * Database setting <code>MV_STORE</code>
-     * (default: false for version 1.3, true for version 1.4).<br />
+     * (default: true).<br />
      * Use the MVStore storage engine.
      */
-    public boolean mvStore = get("MV_STORE", Constants.VERSION_MINOR >= 4);
+    public boolean mvStore = get("MV_STORE", true);
 
     /**
      * Database setting <code>COMPRESS</code>
@@ -345,13 +336,21 @@ public class DbSettings extends SettingsBase {
     public final boolean compressData = get("COMPRESS", false);
 
     /**
-     * Database setting <code>MULTI_THREADED</code>
-     * (default: false).<br />
+     * Database setting <code>STANDARD_DROP_TABLE_RESTRICT</code> (default:
+     * false).<br />
+     * <code>true</code> if DROP TABLE RESTRICT should fail if there's any
+     * foreign key referencing the table to be dropped. <code>false</code> if
+     * foreign keys referencing the table to be dropped should be silently
+     * dropped as well.
      */
-    public final boolean multiThreaded = get("MULTI_THREADED", false);
+    public final boolean standardDropTableRestrict = get(
+            "STANDARD_DROP_TABLE_RESTRICT", false);
 
     private DbSettings(HashMap<String, String> s) {
         super(s);
+        if (s.get("NESTED_JOINS") != null || Utils.getProperty("h2.nestedJoins", null) != null) {
+            throw DbException.getUnsupportedException("NESTED_JOINS setting is not available since 1.4.197");
+        }
     }
 
     /**

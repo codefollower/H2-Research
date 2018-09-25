@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,9 +14,9 @@ import java.util.ArrayList;
 import org.h2.api.ErrorCode;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
@@ -81,7 +81,7 @@ public class UpdatableRow {
         // but the table in the result set meta data is not, then the column
         // in the database meta data is also lower case
         boolean toUpper = !table.equals(tableName) && table.equalsIgnoreCase(tableName);
-        key = New.arrayList();
+        key = Utils.newSmallArrayList();
         rs = meta.getPrimaryKeys(null,
                 StringUtils.escapeMetaDataPattern(schemaName),
                 tableName);
@@ -118,7 +118,7 @@ public class UpdatableRow {
     }
 
     private boolean isIndexUsable(ArrayList<String> indexColumns) {
-        if (indexColumns.size() == 0) {
+        if (indexColumns.isEmpty()) {
             return false;
         }
         for (String c : indexColumns) {

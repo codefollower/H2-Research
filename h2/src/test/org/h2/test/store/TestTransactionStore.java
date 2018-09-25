@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,16 +15,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
-import org.h2.mvstore.db.TransactionStore;
-import org.h2.mvstore.db.TransactionStore.Change;
-import org.h2.mvstore.db.TransactionStore.Transaction;
-import org.h2.mvstore.db.TransactionStore.TransactionMap;
+import org.h2.mvstore.tx.Transaction;
+import org.h2.mvstore.tx.TransactionMap;
+import org.h2.mvstore.tx.TransactionStore;
+import org.h2.mvstore.tx.TransactionStore.Change;
+import org.h2.mvstore.type.ObjectDataType;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
-import org.h2.util.New;
 import org.h2.util.Task;
 
 /**
@@ -44,6 +45,7 @@ public class TestTransactionStore extends TestBase {
     @Override
     public void test() throws Exception {
         FileUtils.createDirectories(getBaseDir());
+        testHCLFKey();
         testConcurrentAddRemove();
         testConcurrentAdd();
         testCountWithOpenTransactions();
@@ -53,13 +55,58 @@ public class TestTransactionStore extends TestBase {
         testStopWhileCommitting();
         testGetModifiedMaps();
         testKeyIterator();
-        testMultiStatement();
         testTwoPhaseCommit();
         testSavepoint();
         testConcurrentTransactionsReadCommitted();
         testSingleConnection();
         testCompareWithPostgreSQL();
         testStoreMultiThreadedReads();
+    }
+
+    private void testHCLFKey() {
+        MVStore s = MVStore.open(null);
+        final TransactionStore ts = new TransactionStore(s);
+        ts.init();
+        Transaction t = ts.begin();
+        ObjectDataType keyType = new ObjectDataType();
+        TransactionMap<Long, Long> map = t.openMap("test", keyType, keyType);
+        // firstKey()
+        assertNull(map.firstKey());
+        // lastKey()
+        assertNull(map.lastKey());
+        map.put(10L, 100L);
+        map.put(20L, 200L);
+        map.put(30L, 300L);
+        map.put(40L, 400L);
+        t.commit();
+        t = ts.begin();
+        map = t.openMap("test", keyType, keyType);
+        map.put(15L, 150L);
+        // The same transaction
+        assertEquals((Object) 15L, map.higherKey(10L));
+        t = ts.begin();
+        map = t.openMap("test", keyType, keyType);
+        // Another transaction
+        // higherKey()
+        assertEquals((Object) 20L, map.higherKey(10L));
+        assertEquals((Object) 20L, map.higherKey(15L));
+        assertNull(map.higherKey(40L));
+        // ceilingKey()
+        assertEquals((Object) 10L, map.ceilingKey(10L));
+        assertEquals((Object) 20L, map.ceilingKey(15L));
+        assertEquals((Object) 40L, map.ceilingKey(40L));
+        assertNull(map.higherKey(45L));
+        // lowerKey()
+        assertNull(map.lowerKey(10L));
+        assertEquals((Object) 10L, map.lowerKey(15L));
+        assertEquals((Object) 10L, map.lowerKey(20L));
+        assertEquals((Object) 20L, map.lowerKey(25L));
+        // floorKey()
+        assertNull(map.floorKey(5L));
+        assertEquals((Object) 10L, map.floorKey(10L));
+        assertEquals((Object) 10L, map.floorKey(15L));
+        assertEquals((Object) 30L, map.floorKey(35L));
+        s.close();
     }
 
     private static void testConcurrentAddRemove() throws InterruptedException {
@@ -157,6 +204,7 @@ public class TestTransactionStore extends TestBase {
                 break;
             }
         }
+        task.get();
         // we expect at least 10% the operations were successful
         assertTrue(failCount.toString() + " >= " + (count * 0.9),
                 failCount.get() < count * 0.9);
@@ -259,7 +307,7 @@ public class TestTransactionStore extends TestBase {
         ts = new TransactionStore(s);
         ts.init();
         ts.setMaxTransactionId(16);
-        ArrayList<Transaction> openList = new ArrayList<Transaction>();
+        ArrayList<Transaction> openList = new ArrayList<>();
         for (int i = 0, j = 1; i < 64; i++) {
             Transaction t = ts.begin();
             openList.add(t);
@@ -278,7 +326,7 @@ public class TestTransactionStore extends TestBase {
         ts = new TransactionStore(s);
         ts.init();
         ts.setMaxTransactionId(16);
-        ArrayList<Transaction> fifo = New.arrayList();
+        ArrayList<Transaction> fifo = new ArrayList<>();
         int open = 0;
         for (int i = 0; i < 64; i++) {
             Transaction t = null;
@@ -348,24 +396,22 @@ public class TestTransactionStore extends TestBase {
             store.close();
             s = MVStore.open(fileName);
             // roll back a bit, until we have some undo log entries
-            assertTrue(s.hasMap("undoLog"));
             for (int back = 0; back < 100; back++) {
                 int minus = r.nextInt(10);
                 s.rollbackTo(Math.max(0, s.getCurrentVersion() - minus));
-                MVMap<?, ?> undo = s.openMap("undoLog");
-                if (undo.size() > 0) {
+                if (hasDataUndoLog(s)) {
                     break;
                 }
             }
-            // re-open the store, because we have opened
-            // the undoLog map with the wrong data type
+            // re-open TransactionStore, because we rolled back
+            // underlying MVStore without rolling back TransactionStore
             s.close();
             s = MVStore.open(fileName);
             ts = new TransactionStore(s);
             List<Transaction> list = ts.getOpenTransactions();
             if (list.size() != 0) {
                 tx = list.get(0);
-                if (tx.getStatus() == Transaction.STATUS_COMMITTING) {
+                if (tx.getStatus() == Transaction.STATUS_COMMITTED) {
                     i++;
                 }
             }
@@ -373,6 +419,15 @@ public class TestTransactionStore extends TestBase {
             FileUtils.delete(fileName);
             assertFalse(FileUtils.exists(fileName));
         }
+    }
+
+    private static boolean hasDataUndoLog(MVStore s) {
+        for (int i = 0; i < 255; i++) {
+            if (s.hasData(TransactionStore.getUndoLogName(true, 1))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void testGetModifiedMaps() {
@@ -489,96 +544,6 @@ public class TestTransactionStore extends TestBase {
         s.close();
     }
 
-    /**
-     * Tests behavior when used for a sequence of SQL statements. Each statement
-     * uses a savepoint. Within a statement, changes by the statement itself are
-     * not seen; the change is only seen when the statement finished.
-     * <p>
-     * Update statements that change the key of multiple rows may use delete/add
-     * pairs to do so (they don't need to first delete all entries and then
-     * re-add them). Trying to add multiple values for the same key is not
-     * allowed (an update statement that would result in a duplicate key).
-     */
-    private void testMultiStatement() {
-        MVStore s = MVStore.open(null);
-        TransactionStore ts = new TransactionStore(s);
-        ts.init();
-
-        Transaction tx;
-        TransactionMap<String, String> m;
-        long startUpdate;
-
-        tx = ts.begin();
-
-        // start of statement
-        // create table test
-        startUpdate = tx.setSavepoint();
-        m = tx.openMap("test");
-        m.setSavepoint(startUpdate);
-
-        // start of statement
-        // insert into test(id, name) values(1, 'Hello'), (2, 'World')
-        startUpdate = tx.setSavepoint();
-        m.setSavepoint(startUpdate);
-        assertTrue(m.trySet("1", "Hello", true));
-        assertTrue(m.trySet("2", "World", true));
-        // not seen yet (within the same statement)
-        assertNull(m.get("1"));
-        assertNull(m.get("2"));
-
-        // start of statement
-        startUpdate = tx.setSavepoint();
-        // now we see the newest version
-        m.setSavepoint(startUpdate);
-        assertEquals("Hello", m.get("1"));
-        assertEquals("World", m.get("2"));
-        // update test set primaryKey = primaryKey + 1
-        // (this is usually a tricky case)
-        assertEquals("Hello", m.get("1"));
-        assertTrue(m.trySet("1", null, true));
-        assertTrue(m.trySet("2", "Hello", true));
-        assertEquals("World", m.get("2"));
-        // already updated by this statement, so it has no effect
-        // but still returns true because it was changed by this transaction
-        assertTrue(m.trySet("2", null, true));
-
-        assertTrue(m.trySet("3", "World", true));
-        // not seen within this statement
-        assertEquals("Hello", m.get("1"));
-        assertEquals("World", m.get("2"));
-        assertNull(m.get("3"));
-
-        // start of statement
-        startUpdate = tx.setSavepoint();
-        m.setSavepoint(startUpdate);
-        // select * from test
-        assertNull(m.get("1"));
-        assertEquals("Hello", m.get("2"));
-        assertEquals("World", m.get("3"));
-
-        // start of statement
-        startUpdate = tx.setSavepoint();
-        m.setSavepoint(startUpdate);
-        // update test set id = 1
-        // should fail: duplicate key
-        assertTrue(m.trySet("2", null, true));
-        assertTrue(m.trySet("1", "Hello", true));
-        assertTrue(m.trySet("3", null, true));
-        assertFalse(m.trySet("1", "World", true));
-        tx.rollbackToSavepoint(startUpdate);
-
-        startUpdate = tx.setSavepoint();
-        m.setSavepoint(startUpdate);
-        assertNull(m.get("1"));
-        assertEquals("Hello", m.get("2"));
-        assertEquals("World", m.get("3"));
-
-        tx.commit();
-
-        ts.close();
-        s.close();
-    }
-
     private void testTwoPhaseCommit() {
         String fileName = getBaseDir() + "/testTwoPhaseCommit.h3";
         FileUtils.delete(fileName);
@@ -691,15 +656,15 @@ public class TestTransactionStore extends TestBase {
     }
 
     private void testCompareWithPostgreSQL() throws Exception {
-        ArrayList<Statement> statements = New.arrayList();
-        ArrayList<Transaction> transactions = New.arrayList();
-        ArrayList<TransactionMap<Integer, String>> maps = New.arrayList();
+        ArrayList<Statement> statements = new ArrayList<>();
+        ArrayList<Transaction> transactions = new ArrayList<>();
+        ArrayList<TransactionMap<Integer, String>> maps = new ArrayList<>();
         int connectionCount = 3, opCount = 1000, rowCount = 10;
         try {
             Class.forName("org.postgresql.Driver");
             for (int i = 0; i < connectionCount; i++) {
                 Connection conn = DriverManager.getConnection(
-                        "jdbc:postgresql:test", "sa", "sa");
+                        "jdbc:postgresql:test?loggerLevel=OFF", "sa", "sa");
                 statements.add(conn.createStatement());
             }
         } catch (Exception e) {
@@ -812,7 +777,7 @@ public class TestTransactionStore extends TestBase {
                             assertNull(map.get(x));
                         }
                     } catch (SQLException e) {
-                        assertTrue(map.get(x) != null);
+                        assertNotNull(map.get(x));
                         assertFalse(map.tryRemove(x));
                         // PostgreSQL needs to rollback
                         buff.append(" -> rollback");

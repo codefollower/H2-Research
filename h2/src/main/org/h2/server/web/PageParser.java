@@ -1,15 +1,17 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.web;
 
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.h2.util.New;
+
+import org.h2.util.StringUtils;
 
 /**
  * A page parser can parse an HTML page and replace the tags there.
@@ -96,9 +98,9 @@ public class PageParser {
                         List<Object> list = (List<Object>) get(items);
                         if (list == null) {
                             result.append("?items?");
-                            list = New.arrayList();
+                            list = new ArrayList<>();
                         }
-                        if (list.size() == 0) {
+                        if (list.isEmpty()) {
                             parseBlockUntil("</c:forEach>");
                         }
                         for (Object o : list) {
@@ -141,7 +143,7 @@ public class PageParser {
                         setError(i);
                         return;
                     }
-                    String item = p.substring(i, j).trim();
+                    String item = StringUtils.trimSubstring(p, i, j);
                     i = j;
                     String s = (String) get(item);
                     replaceTags(s);

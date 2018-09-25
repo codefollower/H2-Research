@@ -1,11 +1,10 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.schema;
 
-import java.math.BigInteger;
 import org.h2.api.ErrorCode;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
@@ -32,7 +31,6 @@ public class Sequence extends SchemaObjectBase {
     private long maxValue;
     private boolean cycle;
     private boolean belongsToTable;
-    private final Object flushSync = new Object();
     private boolean writeWithMargin;
 
     /**
@@ -68,7 +66,7 @@ public class Sequence extends SchemaObjectBase {
     public Sequence(Schema schema, int id, String name, Long startValue,
             Long increment, Long cacheSize, Long minValue, Long maxValue,
             boolean cycle, boolean belongsToTable) {
-        initSchemaObjectBase(schema, id, name, Trace.SEQUENCE);
+        super(schema, id, name, Trace.SEQUENCE);
         this.increment = increment != null ?
                 increment : 1;
         this.minValue = minValue != null ?
@@ -84,9 +82,9 @@ public class Sequence extends SchemaObjectBase {
         this.belongsToTable = belongsToTable;
         if (!isValid(this.value, this.minValue, this.maxValue, this.increment)) {
             throw DbException.get(ErrorCode.SEQUENCE_ATTRIBUTES_INVALID, name,
-                    String.valueOf(this.value), String.valueOf(this.minValue),
-                    String.valueOf(this.maxValue),
-                    String.valueOf(this.increment));
+                    Long.toString(this.value), Long.toString(this.minValue),
+                    Long.toString(this.maxValue),
+                    Long.toString(this.increment));
         }
     }
 
@@ -140,20 +138,17 @@ public class Sequence extends SchemaObjectBase {
      * @param maxValue the prospective max value
      * @param increment the prospective increment
      */
-    private static boolean isValid(long value, long minValue, long maxValue,
-            long increment) {
+    private static boolean isValid(long value, long minValue, long maxValue, long increment) {
         return minValue <= value &&
             maxValue >= value &&
             maxValue > minValue &&
             increment != 0 &&
-            // Math.abs(increment) < maxValue - minValue
-            // use BigInteger to avoid overflows when maxValue and minValue
-            // are really big
-            BigInteger.valueOf(increment).abs().compareTo(
-                    BigInteger.valueOf(maxValue).subtract(BigInteger.valueOf(minValue))) < 0;
+            // Math.abs(increment) <= maxValue - minValue
+            // Can use Long.compareUnsigned() on Java 8
+            Math.abs(increment) + Long.MIN_VALUE <= maxValue - minValue + Long.MIN_VALUE;
     }
 
-    private static long getDefaultMinValue(Long startValue, long increment) {
+    public static long getDefaultMinValue(Long startValue, long increment) {
         long v = increment >= 0 ? 1 : Long.MIN_VALUE;
         if (startValue != null && increment >= 0 && startValue < v) {
             v = startValue;
@@ -161,7 +156,7 @@ public class Sequence extends SchemaObjectBase {
         return v;
     }
 
-    private static long getDefaultMaxValue(Long startValue, long increment) {
+    public static long getDefaultMaxValue(Long startValue, long increment) {
         long v = increment >= 0 ? Long.MAX_VALUE : -1;
         if (startValue != null && increment < 0 && startValue > v) {
             v = startValue;
@@ -306,18 +301,16 @@ public class Sequence extends SchemaObjectBase {
     }
 
     private void flushInternal(Session session) {
-        synchronized (flushSync) {
-            final boolean metaWasLocked = database.lockMeta(session);
-            // just for this case, use the value with the margin
-            try {
-                writeWithMargin = true;
-                database.updateMeta(session, this);
-            } finally {
-                writeWithMargin = false;
-            }
-            if (!metaWasLocked) {
-                database.unlockMeta(session);
-            }
+        final boolean metaWasLocked = database.lockMeta(session);
+        // just for this case, use the value with the margin
+        try {
+            writeWithMargin = true;
+            database.updateMeta(session, this);
+        } finally {
+            writeWithMargin = false;
+        }
+        if (!metaWasLocked) {
+            database.unlockMeta(session);
         }
     }
 

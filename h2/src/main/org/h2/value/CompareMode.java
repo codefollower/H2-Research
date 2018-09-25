@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,9 @@ package org.h2.value;
 
 import java.nio.charset.Charset;
 import java.text.Collator;
+import java.util.Comparator;
 import java.util.Locale;
+import java.util.Objects;
 
 import org.h2.engine.SysProperties;
 import org.h2.util.StringUtils;
@@ -16,7 +18,7 @@ import org.h2.util.StringUtils;
  * Instances of this class can compare strings. Case sensitive and case
  * insensitive comparison is supported, and comparison using a collator.
  */
-public class CompareMode {
+public class CompareMode implements Comparator<Value> {
 
     /**
      * This constant means there is no collator set, and the default string
@@ -111,7 +113,7 @@ public class CompareMode {
     public static CompareMode getInstance(String name, int strength, boolean binaryUnsigned) {
         CompareMode last = lastUsed;
         if (last != null) {
-            if (StringUtils.equals(last.name, name) &&
+            if (Objects.equals(last.name, name) &&
                     last.strength == strength &&
                     last.binaryUnsigned == binaryUnsigned) {
                 return last;
@@ -283,6 +285,11 @@ public class CompareMode {
     @Override
     public int hashCode() {
         return getName().hashCode() ^ strength ^ (binaryUnsigned ? -1 : 0);
+    }
+
+    @Override
+    public int compare(Value o1, Value o2) {
+        return o1.compareTo(o2, null, this);
     }
 
 }

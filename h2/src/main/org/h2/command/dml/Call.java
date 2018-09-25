@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,6 +12,7 @@ import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.result.LocalResult;
+import org.h2.result.LocalResultFactory;
 import org.h2.result.ResultInterface;
 import org.h2.value.Value;
 
@@ -34,9 +35,9 @@ public class Call extends Prepared {
         LocalResult result;
         if (isResultSet) {
             Expression[] expr = expression.getExpressionColumns(session);
-            result = new LocalResult(session, expr, expr.length);
+            result = session.getDatabase().getResultFactory().create(session, expr, expr.length);
         } else {
-            result = new LocalResult(session, expressions, 1);
+            result = session.getDatabase().getResultFactory().create(session, expressions, 1);
         }
         result.done();
         return result;
@@ -66,9 +67,9 @@ public class Call extends Prepared {
         if (isResultSet) { //例如 "CALL TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World'))"
             v = v.convertTo(Value.RESULT_SET);
             ResultSet rs = v.getResultSet();
-            return LocalResult.read(session, rs, maxrows);
+            return LocalResultFactory.read(session, rs, maxrows);
         }
-        LocalResult result = new LocalResult(session, expressions, 1);
+        LocalResult result = session.getDatabase().getResultFactory().create(session, expressions, 1);
         Value[] row = { v };
         result.addRow(row);
         result.done();

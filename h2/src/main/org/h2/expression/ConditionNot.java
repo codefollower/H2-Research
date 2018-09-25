@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -37,8 +37,8 @@ public class ConditionNot extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
-        condition.mapColumns(resolver, level);
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
+        condition.mapColumns(resolver, level, state);
     }
 
     @Override
@@ -70,8 +70,8 @@ public class ConditionNot extends Condition {
     }
 
     @Override
-    public void updateAggregate(Session session) {
-        condition.updateAggregate(session);
+    public void updateAggregate(Session session, int stage) {
+        condition.updateAggregate(session, stage);
     }
 
     @Override
@@ -96,6 +96,19 @@ public class ConditionNot extends Condition {
     @Override
     public int getCost() {
         return condition.getCost();
+    }
+
+    @Override
+    public int getSubexpressionCount() {
+        return 1;
+    }
+
+    @Override
+    public Expression getSubexpression(int index) {
+        if (index == 0) {
+            return condition;
+        }
+        throw new IndexOutOfBoundsException();
     }
 
 }

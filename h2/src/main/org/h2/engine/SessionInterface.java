@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -153,4 +153,13 @@ public interface SessionInterface extends Closeable {
      * @return the current schema name
      */
     String getCurrentSchemaName();
+
+    /**
+     * Returns is this session supports generated keys.
+     *
+     * @return {@code true} if generated keys are supported, {@code false} if only
+     *         {@code SCOPE_IDENTITY()} is supported
+     */
+    boolean isSupportsGeneratedKeys();
+
 }

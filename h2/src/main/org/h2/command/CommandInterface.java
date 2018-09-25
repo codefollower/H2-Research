@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,6 +8,7 @@ package org.h2.command;
 import java.util.ArrayList;
 import org.h2.expression.ParameterInterface;
 import org.h2.result.ResultInterface;
+import org.h2.result.ResultWithGeneratedKeys;
 
 /**
  * Represents a SQL statement.
@@ -481,6 +482,11 @@ public interface CommandInterface {
     int DROP_SYNONYM = 89;
 
     /**
+     * The type of a ALTER TABLE ALTER COLUMN SET ON UPDATE statement.
+     */
+    int ALTER_TABLE_ALTER_COLUMN_ON_UPDATE = 90;
+
+    /**
      * Get command type.
      *
      * @return one of the constants above
@@ -513,9 +519,16 @@ public interface CommandInterface {
     /**
      * Execute the statement
      *
+     * @param generatedKeysRequest
+     *            {@code false} if generated keys are not needed, {@code true} if
+     *            generated keys should be configured automatically, {@code int[]}
+     *            to specify column indices to return generated keys from, or
+     *            {@code String[]} to specify column names to return generated keys
+     *            from
+     *
      * @return the update count
      */
-    int executeUpdate();
+    ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest);
 
     /**
      * Stop the command execution, release all locks and resources

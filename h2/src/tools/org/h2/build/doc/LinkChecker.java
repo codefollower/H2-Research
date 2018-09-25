@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -27,11 +27,17 @@ public class LinkChecker {
     private static final boolean TEST_EXTERNAL_LINKS = false;
     private static final boolean OPEN_EXTERNAL_LINKS = false;
     private static final String[] IGNORE_MISSING_LINKS_TO = {
-        "SysProperties", "ErrorCode"
+        "SysProperties", "ErrorCode",
+        // TODO check these replacement link too
+        "#build_index",
+        "#datatypes_index",
+        "#faq_index",
+        "#grammar_index",
+        "#tutorial_index"
     };
 
-    private final HashMap<String, String> targets = new HashMap<String, String>();
-    private final HashMap<String, String> links = new HashMap<String, String>();
+    private final HashMap<String, String> targets = new HashMap<>();
+    private final HashMap<String, String> links = new HashMap<>();
 
     /**
      * This method is called when executing this application from the command
@@ -114,7 +120,7 @@ public class LinkChecker {
     }
 
     private void listBadLinks() throws Exception {
-        ArrayList<String> errors = new ArrayList<String>();
+        ArrayList<String> errors = new ArrayList<>();
         for (String link : links.keySet()) {
             if (!link.startsWith("http") && !link.endsWith("h2.pdf")
                     && link.indexOf("_ja.") < 0) {
@@ -181,7 +187,7 @@ public class LinkChecker {
                 break;
             }
             int start = idx + " id=\"".length();
-            int end = html.indexOf("\"", start);
+            int end = html.indexOf('"', start);
             if (end < 0) {
                 error(fileName, "Expected \" after id= " + html.substring(idx, idx + 100));
             }
@@ -196,11 +202,11 @@ public class LinkChecker {
             if (idx < 0) {
                 break;
             }
-            int start = html.indexOf("\"", idx);
+            int start = html.indexOf('"', idx);
             if (start < 0) {
                 error(fileName, "Expected \" after href= at " + html.substring(idx, idx + 100));
             }
-            int end = html.indexOf("\"", start + 1);
+            int end = html.indexOf('"', start + 1);
             if (end < 0) {
                 error(fileName, "Expected \" after href= at " + html.substring(idx, idx + 100));
             }
@@ -237,16 +243,16 @@ public class LinkChecker {
             if (idx < 0) {
                 break;
             }
-            int equals = html.indexOf("=", idx);
+            int equals = html.indexOf('=', idx);
             if (equals < 0) {
                 error(fileName, "Expected = after <a at " + html.substring(idx, idx + 100));
             }
             String type = html.substring(idx + 2, equals).trim();
-            int start = html.indexOf("\"", idx);
+            int start = html.indexOf('"', idx);
             if (start < 0) {
                 error(fileName, "Expected \" after <a at " + html.substring(idx, idx + 100));
             }
-            int end = html.indexOf("\"", start + 1);
+            int end = html.indexOf('"', start + 1);
             if (end < 0) {
                 error(fileName, "Expected \" after <a at " + html.substring(idx, idx + 100));
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,7 +11,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import org.h2.util.New;
 import org.h2.util.StringUtils;
 
 /**
@@ -65,7 +64,7 @@ public class MultiDimension implements Comparator<long[]> {
      */
     public int getMaxValue(int dimensions) {
         if (dimensions < 2 || dimensions > 32) {
-            throw new IllegalArgumentException("" + dimensions);
+            throw new IllegalArgumentException(Integer.toString(dimensions));
         }
         int bitsPerValue = getBitsPerValue(dimensions);
         return (int) ((1L << bitsPerValue) - 1);
@@ -183,8 +182,8 @@ public class MultiDimension implements Comparator<long[]> {
         Long[] from = new Long[len];
         Long[] to = new Long[len];
         for (int i = 0; i < len; i++) {
-            from[i] = Long.valueOf(ranges[i][0]);
-            to[i] = Long.valueOf(ranges[i][1]);
+            from[i] = ranges[i][0];
+            to[i] = ranges[i][1];
         }
         prep.setObject(1, from);
         prep.setObject(2, to);
@@ -219,12 +218,10 @@ public class MultiDimension implements Comparator<long[]> {
             }
         }
         int total = getSize(min, max, len);
-        ArrayList<long[]> list = New.arrayList();
+        ArrayList<long[]> list = new ArrayList<>();
         addMortonRanges(list, min, max, len, 0);
         combineEntries(list, total);
-        long[][] ranges = new long[list.size()][2];
-        list.toArray(ranges);
-        return ranges;
+        return list.toArray(new long[0][]);
     }
 
     private static int getSize(int[] min, int[] max, int len) {
@@ -272,18 +269,18 @@ public class MultiDimension implements Comparator<long[]> {
     private void addMortonRanges(ArrayList<long[]> list, int[] min, int[] max,
             int len, int level) {
         if (level > 100) {
-            throw new IllegalArgumentException("" + level);
+            throw new IllegalArgumentException(Integer.toString(level));
         }
         int largest = 0, largestDiff = 0;
         long size = 1;
         for (int i = 0; i < len; i++) {
             int diff = max[i] - min[i];
             if (diff < 0) {
-                throw new IllegalArgumentException(""+ diff);
+                throw new IllegalArgumentException(Integer.toString(diff));
             }
             size *= diff + 1;
             if (size < 0) {
-                throw new IllegalArgumentException("" + size);
+                throw new IllegalArgumentException(Long.toString(size));
             }
             if (diff > largestDiff) {
                 largestDiff = diff;

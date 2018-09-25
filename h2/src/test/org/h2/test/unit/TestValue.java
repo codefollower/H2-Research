@@ -1,24 +1,39 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.Date;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.UUID;
+
 import org.h2.api.ErrorCode;
+import org.h2.engine.Database;
+import org.h2.engine.Session;
+import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
+import org.h2.store.DataHandler;
 import org.h2.test.TestBase;
+import org.h2.test.TestDb;
 import org.h2.test.utils.AssertThrows;
 import org.h2.tools.SimpleResultSet;
+import org.h2.util.Bits;
 import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
@@ -31,12 +46,13 @@ import org.h2.value.ValueLobDb;
 import org.h2.value.ValueNull;
 import org.h2.value.ValueResultSet;
 import org.h2.value.ValueString;
+import org.h2.value.ValueTimestamp;
 import org.h2.value.ValueUuid;
 
 /**
  * Tests features of values.
  */
-public class TestValue extends TestBase {
+public class TestValue extends TestDb {
 
     /**
      * Run just this test.
@@ -50,15 +66,19 @@ public class TestValue extends TestBase {
     @Override
     public void test() throws SQLException {
         testResultSetOperations();
+        testBinaryAndUuid();
         testCastTrim();
         testValueResultSet();
         testDataType();
+        testArray();
         testUUID();
         testDouble(false);
         testDouble(true);
+        testTimestamp();
         testModulusDouble();
         testModulusDecimal();
         testModulusOperator();
+        testLobComparison();
     }
 
     private void testResultSetOperations() throws SQLException {
@@ -87,6 +107,7 @@ public class TestValue extends TestBase {
         testResultSetOperation(new Time(7));
         testResultSetOperation(new Timestamp(8));
         testResultSetOperation(new BigDecimal("9"));
+        testResultSetOperation(UUID.randomUUID());
 
         SimpleResultSet rs2 = new SimpleResultSet();
         rs2.setAutoClose(false);
@@ -111,6 +132,28 @@ public class TestValue extends TestBase {
             assertEquals(v.toString(), v2.toString());
         } else {
             assertTrue(v.equals(v2));
+        }
+    }
+
+    private void testBinaryAndUuid() throws SQLException {
+        try (Connection conn = getConnection("binaryAndUuid")) {
+            UUID uuid = UUID.randomUUID();
+            PreparedStatement prep;
+            ResultSet rs;
+            // Check conversion to byte[]
+            prep = conn.prepareStatement("SELECT * FROM TABLE(X BINARY=?)");
+            prep.setObject(1, new Object[] { uuid });
+            rs = prep.executeQuery();
+            rs.next();
+            assertTrue(Arrays.equals(Bits.uuidToBytes(uuid), (byte[]) rs.getObject(1)));
+            // Check that type is not changed
+            prep = conn.prepareStatement("SELECT * FROM TABLE(X UUID=?)");
+            prep.setObject(1, new Object[] { uuid });
+            rs = prep.executeQuery();
+            rs.next();
+            assertEquals(uuid, rs.getObject(1));
+        } finally {
+            deleteDb("binaryAndUuid");
         }
     }
 
@@ -231,8 +274,9 @@ public class TestValue extends TestBase {
         testDataType(Value.NULL, Void.class);
         testDataType(Value.DECIMAL, BigDecimal.class);
         testDataType(Value.RESULT_SET, ResultSet.class);
-        testDataType(Value.BLOB, Value.ValueBlob.class);
-        testDataType(Value.CLOB, Value.ValueClob.class);
+        testDataType(Value.BLOB, ValueLobDb.class);
+        // see FIXME in DataType.getTypeFromClass
+        //testDataType(Value.CLOB, Value.ValueClob.class);
         testDataType(Value.DATE, Date.class);
         testDataType(Value.TIME, Time.class);
         testDataType(Value.TIMESTAMP, Timestamp.class);
@@ -265,13 +309,58 @@ public class TestValue extends TestBase {
             values[i] = v;
             assertTrue(values[i].compareTypeSafe(values[i], null) == 0);
             assertTrue(v.equals(v));
-            assertEquals(i < 2 ? -1 : i > 2 ? 1 : 0, v.getSignum());
+            assertEquals(Integer.compare(i, 2), v.getSignum());
         }
         for (int i = 0; i < d.length - 1; i++) {
             assertTrue(values[i].compareTypeSafe(values[i+1], null) < 0);
             assertTrue(values[i + 1].compareTypeSafe(values[i], null) > 0);
-            assertTrue(!values[i].equals(values[i+1]));
+            assertFalse(values[i].equals(values[i+1]));
         }
+    }
+
+    private void testTimestamp() {
+        ValueTimestamp valueTs = ValueTimestamp.parse("2000-01-15 10:20:30.333222111");
+        Timestamp ts = Timestamp.valueOf("2000-01-15 10:20:30.333222111");
+        assertEquals(ts.toString(), valueTs.getString());
+        assertEquals(ts, valueTs.getTimestamp());
+        Calendar c = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
+        c.set(2018, 02, 25, 1, 59, 00);
+        c.set(Calendar.MILLISECOND, 123);
+        long expected = c.getTimeInMillis();
+        ts = ValueTimestamp.parse("2018-03-25 01:59:00.123123123 Europe/Berlin").getTimestamp();
+        assertEquals(expected, ts.getTime());
+        assertEquals(123123123, ts.getNanos());
+        ts = ValueTimestamp.parse("2018-03-25 01:59:00.123123123+01").getTimestamp();
+        assertEquals(expected, ts.getTime());
+        assertEquals(123123123, ts.getNanos());
+        expected += 60000; // 1 minute
+        ts = ValueTimestamp.parse("2018-03-25 03:00:00.123123123 Europe/Berlin").getTimestamp();
+        assertEquals(expected, ts.getTime());
+        assertEquals(123123123, ts.getNanos());
+        ts = ValueTimestamp.parse("2018-03-25 03:00:00.123123123+02").getTimestamp();
+        assertEquals(expected, ts.getTime());
+        assertEquals(123123123, ts.getNanos());
+    }
+
+    private void testArray() {
+        ValueArray src = ValueArray.get(String.class,
+                new Value[] {ValueString.get("1"), ValueString.get("22"), ValueString.get("333")});
+        assertEquals(6, src.getPrecision());
+        assertSame(src, src.convertPrecision(5, false));
+        assertSame(src, src.convertPrecision(6, true));
+        ValueArray exp = ValueArray.get(String.class,
+                new Value[] {ValueString.get("1"), ValueString.get("22"), ValueString.get("33")});
+        Value got = src.convertPrecision(5, true);
+        assertEquals(exp, got);
+        assertEquals(String.class, ((ValueArray) got).getComponentType());
+        exp = ValueArray.get(String.class, new Value[] {ValueString.get("1"), ValueString.get("22")});
+        got = src.convertPrecision(3, true);
+        assertEquals(exp, got);
+        assertEquals(String.class, ((ValueArray) got).getComponentType());
+        exp = ValueArray.get(String.class, new Value[0]);
+        got = src.convertPrecision(0, true);
+        assertEquals(exp, got);
+        assertEquals(String.class, ((ValueArray) got).getComponentType());
     }
 
     private void testUUID() {
@@ -326,14 +415,61 @@ public class TestValue extends TestBase {
     }
 
     private void testModulusOperator() throws SQLException {
-        Connection conn = getConnection("modulus");
-        try {
+        try (Connection conn = getConnection("modulus")) {
             ResultSet rs = conn.createStatement().executeQuery("CALL 12 % 10");
             rs.next();
             assertEquals(2, rs.getInt(1));
         } finally {
-            conn.close();
             deleteDb("modulus");
+        }
+    }
+
+    private void testLobComparison() throws SQLException {
+        assertEquals(0, testLobComparisonImpl(null, Value.BLOB, 0, 0, 0, 0));
+        assertEquals(0, testLobComparisonImpl(null, Value.CLOB, 0, 0, 0, 0));
+        assertEquals(-1, testLobComparisonImpl(null, Value.BLOB, 1, 1, 200, 210));
+        assertEquals(-1, testLobComparisonImpl(null, Value.CLOB, 1, 1, 'a', 'b'));
+        assertEquals(1, testLobComparisonImpl(null, Value.BLOB, 512, 512, 210, 200));
+        assertEquals(1, testLobComparisonImpl(null, Value.CLOB, 512, 512, 'B', 'A'));
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:testValue")) {
+            Database dh = ((Session) ((JdbcConnection) c).getSession()).getDatabase();
+            assertEquals(1, testLobComparisonImpl(dh, Value.BLOB, 1_024, 1_024, 210, 200));
+            assertEquals(1, testLobComparisonImpl(dh, Value.CLOB, 1_024, 1_024, 'B', 'A'));
+            assertEquals(-1, testLobComparisonImpl(dh, Value.BLOB, 10_000, 10_000, 200, 210));
+            assertEquals(-1, testLobComparisonImpl(dh, Value.CLOB, 10_000, 10_000, 'a', 'b'));
+            assertEquals(0, testLobComparisonImpl(dh, Value.BLOB, 10_000, 10_000, 0, 0));
+            assertEquals(0, testLobComparisonImpl(dh, Value.CLOB, 10_000, 10_000, 0, 0));
+            assertEquals(-1, testLobComparisonImpl(dh, Value.BLOB, 1_000, 10_000, 0, 0));
+            assertEquals(-1, testLobComparisonImpl(dh, Value.CLOB, 1_000, 10_000, 0, 0));
+            assertEquals(1, testLobComparisonImpl(dh, Value.BLOB, 10_000, 1_000, 0, 0));
+            assertEquals(1, testLobComparisonImpl(dh, Value.CLOB, 10_000, 1_000, 0, 0));
+        }
+    }
+
+    private static int testLobComparisonImpl(DataHandler dh, int type, int size1, int size2, int suffix1,
+            int suffix2) {
+        byte[] bytes1 = new byte[size1];
+        byte[] bytes2 = new byte[size2];
+        if (size1 > 0) {
+            bytes1[size1 - 1] = (byte) suffix1;
+        }
+        if (size2 > 0) {
+            bytes2[size2 - 1] = (byte) suffix2;
+        }
+        Value lob1 = createLob(dh, type, bytes1);
+        Value lob2 = createLob(dh, type, bytes2);
+        return lob1.compareTypeSafe(lob2, null);
+    }
+
+    static Value createLob(DataHandler dh, int type, byte[] bytes) {
+        if (dh == null) {
+            return ValueLobDb.createSmallLob(type, bytes);
+        }
+        ByteArrayInputStream in = new ByteArrayInputStream(bytes);
+        if (type == Value.BLOB) {
+            return dh.getLobStorage().createBlob(in, -1);
+        } else {
+            return dh.getLobStorage().createClob(new InputStreamReader(in, StandardCharsets.UTF_8), -1);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -44,14 +44,8 @@ public class JdbcXid extends TraceObject implements Xid {
      * INTERNAL
      */
     public static String toString(Xid xid) {
-        StringBuilder buff = new StringBuilder(PREFIX);
-        buff.append('_').
-            append(xid.getFormatId()).
-            append('_').
-            append(StringUtils.convertBytesToHex(xid.getBranchQualifier())).
-            append('_').
-            append(StringUtils.convertBytesToHex(xid.getGlobalTransactionId()));
-        return buff.toString();
+        return PREFIX + '_' + xid.getFormatId() + '_' + StringUtils.convertBytesToHex(xid.getBranchQualifier()) + '_'
+                + StringUtils.convertBytesToHex(xid.getGlobalTransactionId());
     }
 
     /**

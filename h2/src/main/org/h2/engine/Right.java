@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -72,7 +72,7 @@ public class Right extends DbObjectBase {
     private DbObject grantedObject;
 
     public Right(Database db, int id, RightOwner grantee, Role grantedRole) {
-        initDbObjectBase(db, id, "RIGHT_" + id, Trace.USER);
+        super(db, id, "RIGHT_" + id, Trace.USER);
         this.grantee = grantee;
         this.grantedRole = grantedRole;
     }
@@ -82,7 +82,7 @@ public class Right extends DbObjectBase {
     //对应GRANT RIGHT语句
     public Right(Database db, int id, RightOwner grantee, int grantedRight,
             DbObject grantedObject) {
-        initDbObjectBase(db, id, "" + id, Trace.USER);
+        super(db, id, Integer.toString(id), Trace.USER);
         this.grantee = grantee;
         this.grantedRight = grantedRight;
         this.grantedObject = grantedObject;

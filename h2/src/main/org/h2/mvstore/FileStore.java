@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,7 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-
+import java.util.concurrent.atomic.AtomicLong;
 import org.h2.mvstore.cache.FilePathCache;
 import org.h2.store.fs.FilePath;
 import org.h2.store.fs.FilePathDisk;
@@ -27,22 +27,22 @@ public class FileStore {
     /**
      * The number of read operations.
      */
-    protected long readCount;
+    protected final AtomicLong readCount = new AtomicLong(0);
 
     /**
      * The number of read bytes.
      */
-    protected long readBytes;
+    protected final AtomicLong readBytes = new AtomicLong(0);
 
     /**
      * The number of write operations.
      */
-    protected long writeCount;
+    protected final AtomicLong writeCount = new AtomicLong(0);
 
     /**
      * The number of written bytes.
      */
-    protected long writeBytes;
+    protected final AtomicLong writeBytes = new AtomicLong(0);
 
     /**
      * The free spaces between the chunks. The first block to use is block 2
@@ -54,12 +54,12 @@ public class FileStore {
     /**
      * The file name.
      */
-    protected String fileName;
+    private String fileName;
 
     /**
      * Whether this store is read-only.
      */
-    protected boolean readOnly;
+    private boolean readOnly;
 
     /**
      * The file size (cached).
@@ -69,17 +69,17 @@ public class FileStore {
     /**
      * The file.
      */
-    protected FileChannel file;
+    private FileChannel file;
 
     /**
      * The encrypted file (if encryption is used).
      */
-    protected FileChannel encryptedFile;
+    private FileChannel encryptedFile;
 
     /**
      * The file lock.
      */
-    protected FileLock fileLock;
+    private FileLock fileLock;
 
     @Override
     public String toString() {
@@ -96,8 +96,8 @@ public class FileStore {
     public ByteBuffer readFully(long pos, int len) {
         ByteBuffer dst = ByteBuffer.allocate(len);
         DataUtils.readFully(file, pos, dst);
-        readCount++;
-        readBytes += len;
+        readCount.incrementAndGet();
+        readBytes.addAndGet(len);
         return dst;
     }
 
@@ -111,8 +111,8 @@ public class FileStore {
         int len = src.remaining();
         fileSize = Math.max(fileSize, pos + len);
         DataUtils.writeFully(file, pos, src);
-        writeCount++;
-        writeBytes += len;
+        writeCount.incrementAndGet();
+        writeBytes.addAndGet(len);
     }
 
     /**
@@ -128,17 +128,15 @@ public class FileStore {
         if (file != null) {
             return;
         }
-        if (fileName != null) {
-            // ensure the Cache file system is registered
-            FilePathCache.INSTANCE.getScheme();
-            FilePath p = FilePath.get(fileName);
-            // if no explicit scheme was specified, NIO is used
-            if (p instanceof FilePathDisk &&
-                    !fileName.startsWith(p.getScheme() + ":")) {
-                // ensure the NIO file system is registered
-                FilePathNio.class.getName();
-                fileName = "nio:" + fileName;
-            }
+        // ensure the Cache file system is registered
+        FilePathCache.INSTANCE.getScheme();
+        FilePath p = FilePath.get(fileName);
+        // if no explicit scheme was specified, NIO is used
+        if (p instanceof FilePathDisk &&
+                !fileName.startsWith(p.getScheme() + ":")) {
+            // ensure the NIO file system is registered
+            FilePathNio.class.getName();
+            fileName = "nio:" + fileName;
         }
         this.fileName = fileName;
         FilePath f = FilePath.get(fileName);
@@ -170,12 +168,14 @@ public class FileStore {
                         "The file is locked: {0}", fileName, e);
             }
             if (fileLock == null) {
+                try { close(); } catch (Exception ignore) {}
                 throw DataUtils.newIllegalStateException(
                         DataUtils.ERROR_FILE_LOCKED,
                         "The file is locked: {0}", fileName);
             }
             fileSize = file.size();
         } catch (IOException e) {
+            try { close(); } catch (Exception ignore) {}
             throw DataUtils.newIllegalStateException(
                     DataUtils.ERROR_READING_FAILED,
                     "Could not open file {0}", fileName, e);
@@ -186,19 +186,21 @@ public class FileStore {
      * Close this store.
      */
     public void close() {
-        try {
-            if (fileLock != null) {
-                fileLock.release();
-                fileLock = null;
+        if(file != null) {
+            try {
+                if (fileLock != null) {
+                    fileLock.release();
+                    fileLock = null;
+                }
+                file.close();
+                freeSpace.clear();
+            } catch (Exception e) {
+                throw DataUtils.newIllegalStateException(
+                        DataUtils.ERROR_WRITING_FAILED,
+                        "Closing failed for file {0}", fileName, e);
+            } finally {
+                file = null;
             }
-            file.close();
-            freeSpace.clear();
-        } catch (Exception e) {
-            throw DataUtils.newIllegalStateException(
-                    DataUtils.ERROR_WRITING_FAILED,
-                    "Closing failed for file {0}", fileName, e);
-        } finally {
-            file = null;
         }
     }
 
@@ -206,12 +208,14 @@ public class FileStore {
      * Flush all changes.
      */
     public void sync() {
-        try {
-            file.force(true);
-        } catch (IOException e) {
-            throw DataUtils.newIllegalStateException(
-                    DataUtils.ERROR_WRITING_FAILED,
-                    "Could not sync file {0}", fileName, e);
+        if (file != null) {
+            try {
+                file.force(true);
+            } catch (IOException e) {
+                throw DataUtils.newIllegalStateException(
+                        DataUtils.ERROR_WRITING_FAILED,
+                        "Could not sync file {0}", fileName, e);
+            }
         }
     }
 
@@ -230,15 +234,23 @@ public class FileStore {
      * @param size the new file size
      */
     public void truncate(long size) {
-        try {
-            writeCount++;
-            file.truncate(size);
-            fileSize = Math.min(fileSize, size);
-        } catch (IOException e) {
-            throw DataUtils.newIllegalStateException(
-                    DataUtils.ERROR_WRITING_FAILED,
-                    "Could not truncate file {0} to size {1}",
-                    fileName, size, e);
+        int attemptCount = 0;
+        while (true) {
+            try {
+                writeCount.incrementAndGet();
+                file.truncate(size);
+                fileSize = Math.min(fileSize, size);
+                return;
+            } catch (IOException e) {
+                if (++attemptCount == 10) {
+                    throw DataUtils.newIllegalStateException(
+                            DataUtils.ERROR_WRITING_FAILED,
+                            "Could not truncate file {0} to size {1}",
+                            fileName, size, e);
+                }
+                System.gc();
+                Thread.yield();
+            }
         }
     }
 
@@ -273,7 +285,7 @@ public class FileStore {
      * @return the number of write operations
      */
     public long getWriteCount() {
-        return writeCount;
+        return writeCount.get();
     }
 
     /**
@@ -282,7 +294,7 @@ public class FileStore {
      * @return the number of write operations
      */
     public long getWriteBytes() {
-        return writeBytes;
+        return writeBytes.get();
     }
 
     /**
@@ -292,7 +304,7 @@ public class FileStore {
      * @return the number of read operations
      */
     public long getReadCount() {
-        return readCount;
+        return readCount.get();
     }
 
     /**
@@ -301,7 +313,7 @@ public class FileStore {
      * @return the number of write operations
      */
     public long getReadBytes() {
-        return readBytes;
+        return readBytes.get();
     }
 
     public boolean isReadOnly() {
@@ -314,7 +326,7 @@ public class FileStore {
      * @return the retention time
      */
     public int getDefaultRetentionTime() {
-        return 45000;
+        return 45_000;
     }
 
     /**
@@ -338,6 +350,16 @@ public class FileStore {
     }
 
     /**
+     * Calculate starting position of the prospective allocation.
+     *
+     * @param length the number of bytes to allocate
+     * @return the start position in bytes
+     */
+    public long predictAllocation(int length) {
+        return freeSpace.predictAllocation(length);
+    }
+
+    /**
      * Mark the space as free.
      *
      * @param pos the position in bytes
@@ -353,6 +375,10 @@ public class FileStore {
 
     long getFirstFree() {
         return freeSpace.getFirstFree();
+    }
+
+    long getFileLengthInUse() {
+        return freeSpace.getLastFree();
     }
 
     /**

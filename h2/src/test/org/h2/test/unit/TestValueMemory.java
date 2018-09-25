@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,6 +12,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.Random;
+
+import org.h2.api.IntervalQualifier;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.engine.Constants;
 import org.h2.store.DataHandler;
@@ -36,6 +38,7 @@ import org.h2.value.ValueDouble;
 import org.h2.value.ValueFloat;
 import org.h2.value.ValueGeometry;
 import org.h2.value.ValueInt;
+import org.h2.value.ValueInterval;
 import org.h2.value.ValueJavaObject;
 import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
@@ -81,6 +84,10 @@ public class TestValueMemory extends TestBase implements DataHandler {
                 // experiment
                 continue;
             }
+            if (i == Value.ENUM) {
+                // TODO ENUM
+                continue;
+            }
             Value v = create(i);
             String s = "type: " + v.getType() +
                     " calculated: " + v.getMemory() +
@@ -92,6 +99,10 @@ public class TestValueMemory extends TestBase implements DataHandler {
             if (i == 23) {
                 // this used to be "TIMESTAMP UTC", which was a short-lived
                 // experiment
+                continue;
+            }
+            if (i == Value.ENUM) {
+                // TODO ENUM
                 continue;
             }
             Value v = create(i);
@@ -115,7 +126,7 @@ public class TestValueMemory extends TestBase implements DataHandler {
         System.gc();
         System.gc();
         long first = Utils.getMemoryUsed();
-        ArrayList<Value> list = new ArrayList<Value>();
+        ArrayList<Value> list = new ArrayList<>();
         long memory = 0;
         while (memory < 1000000) {
             Value v = create(type);
@@ -123,7 +134,7 @@ public class TestValueMemory extends TestBase implements DataHandler {
             list.add(v);
         }
         Object[] array = list.toArray();
-        IdentityHashMap<Object, Object> map = new IdentityHashMap<Object, Object>();
+        IdentityHashMap<Object, Object> map = new IdentityHashMap<>();
         for (Object a : array) {
             map.put(a, a);
         }
@@ -151,7 +162,7 @@ public class TestValueMemory extends TestBase implements DataHandler {
         case Value.NULL:
             return ValueNull.INSTANCE;
         case Value.BOOLEAN:
-            return ValueBoolean.get(false);
+            return ValueBoolean.FALSE;
         case Value.BYTE:
             return ValueByte.get((byte) random.nextInt());
         case Value.SHORT:
@@ -219,6 +230,25 @@ public class TestValueMemory extends TestBase implements DataHandler {
             }
             return ValueGeometry.get("POINT (" + random.nextInt(100) + " " +
                     random.nextInt(100) + ")");
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE:
+            return ValueInterval.from(IntervalQualifier.valueOf(type - Value.INTERVAL_YEAR),
+                    random.nextBoolean(), random.nextInt(Integer.MAX_VALUE), 0);
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND:
+            return ValueInterval.from(IntervalQualifier.valueOf(type - Value.INTERVAL_YEAR),
+                    random.nextBoolean(), random.nextInt(Integer.MAX_VALUE), random.nextInt(1_000_000_000));
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+            return ValueInterval.from(IntervalQualifier.valueOf(type - Value.INTERVAL_YEAR),
+                    random.nextBoolean(), random.nextInt(Integer.MAX_VALUE), random.nextInt(12));
         default:
             throw new AssertionError("type=" + type);
         }

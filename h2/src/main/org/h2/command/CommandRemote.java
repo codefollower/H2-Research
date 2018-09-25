@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import org.h2.engine.Constants;
+import org.h2.engine.GeneratedKeysMode;
 import org.h2.engine.SessionRemote;
 import org.h2.engine.SysProperties;
 import org.h2.expression.ParameterInterface;
@@ -17,7 +18,8 @@ import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultRemote;
-import org.h2.util.New;
+import org.h2.result.ResultWithGeneratedKeys;
+import org.h2.util.Utils;
 import org.h2.value.Transfer;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
@@ -45,7 +47,7 @@ public class CommandRemote implements CommandInterface {
         this.transferList = transferList;
         trace = session.getTrace();
         this.sql = sql;
-        parameters = New.arrayList();
+        parameters = Utils.newSmallArrayList();
         prepare(session, true);
         // set session late because prepare might fail - in this case we don't
         // need to close the object
@@ -218,10 +220,14 @@ public class CommandRemote implements CommandInterface {
     
     //注意: transferList.size大于1时，说明是集群环境，但是并不是XA，也就是说可能有一台server更新成功了，可以允许另一台更新不成功
     @Override
-    public int executeUpdate() {
+    public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
         checkParameters();
+        boolean supportsGeneratedKeys = session.isSupportsGeneratedKeys();
+        boolean readGeneratedKeys = supportsGeneratedKeys && !Boolean.FALSE.equals(generatedKeysRequest);
+        int objectId = readGeneratedKeys ? session.getNextId() : 0;
         synchronized (session) {
             int updateCount = 0;
+            ResultRemote generatedKeys = null;
             boolean autoCommit = false;
             for (int i = 0, count = 0; i < transferList.size(); i++) {
                 prepareIfRequired();
@@ -231,18 +237,57 @@ public class CommandRemote implements CommandInterface {
                     transfer.writeInt(SessionRemote.COMMAND_EXECUTE_UPDATE).writeInt(id);
                     //如果是JdbcStatement，没有参数，JdbcPreparedStatement才有
                     sendParameters(transfer);
+                    if (supportsGeneratedKeys) {
+                        int mode = GeneratedKeysMode.valueOf(generatedKeysRequest);
+                        transfer.writeInt(mode);
+                        switch (mode) {
+                        case GeneratedKeysMode.COLUMN_NUMBERS: {
+                            int[] keys = (int[]) generatedKeysRequest;
+                            transfer.writeInt(keys.length);
+                            for (int key : keys) {
+                                transfer.writeInt(key);
+                            }
+                            break;
+                        }
+                        case GeneratedKeysMode.COLUMN_NAMES: {
+                            String[] keys = (String[]) generatedKeysRequest;
+                            transfer.writeInt(keys.length);
+                            for (String key : keys) {
+                                transfer.writeString(key);
+                            }
+                            break;
+                        }
+                        }
+                    }
                     session.done(transfer);
                     updateCount = transfer.readInt();
                     autoCommit = transfer.readBoolean();
+                    if (readGeneratedKeys) {
+                        int columnCount = transfer.readInt();
+                        if (generatedKeys != null) {
+                            generatedKeys.close();
+                            generatedKeys = null;
+                        }
+                        generatedKeys = new ResultRemote(session, transfer, objectId, columnCount, Integer.MAX_VALUE);
+                    }
                 } catch (IOException e) {
                 	//只有所有server都出错时才尝试重连(不过要取决于各种参数)
                     session.removeServer(e, i--, ++count);
                 }
             }
-            session.setAutoCommitFromServer(autoCommit); //如果是集群环境，设为false
-            session.autoCommitIfCluster(); //如果是集群环境，通知所有server提交事务
-            session.readSessionState();//当session状态发生改变时，提取INFORMATION_SCHEMA.SESSION_STATE信息，下次可重建session
-            return updateCount;
+//<<<<<<< HEAD
+//            session.setAutoCommitFromServer(autoCommit); //如果是集群环境，设为false
+//            session.autoCommitIfCluster(); //如果是集群环境，通知所有server提交事务
+//            session.readSessionState();//当session状态发生改变时，提取INFORMATION_SCHEMA.SESSION_STATE信息，下次可重建session
+//            return updateCount;
+//=======
+            session.setAutoCommitFromServer(autoCommit);
+            session.autoCommitIfCluster();
+            session.readSessionState();
+            if (generatedKeys != null) {
+                return new ResultWithGeneratedKeys.WithKeys(updateCount, generatedKeys);
+            }
+            return ResultWithGeneratedKeys.of(updateCount);
         }
     }
 

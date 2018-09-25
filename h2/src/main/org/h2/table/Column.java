@@ -1,17 +1,20 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
 import java.sql.ResultSetMetaData;
-import java.util.Arrays;
+import java.util.Objects;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
+import org.h2.command.ddl.SequenceOptions;
 import org.h2.engine.Constants;
 import org.h2.engine.Mode;
 import org.h2.engine.Session;
+import org.h2.engine.UserDataType;
 import org.h2.expression.ConditionAndOr;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
@@ -21,20 +24,16 @@ import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.schema.Schema;
 import org.h2.schema.Sequence;
-import org.h2.util.DateTimeUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
 import org.h2.value.DataType;
+import org.h2.value.ExtTypeInfo;
 import org.h2.value.Value;
-import org.h2.value.ValueDate;
-import org.h2.value.ValueEnum;
 import org.h2.value.ValueInt;
 import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
 import org.h2.value.ValueString;
 import org.h2.value.ValueTime;
-import org.h2.value.ValueTimestamp;
-import org.h2.value.ValueTimestampTimeZone;
 import org.h2.value.ValueUuid;
 
 /**
@@ -68,19 +67,18 @@ public class Column {
     private final int type;
     private long precision;
     private int scale;
-    private String[] enumerators;
+    private ExtTypeInfo extTypeInfo;
     private int displaySize;
     private Table table;
     private String name;
     private int columnId;
     private boolean nullable = true;
     private Expression defaultExpression;
+    private Expression onUpdateExpression;
     private Expression checkConstraint;
     private String checkConstraintSQL;
     private String originalSQL;
-    private boolean autoIncrement;
-    private long start;
-    private long increment;
+    private SequenceOptions autoIncrementOptions;
     private boolean convertNullToDefault;
     private Sequence sequence;
     private boolean isComputed;
@@ -90,13 +88,10 @@ public class Column {
     private String comment;
     private boolean primaryKey;
     private boolean visible = true;
+    private UserDataType userDataType;
 
     public Column(String name, int type) {
         this(name, type, -1, -1, -1, null);
-    }
-
-    public Column(String name, int type, String[] enumerators) {
-        this(name, type, -1, -1, -1, enumerators);
     }
 
     public Column(String name, int type, long precision, int scale,
@@ -104,8 +99,7 @@ public class Column {
         this(name, type, precision, scale, displaySize, null);
     }
 
-    public Column(String name, int type, long precision, int scale,
-            int displaySize, String[] enumerators) {
+    public Column(String name, int type, long precision, int scale, int displaySize, ExtTypeInfo extTypeInfo) {
         this.name = name;
         this.type = type;
         if (precision == -1 && scale == -1 && displaySize == -1 && type != Value.UNKNOWN) {
@@ -117,7 +111,7 @@ public class Column {
         this.precision = precision;
         this.scale = scale;
         this.displaySize = displaySize;
-        this.enumerators = enumerators;
+        this.extTypeInfo = extTypeInfo;
     }
 
     @Override
@@ -146,12 +140,8 @@ public class Column {
         return table.getId() ^ name.hashCode();
     }
 
-    public boolean isEnumerated() {
-        return type == Value.ENUM;
-    }
-
     public Column getClone() {
-        Column newColumn = new Column(name, type, precision, scale, displaySize, enumerators);
+        Column newColumn = new Column(name, type, precision, scale, displaySize, extTypeInfo);
         newColumn.copy(this);
         return newColumn;
     }
@@ -177,7 +167,7 @@ public class Column {
      */
     public Value convert(Value v, Mode mode) {
         try {
-            return v.convertTo(type, MathUtils.convertLongToInt(precision), mode, this);
+            return v.convertTo(type, MathUtils.convertLongToInt(precision), mode, this, extTypeInfo);
         } catch (DbException e) {
             if (e.getErrorCode() == ErrorCode.DATA_CONVERSION_ERROR_1) {
                 String target = (table == null ? "" : table.getName() + ": ") +
@@ -252,6 +242,23 @@ public class Column {
         this.defaultExpression = defaultExpression;
     }
 
+    /**
+     * Set the on update expression.
+     *
+     * @param session the session
+     * @param onUpdateExpression the on update expression
+     */
+    public void setOnUpdateExpression(Session session, Expression onUpdateExpression) {
+        // also to test that no column names are used
+        if (onUpdateExpression != null) {
+            onUpdateExpression = onUpdateExpression.optimize(session);
+            if (onUpdateExpression.isConstant()) {
+                onUpdateExpression = ValueExpression.get(onUpdateExpression.getValue(session));
+            }
+        }
+        this.onUpdateExpression = onUpdateExpression;
+    }
+
     public int getColumnId() {
         return columnId;
     }
@@ -288,12 +295,12 @@ public class Column {
         nullable = b;
     }
 
-    public String[] getEnumerators() {
-        return enumerators;
+    public ExtTypeInfo getExtTypeInfo() {
+        return extTypeInfo;
     }
 
-    public void setEnumerators(String[] enumerators) {
-        this.enumerators = enumerators;
+    public void setExtTypeInfo(ExtTypeInfo extTypeInfo) {
+        this.extTypeInfo = extTypeInfo;
     }
 
     public boolean getVisible() {
@@ -302,6 +309,14 @@ public class Column {
 
     public void setVisible(boolean b) {
         visible = b;
+    }
+
+    public UserDataType getUserDataType() {
+        return userDataType;
+    }
+
+    public void setUserDataType(UserDataType userDataType) {
+        this.userDataType = userDataType;
     }
 
     /**
@@ -320,21 +335,31 @@ public class Column {
         synchronized (this) {
             localDefaultExpression = defaultExpression;
         }
+        Mode mode = session.getDatabase().getMode();
         if (value == null) {
             if (localDefaultExpression == null) {
                 value = ValueNull.INSTANCE;
             } else {
-                value = localDefaultExpression.getValue(session).convertTo(type);
+                value = convert(localDefaultExpression.getValue(session), mode);
+                if (!localDefaultExpression.isConstant()) {
+                    session.getGeneratedKeys().add(this);
+                }
                 if (primaryKey) {
                     session.setLastIdentity(value);
                 }
             }
         }
-        Mode mode = session.getDatabase().getMode();
         if (value == ValueNull.INSTANCE) {
-            // if (convertNullToDefault) { //有bug，见my.test.bugs.ColumnBugTest
-            if (convertNullToDefault && localDefaultExpression != null) {
-                value = localDefaultExpression.getValue(session).convertTo(type);
+//<<<<<<< HEAD
+//            // if (convertNullToDefault) { //有bug，见my.test.bugs.ColumnBugTest
+//            if (convertNullToDefault && localDefaultExpression != null) {
+//                value = localDefaultExpression.getValue(session).convertTo(type);
+//=======
+            if (convertNullToDefault) {
+                value = convert(localDefaultExpression.getValue(session), mode);
+                if (!localDefaultExpression.isConstant()) {
+                    session.getGeneratedKeys().add(this);
+                }
             }
             if (value == ValueNull.INSTANCE && !nullable) {
                 if (mode.convertInsertNullToZero) {
@@ -342,16 +367,13 @@ public class Column {
                     if (dt.decimal) {
                         value = ValueInt.get(0).convertTo(type);
                     } else if (dt.type == Value.TIMESTAMP) {
-                        value = ValueTimestamp.fromMillis(session.getTransactionStart());
+                        value = session.getTransactionStart().convertTo(Value.TIMESTAMP);
                     } else if (dt.type == Value.TIMESTAMP_TZ) {
-                        long ms = session.getTransactionStart();
-                        value = ValueTimestampTimeZone.fromDateValueAndNanos(
-                                DateTimeUtils.dateValueFromDate(ms),
-                                DateTimeUtils.nanosFromDate(ms), (short) 0);
+                        value = session.getTransactionStart();
                     } else if (dt.type == Value.TIME) {
                         value = ValueTime.fromNanos(0);
                     } else if (dt.type == Value.DATE) {
-                        value = ValueDate.fromMillis(session.getTransactionStart());
+                        value = session.getTransactionStart().convertTo(Value.DATE);
                     } else {
                         value = ValueString.get("").convertTo(type);
                     }
@@ -367,7 +389,7 @@ public class Column {
                 v = checkConstraint.getValue(session);
             }
             // Both TRUE and NULL are ok
-            if (Boolean.FALSE.equals(v.getBoolean())) {
+            if (v != ValueNull.INSTANCE && !v.getBoolean()) {
                 throw DbException.get(
                         ErrorCode.CHECK_CONSTRAINT_VIOLATED_1,
                         checkConstraint.getSQL());
@@ -384,17 +406,8 @@ public class Column {
                         getCreateSQL(), s + " (" + value.getPrecision() + ")");
             }
         }
-        if (isEnumerated()) {
-            if (!ValueEnum.isValid(enumerators, value)) {
-                String s = value.getTraceSQL();
-                if (s.length() > 127) {
-                    s = s.substring(0, 128) + "...";
-                }
-                throw DbException.get(ErrorCode.ENUM_VALUE_NOT_PERMITTED,
-                        getCreateSQL(), s);
-            }
-
-            value = ValueEnum.get(enumerators, value.getInt());
+        if (value != ValueNull.INSTANCE && DataType.isExtInfoType(type) && extTypeInfo != null) {
+            value = extTypeInfo.cast(value);
         }
         updateSequenceIfRequired(session, value);
         return value;
@@ -432,7 +445,7 @@ public class Column {
     //建表或增加新字段或改变字段类型时，如果字段是autoIncrement的，就调用这个方法
     public void convertAutoIncrementToSequence(Session session, Schema schema,
             int id, boolean temporary) {
-        if (!autoIncrement) {
+        if (autoIncrementOptions == null) {
             DbException.throwInternalError();
         }
         if ("IDENTITY".equals(originalSQL)) {
@@ -441,20 +454,28 @@ public class Column {
             originalSQL = "INT";
         }
         String sequenceName;
-        while (true) {
+        do {
             ValueUuid uuid = ValueUuid.getNewRandom();
             String s = uuid.getString();
             s = StringUtils.toUpperEnglish(s.replace('-', '_'));
-            sequenceName = "SYSTEM_SEQUENCE_" + s; //例如: SYSTEM_SEQUENCE_D48A68C3_5C35_4228_9587_910712BB727A
-            if (schema.findSequence(sequenceName) == null) {
-                break;
-            }
-        }
-        //生成的Sequence都是属于表的(belongsToTable=true)e
-        Sequence seq = new Sequence(schema, id, sequenceName, start, increment);
+//<<<<<<< HEAD
+//            sequenceName = "SYSTEM_SEQUENCE_" + s; //例如: SYSTEM_SEQUENCE_D48A68C3_5C35_4228_9587_910712BB727A
+//            if (schema.findSequence(sequenceName) == null) {
+//                break;
+//            }
+//        }
+//        //生成的Sequence都是属于表的(belongsToTable=true)e
+//        Sequence seq = new Sequence(schema, id, sequenceName, start, increment);
+//=======
+            sequenceName = "SYSTEM_SEQUENCE_" + s;
+        } while (schema.findSequence(sequenceName) != null);
+        Sequence seq = new Sequence(schema, id, sequenceName, autoIncrementOptions.getStartValue(session),
+                autoIncrementOptions.getIncrement(session), autoIncrementOptions.getCacheSize(session),
+                autoIncrementOptions.getMinValue(null, session), autoIncrementOptions.getMaxValue(null, session),
+                Boolean.TRUE.equals(autoIncrementOptions.getCycle()), true);
         seq.setTemporary(temporary);
         session.getDatabase().addSchemaObject(session, seq);
-        setAutoIncrement(false, 0, 0);
+        setAutoIncrementOptions(null);
         SequenceValue seqValue = new SequenceValue(seq);
         setDefaultExpression(session, seqValue);
         setSequence(seq);
@@ -465,43 +486,78 @@ public class Column {
      *
      * @param session the session
      */
-    public void prepareExpression(Session session) { //在建表时触发
-        if (defaultExpression != null) {
-            computeTableFilter = new TableFilter(session, table, null, false, null, 0,
-                    null);
-            defaultExpression.mapColumns(computeTableFilter, 0);
-            defaultExpression = defaultExpression.optimize(session);
+//<<<<<<< HEAD
+//    public void prepareExpression(Session session) { //在建表时触发
+//        if (defaultExpression != null) {
+//            computeTableFilter = new TableFilter(session, table, null, false, null, 0,
+//                    null);
+//            defaultExpression.mapColumns(computeTableFilter, 0);
+//            defaultExpression = defaultExpression.optimize(session);
+//=======
+    public void prepareExpression(Session session) {
+        if (defaultExpression != null || onUpdateExpression != null) {
+            computeTableFilter = new TableFilter(session, table, null, false, null, 0, null);
+            if (defaultExpression != null) {
+                defaultExpression.mapColumns(computeTableFilter, 0, Expression.MAP_INITIAL);
+                defaultExpression = defaultExpression.optimize(session);
+            }
+            if (onUpdateExpression != null) {
+                onUpdateExpression.mapColumns(computeTableFilter, 0, Expression.MAP_INITIAL);
+                onUpdateExpression = onUpdateExpression.optimize(session);
+            }
         }
     }
 
+    public String getCreateSQLWithoutName() {
+        return getCreateSQL(false);
+    }
+
     public String getCreateSQL() {
+        return getCreateSQL(true);
+    }
+
+    private String getCreateSQL(boolean includeName) {
         StringBuilder buff = new StringBuilder();
-        if (name != null) {
+        if (includeName && name != null) {
             buff.append(Parser.quoteIdentifier(name)).append(' ');
         }
         if (originalSQL != null) {
             buff.append(originalSQL);
         } else {
-            buff.append(DataType.getDataType(type).name);
+            DataType dataType = DataType.getDataType(type);
+            if (type == Value.TIMESTAMP_TZ) {
+                buff.append("TIMESTAMP");
+            } else {
+                buff.append(dataType.name);
+            }
             switch (type) {
             case Value.DECIMAL:
                 buff.append('(').append(precision).append(", ").append(scale).append(')');
                 break;
-            case Value.ENUM:
-                buff.append('(');
-                for (int i = 0; i < enumerators.length; i++) {
-                    buff.append('\'').append(enumerators[i]).append('\'');
-                    if(i < enumerators.length - 1) {
-                        buff.append(',');
-                    }
+            case Value.GEOMETRY:
+                if (extTypeInfo == null) {
+                    break;
                 }
-                buff.append(')');
+                //$FALL-THROUGH$
+            case Value.ENUM:
+                buff.append(extTypeInfo.getCreateSQL());
+                break;
             case Value.BYTES:
             case Value.STRING:
             case Value.STRING_IGNORECASE:
             case Value.STRING_FIXED:
                 if (precision < Integer.MAX_VALUE) {
                     buff.append('(').append(precision).append(')');
+                }
+                break;
+            case Value.TIME:
+            case Value.TIMESTAMP:
+            case Value.TIMESTAMP_TZ:
+                if (scale != dataType.defaultScale) {
+                    buff.append('(').append(scale).append(')');
+                }
+                if (type == Value.TIMESTAMP_TZ) {
+                    buff.append(" WITH TIME ZONE");
                 }
                 break;
             default:
@@ -522,8 +578,16 @@ public class Column {
                 }
             }
         }
+        if (onUpdateExpression != null) {
+            String sql = onUpdateExpression.getSQL();
+            if (sql != null) {
+                buff.append(" ON UPDATE ").append(sql);
+            }
+        }
         if (!nullable) {
             buff.append(" NOT NULL");
+        } else if (userDataType != null && !userDataType.getColumn().isNullable()) {
+            buff.append(" NULL");
         }
         if (convertNullToDefault) {
             buff.append(" NULL_TO_DEFAULT");
@@ -559,23 +623,24 @@ public class Column {
         return defaultExpression;
     }
 
+    public Expression getOnUpdateExpression() {
+        return onUpdateExpression;
+    }
+
     public boolean isAutoIncrement() {
-        return autoIncrement;
+        return autoIncrementOptions != null;
     }
 
     /**
-     * Set the autoincrement flag and related properties of this column.
+     * Set the autoincrement flag and related options of this column.
      *
-     * @param autoInc the new autoincrement flag
-     * @param start the sequence start value
-     * @param increment the sequence increment
+     * @param sequenceOptions
+     *            sequence options, or {@code null} to reset the flag
      */
-    public void setAutoIncrement(boolean autoInc, long start, long increment) {
-        this.autoIncrement = autoInc;
-        this.start = start;
-        this.increment = increment;
+    public void setAutoIncrementOptions(SequenceOptions sequenceOptions) {
+        this.autoIncrementOptions = sequenceOptions;
         this.nullable = false;
-        if (autoInc) {
+        if (sequenceOptions != null) {
             convertNullToDefault = true;
         }
     }
@@ -633,13 +698,15 @@ public class Column {
         if (expr == null) {
             return;
         }
-        resolver = new SingleColumnResolver(this);
+        if (resolver == null) {
+            resolver = new SingleColumnResolver(this);
+        }
         synchronized (this) {
             String oldName = name;
             if (name == null) {
                 name = "VALUE";
             }
-            expr.mapColumns(resolver, 0);
+            expr.mapColumns(resolver, 0, Expression.MAP_INITIAL);
             name = oldName;
         }
         expr = expr.optimize(session);
@@ -650,7 +717,7 @@ public class Column {
         }
         if (checkConstraint == null) {
             checkConstraint = expr;
-        } else {
+        } else if (!expr.getSQL().equals(checkConstraintSQL)) {
             checkConstraint = new ConditionAndOr(ConditionAndOr.AND, checkConstraint, expr);
         }
         checkConstraintSQL = getCheckConstraintSQL(session, name);
@@ -683,12 +750,15 @@ public class Column {
             sql = checkConstraint.getSQL();
             name = oldName;
         }
-        Expression expr = parser.parseExpression(sql);
-        return expr;
+        return parser.parseExpression(sql);
     }
 
     String getDefaultSQL() {
         return defaultExpression == null ? null : defaultExpression.getSQL();
+    }
+
+    String getOnUpdateSQL() {
+        return onUpdateExpression == null ? null : onUpdateExpression.getSQL();
     }
 
     int getPrecisionAsInt() {
@@ -781,7 +851,7 @@ public class Column {
         if (primaryKey != newColumn.primaryKey) {
             return false;
         }
-        if (autoIncrement || newColumn.autoIncrement) {
+        if (autoIncrementOptions != null || newColumn.autoIncrementOptions != null) {
             return false;
         }
         if (checkConstraint != null || newColumn.checkConstraint != null) {
@@ -794,6 +864,12 @@ public class Column {
             return false;
         }
         if (isComputed || newColumn.isComputed) {
+            return false;
+        }
+        if (onUpdateExpression != null || newColumn.onUpdateExpression != null) {
+            return false;
+        }
+        if (!Objects.equals(extTypeInfo, newColumn.extTypeInfo)) {
             return false;
         }
         return true;
@@ -811,13 +887,13 @@ public class Column {
         displaySize = source.displaySize;
         name = source.name;
         precision = source.precision;
-        enumerators = source.enumerators == null ? null :
-            Arrays.copyOf(source.enumerators, source.enumerators.length);
+        extTypeInfo = source.extTypeInfo;
         scale = source.scale;
         // table is not set
         // columnId is not set
         nullable = source.nullable;
         defaultExpression = source.defaultExpression;
+        onUpdateExpression = source.onUpdateExpression;
         originalSQL = source.originalSQL;
         // autoIncrement, start, increment is not set
         convertNullToDefault = source.convertNullToDefault;

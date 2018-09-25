@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,6 +7,7 @@ package org.h2.index;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+
 import org.h2.engine.Session;
 import org.h2.expression.Comparison;
 import org.h2.message.DbException;
@@ -85,12 +86,21 @@ public class IndexCursor implements Cursor {
         inResult = null;
         inResultTested = null;
         intersects = null;
-        // don't use enhanced for loop to avoid creating objects
-        for (int i = 0, size = indexConditions.size(); i < size; i++) {
-            IndexCondition condition = indexConditions.get(i);
-            if (condition.isAlwaysFalse()) { //如: "select * from IndexCursorTest where 2>3
+//<<<<<<< HEAD
+//        // don't use enhanced for loop to avoid creating objects
+//        for (int i = 0, size = indexConditions.size(); i < size; i++) {
+//            IndexCondition condition = indexConditions.get(i);
+//            if (condition.isAlwaysFalse()) { //如: "select * from IndexCursorTest where 2>3
+//=======
+        for (IndexCondition condition : indexConditions) {
+            if (condition.isAlwaysFalse()) {
                 alwaysFalse = true;
                 break;
+            }
+            // If index can perform only full table scan do not try to use it for regular
+            // lookups, each such lookup will perform an own table scan.
+            if (index.isFindUsingFullTableScan()) {
+                continue;
             }
             Column column = condition.getColumn();
             if (condition.getCompareType() == Comparison.IN_LIST) {
@@ -114,7 +124,7 @@ public class IndexCursor implements Cursor {
                 boolean isEnd = condition.isEnd();
                 boolean isIntersects = condition.isSpatialIntersects();
                 int columnId = column.getColumnId();
-                if (columnId >= 0) {
+                if (columnId != SearchRow.ROWID_INDEX) {
                     IndexColumn idxCol = indexColumns[columnId];
                     if (idxCol != null && (idxCol.sortType & SortOrder.DESCENDING) != 0) {
                         // if the index column is sorted the other way, we swap
@@ -134,9 +144,9 @@ public class IndexCursor implements Cursor {
                 if (isIntersects) {
                     intersects = getSpatialSearchRow(intersects, columnId, v);
                 }
-                if (isStart || isEnd) {
-                    // an X=? condition will produce less rows than
-                    // an X IN(..) condition
+                // An X=? condition will produce less rows than
+                // an X IN(..) condition, unless the X IN condition can use the index.
+                if ((isStart || isEnd) && !canUseIndexFor(inColumn)) {
                     inColumn = null;
                     inList = null;
                     inResult = null;
@@ -153,6 +163,9 @@ public class IndexCursor implements Cursor {
                     }
                 }
             }
+        }
+        if (inColumn != null) {
+            start = table.getTemplateRow();
         }
     }
 
@@ -182,6 +195,10 @@ public class IndexCursor implements Cursor {
             // only one IN(..) condition can be used at the same time
             return false;
         }
+        return canUseIndexFor(column);
+    }
+
+    private boolean canUseIndexFor(Column column) {
         // The first column of the index must match this column,
         // or it must be a VIEW index (where the column is null).
         // Multiple IN conditions with views are not supported, see
@@ -207,7 +224,7 @@ public class IndexCursor implements Cursor {
             v = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).
                     getEnvelopeUnion(vg);
         }
-        if (columnId < 0) {
+        if (columnId == SearchRow.ROWID_INDEX) {
             row.setKey(v.getLong());
         } else {
             row.setValue(columnId, v);
@@ -215,14 +232,13 @@ public class IndexCursor implements Cursor {
         return row;
     }
 
-    private SearchRow getSearchRow(SearchRow row, int columnId, Value v,
-            boolean max) {
+    private SearchRow getSearchRow(SearchRow row, int columnId, Value v, boolean max) {
         if (row == null) {
             row = table.getTemplateRow();
         } else {
             v = getMax(row.getValue(columnId), v, max);
         }
-        if (columnId < 0) {
+        if (columnId == SearchRow.ROWID_INDEX) {
             row.setKey(v.getLong());
         } else {
             row.setValue(columnId, v);
@@ -244,7 +260,7 @@ public class IndexCursor implements Cursor {
                 return a;
             }
         }
-        int comp = a.compareTo(b, table.getDatabase().getCompareMode());
+        int comp = table.getDatabase().compare(a, b);
         if (comp == 0) {
             return a;
         }
@@ -254,12 +270,15 @@ public class IndexCursor implements Cursor {
                 return null;
             }
         }
-        if (!bigger) {
-        	//对于END的场景，比如假设a=10，b=20，所以a.compareTo(b)<0，即comp=-1，所以comp = -comp = 1
-        	//对于f < 10 and f < 20的场景，显然只要f<10就够了，所以comp>0时还是返回a
-            comp = -comp;
-        }
-        return comp > 0 ? a : b;
+//<<<<<<< HEAD
+//        if (!bigger) {
+//        	//对于END的场景，比如假设a=10，b=20，所以a.compareTo(b)<0，即comp=-1，所以comp = -comp = 1
+//        	//对于f < 10 and f < 20的场景，显然只要f<10就够了，所以comp>0时还是返回a
+//            comp = -comp;
+//        }
+//        return comp > 0 ? a : b;
+//=======
+        return (comp > 0) == bigger ? a : b;
     }
 
     /**
@@ -331,9 +350,8 @@ public class IndexCursor implements Cursor {
             while (inResult.next()) {
                 Value v = inResult.currentRow()[0];
                 if (v != ValueNull.INSTANCE) {
-                    v = inColumn.convert(v);
                     if (inResultTested == null) {
-                        inResultTested = new HashSet<Value>();
+                        inResultTested = new HashSet<>();
                     }
                     if (inResultTested.add(v)) {
                         find(v);
@@ -347,9 +365,6 @@ public class IndexCursor implements Cursor {
     private void find(Value v) {
         v = inColumn.convert(v);
         int id = inColumn.getColumnId();
-        if (start == null) {
-            start = table.getTemplateRow();
-        }
         start.setValue(id, v);
         cursor = index.find(tableFilter, start, start);
     }

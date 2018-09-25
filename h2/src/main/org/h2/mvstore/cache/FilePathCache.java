@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -58,7 +58,7 @@ public class FilePathCache extends FilePathWrapper {
             CacheLongKeyLIRS.Config cc = new CacheLongKeyLIRS.Config();
             // 1 MB cache size
             cc.maxMemory = 1024 * 1024;
-            cache = new CacheLongKeyLIRS<ByteBuffer>(cc);
+            cache = new CacheLongKeyLIRS<>(cc);
         }
 
         FileCache(FileChannel base) {

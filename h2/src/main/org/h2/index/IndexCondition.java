@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,6 @@ package org.h2.index;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import org.h2.command.dml.Query;
@@ -21,7 +20,6 @@ import org.h2.result.ResultInterface;
 import org.h2.table.Column;
 import org.h2.table.TableType;
 import org.h2.util.StatementBuilder;
-import org.h2.value.CompareMode;
 import org.h2.value.Value;
 
 /**
@@ -149,21 +147,14 @@ public class IndexCondition {
      * @return the value list
      */
     public Value[] getCurrentValueList(Session session) {
-        HashSet<Value> valueSet = new HashSet<Value>();
+        HashSet<Value> valueSet = new HashSet<>();
         for (Expression e : expressionList) {
             Value v = e.getValue(session);
             v = column.convert(v);
             valueSet.add(v);
         }
-        Value[] array = new Value[valueSet.size()];
-        valueSet.toArray(array);
-        final CompareMode mode = session.getDatabase().getCompareMode();
-        Arrays.sort(array, new Comparator<Value>() {
-            @Override
-            public int compare(Value o1, Value o2) {
-                return o1.compareTo(o2, mode);
-            }
-        });
+        Value[] array = valueSet.toArray(new Value[valueSet.size()]);
+        Arrays.sort(array, session.getDatabase().getCompareMode());
         return array;
     }
 
@@ -405,7 +396,7 @@ public class IndexCondition {
         return "column=" + column +
                 ", compareType=" + compareTypeToString(compareType) +
                 ", expression=" + expression +
-                ", expressionList=" + expressionList.toString() +
+                ", expressionList=" + expressionList +
                 ", expressionQuery=" + expressionQuery;
     }
 

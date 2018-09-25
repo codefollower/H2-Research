@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,13 +8,13 @@ package org.h2.table;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
+
+import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.message.Trace;
 import org.h2.table.TableFilter.TableFilterVisitor;
-import org.h2.util.New;
 
 /**
  * A possible query execution plan. The time required to execute a query depends
@@ -23,7 +23,7 @@ import org.h2.util.New;
 public class Plan {
 
     private final TableFilter[] filters;
-    private final HashMap<TableFilter, PlanItem> planItems = New.hashMap();
+    private final HashMap<TableFilter, PlanItem> planItems = new HashMap<>();
     private final Expression[] allConditions;
     private final TableFilter[] allFilters;
 
@@ -37,8 +37,8 @@ public class Plan {
     public Plan(TableFilter[] filters, int count, Expression condition) {
         this.filters = new TableFilter[count];
         System.arraycopy(filters, 0, this.filters, 0, count);
-        final ArrayList<Expression> allCond = New.arrayList();
-        final ArrayList<TableFilter> all = New.arrayList();
+        final ArrayList<Expression> allCond = new ArrayList<>();
+        final ArrayList<TableFilter> all = new ArrayList<>();
         if (condition != null) {
             allCond.add(condition);
         }
@@ -54,10 +54,8 @@ public class Plan {
                 }
             });
         }
-        allConditions = new Expression[allCond.size()];
-        allCond.toArray(allConditions);
-        allFilters = new TableFilter[all.size()];
-        all.toArray(allFilters);
+        allConditions = allCond.toArray(new Expression[0]);
+        allFilters = all.toArray(new TableFilter[0]);
     }
 
     /**
@@ -106,15 +104,13 @@ public class Plan {
      * @param session the session
      * @return the cost
      */
-    public double calculateCost(Session session) {
+    public double calculateCost(Session session, AllColumnsForPlan allColumnsSet) {
         Trace t = session.getTrace();
         if (t.isDebugEnabled()) {
             t.debug("Plan       : calculate cost for plan {0}", Arrays.toString(allFilters));
         }
         double cost = 1;
         boolean invalidPlan = false;
-        final HashSet<Column> allColumnsSet = ExpressionVisitor
-                .allColumnsForTableFilters(allFilters);
         for (int i = 0; i < allFilters.length; i++) {
             TableFilter tableFilter = allFilters[i];
             if (t.isDebugEnabled()) {

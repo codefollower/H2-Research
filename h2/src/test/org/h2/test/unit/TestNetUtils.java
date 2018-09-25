@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: Sergi Vladykin
  */
@@ -125,7 +125,7 @@ public class TestNetUtils extends TestBase {
             closeSilently(socket);
             closeSilently(serverSocket);
             if (task != null) {
-                assertTrue(task.getException() != null);
+                assertNotNull(task.getException());
                 assertEquals(javax.net.ssl.SSLHandshakeException.class.getName(),
                         task.getException().getClass().getName());
                 assertContains(task.getException().getMessage(), "certificate_unknown");
@@ -158,7 +158,9 @@ public class TestNetUtils extends TestBase {
      */
     void closeSilently(Socket socket) {
         try {
-            socket.close();
+            if (socket != null) {
+                socket.close();
+            }
         } catch (Exception e) {
             // ignore
         }
@@ -198,7 +200,7 @@ public class TestNetUtils extends TestBase {
         };
         serverThread.execute();
         try {
-            Set<ConnectWorker> workers = new HashSet<ConnectWorker>();
+            Set<ConnectWorker> workers = new HashSet<>();
             for (int i = 0; i < WORKER_COUNT; i++) {
                 workers.add(new ConnectWorker(ssl, counter));
             }

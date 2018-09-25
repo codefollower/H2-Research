@@ -1,19 +1,22 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.TreeSet;
+
+import org.h2.engine.Database;
+import org.h2.engine.Mode;
 import org.h2.engine.Session;
 import org.h2.index.IndexCondition;
 import org.h2.message.DbException;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.util.StatementBuilder;
+import org.h2.value.ExtTypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueNull;
@@ -31,27 +34,35 @@ public class ConditionInConstantSet extends Condition {
     private int queryLevel;
     private final ArrayList<Expression> valueList;
     private final TreeSet<Value> valueSet;
+    private final int type;
+    private ExtTypeInfo extTypeInfo;
 
     /**
      * Create a new IN(..) condition.
      *
      * @param session the session
-     * @param left the expression before IN
+     * @param left
+     *            the expression before IN. Cannot have {@link Value#UNKNOWN}
+     *            data type and {@link Value#ENUM} type is also supported only
+     *            for {@link ExpressionColumn}.
      * @param valueList the value list (at least two elements)
      */
-    public ConditionInConstantSet(final Session session, Expression left,
-            ArrayList<Expression> valueList) {
+    public ConditionInConstantSet(Session session, Expression left, ArrayList<Expression> valueList) {
         this.left = left;
         this.valueList = valueList;
-        this.valueSet = new TreeSet<Value>(new Comparator<Value>() {
-            @Override
-            public int compare(Value o1, Value o2) {
-                return session.getDatabase().compare(o1, o2);
+        Database database = session.getDatabase();
+        this.valueSet = new TreeSet<>(database.getCompareMode());
+        type = left.getType();
+        Mode mode = database.getMode();
+        if (type == Value.ENUM) {
+            extTypeInfo = ((ExpressionColumn) left).getColumn().getExtTypeInfo();
+            for (Expression expression : valueList) {
+                valueSet.add(extTypeInfo.cast(expression.getValue(session)));
             }
-        });
-        int type = left.getType();
-        for (Expression expression : valueList) {
-            valueSet.add(expression.getValue(session).convertTo(type));
+        } else {
+            for (Expression expression : valueList) {
+                valueSet.add(expression.getValue(session).convertTo(type, mode));
+            }
         }
     }
 
@@ -72,8 +83,8 @@ public class ConditionInConstantSet extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
-        left.mapColumns(resolver, level);
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
+        left.mapColumns(resolver, level, state);
         this.queryLevel = Math.max(level, this.queryLevel);
     }
 
@@ -94,7 +105,6 @@ public class ConditionInConstantSet extends Condition {
         }
         if (session.getDatabase().getSettings().optimizeInList) {
             filter.addIndexCondition(IndexCondition.getInList(l, valueList));
-            return;
         }
     }
 
@@ -115,8 +125,8 @@ public class ConditionInConstantSet extends Condition {
     }
 
     @Override
-    public void updateAggregate(Session session) {
-        left.updateAggregate(session);
+    public void updateAggregate(Session session, int stage) {
+        left.updateAggregate(session, stage);
     }
 
     @Override
@@ -134,7 +144,8 @@ public class ConditionInConstantSet extends Condition {
         case ExpressionVisitor.NOT_FROM_RESOLVER:
         case ExpressionVisitor.GET_DEPENDENCIES:
         case ExpressionVisitor.QUERY_COMPARABLE:
-        case ExpressionVisitor.GET_COLUMNS:
+        case ExpressionVisitor.GET_COLUMNS1:
+        case ExpressionVisitor.GET_COLUMNS2:
             return true;
         default:
             throw DbException.throwInternalError("type=" + visitor.getType());
@@ -143,8 +154,7 @@ public class ConditionInConstantSet extends Condition {
 
     @Override
     public int getCost() {
-        int cost = left.getCost();
-        return cost;
+        return left.getCost();
     }
 
     /**
@@ -160,7 +170,11 @@ public class ConditionInConstantSet extends Condition {
         if (add != null) {
             if (add.isConstant()) {
                 valueList.add(add);
-                valueSet.add(add.getValue(session).convertTo(left.getType()));
+                if (type == Value.ENUM) {
+                    valueSet.add(add.getValue(session).convertToEnum(extTypeInfo));
+                } else {
+                    valueSet.add(add.getValue(session).convertTo(type, session.getDatabase().getMode()));
+                }
                 return this;
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,11 +16,10 @@ import java.util.HashMap;
 import java.util.Random;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-
 import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
+import org.h2.test.TestDb;
 import org.h2.tools.SimpleResultSet;
-import org.h2.util.New;
 import org.h2.util.StringUtils;
 import org.h2.util.Task;
 
@@ -28,7 +27,7 @@ import org.h2.util.Task;
  * Test various optimizations (query cache, optimization for MIN(..), and
  * MAX(..)).
  */
-public class TestOptimizations extends TestBase {
+public class TestOptimizations extends TestDb {
 
     /**
      * Run just this test.
@@ -74,13 +73,16 @@ public class TestOptimizations extends TestBase {
         testMultiColumnRangeQuery();
         testDistinctOptimization();
         testQueryCacheTimestamp();
-        testQueryCacheSpeed();
+        if (!config.lazy) {
+            testQueryCacheSpeed();
+        }
         testQueryCache(true);
         testQueryCache(false);
         testIn();
         testMinMaxCountOptimization(true);
         testMinMaxCountOptimization(false);
         testOrderedIndexes();
+        testIndexUseDespiteNullsFirst();
         testConvertOrToIn();
         deleteDb("optimizations");
     }
@@ -295,7 +297,7 @@ public class TestOptimizations extends TestBase {
         assertEquals(11, rs.getInt(1));
         assertEquals("World", rs.getString(2));
         rs.next();
-        assertEquals(21, rs.getInt(1));
+        assertEquals(20, rs.getInt(1));
         assertEquals("Hallo", rs.getString(2));
         assertFalse(rs.next());
         stat.execute("drop table test");
@@ -658,7 +660,7 @@ public class TestOptimizations extends TestBase {
             ResultSet rs = stat.executeQuery(
                     "explain select min(x), max(x) from test");
             rs.next();
-            if (!config.mvcc) {
+            if (!config.mvStore) {
                 String plan = rs.getString(1);
                 assertContains(plan, "direct");
             }
@@ -805,21 +807,28 @@ public class TestOptimizations extends TestBase {
     }
 
     private void testQuerySpeed(Statement stat, String sql) throws SQLException {
-        stat.execute("set OPTIMIZE_REUSE_RESULTS 0");
+        long totalTime = 0;
+        long totalTimeOptimized = 0;
+        for (int i = 0; i < 3; i++) {
+            totalTime += measureQuerySpeed(stat, sql, false);
+            totalTimeOptimized += measureQuerySpeed(stat, sql, true);
+        }
+        // System.out.println(
+        //         TimeUnit.NANOSECONDS.toMillis(totalTime) + " " +
+        //         TimeUnit.NANOSECONDS.toMillis(totalTimeOptimized));
+        if (totalTimeOptimized > totalTime) {
+            fail("not optimized: " + TimeUnit.NANOSECONDS.toMillis(totalTime) +
+                    " optimized: " + TimeUnit.NANOSECONDS.toMillis(totalTimeOptimized) +
+                    " sql:" + sql);
+        }
+    }
+
+    private static long measureQuerySpeed(Statement stat, String sql, boolean optimized) throws SQLException {
+        stat.execute("set OPTIMIZE_REUSE_RESULTS " + (optimized ? "1" : "0"));
         stat.execute(sql);
         long time = System.nanoTime();
         stat.execute(sql);
-        time = System.nanoTime() - time;
-        stat.execute("set OPTIMIZE_REUSE_RESULTS 1");
-        stat.execute(sql);
-        long time2 = System.nanoTime();
-        stat.execute(sql);
-        time2 = System.nanoTime() - time2;
-        if (time2 > time * 2) {
-            fail("not optimized: " + TimeUnit.NANOSECONDS.toMillis(time) +
-                    " optimized: " + TimeUnit.NANOSECONDS.toMillis(time2) +
-                    " sql:" + sql);
-        }
+        return System.nanoTime() - time;
     }
 
     private void testQueryCache(boolean optimize) throws SQLException {
@@ -861,8 +870,8 @@ public class TestOptimizations extends TestBase {
                 " table test(id int primary key, value int)");
         stat.execute("create index idx_value_id on test(value, id);");
         int len = getSize(1000, 10000);
-        HashMap<Integer, Integer> map = New.hashMap();
-        TreeSet<Integer> set = new TreeSet<Integer>();
+        HashMap<Integer, Integer> map = new HashMap<>();
+        TreeSet<Integer> set = new TreeSet<>();
         Random random = new Random(1);
         for (int i = 0; i < len; i++) {
             if (i == len / 2) {
@@ -881,7 +890,7 @@ public class TestOptimizations extends TestBase {
             case 5:
                 if (random.nextInt(1000) == 1) {
                     stat.execute("insert into test values(" + i + ", null)");
-                    map.put(new Integer(i), null);
+                    map.put(i, null);
                 } else {
                     int value = random.nextInt();
                     stat.execute("insert into test values(" + i + ", " + value + ")");
@@ -906,7 +915,7 @@ public class TestOptimizations extends TestBase {
                 break;
             }
             case 9: {
-                ArrayList<Integer> list = New.arrayList(map.values());
+                ArrayList<Integer> list = new ArrayList<>(map.values());
                 int count = list.size();
                 Integer min = null, max = null;
                 if (count > 0) {
@@ -1034,6 +1043,85 @@ public class TestOptimizations extends TestBase {
         conn.close();
     }
 
+    private void testIndexUseDespiteNullsFirst() throws SQLException {
+        deleteDb("optimizations");
+        Connection conn = getConnection("optimizations");
+        Statement stat = conn.createStatement();
+
+        stat.execute("CREATE TABLE my_table(K1 INT)");
+        stat.execute("CREATE INDEX my_index ON my_table(K1)");
+        stat.execute("INSERT INTO my_table VALUES (NULL)");
+        stat.execute("INSERT INTO my_table VALUES (1)");
+        stat.execute("INSERT INTO my_table VALUES (2)");
+
+        ResultSet rs;
+        String result;
+
+
+        rs = stat.executeQuery(
+            "EXPLAIN PLAN FOR SELECT * FROM my_table " +
+                "ORDER BY K1 ASC NULLS FIRST");
+        rs.next();
+        result = rs.getString(1);
+        assertContains(result, "/* index sorted */");
+
+        rs = stat.executeQuery(
+            "SELECT * FROM my_table " +
+                "ORDER BY K1 ASC NULLS FIRST");
+        rs.next();
+        assertNull(rs.getObject(1));
+        rs.next();
+        assertEquals(1, rs.getInt(1));
+        rs.next();
+        assertEquals(2, rs.getInt(1));
+
+        // ===
+        rs = stat.executeQuery(
+            "EXPLAIN PLAN FOR SELECT * FROM my_table " +
+                "ORDER BY K1 DESC NULLS FIRST");
+        rs.next();
+        result = rs.getString(1);
+        if (result.contains("/* index sorted */")) {
+            fail(result + " does not contain: /* index sorted */");
+        }
+
+        rs = stat.executeQuery(
+            "SELECT * FROM my_table " +
+                "ORDER BY K1 DESC NULLS FIRST");
+        rs.next();
+        assertNull(rs.getObject(1));
+        rs.next();
+        assertEquals(2, rs.getInt(1));
+        rs.next();
+        assertEquals(1, rs.getInt(1));
+
+        // ===
+        rs = stat.executeQuery(
+            "EXPLAIN PLAN FOR SELECT * FROM my_table " +
+                "ORDER BY K1 ASC NULLS LAST");
+        rs.next();
+        result = rs.getString(1);
+        if (result.contains("/* index sorted */")) {
+            fail(result + " does not contain: /* index sorted */");
+        }
+
+        rs = stat.executeQuery(
+            "SELECT * FROM my_table " +
+                "ORDER BY K1 ASC NULLS LAST");
+        rs.next();
+        assertEquals(1, rs.getInt(1));
+        rs.next();
+        assertEquals(2, rs.getInt(1));
+        rs.next();
+        assertNull(rs.getObject(1));
+
+        // TODO: Test "EXPLAIN PLAN FOR SELECT * FROM my_table ORDER BY K1 DESC NULLS FIRST"
+        // Currently fails, as using the index when sorting DESC is currently not supported.
+
+        stat.execute("DROP TABLE my_table");
+        conn.close();
+    }
+
     private void testConvertOrToIn() throws SQLException {
         deleteDb("optimizations");
         Connection conn = getConnection("optimizations");
@@ -1069,11 +1157,12 @@ public class TestOptimizations extends TestBase {
                 "FOREIGN KEY (table_a_id) REFERENCES TABLE_A(id) )");
         stat.execute("INSERT INTO TABLE_A (name)  SELECT 'package_' || CAST(X as VARCHAR) " +
                 "FROM SYSTEM_RANGE(1, 100)  WHERE X <= 100");
+        int count = config.memory ? 30_000 : 50_000;
         stat.execute("INSERT INTO TABLE_B (table_a_id, createDate)  SELECT " +
                 "CASE WHEN table_a_id = 0 THEN 1 ELSE table_a_id END, createDate " +
                 "FROM ( SELECT ROUND((RAND() * 100)) AS table_a_id, " +
-                "DATEADD('SECOND', X, NOW()) as createDate FROM SYSTEM_RANGE(1, 50000) " +
-                "WHERE X < 50000  )");
+                "DATEADD('SECOND', X, NOW()) as createDate FROM SYSTEM_RANGE(1, " + count + ") " +
+                "WHERE X < " + count + "  )");
         stat.execute("CREATE INDEX table_b_idx ON table_b(table_a_id, id)");
         stat.execute("ANALYZE");
 

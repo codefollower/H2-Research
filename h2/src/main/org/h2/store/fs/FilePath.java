@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,11 +9,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
 
 /**
  * A path to a file. It similar to the Java 7 <code>java.nio.file.Path</code>,
@@ -25,7 +23,7 @@ public abstract class FilePath {
 
     private static FilePath defaultProvider;
 
-    private static Map<String, FilePath> providers;
+    private static ConcurrentHashMap<String, FilePath> providers;
 
     /**
      * The prefix for temporary files.
@@ -71,12 +69,15 @@ public abstract class FilePath {
 
     private static void registerDefaultProviders() {
         if (providers == null || defaultProvider == null) {
-            Map<String, FilePath> map = Collections.synchronizedMap(New.<String, FilePath>hashMap());
-            //默认是org.h2.store.fs.FilePathDisk, 所以这里不包含它
-            //但是少了org.h2.store.fs.FilePathRec、org.h2.mvstore.cache.FilePathCache
-            //不过org.h2.store.fs.FilePathRec是通过org.h2.store.fs.FilePath.register(FilePath)这个方法注册
-            //见org.h2.store.fs.FilePathRec.register(),
-            //在org.h2.engine.ConnectionInfo.ConnectionInfo(String, Properties)调用它了
+//<<<<<<< HEAD
+//            Map<String, FilePath> map = Collections.synchronizedMap(New.<String, FilePath>hashMap());
+//            //默认是org.h2.store.fs.FilePathDisk, 所以这里不包含它
+//            //但是少了org.h2.store.fs.FilePathRec、org.h2.mvstore.cache.FilePathCache
+//            //不过org.h2.store.fs.FilePathRec是通过org.h2.store.fs.FilePath.register(FilePath)这个方法注册
+//            //见org.h2.store.fs.FilePathRec.register(),
+//            //在org.h2.engine.ConnectionInfo.ConnectionInfo(String, Properties)调用它了
+//=======
+            ConcurrentHashMap<String, FilePath> map = new ConcurrentHashMap<>();
             for (String c : new String[] {
                     "org.h2.store.fs.FilePathDisk",
                     "org.h2.store.fs.FilePathMem",
@@ -90,7 +91,7 @@ public abstract class FilePath {
                     "org.h2.store.fs.FilePathRetryOnInterrupt"
             }) {
                 try {
-                    FilePath p = (FilePath) Class.forName(c).newInstance();
+                    FilePath p = (FilePath) Class.forName(c).getDeclaredConstructor().newInstance();
                     map.put(p.getScheme(), p);
                     if (defaultProvider == null) {
                         defaultProvider = p;

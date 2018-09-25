@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,8 @@ package org.h2.value;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import org.h2.util.MathUtils;
+
+import org.h2.engine.Mode;
 
 /**
  * Base implementation of the ENUM data type.
@@ -34,8 +35,8 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    protected int compareSecure(final Value v, final CompareMode mode) {
-        return MathUtils.compareInt(getInt(), v.getInt());
+    public int compareTypeSafe(Value v, CompareMode mode) {
+        return Integer.compare(getInt(), v.getInt());
     }
 
     @Override
@@ -78,7 +79,7 @@ public class ValueEnumBase extends Value {
 
     @Override
     public Object getObject() {
-        return ordinal;
+        return label;
     }
 
     @Override
@@ -138,4 +139,13 @@ public class ValueEnumBase extends Value {
         final Value iv = v.convertTo(Value.INT);
         return convertTo(Value.INT).subtract(iv);
     }
+
+    @Override
+    public Value convertTo(int targetType, int precision, Mode mode, Object column, ExtTypeInfo extTypeInfo) {
+        if (targetType == Value.ENUM) {
+            return extTypeInfo.cast(this);
+        }
+        return super.convertTo(targetType, precision, mode, column, extTypeInfo);
+    }
+
 }

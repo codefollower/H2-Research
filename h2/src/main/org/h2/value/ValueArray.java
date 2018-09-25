@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,16 +7,23 @@ package org.h2.value;
 
 import java.lang.reflect.Array;
 import java.sql.PreparedStatement;
-import java.util.ArrayList;
+import java.sql.SQLException;
+import java.util.Arrays;
+
 import org.h2.engine.Constants;
+import org.h2.engine.SysProperties;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 
 /**
  * Implementation of the ARRAY data type.
  */
 public class ValueArray extends Value {
+
+    /**
+     * Empty array.
+     */
+    private static final Object EMPTY = get(new Value[0]);
 
     private final Class<?> componentType;
     private final Value[] values;
@@ -27,10 +34,6 @@ public class ValueArray extends Value {
         this.values = list;
     }
 
-    private ValueArray(Value[] list) {
-        this(Object.class, list);
-    }
-
     /**
      * Get or create a array value for the given value array.
      * Do not clone the data.
@@ -39,7 +42,7 @@ public class ValueArray extends Value {
      * @return the value
      */
     public static ValueArray get(Value[] list) {
-        return new ValueArray(list);
+        return new ValueArray(Object.class, list);
     }
 
     /**
@@ -52,6 +55,15 @@ public class ValueArray extends Value {
      */
     public static ValueArray get(Class<?> componentType, Value[] list) {
         return new ValueArray(componentType, list);
+    }
+
+    /**
+     * Returns empty array.
+     *
+     * @return empty array
+     */
+    public static ValueArray getEmpty() {
+        return (ValueArray) EMPTY;
     }
 
     @Override
@@ -100,7 +112,7 @@ public class ValueArray extends Value {
     }
 
     @Override
-    protected int compareSecure(Value o, CompareMode mode) {
+    public int compareTypeSafe(Value o, CompareMode mode) {
         ValueArray v = (ValueArray) o;
         if (values == v.values) {
             return 0;
@@ -111,12 +123,12 @@ public class ValueArray extends Value {
         for (int i = 0; i < len; i++) {
             Value v1 = values[i];
             Value v2 = v.values[i];
-            int comp = v1.compareTo(v2, mode);
+            int comp = v1.compareTo(v2, /* TODO */ null, mode);
             if (comp != 0) {
                 return comp;
             }
         }
-        return l > ol ? 1 : l == ol ? 0 : -1;
+        return Integer.compare(l, ol);
     }
 
     @Override
@@ -124,14 +136,22 @@ public class ValueArray extends Value {
         int len = values.length;
         Object[] list = (Object[]) Array.newInstance(componentType, len);
         for (int i = 0; i < len; i++) {
-            list[i] = values[i].getObject();
+            final Value value = values[i];
+            if (!SysProperties.OLD_RESULT_SET_GET_OBJECT) {
+                final int type = value.getType();
+                if (type == Value.BYTE || type == Value.SHORT) {
+                    list[i] = value.getInt();
+                    continue;
+                }
+            }
+            list[i] = value.getObject();
         }
         return list;
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex) {
-        throw throwUnsupportedExceptionForType("PreparedStatement.set");
+    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
+        prep.setArray(parameterIndex, prep.getConnection().createArrayOf("NULL", (Object[]) getObject()));
     }
 
     @Override
@@ -201,20 +221,28 @@ public class ValueArray extends Value {
         if (!force) {
             return this;
         }
-        ArrayList<Value> list = New.arrayList();
-        for (Value v : values) {
-            v = v.convertPrecision(precision, true);
+        int length = values.length;
+        Value[] newValues = new Value[length];
+        int i = 0;
+        boolean modified = false;
+        for (; i < length; i++) {
+            Value old = values[i];
+            Value v = old.convertPrecision(precision, true);
+            if (v != old) {
+                modified = true;
+            }
             // empty byte arrays or strings have precision 0
             // they count as precision 1 here
             precision -= Math.max(1, v.getPrecision());
             if (precision < 0) {
                 break;
             }
-            list.add(v);
+            newValues[i] = v;
         }
-        Value[] array = new Value[list.size()];
-        list.toArray(array);
-        return get(array);
+        if (i < length) {
+            return get(componentType, Arrays.copyOf(newValues, i));
+        }
+        return modified ? get(componentType, newValues) : this;
     }
 
 }

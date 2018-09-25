@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -129,7 +129,7 @@ public abstract class PageBtree extends Page {
             	//   如果要比较的记录包含非null字段，返回false, 抛出DuplicateKeyException，否则允许通过
             	//3. 其他情况: 如果要比较的记录含null字段，返回true，否则返回false, 抛出DuplicateKeyException
                 if (add && index.indexType.isUnique()) {
-                    if (!index.containsNullAndAllowMultipleNull(compare)) {
+                    if (!index.mayHaveNullDuplicates(compare)) {
                         throw index.getDuplicateKeyException(compare.toString());
                     }
                 }
@@ -301,10 +301,7 @@ public abstract class PageBtree extends Page {
 
     @Override
     public boolean canRemove() {
-        if (changeCount >= index.getPageStore().getChangeCount()) {
-            return false;
-        }
-        return true;
+        return changeCount < index.getPageStore().getChangeCount();
     }
 
 	// 我加上的

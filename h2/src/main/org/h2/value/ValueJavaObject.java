@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,7 @@ import java.sql.Types;
 
 import org.h2.engine.SysProperties;
 import org.h2.store.DataHandler;
+import org.h2.util.Bits;
 import org.h2.util.JdbcUtils;
 import org.h2.util.Utils;
 
@@ -101,7 +102,7 @@ public class ValueJavaObject extends ValueBytes {
         }
 
         @Override
-        protected int compareSecure(Value v, CompareMode mode) {
+        public int compareTypeSafe(Value v, CompareMode mode) {
             Object o1 = getObject();
             Object o2 = v.getObject();
 
@@ -131,8 +132,7 @@ public class ValueJavaObject extends ValueBytes {
                 if (o1.equals(o2)) {
                     return 0;
                 }
-
-                return Utils.compareNotNullSigned(getBytesNoCopy(), v.getBytesNoCopy());
+                return Bits.compareNotNullSigned(getBytesNoCopy(), v.getBytesNoCopy());
             }
 
             return h1 > h2 ? 1 : -1;

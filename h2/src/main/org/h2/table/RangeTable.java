@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -139,7 +139,19 @@ public class RangeTable extends Table {
 
     @Override
     public long getRowCount(Session session) {
-        return Math.max(0, getMax(session) - getMin(session) + 1);
+        long step = getStep(session);
+        if (step == 0L) {
+            throw DbException.get(ErrorCode.STEP_SIZE_MUST_NOT_BE_ZERO);
+        }
+        long delta = getMax(session) - getMin(session);
+        if (step > 0) {
+            if (delta < 0) {
+                return 0;
+            }
+        } else if (delta > 0) {
+            return 0;
+        }
+        return delta / step + 1;
     }
 
     @Override

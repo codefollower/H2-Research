@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -81,8 +81,12 @@ public class ValueExpression extends Expression {
     @Override
     public void createIndexConditions(Session session, TableFilter filter) {
         if (value.getType() == Value.BOOLEAN) {
-            boolean v = ((ValueBoolean) value).getBoolean().booleanValue();
-            if (!v) { //如delete from DeleteTest where 3<2
+//<<<<<<< HEAD
+//            boolean v = ((ValueBoolean) value).getBoolean().booleanValue();
+//            if (!v) { //如delete from DeleteTest where 3<2
+//=======
+            boolean v = ((ValueBoolean) value).getBoolean();
+            if (!v) {
                 filter.addIndexCondition(IndexCondition.get(Comparison.FALSE, null, this));
             }
         }
@@ -91,11 +95,11 @@ public class ValueExpression extends Expression {
     @Override
     public Expression getNotIfPossible(Session session) {
         return new Comparison(session, Comparison.EQUAL, this,
-                ValueExpression.get(ValueBoolean.get(false)));
+                ValueExpression.get(ValueBoolean.FALSE));
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
         // nothing to do
     }
 
@@ -143,7 +147,7 @@ public class ValueExpression extends Expression {
     }
 
     @Override
-    public void updateAggregate(Session session) {
+    public void updateAggregate(Session session, int stage) {
         // nothing to do
     }
 
@@ -159,7 +163,8 @@ public class ValueExpression extends Expression {
         case ExpressionVisitor.NOT_FROM_RESOLVER:
         case ExpressionVisitor.GET_DEPENDENCIES:
         case ExpressionVisitor.QUERY_COMPARABLE:
-        case ExpressionVisitor.GET_COLUMNS:
+        case ExpressionVisitor.GET_COLUMNS1:
+        case ExpressionVisitor.GET_COLUMNS2:
             return true;
         default:
             throw DbException.throwInternalError("type=" + visitor.getType());

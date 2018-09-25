@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,9 +8,13 @@ package org.h2.table;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
+import org.h2.command.ddl.CreateTableData;
+import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.command.dml.Query;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
@@ -30,9 +34,12 @@ import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.result.SortOrder;
 import org.h2.schema.Schema;
-import org.h2.util.New;
+import org.h2.util.ColumnNamer;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
+import org.h2.value.DataType;
+import org.h2.value.ExtTypeInfo;
 import org.h2.value.Value;
 
 /**
@@ -73,21 +80,22 @@ public class TableView extends Table {
     private Column[] columnTemplates;
     private Query viewQuery;
     private ViewIndex index;
-    private boolean recursive;
+    private boolean allowRecursive;
     private DbException createException;
     private long lastModificationCheck;
     private long maxDataModificationId;
     private User owner;
     private Query topQuery;
     private ResultInterface recursiveResult;
-    private boolean tableExpression;
     private boolean isRecursiveQueryDetected;
+    private boolean isTableExpression;
 
     public TableView(Schema schema, int id, String name, String querySQL,
             ArrayList<Parameter> params, Column[] columnTemplates, Session session,
-            boolean recursive) {
+            boolean allowRecursive, boolean literalsChecked, boolean isTableExpression, boolean isTemporary) {
         super(schema, id, name, false, true);
-        init(querySQL, params, columnTemplates, session, recursive);
+        setTemporary(isTemporary);
+        init(querySQL, params, columnTemplates, session, allowRecursive, literalsChecked, isTableExpression);
     }
 
     /**
@@ -95,50 +103,70 @@ public class TableView extends Table {
      * dependent views.
      *
      * @param querySQL the SQL statement
+     * @param newColumnTemplates the columns
      * @param session the session
      * @param recursive whether this is a recursive view
      * @param force if errors should be ignored
+     * @param literalsChecked if literals have been checked
      */
-    public void replace(String querySQL,  Session session,
-            boolean recursive, boolean force) {
+    public void replace(String querySQL,  Column[] newColumnTemplates, Session session,
+            boolean recursive, boolean force, boolean literalsChecked) {
         String oldQuerySQL = this.querySQL;
         Column[] oldColumnTemplates = this.columnTemplates;
-        boolean oldRecursive = this.recursive;
-        // init里执行了一次initColumnsAndTables，虽然执行了两次initColumnsAndTables，但是init中还建立了ViewIndex
-        // 所以这里是必须调用init的
-        init(querySQL, null, columnTemplates, session, recursive);
-        // recompile里又执行了一次initColumnsAndTables
+//<<<<<<< HEAD
+//        boolean oldRecursive = this.recursive;
+//        // init里执行了一次initColumnsAndTables，虽然执行了两次initColumnsAndTables，但是init中还建立了ViewIndex
+//        // 所以这里是必须调用init的
+//        init(querySQL, null, columnTemplates, session, recursive);
+//        // recompile里又执行了一次initColumnsAndTables
+//        DbException e = recompile(session, force, true);
+//        if (e != null) {
+//            // 如果失败了，按原来的重新来过
+//            init(oldQuerySQL, null, oldColumnTemplates, session, oldRecursive);
+//=======
+        boolean oldRecursive = this.allowRecursive;
+        init(querySQL, null,
+                newColumnTemplates == null ? this.columnTemplates
+                        : newColumnTemplates,
+                session, recursive, literalsChecked, isTableExpression);
         DbException e = recompile(session, force, true);
         if (e != null) {
-            // 如果失败了，按原来的重新来过
-            init(oldQuerySQL, null, oldColumnTemplates, session, oldRecursive);
+            init(oldQuerySQL, null, oldColumnTemplates, session, oldRecursive,
+                    literalsChecked, isTableExpression);
             recompile(session, true, false);
             throw e;
         }
     }
 
     private synchronized void init(String querySQL, ArrayList<Parameter> params,
-            Column[] columnTemplates, Session session, boolean recursive) {
+            Column[] columnTemplates, Session session, boolean allowRecursive, boolean literalsChecked,
+            boolean isTableExpression) {
         this.querySQL = querySQL;
         this.columnTemplates = columnTemplates;
-        this.recursive = recursive;
+        this.allowRecursive = allowRecursive;
         this.isRecursiveQueryDetected = false;
-        index = new ViewIndex(this, querySQL, params, recursive);
-        initColumnsAndTables(session);
+        this.isTableExpression = isTableExpression;
+        index = new ViewIndex(this, querySQL, params, allowRecursive);
+        initColumnsAndTables(session, literalsChecked);
     }
 
-    private static Query compileViewQuery(Session session, String sql) {
+    private Query compileViewQuery(Session session, String sql, boolean literalsChecked, String viewName) {
         Prepared p;
-        session.setParsingView(true);
+        session.setParsingCreateView(true, viewName);
         try {
-            p = session.prepare(sql);
+            p = session.prepare(sql, false, literalsChecked);
         } finally {
-            session.setParsingView(false);
+            session.setParsingCreateView(false, viewName);
         }
         if (!(p instanceof Query)) {
             throw DbException.getSyntaxError(sql, 0);
         }
-        return (Query) p;
+        Query q = (Query) p;
+        // only potentially recursive cte queries need to be non-lazy
+        if (isTableExpression && allowRecursive) {
+            q.setNeverLazy(true);
+        }
+        return q;
     }
 
     /**
@@ -153,30 +181,38 @@ public class TableView extends Table {
     public synchronized DbException recompile(Session session, boolean force,
             boolean clearIndexCache) {
         try {
-            compileViewQuery(session, querySQL);
+            compileViewQuery(session, querySQL, false, getName());
         } catch (DbException e) {
             if (!force) {
                 return e;
             }
         }
-        
-        //如下:
-        //CREATE OR REPLACE FORCE VIEW my_view(f1,f2) AS SELECT id,name FROM CreateViewTest
-		//CREATE OR REPLACE FORCE VIEW view1 AS SELECT f1 FROM my_view
-		//CREATE OR REPLACE FORCE VIEW view2 AS SELECT f2 FROM my_view
-        //view1和view2是建立在my_view这个视图之上，当要recompile my_view时，因为view1和view2依赖了my_view
-        //所以要对他们重新recompile，这里getViews()返回view1和view2
-        ArrayList<TableView> views = getViews();
-        if (views != null) {
-            views = New.arrayList(views);
-        }
-        initColumnsAndTables(session);
-        if (views != null) {
-            for (TableView v : views) {
-                DbException e = v.recompile(session, force, false);
-                if (e != null && !force) {
-                    return e;
-                }
+//<<<<<<< HEAD
+//        
+//        //如下:
+//        //CREATE OR REPLACE FORCE VIEW my_view(f1,f2) AS SELECT id,name FROM CreateViewTest
+//		//CREATE OR REPLACE FORCE VIEW view1 AS SELECT f1 FROM my_view
+//		//CREATE OR REPLACE FORCE VIEW view2 AS SELECT f2 FROM my_view
+//        //view1和view2是建立在my_view这个视图之上，当要recompile my_view时，因为view1和view2依赖了my_view
+//        //所以要对他们重新recompile，这里getViews()返回view1和view2
+//        ArrayList<TableView> views = getViews();
+//        if (views != null) {
+//            views = New.arrayList(views);
+//        }
+//        initColumnsAndTables(session);
+//        if (views != null) {
+//            for (TableView v : views) {
+//                DbException e = v.recompile(session, force, false);
+//                if (e != null && !force) {
+//                    return e;
+//                }
+//=======
+        ArrayList<TableView> dependentViews = new ArrayList<>(getDependentViews());
+        initColumnsAndTables(session, false);
+        for (TableView v : dependentViews) {
+            DbException e = v.recompile(session, force, false);
+            if (e != null && !force) {
+                return e;
             }
         }
         if (clearIndexCache) {
@@ -185,32 +221,43 @@ public class TableView extends Table {
         return force ? null : createException;
     }
 
-    private void initColumnsAndTables(Session session) {
+    private void initColumnsAndTables(Session session, boolean literalsChecked) {
         Column[] cols;
-        removeViewFromTables();
+        removeCurrentViewFromOtherTables();
+        setTableExpression(isTableExpression);
         try {
-            Query query = compileViewQuery(session, querySQL); //重新对select语句进行解析和prepare
-            this.querySQL = query.getPlanSQL();
-            tables = New.arrayList(query.getTables());
-            ArrayList<Expression> expressions = query.getExpressions();
-            ArrayList<Column> list = New.arrayList();
-            
-    		//select字段个数比view字段多的情况，多出来的按select字段原来的算
-    		//这里实际是f1、name
-    		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1) " //
-    		//		+ "AS SELECT id,name FROM CreateViewTest";
-
-    		//select字段个数比view字段少的情况，view中少的字段被忽略
-    		//这里实际是f1，而f2被忽略了，也不提示错误
-    		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
-    		//		+ "AS SELECT id FROM CreateViewTest";
-
-    		//不管加不加FORCE，跟上面也一样
-    		//sql = "CREATE OR REPLACE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
-    		//		+ "AS SELECT id FROM CreateViewTest";
-            
-            //expressions.size有可能大于query.getColumnCount()，因为query.getColumnCount()不包含group by等额外加进来的表达式
-            for (int i = 0, count = query.getColumnCount(); i < count; i++) {
+//<<<<<<< HEAD
+//            Query query = compileViewQuery(session, querySQL); //重新对select语句进行解析和prepare
+//            this.querySQL = query.getPlanSQL();
+//            tables = New.arrayList(query.getTables());
+//            ArrayList<Expression> expressions = query.getExpressions();
+//            ArrayList<Column> list = New.arrayList();
+//            
+//    		//select字段个数比view字段多的情况，多出来的按select字段原来的算
+//    		//这里实际是f1、name
+//    		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1) " //
+//    		//		+ "AS SELECT id,name FROM CreateViewTest";
+//
+//    		//select字段个数比view字段少的情况，view中少的字段被忽略
+//    		//这里实际是f1，而f2被忽略了，也不提示错误
+//    		//sql = "CREATE OR REPLACE FORCE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
+//    		//		+ "AS SELECT id FROM CreateViewTest";
+//
+//    		//不管加不加FORCE，跟上面也一样
+//    		//sql = "CREATE OR REPLACE VIEW my_view COMMENT IS 'my view'(f1, f2) " //
+//    		//		+ "AS SELECT id FROM CreateViewTest";
+//            
+//            //expressions.size有可能大于query.getColumnCount()，因为query.getColumnCount()不包含group by等额外加进来的表达式
+//            for (int i = 0, count = query.getColumnCount(); i < count; i++) {
+//=======
+            Query compiledQuery = compileViewQuery(session, querySQL, literalsChecked, getName());
+            this.querySQL = compiledQuery.getPlanSQL();
+            tables = new ArrayList<>(compiledQuery.getTables());
+            ArrayList<Expression> expressions = compiledQuery.getExpressions();
+            ColumnNamer columnNamer = new ColumnNamer(session);
+            final int count = compiledQuery.getColumnCount();
+            ArrayList<Column> list = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
                 Expression expr = expressions.get(i);
                 String name = null;
                 //如CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
@@ -223,13 +270,20 @@ public class TableView extends Table {
                 if (name == null) {
                     name = expr.getAlias();
                 }
+                name = columnNamer.getColumnName(expr, i, name);
                 if (type == Value.UNKNOWN) {
                     type = expr.getType();
                 }
                 long precision = expr.getPrecision();
                 int scale = expr.getScale();
                 int displaySize = expr.getDisplaySize();
-                Column col = new Column(name, type, precision, scale, displaySize);
+                ExtTypeInfo extTypeInfo = null;
+                if (DataType.isExtInfoType(type)) {
+                    if (expr instanceof ExpressionColumn) {
+                        extTypeInfo = ((ExpressionColumn) expr).getColumn().getExtTypeInfo();
+                    }
+                }
+                Column col = new Column(name, type, precision, scale, displaySize, extTypeInfo);
                 col.setTable(this, i);
                 // Fetch check constraint from view column source
                 ExpressionColumn fromColumn = null;
@@ -250,10 +304,9 @@ public class TableView extends Table {
                 }
                 list.add(col);
             }
-            cols = new Column[list.size()];
-            list.toArray(cols);
+            cols = list.toArray(new Column[0]);
             createException = null;
-            viewQuery = query;
+            viewQuery = compiledQuery;
         } catch (DbException e) {
             e.addSQL(getCreateSQL());
             createException = e;
@@ -265,9 +318,9 @@ public class TableView extends Table {
             if (isRecursiveQueryExceptionDetected(createException)) {
                 this.isRecursiveQueryDetected = true;
             }
-            tables = New.arrayList();
+            tables = Utils.newSmallArrayList();
             cols = new Column[0];
-            if (recursive && columnTemplates != null) {
+            if (allowRecursive && columnTemplates != null) {
                 cols = new Column[columnTemplates.length];
                 for (int i = 0; i < columnTemplates.length; i++) {
                     cols[i] = columnTemplates[i].getClone();
@@ -278,7 +331,7 @@ public class TableView extends Table {
         }
         setColumns(cols);
         if (getId() != 0) {
-            addViewToTables();
+            addDependentViewToTables();
         }
     }
 
@@ -299,7 +352,7 @@ public class TableView extends Table {
     @Override
     public PlanItem getBestPlanItem(Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
-            HashSet<Column> allColumnsSet) {
+            AllColumnsForPlan allColumnsSet) {
         final CacheKey cacheKey = new CacheKey(masks, this);
         Map<Object, ViewIndex> indexCache = session.getViewIndexCache(topQuery != null);
         ViewIndex i = indexCache.get(cacheKey);
@@ -371,6 +424,9 @@ public class TableView extends Table {
             buff.append("FORCE ");
         }
         buff.append("VIEW ");
+        if (isTableExpression) {
+            buff.append("TABLE_EXPRESSION ");
+        }
         buff.append(quotedName);
         if (comment != null) {
             buff.append(" COMMENT ").append(StringUtils.quoteStringSQL(comment));
@@ -469,7 +525,7 @@ public class TableView extends Table {
 
     @Override
     public void removeChildrenAndResources(Session session) {
-        removeViewFromTables();
+        removeCurrentViewFromOtherTables();
         super.removeChildrenAndResources(session);
         database.removeMeta(session, getId());
         querySQL = null;
@@ -491,7 +547,7 @@ public class TableView extends Table {
 
     @Override
     public String getSQL() {
-        if (isTemporary()) {
+        if (isTemporary() && querySQL != null) {
             return "(\n" + StringUtils.indent(querySQL) + ")";
         }
         return super.getSQL();
@@ -509,7 +565,7 @@ public class TableView extends Table {
     @Override
     public Index getScanIndex(Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
-            HashSet<Column> allColumnsSet) {
+            AllColumnsForPlan allColumnsSet) {
         if (createException != null) {
             String msg = createException.getMessage();
             throw DbException.get(ErrorCode.VIEW_IS_INVALID_2,
@@ -553,18 +609,18 @@ public class TableView extends Table {
         return null;
     }
 
-    private void removeViewFromTables() {
+    private void removeCurrentViewFromOtherTables() {
         if (tables != null) {
             for (Table t : tables) {
-                t.removeView(this);
+                t.removeDependentView(this);
             }
             tables.clear();
         }
     }
 
-    private void addViewToTables() {
+    private void addDependentViewToTables() {
         for (Table t : tables) {
-            t.addView(this);
+            t.addDependentView(this);
         }
     }
 
@@ -591,8 +647,9 @@ public class TableView extends Table {
         Schema mainSchema = session.getDatabase().getSchema(Constants.SCHEMA_MAIN);
         String querySQL = query.getPlanSQL();
         TableView v = new TableView(mainSchema, 0, name,
-                querySQL, query.getParameters(), null, session,
-                false);
+                querySQL, query.getParameters(), null /* column templates */, session,
+                false/* allow recursive */, true /* literals have already been checked when parsing original query */,
+                false /* is table expression */, true/*temporary*/);
         if (v.createException != null) {
             throw v.createException;
         }
@@ -639,12 +696,12 @@ public class TableView extends Table {
     }
 
     public boolean isRecursive() {
-        return recursive;
+        return allowRecursive;
     }
 
     @Override
     public boolean isDeterministic() {
-        if (recursive || viewQuery == null) {
+        if (allowRecursive || viewQuery == null) {
             return false;
         }
         return viewQuery.isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR);
@@ -659,14 +716,6 @@ public class TableView extends Table {
 
     public ResultInterface getRecursiveResult() {
         return recursiveResult;
-    }
-
-    public void setTableExpression(boolean tableExpression) {
-        this.tableExpression = tableExpression;
-    }
-
-    public boolean isTableExpression() {
-        return tableExpression;
     }
 
     @Override
@@ -718,10 +767,7 @@ public class TableView extends Table {
             if (view != other.view) {
                 return false;
             }
-            if (!Arrays.equals(masks, other.masks)) {
-                return false;
-            }
-            return true;
+            return Arrays.equals(masks, other.masks);
         }
     }
 
@@ -744,10 +790,179 @@ public class TableView extends Table {
         if (exception.getErrorCode() != ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1) {
             return false;
         }
-        if (!exception.getMessage().contains("\"" + this.getName() + "\"")) {
-            return false;
-        }
-        return true;
+        return exception.getMessage().contains("\"" + this.getName() + "\"");
     }
 
+    public List<Table> getTables() {
+        return tables;
+    }
+
+    /**
+     * Create a view.
+     *
+     * @param schema the schema
+     * @param id the view id
+     * @param name the view name
+     * @param querySQL the query
+     * @param parameters the parameters
+     * @param columnTemplates the columns
+     * @param session the session
+     * @param literalsChecked whether literals in the query are checked
+     * @param isTableExpression if this is a table expression
+     * @param isTemporary whether the view is persisted
+     * @param db the database
+     * @return the view
+     */
+    public static TableView createTableViewMaybeRecursive(Schema schema, int id, String name, String querySQL,
+            ArrayList<Parameter> parameters, Column[] columnTemplates, Session session,
+            boolean literalsChecked, boolean isTableExpression, boolean isTemporary, Database db) {
+
+
+        Table recursiveTable = createShadowTableForRecursiveTableExpression(isTemporary, session, name,
+                schema, Arrays.asList(columnTemplates), db);
+
+        List<Column> columnTemplateList;
+        String[] querySQLOutput = {null};
+        ArrayList<String> columnNames = new ArrayList<>();
+        for (Column columnTemplate: columnTemplates) {
+            columnNames.add(columnTemplate.getName());
+        }
+
+        try {
+            Prepared withQuery = session.prepare(querySQL, false, false);
+            if (!isTemporary) {
+                withQuery.setSession(session);
+            }
+            columnTemplateList = TableView.createQueryColumnTemplateList(columnNames.toArray(new String[1]),
+                    (Query) withQuery, querySQLOutput);
+
+        } finally {
+            destroyShadowTableForRecursiveExpression(isTemporary, session, recursiveTable);
+        }
+
+        // build with recursion turned on
+        TableView view = new TableView(schema, id, name, querySQL,
+                parameters, columnTemplateList.toArray(columnTemplates), session,
+                true/* try recursive */, literalsChecked, isTableExpression, isTemporary);
+
+        // is recursion really detected ? if not - recreate it without recursion flag
+        // and no recursive index
+        if (!view.isRecursiveQueryDetected()) {
+            if (!isTemporary) {
+                db.addSchemaObject(session, view);
+                view.lock(session, true, true);
+                session.getDatabase().removeSchemaObject(session, view);
+
+                // during database startup - this method does not normally get called - and it
+                // needs to be to correctly un-register the table which the table expression
+                // uses...
+                view.removeChildrenAndResources(session);
+            } else {
+                session.removeLocalTempTable(view);
+            }
+            view = new TableView(schema, id, name, querySQL, parameters,
+                    columnTemplates, session,
+                    false/* detected not recursive */, literalsChecked, isTableExpression, isTemporary);
+        }
+
+        return view;
+    }
+
+
+    /**
+     * Creates a list of column templates from a query (usually from WITH query,
+     * but could be any query)
+     *
+     * @param cols - an optional list of column names (can be specified by WITH
+     *            clause overriding usual select names)
+     * @param theQuery - the query object we want the column list for
+     * @param querySQLOutput - array of length 1 to receive extra 'output' field
+     *            in addition to return value - containing the SQL query of the
+     *            Query object
+     * @return a list of column object returned by withQuery
+     */
+    public static List<Column> createQueryColumnTemplateList(String[] cols,
+            Query theQuery, String[] querySQLOutput) {
+        List<Column> columnTemplateList = new ArrayList<>();
+        theQuery.prepare();
+        // String array of length 1 is to receive extra 'output' field in addition to
+        // return value
+        querySQLOutput[0] = StringUtils.cache(theQuery.getPlanSQL());
+        ColumnNamer columnNamer = new ColumnNamer(theQuery.getSession());
+        ArrayList<Expression> withExpressions = theQuery.getExpressions();
+        for (int i = 0; i < withExpressions.size(); ++i) {
+            Expression columnExp = withExpressions.get(i);
+            // use the passed in column name if supplied, otherwise use alias
+            // (if found) otherwise use column name derived from column
+            // expression
+            String columnName = columnNamer.getColumnName(columnExp, i, cols);
+            columnTemplateList.add(new Column(columnName,
+                    columnExp.getType()));
+
+        }
+        return columnTemplateList;
+    }
+
+    /**
+     * Create a table for a recursive query.
+     *
+     * @param isTemporary whether the table is persisted
+     * @param targetSession the session
+     * @param cteViewName the name
+     * @param schema the schema
+     * @param columns the columns
+     * @param db the database
+     * @return the table
+     */
+    public static Table createShadowTableForRecursiveTableExpression(boolean isTemporary, Session targetSession,
+            String cteViewName, Schema schema, List<Column> columns, Database db) {
+
+        // create table data object
+        CreateTableData recursiveTableData = new CreateTableData();
+        recursiveTableData.id = db.allocateObjectId();
+        recursiveTableData.columns = new ArrayList<>(columns);
+        recursiveTableData.tableName = cteViewName;
+        recursiveTableData.temporary = isTemporary;
+        recursiveTableData.persistData = true;
+        recursiveTableData.persistIndexes = !isTemporary;
+        recursiveTableData.create = true;
+        recursiveTableData.session = targetSession;
+
+        // this gets a meta table lock that is not released
+        Table recursiveTable = schema.createTable(recursiveTableData);
+
+        if (!isTemporary) {
+            // this unlock is to prevent lock leak from schema.createTable()
+            db.unlockMeta(targetSession);
+            synchronized (targetSession) {
+                db.addSchemaObject(targetSession, recursiveTable);
+            }
+        } else {
+            targetSession.addLocalTempTable(recursiveTable);
+        }
+        return recursiveTable;
+    }
+
+    /**
+     * Remove a table for a recursive query.
+     *
+     * @param isTemporary whether the table is persisted
+     * @param targetSession the session
+     * @param recursiveTable the table
+     */
+    public static void destroyShadowTableForRecursiveExpression(boolean isTemporary, Session targetSession,
+            Table recursiveTable) {
+        if (recursiveTable != null) {
+            if (!isTemporary) {
+                recursiveTable.lock(targetSession, true, true);
+                targetSession.getDatabase().removeSchemaObject(targetSession, recursiveTable);
+
+            } else {
+                targetSession.removeLocalTempTable(recursiveTable);
+            }
+
+            // both removeSchemaObject and removeLocalTempTable hold meta locks - release them here
+            targetSession.getDatabase().unlockMeta(targetSession);
+        }
+    }
 }

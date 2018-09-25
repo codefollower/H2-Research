@@ -1,15 +1,18 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
+
+import java.util.ArrayList;
 
 import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
+import org.h2.engine.Mode;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
@@ -21,11 +24,9 @@ import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.table.Column;
 import org.h2.table.Table;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
+import org.h2.util.Utils;
 import org.h2.value.Value;
-
-import java.util.ArrayList;
 
 /**
  * This class represents the MySQL-compatibility REPLACE statement
@@ -36,7 +37,7 @@ public class Replace extends Prepared {
     private Table table;
     private Column[] columns;
     private Column[] keys;
-    private final ArrayList<Expression[]> list = New.arrayList();
+    private final ArrayList<Expression[]> list = Utils.newSmallArrayList();
     private Query query;
     private Prepared update;
 
@@ -79,12 +80,12 @@ public class Replace extends Prepared {
 
     @Override
     public int update() {
-        int count;
+        int count = 0;
         session.getUser().checkRight(table, Right.INSERT);
         session.getUser().checkRight(table, Right.UPDATE);
         setCurrentRowNumber(0);
-        if (list.size() > 0) {
-            count = 0;
+        Mode mode = session.getDatabase().getMode();
+        if (!list.isEmpty()) {
             for (int x = 0, size = list.size(); x < size; x++) {
                 setCurrentRowNumber(x + 1);
                 Expression[] expr = list.get(x);
@@ -96,23 +97,20 @@ public class Replace extends Prepared {
                     if (e != null) {
                         // e can be null (DEFAULT)
                         try {
-                            Value v = c.convert(e.getValue(session));
+                            Value v = c.convert(e.getValue(session), mode);
                             newRow.setValue(index, v);
                         } catch (DbException ex) {
                             throw setRow(ex, count, getSQL(expr));
                         }
                     }
                 }
-                replace(newRow);
-                count++;
+                count += replace(newRow);
             }
         } else {
             ResultInterface rows = query.query(0);
-            count = 0;
             table.fire(session, Trigger.UPDATE | Trigger.INSERT, true);
             table.lock(session, true, false);
             while (rows.next()) {
-                count++;
                 Value[] r = rows.currentRow();
                 Row newRow = table.getTemplateRow();
                 setCurrentRowNumber(count);
@@ -120,13 +118,13 @@ public class Replace extends Prepared {
                     Column c = columns[j];
                     int index = c.getColumnId();
                     try {
-                        Value v = c.convert(r[j]);
+                        Value v = c.convert(r[j], mode);
                         newRow.setValue(index, v);
                     } catch (DbException ex) {
                         throw setRow(ex, count, getSQL(r));
                     }
                 }
-                replace(newRow);
+                count += replace(newRow);
             }
             rows.close();
             table.fire(session, Trigger.UPDATE | Trigger.INSERT, false);
@@ -134,7 +132,13 @@ public class Replace extends Prepared {
         return count;
     }
 
-    private void replace(Row row) {
+    /**
+     * Updates an existing row or inserts a new one.
+     *
+     * @param row row to replace
+     * @return 1 if row was inserted, 2 if row was updated
+     */
+    private int replace(Row row) {
         int count = update(row);
         if (count == 0) {
             try {
@@ -146,6 +150,7 @@ public class Replace extends Prepared {
                     session.log(table, UndoLogRecord.INSERT, row);
                     table.fireAfterRow(session, null, row, false);
                 }
+                return 1;
             } catch (DbException e) {
                 if (e.getErrorCode() == ErrorCode.DUPLICATE_KEY_1) {
                     // possibly a concurrent replace or insert
@@ -169,9 +174,10 @@ public class Replace extends Prepared {
                 }
                 throw e;
             }
-        } else if (count != 1) {
-            throw DbException.get(ErrorCode.DUPLICATE_KEY_1, table.getSQL());
+        } else if (count == 1) {
+            return 2;
         }
+        throw DbException.get(ErrorCode.DUPLICATE_KEY_1, table.getSQL());
     }
 
     private int update(Row row) {
@@ -209,7 +215,7 @@ public class Replace extends Prepared {
         }
         buff.append(')');
         buff.append('\n');
-        if (list.size() > 0) {
+        if (!list.isEmpty()) {
             buff.append("VALUES ");
             int row = 0;
             for (Expression[] expr : list) {
@@ -237,14 +243,14 @@ public class Replace extends Prepared {
     @Override
     public void prepare() {
         if (columns == null) {
-            if (list.size() > 0 && list.get(0).length == 0) {
+            if (!list.isEmpty() && list.get(0).length == 0) {
                 // special case where table is used as a sequence
                 columns = new Column[0];
             } else {
                 columns = table.getColumns();
             }
         }
-        if (list.size() > 0) {
+        if (!list.isEmpty()) {
             for (Expression[] expr : list) {
                 if (expr.length != columns.length) {
                     throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);

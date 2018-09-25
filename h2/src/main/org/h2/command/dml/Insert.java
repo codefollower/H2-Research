@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,11 +7,14 @@ package org.h2.command.dml;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
 import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
+import org.h2.engine.GeneratedKeys;
+import org.h2.engine.Mode;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
@@ -20,7 +23,9 @@ import org.h2.expression.ConditionAndOr;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.Parameter;
+import org.h2.expression.ValueExpression;
 import org.h2.index.Index;
+import org.h2.index.PageDataIndex;
 import org.h2.message.DbException;
 import org.h2.mvstore.db.MVPrimaryIndex;
 import org.h2.result.ResultInterface;
@@ -28,8 +33,9 @@ import org.h2.result.ResultTarget;
 import org.h2.result.Row;
 import org.h2.table.Column;
 import org.h2.table.Table;
-import org.h2.util.New;
+import org.h2.table.TableFilter;
 import org.h2.util.StatementBuilder;
+import org.h2.util.Utils;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
 
@@ -41,16 +47,25 @@ public class Insert extends Prepared implements ResultTarget {
 
     private Table table;
     private Column[] columns;
-    private final ArrayList<Expression[]> list = New.arrayList();
+    private final ArrayList<Expression[]> list = Utils.newSmallArrayList();
     private Query query;
     private boolean sortedInsertMode;
     private int rowNumber;
     private boolean insertFromSelect;
+    /**
+     * This table filter is for MERGE..USING support - not used in stand-alone DML
+     */
+    private TableFilter sourceTableFilter;
 
     /**
      * For MySQL-style INSERT ... ON DUPLICATE KEY UPDATE ....
      */
     private HashMap<Column, Expression> duplicateKeyAssignmentMap;
+
+    /**
+     * For MySQL-style INSERT IGNORE
+     */
+    private boolean ignore;
 
     public Insert(Session session) {
         super(session);
@@ -72,6 +87,14 @@ public class Insert extends Prepared implements ResultTarget {
         this.columns = columns;
     }
 
+    /**
+     * Sets MySQL-style INSERT IGNORE mode
+     * @param ignore ignore errors
+     */
+    public void setIgnore(boolean ignore) {
+        this.ignore = ignore;
+    }
+
     public void setQuery(Query query) {
         this.query = query;
     }
@@ -85,7 +108,7 @@ public class Insert extends Prepared implements ResultTarget {
      */
     public void addAssignmentForDuplicate(Column column, Expression expression) {
         if (duplicateKeyAssignmentMap == null) {
-            duplicateKeyAssignmentMap = New.hashMap();
+            duplicateKeyAssignmentMap = new HashMap<>();
         }
         if (duplicateKeyAssignmentMap.containsKey(column)) {
             throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1,
@@ -124,13 +147,20 @@ public class Insert extends Prepared implements ResultTarget {
         setCurrentRowNumber(0);
         table.fire(session, Trigger.INSERT, true);
         rowNumber = 0;
+        GeneratedKeys generatedKeys = session.getGeneratedKeys();
+        generatedKeys.initialize(table);
         int listSize = list.size();
         if (listSize > 0) {
+            Mode mode = session.getDatabase().getMode();
             int columnLen = columns.length;
             for (int x = 0; x < listSize; x++) {
-                session.startStatementWithinTransaction();
-                Row newRow = table.getTemplateRow(); //newRow的长度是全表字段的个数，会>=columns的长度
-
+//<<<<<<< HEAD
+//                session.startStatementWithinTransaction();
+//                Row newRow = table.getTemplateRow(); //newRow的长度是全表字段的个数，会>=columns的长度
+//
+//=======
+                generatedKeys.nextRow();
+                Row newRow = table.getTemplateRow();
                 Expression[] expr = list.get(x);
                 setCurrentRowNumber(x + 1);
                 for (int i = 0; i < columnLen; i++) {
@@ -141,8 +171,11 @@ public class Insert extends Prepared implements ResultTarget {
                         // e can be null (DEFAULT)
                         e = e.optimize(session);
                         try {
-                            Value v = c.convert(e.getValue(session), session.getDatabase().getMode());
+                            Value v = c.convert(e.getValue(session), mode);
                             newRow.setValue(index, v);
+                            if (e.isGeneratedKey()) {
+                                generatedKeys.add(c);
+                            }
                         } catch (DbException ex) {
                             throw setRow(ex, x, getSQL(expr));
                         }
@@ -157,12 +190,23 @@ public class Insert extends Prepared implements ResultTarget {
                     try {
                         table.addRow(session, newRow);
                     } catch (DbException de) {
-                        handleOnDuplicate(de);
+                        if (handleOnDuplicate(de, null)) {
+                            // MySQL returns 2 for updated row
+                            // TODO: detect no-op change
+                            rowNumber++;
+                        } else {
+                            // INSERT IGNORE case
+                            rowNumber--;
+                        }
+                        continue;
                     }
-                    //在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
-                    //也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
-                    //这里又记了一次UndoLog
-                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
+//<<<<<<< HEAD
+//                    //在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
+//                    //也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
+//                    //这里又记了一次UndoLog
+//                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
+//=======
+                    generatedKeys.confirmRow(newRow);
                     session.log(table, UndoLogRecord.INSERT, newRow);
                     table.fireAfterRow(session, null, newRow, false);
                 }
@@ -175,8 +219,23 @@ public class Insert extends Prepared implements ResultTarget {
             } else {
                 ResultInterface rows = query.query(0);
                 while (rows.next()) {
+                    generatedKeys.nextRow();
                     Value[] r = rows.currentRow();
-                    addRow(r);
+                    try {
+                        Row newRow = addRowImpl(r);
+                        if (newRow != null) {
+                            generatedKeys.confirmRow(newRow);
+                        }
+                    } catch (DbException de) {
+                        if (handleOnDuplicate(de, r)) {
+                            // MySQL returns 2 for updated row
+                            // TODO: detect no-op change
+                            rowNumber++;
+                        } else {
+                            // INSERT IGNORE case
+                            rowNumber--;
+                        }
+                    }
                 }
                 rows.close();
             }
@@ -187,13 +246,18 @@ public class Insert extends Prepared implements ResultTarget {
 
     @Override
     public void addRow(Value[] values) {
+        addRowImpl(values);
+    }
+
+    private Row addRowImpl(Value[] values) {
         Row newRow = table.getTemplateRow();
         setCurrentRowNumber(++rowNumber);
+        Mode mode = session.getDatabase().getMode();
         for (int j = 0, len = columns.length; j < len; j++) {
             Column c = columns[j];
             int index = c.getColumnId();
             try {
-                Value v = c.convert(values[j], session.getDatabase().getMode());
+                Value v = c.convert(values[j], mode);
                 newRow.setValue(index, v);
             } catch (DbException ex) {
                 throw setRow(ex, rowNumber, getSQL(values));
@@ -205,12 +269,19 @@ public class Insert extends Prepared implements ResultTarget {
             table.addRow(session, newRow);
             session.log(table, UndoLogRecord.INSERT, newRow);
             table.fireAfterRow(session, null, newRow, false);
+            return newRow;
         }
+        return null;
     }
 
     @Override
     public int getRowCount() {
         return rowNumber;
+    }
+
+    @Override
+    public void limitsWereApplied() {
+        // Nothing to do
     }
 
     @Override
@@ -228,7 +299,7 @@ public class Insert extends Prepared implements ResultTarget {
         if (sortedInsertMode) {
             buff.append("SORTED ");
         }
-        if (list.size() > 0) {
+        if (!list.isEmpty()) {
             buff.append("VALUES ");
             int row = 0;
             if (list.size() > 1) {
@@ -260,14 +331,14 @@ public class Insert extends Prepared implements ResultTarget {
     public void prepare() {
         if (columns == null) {
         	//如INSERT INTO InsertTest DEFAULT VALUES
-            if (list.size() > 0 && list.get(0).length == 0) {
+            if (!list.isEmpty() && list.get(0).length == 0) {
                 // special case where table is used as a sequence
                 columns = new Column[0];
             } else { //如INSERT INTO InsertTest(SELECT * FROM tmpSelectTest)
                 columns = table.getColumns();
             }
         }
-        if (list.size() > 0) {
+        if (!list.isEmpty()) {
             for (Expression[] expr : list) {
                 if (expr.length != columns.length) {
                     throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
@@ -275,6 +346,9 @@ public class Insert extends Prepared implements ResultTarget {
                 for (int i = 0, len = expr.length; i < len; i++) {
                     Expression e = expr[i];
                     if (e != null) {
+                        if(sourceTableFilter!=null){
+                            e.mapColumns(sourceTableFilter, 0, Expression.MAP_INITIAL);
+                        }
                         e = e.optimize(session);
                         if (e instanceof Parameter) {
                             Parameter p = (Parameter) e;
@@ -321,23 +395,39 @@ public class Insert extends Prepared implements ResultTarget {
                 duplicateKeyAssignmentMap.isEmpty();
     }
 
-    private void handleOnDuplicate(DbException de) {
+    /**
+     * @param de duplicate key exception
+     * @param currentRow current row values (optional)
+     * @return {@code true} if row was updated, {@code false} if row was ignored
+     */
+    private boolean handleOnDuplicate(DbException de, Value[] currentRow) {
         if (de.getErrorCode() != ErrorCode.DUPLICATE_KEY_1) {
             throw de;
         }
         if (duplicateKeyAssignmentMap == null ||
                 duplicateKeyAssignmentMap.isEmpty()) {
+            if (ignore) {
+                return false;
+            }
             throw de;
         }
 
-        ArrayList<String> variableNames = new ArrayList<String>(
+        ArrayList<String> variableNames = new ArrayList<>(
                 duplicateKeyAssignmentMap.size());
+        Expression[] row = (currentRow == null) ? list.get(getCurrentRowNumber() - 1)
+                : new Expression[columns.length];
         for (int i = 0; i < columns.length; i++) {
             String key = table.getSchema().getName() + "." +
                     table.getName() + "." + columns[i].getName();
             variableNames.add(key);
-            session.setVariable(key,
-                    list.get(getCurrentRowNumber() - 1)[i].getValue(session));
+            Value value;
+            if (currentRow != null) {
+                value = currentRow[i];
+                row[i] = ValueExpression.get(value);
+            } else {
+                value = row[i].getValue(session);
+            }
+            session.setVariable(key, value);
         }
 
         StatementBuilder buff = new StatementBuilder("UPDATE ");
@@ -345,7 +435,7 @@ public class Insert extends Prepared implements ResultTarget {
         for (Column column : duplicateKeyAssignmentMap.keySet()) {
             buff.appendExceptFirst(", ");
             Expression ex = duplicateKeyAssignmentMap.get(column);
-            buff.append(column.getSQL()).append("=").append(ex.getSQL());
+            buff.append(column.getSQL()).append('=').append(ex.getSQL());
         }
         buff.append(" WHERE ");
         Index foundIndex = (Index) de.getSource();
@@ -353,30 +443,39 @@ public class Insert extends Prepared implements ResultTarget {
             throw DbException.getUnsupportedException(
                     "Unable to apply ON DUPLICATE KEY UPDATE, no index found!");
         }
-        buff.append(prepareUpdateCondition(foundIndex).getSQL());
+        buff.append(prepareUpdateCondition(foundIndex, row).getSQL());
         String sql = buff.toString();
-        Prepared command = session.prepare(sql);
+        Update command = (Update) session.prepare(sql);
+        command.setUpdateToCurrentValuesReturnsZero(true);
         for (Parameter param : command.getParameters()) {
             Parameter insertParam = parameters.get(param.getIndex());
             param.setValue(insertParam.getValue(session));
         }
-        command.update();
+        boolean result = command.update() > 0;
         for (String variableName : variableNames) {
             session.setVariable(variableName, ValueNull.INSTANCE);
         }
+        return result;
     }
 
-    private Expression prepareUpdateCondition(Index foundIndex) {
+    private Expression prepareUpdateCondition(Index foundIndex, Expression[] row) {
         // MVPrimaryIndex is playing fast and loose with it's implementation of
         // the Index interface.
         // It returns all of the columns in the table when we call
         // getIndexColumns() or getColumns().
         // Don't have time right now to fix that, so just special-case it.
+        // PageDataIndex has the same problem.
         final Column[] indexedColumns;
         if (foundIndex instanceof MVPrimaryIndex) {
             MVPrimaryIndex foundMV = (MVPrimaryIndex) foundIndex;
             indexedColumns = new Column[] { foundMV.getIndexColumns()[foundMV
                     .getMainIndexColumn()].column };
+        } else if (foundIndex instanceof PageDataIndex) {
+            PageDataIndex foundPD = (PageDataIndex) foundIndex;
+            int mainIndexColumn = foundPD.getMainIndexColumn();
+            indexedColumns = mainIndexColumn >= 0
+                    ? new Column[] { foundPD.getIndexColumns()[mainIndexColumn].column }
+                    : foundIndex.getColumns();
         } else {
             indexedColumns = foundIndex.getColumns();
         }
@@ -389,18 +488,20 @@ public class Insert extends Prepared implements ResultTarget {
             for (int i = 0; i < columns.length; i++) {
                 if (expr.getColumnName().equals(columns[i].getName())) {
                     if (condition == null) {
-                        condition = new Comparison(session, Comparison.EQUAL,
-                                expr, list.get(getCurrentRowNumber() - 1)[i++]);
+                        condition = new Comparison(session, Comparison.EQUAL, expr, row[i]);
                     } else {
-                        condition = new ConditionAndOr(ConditionAndOr.AND,
-                                condition,
-                                new Comparison(session, Comparison.EQUAL, expr,
-                                        list.get(0)[i++]));
+                        condition = new ConditionAndOr(ConditionAndOr.AND, condition,
+                                new Comparison(session, Comparison.EQUAL, expr, row[i]));
                     }
+                    break;
                 }
             }
         }
         return condition;
+    }
+
+    public void setSourceTableFilter(TableFilter sourceTableFilter) {
+        this.sourceTableFilter = sourceTableFilter;
     }
 
 }

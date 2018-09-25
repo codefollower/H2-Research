@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -73,8 +73,7 @@ public class TableFunction extends Function {
     }
 
     public void setColumns(ArrayList<Column> columns) {
-        this.columnList = new Column[columns.size()];
-        columns.toArray(columnList);
+        this.columnList = columns.toArray(new Column[0]);
     }
 
     private ValueResultSet getTable(Session session, Expression[] argList,
@@ -87,7 +86,7 @@ public class TableFunction extends Function {
             ExpressionColumn col = new ExpressionColumn(db, c);
             header[i] = col;
         }
-        LocalResult result = new LocalResult(session, header, len);
+        LocalResult result = db.getResultFactory().create(session, header, len);
         if (distinctRows) {
             result.setDistinct();
         }
@@ -125,9 +124,8 @@ public class TableFunction extends Function {
             }
         }
         result.done();
-        ValueResultSet vr = ValueResultSet.get(getSimpleResultSet(result,
+        return ValueResultSet.get(getSimpleResultSet(result,
                 Integer.MAX_VALUE));
-        return vr;
     }
 
     private static SimpleResultSet getSimpleResultSet(LocalResult rs,
@@ -137,10 +135,12 @@ public class TableFunction extends Function {
         simple.setAutoClose(false);
         for (int i = 0; i < columnCount; i++) {
             String name = rs.getColumnName(i);
-            int sqlType = DataType.convertTypeToSQLType(rs.getColumnType(i));
+            DataType dataType = DataType.getDataType(rs.getColumnType(i));
+            int sqlType = dataType.sqlType;
+            String sqlTypeName = dataType.name;
             int precision = MathUtils.convertLongToInt(rs.getColumnPrecision(i));
             int scale = rs.getColumnScale(i);
-            simple.addColumn(name, sqlType, precision, scale);
+            simple.addColumn(name, sqlType, sqlTypeName, precision, scale);
         }
         rs.reset();
         for (int i = 0; i < maxrows && rs.next(); i++) {

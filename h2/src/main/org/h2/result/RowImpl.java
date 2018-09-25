@@ -1,9 +1,11 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
+
+import java.util.Arrays;
 
 import org.h2.engine.Constants;
 import org.h2.store.Data;
@@ -20,7 +22,6 @@ public class RowImpl implements Row {
     private int memory;
     private int version;
     private boolean deleted;
-    private int sessionId;
 
     public RowImpl(Value[] data, int memory) {
         this.data = data;
@@ -35,12 +36,10 @@ public class RowImpl implements Row {
      */
     @Override
     public Row getCopy() {
-        Value[] d2 = new Value[data.length];
-        System.arraycopy(data, 0, d2, 0, data.length);
+        Value[] d2 = Arrays.copyOf(data, data.length);
         RowImpl r2 = new RowImpl(d2, memory);
         r2.key = key;
         r2.version = version + 1;
-        r2.sessionId = sessionId;
         return r2;
     }
 
@@ -72,7 +71,7 @@ public class RowImpl implements Row {
 
     @Override
     public Value getValue(int i) {
-        return i == -1 ? ValueLong.get(key) : data[i];
+        return i == SearchRow.ROWID_INDEX ? ValueLong.get(key) : data[i];
     }
 
     /**
@@ -92,7 +91,7 @@ public class RowImpl implements Row {
 
     @Override
     public void setValue(int i, Value v) {
-        if (i == -1) {
+        if (i == SearchRow.ROWID_INDEX) {
             this.key = v.getLong();
         } else {
             data[i] = v;
@@ -118,8 +117,7 @@ public class RowImpl implements Row {
         if (data != null) {
             int len = data.length;
             m += Constants.MEMORY_OBJECT + len * Constants.MEMORY_POINTER;
-            for (int i = 0; i < len; i++) {
-                Value v = data[i];
+            for (Value v : data) {
                 if (v != null) {
                     m += v.getMemory();
                 }
@@ -134,7 +132,7 @@ public class RowImpl implements Row {
         StatementBuilder buff = new StatementBuilder("( /* key:");
         buff.append(getKey());
         if (version != 0) {
-            buff.append(" v:" + version);
+            buff.append(" v:").append(version);
         }
         if (isDeleted()) {
             buff.append(" deleted");
@@ -152,24 +150,6 @@ public class RowImpl implements Row {
     @Override
     public void setDeleted(boolean deleted) {
         this.deleted = deleted;
-    }
-
-    @Override
-    public void setSessionId(int sessionId) {
-        this.sessionId = sessionId;
-    }
-
-    @Override
-    public int getSessionId() {
-        return sessionId;
-    }
-
-    /**
-     * This record has been committed. The session id is reset.
-     */
-    @Override
-    public void commit() {
-        this.sessionId = 0;
     }
 
     @Override

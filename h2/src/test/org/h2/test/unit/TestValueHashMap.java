@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,7 +16,6 @@ import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
 import org.h2.store.LobStorageBackend;
 import org.h2.test.TestBase;
-import org.h2.util.New;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.TempFileDeleter;
 import org.h2.util.ValueHashMap;
@@ -48,7 +47,7 @@ public class TestValueHashMap extends TestBase implements DataHandler {
     }
 
     private void testNotANumber() {
-        ValueHashMap<Integer> map = ValueHashMap.newInstance();
+        ValueHashMap<Integer> map = new ValueHashMap<>();
         for (int i = 1; i < 100; i++) {
             double d = Double.longBitsToDouble(0x7ff0000000000000L | i);
             ValueDouble v = ValueDouble.get(d);
@@ -58,13 +57,13 @@ public class TestValueHashMap extends TestBase implements DataHandler {
     }
 
     private void testRandomized() {
-        ValueHashMap<Value> map = ValueHashMap.newInstance();
-        HashMap<Value, Value> hash = New.hashMap();
+        ValueHashMap<Value> map = new ValueHashMap<>();
+        HashMap<Value, Value> hash = new HashMap<>();
         Random random = new Random(1);
         Comparator<Value> vc = new Comparator<Value>() {
             @Override
             public int compare(Value v1, Value v2) {
-                return v1.compareTo(v2, compareMode);
+                return v1.compareTo(v2, null, compareMode);
             }
         };
         for (int i = 0; i < 10000; i++) {
@@ -86,8 +85,11 @@ public class TestValueHashMap extends TestBase implements DataHandler {
                 assertTrue(v1 == null ? v2 == null : v1.equals(v2));
                 break;
             case 3: {
-                ArrayList<Value> a1 = map.keys();
-                ArrayList<Value> a2 = New.arrayList(hash.keySet());
+                ArrayList<Value> a1 = new ArrayList<>();
+                for (Value v : map.keys()) {
+                    a1.add(v);
+                }
+                ArrayList<Value> a2 = new ArrayList<>(hash.keySet());
                 assertEquals(a1.size(), a2.size());
                 Collections.sort(a1, vc);
                 Collections.sort(a2, vc);
@@ -98,7 +100,7 @@ public class TestValueHashMap extends TestBase implements DataHandler {
             }
             case 4:
                 ArrayList<Value> a1 = map.values();
-                ArrayList<Value> a2 = New.arrayList(hash.values());
+                ArrayList<Value> a2 = new ArrayList<>(hash.values());
                 assertEquals(a1.size(), a2.size());
                 Collections.sort(a1, vc);
                 Collections.sort(a2, vc);

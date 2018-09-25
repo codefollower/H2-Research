@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,6 +8,9 @@ package org.h2.message;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicIntegerArray;
+
+import org.h2.api.ErrorCode;
 import org.h2.util.StringUtils;
 
 /**
@@ -90,11 +93,19 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
      */
     protected static final int ARRAY = 16;
 
-    private static final int LAST = ARRAY + 1;
-    private static final int[] ID = new int[LAST];
+    /**
+     * The trace type id  for SQLXML objects.
+     */
+    protected static final int SQLXML = 17;
+
+    private static final int LAST = SQLXML + 1;
+    private static final AtomicIntegerArray ID = new AtomicIntegerArray(LAST);
+
     private static final String[] PREFIX = { "call", "conn", "dbMeta", "prep",
             "rs", "rsMeta", "sp", "ex", "stat", "blob", "clob", "pMeta", "ds",
-            "xads", "xares", "xid", "ar" };
+            "xads", "xares", "xid", "ar", "sqlxml" };
+
+    private static final SQLException SQL_OOME = DbException.SQL_OOME;
 
     /**
      * The trace module used by this object.
@@ -138,7 +149,7 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
      * @return the new trace object id
      */
     protected static int getNextId(int type) {
-        return ID[type]++;
+        return ID.getAndIncrement(type);
     }
 
     /**
@@ -348,17 +359,29 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
      * @param ex the exception
      * @return the SQL exception object
      */
-    protected SQLException logAndConvert(Exception ex) {
-        SQLException e = DbException.toSQLException(ex);
-        if (trace == null) {
-            DbException.traceThrowable(e);
-        } else {
-            int errorCode = e.getErrorCode();
-            if (errorCode >= 23000 && errorCode < 24000) {
-                trace.info(e, "exception");
+    protected SQLException logAndConvert(Throwable ex) {
+        SQLException e = null;
+        try {
+            e = DbException.toSQLException(ex);
+            if (trace == null) {
+                DbException.traceThrowable(e);
             } else {
-                trace.error(e, "exception");
+                int errorCode = e.getErrorCode();
+                if (errorCode >= 23000 && errorCode < 24000) {
+                    trace.info(e, "exception");
+                } else {
+                    trace.error(e, "exception");
+                }
             }
+        } catch(Throwable another) {
+            if (e == null) {
+                try {
+                    e = new SQLException("GeneralError", "HY000", ErrorCode.GENERAL_ERROR_1, ex);
+                } catch (OutOfMemoryError | NoClassDefFoundError ignored) {
+                    return SQL_OOME;
+                }
+            }
+            e.addSuppressed(another);
         }
         return e;
     }

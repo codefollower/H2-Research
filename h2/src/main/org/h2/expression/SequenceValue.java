@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,7 +11,6 @@ import org.h2.schema.Sequence;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.value.Value;
-import org.h2.value.ValueInt;
 import org.h2.value.ValueLong;
 
 /**
@@ -27,9 +26,9 @@ public class SequenceValue extends Expression {
 
     @Override
     public Value getValue(Session session) {
-        long value = sequence.getNext(session);
-        session.setLastIdentity(ValueLong.get(value));
-        return ValueLong.get(value);
+        ValueLong value = ValueLong.get(sequence.getNext(session));
+        session.setLastIdentity(value);
+        return value;
     }
 
     @Override
@@ -38,7 +37,7 @@ public class SequenceValue extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
         // nothing to do
     }
 
@@ -59,12 +58,12 @@ public class SequenceValue extends Expression {
 
     @Override
     public long getPrecision() {
-        return ValueInt.PRECISION;
+        return ValueLong.PRECISION;
     }
 
     @Override
     public int getDisplaySize() {
-        return ValueInt.DISPLAY_SIZE;
+        return ValueLong.DISPLAY_SIZE;
     }
 
     @Override
@@ -73,7 +72,7 @@ public class SequenceValue extends Expression {
     }
 
     @Override
-    public void updateAggregate(Session session) {
+    public void updateAggregate(Session session, int stage) {
         // nothing to do
     }
 
@@ -83,7 +82,8 @@ public class SequenceValue extends Expression {
         case ExpressionVisitor.EVALUATABLE:
         case ExpressionVisitor.OPTIMIZABLE_MIN_MAX_COUNT_ALL:
         case ExpressionVisitor.NOT_FROM_RESOLVER:
-        case ExpressionVisitor.GET_COLUMNS:
+        case ExpressionVisitor.GET_COLUMNS1:
+        case ExpressionVisitor.GET_COLUMNS2:
             return true;
         case ExpressionVisitor.DETERMINISTIC:
         case ExpressionVisitor.READONLY:
@@ -104,6 +104,11 @@ public class SequenceValue extends Expression {
     @Override
     public int getCost() {
         return 1;
+    }
+
+    @Override
+    public boolean isGeneratedKey() {
+        return true;
     }
 
 }

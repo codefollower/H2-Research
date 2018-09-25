@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -27,9 +27,8 @@ public class ValueStringIgnoreCase extends ValueString {
     }
 
     @Override
-    protected int compareSecure(Value o, CompareMode mode) {
-        ValueStringIgnoreCase v = (ValueStringIgnoreCase) o;
-        return mode.compareString(value, v.value, true);
+    public int compareTypeSafe(Value o, CompareMode mode) {
+        return mode.compareString(value, ((ValueStringIgnoreCase) o).value, true);
     }
 
     @Override

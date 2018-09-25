@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -34,33 +34,6 @@ import org.h2.value.Transfer;
  * used, but locking by creating a socket is supported as well.
  */
 public class FileLock implements Runnable {
-
-    /**
-     * This locking method means no locking is used at all.
-     */
-    public static final int LOCK_NO = 0;
-
-    /**
-     * This locking method means the cooperative file locking protocol should be
-     * used.
-     */
-    public static final int LOCK_FILE = 1;
-
-    /**
-     * This locking method means a socket is created on the given machine.
-     */
-    public static final int LOCK_SOCKET = 2;
-
-    /**
-     * This locking method means multiple writers are allowed, and they
-     * synchronize themselves.
-     */
-    public static final int LOCK_SERIALIZED = 3;
-
-    /**
-     * Use the file system to lock the file; don't use a separate lock file.
-     */
-    public static final int LOCK_FS = 4;
 
     private static final String MAGIC = "FileLock";
     private static final String FILE = "file";
@@ -100,7 +73,7 @@ public class FileLock implements Runnable {
      */
     private long lastWrite;
 
-    private String method, ipAddress;
+    private String method;
     private Properties properties;
     private String uniqueId;
     private Thread watchdog;
@@ -125,22 +98,23 @@ public class FileLock implements Runnable {
      * @param fileLockMethod the file locking method to use
      * @throws DbException if locking was not successful
      */
-    public synchronized void lock(int fileLockMethod) {
+    public synchronized void lock(FileLockMethod fileLockMethod) {
         checkServer();
         if (locked) {
             DbException.throwInternalError("already locked");
         }
         switch (fileLockMethod) {
-        case LOCK_FILE:
+        case FILE:
             lockFile();
             break;
-        case LOCK_SOCKET:
+        case SOCKET:
             lockSocket();
             break;
-        case LOCK_SERIALIZED:
+        case SERIALIZED:
             lockSerialized();
             break;
-        case LOCK_FS:
+        case FS:
+        case NO:
             break;
         }
         locked = true;
@@ -234,11 +208,10 @@ public class FileLock implements Runnable {
         try {
             Socket socket = NetUtils.createSocket(server,
                     Constants.DEFAULT_TCP_PORT, false);
-            Transfer transfer = new Transfer(null);
-            transfer.setSocket(socket);
+            Transfer transfer = new Transfer(null, socket);
             transfer.init();
-            transfer.writeInt(Constants.TCP_PROTOCOL_VERSION_6);
-            transfer.writeInt(Constants.TCP_PROTOCOL_VERSION_16);
+            transfer.writeInt(Constants.TCP_PROTOCOL_VERSION_MIN_SUPPORTED);
+            transfer.writeInt(Constants.TCP_PROTOCOL_VERSION_MAX_SUPPORTED);
             transfer.writeString(null);
             transfer.writeString(null);
             transfer.writeString(id);
@@ -377,7 +350,7 @@ public class FileLock implements Runnable {
         setUniqueId();
         // if this returns 127.0.0.1,
         // the computer is probably not networked
-        ipAddress = NetUtils.getLocalAddress();
+        String ipAddress = NetUtils.getLocalAddress();
         FileUtils.createDirectories(FileUtils.getParent(fileName));
         if (!FileUtils.createFile(fileName)) {
             waitUntilOld();
@@ -428,7 +401,7 @@ public class FileLock implements Runnable {
             serverSocket = NetUtils.createServerSocket(0, false);
             int port = serverSocket.getLocalPort();
             properties.setProperty("ipAddress", ipAddress);
-            properties.setProperty("port", String.valueOf(port));
+            properties.setProperty("port", Integer.toString(port));
         } catch (Exception e) {
             trace.debug(e, "lock");
             serverSocket = null;
@@ -481,17 +454,17 @@ public class FileLock implements Runnable {
      * @return the method type
      * @throws DbException if the method name is unknown
      */
-    public static int getFileLockMethod(String method) {
+    public static FileLockMethod getFileLockMethod(String method) {
         if (method == null || method.equalsIgnoreCase("FILE")) {
-            return FileLock.LOCK_FILE;
+            return FileLockMethod.FILE;
         } else if (method.equalsIgnoreCase("NO")) {
-            return FileLock.LOCK_NO;
+            return FileLockMethod.NO;
         } else if (method.equalsIgnoreCase("SOCKET")) {
-            return FileLock.LOCK_SOCKET;
+            return FileLockMethod.SOCKET;
         } else if (method.equalsIgnoreCase("SERIALIZED")) {
-            return FileLock.LOCK_SERIALIZED;
+            return FileLockMethod.SERIALIZED;
         } else if (method.equalsIgnoreCase("FS")) {
-            return FileLock.LOCK_FS;
+            return FileLockMethod.FS;
         } else {
             throw DbException.get(
                     ErrorCode.UNSUPPORTED_LOCK_METHOD_1, method);
@@ -523,10 +496,15 @@ public class FileLock implements Runnable {
                     trace.debug(e, "watchdog");
                 }
             }
-            while (serverSocket != null) {
+            while (true) {
+                // take a copy so we don't get an NPE between checking it and using it
+                ServerSocket local = serverSocket;
+                if (local == null) {
+                    break;
+                }
                 try {
                     trace.debug("watchdog accept");
-                    Socket s = serverSocket.accept();
+                    Socket s = local.accept();
                     s.close();
                 } catch (Exception e) {
                     trace.debug(e, "watchdog");

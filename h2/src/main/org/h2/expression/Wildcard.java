@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -53,7 +53,7 @@ public class Wildcard extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
         throw DbException.get(ErrorCode.SYNTAX_ERROR_1, table);
     }
 
@@ -103,7 +103,7 @@ public class Wildcard extends Expression {
     }
 
     @Override
-    public void updateAggregate(Session session) {
+    public void updateAggregate(Session session, int stage) {
         DbException.throwInternalError(toString());
     }
 
@@ -112,7 +112,7 @@ public class Wildcard extends Expression {
         if (visitor.getType() == ExpressionVisitor.QUERY_COMPARABLE) {
             return true;
         }
-        throw DbException.throwInternalError("" + visitor.getType());
+        throw DbException.throwInternalError(Integer.toString(visitor.getType()));
     }
 
     @Override

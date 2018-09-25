@@ -1,20 +1,16 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
+
 import org.h2.api.ErrorCode;
+import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.engine.Constants;
 import org.h2.engine.Session;
-import org.h2.engine.UndoLogRecord;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -23,7 +19,7 @@ import org.h2.table.Column;
 import org.h2.table.IndexColumn;
 import org.h2.table.RegularTable;
 import org.h2.table.TableFilter;
-import org.h2.util.New;
+import org.h2.util.Utils;
 
 /**
  * The scan index is not really an 'index' in the strict sense, because it can
@@ -40,21 +36,24 @@ import org.h2.util.New;
 //因为MultiVersionIndex只在RegularTable.addIndex中使用，而ScanIndex不能通过RegularTable.addIndex触发
 public class ScanIndex extends BaseIndex {
     private long firstFree = -1;
-    private ArrayList<Row> rows = New.arrayList();
+    private ArrayList<Row> rows = Utils.newSmallArrayList();
     private final RegularTable tableData;
-    private int rowCountDiff;
-    private final HashMap<Integer, Integer> sessionRowCount;
-    private HashSet<Row> delta;
     private long rowCount;
-    
-    //跟PageDataIndex一样，id都是表id
-    public ScanIndex(RegularTable table, int id, IndexColumn[] columns, IndexType indexType) {
-        initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
-        if (database.isMultiVersion()) {
-            sessionRowCount = New.hashMap();
-        } else {
-            sessionRowCount = null;
-        }
+//<<<<<<< HEAD
+//    
+//    //跟PageDataIndex一样，id都是表id
+//    public ScanIndex(RegularTable table, int id, IndexColumn[] columns, IndexType indexType) {
+//        initBaseIndex(table, id, table.getName() + "_DATA", columns, indexType);
+//        if (database.isMultiVersion()) {
+//            sessionRowCount = New.hashMap();
+//        } else {
+//            sessionRowCount = null;
+//        }
+//=======
+
+    public ScanIndex(RegularTable table, int id, IndexColumn[] columns,
+            IndexType indexType) {
+        super(table, id, table.getName() + "_DATA", columns, indexType);
         tableData = table;
     }
 
@@ -65,17 +64,13 @@ public class ScanIndex extends BaseIndex {
 
     @Override
     public void truncate(Session session) {
-        rows = New.arrayList();
+        rows = Utils.newSmallArrayList();
         firstFree = -1;
         if (tableData.getContainsLargeObject() && tableData.isPersistData()) {
             database.getLobStorage().removeAllForTable(table.getId());
         }
         tableData.setRowCount(0);
         rowCount = 0;
-        rowCountDiff = 0;
-        if (database.isMultiVersion()) {
-            sessionRowCount.clear();
-        }
     }
 
     @Override
@@ -108,47 +103,29 @@ public class ScanIndex extends BaseIndex {
             rows.set((int) key, row);
         }
         row.setDeleted(false);
-        if (database.isMultiVersion()) {
-            if (delta == null) {
-                delta = New.hashSet();
-            }
-            boolean wasDeleted = delta.remove(row); //Row类没有实现hashCode方法，默认采用Objetc.hashCode方法
-            if (!wasDeleted) {
-                delta.add(row);
-            }
-            incrementRowCount(session.getId(), 1);
-        }
+//<<<<<<< HEAD
+//        if (database.isMultiVersion()) {
+//            if (delta == null) {
+//                delta = New.hashSet();
+//            }
+//            boolean wasDeleted = delta.remove(row); //Row类没有实现hashCode方法，默认采用Objetc.hashCode方法
+//            if (!wasDeleted) {
+//                delta.add(row);
+//            }
+//            incrementRowCount(session.getId(), 1);
+//        }
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
         rowCount++;
     }
     
     //通过Connection.setAutoCommit(false)禁用自动提交事务，就不会每insert或delete一条记录就调用此方法，
     //这样delta中就会有记录了，否则每次调用此方法清除row
     @Override
-    public void commit(int operation, Row row) {
-        if (database.isMultiVersion()) {
-            if (delta != null) {
-                delta.remove(row);
-            }
-            incrementRowCount(row.getSessionId(),
-                    operation == UndoLogRecord.DELETE ? 1 : -1);
-        }
-    }
-
-    private void incrementRowCount(int sessionId, int count) {
-        if (database.isMultiVersion()) {
-            Integer id = sessionId;
-            Integer c = sessionRowCount.get(id);
-            int current = c == null ? 0 : c.intValue();
-            sessionRowCount.put(id, current + count);
-            rowCountDiff += count;
-        }
-    }
-
-    @Override
     public void remove(Session session, Row row) {
         // in-memory
-        if (!database.isMultiVersion() && rowCount == 1) {
-            rows = New.arrayList();
+        if (rowCount == 1) {
+            rows = Utils.newSmallArrayList();
             firstFree = -1;
         } else {
             Row free = session.createRow(null, 1);
@@ -161,42 +138,23 @@ public class ScanIndex extends BaseIndex {
             rows.set((int) key, free);
             firstFree = key; //如果连续删两次以上，能通过firstFree和free.key串接成一个未使用的空行列表，这样在add时可以一个个使用
         }
-        if (database.isMultiVersion()) {
-            // if storage is null, the delete flag is not yet set
-            row.setDeleted(true);
-            if (delta == null) {
-                delta = New.hashSet();
-            }
-            boolean wasAdded = delta.remove(row);
-            if (!wasAdded) {
-                delta.add(row);
-            }
-            incrementRowCount(session.getId(), -1);
-        }
         rowCount--;
     }
 
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
-        return new ScanCursor(session, this, database.isMultiVersion());
+        return new ScanCursor(this);
     }
 
     @Override
     public double getCost(Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
-            HashSet<Column> allColumnsSet) {
+            AllColumnsForPlan allColumnsSet) {
         return tableData.getRowCountApproximation() + Constants.COST_ROW_OFFSET;
     }
 
     @Override
     public long getRowCount(Session session) {
-        if (database.isMultiVersion()) {
-            Integer i = sessionRowCount.get(session.getId());
-            long count = i == null ? 0 : i.intValue();
-            count += rowCount;
-            count -= rowCountDiff;
-            return count;
-        }
         return rowCount;
     }
 
@@ -254,14 +212,6 @@ public class ScanIndex extends BaseIndex {
     @Override
     public Cursor findFirstOrLast(Session session, boolean first) {
         throw DbException.getUnsupportedException("SCAN");
-    }
-
-    Iterator<Row> getDelta() {
-        if (delta == null) {
-            List<Row> e = Collections.emptyList();
-            return e.iterator();
-        }
-        return delta.iterator();
     }
 
     @Override

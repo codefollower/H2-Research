@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -36,9 +36,9 @@ import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.IOUtils;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 
 /**
  * This class implements the native full text search.
@@ -262,11 +262,11 @@ public class FullText {
     public static void dropAll(Connection conn) throws SQLException {
         init(conn);
         Statement stat = conn.createStatement();
-        stat.execute("DROP SCHEMA IF EXISTS " + SCHEMA);
+        stat.execute("DROP SCHEMA IF EXISTS " + SCHEMA + " CASCADE");
         removeAllTriggers(conn, TRIGGER_PREFIX);
         FullTextSettings setting = FullTextSettings.getInstance(conn);
         setting.removeAllIndexes();
-        setting.clearInored();
+        setting.clearIgnored();
         setting.clearWordList();
     }
 
@@ -463,17 +463,15 @@ public class FullText {
      * @return an array containing the column name list and the data list
      */
     protected static Object[][] parseKey(Connection conn, String key) {
-        ArrayList<String> columns = New.arrayList();
-        ArrayList<String> data = New.arrayList();
+        ArrayList<String> columns = Utils.newSmallArrayList();
+        ArrayList<String> data = Utils.newSmallArrayList();
         JdbcConnection c = (JdbcConnection) conn;
         Session session = (Session) c.getSession();
         Parser p = new Parser(session);
         Expression expr = p.parseExpression(key);
         addColumnData(columns, data, expr);
-        Object[] col = new Object[columns.size()];
-        columns.toArray(col);
-        Object[] dat = new Object[columns.size()];
-        data.toArray(dat);
+        Object[] col = columns.toArray();
+        Object[] dat = data.toArray();
         Object[][] columnData = { col, dat };
         return columnData;
     }
@@ -598,14 +596,14 @@ public class FullText {
             // this is just to query the result set columns
             return result;
         }
-        if (text == null || text.trim().length() == 0) {
+        if (text == null || StringUtils.isWhitespaceOrEmpty(text)) {
             return result;
         }
         FullTextSettings setting = FullTextSettings.getInstance(conn);
         if (!setting.isInitialized()) {
             init(conn);
         }
-        Set<String> words = New.hashSet();
+        Set<String> words = new HashSet<>();
         addWords(setting, words, text);
         Set<Integer> rIds = null, lastRowIds;
 
@@ -613,7 +611,7 @@ public class FullText {
                 SELECT_MAP_BY_WORD_ID);
         for (String word : words) {
             lastRowIds = rIds;
-            rIds = New.hashSet();
+            rIds = new HashSet<>();
             Integer wId = setting.getWordId(word);
             if (wId == null) {
                 continue;
@@ -627,7 +625,7 @@ public class FullText {
                 }
             }
         }
-        if (rIds == null || rIds.size() == 0) {
+        if (rIds == null || rIds.isEmpty()) {
             return result;
         }
         PreparedStatement prepSelectRowById = setting.prepare(conn, SELECT_ROW_BY_ID);
@@ -671,19 +669,17 @@ public class FullText {
             ArrayList<String> data, Expression expr) {
         if (expr instanceof ConditionAndOr) {
             ConditionAndOr and = (ConditionAndOr) expr;
-            Expression left = and.getExpression(true);
-            Expression right = and.getExpression(false);
-            addColumnData(columns, data, left);
-            addColumnData(columns, data, right);
+            addColumnData(columns, data, and.getSubexpression(0));
+            addColumnData(columns, data, and.getSubexpression(1));
         } else {
             Comparison comp = (Comparison) expr;
-            ExpressionColumn ec = (ExpressionColumn) comp.getExpression(true);
-            ValueExpression ev = (ValueExpression) comp.getExpression(false);
+            ExpressionColumn ec = (ExpressionColumn) comp.getSubexpression(0);
             String columnName = ec.getColumnName();
             columns.add(columnName);
-            if (ev == null) {
+            if (expr.getSubexpressionCount() == 1) {
                 data.add(null);
             } else {
+                ValueExpression ev = (ValueExpression) comp.getSubexpression(1);
                 data.add(ev.getValue(null).getString());
             }
         }
@@ -751,7 +747,7 @@ public class FullText {
      * @param table the table name
      */
     private static void createTrigger(Connection conn, String schema,
-                                      String table) throws SQLException {
+            String table) throws SQLException {
         createOrDropTrigger(conn, schema, table, true);
     }
 
@@ -793,11 +789,11 @@ public class FullText {
      * @param table the table name
      */
     private static void indexExistingRows(Connection conn, String schema,
-                                          String table) throws SQLException {
+            String table) throws SQLException {
         FullText.FullTextTrigger existing = new FullText.FullTextTrigger();
         existing.init(conn, schema, null, table, false, Trigger.INSERT);
-        String sql = "SELECT * FROM " + StringUtils.quoteIdentifier(schema) +
-                "." + StringUtils.quoteIdentifier(table);
+        String sql = "SELECT * FROM " + StringUtils.quoteIdentifier(schema)
+                + "." + StringUtils.quoteIdentifier(table);
         ResultSet rs = conn.createStatement().executeQuery(sql);
         int columnCount = rs.getMetaData().getColumnCount();
         while (rs.next()) {
@@ -894,13 +890,13 @@ public class FullText {
             if (!setting.isInitialized()) {
                 FullText.init(conn);
             }
-            ArrayList<String> keyList = New.arrayList();
+            ArrayList<String> keyList = Utils.newSmallArrayList();
             DatabaseMetaData meta = conn.getMetaData();
             ResultSet rs = meta.getColumns(null,
                     StringUtils.escapeMetaDataPattern(schemaName),
                     StringUtils.escapeMetaDataPattern(tableName),
                     null);
-            ArrayList<String> columnList = New.arrayList();
+            ArrayList<String> columnList = Utils.newSmallArrayList();
             while (rs.next()) {
                 columnList.add(rs.getString("COLUMN_NAME"));
             }
@@ -908,8 +904,7 @@ public class FullText {
             index = new IndexInfo();
             index.schema = schemaName;
             index.table = tableName;
-            index.columns = new String[columnList.size()];
-            columnList.toArray(index.columns);
+            index.columns = columnList.toArray(new String[0]);
             rs = meta.getColumns(null,
                     StringUtils.escapeMetaDataPattern(schemaName),
                     StringUtils.escapeMetaDataPattern(tableName),
@@ -917,7 +912,7 @@ public class FullText {
             for (int i = 0; rs.next(); i++) {
                 columnTypes[i] = rs.getInt("DATA_TYPE");
             }
-            if (keyList.size() == 0) {
+            if (keyList.isEmpty()) {
                 rs = meta.getPrimaryKeys(null,
                         StringUtils.escapeMetaDataPattern(schemaName),
                         tableName);
@@ -925,10 +920,10 @@ public class FullText {
                     keyList.add(rs.getString("COLUMN_NAME"));
                 }
             }
-            if (keyList.size() == 0) {
+            if (keyList.isEmpty()) {
                 throw throwException("No primary key for table " + tableName);
             }
-            ArrayList<String> indexList = New.arrayList();
+            ArrayList<String> indexList = Utils.newSmallArrayList();
             PreparedStatement prep = conn.prepareStatement(
                     "SELECT ID, COLUMNS FROM " + SCHEMA + ".INDEXES" +
                     " WHERE SCHEMA=? AND TABLE=?");
@@ -942,7 +937,7 @@ public class FullText {
                     Collections.addAll(indexList, StringUtils.arraySplit(columns, ',', true));
                 }
             }
-            if (indexList.size() == 0) {
+            if (indexList.isEmpty()) {
                 indexList.addAll(columnList);
             }
             index.keys = new int[keyList.size()];
@@ -954,12 +949,19 @@ public class FullText {
             useOwnConnection = isMultiThread(conn);
             if(!useOwnConnection) {
                 for (int i = 0; i < SQL.length; i++) {
-                    prepStatements[i] = conn.prepareStatement(SQL[i]);
+                    prepStatements[i] = conn.prepareStatement(SQL[i],
+                            Statement.RETURN_GENERATED_KEYS);
                 }
             }
         }
 
-        private static boolean isMultiThread(Connection conn)
+        /**
+         * Check whether the database is in multi-threaded mode.
+         *
+         * @param conn the connection
+         * @return true if the multi-threaded mode is used
+         */
+        static boolean isMultiThread(Connection conn)
                 throws SQLException {
             try (Statement stat = conn.createStatement()) {
                 ResultSet rs = stat.executeQuery(
@@ -1087,7 +1089,7 @@ public class FullText {
         }
 
         private int[] getWordIds(Connection conn, Object[] row) throws SQLException {
-            HashSet<String> words = New.hashSet();
+            HashSet<String> words = new HashSet<>();
             for (int idx : index.indexColumns) {
                 int type = columnTypes[idx];
                 Object data = row[idx];
@@ -1151,8 +1153,10 @@ public class FullText {
             return buff.toString();
         }
 
-        private PreparedStatement getStatement(Connection conn, int indx) throws SQLException {
-            return useOwnConnection ? conn.prepareStatement(SQL[indx]) : prepStatements[indx];
+        private PreparedStatement getStatement(Connection conn, int index) throws SQLException {
+            return useOwnConnection ?
+                    conn.prepareStatement(SQL[index], Statement.RETURN_GENERATED_KEYS)
+                    : prepStatements[index];
         }
 
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -32,6 +32,7 @@ import org.h2.store.fs.FilePathEncrypt;
 import org.h2.store.fs.FilePathRec;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
+import org.h2.test.TestDb;
 import org.h2.test.utils.AssertThrows;
 import org.h2.test.utils.FilePathDebug;
 import org.h2.tools.Backup;
@@ -42,7 +43,7 @@ import org.h2.util.Task;
 /**
  * Tests various file system.
  */
-public class TestFileSystem extends TestBase {
+public class TestFileSystem extends TestDb {
 
     /**
      * Run just this test.
@@ -216,19 +217,19 @@ public class TestFileSystem extends TestBase {
     }
 
     private void testClasspath() throws IOException {
-        String resource = "org/h2/test/testSimple.in.txt";
+        String resource = "org/h2/test/scripts/testSimple.in.txt";
         InputStream in;
         in = getClass().getResourceAsStream("/" + resource);
-        assertTrue(in != null);
+        assertNotNull(in);
         in.close();
         in = getClass().getClassLoader().getResourceAsStream(resource);
-        assertTrue(in != null);
+        assertNotNull(in);
         in.close();
         in = FileUtils.newInputStream("classpath:" + resource);
-        assertTrue(in != null);
+        assertNotNull(in);
         in.close();
         in = FileUtils.newInputStream("classpath:/" + resource);
-        assertTrue(in != null);
+        assertNotNull(in);
         in.close();
     }
 
@@ -320,7 +321,7 @@ public class TestFileSystem extends TestBase {
         for (String f : FileUtils.newDirectoryStream(
                 "zip:" + getBaseDir() + "/fsJar.zip")) {
             assertFalse(FileUtils.isAbsolute(f));
-            assertTrue(!FileUtils.isDirectory(f));
+            assertFalse(FileUtils.isDirectory(f));
             assertTrue(FileUtils.size(f) > 0);
             assertTrue(f.endsWith(FileUtils.getName(f)));
             assertEquals(0, FileUtils.lastModified(f));
@@ -599,7 +600,7 @@ public class TestFileSystem extends TestBase {
         IOUtils.copyFiles(fsBase + "/test", fsBase + "/test3");
         FileUtils.move(fsBase + "/test3", fsBase + "/test2");
         FileUtils.move(fsBase + "/test2", fsBase + "/test2");
-        assertTrue(!FileUtils.exists(fsBase + "/test3"));
+        assertFalse(FileUtils.exists(fsBase + "/test3"));
         assertTrue(FileUtils.exists(fsBase + "/test2"));
         assertEquals(10000, FileUtils.size(fsBase + "/test2"));
         byte[] buffer2 = new byte[10000];
@@ -624,7 +625,7 @@ public class TestFileSystem extends TestBase {
             assertTrue(FileUtils.isDirectory(fsBase + "/testDir"));
             if (!fsBase.startsWith("jdbc:")) {
                 FileUtils.deleteRecursive(fsBase + "/testDir", false);
-                assertTrue(!FileUtils.exists(fsBase + "/testDir"));
+                assertFalse(FileUtils.exists(fsBase + "/testDir"));
             }
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,17 +15,18 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
+
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
-import org.h2.util.New;
+import org.h2.test.TestDb;
 import org.h2.util.ScriptReader;
 
 /**
  * Tests nested joins and right outer joins.
  */
-public class TestOuterJoins extends TestBase {
+public class TestOuterJoins extends TestDb {
 
-    private final ArrayList<Statement> dbs = New.arrayList();
+    private final ArrayList<Statement> dbs = new ArrayList<>();
 
     /**
      * Run just this test.
@@ -53,7 +54,7 @@ public class TestOuterJoins extends TestBase {
         try {
             Class.forName("org.postgresql.Driver");
             Connection c2 = DriverManager.getConnection(
-                    "jdbc:postgresql:test", "sa", "sa");
+                    "jdbc:postgresql:test?loggerLevel=OFF", "sa", "sa");
             dbs.add(c2.createStatement());
         } catch (Exception e) {
             // database not installed - ok
@@ -136,7 +137,7 @@ public class TestOuterJoins extends TestBase {
             s.getConnection().close();
         }
         deleteDerby();
-        deleteDb("nestedJoins");
+        deleteDb("outerJoins");
     }
 
     private void deleteDerby() {
@@ -271,7 +272,7 @@ public class TestOuterJoins extends TestBase {
     }
 
     private static String getResult(ResultSet rs) throws SQLException {
-        ArrayList<String> list = New.arrayList();
+        ArrayList<String> list = new ArrayList<>();
         while (rs.next()) {
             StringBuilder buff = new StringBuilder();
             for (int i = 0; i < rs.getMetaData().getColumnCount(); i++) {
@@ -289,7 +290,7 @@ public class TestOuterJoins extends TestBase {
 
     private void testCases() throws Exception {
 
-        Connection conn = getConnection("nestedJoins");
+        Connection conn = getConnection("outerJoins");
         Statement stat = conn.createStatement();
         ResultSet rs;
         String sql;
@@ -334,7 +335,7 @@ public class TestOuterJoins extends TestBase {
         sql = cleanRemarks(rs.getString(1));
         assertEquals("SELECT DISTINCT T1.A, T2.A, T3.A FROM PUBLIC.T2 " +
                 "LEFT OUTER JOIN ( PUBLIC.T3 " +
-                "LEFT OUTER JOIN ( PUBLIC.T1 ) ON T1.B = T3.A ) " +
+                "LEFT OUTER JOIN PUBLIC.T1 ON T1.B = T3.A ) " +
                 "ON T2.B = T1.A", sql);
         rs = stat.executeQuery("select distinct t1.a, t2.a, t3.a from t1 " +
                 "right outer join t3 on t1.b=t3.a right outer join t2 on t2.b=t1.a");
@@ -571,7 +572,7 @@ public class TestOuterJoins extends TestBase {
         // }
 
         conn.close();
-        deleteDb("nestedJoins");
+        deleteDb("outerJoins");
     }
 
     private static String cleanRemarks(String sql) {

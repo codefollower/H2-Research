@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -177,12 +177,12 @@ public class CipherFactory {
         if (list == null) {
             return list;
         }
-        List<String> algorithms = new LinkedList<String>(Arrays.asList(list.split("\\s*,\\s*")));
+        List<String> algorithms = new LinkedList<>(Arrays.asList(list.split("\\s*,\\s*")));
         boolean dhAnonRemoved = algorithms.remove("DH_anon");
         boolean ecdhAnonRemoved = algorithms.remove("ECDH_anon");
         if (dhAnonRemoved || ecdhAnonRemoved) {
             String string = Arrays.toString(algorithms.toArray(new String[algorithms.size()]));
-            return (algorithms.size() > 0) ? string.substring(1, string.length() - 1): "";
+            return (!algorithms.isEmpty()) ? string.substring(1, string.length() - 1): "";
         }
         return list;
     }
@@ -387,12 +387,10 @@ public class CipherFactory {
     }
 
     private static String[] enableAnonymous(String[] enabled, String[] supported) {
-        LinkedHashSet<String> set = new LinkedHashSet<String>();
+        LinkedHashSet<String> set = new LinkedHashSet<>();
         for (String x : supported) {
-            if (!x.startsWith("SSL") &&
-                    x.indexOf("_anon_") >= 0 &&
-                    (x.indexOf("_AES_") >= 0 || x.indexOf("_3DES_") >= 0) &&
-                    x.indexOf("_SHA") >= 0) {
+            if (!x.startsWith("SSL") && x.contains("_anon_") &&
+                    (x.contains("_AES_") || x.contains("_3DES_")) && x.contains("_SHA")) {
                 set.add(x);
             }
         }
@@ -401,7 +399,7 @@ public class CipherFactory {
     }
 
     private static String[] disableSSL(String[] enabled) {
-        HashSet<String> set = new HashSet<String>();
+        HashSet<String> set = new HashSet<>();
         for (String x : enabled) {
             if (!x.startsWith("SSL")) {
                 set.add(x);

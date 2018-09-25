@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -241,7 +241,7 @@ public class Trace {
      */
     public static String formatParams(
             ArrayList<? extends ParameterInterface> parameters) {
-        if (parameters.size() == 0) {
+        if (parameters.isEmpty()) {
             return "";
         }
         StatementBuilder buff = new StatementBuilder();
@@ -300,10 +300,10 @@ public class Trace {
         if (!space) {
             buff.append(' ');
         }
-        buff.append("*/").
-            append(StringUtils.javaEncode(sql)).
-            append(StringUtils.javaEncode(params)).
-            append(';');
+        buff.append("*/");
+        StringUtils.javaEncode(sql, buff);
+        StringUtils.javaEncode(params, buff);
+        buff.append(';');
         sql = buff.toString();
         traceWriter.write(TraceSystem.INFO, module, sql, null);
     }

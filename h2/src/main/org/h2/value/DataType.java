@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.Clob;
@@ -23,20 +24,23 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
+
 import org.h2.api.ErrorCode;
+import org.h2.api.Interval;
+import org.h2.api.IntervalQualifier;
 import org.h2.api.TimestampWithTimeZone;
-import org.h2.engine.Constants;
+import org.h2.engine.Mode;
 import org.h2.engine.SessionInterface;
 import org.h2.engine.SysProperties;
 import org.h2.jdbc.JdbcArray;
 import org.h2.jdbc.JdbcBlob;
 import org.h2.jdbc.JdbcClob;
 import org.h2.jdbc.JdbcConnection;
+import org.h2.jdbc.JdbcLob;
 import org.h2.message.DbException;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.JdbcUtils;
 import org.h2.util.LocalDateTimeUtils;
-import org.h2.util.New;
 import org.h2.util.Utils;
 
 /**
@@ -59,15 +63,15 @@ public class DataType {
     public static final Class<?> GEOMETRY_CLASS;
 
     private static final String GEOMETRY_CLASS_NAME =
-            "com.vividsolutions.jts.geom.Geometry";
+            "org.locationtech.jts.geom.Geometry";
 
     /**
      * The list of types. An ArrayList so that Tomcat doesn't set it to null
      * when clearing references.
      */
-    private static final ArrayList<DataType> TYPES = New.arrayList();
-    private static final HashMap<String, DataType> TYPES_BY_NAME = New.hashMap();
-    private static final HashMap<Integer, DataType> TYPES_BY_VALUE_TYPE = New.hashMap();
+    private static final ArrayList<DataType> TYPES = new ArrayList<>(96);
+    private static final HashMap<String, DataType> TYPES_BY_NAME = new HashMap<>(128);
+    private static final HashMap<Integer, DataType> TYPES_BY_VALUE_TYPE = new HashMap<>(64);
 
     /**
      * The value type of this data type.
@@ -83,11 +87,6 @@ public class DataType {
      * The SQL type.
      */
     public int sqlType;
-
-    /**
-     * The Java class name.
-     */
-    public String jdbc;
 
     /**
      * How closely the data type maps to the corresponding JDBC SQL type (low is
@@ -184,84 +183,217 @@ public class DataType {
             g = null;
         }
         GEOMETRY_CLASS = g;
-    }
 
-    static {
-        add(Value.NULL, Types.NULL, "Null",
+        add(Value.NULL, Types.NULL,
                 new DataType(),
                 new String[]{"NULL"},
                 // the value is always in the cache
                 0
         );
-        add(Value.STRING, Types.VARCHAR, "String",
+        add(Value.STRING, Types.VARCHAR,
                 createString(true),
-                new String[]{"VARCHAR", "VARCHAR2", "NVARCHAR", "NVARCHAR2",
-                    "VARCHAR_CASESENSITIVE", "CHARACTER VARYING", "TID"},
+                new String[]{"VARCHAR", "CHARACTER VARYING", "VARCHAR2", "NVARCHAR", "NVARCHAR2",
+                    "VARCHAR_CASESENSITIVE", "TID"},
                 // 24 for ValueString, 24 for String
                 48
         );
-        add(Value.STRING, Types.LONGVARCHAR, "String",
+        add(Value.STRING, Types.LONGVARCHAR,
                 createString(true),
                 new String[]{"LONGVARCHAR", "LONGNVARCHAR"},
                 48
         );
-        add(Value.STRING_FIXED, Types.CHAR, "String",
+        add(Value.STRING_FIXED, Types.CHAR,
                 createString(true),
                 new String[]{"CHAR", "CHARACTER", "NCHAR"},
                 48
         );
-        add(Value.STRING_IGNORECASE, Types.VARCHAR, "String",
+        add(Value.STRING_IGNORECASE, Types.VARCHAR,
                 createString(false),
                 new String[]{"VARCHAR_IGNORECASE"},
                 48
         );
-        add(Value.BOOLEAN, Types.BOOLEAN, "Boolean",
+        add(Value.BOOLEAN, Types.BOOLEAN,
                 createDecimal(ValueBoolean.PRECISION, ValueBoolean.PRECISION,
                         0, ValueBoolean.DISPLAY_SIZE, false, false),
                 new String[]{"BOOLEAN", "BIT", "BOOL"},
                 // the value is always in the cache
                 0
         );
-        add(Value.BYTE, Types.TINYINT, "Byte",
+        add(Value.BYTE, Types.TINYINT,
                 createDecimal(ValueByte.PRECISION, ValueByte.PRECISION, 0,
                         ValueByte.DISPLAY_SIZE, false, false),
                 new String[]{"TINYINT"},
                 // the value is almost always in the cache
                 1
         );
-        add(Value.SHORT, Types.SMALLINT, "Short",
+        add(Value.SHORT, Types.SMALLINT,
                 createDecimal(ValueShort.PRECISION, ValueShort.PRECISION, 0,
                         ValueShort.DISPLAY_SIZE, false, false),
                 new String[]{"SMALLINT", "YEAR", "INT2"},
                 // in many cases the value is in the cache
                 20
         );
-        add(Value.INT, Types.INTEGER, "Int",
+        add(Value.INT, Types.INTEGER,
                 createDecimal(ValueInt.PRECISION, ValueInt.PRECISION, 0,
                         ValueInt.DISPLAY_SIZE, false, false),
                 new String[]{"INTEGER", "INT", "MEDIUMINT", "INT4", "SIGNED"},
                 // in many cases the value is in the cache
                 20
         );
-        add(Value.INT, Types.INTEGER, "Int",
+        add(Value.INT, Types.INTEGER,
                 createDecimal(ValueInt.PRECISION, ValueInt.PRECISION, 0,
                         ValueInt.DISPLAY_SIZE, false, true),
                 new String[]{"SERIAL"},
                 20
         );
-        add(Value.LONG, Types.BIGINT, "Long",
+        add(Value.LONG, Types.BIGINT,
                 createDecimal(ValueLong.PRECISION, ValueLong.PRECISION, 0,
                         ValueLong.DISPLAY_SIZE, false, false),
                 new String[]{"BIGINT", "INT8", "LONG"},
                 24
         );
-        add(Value.LONG, Types.BIGINT, "Long",
+        add(Value.LONG, Types.BIGINT,
                 createDecimal(ValueLong.PRECISION, ValueLong.PRECISION, 0,
                         ValueLong.DISPLAY_SIZE, false, true),
                 new String[]{"IDENTITY", "BIGSERIAL"},
                 24
         );
-        add(Value.DECIMAL, Types.DECIMAL, "BigDecimal",
+        if (SysProperties.BIG_DECIMAL_IS_DECIMAL) {
+            addDecimal();
+            addNumeric();
+        } else {
+            addNumeric();
+            addDecimal();
+        }
+        add(Value.FLOAT, Types.REAL,
+                createDecimal(ValueFloat.PRECISION, ValueFloat.PRECISION,
+                        0, ValueFloat.DISPLAY_SIZE, false, false),
+                new String[] {"REAL", "FLOAT4"},
+                24
+        );
+        add(Value.DOUBLE, Types.DOUBLE,
+                createDecimal(ValueDouble.PRECISION, ValueDouble.PRECISION,
+                        0, ValueDouble.DISPLAY_SIZE, false, false),
+                new String[] { "DOUBLE", "DOUBLE PRECISION" },
+                24
+        );
+        add(Value.DOUBLE, Types.FLOAT,
+                createDecimal(ValueDouble.PRECISION, ValueDouble.PRECISION,
+                        0, ValueDouble.DISPLAY_SIZE, false, false),
+                new String[] {"FLOAT", "FLOAT8" },
+                24
+        );
+        add(Value.TIME, Types.TIME,
+                createDate(ValueTime.MAXIMUM_PRECISION, ValueTime.DEFAULT_PRECISION,
+                        "TIME", true, ValueTime.DEFAULT_SCALE, ValueTime.MAXIMUM_SCALE),
+                new String[]{"TIME", "TIME WITHOUT TIME ZONE"},
+                // 24 for ValueTime, 32 for java.sql.Time
+                56
+        );
+        add(Value.DATE, Types.DATE,
+                createDate(ValueDate.PRECISION, ValueDate.PRECISION,
+                        "DATE", false, 0, 0),
+                new String[]{"DATE"},
+                // 24 for ValueDate, 32 for java.sql.Date
+                56
+        );
+        add(Value.TIMESTAMP, Types.TIMESTAMP,
+                createDate(ValueTimestamp.MAXIMUM_PRECISION, ValueTimestamp.DEFAULT_PRECISION,
+                        "TIMESTAMP", true, ValueTimestamp.DEFAULT_SCALE, ValueTimestamp.MAXIMUM_SCALE),
+                new String[]{"TIMESTAMP", "TIMESTAMP WITHOUT TIME ZONE",
+                        "DATETIME", "DATETIME2", "SMALLDATETIME"},
+                // 24 for ValueTimestamp, 32 for java.sql.Timestamp
+                56
+        );
+        // 2014 is the value of Types.TIMESTAMP_WITH_TIMEZONE
+        // use the value instead of the reference because the code has to
+        // compile (on Java 1.7). Can be replaced with
+        // Types.TIMESTAMP_WITH_TIMEZONE once Java 1.8 is required.
+        add(Value.TIMESTAMP_TZ, 2014,
+                createDate(ValueTimestampTimeZone.MAXIMUM_PRECISION, ValueTimestampTimeZone.DEFAULT_PRECISION,
+                        "TIMESTAMP_TZ", true, ValueTimestampTimeZone.DEFAULT_SCALE,
+                        ValueTimestampTimeZone.MAXIMUM_SCALE),
+                new String[]{"TIMESTAMP WITH TIME ZONE"},
+                // 26 for ValueTimestampTimeZone, 32 for java.sql.Timestamp
+                58
+        );
+        add(Value.BYTES, Types.VARBINARY,
+                createString(false),
+                new String[]{"VARBINARY", "BINARY VARYING"},
+                32
+        );
+        add(Value.BYTES, Types.BINARY,
+                createString(false),
+                new String[]{"BINARY", "RAW", "BYTEA", "LONG RAW"},
+                32
+        );
+        add(Value.BYTES, Types.LONGVARBINARY,
+                createString(false),
+                new String[]{"LONGVARBINARY"},
+                32
+        );
+        add(Value.UUID, Types.BINARY,
+                createString(false),
+                // UNIQUEIDENTIFIER is the MSSQL mode equivalent
+                new String[]{"UUID", "UNIQUEIDENTIFIER"},
+                32
+        );
+        add(Value.JAVA_OBJECT, Types.OTHER,
+                createString(false),
+                new String[]{"OTHER", "OBJECT", "JAVA_OBJECT"},
+                24
+        );
+        add(Value.BLOB, Types.BLOB,
+                createLob(),
+                new String[]{"BLOB", "BINARY LARGE OBJECT", "TINYBLOB", "MEDIUMBLOB",
+                    "LONGBLOB", "IMAGE", "OID"},
+                // 80 for ValueLob, 24 for String
+                104
+        );
+        add(Value.CLOB, Types.CLOB,
+                createLob(),
+                new String[]{"CLOB", "CHARACTER LARGE OBJECT", "TINYTEXT", "TEXT", "MEDIUMTEXT",
+                    "LONGTEXT", "NTEXT", "NCLOB"},
+                // 80 for ValueLob, 24 for String
+                104
+        );
+        add(Value.GEOMETRY, Types.OTHER,
+                createGeometry(),
+                new String[]{"GEOMETRY"},
+                32
+        );
+        DataType dataType = new DataType();
+        dataType.prefix = "(";
+        dataType.suffix = "')";
+        add(Value.ARRAY, Types.ARRAY,
+                dataType,
+                new String[]{"ARRAY"},
+                32
+        );
+        dataType = new DataType();
+        add(Value.RESULT_SET, DataType.TYPE_RESULT_SET,
+                dataType,
+                new String[]{"RESULT_SET"},
+                400
+        );
+        dataType = createString(false);
+        dataType.supportsPrecision = false;
+        dataType.supportsScale = false;
+        add(Value.ENUM, Types.OTHER,
+                dataType,
+                new String[]{"ENUM"},
+                48
+        );
+        for (int i = Value.INTERVAL_YEAR; i <= Value.INTERVAL_MINUTE_TO_SECOND; i++) {
+            addInterval(i);
+        }
+        for (Integer i : TYPES_BY_VALUE_TYPE.keySet()) {
+            Value.getOrder(i);
+        }
+    }
+
+    private static void addDecimal() {
+        add(Value.DECIMAL, Types.DECIMAL,
                 createDecimal(Integer.MAX_VALUE,
                         ValueDecimal.DEFAULT_PRECISION,
                         ValueDecimal.DEFAULT_SCALE,
@@ -270,7 +402,10 @@ public class DataType {
                 // 40 for ValueDecimal,
                 64
         );
-        add(Value.DECIMAL, Types.NUMERIC, "BigDecimal",
+    }
+
+    private static void addNumeric() {
+        add(Value.DECIMAL, Types.NUMERIC,
                 createDecimal(Integer.MAX_VALUE,
                         ValueDecimal.DEFAULT_PRECISION,
                         ValueDecimal.DEFAULT_SCALE,
@@ -278,134 +413,38 @@ public class DataType {
                 new String[]{"NUMERIC", "NUMBER"},
                 64
         );
-        add(Value.FLOAT, Types.REAL, "Float",
-                createDecimal(ValueFloat.PRECISION, ValueFloat.PRECISION,
-                        0, ValueFloat.DISPLAY_SIZE, false, false),
-                new String[] {"REAL", "FLOAT4"},
-                24
-        );
-        add(Value.DOUBLE, Types.DOUBLE, "Double",
-                createDecimal(ValueDouble.PRECISION, ValueDouble.PRECISION,
-                        0, ValueDouble.DISPLAY_SIZE, false, false),
-                new String[] { "DOUBLE", "DOUBLE PRECISION" },
-                24
-        );
-        add(Value.DOUBLE, Types.FLOAT, "Double",
-                createDecimal(ValueDouble.PRECISION, ValueDouble.PRECISION,
-                        0, ValueDouble.DISPLAY_SIZE, false, false),
-                new String[] {"FLOAT", "FLOAT8" },
-                24
-        );
-        add(Value.TIME, Types.TIME, "Time",
-                createDate(ValueTime.PRECISION, "TIME", 0, ValueTime.DISPLAY_SIZE),
-                new String[]{"TIME"},
-                // 24 for ValueTime, 32 for java.sql.Time
-                56
-        );
-        add(Value.DATE, Types.DATE, "Date",
-                createDate(ValueDate.PRECISION, "DATE", 0, ValueDate.DISPLAY_SIZE),
-                new String[]{"DATE"},
-                // 24 for ValueDate, 32 for java.sql.Data
-                56
-        );
-        add(Value.TIMESTAMP, Types.TIMESTAMP, "Timestamp",
-                createDate(ValueTimestamp.PRECISION, "TIMESTAMP",
-                        ValueTimestamp.DEFAULT_SCALE, ValueTimestamp.DISPLAY_SIZE),
-                new String[]{"TIMESTAMP", "DATETIME", "DATETIME2", "SMALLDATETIME"},
-                // 24 for ValueTimestamp, 32 for java.sql.Timestamp
-                56
-        );
-        // 2014 is the value of Types.TIMESTAMP_WITH_TIMEZONE
-        // use the value instead of the reference because the code has to
-        // compile (on Java 1.7). Can be replaced with
-        // Types.TIMESTAMP_WITH_TIMEZONE once Java 1.8 is required.
-        add(Value.TIMESTAMP_TZ, 2014, "TimestampTimeZone",
-                createDate(ValueTimestampTimeZone.PRECISION, "TIMESTAMP_TZ",
-                        ValueTimestampTimeZone.DEFAULT_SCALE, ValueTimestampTimeZone.DISPLAY_SIZE),
-                new String[]{"TIMESTAMP WITH TIME ZONE"},
-                // 26 for ValueTimestampUtc, 32 for java.sql.Timestamp
-                58
-        );
-        add(Value.BYTES, Types.VARBINARY, "Bytes",
-                createString(false),
-                new String[]{"VARBINARY"},
-                32
-        );
-        add(Value.BYTES, Types.BINARY, "Bytes",
-                createString(false),
-                new String[]{"BINARY", "RAW", "BYTEA", "LONG RAW"},
-                32
-        );
-        add(Value.BYTES, Types.LONGVARBINARY, "Bytes",
-                createString(false),
-                new String[]{"LONGVARBINARY"},
-                32
-        );
-        add(Value.UUID, Types.BINARY, "Bytes",
-                createString(false),
-                // UNIQUEIDENTIFIER is the MSSQL mode equivalent
-                new String[]{"UUID", "UNIQUEIDENTIFIER"},
-                32
-        );
-        add(Value.JAVA_OBJECT, Types.OTHER, "Object",
-                createString(false),
-                new String[]{"OTHER", "OBJECT", "JAVA_OBJECT"},
-                24
-        );
-        add(Value.BLOB, Types.BLOB, "Blob",
-                createLob(),
-                new String[]{"BLOB", "TINYBLOB", "MEDIUMBLOB",
-                    "LONGBLOB", "IMAGE", "OID"},
-                // 80 for ValueLob, 24 for String
-                104
-        );
-        add(Value.CLOB, Types.CLOB, "Clob",
-                createLob(),
-                new String[]{"CLOB", "TINYTEXT", "TEXT", "MEDIUMTEXT",
-                    "LONGTEXT", "NTEXT", "NCLOB"},
-                // 80 for ValueLob, 24 for String
-                104
-        );
-        add(Value.GEOMETRY, Types.OTHER, "Geometry",
-                createString(false),
-                new String[]{"GEOMETRY"},
-                32
-        );
-        DataType dataType = new DataType();
-        dataType.prefix = "(";
-        dataType.suffix = "')";
-        add(Value.ARRAY, Types.ARRAY, "Array",
-                dataType,
-                new String[]{"ARRAY"},
-                32
-        );
-        dataType = new DataType();
-        add(Value.RESULT_SET, DataType.TYPE_RESULT_SET, "ResultSet",
-                dataType,
-                new String[]{"RESULT_SET"},
-                400
-        );
-        dataType = createString(false);
-        dataType.supportsPrecision = false;
-        dataType.supportsScale = false;
-        add(Value.ENUM, Types.OTHER, "Enum",
-                dataType,
-                new String[]{"ENUM"},
-                48
-        );
-        for (Integer i : TYPES_BY_VALUE_TYPE.keySet()) {
-            Value.getOrder(i);
-        }
     }
 
-    private static void add(int type, int sqlType, String jdbc,
+    private static void addInterval(int type) {
+        IntervalQualifier qualifier = IntervalQualifier.valueOf(type - Value.INTERVAL_YEAR);
+        String name = qualifier.toString();
+        DataType dataType = new DataType();
+        dataType.prefix = "INTERVAL ";
+        dataType.suffix = ' ' + name;
+        dataType.supportsPrecision = true;
+        dataType.defaultPrecision = ValueInterval.DEFAULT_PRECISION;
+        dataType.maxPrecision = ValueInterval.MAXIMUM_PRECISION;
+        if (qualifier.hasSeconds()) {
+            dataType.supportsScale = true;
+            dataType.defaultScale = ValueInterval.DEFAULT_SCALE;
+            dataType.maxScale = ValueInterval.MAXIMUM_SCALE;
+        }
+        dataType.defaultDisplaySize = ValueInterval.getDisplaySize(type, ValueInterval.DEFAULT_PRECISION,
+                // Scale will be ignored if it is not supported
+                ValueInterval.DEFAULT_SCALE);
+        add(type, Types.OTHER, dataType,
+                new String[]{("INTERVAL " + name).intern()},
+                36
+        );
+    }
+
+    private static void add(int type, int sqlType,
             DataType dataType, String[] names, int memory) {
         // System.out.println(); //我加上的
         for (int i = 0; i < names.length; i++) {
             DataType dt = new DataType();
             dt.type = type;
             dt.sqlType = sqlType;
-            dt.jdbc = jdbc;
             dt.name = names[i];
             // System.out.print(dt.name + " "); //我加上的
             // 以下4种字段类型名含有空格，所以要分开解析
@@ -451,7 +490,18 @@ public class DataType {
         }
     }
 
-    private static DataType createDecimal(int maxPrecision,
+    /**
+     * Create a numeric data type.
+     *
+     * @param maxPrecision maximum supported precision
+     * @param defaultPrecision default precision
+     * @param defaultScale default scale
+     * @param defaultDisplaySize default display size
+     * @param needsPrecisionAndScale where precision and scale are supported
+     * @param autoInc whether the data type is an auto-increment type
+     * @return data type
+     */
+    public static DataType createDecimal(int maxPrecision,
             int defaultPrecision, int defaultScale, int defaultDisplaySize,
             boolean needsPrecisionAndScale, boolean autoInc) {
         DataType dataType = new DataType();
@@ -469,17 +519,28 @@ public class DataType {
         return dataType;
     }
 
-    private static DataType createDate(int precision, String prefix, int scale,
-            int displaySize) {
+    /**
+     * Create a date-time data type.
+     *
+     * @param maxPrecision maximum supported precision
+     * @param precision default precision
+     * @param prefix the prefix for SQL literal representation
+     * @param supportsScale whether the scale parameter is supported
+     * @param scale default scale
+     * @param maxScale highest possible scale
+     * @return data type
+     */
+    public static DataType createDate(int maxPrecision, int precision, String prefix,
+            boolean supportsScale, int scale, int maxScale) {
         DataType dataType = new DataType();
         dataType.prefix = prefix + " '";
         dataType.suffix = "'";
-        dataType.maxPrecision = precision;
-        dataType.supportsScale = scale != 0;
-        dataType.maxScale = scale;
+        dataType.maxPrecision = maxPrecision;
+        dataType.supportsScale = supportsScale;
+        dataType.maxScale = maxScale;
         dataType.defaultPrecision = precision;
         dataType.defaultScale = scale;
-        dataType.defaultDisplaySize = displaySize;
+        dataType.defaultDisplaySize = precision;
         return dataType;
     }
 
@@ -501,6 +562,17 @@ public class DataType {
         t.maxPrecision = Long.MAX_VALUE;
         t.defaultPrecision = Long.MAX_VALUE;
         return t;
+    }
+
+    private static DataType createGeometry() {
+        DataType dataType = new DataType();
+        dataType.prefix = "'";
+        dataType.suffix = "'";
+        dataType.params = "TYPE,SRID";
+        dataType.maxPrecision = Integer.MAX_VALUE;
+        dataType.defaultPrecision = Integer.MAX_VALUE;
+        dataType.defaultDisplaySize = Integer.MAX_VALUE;
+        return dataType;
     }
 
     /**
@@ -530,15 +602,29 @@ public class DataType {
                 return ValueNull.INSTANCE;
             }
             case Value.BYTES: {
-                byte[] buff = rs.getBytes(columnIndex);
-                v = buff == null ? (Value) ValueNull.INSTANCE :
-                    ValueBytes.getNoCopy(buff);
+                /*
+                 * Both BINARY and UUID may be mapped to Value.BYTES. getObject() returns byte[]
+                 * for SQL BINARY, UUID for SQL UUID and null for SQL NULL.
+                 */
+                Object o = rs.getObject(columnIndex);
+                if (o instanceof byte[]) {
+                    v = ValueBytes.getNoCopy((byte[]) o);
+                } else if (o != null) {
+                    v = ValueUuid.get((UUID) o);
+                } else {
+                    v = ValueNull.INSTANCE;
+                }
                 break;
             }
             case Value.UUID: {
-                byte[] buff = rs.getBytes(columnIndex);
-                v = buff == null ? (Value) ValueNull.INSTANCE :
-                    ValueUuid.get(buff);
+                Object o = rs.getObject(columnIndex);
+                if (o instanceof UUID) {
+                    v = ValueUuid.get((UUID) o);
+                } else if (o != null) {
+                    v = ValueUuid.get((byte[]) o);
+                } else {
+                    v = ValueNull.INSTANCE;
+                }
                 break;
             }
             case Value.BOOLEAN: {
@@ -572,9 +658,16 @@ public class DataType {
                 break;
             }
             case Value.TIMESTAMP_TZ: {
-                TimestampWithTimeZone value = (TimestampWithTimeZone) rs.getObject(columnIndex);
-                v = value == null ? (Value) ValueNull.INSTANCE :
-                    ValueTimestampTimeZone.get(value);
+                Object obj = rs.getObject(columnIndex);
+                if (obj == null) {
+                    v = ValueNull.INSTANCE;
+                } else if (LocalDateTimeUtils.isJava8DateApiPresent()
+                        && LocalDateTimeUtils.OFFSET_DATE_TIME.isInstance(obj)) {
+                    v = LocalDateTimeUtils.offsetDateTimeToValue(obj);
+                } else {
+                    TimestampWithTimeZone value = (TimestampWithTimeZone) obj;
+                    v = ValueTimestampTimeZone.get(value);
+                }
                 break;
             }
             case Value.DECIMAL: {
@@ -635,7 +728,7 @@ public class DataType {
                 if (session == null) {
                     String s = rs.getString(columnIndex);
                     v = s == null ? ValueNull.INSTANCE :
-                        ValueLobDb.createSmallLob(Value.CLOB, s.getBytes(Constants.UTF8));
+                        ValueLobDb.createSmallLob(Value.CLOB, s.getBytes(StandardCharsets.UTF_8));
                 } else {
                     Reader in = rs.getCharacterStream(columnIndex);
                     if (in == null) {
@@ -711,6 +804,27 @@ public class DataType {
                 }
                 return ValueGeometry.getFromGeometry(x);
             }
+            case Value.INTERVAL_YEAR:
+            case Value.INTERVAL_MONTH:
+            case Value.INTERVAL_DAY:
+            case Value.INTERVAL_HOUR:
+            case Value.INTERVAL_MINUTE:
+            case Value.INTERVAL_SECOND:
+            case Value.INTERVAL_YEAR_TO_MONTH:
+            case Value.INTERVAL_DAY_TO_HOUR:
+            case Value.INTERVAL_DAY_TO_MINUTE:
+            case Value.INTERVAL_DAY_TO_SECOND:
+            case Value.INTERVAL_HOUR_TO_MINUTE:
+            case Value.INTERVAL_HOUR_TO_SECOND:
+            case Value.INTERVAL_MINUTE_TO_SECOND: {
+                Object x = rs.getObject(columnIndex);
+                if (x == null) {
+                    return ValueNull.INSTANCE;
+                }
+                Interval interval = (Interval) x;
+                return ValueInterval.from(interval.getQualifier(), interval.isNegative(),
+                        interval.getLeading(), interval.getRemaining());
+            }
             default:
                 if (JdbcUtils.customDataTypesHandler != null) {
                     return JdbcUtils.customDataTypesHandler.getValue(type,
@@ -729,17 +843,26 @@ public class DataType {
      * Get the name of the Java class for the given value type.
      *
      * @param type the value type
+     * @param forResultSet return mapping for result set
      * @return the class name
      */
-    public static String getTypeClassName(int type) {
+    public static String getTypeClassName(int type, boolean forResultSet) {
         switch (type) {
         case Value.BOOLEAN:
             // "java.lang.Boolean";
             return Boolean.class.getName();
         case Value.BYTE:
+            if (forResultSet && !SysProperties.OLD_RESULT_SET_GET_OBJECT) {
+                // "java.lang.Integer";
+                return Integer.class.getName();
+            }
             // "java.lang.Byte";
             return Byte.class.getName();
         case Value.SHORT:
+            if (forResultSet && !SysProperties.OLD_RESULT_SET_GET_OBJECT) {
+                // "java.lang.Integer";
+                return Integer.class.getName();
+            }
             // "java.lang.Short";
             return Short.class.getName();
         case Value.INT:
@@ -761,6 +884,10 @@ public class DataType {
             // "java.sql.Timestamp";
             return Timestamp.class.getName();
         case Value.TIMESTAMP_TZ:
+            if (SysProperties.RETURN_OFFSET_DATE_TIME && LocalDateTimeUtils.isJava8DateApiPresent()) {
+                // "java.time.OffsetDateTime";
+                return LocalDateTimeUtils.OFFSET_DATE_TIME.getName();
+            }
             // "org.h2.api.TimestampWithTimeZone";
             return TimestampWithTimeZone.class.getName();
         case Value.BYTES:
@@ -770,6 +897,7 @@ public class DataType {
         case Value.STRING:
         case Value.STRING_IGNORECASE:
         case Value.STRING_FIXED:
+        case Value.ENUM:
             // "java.lang.String";
             return String.class.getName();
         case Value.BLOB:
@@ -797,7 +925,22 @@ public class DataType {
         case Value.RESULT_SET:
             return ResultSet.class.getName();
         case Value.GEOMETRY:
-            return GEOMETRY_CLASS_NAME;
+            return GEOMETRY_CLASS != null ? GEOMETRY_CLASS_NAME : String.class.getName();
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE:
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND:
+            // "org.h2.api.Interval"
+            return Interval.class.getName();
         default:
             if (JdbcUtils.customDataTypesHandler != null) {
                 return JdbcUtils.customDataTypesHandler.getDataTypeClassName(type);
@@ -846,6 +989,11 @@ public class DataType {
      */
     public static int convertSQLTypeToValueType(int sqlType, String sqlTypeName) {
         switch (sqlType) {
+            case Types.BINARY:
+                if (sqlTypeName.equalsIgnoreCase("UUID")) {
+                    return Value.UUID;
+                }
+                break;
             case Types.OTHER:
             case Types.JAVA_OBJECT:
                 if (sqlTypeName.equalsIgnoreCase("geometry")) {
@@ -933,7 +1081,7 @@ public class DataType {
             return Value.RESULT_SET;
         default:
             throw DbException.get(
-                    ErrorCode.UNKNOWN_DATA_TYPE_1, "" + sqlType);
+                    ErrorCode.UNKNOWN_DATA_TYPE_1, Integer.toString(sqlType));
         }
     }
 
@@ -980,10 +1128,11 @@ public class DataType {
             return Value.DECIMAL;
         } else if (ResultSet.class.isAssignableFrom(x)) {
             return Value.RESULT_SET;
-        } else if (Value.ValueBlob.class.isAssignableFrom(x)) {
+        } else if (ValueLobDb.class.isAssignableFrom(x)) {
             return Value.BLOB;
-        } else if (Value.ValueClob.class.isAssignableFrom(x)) {
-            return Value.CLOB;
+// FIXME no way to distinguish between these 2 types
+//        } else if (ValueLobDb.class.isAssignableFrom(x)) {
+//            return Value.CLOB;
         } else if (Date.class.isAssignableFrom(x)) {
             return Value.DATE;
         } else if (Time.class.isAssignableFrom(x)) {
@@ -1005,13 +1154,13 @@ public class DataType {
             return Value.ARRAY;
         } else if (isGeometryClass(x)) {
             return Value.GEOMETRY;
-        } else if (LocalDateTimeUtils.isLocalDate(x)) {
+        } else if (LocalDateTimeUtils.LOCAL_DATE == x) {
             return Value.DATE;
-        } else if (LocalDateTimeUtils.isLocalTime(x)) {
+        } else if (LocalDateTimeUtils.LOCAL_TIME == x) {
             return Value.TIME;
-        } else if (LocalDateTimeUtils.isLocalDateTime(x)) {
+        } else if (LocalDateTimeUtils.LOCAL_DATE_TIME == x) {
             return Value.TIMESTAMP;
-        } else if (LocalDateTimeUtils.isOffsetDateTime(x)) {
+        } else if (LocalDateTimeUtils.OFFSET_DATE_TIME == x || LocalDateTimeUtils.INSTANT == x) {
             return Value.TIMESTAMP_TZ;
         } else {
             if (JdbcUtils.customDataTypesHandler != null) {
@@ -1102,6 +1251,15 @@ public class DataType {
             } catch (SQLException e) {
                 throw DbException.convert(e);
             }
+        } else if (x instanceof java.sql.SQLXML) {
+            try {
+                java.sql.SQLXML clob = (java.sql.SQLXML) x;
+                Reader r = new BufferedReader(clob.getCharacterStream());
+                return session.getDataHandler().getLobStorage().
+                        createClob(r, -1);
+            } catch (SQLException e) {
+                throw DbException.convert(e);
+            }
         } else if (x instanceof java.sql.Array) {
             java.sql.Array array = (java.sql.Array) x;
             try {
@@ -1115,9 +1273,10 @@ public class DataType {
             }
             return ValueResultSet.getCopy((ResultSet) x, Integer.MAX_VALUE);
         } else if (x instanceof UUID) {
-            UUID u = (UUID) x;
-            return ValueUuid.get(u.getMostSignificantBits(), u.getLeastSignificantBits());
-        } else if (x instanceof Object[]) {
+            return ValueUuid.get((UUID) x);
+        }
+        Class<?> clazz = x.getClass();
+        if (x instanceof Object[]) {
             // (a.getClass().isArray());
             // (a.getClass().getComponentType().isPrimitive());
             Object[] o = (Object[]) x;
@@ -1126,21 +1285,28 @@ public class DataType {
             for (int i = 0; i < len; i++) {
                 v[i] = convertToValue(session, o[i], type);
             }
-            return ValueArray.get(x.getClass().getComponentType(), v);
+            return ValueArray.get(clazz.getComponentType(), v);
         } else if (x instanceof Character) {
             return ValueStringFixed.get(((Character) x).toString());
         } else if (isGeometry(x)) {
             return ValueGeometry.getFromGeometry(x);
-        } else if (LocalDateTimeUtils.isLocalDate(x.getClass())) {
+        } else if (clazz == LocalDateTimeUtils.LOCAL_DATE) {
             return LocalDateTimeUtils.localDateToDateValue(x);
-        } else if (LocalDateTimeUtils.isLocalTime(x.getClass())) {
+        } else if (clazz == LocalDateTimeUtils.LOCAL_TIME) {
             return LocalDateTimeUtils.localTimeToTimeValue(x);
-        } else if (LocalDateTimeUtils.isLocalDateTime(x.getClass())) {
+        } else if (clazz == LocalDateTimeUtils.LOCAL_DATE_TIME) {
             return LocalDateTimeUtils.localDateTimeToValue(x);
-        } else if (LocalDateTimeUtils.isOffsetDateTime(x.getClass())) {
+        } else if (clazz == LocalDateTimeUtils.INSTANT) {
+            return LocalDateTimeUtils.instantToValue(x);
+        } else if (clazz == LocalDateTimeUtils.OFFSET_DATE_TIME) {
             return LocalDateTimeUtils.offsetDateTimeToValue(x);
         } else if (x instanceof TimestampWithTimeZone) {
             return ValueTimestampTimeZone.get((TimestampWithTimeZone) x);
+        } else if (x instanceof Interval) {
+            Interval i = (Interval) x;
+            return ValueInterval.from(i.getQualifier(), i.isNegative(), i.getLeading(), i.getRemaining());
+        } else if (clazz == LocalDateTimeUtils.DURATION) {
+            return LocalDateTimeUtils.durationToValue(x);
         } else {
             if (JdbcUtils.customDataTypesHandler != null) {
                 return JdbcUtils.customDataTypesHandler.getValue(type, x,
@@ -1181,14 +1347,57 @@ public class DataType {
      * Get a data type object from a type name.
      *
      * @param s the type name
+     * @param mode database mode
      * @return the data type object
      */
-    public static DataType getTypeByName(String s) {
-        DataType result = TYPES_BY_NAME.get(s);
-        if (result == null && JdbcUtils.customDataTypesHandler != null) {
-            result = JdbcUtils.customDataTypesHandler.getDataTypeByName(s);
+    public static DataType getTypeByName(String s, Mode mode) {
+        DataType result = mode.typeByNameMap.get(s);
+        if (result == null) {
+            result = TYPES_BY_NAME.get(s);
+            if (result == null && JdbcUtils.customDataTypesHandler != null) {
+                result = JdbcUtils.customDataTypesHandler.getDataTypeByName(s);
+            }
         }
         return result;
+    }
+
+    /**
+     * Check if the given value type is a date-time type (TIME, DATE, TIMESTAMP,
+     * TIMESTAMP_TZ).
+     *
+     * @param type the value type
+     * @return true if the value type is a date-time type
+     */
+    public static boolean isDateTimeType(int type) {
+        switch (type) {
+        case Value.TIME:
+        case Value.DATE:
+        case Value.TIMESTAMP:
+        case Value.TIMESTAMP_TZ:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    /**
+     * Check if the given value type is an interval type.
+     *
+     * @param type the value type
+     * @return true if the value type is an interval type
+     */
+    public static boolean isIntervalType(int type) {
+        return type >= Value.INTERVAL_YEAR && type <= Value.INTERVAL_MINUTE_TO_SECOND;
+    }
+
+    /**
+     * Check if the given value type is a year-month interval type.
+     *
+     * @param type the value type
+     * @return true if the value type is a year-month interval type
+     */
+    public static boolean isYearMonthIntervalType(int type) {
+        return type == Value.INTERVAL_YEAR || type == Value.INTERVAL_MONTH || type == Value.INTERVAL_YEAR_TO_MONTH;
     }
 
     /**
@@ -1198,10 +1407,17 @@ public class DataType {
      * @return true if the value type is a lob type
      */
     public static boolean isLargeObject(int type) {
-        if (type == Value.BLOB || type == Value.CLOB) {
-            return true;
-        }
-        return false;
+        return type == Value.BLOB || type == Value.CLOB;
+    }
+
+    /**
+     * Check if the given value type is a numeric type.
+     *
+     * @param type the value type
+     * @return true if the value type is a numeric type
+     */
+    public static boolean isNumericType(int type) {
+        return type >= Value.BYTE && type <= Value.FLOAT;
     }
 
     /**
@@ -1211,11 +1427,17 @@ public class DataType {
      * @return true if the value type is a String type
      */
     public static boolean isStringType(int type) {
-        if (type == Value.STRING || type == Value.STRING_FIXED
-                || type == Value.STRING_IGNORECASE) {
-            return true;
-        }
-        return false;
+        return type == Value.STRING || type == Value.STRING_FIXED || type == Value.STRING_IGNORECASE;
+    }
+
+    /**
+     * Check if the given type may have extended type information.
+     *
+     * @param type the value type
+     * @return true if the value type may have extended type information
+     */
+    public static boolean isExtInfoType(int type) {
+        return type == Value.GEOMETRY || type == Value.ENUM;
     }
 
     /**
@@ -1233,6 +1455,19 @@ public class DataType {
         case Value.INT:
         case Value.LONG:
         case Value.SHORT:
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE:
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND:
             return true;
         case Value.BOOLEAN:
         case Value.TIME:
@@ -1300,6 +1535,19 @@ public class DataType {
         case Value.ARRAY:
         case Value.RESULT_SET:
         case Value.GEOMETRY:
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE:
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND:
             return type;
         default:
             if (JdbcUtils.customDataTypesHandler != null) {
@@ -1320,19 +1568,19 @@ public class DataType {
         if (clazz == Boolean.TYPE) {
             return Boolean.FALSE;
         } else if (clazz == Byte.TYPE) {
-            return Byte.valueOf((byte) 0);
+            return (byte) 0;
         } else if (clazz == Character.TYPE) {
-            return Character.valueOf((char) 0);
+            return (char) 0;
         } else if (clazz == Short.TYPE) {
-            return Short.valueOf((short) 0);
+            return (short) 0;
         } else if (clazz == Integer.TYPE) {
-            return Integer.valueOf(0);
+            return 0;
         } else if (clazz == Long.TYPE) {
-            return Long.valueOf(0);
+            return 0L;
         } else if (clazz == Float.TYPE) {
-            return Float.valueOf(0);
+            return (float) 0;
         } else if (clazz == Double.TYPE) {
-            return Double.valueOf(0);
+            return (double) 0;
         }
         throw DbException.throwInternalError(
                 "primitive=" + clazz.toString());
@@ -1349,9 +1597,9 @@ public class DataType {
     public static Object convertTo(JdbcConnection conn, Value v,
             Class<?> paramClass) {
         if (paramClass == Blob.class) {
-            return new JdbcBlob(conn, v, 0);
+            return new JdbcBlob(conn, v, JdbcLob.State.WITH_VALUE, 0);
         } else if (paramClass == Clob.class) {
-            return new JdbcClob(conn, v, 0);
+            return new JdbcClob(conn, v, JdbcLob.State.WITH_VALUE, 0);
         } else if (paramClass == Array.class) {
             return new JdbcArray(conn, v, 0);
         }

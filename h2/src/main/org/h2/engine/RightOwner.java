@@ -1,14 +1,16 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map.Entry;
 
 import org.h2.table.Table;
-import org.h2.util.New;
 
 /**
  * A right owner (sometimes called principal).
@@ -27,7 +29,7 @@ public abstract class RightOwner extends DbObjectBase {
 
     protected RightOwner(Database database, int id, String name,
             int traceModuleId) {
-        initDbObjectBase(database, id, name, traceModuleId);
+        super(database, id, name, traceModuleId);
     }
 
     /**
@@ -100,7 +102,7 @@ public abstract class RightOwner extends DbObjectBase {
      */
     public void grantRight(DbObject object, Right right) {
         if (grantedRights == null) {
-            grantedRights = New.hashMap();
+            grantedRights = new HashMap<>();
         }
         grantedRights.put(object, right);
     }
@@ -128,7 +130,7 @@ public abstract class RightOwner extends DbObjectBase {
      */
     public void grantRole(Role role, Right right) {
         if (grantedRoles == null) {
-            grantedRoles = New.hashMap();
+            grantedRoles = new HashMap<>();
         }
         grantedRoles.put(role, right);
     }
@@ -151,6 +153,26 @@ public abstract class RightOwner extends DbObjectBase {
             grantedRoles = null;
         }
     }
+
+    /**
+     * Remove all the temporary rights granted on roles
+     */
+    public void revokeTemporaryRightsOnRoles() {
+        if (grantedRoles == null) {
+            return;
+        }
+        List<Role> rolesToRemove= new ArrayList<>();
+        for (Entry<Role,Right> currentEntry : grantedRoles.entrySet()) {
+            if ( currentEntry.getValue().isTemporary() || !currentEntry.getValue().isValid()) {
+                rolesToRemove.add(currentEntry.getKey());
+            }
+        }
+        for (Role currentRoleToRemove : rolesToRemove) {
+            revokeRole(currentRoleToRemove);
+        }
+    }
+
+
 
     /**
      * Get the 'grant schema' right of this object.

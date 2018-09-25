@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,6 +25,23 @@ import org.h2.value.ValueArray;
 //12个抽象方法
 public abstract class Expression {
 
+    /**
+     * Initial state for {@link #mapColumns(ColumnResolver, int, int)}.
+     */
+    public static final int MAP_INITIAL = 0;
+
+    /**
+     * State for expressions inside a window function for
+     * {@link #mapColumns(ColumnResolver, int, int)}.
+     */
+    public static final int MAP_IN_WINDOW = 1;
+
+    /**
+     * State for expressions inside an aggregate for
+     * {@link #mapColumns(ColumnResolver, int, int)}.
+     */
+    public static final int MAP_IN_AGGREGATE = 2;
+
     private boolean addedToFilter;
 
     /**
@@ -48,9 +65,11 @@ public abstract class Expression {
      *
      * @param resolver the column resolver
      * @param level the subquery nesting level
+     * @param state current state for nesting checks, initial value is
+     *              {@link #MAP_INITIAL}
      */
     //只有ConditionExists、ConditionInSelect、Subquery这三个子类中对level加1
-    public abstract void mapColumns(ColumnResolver resolver, int level);
+    public abstract void mapColumns(ColumnResolver resolver, int level, int state);
 
     /**
      * Try to optimize the expression.
@@ -109,12 +128,14 @@ public abstract class Expression {
      * be used to make sure the internal state is only updated once.
      *
      * @param session the session
+     * @param stage select stage
      */
     //用于聚合、分组中
     //在org.h2.command.dml.Select.queryGroup(int, LocalResult)
     //和org.h2.command.dml.Select.queryGroupSorted(int, ResultTarget)有用到
     //在遍历记录的过程中执行，在getValue之前调用
-    public abstract void updateAggregate(Session session); //对Aggregate、JavaAggregate、ExpressionColumn比较有用
+    //对Aggregate、JavaAggregate、ExpressionColumn比较有用
+    public abstract void updateAggregate(Session session, int stage);
 
     /**
      * Check if this expression and all sub-expressions can fulfill a criteria.
@@ -175,14 +196,24 @@ public abstract class Expression {
     }
 
     /**
+     * Check if this expression is an auto-generated key expression such as next
+     * value from a sequence.
+     *
+     * @return whether this expression is an auto-generated key expression
+     */
+    public boolean isGeneratedKey() {
+        return false;
+    }
+
+    /**
      * Get the value in form of a boolean expression.
-     * Returns true, false, or null.
+     * Returns true or false.
      * In this database, everything can be a condition.
      *
      * @param session the session
      * @return the result
      */
-    public Boolean getBooleanValue(Session session) { //没有字类覆盖
+    public boolean getBooleanValue(Session session) { //没有字类覆盖
         return getValue(session).getBoolean();
     }
 
@@ -355,6 +386,26 @@ public abstract class Expression {
         } catch (SQLException e) {
             throw DbException.convert(e);
         }
+    }
+
+    /**
+     * Returns count of subexpressions.
+     *
+     * @return count of subexpressions
+     */
+    public int getSubexpressionCount() {
+        return 0;
+    }
+
+    /**
+     * Returns subexpression with specified index.
+     *
+     * @param index 0-based index
+     * @return subexpression with specified index
+     * @throws IndexOutOfBoundsException if specified index is not valid
+     */
+    public Expression getSubexpression(int index) {
+        throw new IndexOutOfBoundsException();
     }
 
 }

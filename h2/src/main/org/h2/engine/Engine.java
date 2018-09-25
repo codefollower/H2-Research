@@ -1,21 +1,25 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
 import org.h2.command.dml.SetTypes;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
+import org.h2.security.auth.AuthenticationException;
+import org.h2.security.auth.AuthenticationInfo;
+import org.h2.security.auth.Authenticator;
 import org.h2.store.FileLock;
+import org.h2.store.FileLockMethod;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
-import org.h2.util.StringUtils;
 import org.h2.util.ThreadDeadlockDetector;
 import org.h2.util.Utils;
 
@@ -28,7 +32,7 @@ import org.h2.util.Utils;
 public class Engine implements SessionFactory {
 
     private static final Engine INSTANCE = new Engine();
-    private static final HashMap<String, Database> DATABASES = New.hashMap();
+    private static final Map<String, Database> DATABASES = new HashMap<>();
 
     private volatile long wrongPasswordDelay =
             SysProperties.DELAY_WRONG_PASSWORD_MIN;
@@ -55,31 +59,49 @@ public class Engine implements SessionFactory {
         Database database;
         ci.removeProperty("NO_UPGRADE", false);
         boolean openNew = ci.getProperty("OPEN_NEW", false);
-        if (openNew || ci.isUnnamedInMemory()) {
-            database = null;
-        } else {
-            database = DATABASES.get(name);
-        }
-        User user = null;
         boolean opened = false;
-        if (database == null) {
-            if (ifExists && !Database.exists(name)) {
-                throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_1, name);
+//<<<<<<< HEAD
+//        if (database == null) {
+//            if (ifExists && !Database.exists(name)) {
+//                throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_1, name);
+//            }
+//            database = new Database(ci, cipher);
+//            opened = true;
+//            //如果数据库不存在，那么当前连接server的用户肯定也不存在，所以直接把此用户当成admin，并创建它。
+//            if (database.getAllUsers().size() == 0) {
+//                // users is the last thing we add, so if no user is around,
+//                // the database is new (or not initialized correctly)
+//                user = new User(database, database.allocateObjectId(),
+//                        ci.getUserName(), false);
+//                user.setAdmin(true);
+//                user.setUserPasswordHash(ci.getUserPasswordHash());
+//                database.setMasterUser(user);
+//=======
+        User user = null;
+        synchronized (DATABASES) {
+            if (openNew || ci.isUnnamedInMemory()) {
+                database = null;
+            } else {
+                database = DATABASES.get(name);
             }
-            database = new Database(ci, cipher);
-            opened = true;
-            //如果数据库不存在，那么当前连接server的用户肯定也不存在，所以直接把此用户当成admin，并创建它。
-            if (database.getAllUsers().size() == 0) {
-                // users is the last thing we add, so if no user is around,
-                // the database is new (or not initialized correctly)
-                user = new User(database, database.allocateObjectId(),
-                        ci.getUserName(), false);
-                user.setAdmin(true);
-                user.setUserPasswordHash(ci.getUserPasswordHash());
-                database.setMasterUser(user);
-            }
-            if (!ci.isUnnamedInMemory()) {
-                DATABASES.put(name, database);
+            if (database == null) {
+                if (ifExists && !Database.exists(name)) {
+                    throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_1, name);
+                }
+                database = new Database(ci, cipher);
+                opened = true;
+                if (database.getAllUsers().isEmpty()) {
+                    // users is the last thing we add, so if no user is around,
+                    // the database is new (or not initialized correctly)
+                    user = new User(database, database.allocateObjectId(),
+                            ci.getUserName(), false);
+                    user.setAdmin(true);
+                    user.setUserPasswordHash(ci.getUserPasswordHash());
+                    database.setMasterUser(user);
+                }
+                if (!ci.isUnnamedInMemory()) {
+                    DATABASES.put(name, database);
+                }
             }
         }
         if (opened) {
@@ -93,10 +115,26 @@ public class Engine implements SessionFactory {
         }
         if (user == null) {
             if (database.validateFilePasswordHash(cipher, ci.getFilePasswordHash())) {
-                user = database.findUser(ci.getUserName());
-                if (user != null) {
-                    if (!user.validateUserPasswordHash(ci.getUserPasswordHash())) {
-                        user = null;
+                if (ci.getProperty("AUTHREALM")== null) {
+                    user = database.findUser(ci.getUserName());
+                    if (user != null) {
+                        if (!user.validateUserPasswordHash(ci.getUserPasswordHash())) {
+                            user = null;
+                        }
+                    }
+                } else {
+                    Authenticator authenticator = database.getAuthenticator();
+                    if (authenticator==null) {
+                        throw DbException.get(ErrorCode.AUTHENTICATOR_NOT_AVAILABLE, name);
+                    } else {
+                        try {
+                            AuthenticationInfo authenticationInfo=new AuthenticationInfo(ci);
+                            user = database.getAuthenticator().authenticate(authenticationInfo, database);
+                        } catch (AuthenticationException authenticationError) {
+                            database.getTrace(Trace.DATABASE).error(authenticationError,
+                                "an error occurred during authentication; user: \"" +
+                                ci.getUserName() + "\"");
+                        }
                     }
                 }
             }
@@ -114,6 +152,8 @@ public class Engine implements SessionFactory {
             database.removeSession(null);
             throw er;
         }
+        //Prevent to set _PASSWORD
+        ci.cleanAuthenticationInfo();
         checkClustering(ci, database);
         Session session = database.createSession(user);
         if (session == null) {
@@ -150,9 +190,13 @@ public class Engine implements SessionFactory {
         try {
             ConnectionInfo backup = null;
             String lockMethodName = ci.getProperty("FILE_LOCK", null);
-            //默认是FileLock.LOCK_FILE
-            int fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
-            if (fileLockMethod == FileLock.LOCK_SERIALIZED) {
+//<<<<<<< HEAD
+//            //默认是FileLock.LOCK_FILE
+//            int fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
+//            if (fileLockMethod == FileLock.LOCK_SERIALIZED) {
+//=======
+            FileLockMethod fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
+            if (fileLockMethod == FileLockMethod.SERIALIZED) {
                 // In serialized mode, database instance sharing is not possible
                 ci.setProperty("OPEN_NEW", "TRUE");
                 try {
@@ -217,7 +261,7 @@ public class Engine implements SessionFactory {
                     CommandInterface command = session.prepareCommand(
                             "SET " + Parser.quoteIdentifier(setting) + " " + value,
                             Integer.MAX_VALUE);
-                    command.executeUpdate();
+                    command.executeUpdate(false);
                 } catch (DbException e) {
                     if (e.getErrorCode() == ErrorCode.ADMIN_RIGHTS_REQUIRED) {
                         session.getTrace().error(e, "admin rights required; user: \"" +
@@ -235,7 +279,7 @@ public class Engine implements SessionFactory {
                 try {
                     CommandInterface command = session.prepareCommand(init,
                             Integer.MAX_VALUE);
-                    command.executeUpdate();
+                    command.executeUpdate(false);
                 } catch (DbException e) {
                     if (!ignoreUnknownSetting) {
                         session.close();
@@ -260,7 +304,7 @@ public class Engine implements SessionFactory {
         String clusterDb = database.getCluster();
         if (!Constants.CLUSTERING_DISABLED.equals(clusterDb)) {
             if (!Constants.CLUSTERING_ENABLED.equals(clusterSession)) {
-                if (!StringUtils.equals(clusterSession, clusterDb)) {
+                if (!Objects.equals(clusterSession, clusterDb)) {
                     if (clusterDb.equals(Constants.CLUSTERING_DISABLED)) {
                         throw DbException.get(
                                 ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_ALONE);
@@ -288,7 +332,9 @@ public class Engine implements SessionFactory {
                 throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, e, "JMX");
             }
         }
-        DATABASES.remove(name);
+        synchronized (DATABASES) {
+            DATABASES.remove(name);
+        }
     }
 
     /**

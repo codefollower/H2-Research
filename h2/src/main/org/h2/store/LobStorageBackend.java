@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,13 +17,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
-import org.h2.engine.SysProperties;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.tools.CompressTool;
 import org.h2.util.IOUtils;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
+import org.h2.util.Utils;
 import org.h2.value.Value;
 import org.h2.value.ValueLobDb;
 
@@ -78,7 +77,7 @@ public class LobStorageBackend implements LobStorageInterface {
     /**
      * The size of the chunks we use when storing LOBs inside the database file.
      */
-    private static final int BLOCK_LENGTH = 20000;
+    private static final int BLOCK_LENGTH = 20_000;
 
     /**
      * The size of cache for lob block hashes. Each entry needs 2 longs (16
@@ -89,7 +88,7 @@ public class LobStorageBackend implements LobStorageInterface {
     JdbcConnection conn;
     final Database database;
 
-    private final HashMap<String, PreparedStatement> prepared = New.hashMap();
+    private final HashMap<String, PreparedStatement> prepared = new HashMap<>();
     private long nextBlock;
     private final CompressTool compress = CompressTool.getInstance();
     private long[] hashBlocks;
@@ -226,9 +225,8 @@ public class LobStorageBackend implements LobStorageInterface {
                 prep.setLong(1, block);
                 ResultSet rs = prep.executeQuery();
                 if (!rs.next()) {
-                    throw DbException.get(ErrorCode.IO_EXCEPTION_1,
-                            "Missing lob entry, block: " + block)
-                            .getSQLException();
+                    throw DbException.getJdbcSQLException(ErrorCode.IO_EXCEPTION_1,
+                            "Missing lob entry, block: " + block);
                 }
                 int compressed = rs.getInt(1);
                 byte[] buffer = rs.getBytes(2);
@@ -248,11 +246,7 @@ public class LobStorageBackend implements LobStorageInterface {
      * @return the prepared statement
      */
     PreparedStatement prepare(String sql) throws SQLException {
-        if (SysProperties.CHECK2) {
-            if (!Thread.holdsLock(database)) {
-                throw DbException.throwInternalError();
-            }
-        }
+        assert Thread.holdsLock(database);
         PreparedStatement prep = prepared.remove(sql);
         if (prep == null) {
             prep = conn.prepareStatement(sql);
@@ -267,11 +261,7 @@ public class LobStorageBackend implements LobStorageInterface {
      * @param prep the prepared statement
      */
     void reuse(String sql, PreparedStatement prep) {
-        if (SysProperties.CHECK2) {
-            if (!Thread.holdsLock(database)) {
-                throw DbException.throwInternalError();
-            }
-        }
+        assert Thread.holdsLock(database);
         prepared.put(sql, prep);
     }
 
@@ -293,7 +283,7 @@ public class LobStorageBackend implements LobStorageInterface {
                     prep.setLong(1, lobId);
                     prep.setLong(2, lobId);
                     ResultSet rs = prep.executeQuery();
-                    ArrayList<Long> blocks = New.arrayList();
+                    ArrayList<Long> blocks = Utils.newSmallArrayList();
                     while (rs.next()) {
                         blocks.add(rs.getLong(1));
                         int hash = rs.getInt(2);
@@ -368,8 +358,7 @@ public class LobStorageBackend implements LobStorageInterface {
                     // if we had a short read, trim the buffer
                     byte[] b;
                     if (len != buff.length) {
-                        b = new byte[len];
-                        System.arraycopy(buff, 0, b, 0, len);
+                        b = Arrays.copyOf(buff, len);
                     } else {
                         b = buff;
                     }
@@ -399,8 +388,7 @@ public class LobStorageBackend implements LobStorageInterface {
                     // For a CLOB, precision is length in chars
                     long precision = countingReaderForClob == null ?
                             small.length : countingReaderForClob.getLength();
-                    ValueLobDb v = ValueLobDb.createSmallLob(type, small, precision);
-                    return v;
+                    return ValueLobDb.createSmallLob(type, small, precision);
                 }
                 // For a BLOB, precision is length in bytes.
                 // For a CLOB, precision is length in chars
@@ -433,9 +421,8 @@ public class LobStorageBackend implements LobStorageInterface {
                 prep.setInt(3, tableId);
                 prep.execute();
                 reuse(sql, prep);
-                ValueLobDb v = ValueLobDb.create(type,
+                return ValueLobDb.create(type,
                         database, tableId, lobId, null, precision);
-                return v;
             }
         }
     }
@@ -590,30 +577,7 @@ public class LobStorageBackend implements LobStorageInterface {
         init();
         long max = maxLength == -1 ? Long.MAX_VALUE : maxLength;
         CountingReaderInputStream in = new CountingReaderInputStream(reader, max);
-        ValueLobDb lob = addLob(in, Long.MAX_VALUE, Value.CLOB, in);
-        return lob;
-    }
-
-    @Override
-    public void setTable(ValueLobDb lob, int table) {
-        long lobId = lob.getLobId();
-        assertNotHolds(conn.getSession());
-        // see locking discussion at the top
-        synchronized (database) {
-            synchronized (conn.getSession()) {
-                try {
-                    init();
-                    String sql = "UPDATE " + LOBS + " SET TABLE = ? WHERE ID = ?";
-                    PreparedStatement prep = prepare(sql);
-                    prep.setInt(1, table);
-                    prep.setLong(2, lobId);
-                    prep.executeUpdate();
-                    reuse(sql, prep);
-                } catch (SQLException e) {
-                    throw DbException.convert(e);
-                }
-            }
-        }
+        return addLob(in, Long.MAX_VALUE, Value.CLOB, in);
     }
 
     private static void assertNotHolds(Object lock) {
@@ -679,8 +643,8 @@ public class LobStorageBackend implements LobStorageInterface {
                 prep.setLong(1, lobId);
                 ResultSet rs = prep.executeQuery();
                 if (!rs.next()) {
-                    throw DbException.get(ErrorCode.IO_EXCEPTION_1,
-                            "Missing lob entry: " + lobId).getSQLException();
+                    throw DbException.getJdbcSQLException(ErrorCode.IO_EXCEPTION_1,
+                            "Missing lob entry: " + lobId);
                 }
                 byteCount = rs.getLong(1);
                 reuse(sql, prep);
@@ -694,8 +658,8 @@ public class LobStorageBackend implements LobStorageInterface {
             rs.next();
             int lobMapCount = rs.getInt(1);
             if (lobMapCount == 0) {
-                throw DbException.get(ErrorCode.IO_EXCEPTION_1,
-                        "Missing lob entry: " + lobId).getSQLException();
+                throw DbException.getJdbcSQLException(ErrorCode.IO_EXCEPTION_1,
+                        "Missing lob entry: " + lobId);
             }
             reuse(sql, prep);
 

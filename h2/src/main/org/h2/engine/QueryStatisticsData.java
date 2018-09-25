@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -23,12 +23,12 @@ public class QueryStatisticsData {
             new Comparator<QueryEntry>() {
         @Override
         public int compare(QueryEntry o1, QueryEntry o2) {
-            return (int) Math.signum(o1.lastUpdateTime - o2.lastUpdateTime);
+            return Long.signum(o1.lastUpdateTime - o2.lastUpdateTime);
         }
     };
 
     private final HashMap<String, QueryEntry> map =
-            new HashMap<String, QueryEntry>();
+            new HashMap<>();
 
     private int maxQueryEntries;
 
@@ -43,8 +43,7 @@ public class QueryStatisticsData {
     public synchronized List<QueryEntry> getQueries() {
         // return a copy of the map so we don't have to
         // worry about external synchronization
-        ArrayList<QueryEntry> list = new ArrayList<QueryEntry>();
-        list.addAll(map.values());
+        ArrayList<QueryEntry> list = new ArrayList<>(map.values());
         // only return the newest 100 entries
         Collections.sort(list, QUERY_ENTRY_COMPARATOR);
         return list.subList(0, Math.min(list.size(), maxQueryEntries));
@@ -71,12 +70,11 @@ public class QueryStatisticsData {
         // Test against 1.5 x max-size so we don't do this too often
         if (map.size() > maxQueryEntries * 1.5f) {
             // Sort the entries by age
-            ArrayList<QueryEntry> list = new ArrayList<QueryEntry>();
-            list.addAll(map.values());
+            ArrayList<QueryEntry> list = new ArrayList<>(map.values());
             Collections.sort(list, QUERY_ENTRY_COMPARATOR);
             // Create a set of the oldest 1/3 of the entries
             HashSet<QueryEntry> oldestSet =
-                    new HashSet<QueryEntry>(list.subList(0, list.size() / 3));
+                    new HashSet<>(list.subList(0, list.size() / 3));
             // Loop over the map using the set and remove
             // the oldest 1/3 of the entries.
             for (Iterator<Entry<String, QueryEntry>> it =

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
@@ -25,7 +26,6 @@ import org.h2.index.Cursor;
 import org.h2.index.HashIndex;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
-import org.h2.index.MultiVersionIndex;
 import org.h2.index.NonUniqueHashIndex;
 import org.h2.index.PageBtreeIndex;
 import org.h2.index.PageDataIndex;
@@ -36,10 +36,9 @@ import org.h2.index.TreeIndex;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.Row;
-import org.h2.result.SortOrder;
 import org.h2.schema.SchemaObject;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
+import org.h2.util.Utils;
 import org.h2.value.CompareMode;
 import org.h2.value.DataType;
 import org.h2.value.Value;
@@ -54,18 +53,27 @@ public class RegularTable extends TableBase {
     private Index scanIndex; //要么是PageDataIndex，要么是ScanIndex
     private long rowCount;
     private volatile Session lockExclusiveSession;
-    private HashSet<Session> lockSharedSessions = New.hashSet();
+
+    // using a ConcurrentHashMap as a set
+    private ConcurrentHashMap<Session, Session> lockSharedSessions =
+            new ConcurrentHashMap<>();
 
     /**
      * The queue of sessions waiting to lock the table. It is a FIFO queue to
      * prevent starvation, since Java's synchronized locking is biased.
      */
-    private final ArrayDeque<Session> waitingSessions = new ArrayDeque<Session>();
+    private final ArrayDeque<Session> waitingSessions = new ArrayDeque<>();
     private final Trace traceLock;
-    private final ArrayList<Index> indexes = New.arrayList();
-    private long lastModificationId; //在addRow、commit、removeRow、truncate时改变
-    private boolean containsLargeObject;
-    private final PageDataIndex mainIndex; //这个字段用来选主索引列时有用
+//<<<<<<< HEAD
+//    private final ArrayList<Index> indexes = New.arrayList();
+//    private long lastModificationId; //在addRow、commit、removeRow、truncate时改变
+//    private boolean containsLargeObject;
+//    private final PageDataIndex mainIndex; //这个字段用来选主索引列时有用
+//=======
+    private final ArrayList<Index> indexes = Utils.newSmallArrayList();
+    private long lastModificationId;
+    private final boolean containsLargeObject;
+    private final PageDataIndex mainIndex;
     private int changesSinceAnalyze;
     private int nextAnalyze;
     private Column rowIdColumn;
@@ -74,14 +82,19 @@ public class RegularTable extends TableBase {
         super(data);
         nextAnalyze = database.getSettings().analyzeAuto;
         this.isHidden = data.isHidden;
+        boolean b = false;
         for (Column col : getColumns()) {
             if (DataType.isLargeObject(col.getType())) {
-                containsLargeObject = true;
+                b = true;
+                break;
             }
         }
-        //如果database.isPersistent()是false，说明是内存数据库
-        //如果data.persistData是false，说明是内存临时表
-        //当是内存数据库时，不管data.persistData是false还是true都使用ScanIndex(也就是内存索引)
+//<<<<<<< HEAD
+//        //如果database.isPersistent()是false，说明是内存数据库
+//        //如果data.persistData是false，说明是内存临时表
+//        //当是内存数据库时，不管data.persistData是false还是true都使用ScanIndex(也就是内存索引)
+//=======
+        containsLargeObject = b;
         if (data.persistData && database.isPersistent()) {
             mainIndex = new PageDataIndex(this, data.id,
                     IndexColumn.wrap(getColumns()),
@@ -112,9 +125,6 @@ public class RegularTable extends TableBase {
     @Override
     public void addRow(Session session, Row row) {
         lastModificationId = database.getNextModificationDataId();
-        if (database.isMultiVersion()) {
-            row.setSessionId(session.getId());
-        }
         int i = 0;
         try {
         	//truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
@@ -139,36 +149,26 @@ public class RegularTable extends TableBase {
                 trace.error(e2, "could not undo operation");
                 throw e2;
             }
-            DbException de = DbException.convert(e);
-            if (de.getErrorCode() == ErrorCode.DUPLICATE_KEY_1) {
-                for (int j = 0; j < indexes.size(); j++) {
-                    Index index = indexes.get(j);
-                    if (index.getIndexType().isUnique() && index instanceof MultiVersionIndex) {
-                        MultiVersionIndex mv = (MultiVersionIndex) index;
-                        if (mv.isUncommittedFromOtherSession(session, row)) {
-                            throw DbException.get(
-                                    ErrorCode.CONCURRENT_UPDATE_1, index.getName());
-                        }
-                    }
-                }
-            }
-            throw de;
+            throw DbException.convert(e);
         }
         analyzeIfRequired(session);
     }
 
-    @Override
-    public void commit(short operation, Row row) {
-        lastModificationId = database.getNextModificationDataId();
-        //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
-        for (int i = 0, size = indexes.size(); i < size; i++) {
-            Index index = indexes.get(i);
-            index.commit(operation, row);
-        }
-    }
-
+//<<<<<<< HEAD
+//    @Override
+//    public void commit(short operation, Row row) {
+//        lastModificationId = database.getNextModificationDataId();
+//        //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
+//        for (int i = 0, size = indexes.size(); i < size; i++) {
+//            Index index = indexes.get(i);
+//            index.commit(operation, row);
+//        }
+//    }
+//
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
     private void checkRowCount(Session session, Index index, int offset) {
-        if (SysProperties.CHECK && !database.isMultiVersion()) {
+        if (SysProperties.CHECK) {
             if (!(index instanceof PageDelegateIndex)) {
                 long rc = index.getRowCount(session);
                 if (rc != rowCount + offset) {
@@ -227,7 +227,8 @@ public class RegularTable extends TableBase {
             if (database.isStarting() &&
                     database.getPageStore().getRootPageId(indexId) != 0) {
                 mainIndexColumn = -1;
-            } else if (!database.isStarting() && mainIndex.getRowCount(session) != 0) {
+            } else if (!database.isStarting() && mainIndex.getRowCount(session) != 0
+                    || mainIndex.getMainIndexColumn() != -1) {
                 mainIndexColumn = -1;
             } else {
                 mainIndexColumn = getMainIndexColumn(indexType, cols);
@@ -268,10 +269,13 @@ public class RegularTable extends TableBase {
                 index = new TreeIndex(this, indexId, indexName, cols, indexType);
             }
         }
-        if (database.isMultiVersion()) {
-            index = new MultiVersionIndex(index, this);
-        }
-        //从ScanIndex中读出原始记录，新建或重建索引
+//<<<<<<< HEAD
+//        if (database.isMultiVersion()) {
+//            index = new MultiVersionIndex(index, this);
+//        }
+//        //从ScanIndex中读出原始记录，新建或重建索引
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
         if (index.needRebuild() && rowCount > 0) {
             try {
                 Index scan = getScanIndex(session);
@@ -280,7 +284,7 @@ public class RegularTable extends TableBase {
                 Cursor cursor = scan.find(session, null, null);
                 long i = 0;
                 int bufferSize = (int) Math.min(rowCount, database.getMaxMemoryRows());
-                ArrayList<Row> buffer = New.arrayList(bufferSize);
+                ArrayList<Row> buffer = new ArrayList<>(bufferSize);
                 String n = getName() + ":" + index.getName();
                 int t = MathUtils.convertLongToInt(total);
                 while (cursor.next()) {
@@ -326,29 +330,6 @@ public class RegularTable extends TableBase {
         return index;
     }
 
-    private int getMainIndexColumn(IndexType indexType, IndexColumn[] cols) {
-        if (mainIndex.getMainIndexColumn() != -1) {
-            return -1;
-        }
-        if (!indexType.isPrimaryKey() || cols.length != 1) {
-            return -1;
-        }
-        IndexColumn first = cols[0];
-        if (first.sortType != SortOrder.ASCENDING) {
-            return -1;
-        }
-        switch (first.column.getType()) {
-        case Value.BYTE:
-        case Value.SHORT:
-        case Value.INT:
-        case Value.LONG:
-            break;
-        default:
-            return -1;
-        }
-        return first.column.getColumnId();
-    }
-
     @Override
     public boolean canGetRowCount() {
         return true;
@@ -376,26 +357,26 @@ public class RegularTable extends TableBase {
 
     @Override
     public long getRowCount(Session session) {
-        if (database.isMultiVersion()) {
-            return getScanIndex(session).getRowCount(session);
-        }
         return rowCount;
     }
 
     @Override
     public void removeRow(Session session, Row row) {
-        if (database.isMultiVersion()) {
-            if (row.isDeleted()) { //用org.h2.test.rowlock.TestRowLocks可测试这里
-                throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, getName());
-            }
-            int old = row.getSessionId();
-            int newId = session.getId();
-            if (old == 0) {
-                row.setSessionId(newId);
-            } else if (old != newId) {
-                throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, getName());
-            }
-        }
+//<<<<<<< HEAD
+//        if (database.isMultiVersion()) {
+//            if (row.isDeleted()) { //用org.h2.test.rowlock.TestRowLocks可测试这里
+//                throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, getName());
+//            }
+//            int old = row.getSessionId();
+//            int newId = session.getId();
+//            if (old == 0) {
+//                row.setSessionId(newId);
+//            } else if (old != newId) {
+//                throw DbException.get(ErrorCode.CONCURRENT_UPDATE_1, getName());
+//            }
+//        }
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
         lastModificationId = database.getNextModificationDataId();
         int i = indexes.size() - 1;
         try {
@@ -455,40 +436,46 @@ public class RegularTable extends TableBase {
     }
 
     @Override
-    public boolean isLockedExclusivelyBy(Session session) {
-        return lockExclusiveSession == session;
-    }
-    
-    //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
-    //Select没有锁表
-    //比如DDL相关的SQL通常把force设为true，此时不管MVCC，META表都是把force设为true，
-    //Select的isForUpdate变种在非MVCC下也把force设为true，
-    //Insert、Update之类的才设为false
-    @Override
+//<<<<<<< HEAD
+//    public boolean isLockedExclusivelyBy(Session session) {
+//        return lockExclusiveSession == session;
+//    }
+//    
+//    //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
+//    //Select没有锁表
+//    //比如DDL相关的SQL通常把force设为true，此时不管MVCC，META表都是把force设为true，
+//    //Select的isForUpdate变种在非MVCC下也把force设为true，
+//    //Insert、Update之类的才设为false
+//    @Override
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
     public boolean lock(Session session, boolean exclusive,
             boolean forceLockEvenInMvcc) { //琐粒度太大，每insert一行都琐表
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) { //禁用锁
             return lockExclusiveSession != null;
         }
-        if (!forceLockEvenInMvcc && database.isMultiVersion()) { //如果使用了MVCC，并且不是强制的，则 不使用排它琐
-            // MVCC: update, delete, and insert use a shared lock.
-            // Select doesn't lock except when using FOR UPDATE
-            if (exclusive) {
-                exclusive = false; //禁用排它琐
-            } else {
-                if (lockExclusiveSession == null) {
-                    return false;
-                }
-            }
-        }
+//<<<<<<< HEAD
+//        if (!forceLockEvenInMvcc && database.isMultiVersion()) { //如果使用了MVCC，并且不是强制的，则 不使用排它琐
+//            // MVCC: update, delete, and insert use a shared lock.
+//            // Select doesn't lock except when using FOR UPDATE
+//            if (exclusive) {
+//                exclusive = false; //禁用排它琐
+//            } else {
+//                if (lockExclusiveSession == null) {
+//                    return false;
+//                }
+//            }
+//        }
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
         if (lockExclusiveSession == session) {
             return true;
         }
+        if (!exclusive && lockSharedSessions.containsKey(session)) {
+            return true;
+        }
         synchronized (database) {
-            if (lockExclusiveSession == session) {
-                return true;
-            }
             if (!exclusive && lockSharedSessions.contains(session)) {
                 return true;
             }
@@ -608,7 +595,7 @@ public class RegularTable extends TableBase {
                     lockExclusiveSession = session;
                     return true;
                 } else if (lockSharedSessions.size() == 1 &&
-                        lockSharedSessions.contains(session)) {
+                        lockSharedSessions.containsKey(session)) {
                     traceLock(session, exclusive, "add (upgraded) for ");
                     lockExclusiveSession = session;
                     return true;
@@ -617,7 +604,7 @@ public class RegularTable extends TableBase {
         } else {
             if (lockExclusiveSession == null) {
                 if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
-                    if (!database.isMultiThreaded() && !database.isMultiVersion()) {
+                    if (!database.isMultiThreaded()) {
                         // READ_COMMITTED: a read lock is acquired,
                         // but released immediately after the operation
                         // is complete.
@@ -627,10 +614,10 @@ public class RegularTable extends TableBase {
                         return true;
                     }
                 }
-                if (!lockSharedSessions.contains(session)) {
+                if (!lockSharedSessions.containsKey(session)) {
                     traceLock(session, exclusive, "ok");
                     session.addLock(this);
-                    lockSharedSessions.add(session);
+                    lockSharedSessions.put(session, session);
                 }
                 return true;
             }
@@ -694,19 +681,19 @@ public class RegularTable extends TableBase {
             if (clash == null) {
                 // verification is started
                 clash = session;
-                visited = New.hashSet();
+                visited = new HashSet<>();
             } else if (clash == session) {
-                // we found a circle where this session is involved
-                return New.arrayList();
+                // we found a cycle where this session is involved
+                return new ArrayList<>(0);
             } else if (visited.contains(session)) {
                 // we have already checked this session.
-                // there is a circle, but the sessions in the circle need to
+                // there is a cycle, but the sessions in the cycle need to
                 // find it out themselves
                 return null;
             }
             visited.add(session);
             ArrayList<Session> error = null;
-            for (Session s : lockSharedSessions) {
+            for (Session s : lockSharedSessions.keySet()) {
                 if (s == session) {
                     // it doesn't matter if we have locked the object already
                     continue;
@@ -720,10 +707,13 @@ public class RegularTable extends TableBase {
                     }
                 }
             }
-            if (error == null && lockExclusiveSession != null) {
-                Table t = lockExclusiveSession.getWaitForLock();
+            // take a local copy so we don't see inconsistent data, since we are
+            // not locked while checking the lockExclusiveSession value
+            Session copyOfLockExclusiveSession = lockExclusiveSession;
+            if (error == null && copyOfLockExclusiveSession != null) {
+                Table t = copyOfLockExclusiveSession.getWaitForLock();
                 if (t != null) {
-                    error = t.checkDeadlock(lockExclusiveSession, clash, visited);
+                    error = t.checkDeadlock(copyOfLockExclusiveSession, clash, visited);
                     if (error != null) {
                         error.add(session);
                     }
@@ -746,14 +736,20 @@ public class RegularTable extends TableBase {
     }
 
     @Override
+    public boolean isLockedExclusivelyBy(Session session) {
+        return lockExclusiveSession == session;
+    }
+
+    @Override
     public void unlock(Session s) {
         if (database != null) {
             traceLock(s, lockExclusiveSession == s, "unlock");
             if (lockExclusiveSession == s) {
+                lockSharedSessions.remove(s);
                 lockExclusiveSession = null;
             }
             synchronized (database) {
-                if (lockSharedSessions.size() > 0) {
+                if (!lockSharedSessions.isEmpty()) {
                     lockSharedSessions.remove(s);
                 }
                 if (!waitingSessions.isEmpty()) {
@@ -836,9 +832,8 @@ public class RegularTable extends TableBase {
         if (getCheckForeignKeyConstraints() && database.getReferentialIntegrity()) {
             ArrayList<Constraint> constraints = getConstraints();
             if (constraints != null) {
-                for (int i = 0, size = constraints.size(); i < size; i++) {
-                    Constraint c = constraints.get(i);
-                    if (!(c.getConstraintType().equals(Constraint.REFERENTIAL))) {
+                for (Constraint c : constraints) {
+                    if (c.getConstraintType() != Constraint.Type.REFERENTIAL) {
                         continue;
                     }
                     ConstraintReferential ref = (ConstraintReferential) c;

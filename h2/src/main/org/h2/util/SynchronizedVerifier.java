@@ -1,14 +1,11 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -17,10 +14,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SynchronizedVerifier {
 
     private static volatile boolean enabled;
-    private static final Map<Class<?>, AtomicBoolean> DETECT =
-        Collections.synchronizedMap(new HashMap<Class<?>, AtomicBoolean>());
-    private static final Map<Object, Object> CURRENT =
-        Collections.synchronizedMap(new IdentityHashMap<Object, Object>());
+    private static final ConcurrentHashMap<Class<?>, AtomicBoolean> DETECT = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Object, Object> CURRENT = new ConcurrentHashMap<>();
 
     /**
      * Enable or disable detection for a given class.

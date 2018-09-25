@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,7 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -25,6 +26,7 @@ import org.h2.mvstore.type.DataType;
 import org.h2.mvstore.type.StringDataType;
 import org.h2.store.fs.FilePath;
 import org.h2.store.fs.FileUtils;
+import org.h2.util.Utils;
 
 /**
  * Utility methods used in combination with the MVStore.
@@ -110,7 +112,7 @@ public class MVStoreTool {
         FileChannel file = null;
         int blockSize = MVStore.BLOCK_SIZE;
         TreeMap<Integer, Long> mapSizesTotal =
-                new TreeMap<Integer, Long>();
+                new TreeMap<>();
         long pageSizeTotal = 0;
         try {
             file = FilePath.get(fileName).open("r");
@@ -124,7 +126,7 @@ public class MVStoreTool {
                 block.rewind();
                 int headerType = block.get();
                 if (headerType == 'H') {
-                    String header = new String(block.array(), DataUtils.LATIN).trim();
+                    String header = new String(block.array(), StandardCharsets.ISO_8859_1).trim();
                     pw.printf("%0" + len + "x fileHeader %s%n",
                             pos, header);
                     pos += blockSize;
@@ -157,7 +159,7 @@ public class MVStoreTool {
                 int remaining = c.pageCount;
                 pageCount += c.pageCount;
                 TreeMap<Integer, Integer> mapSizes =
-                        new TreeMap<Integer, Integer>();
+                        new TreeMap<>();
                 int pageSizeSum = 0;
                 while (remaining > 0) {
                     int start = p;
@@ -220,12 +222,11 @@ public class MVStoreTool {
                     if (mapId == 0 && details) {
                         ByteBuffer data;
                         if (compressed) {
-                            boolean fast = !((type & DataUtils.PAGE_COMPRESSED_HIGH) ==
-                                    DataUtils.PAGE_COMPRESSED_HIGH);
+                            boolean fast = (type & DataUtils.PAGE_COMPRESSED_HIGH) != DataUtils.PAGE_COMPRESSED_HIGH;
                             Compressor compressor = getCompressor(fast);
                             int lenAdd = DataUtils.readVarInt(chunk);
                             int compLen = pageSize + start - chunk.position();
-                            byte[] comp = DataUtils.newBytes(compLen);
+                            byte[] comp = Utils.newBytes(compLen);
                             chunk.get(comp);
                             int l = compLen + lenAdd;
                             data = ByteBuffer.allocate(l);
@@ -293,7 +294,7 @@ public class MVStoreTool {
                             "+%0" + len + "x chunkFooter %s%n",
                             footerPos,
                             new String(chunk.array(), chunk.position(),
-                                    Chunk.FOOTER_LENGTH, DataUtils.LATIN).trim());
+                                    Chunk.FOOTER_LENGTH, StandardCharsets.ISO_8859_1).trim());
                 } catch (IllegalArgumentException e) {
                     // too far
                     pw.printf("ERROR illegal footer position %d%n", footerPos);
@@ -350,7 +351,7 @@ public class MVStoreTool {
             MVMap<String, String> meta = store.getMetaMap();
             Map<String, Object> header = store.getStoreHeader();
             long fileCreated = DataUtils.readHexLong(header, "created", 0L);
-            TreeMap<Integer, Chunk> chunks = new TreeMap<Integer, Chunk>();
+            TreeMap<Integer, Chunk> chunks = new TreeMap<>();
             long chunkLength = 0;
             long maxLength = 0;
             long maxLengthLive = 0;
@@ -484,16 +485,27 @@ public class MVStoreTool {
                 fileName(sourceFileName).
                 readOnly().
                 open();
-        FileUtils.delete(targetFileName);
-        MVStore.Builder b = new MVStore.Builder().
+        // Bugfix - Add double "try-finally" statements to close source and target stores for
+        //releasing lock and file resources in these stores even if OOM occurs.
+        // Fix issues such as "Cannot delete file "/h2/data/test.mv.db.tempFile" [90025-197]"
+        //when client connects to this server and reopens this store database in this process.
+        // @since 2018-09-13 little-pan
+        try{
+            FileUtils.delete(targetFileName);
+            MVStore.Builder b = new MVStore.Builder().
                 fileName(targetFileName);
-        if (compress) {
-            b.compress();
+            if (compress) {
+                b.compress();
+            }
+            MVStore target = b.open();
+            try{
+                compact(source, target);
+            }finally{
+                target.close();
+            }
+        }finally{
+            source.close();
         }
-        MVStore target = b.open();
-        compact(source, target);
-        target.close();
-        source.close();
     }
 
     /**
@@ -521,7 +533,7 @@ public class MVStoreTool {
         }
         for (String mapName : source.getMapNames()) {
             MVMap.Builder<Object, Object> mp =
-                    new MVMap.Builder<Object, Object>().
+                    new MVMap.Builder<>().
                     keyType(new GenericDataType()).
                     valueType(new GenericDataType());
             MVMap<Object, Object> sourceMap = source.openMap(mapName, mp);

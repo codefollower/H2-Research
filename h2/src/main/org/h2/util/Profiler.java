@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,6 +15,7 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.lang.instrument.Instrumentation;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -81,14 +82,14 @@ public class Profiler implements Runnable {
 
     private volatile boolean stop;
     private final HashMap<String, Integer> counts =
-            new HashMap<String, Integer>();
+            new HashMap<>();
 
     /**
      * The summary (usually one entry per package, unless sumClasses is enabled,
      * in which case it's one entry per class).
      */
     private final HashMap<String, Integer> summary =
-            new HashMap<String, Integer>();
+            new HashMap<>();
     private int minCount = 1;
     private int total;
     private Thread thread;
@@ -165,26 +166,21 @@ public class Profiler implements Runnable {
                     }
                     continue;
                 }
-                String file = arg;
-                Reader reader;
-                LineNumberReader r;
-                reader = new InputStreamReader(
-                        new FileInputStream(file), "CP1252");
-                r = new LineNumberReader(reader);
-                while (true) {
-                    String line = r.readLine();
-                    if (line == null) {
-                        break;
-                    } else if (line.startsWith("Full thread dump")) {
-                        threadDumps++;
+                try (Reader reader = new InputStreamReader(new FileInputStream(arg), "CP1252")) {
+                    LineNumberReader r = new LineNumberReader(reader);
+                    while (true) {
+                        String line = r.readLine();
+                        if (line == null) {
+                            break;
+                        } else if (line.startsWith("Full thread dump")) {
+                            threadDumps++;
+                        }
                     }
                 }
-                reader.close();
-                reader = new InputStreamReader(
-                        new FileInputStream(file), "CP1252");
-                r = new LineNumberReader(reader);
-                processList(readStackTrace(r));
-                reader.close();
+                try (Reader reader = new InputStreamReader(new FileInputStream(arg), "CP1252")) {
+                    LineNumberReader r = new LineNumberReader(reader);
+                    processList(readStackTrace(r));
+                }
             }
             System.out.println(getTopTraces(5));
         } catch (IOException e) {
@@ -193,7 +189,7 @@ public class Profiler implements Runnable {
     }
 
     private static List<Object[]> getRunnableStackTraces() {
-        ArrayList<Object[]> list = new ArrayList<Object[]>();
+        ArrayList<Object[]> list = new ArrayList<>();
         Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
         for (Map.Entry<Thread, StackTraceElement[]> entry : map.entrySet()) {
             Thread t = entry.getKey();
@@ -211,7 +207,7 @@ public class Profiler implements Runnable {
 
     private static List<Object[]> readRunnableStackTraces(int pid) {
         try {
-            String jstack = exec("jstack", "" + pid);
+            String jstack = exec("jstack", Integer.toString(pid));
             LineNumberReader r = new LineNumberReader(
                     new StringReader(jstack));
             return readStackTrace(r);
@@ -222,7 +218,7 @@ public class Profiler implements Runnable {
 
     private static List<Object[]> readStackTrace(LineNumberReader r)
             throws IOException {
-        ArrayList<Object[]> list = new ArrayList<Object[]>();
+        ArrayList<Object[]> list = new ArrayList<>();
         while (true) {
             String line = r.readLine();
             if (line == null) {
@@ -240,7 +236,7 @@ public class Profiler implements Runnable {
             if (!line.startsWith("java.lang.Thread.State: RUNNABLE")) {
                 continue;
             }
-            ArrayList<String> stack = new ArrayList<String>();
+            ArrayList<String> stack = new ArrayList<>();
             while (true) {
                 line = r.readLine();
                 if (line == null) {
@@ -253,11 +249,11 @@ public class Profiler implements Runnable {
                 if (!line.startsWith("at ")) {
                     break;
                 }
-                line = line.substring(3).trim();
+                line = StringUtils.trimSubstring(line, 3);
                 stack.add(line);
             }
-            if (stack.size() > 0) {
-                String[] s = stack.toArray(new String[stack.size()]);
+            if (!stack.isEmpty()) {
+                String[] s = stack.toArray(new String[0]);
                 list.add(s);
             }
         }
@@ -272,12 +268,11 @@ public class Profiler implements Runnable {
             copyInThread(p.getInputStream(), out);
             copyInThread(p.getErrorStream(), err);
             p.waitFor();
-            String e = new String(err.toByteArray(), "UTF-8");
+            String e = new String(err.toByteArray(), StandardCharsets.UTF_8);
             if (e.length() > 0) {
                 throw new RuntimeException(e);
             }
-            String output = new String(out.toByteArray(), "UTF-8");
-            return output;
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -353,7 +348,7 @@ public class Profiler implements Runnable {
                 return;
             }
             try {
-                Thread.sleep(interval);
+                Thread.sleep(interval, 0);
             } catch (Exception e) {
                 // ignore
             }
@@ -472,10 +467,10 @@ public class Profiler implements Runnable {
         if (counts.size() == 0) {
             buff.append("(none)").append(LINE_SEPARATOR);
         }
-        HashMap<String, Integer> copy = new HashMap<String, Integer>(counts);
+        HashMap<String, Integer> copy = new HashMap<>(counts);
         appendTop(buff, copy, count, total, false);
         buff.append("summary:").append(LINE_SEPARATOR);
-        copy = new HashMap<String, Integer>(summary);
+        copy = new HashMap<>(summary);
         appendTop(buff, copy, count, total, true);
         buff.append('.');
         return buff.toString();

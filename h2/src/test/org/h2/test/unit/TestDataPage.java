@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -126,8 +126,8 @@ public class TestDataPage extends TestBase implements DataHandler {
 
     private void testValues() {
         testValue(ValueNull.INSTANCE);
-        testValue(ValueBoolean.get(false));
-        testValue(ValueBoolean.get(true));
+        testValue(ValueBoolean.FALSE);
+        testValue(ValueBoolean.TRUE);
         for (int i = 0; i < 256; i++) {
             testValue(ValueByte.get((byte) i));
         }
@@ -205,7 +205,7 @@ public class TestDataPage extends TestBase implements DataHandler {
             }
         }
         testValue(ValueArray.get(new Value[0]));
-        testValue(ValueArray.get(new Value[] { ValueBoolean.get(true),
+        testValue(ValueArray.get(new Value[] { ValueBoolean.TRUE,
                 ValueInt.get(10) }));
 
         SimpleResultSet rs = new SimpleResultSet();
@@ -226,7 +226,7 @@ public class TestDataPage extends TestBase implements DataHandler {
         data.reset();
         Value v2 = data.readValue();
         assertEquals(v.getType(), v2.getType());
-        assertEquals(0, v.compareTo(v2, compareMode));
+        assertEquals(0, v.compareTo(v2, null, compareMode));
         assertEquals(123, data.readInt());
     }
 

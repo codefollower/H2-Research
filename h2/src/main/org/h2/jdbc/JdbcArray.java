@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,6 +9,7 @@ import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.Map;
 
 import org.h2.api.ErrorCode;
@@ -257,7 +258,7 @@ public class JdbcArray extends TraceObject implements Array {
         // TODO array result set: there are multiple data types possible
         rs.addColumn("VALUE", Types.NULL, 0, 0);
         for (int i = 0; i < array.length; i++) {
-            rs.addRow(Long.valueOf(offset + i + 1), array[i]);
+            rs.addRow(offset + i + 1, array[i]);
         }
         return rs;
     }
@@ -283,9 +284,8 @@ public class JdbcArray extends TraceObject implements Array {
             throw DbException.getInvalidValueException("index (1.."
                     + array.length + ")", index);
         }
-        Object[] subset = new Object[count];
-        System.arraycopy(array, (int) (index - 1), subset, 0, count);
-        return subset;
+        int offset = (int) (index - 1);
+        return Arrays.copyOfRange(array, offset, offset + count);
     }
 
     /**

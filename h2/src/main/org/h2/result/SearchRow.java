@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,6 +12,10 @@ import org.h2.value.Value;
  * index.
  */
 public interface SearchRow {
+    /**
+     * Index of a virtual "_ROWID_" column within a row or a table
+     */
+    int ROWID_INDEX = -1;
 
     /**
      * An empty array of SearchRow objects.

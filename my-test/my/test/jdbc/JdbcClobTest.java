@@ -25,6 +25,7 @@ import java.sql.Statement;
 
 import org.h2.jdbc.JdbcClob;
 import org.h2.jdbc.JdbcConnection;
+import org.h2.jdbc.JdbcLob.State;
 import org.h2.util.IOUtils;
 import org.h2.value.Value;
 import org.junit.Assert;
@@ -49,7 +50,7 @@ public class JdbcClobTest extends TestBase {
         Value clobValue = ((JdbcConnection) conn).createClob(
                 IOUtils.getBufferedReader(new FileInputStream("C:/TDDOWNLOAD/kotlin-compiler-1.1.2-2.zip")), -1);
 
-        clob = new JdbcClob((JdbcConnection) conn, clobValue, 100);
+        clob = new JdbcClob((JdbcConnection) conn, clobValue, State.WITH_VALUE, 100);
 
         String clobStr = "clob-test";
         StringBuilder buff = new StringBuilder(5000 * clobStr.length());

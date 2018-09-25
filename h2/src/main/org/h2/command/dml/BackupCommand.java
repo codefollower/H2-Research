@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -58,54 +58,86 @@ public class BackupCommand extends Prepared {
             throw DbException.get(ErrorCode.DATABASE_IS_NOT_PERSISTENT);
         }
         try {
-            Store mvStore = db.getMvStore();
-            if (mvStore != null) {
-                mvStore.flush();
+            Store store = db.getStore();
+            if (store != null) {
+                store.flush();
             }
-            String name = db.getName(); //返回E:/H2/baseDir/mydb
-            name = FileUtils.getName(name); //返回mydb(也就是只取简单文件名
-            //生成fileName表示的文件，如果已存在则覆盖原有的，也就是文件为空
-            OutputStream zip = FileUtils.newOutputStream(fileName, false);
-            ZipOutputStream out = new ZipOutputStream(zip);
-            db.flush(); //里面又会对MVStore进行flush
-
-            if (db.getPageStore() != null) {
-                String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //返回E:/H2/baseDir/mydb.h2.db
-                backupPageStore(out, fn, db.getPageStore());
-            }
-            // synchronize on the database, to avoid concurrent temp file
-            // creation / deletion / backup
-            String base = FileUtils.getParent(db.getName());
-            synchronized (db.getLobSyncObject()) {
-                String prefix = db.getDatabasePath(); //返回E:/H2/baseDir/mydb
-                String dir = FileUtils.getParent(prefix); //返回E:/H2/baseDir
-                dir = FileLister.getDir(dir); //返回E:/H2/baseDir
-                ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
-                
-                //".lob.db"和".mv.db"文件也备份到fileName表示的文件中，
-                //也就是说BACKUP TO 'E:/H2/baseDir/myBackup.zip'这样的SQL除了把基本的“.h2.db”备份外，
-                //还备份".lob.db"和".mv.db"文件
-                for (String n : fileList) {
-                    if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //备份".lob.db"文件
-                        backupFile(out, base, n);
-                    }
-                    
-                    //应该用else if
-                    if (n.endsWith(Constants.SUFFIX_MV_FILE) && mvStore != null) { //备份".mv.db"文件
-                        MVStore s = mvStore.getStore();
-                        boolean before = s.getReuseSpace();
-                        s.setReuseSpace(false);
-                        try {
-                            InputStream in = mvStore.getInputStream();
-                            backupFile(out, base, n, in);
-                        } finally {
-                            s.setReuseSpace(before);
+//<<<<<<< HEAD
+//            String name = db.getName(); //返回E:/H2/baseDir/mydb
+//            name = FileUtils.getName(name); //返回mydb(也就是只取简单文件名
+//            //生成fileName表示的文件，如果已存在则覆盖原有的，也就是文件为空
+//            OutputStream zip = FileUtils.newOutputStream(fileName, false);
+//            ZipOutputStream out = new ZipOutputStream(zip);
+//            db.flush(); //里面又会对MVStore进行flush
+//
+//            if (db.getPageStore() != null) {
+//                String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //返回E:/H2/baseDir/mydb.h2.db
+//                backupPageStore(out, fn, db.getPageStore());
+//            }
+//            // synchronize on the database, to avoid concurrent temp file
+//            // creation / deletion / backup
+//            String base = FileUtils.getParent(db.getName());
+//            synchronized (db.getLobSyncObject()) {
+//                String prefix = db.getDatabasePath(); //返回E:/H2/baseDir/mydb
+//                String dir = FileUtils.getParent(prefix); //返回E:/H2/baseDir
+//                dir = FileLister.getDir(dir); //返回E:/H2/baseDir
+//                ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
+//                
+//                //".lob.db"和".mv.db"文件也备份到fileName表示的文件中，
+//                //也就是说BACKUP TO 'E:/H2/baseDir/myBackup.zip'这样的SQL除了把基本的“.h2.db”备份外，
+//                //还备份".lob.db"和".mv.db"文件
+//                for (String n : fileList) {
+//                    if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //备份".lob.db"文件
+//                        backupFile(out, base, n);
+//                    }
+//                    
+//                    //应该用else if
+//                    if (n.endsWith(Constants.SUFFIX_MV_FILE) && mvStore != null) { //备份".mv.db"文件
+//                        MVStore s = mvStore.getStore();
+//                        boolean before = s.getReuseSpace();
+//                        s.setReuseSpace(false);
+//                        try {
+//                            InputStream in = mvStore.getInputStream();
+//                            backupFile(out, base, n, in);
+//                        } finally {
+//                            s.setReuseSpace(before);
+//=======
+            String name = db.getName();
+            name = FileUtils.getName(name);
+            try (OutputStream zip = FileUtils.newOutputStream(fileName, false)) {
+                ZipOutputStream out = new ZipOutputStream(zip);
+                db.flush();
+                if (db.getPageStore() != null) {
+                    String fn = db.getName() + Constants.SUFFIX_PAGE_FILE;
+                    backupPageStore(out, fn, db.getPageStore());
+                }
+                // synchronize on the database, to avoid concurrent temp file
+                // creation / deletion / backup
+                String base = FileUtils.getParent(db.getName());
+                synchronized (db.getLobSyncObject()) {
+                    String prefix = db.getDatabasePath();
+                    String dir = FileUtils.getParent(prefix);
+                    dir = FileLister.getDir(dir);
+                    ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
+                    for (String n : fileList) {
+                        if (n.endsWith(Constants.SUFFIX_LOB_FILE)) {
+                            backupFile(out, base, n);
+                        }
+                        if (n.endsWith(Constants.SUFFIX_MV_FILE) && store != null) {
+                            MVStore s = store.getMvStore();
+                            boolean before = s.getReuseSpace();
+                            s.setReuseSpace(false);
+                            try {
+                                InputStream in = store.getInputStream();
+                                backupFile(out, base, n, in);
+                            } finally {
+                                s.setReuseSpace(before);
+                            }
                         }
                     }
                 }
+                out.close();
             }
-            out.close();
-            zip.close();
         } catch (IOException e) {
             throw DbException.convertIOException(e, fileName);
         }

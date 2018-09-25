@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,7 +11,7 @@ import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
-import org.h2.engine.SysProperties;
+//import org.h2.engine.SysProperties;
 
 /**
  * The base class for wrapping / delegating file systems such as
@@ -43,9 +43,13 @@ public abstract class FilePathWrapper extends FilePath {
 
     private FilePathWrapper create(String path, FilePath base) {
         try {
-            FilePathWrapper p = getClass().newInstance();
-            p.name = translateFileName(path); //我加上的
-            //p.name = path;
+//<<<<<<< HEAD
+//            FilePathWrapper p = getClass().newInstance();
+//            p.name = translateFileName(path); //我加上的
+//            //p.name = path;
+//=======
+            FilePathWrapper p = getClass().getDeclaredConstructor().newInstance();
+            p.name = path;
             p.base = base;
             return p;
         } catch (Exception e) {
@@ -53,22 +57,22 @@ public abstract class FilePathWrapper extends FilePath {
         }
     }
 
-	private String translateFileName(String fileName) {  //我加上的
-        fileName = fileName.replace('\\', '/');
-        String prefix = getScheme() + ":";
-        if (fileName.startsWith(prefix)) {
-            fileName = fileName.substring(prefix.length());
-        }
-		return prefix + expandUserHomeDirectory(fileName);
-	}
+//	private String translateFileName(String fileName) {  //我加上的
+//        fileName = fileName.replace('\\', '/');
+//        String prefix = getScheme() + ":";
+//        if (fileName.startsWith(prefix)) {
+//            fileName = fileName.substring(prefix.length());
+//        }
+//		return prefix + expandUserHomeDirectory(fileName);
+//	}
 
-	private String expandUserHomeDirectory(String fileName) {  //我加上的
-		if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
-			String userDir = SysProperties.USER_HOME;
-			fileName = userDir + fileName.substring(1);
-		}
-		return fileName;
-	}
+//	private String expandUserHomeDirectory(String fileName) {  //我加上的
+//		if (fileName.startsWith("~") && (fileName.length() == 1 || fileName.startsWith("~/"))) {
+//			String userDir = SysProperties.USER_HOME;
+//			fileName = userDir + fileName.substring(1);
+//		}
+//		return fileName;
+//	}
 
     protected String getPrefix() {
         return getScheme() + ":";

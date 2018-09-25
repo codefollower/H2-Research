@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,9 +18,12 @@ import org.h2.engine.Setting;
 import org.h2.expression.Expression;
 import org.h2.expression.ValueExpression;
 import org.h2.message.DbException;
+import org.h2.message.Trace;
+import org.h2.result.LocalResultFactory;
 import org.h2.result.ResultInterface;
 import org.h2.result.RowFactory;
 import org.h2.schema.Schema;
+import org.h2.security.auth.AuthenticatorFactory;
 import org.h2.table.Table;
 import org.h2.tools.CompressTool;
 import org.h2.util.JdbcUtils;
@@ -345,17 +348,14 @@ public class Set extends Prepared {
             if (database.getMode() != mode) {
                 session.getUser().checkAdmin();
                 database.setMode(mode);
+                session.getColumnNamerConfiguration().configure(mode.getEnum());
             }
             break;
         case SetTypes.MULTI_THREADED: {
-            session.getUser().checkAdmin();
-            database.setMultiThreaded(getIntValue() == 1);
-            break;
-        }
-        case SetTypes.MVCC: {
-            if (database.isMultiVersion() != (getIntValue() == 1)) {
-                throw DbException.get(
-                        ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1, "MVCC");
+            boolean v = getIntValue() == 1;
+            if (database.isMultiThreaded() != v) {
+                session.getUser().checkAdmin();
+                database.setMultiThreaded(v);
             }
             break;
         }
@@ -419,7 +419,7 @@ public class Set extends Prepared {
         }
         case SetTypes.TRACE_LEVEL_FILE:
             session.getUser().checkAdmin();
-            if (getCurrentObjectId() == 0) {
+            if (getPersistedObjectId() == 0) {
                 // don't set the property when opening the database
                 // this is for compatibility with older versions, because
                 // this setting was persistent
@@ -428,7 +428,7 @@ public class Set extends Prepared {
             break;
         case SetTypes.TRACE_LEVEL_SYSTEM_OUT:
             session.getUser().checkAdmin();
-            if (getCurrentObjectId() == 0) {
+            if (getPersistedObjectId() == 0) {
                 // don't set the property when opening the database
                 // this is for compatibility with older versions, because
                 // this setting was persistent
@@ -494,7 +494,7 @@ public class Set extends Prepared {
             Class<RowFactory> rowFactoryClass = JdbcUtils.loadUserClass(rowFactoryName);
             RowFactory rowFactory;
             try {
-                rowFactory = rowFactoryClass.newInstance();
+                rowFactory = rowFactoryClass.getDeclaredConstructor().newInstance();
             } catch (Exception e) {
                 throw DbException.convert(e);
             }
@@ -536,6 +536,44 @@ public class Set extends Prepared {
                         value);
             }
             database.setAllowBuiltinAliasOverride(value == 1);
+            break;
+        }
+        case SetTypes.COLUMN_NAME_RULES: {
+            session.getUser().checkAdmin();
+            session.getColumnNamerConfiguration().configure(expression.getColumnName());
+            break;
+        }
+        case SetTypes.AUTHENTICATOR: {
+            session.getUser().checkAdmin();
+            try {
+                if (expression.getBooleanValue(session)) {
+                database.setAuthenticator(AuthenticatorFactory.createAuthenticator());
+                } else {
+                    database.setAuthenticator(null);
+                }
+                addOrUpdateSetting(name,expression.getValue(session).getString(),0);
+            } catch (Exception e) {
+                // Errors during start are ignored to allow to open the database
+                if (database.isStarting()) {
+                    database.getTrace(Trace.DATABASE).error(e,
+                            "{0}: failed to set authenticator during database start ", expression.toString());
+                } else {
+                    throw DbException.convert(e);
+                }
+            }
+            break;
+        }
+        case SetTypes.LOCAL_RESULT_FACTORY: {
+            session.getUser().checkAdmin();
+            String localResultFactoryName = expression.getColumnName();
+            Class<LocalResultFactory> localResultFactoryClass = JdbcUtils.loadUserClass(localResultFactoryName);
+            LocalResultFactory localResultFactory;
+            try {
+                localResultFactory = localResultFactoryClass.getDeclaredConstructor().newInstance();
+                database.setResultFactory(localResultFactory);
+            } catch (Exception e) {
+                throw DbException.convert(e);
+            }
             break;
         }
         default:

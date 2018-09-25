@@ -1,11 +1,12 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
 
 import java.util.ArrayList;
+import java.util.List;
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
@@ -15,6 +16,7 @@ import org.h2.expression.Parameter;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.ResultInterface;
+import org.h2.table.TableView;
 import org.h2.util.StatementBuilder;
 import org.h2.value.Value;
 
@@ -53,9 +55,19 @@ public abstract class Prepared {
 
     private long modificationMetaId;
     private Command command;
-    private int objectId;
+    /**
+     * Used to preserve object identities on database startup. {@code 0} if
+     * object is not stored, {@code -1} if object is stored and its ID is
+     * already read, {@code >0} if object is stored and its id is not yet read.
+     */
+    private int persistedObjectId;
     private int currentRowNumber;
     private int rowScanCount;
+    /**
+     * Common table expressions (CTE) in queries require us to create temporary views,
+     * which need to be cleaned up once a command is done executing.
+     */
+    private List<TableView> cteCleanups;
 
     /**
      * Create a new object.
@@ -166,9 +178,13 @@ public abstract class Prepared {
      * @throws DbException if any parameter has not been set
      */
     protected void checkParameters() {
+        if (persistedObjectId < 0) {
+            // restore original persistedObjectId on Command re-run
+            // i.e. due to concurrent update
+            persistedObjectId = -persistedObjectId - 1;
+        }
         if (parameters != null) {
-            for (int i = 0, size = parameters.size(); i < size; i++) {
-                Parameter param = parameters.get(i);
+            for (Parameter param : parameters) {
                 param.checkSet();
             }
         }
@@ -240,28 +256,31 @@ public abstract class Prepared {
 
     /**
      * Get the object id to use for the database object that is created in this
-     * statement. This id is only set when the object is persistent.
+     * statement. This id is only set when the object is already persisted.
      * If not set, this method returns 0.
      *
      * @return the object id or 0 if not set
      */
-    protected int getCurrentObjectId() {
-        return objectId;
+    protected int getPersistedObjectId() {
+        int id = persistedObjectId;
+        return id >= 0 ? id : 0;
     }
 
     /**
      * Get the current object id, or get a new id from the database. The object
-     * id is used when creating new database object (CREATE statement).
+     * id is used when creating new database object (CREATE statement). This
+     * method may be called only once.
      *
      * @return the object id
      */
     protected int getObjectId() { //get完之后，如果原来的objectId不为0，那么要设为0
-        int id = objectId;
+        int id = persistedObjectId;
         if (id == 0) {
             id = session.getDatabase().allocateObjectId();
-        } else {
-            objectId = 0;
+        } else if (id < 0) {
+            throw DbException.throwInternalError("Prepared.getObjectId() was called before");
         }
+        persistedObjectId = -persistedObjectId - 1;  // while negative, it can be restored later
         return id;
     }
 
@@ -288,12 +307,12 @@ public abstract class Prepared {
     }
 
     /**
-     * Set the object id for this statement.
+     * Set the persisted object id for this statement.
      *
      * @param i the object id
      */
-    public void setObjectId(int i) {
-        this.objectId = i;
+    public void setPersistedObjectId(int i) {
+        this.persistedObjectId = i;
         this.create = false;
     }
 
@@ -344,7 +363,7 @@ public abstract class Prepared {
      *
      * @param rowNumber the row number
      */
-    protected void setCurrentRowNumber(int rowNumber) {
+    public void setCurrentRowNumber(int rowNumber) {
         if ((++rowScanCount & 127) == 0) {
             checkCanceled();
         }
@@ -454,4 +473,23 @@ public abstract class Prepared {
         return false;
     }
 
+    /**
+     * @return the temporary views created for CTE's.
+     */
+    public List<TableView> getCteCleanups() {
+        return cteCleanups;
+    }
+
+    /**
+     * Set the temporary views created for CTE's.
+     *
+     * @param cteCleanups the temporary views
+     */
+    public void setCteCleanups(List<TableView> cteCleanups) {
+        this.cteCleanups = cteCleanups;
+    }
+
+    public Session getSession() {
+        return session;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,15 +7,19 @@ package org.h2.command.dml;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import org.h2.api.ErrorCode;
+import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.Database;
+import org.h2.engine.Mode.ModeEnum;
 import org.h2.engine.Session;
 import org.h2.expression.Alias;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
+import org.h2.expression.Function;
 import org.h2.expression.Parameter;
 import org.h2.expression.ValueExpression;
 import org.h2.message.DbException;
@@ -25,7 +29,8 @@ import org.h2.result.SortOrder;
 import org.h2.table.ColumnResolver;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
-import org.h2.util.New;
+import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 import org.h2.value.Value;
 import org.h2.value.ValueInt;
 import org.h2.value.ValueNull;
@@ -37,29 +42,58 @@ import org.h2.value.ValueNull;
 public abstract class Query extends Prepared {
 
     /**
+     * The column list, including invisible expressions such as order by expressions.
+     */
+    ArrayList<Expression> expressions;
+
+    /**
+     * Array of expressions.
+     *
+     * @see #expressions
+     */
+    Expression[] expressionArray;
+
+    ArrayList<SelectOrderBy> orderList;
+
+    SortOrder sort;
+
+    /**
      * The limit expression as specified in the LIMIT or TOP clause.
      */
-    protected Expression limitExpr;
+    Expression limitExpr;
+
+    /**
+     * Whether limit expression specifies percentage of rows.
+     */
+    boolean fetchPercent;
+
+    /**
+     * Whether tied rows should be included in result too.
+     */
+    boolean withTies;
 
     /**
      * The offset expression as specified in the LIMIT .. OFFSET clause.
      */
-    protected Expression offsetExpr;
+    Expression offsetExpr;
 
     /**
      * The sample size expression as specified in the SAMPLE_SIZE clause.
      */
-    protected Expression sampleSizeExpr;
+    Expression sampleSizeExpr;
 
     /**
      * Whether the result must only contain distinct rows.
      */
-    protected boolean distinct;
+    boolean distinct;
 
     /**
      * Whether the result needs to support random access.
      */
-    protected boolean randomAccessResult; //在ConditionInSelect时会设为true
+//<<<<<<< HEAD
+//    protected boolean randomAccessResult; //在ConditionInSelect时会设为true
+//=======
+    boolean randomAccessResult;
 
     private boolean noCache;
     private int lastLimit;
@@ -131,7 +165,9 @@ public abstract class Query extends Prepared {
      *
      * @return the list of expressions
      */
-    public abstract ArrayList<Expression> getExpressions();
+    public ArrayList<Expression> getExpressions() {
+        return expressions;
+    }
 
     /**
      * Calculate the cost to execute this query.
@@ -150,7 +186,7 @@ public abstract class Query extends Prepared {
     public int getCostAsExpression() {
         // ensure the cost is not larger than 1 million,
         // so that adding other values can't overflow
-        return (int) Math.min(1000000.0, 10.0 + 10.0 * getCost());
+        return (int) Math.min(1_000_000d, 10d + 10d * getCost());
     }
 
     /**
@@ -165,14 +201,18 @@ public abstract class Query extends Prepared {
      *
      * @param order the order by list
      */
-    public abstract void setOrder(ArrayList<SelectOrderBy> order);
+    public void setOrder(ArrayList<SelectOrderBy> order) {
+        orderList = order;
+    }
 
     /**
      * Whether the query has an order.
      *
      * @return true if it has
      */
-    public abstract boolean hasOrder();
+    public boolean hasOrder() {
+        return orderList != null || sort != null;
+    }
 
     /**
      * Set the 'for update' flag.
@@ -240,8 +280,9 @@ public abstract class Query extends Prepared {
      * Update all aggregate function values.
      *
      * @param s the session
+     * @param stage select stage
      */
-    public abstract void updateAggregate(Session s);
+    public abstract void updateAggregate(Session s, int stage);
 
     /**
      * Call the before triggers on all tables.
@@ -250,14 +291,29 @@ public abstract class Query extends Prepared {
 
     /**
      * Set the distinct flag.
-     *
-     * @param b the new value
      */
-    public void setDistinct(boolean b) {
-        distinct = b;
+    public void setDistinct() {
+        distinct = true;
     }
 
-    public boolean isDistinct() {
+    /**
+     * Set the distinct flag only if it is possible, may be used as a possible
+     * optimization only.
+     */
+    public abstract void setDistinctIfPossible();
+
+    /**
+     * @return whether this query is a plain {@code DISTINCT} query
+     */
+    public boolean isStandardDistinct() {
+        return distinct;
+    }
+
+    /**
+     * @return whether this query is a {@code DISTINCT} or
+     *         {@code DISTINCT ON (...)} query
+     */
+    public boolean isAnyDistinct() {
         return distinct;
     }
 
@@ -318,7 +374,7 @@ public abstract class Query extends Prepared {
     public final Value[] getParameterValues() {
         ArrayList<Parameter> list = getParameters();
         if (list == null) {
-            list = New.arrayList();
+            return new Value[0];
         }
         int size = list.size();
         Value[] params = new Value[size];
@@ -396,11 +452,10 @@ public abstract class Query extends Prepared {
     static void initOrder(Session session,
             ArrayList<Expression> expressions,
             ArrayList<String> expressionSQL,
-            ArrayList<SelectOrderBy> orderList,
+            List<SelectOrderBy> orderList,
             int visible,
             boolean mustBeInResult,
             ArrayList<TableFilter> filters) {
-        Database db = session.getDatabase();
         for (SelectOrderBy o : orderList) {
         	//类似这样的sql时:select name,id from mytable order by 1 desc
         	//o.expression为null，“order by 1”表示使用select字段列表中的第一个(就是name)来排序
@@ -409,120 +464,206 @@ public abstract class Query extends Prepared {
             if (e == null) {
                 continue;
             }
-            // special case: SELECT 1 AS A FROM DUAL ORDER BY A
-            // (oracle supports it, but only in order by, not in group by and
-            // not in having):
-            // SELECT 1 AS A FROM DUAL ORDER BY -A
-            boolean isAlias = false;
-            int idx = expressions.size(); //排序列最后放在什么位置，默认是最后，除非在select字段列表中找到了
-            if (e instanceof ExpressionColumn) {
-                // order by expression
-                ExpressionColumn exprCol = (ExpressionColumn) e;
-                String tableAlias = exprCol.getOriginalTableAliasName();
-                String col = exprCol.getOriginalColumnName();
-                for (int j = 0; j < visible; j++) {
-                    boolean found = false;
-                    Expression ec = expressions.get(j);
-                    if (ec instanceof ExpressionColumn) {
-                        // select expression
-                        ExpressionColumn c = (ExpressionColumn) ec;
-                        found = db.equalsIdentifiers(col, c.getColumnName());
-                        if (found && tableAlias != null) {
-                            String ca = c.getOriginalTableAliasName();
-                            if (ca == null) {
-                                found = false;
-                                if (filters != null) {
-                                    // select id from test order by test.id
-                                    for (int i = 0, size = filters.size(); i < size; i++) {
-                                        TableFilter f = filters.get(i);
-                                        if (db.equalsIdentifiers(f.getTableAlias(), tableAlias)) {
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            } else {
-                                found = db.equalsIdentifiers(ca, tableAlias);
-                            }
-                        }
-                    } else if (!(ec instanceof Alias)) {
-                        continue;
-                    } else if (tableAlias == null && db.equalsIdentifiers(col, ec.getAlias())) {
-                        found = true;
-                    } else {
-                        Expression ec2 = ec.getNonAliasExpression();
-                        if (ec2 instanceof ExpressionColumn) {
-                            ExpressionColumn c2 = (ExpressionColumn) ec2;
-                            String ta = exprCol.getSQL();
-                            String tb = c2.getSQL();
-                            String s2 = c2.getColumnName();
-                            found = db.equalsIdentifiers(col, s2);
-                            if (!db.equalsIdentifiers(ta, tb)) {
-                                found = false;
-                            }
-                        }
-                    }
-                    if (found) {
-                        idx = j;
-                        isAlias = true;
-                        break;
-                    }
-                }
-            } else {
-                String s = e.getSQL();
-                if (expressionSQL != null) {
-                    for (int j = 0, size = expressionSQL.size(); j < size; j++) {
-                        String s2 = expressionSQL.get(j);
-                        if (db.equalsIdentifiers(s2, s)) {
-                            idx = j;
-                            isAlias = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            //在select中加distinct时distinct变量为true
-        	//此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
-        	//比如select distinct name from mytable order by id desc是错的
-        	//错误提示:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
-        	//这样就没问题select name from mytable order by id desc
-            //会自动加order by中的字段到select字段列表中
-            if (!isAlias) {
-                if (mustBeInResult) {
-                    throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT,
-                            e.getSQL());
-                }
-                expressions.add(e);
-                String sql = e.getSQL();
-                expressionSQL.add(sql);
-            }
+//<<<<<<< HEAD
+//            // special case: SELECT 1 AS A FROM DUAL ORDER BY A
+//            // (oracle supports it, but only in order by, not in group by and
+//            // not in having):
+//            // SELECT 1 AS A FROM DUAL ORDER BY -A
+//            boolean isAlias = false;
+//            int idx = expressions.size(); //排序列最后放在什么位置，默认是最后，除非在select字段列表中找到了
+//            if (e instanceof ExpressionColumn) {
+//                // order by expression
+//                ExpressionColumn exprCol = (ExpressionColumn) e;
+//                String tableAlias = exprCol.getOriginalTableAliasName();
+//                String col = exprCol.getOriginalColumnName();
+//                for (int j = 0; j < visible; j++) {
+//                    boolean found = false;
+//                    Expression ec = expressions.get(j);
+//                    if (ec instanceof ExpressionColumn) {
+//                        // select expression
+//                        ExpressionColumn c = (ExpressionColumn) ec;
+//                        found = db.equalsIdentifiers(col, c.getColumnName());
+//                        if (found && tableAlias != null) {
+//                            String ca = c.getOriginalTableAliasName();
+//                            if (ca == null) {
+//                                found = false;
+//                                if (filters != null) {
+//                                    // select id from test order by test.id
+//                                    for (int i = 0, size = filters.size(); i < size; i++) {
+//                                        TableFilter f = filters.get(i);
+//                                        if (db.equalsIdentifiers(f.getTableAlias(), tableAlias)) {
+//                                            found = true;
+//                                            break;
+//                                        }
+//                                    }
+//                                }
+//                            } else {
+//                                found = db.equalsIdentifiers(ca, tableAlias);
+//                            }
+//                        }
+//                    } else if (!(ec instanceof Alias)) {
+//=======
+            int idx = initExpression(session, expressions, expressionSQL, e, visible, mustBeInResult, filters);
             o.columnIndexExpr = ValueExpression.get(ValueInt.get(idx + 1));
-            Expression expr = expressions.get(idx).getNonAliasExpression();
-            o.expression = expr;
+            o.expression = expressions.get(idx).getNonAliasExpression();
         }
+    }
+
+    static int initExpression(Session session, ArrayList<Expression> expressions,
+            ArrayList<String> expressionSQL, Expression e, int visible, boolean mustBeInResult,
+            ArrayList<TableFilter> filters) {
+        Database db = session.getDatabase();
+        // special case: SELECT 1 AS A FROM DUAL ORDER BY A
+        // (oracle supports it, but only in order by, not in group by and
+        // not in having):
+        // SELECT 1 AS A FROM DUAL ORDER BY -A
+        if (e instanceof ExpressionColumn) {
+            // order by expression
+            ExpressionColumn exprCol = (ExpressionColumn) e;
+            String tableAlias = exprCol.getOriginalTableAliasName();
+            String col = exprCol.getOriginalColumnName();
+            for (int j = 0; j < visible; j++) {
+                Expression ec = expressions.get(j);
+                if (ec instanceof ExpressionColumn) {
+                    // select expression
+                    ExpressionColumn c = (ExpressionColumn) ec;
+                    if (!db.equalsIdentifiers(col, c.getColumnName())) {
+                        continue;
+                    }
+                    if (tableAlias == null) {
+                        return j;
+                    }
+                    String ca = c.getOriginalTableAliasName();
+                    if (ca != null) {
+                        if (db.equalsIdentifiers(ca, tableAlias)) {
+                            return j;
+                        }
+                    } else if (filters != null) {
+                        // select id from test order by test.id
+                        for (TableFilter f : filters) {
+                            if (db.equalsIdentifiers(f.getTableAlias(), tableAlias)) {
+                                return j;
+                            }
+                        }
+                    }
+                } else if (ec instanceof Alias) {
+                    if (tableAlias == null && db.equalsIdentifiers(col, ec.getAlias())) {
+                        return j;
+                    }
+                    Expression ec2 = ec.getNonAliasExpression();
+                    if (ec2 instanceof ExpressionColumn) {
+                        ExpressionColumn c2 = (ExpressionColumn) ec2;
+                        String ta = exprCol.getSQL();
+                        String tb = c2.getSQL();
+                        String s2 = c2.getColumnName();
+                        if (db.equalsIdentifiers(col, s2) && db.equalsIdentifiers(ta, tb)) {
+                            return j;
+                        }
+                    }
+                }
+            }
+//<<<<<<< HEAD
+//            
+//            //在select中加distinct时distinct变量为true
+//        	//此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
+//        	//比如select distinct name from mytable order by id desc是错的
+//        	//错误提示:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
+//        	//这样就没问题select name from mytable order by id desc
+//            //会自动加order by中的字段到select字段列表中
+//            if (!isAlias) {
+//                if (mustBeInResult) {
+//                    throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT,
+//                            e.getSQL());
+//=======
+        } else if (expressionSQL != null) {
+            String s = e.getSQL();
+            for (int j = 0, size = expressionSQL.size(); j < size; j++) {
+                if (db.equalsIdentifiers(expressionSQL.get(j), s)) {
+                    return j;
+                }
+            }
+        }
+        if (expressionSQL == null
+                || mustBeInResult && session.getDatabase().getMode().getEnum() != ModeEnum.MySQL
+                        && !checkOrderOther(session, e, expressionSQL)) {
+            throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT, e.getSQL());
+        }
+        int idx = expressions.size();
+        expressions.add(e);
+        expressionSQL.add(e.getSQL());
+        return idx;
+    }
+
+    /**
+     * An additional check for expression in ORDER BY list for DISTINCT selects
+     * that was not matched with selected expressions in regular way. This
+     * method allows expressions based only on selected expressions in different
+     * complicated ways with functions, comparisons, or operators.
+     *
+     * @param session session
+     * @param expr expression to check
+     * @param expressionSQL SQL of allowed expressions
+     * @return whether the specified expression should be allowed in ORDER BY
+     *         list of DISTINCT select
+     */
+    private static boolean checkOrderOther(Session session, Expression expr, ArrayList<String> expressionSQL) {
+        if (expr.isConstant()) {
+            // ValueExpression or other
+            return true;
+        }
+        String exprSQL = expr.getSQL();
+        for (String sql: expressionSQL) {
+            if (session.getDatabase().equalsIdentifiers(exprSQL, sql)) {
+                return true;
+            }
+        }
+        int count = expr.getSubexpressionCount();
+        if (expr instanceof Function) {
+            if (!((Function) expr).isDeterministic()) {
+                return false;
+            }
+        } else if (count <= 0) {
+            // Expression is an ExpressionColumn, Parameter, SequenceValue or
+            // has other unsupported type without subexpressions
+            return false;
+        }
+        for (int i = 0; i < count; i++) {
+            if (!checkOrderOther(session, expr.getSubexpression(i), expressionSQL)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
      * Create a {@link SortOrder} object given the list of {@link SelectOrderBy}
-     * objects. The expression list is extended if necessary.
+     * objects.
      *
      * @param orderList a list of {@link SelectOrderBy} elements
      * @param expressionCount the number of columns in the query
      * @return the {@link SortOrder} object
      */
-    //order by字段列表在select字段列表中的位置索引(从0开始计数)和order by字段排序类型生成两个数组:indexes、sortTypes
-    //得到一个综合的SortOrder实例
+//<<<<<<< HEAD
+//    //order by字段列表在select字段列表中的位置索引(从0开始计数)和order by字段排序类型生成两个数组:indexes、sortTypes
+//    //得到一个综合的SortOrder实例
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
-			SelectOrderBy o = orderList.get(i);
-			int idx;
-			boolean reverse = false;
-			Expression expr = o.columnIndexExpr;
-            Value v = expr.getValue(null);
+//<<<<<<< HEAD
+//			SelectOrderBy o = orderList.get(i);
+//			int idx;
+//			boolean reverse = false;
+//			Expression expr = o.columnIndexExpr;
+//            Value v = expr.getValue(null);
+//=======
+            SelectOrderBy o = orderList.get(i);
+            int idx;
+            boolean reverse = false;
+            Value v = o.columnIndexExpr.getValue(null);
             if (v == ValueNull.INSTANCE) {
                 // parameter not yet set - order by first column
                 idx = 0;
@@ -534,24 +675,24 @@ public abstract class Query extends Prepared {
                 }
                 idx -= 1;
                 if (idx < 0 || idx >= expressionCount) {
-                    throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT, "" + (idx + 1));
+                    throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT, Integer.toString(idx + 1));
                 }
             }
             index[i] = idx;
-            boolean desc = o.descending;
+            int type = o.sortType;
             if (reverse) {
-                desc = !desc;
-            }
-            int type = desc ? SortOrder.DESCENDING : SortOrder.ASCENDING;
-            if (o.nullsFirst) {
-                type += SortOrder.NULLS_FIRST;
-            } else if (o.nullsLast) {
-                type += SortOrder.NULLS_LAST;
+                // TODO NULLS FIRST / LAST should be inverted too?
+                type ^= SortOrder.DESCENDING;
             }
             sortType[i] = type;
         }
 
         return new SortOrder(session.getDatabase(), index, sortType, orderList);
+    }
+
+    @Override
+    public int getType() {
+        return CommandInterface.SELECT;
     }
 
     public void setOffset(Expression offset) {
@@ -570,6 +711,22 @@ public abstract class Query extends Prepared {
         return limitExpr;
     }
 
+    public void setFetchPercent(boolean fetchPercent) {
+        this.fetchPercent = fetchPercent;
+    }
+
+    public boolean isFetchPercent() {
+        return fetchPercent;
+    }
+
+    public void setWithTies(boolean withTies) {
+        this.withTies = withTies;
+    }
+
+    public boolean isWithTies() {
+        return withTies;
+    }
+
     /**
      * Add a parameter to the parameter list.
      *
@@ -577,7 +734,7 @@ public abstract class Query extends Prepared {
      */
     void addParameter(Parameter param) {
         if (parameters == null) {
-            parameters = New.arrayList();
+            parameters = Utils.newSmallArrayList();
         }
         parameters.add(param);
     }
@@ -610,4 +767,25 @@ public abstract class Query extends Prepared {
         isEverything(visitor);
         return visitor.getMaxDataModificationId();
     }
+
+    void appendLimitToSQL(StringBuilder buff) {
+        if (offsetExpr != null) {
+            String count = StringUtils.unEnclose(offsetExpr.getSQL());
+            buff.append("\nOFFSET ").append(count).append("1".equals(count) ? " ROW" : " ROWS");
+        }
+        if (limitExpr != null) {
+            buff.append("\nFETCH ").append(offsetExpr != null ? "NEXT" : "FIRST");
+            String count = StringUtils.unEnclose(limitExpr.getSQL());
+            boolean withCount = fetchPercent || !"1".equals(count);
+            if (withCount) {
+                buff.append(' ').append(count);
+                if (fetchPercent) {
+                    buff.append(" PERCENT");
+                }
+            }
+            buff.append(!withCount ? " ROW" : " ROWS")
+                    .append(withTies ? " WITH TIES" : " ONLY");
+        }
+    }
+
 }

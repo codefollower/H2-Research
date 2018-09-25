@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -72,7 +72,7 @@ public class ShardedMap<K, V> extends AbstractMap<K, V> {
         }
         int len = shards.length + 1;
         Shard<K, V>[] newShards = Arrays.copyOf(shards, len);
-        Shard<K, V> newShard = new Shard<K, V>();
+        Shard<K, V> newShard = new Shard<>();
         newShard.map = map;
         newShard.minIncluding = min;
         newShard.maxExcluding = max;
@@ -178,7 +178,7 @@ public class ShardedMap<K, V> extends AbstractMap<K, V> {
             }
         }
         if (isSimpleSplit(copy)) {
-            return new CombinedSet<K, V>(size(), copy);
+            return new CombinedSet<>(size(), copy);
         }
         return null;
     }

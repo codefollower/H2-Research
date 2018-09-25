@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -43,16 +43,19 @@ public class ConditionInSelect extends Condition {
     @Override
     public Value getValue(Session session) {
         query.setSession(session);
-        if (!query.hasOrder()) {
-            query.setDistinct(true);
-        }
-
-        // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
-        // 否则为false，
-        // 假设表中字段id的值是1到6，这条语句
-        // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
-        // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
-        // 如果改成ANY，那么什么记录都不删
+//<<<<<<< HEAD
+//        if (!query.hasOrder()) {
+//            query.setDistinct(true);
+//        }
+//
+//        // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
+//        // 否则为false，
+//        // 假设表中字段id的值是1到6，这条语句
+//        // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
+//        // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
+//        // 如果改成ANY，那么什么记录都不删
+//=======
+        query.setDistinctIfPossible();
         ResultInterface rows = query.query(0);
         Value l = left.getValue(session);
         if (!rows.hasNext()) {
@@ -60,7 +63,7 @@ public class ConditionInSelect extends Condition {
         } else if (l == ValueNull.INSTANCE) { //如果left是null，那么返回null
             return l;
         }
-        if (!session.getDatabase().getSettings().optimizeInSelect) {
+        if (!database.getSettings().optimizeInSelect) {
             return getValueSlow(rows, l);
         }
         if (all || (compareType != Comparison.EQUAL &&
@@ -71,19 +74,25 @@ public class ConditionInSelect extends Condition {
         
         //获得结果集中第一列的类型
         int dataType = rows.getColumnType(0);
-        //如果列的类型是null，那么返回false
-        if (dataType == Value.NULL) { 
-            return ValueBoolean.get(false);
+//<<<<<<< HEAD
+//        //如果列的类型是null，那么返回false
+//        if (dataType == Value.NULL) { 
+//            return ValueBoolean.get(false);
+//        }
+//        l = l.convertTo(dataType); //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
+//=======
+        if (dataType == Value.NULL) {
+            return ValueBoolean.FALSE;
         }
-        l = l.convertTo(dataType); //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
+        l = l.convertTo(dataType, database.getMode());
         if (rows.containsDistinct(new Value[] { l })) {
-            return ValueBoolean.get(true);
+            return ValueBoolean.TRUE;
         }
         //结果集中不包含left且有null，那么返回null
         if (rows.containsDistinct(new Value[] { ValueNull.INSTANCE })) {
             return ValueNull.INSTANCE;
         }
-        return ValueBoolean.get(false);
+        return ValueBoolean.FALSE;
     }
 
     private Value getValueSlow(ResultInterface rows, Value l) {
@@ -115,8 +124,8 @@ public class ConditionInSelect extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
-        left.mapColumns(resolver, level);
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
+        left.mapColumns(resolver, level, state);
         query.mapColumns(resolver, level + 1);
         this.queryLevel = Math.max(level, this.queryLevel); //没看到用处
     }
@@ -166,9 +175,9 @@ public class ConditionInSelect extends Condition {
     }
 
     @Override
-    public void updateAggregate(Session session) {
-        left.updateAggregate(session);
-        query.updateAggregate(session);
+    public void updateAggregate(Session session, int stage) {
+        left.updateAggregate(session, stage);
+        query.updateAggregate(session, stage);
     }
 
     @Override

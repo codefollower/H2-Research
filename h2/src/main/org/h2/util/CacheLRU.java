@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -40,18 +40,28 @@ public class CacheLRU implements Cache {
     /**
      * The maximum memory, in words (4 bytes each).
      */
-    private int maxMemory;
+    private long maxMemory;
 
     /**
      * The current memory used in this cache, in words (4 bytes each).
      */
-    private int memory;
+    private long memory;
 
     CacheLRU(CacheWriter writer, int maxMemoryKb, boolean fifo) {
         this.writer = writer;
         this.fifo = fifo;
         this.setMaxMemory(maxMemoryKb);
-        this.len = MathUtils.nextPowerOf2(maxMemory / 64);
+        try {
+            // Since setMaxMemory() ensures that maxMemory is >=0,
+            // we don't have to worry about an underflow.
+            long tmpLen = maxMemory / 64;
+            if (tmpLen > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException();
+            }
+            this.len = MathUtils.nextPowerOf2((int) tmpLen);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("This much cache memory is not supported: " + maxMemoryKb + "kb", e);
+        }
         this.mask = len - 1;
         clear();
     }
@@ -68,7 +78,7 @@ public class CacheLRU implements Cache {
             int cacheSize) {
         Map<Integer, CacheObject> secondLevel = null;
         if (cacheType.startsWith("SOFT_")) {
-            secondLevel = new SoftHashMap<Integer, CacheObject>();
+            secondLevel = new SoftHashMap<>();
             cacheType = cacheType.substring("SOFT_".length());
         }
         Cache cache;
@@ -92,7 +102,7 @@ public class CacheLRU implements Cache {
         values = null;
         values = new CacheObject[len];
         recordCount = 0;
-        memory = len * Constants.MEMORY_POINTER;
+        memory = len * (long)Constants.MEMORY_POINTER;
     }
 
     @Override
@@ -144,8 +154,8 @@ public class CacheLRU implements Cache {
 
     private void removeOld() {
         int i = 0;
-        ArrayList<CacheObject> changed = New.arrayList();
-        int mem = memory;
+        ArrayList<CacheObject> changed = new ArrayList<>();
+        long mem = memory;
         int rc = recordCount;
         boolean flushed = false;
         CacheObject next = head.cacheNext;
@@ -153,7 +163,7 @@ public class CacheLRU implements Cache {
             if (rc <= Constants.CACHE_MIN_RECORDS) {
                 break;
             }
-            if (changed.size() == 0) {
+            if (changed.isEmpty()) {
                 if (mem <= maxMemory) {
                     break;
                 }
@@ -199,17 +209,17 @@ public class CacheLRU implements Cache {
                 remove(check.getPos());
             }
         }
-        if (changed.size() > 0) {
+        if (!changed.isEmpty()) {
             if (!flushed) {
                 writer.flushLog();
             }
             Collections.sort(changed);
-            int max = maxMemory;
+            long max = maxMemory;
             int size = changed.size();
             try {
                 // temporary disable size checking,
                 // to avoid stack overflow
-                maxMemory = Integer.MAX_VALUE;
+                maxMemory = Long.MAX_VALUE;
                 for (i = 0; i < size; i++) {
                     CacheObject rec = changed.get(i);
                     writer.writeBack(rec);
@@ -339,7 +349,7 @@ public class CacheLRU implements Cache {
         // if(Database.CHECK) {
         // testConsistency();
         // }
-        ArrayList<CacheObject> list = New.arrayList();
+        ArrayList<CacheObject> list = new ArrayList<>();
         CacheObject rec = head.cacheNext;
         while (rec != head) {
             if (rec.isChanged()) {
@@ -352,7 +362,7 @@ public class CacheLRU implements Cache {
 
     @Override
     public void setMaxMemory(int maxKb) {
-        int newSize = MathUtils.convertLongToInt(maxKb * 1024L / 4);
+        long newSize = maxKb * 1024L / 4;
         maxMemory = newSize < 0 ? 0 : newSize;
         // can not resize, otherwise existing records are lost
         // resize(maxSize);

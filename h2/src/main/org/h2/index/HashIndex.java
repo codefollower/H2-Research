@@ -1,11 +1,11 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
-import java.util.HashSet;
+import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.result.Row;
@@ -33,14 +33,14 @@ public class HashIndex extends BaseIndex {
 
     public HashIndex(RegularTable table, int id, String indexName,
             IndexColumn[] columns, IndexType indexType) {
-        initBaseIndex(table, id, indexName, columns, indexType);
+        super(table, id, indexName, columns, indexType);
         this.indexColumn = columns[0].column.getColumnId();
         this.tableData = table;
         reset();
     }
 
     private void reset() {
-        rows = ValueHashMap.newInstance();
+        rows = new ValueHashMap<>();
     }
 
     @Override
@@ -77,7 +77,7 @@ public class HashIndex extends BaseIndex {
          * case we need to convert, otherwise the ValueHashMap will not find the
          * result.
          */
-        v = v.convertTo(tableData.getColumn(indexColumn).getType());
+        v = v.convertTo(tableData.getColumn(indexColumn).getType(), database.getMode());
         Row result;
         Long pos = rows.get(v);
         if (pos == null) {
@@ -90,7 +90,7 @@ public class HashIndex extends BaseIndex {
 
     @Override
     public long getRowCount(Session session) {
-        return getRowCountApproximation();
+        return rows.size();
     }
 
     @Override
@@ -116,7 +116,7 @@ public class HashIndex extends BaseIndex {
     @Override
     public double getCost(Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
-            HashSet<Column> allColumnsSet) {
+            AllColumnsForPlan allColumnsSet) {
         for (Column column : columns) {
             int index = column.getColumnId();
             int mask = masks[index];

@@ -1,19 +1,20 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
+import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.command.dml.Select;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.SysProperties;
-import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Comparison;
 import org.h2.expression.ConditionAndOr;
 import org.h2.expression.Expression;
@@ -27,9 +28,9 @@ import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 import org.h2.value.Value;
 import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
@@ -79,14 +80,18 @@ public class TableFilter implements ColumnResolver {
     /**
      * The index conditions used for direct index lookup (start or end).
      */
-    //由where条件生成，见org.h2.command.dml.Select.prepare()的condition.createIndexConditions(session, f);
-    //索引条件是用来快速定位索引的开始和结束位置的，比如有一个id的索引字段，值从1到10，
-    //现在有一个where id>3 and id<7的条件，那么在查找前，索引就事先定位到3和7的位置了
-    //见org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)
-    //这8种类型的表达式能建立索引条件
-    //Comparison、CompareLike、ConditionIn、ConditionInSelect、ConditionInConstantSet、
-    //ConditionAndOr、ExpressionColumn、ValueExpression
-    private final ArrayList<IndexCondition> indexConditions = New.arrayList();
+//<<<<<<< HEAD
+//    //由where条件生成，见org.h2.command.dml.Select.prepare()的condition.createIndexConditions(session, f);
+//    //索引条件是用来快速定位索引的开始和结束位置的，比如有一个id的索引字段，值从1到10，
+//    //现在有一个where id>3 and id<7的条件，那么在查找前，索引就事先定位到3和7的位置了
+//    //见org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)
+//    //这8种类型的表达式能建立索引条件
+//    //Comparison、CompareLike、ConditionIn、ConditionInSelect、ConditionInConstantSet、
+//    //ConditionAndOr、ExpressionColumn、ValueExpression
+//    private final ArrayList<IndexCondition> indexConditions = New.arrayList();
+//=======
+    private final ArrayList<IndexCondition> indexConditions = Utils.newSmallArrayList();
+
     /**
      * Additional conditions that can't be used for index lookup, but for row
      * filter for this table (ID=ID, NAME LIKE '%X%')
@@ -130,6 +135,8 @@ public class TableFilter implements ColumnResolver {
     private Expression fullCondition;
     private final int hashCode;
     private final int orderInFrom;
+
+    private HashMap<Column, String> derivedColumnMap;
 
     /**
      * Create a new table filter object.
@@ -254,13 +261,13 @@ public class TableFilter implements ColumnResolver {
 //            item.cost -= item.cost * indexConditions.size() / 100 / level;
 //=======
     public PlanItem getBestPlanItem(Session s, TableFilter[] filters, int filter,
-            HashSet<Column> allColumnsSet) {
+            AllColumnsForPlan allColumnsSet) {
         PlanItem item1 = null;
         SortOrder sortOrder = null;
         if (select != null) {
             sortOrder = select.getSortOrder();
         }
-        if (indexConditions.size() == 0) {
+        if (indexConditions.isEmpty()) {
             item1 = new PlanItem();
             item1.setIndex(table.getScanIndex(s, null, filters, filter,
                     sortOrder, allColumnsSet));
@@ -293,14 +300,14 @@ public class TableFilter implements ColumnResolver {
         }
 
         if (nestedJoin != null) {
-            setEvaluatable(nestedJoin);
+            setEvaluatable(true);
             item.setNestedJoinPlan(nestedJoin.getBestPlanItem(s, filters, filter, allColumnsSet));
             // TODO optimizer: calculate cost of a join: should use separate
             // expected row number and lookup cost
             item.cost += item.cost * item.getNestedJoinPlan().cost;
         }
         if (join != null) {
-            setEvaluatable(join);
+            setEvaluatable(true);
             do {
                 filter++;
             } while (filters[filter] != join);
@@ -310,25 +317,6 @@ public class TableFilter implements ColumnResolver {
             item.cost += item.cost * item.getJoinPlan().cost;
         }
         return item;
-    }
-
-    private void setEvaluatable(TableFilter join) {
-        if (session.getDatabase().getSettings().nestedJoins) {
-            setEvaluatable(true);
-            return;
-        }
-        // this table filter is now evaluatable - in all sub-joins
-        do {
-            Expression e = join.getJoinCondition();
-            if (e != null) {
-                e.setEvaluatable(this, true);
-            }
-            TableFilter n = join.getNestedJoin();
-            if (n != null) {
-                setEvaluatable(n);
-            }
-            join = join.getJoin();
-        } while (join != null);
     }
 
     /**
@@ -347,12 +335,31 @@ public class TableFilter implements ColumnResolver {
         if (nestedJoin != null) {
             if (item.getNestedJoinPlan() != null) {
                 nestedJoin.setPlanItem(item.getNestedJoinPlan());
+            } else {
+                nestedJoin.setScanIndexes();
             }
         }
         if (join != null) {
             if (item.getJoinPlan() != null) {
                 join.setPlanItem(item.getJoinPlan());
+            } else {
+                join.setScanIndexes();
             }
+        }
+    }
+
+    /**
+     * Set all missing indexes to scan indexes recursively.
+     */
+    private void setScanIndexes() {
+        if (index == null) {
+            setIndex(table.getScanIndex(session));
+        }
+        if (join != null) {
+            join.setScanIndexes();
+        }
+        if (nestedJoin != null) {
+            nestedJoin.setScanIndexes();
         }
     }
 
@@ -447,7 +454,7 @@ public class TableFilter implements ColumnResolver {
         }
         // check if we are at the top table filters all the way up
         SubQueryInfo info = session.getSubQueryInfo();
-        for (;;) {
+        while (true) {
             if (info == null) {
                 return true;
             }
@@ -682,8 +689,6 @@ public class TableFilter implements ColumnResolver {
 
     private void checkTimeout() {
         session.checkCanceled();
-        // System.out.println(this.alias+ " " + table.getName() + ": " +
-        // scanCount);
     }
 
     /**
@@ -694,10 +699,7 @@ public class TableFilter implements ColumnResolver {
      * @return true if yes
      */
     boolean isOk(Expression condition) {
-        if (condition == null) {
-            return true;
-        }
-        return Boolean.TRUE.equals(condition.getBooleanValue(session));
+        return condition == null || condition.getBooleanValue(session);
     }
 
     /**
@@ -776,86 +778,88 @@ public class TableFilter implements ColumnResolver {
      *
      * @param filter the joined table filter
      * @param outer if this is an outer join
-     * @param nested if this is a nested join
      * @param on the join condition
      */
-    //没有发现outer、nested同时为true的
-    //on这个joinCondition是加到filter参数对应的TableFilter中，也就是右表，而不是左表
-    public void addJoin(TableFilter filter, boolean outer, boolean nested, final Expression on) {
-    	//给on中的ExpressionColumn设置columnResolver，
-    	//TableFilter实现了ColumnResolver接口，所以ExpressionColumn的columnResolver实际上就是TableFilter对象
-    	//另外，下面的两个visit能查出多个Table之间的列是否同名
+//<<<<<<< HEAD
+//    //没有发现outer、nested同时为true的
+//    //on这个joinCondition是加到filter参数对应的TableFilter中，也就是右表，而不是左表
+//    public void addJoin(TableFilter filter, boolean outer, boolean nested, final Expression on) {
+//    	//给on中的ExpressionColumn设置columnResolver，
+//    	//TableFilter实现了ColumnResolver接口，所以ExpressionColumn的columnResolver实际上就是TableFilter对象
+//    	//另外，下面的两个visit能查出多个Table之间的列是否同名
+//=======
+    public void addJoin(TableFilter filter, boolean outer, Expression on) {
         if (on != null) {
-            on.mapColumns(this, 0);
-            if (session.getDatabase().getSettings().nestedJoins) {
-                visit(new TableFilterVisitor() {
-                    @Override
-                    public void accept(TableFilter f) {
-                        on.mapColumns(f, 0);
-                    }
-                });
-                filter.visit(new TableFilterVisitor() {
-                    @Override
-                    public void accept(TableFilter f) {
-                        on.mapColumns(f, 0);
-                    }
-                });
-            }
+            on.mapColumns(this, 0, Expression.MAP_INITIAL);
+            TableFilterVisitor visitor = new MapColumnsVisitor(on);
+            visit(visitor);
+            filter.visit(visitor);
         }
-        if (nested && session.getDatabase().getSettings().nestedJoins) {
-            if (nestedJoin != null) {
-                throw DbException.throwInternalError();
-            }
-            //很少有嵌套join，只在org.h2.command.Parser.getNested(TableFilter)看到有
-            //被一个DualTable(一个min和max都为1的RangeTable)嵌套
-            //还有一种情况是先LEFT OUTER JOIN再NATURAL JOIN
-            //如from JoinTest1 LEFT OUTER JOIN JoinTest3 NATURAL JOIN JoinTest2
-            nestedJoin = filter;
+//<<<<<<< HEAD
+//        if (nested && session.getDatabase().getSettings().nestedJoins) {
+//            if (nestedJoin != null) {
+//                throw DbException.throwInternalError();
+//            }
+//            //很少有嵌套join，只在org.h2.command.Parser.getNested(TableFilter)看到有
+//            //被一个DualTable(一个min和max都为1的RangeTable)嵌套
+//            //还有一种情况是先LEFT OUTER JOIN再NATURAL JOIN
+//            //如from JoinTest1 LEFT OUTER JOIN JoinTest3 NATURAL JOIN JoinTest2
+//            nestedJoin = filter;
+//=======
+        if (join == null) {
+            join = filter;
             filter.joinOuter = outer;
             if (outer) {
-                visit(new TableFilterVisitor() {
-                    @Override
-                    public void accept(TableFilter f) {
-                        f.joinOuterIndirect = true;
-                    }
-                });
+                filter.visit(new JOIVisitor());
             }
             if (on != null) {
                 filter.mapAndAddFilter(on);
             }
         } else {
-            if (join == null) {
-                join = filter;
-                filter.joinOuter = outer;
-                if (session.getDatabase().getSettings().nestedJoins) {
-                    if (outer) {
-                    	//filter自身和filter的nestedJoin和join字段对应的filter的joinOuterIndirect都为true
-                    	//nestedJoin和join字段对应的filter继续递归所有的nestedJoin和join字段
-                        filter.visit(new TableFilterVisitor() {
-                            @Override
-                            public void accept(TableFilter f) {
-                                f.joinOuterIndirect = true;
-                            }
-                        });
-                    }
-                } else {
-                    if (outer) {
-                        //当nestedJoins为false时，nestedJoin字段不会有值，都是join字段有值，
-                        // convert all inner joins on the right hand side to outer joins
-                        TableFilter f = filter.join;
-                        while (f != null) {
-                            f.joinOuter = true;
-                            f = f.join;
-                        }
-                    }
-                }
-                if (on != null) {
-                    filter.mapAndAddFilter(on);
-                }
-            } else {
-                join.addJoin(filter, outer, nested, on);
-            }
+//<<<<<<< HEAD
+//            if (join == null) {
+//                join = filter;
+//                filter.joinOuter = outer;
+//                if (session.getDatabase().getSettings().nestedJoins) {
+//                    if (outer) {
+//                    	//filter自身和filter的nestedJoin和join字段对应的filter的joinOuterIndirect都为true
+//                    	//nestedJoin和join字段对应的filter继续递归所有的nestedJoin和join字段
+//                        filter.visit(new TableFilterVisitor() {
+//                            @Override
+//                            public void accept(TableFilter f) {
+//                                f.joinOuterIndirect = true;
+//                            }
+//                        });
+//                    }
+//                } else {
+//                    if (outer) {
+//                        //当nestedJoins为false时，nestedJoin字段不会有值，都是join字段有值，
+//                        // convert all inner joins on the right hand side to outer joins
+//                        TableFilter f = filter.join;
+//                        while (f != null) {
+//                            f.joinOuter = true;
+//                            f = f.join;
+//                        }
+//                    }
+//                }
+//                if (on != null) {
+//                    filter.mapAndAddFilter(on);
+//                }
+//            } else {
+//                join.addJoin(filter, outer, nested, on);
+//            }
+//=======
+            join.addJoin(filter, outer, on);
         }
+    }
+
+    /**
+     * Set a nested joined table.
+     *
+     * @param filter the joined table filter
+     */
+    public void setNestedJoin(TableFilter filter) {
+        nestedJoin = filter;
     }
 
     /**
@@ -864,11 +868,11 @@ public class TableFilter implements ColumnResolver {
      * @param on the condition
      */
     public void mapAndAddFilter(Expression on) {
-        on.mapColumns(this, 0);
+        on.mapColumns(this, 0, Expression.MAP_INITIAL);
         addFilterCondition(on, true);
         on.createIndexConditions(session, this);
         if (nestedJoin != null) {
-            on.mapColumns(nestedJoin, 0);
+            on.mapColumns(nestedJoin, 0, Expression.MAP_INITIAL);
             on.createIndexConditions(session, nestedJoin);
         }
         if (join != null) {
@@ -915,7 +919,7 @@ public class TableFilter implements ColumnResolver {
             }
         }
         if (nestedJoin != null) {
-            StringBuffer buffNested = new StringBuffer();
+            StringBuilder buffNested = new StringBuilder();
             TableFilter n = nestedJoin;
             do {
                 buffNested.append(n.getPlanSQL(n != nestedJoin));
@@ -944,7 +948,7 @@ public class TableFilter implements ColumnResolver {
             return buff.toString();
         }
         if (table.isView() && ((TableView) table).isRecursive()) {
-            buff.append(table.getName());
+            buff.append(table.getSchema().getSQL()).append('.').append(Parser.quoteIdentifier(table.getName()));
         } else {
             buff.append(table.getSQL());
         }
@@ -974,7 +978,7 @@ public class TableFilter implements ColumnResolver {
                 IndexLookupBatch lookupBatch = joinBatch.getLookupBatch(joinFilterId);
                 if (lookupBatch == null) {
                     if (joinFilterId != 0) {
-                        throw DbException.throwInternalError("" + joinFilterId);
+                        throw DbException.throwInternalError(Integer.toString(joinFilterId));
                     }
                 } else {
                     planBuff.append("batched:");
@@ -984,7 +988,7 @@ public class TableFilter implements ColumnResolver {
                 }
             }
             planBuff.append(index.getPlanSQL());
-            if (indexConditions.size() > 0) {
+            if (!indexConditions.isEmpty()) {
                 planBuff.append(": ");
                 for (IndexCondition condition : indexConditions) {
                     planBuff.appendExceptFirst("\n    AND ");
@@ -1162,6 +1166,12 @@ public class TableFilter implements ColumnResolver {
         return table.getColumns();
     }
 
+    @Override
+    public String getDerivedColumnName(Column column) {
+        HashMap<Column, String> map = derivedColumnMap;
+        return map != null ? map.get(column) : null;
+    }
+
     /**
      * Get the system columns that this table understands. This is used for
      * compatibility with other databases. The columns are only returned if the
@@ -1226,6 +1236,30 @@ public class TableFilter implements ColumnResolver {
         this.alias = alias;
     }
 
+    /**
+     * Set derived column list.
+     *
+     * @param derivedColumnNames names of derived columns
+     */
+    public void setDerivedColumns(ArrayList<String> derivedColumnNames) {
+        Column[] columns = getColumns();
+        int count = columns.length;
+        if (count != derivedColumnNames.size()) {
+            throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
+        }
+        HashMap<Column, String> map = new HashMap<>();
+        for (int i = 0; i < count; i++) {
+            String alias = derivedColumnNames.get(i);
+            for (int j = 0; j < i; j++) {
+                if (alias.equals(derivedColumnNames.get(j))) {
+                    throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, alias);
+                }
+            }
+            map.put(columns[i], alias);
+        }
+        this.derivedColumnMap = map;
+    }
+
     @Override
     public Expression optimize(ExpressionColumn expressionColumn, Column column) {
         return expressionColumn;
@@ -1259,7 +1293,7 @@ public class TableFilter implements ColumnResolver {
      */
     public void addNaturalJoinColumn(Column c) {
         if (naturalJoinColumns == null) {
-            naturalJoinColumns = New.arrayList();
+            naturalJoinColumns = Utils.newSmallArrayList();
         }
         naturalJoinColumns.add(c);
     }
@@ -1310,14 +1344,8 @@ public class TableFilter implements ColumnResolver {
      *
      * @param forUpdateRows the rows to lock
      */
-    public void lockRows(ArrayList<Row> forUpdateRows) {
-        for (Row row : forUpdateRows) {
-            Row newRow = row.getCopy();
-            table.removeRow(session, row);
-            session.log(table, UndoLogRecord.DELETE, row);
-            table.addRow(session, newRow);
-            session.log(table, UndoLogRecord.INSERT, newRow);
-        }
+    public void lockRows(Iterable<Row> forUpdateRows) {
+        table.lockRows(session, forUpdateRows);
     }
 
     public TableFilter getNestedJoin() {
@@ -1365,4 +1393,34 @@ public class TableFilter implements ColumnResolver {
          */
         void accept(TableFilter f);
     }
+
+    /**
+     * A visitor that maps columns.
+     */
+    private static final class MapColumnsVisitor implements TableFilterVisitor {
+        private final Expression on;
+
+        MapColumnsVisitor(Expression on) {
+            this.on = on;
+        }
+
+        @Override
+        public void accept(TableFilter f) {
+            on.mapColumns(f, 0, Expression.MAP_INITIAL);
+        }
+    }
+
+    /**
+     * A visitor that sets joinOuterIndirect to true.
+     */
+    private static final class JOIVisitor implements TableFilterVisitor {
+        JOIVisitor() {
+        }
+
+        @Override
+        public void accept(TableFilter f) {
+            f.joinOuterIndirect = true;
+        }
+    }
+
 }

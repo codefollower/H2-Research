@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -122,7 +122,6 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
         for (int i = 0; args != null && i < args.length; i++) {
             String arg = args[i];
             if (arg == null) {
-                continue;
             } else if ("-?".equals(arg) || "-help".equals(arg)) {
                 // ok
             } else if (arg.startsWith("-web")) {
@@ -218,7 +217,6 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
         for (int i = 0; args != null && i < args.length; i++) {
             String arg = args[i];
             if (arg == null) {
-                continue;
             } else if ("-?".equals(arg) || "-help".equals(arg)) {
                 showUsage();
                 return;
@@ -655,7 +653,7 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
                 if (supported) {
                     // Desktop.getDesktop();
                     Object desktop = desktopClass.getMethod("getDesktop").
-                        invoke(null, new Object[0]);
+                        invoke(null);
                     // desktop.browse(uri);
                     desktopClass.getMethod("browse", URI.class).
                         invoke(desktop, uri);
@@ -706,8 +704,28 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
      * @param conn the database connection (the database must be open)
      */
     public static void startWebServer(Connection conn) throws SQLException {
+        startWebServer(conn, false);
+    }
+
+    /**
+     * Start a web server and a browser that uses the given connection. The
+     * current transaction is preserved. This is specially useful to manually
+     * inspect the database when debugging. This method return as soon as the
+     * user has disconnected.
+     *
+     * @param conn the database connection (the database must be open)
+     * @param ignoreProperties if {@code true} properties from
+     *         {@code .h2.server.properties} will be ignored
+     */
+    public static void startWebServer(Connection conn, boolean ignoreProperties) throws SQLException {
         WebServer webServer = new WebServer();
-        Server web = new Server(webServer, new String[] { "-webPort", "0" });
+        String[] args;
+        if (ignoreProperties) {
+            args = new String[] { "-webPort", "0", "-properties", "null"};
+        } else {
+            args = new String[] { "-webPort", "0" };
+        }
+        Server web = new Server(webServer, args);
         web.start();
         Server server = new Server();
         server.web = web;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,12 +14,13 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.h2.test.TestBase;
+import org.h2.test.TestDb;
 import org.h2.util.Utils;
 
 /**
  * Tests the memory usage of the cache.
  */
-public class TestMemoryUsage extends TestBase {
+public class TestMemoryUsage extends TestDb {
 
     private Connection conn;
 
@@ -62,14 +63,17 @@ public class TestMemoryUsage extends TestBase {
         }
         deleteDb("memoryUsage");
         conn = getConnection("memoryUsage");
-        eatMemory(4000);
-        for (int i = 0; i < 4000; i++) {
-            Connection c2 = getConnection("memoryUsage");
-            c2.createStatement();
-            c2.close();
+        try {
+            eatMemory(4000);
+            for (int i = 0; i < 4000; i++) {
+                Connection c2 = getConnection("memoryUsage");
+                c2.createStatement();
+                c2.close();
+            }
+        } finally {
+            freeMemory();
+            conn.close();
         }
-        freeMemory();
-        conn.close();
     }
 
     private void testCreateDropLoop() throws SQLException {
@@ -140,8 +144,8 @@ public class TestMemoryUsage extends TestBase {
                 }
             }
         } finally {
-            conn.close();
             freeMemory();
+            conn.close();
         }
     }
 

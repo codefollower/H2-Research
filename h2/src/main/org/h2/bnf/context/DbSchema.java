@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,8 +11,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 import org.h2.engine.SysProperties;
-import org.h2.util.New;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 
 /**
  * Contains meta data information about a database schema.
@@ -58,7 +58,7 @@ public class DbSchema {
     DbSchema(DbContents contents, String name, boolean isDefault) {
         this.contents = contents;
         this.name = name;
-        this.quotedName =  contents.quoteIdentifier(name);
+        this.quotedName = contents.quoteIdentifier(name);
         this.isDefault = isDefault;
         if (name == null) {
             // firebird
@@ -108,7 +108,7 @@ public class DbSchema {
     public void readTables(DatabaseMetaData meta, String[] tableTypes)
             throws SQLException {
         ResultSet rs = meta.getTables(null, name, null, tableTypes);
-        ArrayList<DbTableOrView> list = New.arrayList();
+        ArrayList<DbTableOrView> list = new ArrayList<>();
         while (rs.next()) {
             DbTableOrView table = new DbTableOrView(this, rs);
             if (contents.isOracle() && table.getName().indexOf('$') > 0) {
@@ -117,8 +117,7 @@ public class DbSchema {
             list.add(table);
         }
         rs.close();
-        tables = new DbTableOrView[list.size()];
-        list.toArray(tables);
+        tables = list.toArray(new DbTableOrView[0]);
         if (tables.length < SysProperties.CONSOLE_MAX_TABLES_LIST_COLUMNS) {
             for (DbTableOrView tab : tables) {
                 try {
@@ -135,19 +134,19 @@ public class DbSchema {
     }
 
     /**
-     * Read all procedures in the dataBase.
+     * Read all procedures in the database.
+     *
      * @param meta the database meta data
      * @throws SQLException Error while fetching procedures
      */
     public void readProcedures(DatabaseMetaData meta) throws SQLException {
         ResultSet rs = meta.getProcedures(null, name, null);
-        ArrayList<DbProcedure> list = New.arrayList();
+        ArrayList<DbProcedure> list = Utils.newSmallArrayList();
         while (rs.next()) {
             list.add(new DbProcedure(this, rs));
         }
         rs.close();
-        procedures = new DbProcedure[list.size()];
-        list.toArray(procedures);
+        procedures = list.toArray(new DbProcedure[0]);
         if (procedures.length < SysProperties.CONSOLE_MAX_PROCEDURES_LIST_COLUMNS) {
             for (DbProcedure procedure : procedures) {
                 procedure.readParameters(meta);

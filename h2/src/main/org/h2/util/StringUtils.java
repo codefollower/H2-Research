@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,12 +7,13 @@ package org.h2.util;
 
 import java.lang.ref.SoftReference;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import org.h2.api.ErrorCode;
-import org.h2.engine.Constants;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 
@@ -21,8 +22,7 @@ import org.h2.message.DbException;
  */
 public class StringUtils {
 
-    private static SoftReference<String[]> softCache =
-            new SoftReference<String[]>(null);
+    private static SoftReference<String[]> softCache;
     private static long softCacheCreatedNs;
 
     private static final char[] HEX = "0123456789abcdef".toCharArray();
@@ -69,25 +69,11 @@ public class StringUtils {
         }
         try {
             cache = new String[SysProperties.OBJECT_CACHE_SIZE];
-            softCache = new SoftReference<String[]>(cache);
+            softCache = new SoftReference<>(cache);
             return cache;
         } finally {
             softCacheCreatedNs = System.nanoTime();
         }
-    }
-
-    /**
-     * Check if two strings are equal. Here, null is equal to null.
-     *
-     * @param a the first value
-     * @param b the second value
-     * @return true if both are null or both are equal
-     */
-    public static boolean equals(String a, String b) {
-        if (a == null) {
-            return b == null;
-        }
-        return a.equals(b);
     }
 
     /**
@@ -121,20 +107,6 @@ public class StringUtils {
      */
     public static String toLowerEnglish(String s) {
         return s.toLowerCase(Locale.ENGLISH);
-    }
-
-    /**
-     * Check is a string starts with another string, ignoring the case.
-     *
-     * @param s the string to check (must be longer than start)
-     * @param start the prefix of s
-     * @return true if start is a prefix of s
-     */
-    public static boolean startsWithIgnoreCase(String s, String start) {
-        if (s.length() < start.length()) {
-            return false;
-        }
-        return s.substring(0, start.length()).equalsIgnoreCase(start);
     }
 
     /**
@@ -176,8 +148,13 @@ public class StringUtils {
      * @return the Java representation
      */
     public static String javaEncode(String s) {
+        StringBuilder buff = new StringBuilder(s.length());
+        javaEncode(s, buff);
+        return buff.toString();
+    }
+
+    public static void javaEncode(String s, StringBuilder buff) {
         int length = s.length();
-        StringBuilder buff = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
             char c = s.charAt(i);
             switch (c) {
@@ -230,7 +207,6 @@ public class StringUtils {
                 }
             }
         }
-        return buff.toString();
     }
 
     /**
@@ -454,8 +430,7 @@ public class StringUtils {
                 buff[j++] = (byte) ch;
             }
         }
-        String s = new String(buff, 0, j, Constants.UTF8);
-        return s;
+        return new String(buff, 0, j, StandardCharsets.UTF_8);
     }
 
     /**
@@ -476,7 +451,7 @@ public class StringUtils {
         if (length == 0) {
             return new String[0];
         }
-        ArrayList<String> list = New.arrayList();
+        ArrayList<String> list = Utils.newSmallArrayList();
         StringBuilder buff = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
             char c = s.charAt(i);
@@ -492,9 +467,7 @@ public class StringUtils {
         }
         String e = buff.toString();
         list.add(trim ? e.trim() : e);
-        String[] array = new String[list.size()];
-        list.toArray(array);
-        return array;
+        return list.toArray(new String[0]);
     }
 
     /**
@@ -598,7 +571,7 @@ public class StringUtils {
             }
             int n = s.indexOf('\n', i);
             n = n < 0 ? s.length() : n + 1;
-            buff.append(s.substring(i, n));
+            buff.append(s, i, n);
             i = n;
         }
         if (newline && !s.endsWith("\n")) {
@@ -689,7 +662,8 @@ public class StringUtils {
                 buff.append("&amp;");
                 break;
             case '\'':
-                buff.append("&apos;");
+                // &apos; is not valid in HTML
+                buff.append("&#39;");
                 break;
             case '\"':
                 buff.append("&quot;");
@@ -721,7 +695,10 @@ public class StringUtils {
     }
 
     /**
-     * Replace all occurrences of the before string with the after string.
+     * Replace all occurrences of the before string with the after string. Unlike
+     * {@link String#replaceAll(String, String)} this method reads {@code before}
+     * and {@code after} arguments as plain strings and if {@code before} argument
+     * is an empty string this method returns original string {@code s}.
      *
      * @param s the string
      * @param before the old text
@@ -730,18 +707,18 @@ public class StringUtils {
      */
     public static String replaceAll(String s, String before, String after) {
         int next = s.indexOf(before);
-        if (next < 0) {
+        if (next < 0 || before.isEmpty()) {
             return s;
         }
         StringBuilder buff = new StringBuilder(
                 s.length() - before.length() + after.length());
         int index = 0;
         while (true) {
-            buff.append(s.substring(index, next)).append(after);
+            buff.append(s, index, next).append(after);
             index = next + before.length();
             next = s.indexOf(before, index);
             if (next < 0) {
-                buff.append(s.substring(index));
+                buff.append(s, index, s.length());
                 break;
             }
         }
@@ -846,9 +823,7 @@ public class StringUtils {
         if (len == 0) {
             return chars;
         }
-        char[] copy = new char[len];
-        System.arraycopy(chars, 0, copy, 0, len);
-        return copy;
+        return Arrays.copyOf(chars, len);
     }
 
     /**
@@ -863,23 +838,51 @@ public class StringUtils {
      */
     public static String trim(String s, boolean leading, boolean trailing,
             String sp) {
-        char space = (sp == null || sp.length() < 1) ? ' ' : sp.charAt(0);
+        char space = sp == null || sp.isEmpty() ? ' ' : sp.charAt(0);
+        int begin = 0, end = s.length();
         if (leading) {
-            int len = s.length(), i = 0;
-            while (i < len && s.charAt(i) == space) {
-                i++;
+            while (begin < end && s.charAt(begin) == space) {
+                begin++;
             }
-            s = (i == 0) ? s : s.substring(i);
         }
         if (trailing) {
-            int endIndex = s.length() - 1;
-            int i = endIndex;
-            while (i >= 0 && s.charAt(i) == space) {
-                i--;
+            while (end > begin && s.charAt(end - 1) == space) {
+                end--;
             }
-            s = i == endIndex ? s : s.substring(0, i + 1);
         }
-        return s;
+        // substring() returns self if start == 0 && end == length()
+        return s.substring(begin, end);
+    }
+
+    /**
+     * Trim a character from a substring. Equivalent of
+     * {@code substring(beginIndex).trim()}.
+     *
+     * @param s the string
+     * @param beginIndex start index of substring (inclusive)
+     * @return trimmed substring
+     */
+    public static String trimSubstring(String s, int beginIndex) {
+        return trimSubstring(s, beginIndex, s.length());
+    }
+
+    /**
+     * Trim a character from a substring. Equivalent of
+     * {@code substring(beginIndex, endIndex).trim()}.
+     *
+     * @param s the string
+     * @param beginIndex start index of substring (inclusive)
+     * @param endIndex end index of substring (exclusive)
+     * @return trimmed substring
+     */
+    public static String trimSubstring(String s, int beginIndex, int endIndex) {
+        while (beginIndex < endIndex && s.charAt(beginIndex) <= ' ') {
+            beginIndex++;
+        }
+        while (beginIndex < endIndex && s.charAt(endIndex - 1) <= ' ') {
+            endIndex--;
+        }
+        return s.substring(beginIndex, endIndex);
     }
 
     /**
@@ -918,7 +921,39 @@ public class StringUtils {
      * Clear the cache. This method is used for testing.
      */
     public static void clearCache() {
-        softCache = new SoftReference<String[]>(null);
+        softCache = null;
+    }
+
+    /**
+     * Parses an unsigned 31-bit integer. Neither - nor + signs are allowed.
+     *
+     * @param s string to parse
+     * @param start the beginning index, inclusive
+     * @param end the ending index, exclusive
+     * @return the unsigned {@code int} not greater than {@link Integer#MAX_VALUE}.
+     */
+    public static int parseUInt31(String s, int start, int end) {
+        if (end > s.length() || start < 0 || start > end) {
+            throw new IndexOutOfBoundsException();
+        }
+        if (start == end) {
+            throw new NumberFormatException("");
+        }
+        int result = 0;
+        for (int i = start; i < end; i++) {
+            char ch = s.charAt(i);
+            // Ensure that character is valid and that multiplication by 10 will
+            // be performed without overflow
+            if (ch < '0' || ch > '9' || result > 214_748_364) {
+                throw new NumberFormatException(s.substring(start, end));
+            }
+            result = result * 10 + ch - '0';
+            if (result < 0) {
+                // Overflow
+                throw new NumberFormatException(s.substring(start, end));
+            }
+        }
+        return result;
     }
 
     /**
@@ -986,11 +1021,28 @@ public class StringUtils {
      * @return true if it is
      */
     public static boolean isNumber(String s) {
-        if (s.length() == 0) {
+        int l = s.length();
+        if (l == 0) {
             return false;
         }
-        for (char c : s.toCharArray()) {
-            if (!Character.isDigit(c)) {
+        for (int i = 0; i < l; i++) {
+            if (!Character.isDigit(s.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Check if the specified string is empty or contains only whitespace.
+     *
+     * @param s
+     *            the string
+     * @return whether the specified string is empty or contains only whitespace
+     */
+    public static boolean isWhitespaceOrEmpty(String s) {
+        for (int i = 0, l = s.length(); i < l; i++) {
+            if (s.charAt(i) > ' ') {
                 return false;
             }
         }

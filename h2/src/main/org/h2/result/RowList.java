@@ -1,17 +1,19 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
 
 import java.util.ArrayList;
+
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.store.Data;
 import org.h2.store.FileStore;
-import org.h2.util.New;
+import org.h2.util.Utils;
+import org.h2.value.DataType;
 import org.h2.value.Value;
 
 /**
@@ -24,7 +26,7 @@ import org.h2.value.Value;
 public class RowList {
 
     private final Session session;
-    private final ArrayList<Row> list = New.arrayList();
+    private final ArrayList<Row> list = Utils.newSmallArrayList();
     private int size;
     private int index, listIndex;
     private FileStore file;
@@ -58,7 +60,6 @@ public class RowList {
         buff.writeLong(r.getKey());
         buff.writeInt(r.getVersion());
         buff.writeInt(r.isDeleted() ? 1 : 0);
-        buff.writeInt(r.getSessionId());
         for (int i = 0; i < columnCount; i++) {
             Value v = r.getValue(i);
             buff.checkCapacity(1);
@@ -66,12 +67,12 @@ public class RowList {
                 buff.writeByte((byte) 0);
             } else {
                 buff.writeByte((byte) 1);
-                if (v.getType() == Value.CLOB || v.getType() == Value.BLOB) {
+                if (DataType.isLargeObject(v.getType())) {
                     // need to keep a reference to temporary lobs,
                     // otherwise the temp file is deleted
                     if (v.getSmall() == null && v.getTableId() == 0) {
                         if (lobs == null) {
-                            lobs = New.arrayList();
+                            lobs = Utils.newSmallArrayList();
                         }
                         // need to create a copy, otherwise,
                         // if stored multiple times, it may be renamed
@@ -176,7 +177,6 @@ public class RowList {
             key = 0;
         }
         boolean deleted = buff.readInt() == 1;
-        int sessionId = buff.readInt();
         Value[] values = new Value[columnCount];
         for (int i = 0; i < columnCount; i++) {
             Value v;
@@ -198,7 +198,6 @@ public class RowList {
         row.setKey(key);
         row.setVersion(version);
         row.setDeleted(deleted);
-        row.setSessionId(sessionId);
         return row;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -19,14 +19,15 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import org.h2.api.ErrorCode;
+import org.h2.api.IntervalQualifier;
 import org.h2.engine.Constants;
 import org.h2.engine.SessionInterface;
 import org.h2.message.DbException;
-import org.h2.mvstore.DataUtils;
 import org.h2.security.SHA256;
 import org.h2.store.Data;
 import org.h2.store.DataReader;
 import org.h2.tools.SimpleResultSet;
+import org.h2.util.Bits;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.IOUtils;
 import org.h2.util.JdbcUtils;
@@ -57,18 +58,11 @@ public class Transfer {
      * Create a new transfer object for the specified session.
      *
      * @param session the session
-     */
-    public Transfer(SessionInterface session) {
-        this.session = session;
-    }
-
-    /**
-     * Set the socket this object uses.
-     *
      * @param s the socket
      */
-    public void setSocket(Socket s) {
-        socket = s;
+    public Transfer(SessionInterface session, Socket s) {
+        this.session = session;
+        this.socket = s;
     }
 
     /**
@@ -110,7 +104,7 @@ public class Transfer {
      * @return the value
      */
     public boolean readBoolean() throws IOException {
-        return in.readByte() == 1;
+        return in.readByte() != 0;
     }
 
     /**
@@ -223,11 +217,8 @@ public class Transfer {
         if (s == null) {
             out.writeInt(-1);
         } else {
-            int len = s.length();
-            out.writeInt(len);
-            for (int i = 0; i < len; i++) {
-                out.writeChar(s.charAt(i));
-            }
+            out.writeInt(s.length());
+            out.writeChars(s);
         }
         return this;
     }
@@ -290,7 +281,7 @@ public class Transfer {
         if (len == -1) {
             return null;
         }
-        byte[] b = DataUtils.newBytes(len);
+        byte[] b = Utils.newBytes(len);
         in.readFully(b);
         return b;
     }
@@ -348,7 +339,7 @@ public class Transfer {
             break;
         }
         case Value.BOOLEAN:
-            writeBoolean(v.getBoolean().booleanValue());
+            writeBoolean(v.getBoolean());
             break;
         case Value.BYTE:
             writeByte(v.getByte());
@@ -356,19 +347,15 @@ public class Transfer {
         case Value.TIME:
             if (version >= Constants.TCP_PROTOCOL_VERSION_9) {
                 writeLong(((ValueTime) v).getNanos());
-            } else if (version >= Constants.TCP_PROTOCOL_VERSION_7) {
-                writeLong(DateTimeUtils.getTimeLocalWithoutDst(v.getTime()));
             } else {
-                writeLong(v.getTime().getTime());
+                writeLong(DateTimeUtils.getTimeLocalWithoutDst(v.getTime()));
             }
             break;
         case Value.DATE:
             if (version >= Constants.TCP_PROTOCOL_VERSION_9) {
                 writeLong(((ValueDate) v).getDateValue());
-            } else if (version >= Constants.TCP_PROTOCOL_VERSION_7) {
-                writeLong(DateTimeUtils.getTimeLocalWithoutDst(v.getDate()));
             } else {
-                writeLong(v.getDate().getTime());
+                writeLong(DateTimeUtils.getTimeLocalWithoutDst(v.getDate()));
             }
             break;
         case Value.TIMESTAMP: {
@@ -376,14 +363,10 @@ public class Transfer {
                 ValueTimestamp ts = (ValueTimestamp) v;
                 writeLong(ts.getDateValue());
                 writeLong(ts.getTimeNanos());
-            } else if (version >= Constants.TCP_PROTOCOL_VERSION_7) {
-                Timestamp ts = v.getTimestamp();
-                writeLong(DateTimeUtils.getTimeLocalWithoutDst(ts));
-                writeInt(ts.getNanos() % 1000000);
             } else {
                 Timestamp ts = v.getTimestamp();
-                writeLong(ts.getTime());
-                writeInt(ts.getNanos() % 1000000);
+                writeLong(DateTimeUtils.getTimeLocalWithoutDst(ts));
+                writeInt(ts.getNanos() % 1_000_000);
             }
             break;
         }
@@ -468,10 +451,6 @@ public class Transfer {
                 throw DbException.get(
                         ErrorCode.CONNECTION_BROKEN_1, "length=" + length);
             }
-            if (length > Integer.MAX_VALUE) {
-                throw DbException.get(
-                        ErrorCode.CONNECTION_BROKEN_1, "length="+ length);
-            }
             writeLong(length);
             Reader reader = v.getReader();
             Data.copyString(reader, out);
@@ -534,6 +513,30 @@ public class Transfer {
                 writeString(v.getString());
             }
             break;
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE: {
+            ValueInterval interval = (ValueInterval) v;
+            writeBoolean(interval.isNegative());
+            writeLong(interval.getLeading());
+            break;
+        }
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND: {
+            ValueInterval interval = (ValueInterval) v;
+            writeBoolean(interval.isNegative());
+            writeLong(interval.getLeading());
+            writeLong(interval.getRemaining());
+            break;
+        }
         default:
             if (JdbcUtils.customDataTypesHandler != null) {
                 writeBytes(v.getBytesNoCopy());
@@ -566,28 +569,24 @@ public class Transfer {
         case Value.DATE:
             if (version >= Constants.TCP_PROTOCOL_VERSION_9) {
                 return ValueDate.fromDateValue(readLong());
-            } else if (version >= Constants.TCP_PROTOCOL_VERSION_7) {
+            } else {
                 return ValueDate.fromMillis(DateTimeUtils.getTimeUTCWithoutDst(readLong()));
             }
-            return ValueDate.fromMillis(readLong());
         case Value.TIME:
             if (version >= Constants.TCP_PROTOCOL_VERSION_9) {
                 return ValueTime.fromNanos(readLong());
-            } else if (version >= Constants.TCP_PROTOCOL_VERSION_7) {
+            } else {
                 return ValueTime.fromMillis(DateTimeUtils.getTimeUTCWithoutDst(readLong()));
             }
-            return ValueTime.fromMillis(readLong());
         case Value.TIMESTAMP: {
             if (version >= Constants.TCP_PROTOCOL_VERSION_9) {
                 return ValueTimestamp.fromDateValueAndNanos(
                         readLong(), readLong());
-            } else if (version >= Constants.TCP_PROTOCOL_VERSION_7) {
+            } else {
                 return ValueTimestamp.fromMillisNanos(
                         DateTimeUtils.getTimeUTCWithoutDst(readLong()),
-                        readInt() % 1000000);
+                        readInt() % 1_000_000);
             }
-            return ValueTimestamp.fromMillisNanos(readLong(),
-                    readInt() % 1000000);
         }
         case Value.TIMESTAMP_TZ: {
             return ValueTimestampTimeZone.fromDateValueAndNanos(readLong(),
@@ -659,21 +658,10 @@ public class Transfer {
                     return ValueLobDb.create(
                             Value.CLOB, session.getDataHandler(), tableId, id, hmac, precision);
                 }
-                if (length < 0 || length > Integer.MAX_VALUE) {
+                if (length < 0) {
                     throw DbException.get(
                             ErrorCode.CONNECTION_BROKEN_1, "length="+ length);
                 }
-                DataReader reader = new DataReader(in);
-                int len = (int) length;
-                char[] buff = new char[len];
-                IOUtils.readFully(reader, buff, len);
-                int magic = readInt();
-                if (magic != LOB_MAGIC) {
-                    throw DbException.get(
-                            ErrorCode.CONNECTION_BROKEN_1, "magic=" + magic);
-                }
-                byte[] small = new String(buff).getBytes(Constants.UTF8);
-                return ValueLobDb.createSmallLob(Value.CLOB, small, length);
             }
             Value v = session.getDataHandler().getLobStorage().
                     createClob(new DataReader(in), length);
@@ -704,10 +692,7 @@ public class Transfer {
             for (int i = 0; i < columns; i++) {
                 rs.addColumn(readString(), readInt(), readInt(), readInt());
             }
-            while (true) {
-                if (!readBoolean()) {
-                    break;
-                }
+            while (readBoolean()) {
                 Object[] o = new Object[columns];
                 for (int i = 0; i < columns; i++) {
                     o[i] = readValue().getObject();
@@ -721,6 +706,23 @@ public class Transfer {
                 return ValueGeometry.get(readBytes());
             }
             return ValueGeometry.get(readString());
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE:
+            return ValueInterval.from(IntervalQualifier.valueOf(type - Value.INTERVAL_YEAR), readBoolean(), readLong(),
+                    0L);
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND:
+            return ValueInterval.from(IntervalQualifier.valueOf(type - Value.INTERVAL_YEAR), readBoolean(), readLong(),
+                    readLong());
         default:
             if (JdbcUtils.customDataTypesHandler != null) {
                 return JdbcUtils.customDataTypesHandler.convert(
@@ -766,8 +768,7 @@ public class Transfer {
         InetAddress address = socket.getInetAddress();
         int port = socket.getPort();
         Socket s2 = NetUtils.createSocket(address, port, ssl);
-        Transfer trans = new Transfer(null);
-        trans.setSocket(s2);
+        Transfer trans = new Transfer(null, s2);
         trans.setSSL(ssl);
         return trans;
     }
@@ -800,9 +801,8 @@ public class Transfer {
             lobMacSalt = MathUtils.secureRandomBytes(LOB_MAC_SALT_LENGTH);
         }
         byte[] data = new byte[8];
-        Utils.writeLong(data, 0, lobId);
-        byte[] hmacData = SHA256.getHashWithSalt(data, lobMacSalt);
-        return hmacData;
+        Bits.writeLong(data, 0, lobId);
+        return SHA256.getHashWithSalt(data, lobMacSalt);
     }
 
 }

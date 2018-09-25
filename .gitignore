@@ -1,6 +1,3 @@
-*.class
-target
-data
 /bin/
 /.settings/
 /.classpath
@@ -20,3 +17,6 @@ data
 .checkstyle
 /temp/
 /h2web/
+.pmd
+docs/html/testOutput.html
+target

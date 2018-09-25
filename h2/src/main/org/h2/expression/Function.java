@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,18 +10,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Locale;
-import java.util.TimeZone;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Command;
 import org.h2.command.Parser;
@@ -29,13 +27,15 @@ import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Mode;
 import org.h2.engine.Session;
+import org.h2.index.Index;
 import org.h2.message.DbException;
-import org.h2.mvstore.DataUtils;
+import org.h2.mode.FunctionsMSSQLServer;
+import org.h2.mode.FunctionsMySQL;
+import org.h2.mvstore.db.MVSpatialIndex;
 import org.h2.schema.Schema;
 import org.h2.schema.Sequence;
 import org.h2.security.BlockCipher;
 import org.h2.security.CipherFactory;
-import org.h2.security.SHA256;
 import org.h2.store.fs.FileUtils;
 import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
@@ -44,18 +44,19 @@ import org.h2.table.Table;
 import org.h2.table.TableFilter;
 import org.h2.tools.CompressTool;
 import org.h2.tools.Csv;
-import org.h2.util.AutoCloseInputStream;
+import org.h2.util.Bits;
+import org.h2.util.DateTimeFunctions;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.IOUtils;
 import org.h2.util.JdbcUtils;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
 import org.h2.util.ToChar;
 import org.h2.util.ToDateParser;
 import org.h2.util.Utils;
 import org.h2.value.DataType;
+import org.h2.value.ExtTypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
 import org.h2.value.ValueBoolean;
@@ -69,6 +70,7 @@ import org.h2.value.ValueResultSet;
 import org.h2.value.ValueString;
 import org.h2.value.ValueTime;
 import org.h2.value.ValueTimestamp;
+import org.h2.value.ValueTimestampTimeZone;
 import org.h2.value.ValueUuid;
 
 /**
@@ -84,7 +86,7 @@ public class Function extends Expression implements FunctionCall {
             TRUNCATE = 27, SECURE_RAND = 28, HASH = 29, ENCRYPT = 30,
             DECRYPT = 31, COMPRESS = 32, EXPAND = 33, ZERO = 34,
             RANDOM_UUID = 35, COSH = 36, SINH = 37, TANH = 38, LN = 39,
-            BITGET = 40;
+            BITGET = 40, ORA_HASH = 41;
 
     // String Functions: 字符串函数43个(文档只有38个)
     public static final int ASCII = 50, BIT_LENGTH = 51, CHAR = 52,
@@ -97,8 +99,8 @@ public class Function extends Expression implements FunctionCall {
             STRINGDECODE = 80, STRINGTOUTF8 = 81, UTF8TOSTRING = 82,
             XMLATTR = 83, XMLNODE = 84, XMLCOMMENT = 85, XMLCDATA = 86,
             XMLSTARTDOC = 87, XMLTEXT = 88, REGEXP_REPLACE = 89, RPAD = 90,
-            LPAD = 91, CONCAT_WS = 92, TO_CHAR = 93, TRANSLATE = 94, ORA_HASH = 95,
-            TO_DATE = 96, TO_TIMESTAMP = 97, ADD_MONTHS = 98;
+            LPAD = 91, CONCAT_WS = 92, TO_CHAR = 93, TRANSLATE = 94, /* 95 */
+            TO_DATE = 96, TO_TIMESTAMP = 97, ADD_MONTHS = 98, TO_TIMESTAMP_TZ = 99;
 
     //CONCAT_WS 表示:concat with separator
     
@@ -106,17 +108,26 @@ public class Function extends Expression implements FunctionCall {
     public static final int CURDATE = 100, CURTIME = 101, DATE_ADD = 102,
             DATE_DIFF = 103, DAY_NAME = 104, DAY_OF_MONTH = 105,
             DAY_OF_WEEK = 106, DAY_OF_YEAR = 107, HOUR = 108, MINUTE = 109,
-            MONTH = 110, MONTH_NAME = 111, NOW = 112, QUARTER = 113,
+            MONTH = 110, MONTH_NAME = 111, LOCALTIMESTAMP = 112, QUARTER = 113,
             SECOND = 114, WEEK = 115, YEAR = 116, CURRENT_DATE = 117,
             CURRENT_TIME = 118, CURRENT_TIMESTAMP = 119, EXTRACT = 120,
             FORMATDATETIME = 121, PARSEDATETIME = 122, ISO_YEAR = 123,
-            ISO_WEEK = 124, ISO_DAY_OF_WEEK = 125;
+            ISO_WEEK = 124, ISO_DAY_OF_WEEK = 125, DATE_TRUNC = 132;
+
+    /**
+     * Pseudo functions for DATEADD, DATEDIFF, and EXTRACT.
+     */
+    public static final int MILLISECOND = 126, EPOCH = 127, MICROSECOND = 128, NANOSECOND = 129,
+            TIMEZONE_HOUR = 130, TIMEZONE_MINUTE = 131, DECADE = 132, CENTURY = 133,
+            MILLENNIUM = 134;
 
     //下面的都是System Functions: 系统函数9+31+1=41个(文档只有38个)
     public static final int DATABASE = 150, USER = 151, CURRENT_USER = 152,
             IDENTITY = 153, SCOPE_IDENTITY = 154, AUTOCOMMIT = 155,
             READONLY = 156, DATABASE_PATH = 157, LOCK_TIMEOUT = 158,
-            DISK_SPACE_USED = 159;
+            DISK_SPACE_USED = 159, SIGNAL = 160, ESTIMATED_ENVELOPE = 161;
+
+    private static final Pattern SIGNAL_PATTERN = Pattern.compile("[0-9A-Z]{5}");
 
     public static final int IFNULL = 200, CASEWHEN = 201, CONVERT = 202,
             CAST = 203, COALESCE = 204, NULLIF = 205, CASE = 206,
@@ -141,78 +152,91 @@ public class Function extends Expression implements FunctionCall {
      */
     public static final int H2VERSION = 231;
 
-	//ROW_NUMBER函数虽然定义了，但ROW_NUMBER()函数无效，不支持这样的语法
-	//sql = "SELECT ROW_NUMBER()"; 
-	//ROWNUM函数虽然没有定义，但ROWNUM()是有效，Parser在解析时把他当成ROWNUM伪字段处理
-	//当成了org.h2.expression.Rownum，见org.h2.command.Parser.readTerm()
-	//sql = "SELECT ROWNUM()"; 
-	//这样就没问题了,在这个方法中org.h2.command.Parser.readFunction(Schema, String)
-	//把ROW_NUMBER转成org.h2.expression.Rownum了
-	//sql = "SELECT ROW_NUMBER()OVER()";
-	public static final int ROW_NUMBER = 300;
-
-    private static final int VAR_ARGS = -1;
+//<<<<<<< HEAD
+//	//ROW_NUMBER函数虽然定义了，但ROW_NUMBER()函数无效，不支持这样的语法
+//	//sql = "SELECT ROW_NUMBER()"; 
+//	//ROWNUM函数虽然没有定义，但ROWNUM()是有效，Parser在解析时把他当成ROWNUM伪字段处理
+//	//当成了org.h2.expression.Rownum，见org.h2.command.Parser.readTerm()
+//	//sql = "SELECT ROWNUM()"; 
+//	//这样就没问题了,在这个方法中org.h2.command.Parser.readFunction(Schema, String)
+//	//把ROW_NUMBER转成org.h2.expression.Rownum了
+//	//sql = "SELECT ROW_NUMBER()OVER()";
+//	public static final int ROW_NUMBER = 300;
+//
+//    private static final int VAR_ARGS = -1;
+//    private static final long PRECISION_UNKNOWN = -1;
+//
+//    private static final HashMap<String, FunctionInfo> FUNCTIONS = new java.util.LinkedHashMap<String, FunctionInfo>();//New.hashMap();
+//    private static final HashMap<String, Integer> DATE_PART = New.hashMap();
+//=======
+    protected static final int VAR_ARGS = -1;
     private static final long PRECISION_UNKNOWN = -1;
 
-    private static final HashMap<String, FunctionInfo> FUNCTIONS = new java.util.LinkedHashMap<String, FunctionInfo>();//New.hashMap();
-    private static final HashMap<String, Integer> DATE_PART = New.hashMap();
+    private static final HashMap<String, FunctionInfo> FUNCTIONS = new HashMap<>(256);
     private static final char[] SOUNDEX_INDEX = new char[128];
 
     protected Expression[] args;
 
-    private final FunctionInfo info;
+    protected final FunctionInfo info;
     private ArrayList<Expression> varArgs;
-    private int dataType, scale;
-    private long precision = PRECISION_UNKNOWN;
-    private int displaySize;
+    protected int dataType;
+
+    protected int scale;
+    protected long precision = PRECISION_UNKNOWN;
+    protected int displaySize;
+    protected ExtTypeInfo extTypeInfo;
+
     private final Database database;
 
     static {
-        // DATE_PART
-        DATE_PART.put("SQL_TSI_YEAR", Calendar.YEAR);
-        DATE_PART.put("YEAR", Calendar.YEAR);
-        DATE_PART.put("YYYY", Calendar.YEAR);
-        DATE_PART.put("YY", Calendar.YEAR);
-        DATE_PART.put("SQL_TSI_MONTH", Calendar.MONTH);
-        DATE_PART.put("MONTH", Calendar.MONTH);
-        DATE_PART.put("MM", Calendar.MONTH);
-        DATE_PART.put("M", Calendar.MONTH);
-        DATE_PART.put("SQL_TSI_WEEK", Calendar.WEEK_OF_YEAR);
-        DATE_PART.put("WW", Calendar.WEEK_OF_YEAR);
-        DATE_PART.put("WK", Calendar.WEEK_OF_YEAR);
-        DATE_PART.put("WEEK", Calendar.WEEK_OF_YEAR);
-        DATE_PART.put("DAY", Calendar.DAY_OF_MONTH);
-        DATE_PART.put("DD", Calendar.DAY_OF_MONTH);
-        DATE_PART.put("D", Calendar.DAY_OF_MONTH);
-        DATE_PART.put("SQL_TSI_DAY", Calendar.DAY_OF_MONTH);
-        DATE_PART.put("DAYOFYEAR", Calendar.DAY_OF_YEAR);
-        DATE_PART.put("DAY_OF_YEAR", Calendar.DAY_OF_YEAR);
-        DATE_PART.put("DY", Calendar.DAY_OF_YEAR);
-        DATE_PART.put("DOY", Calendar.DAY_OF_YEAR);
-        DATE_PART.put("SQL_TSI_HOUR", Calendar.HOUR_OF_DAY);
-        DATE_PART.put("HOUR", Calendar.HOUR_OF_DAY);
-        DATE_PART.put("HH", Calendar.HOUR_OF_DAY);
-        DATE_PART.put("SQL_TSI_MINUTE", Calendar.MINUTE);
-        DATE_PART.put("MINUTE", Calendar.MINUTE);
-        DATE_PART.put("MI", Calendar.MINUTE);
-        DATE_PART.put("N", Calendar.MINUTE);
-        DATE_PART.put("SQL_TSI_SECOND", Calendar.SECOND);
-        DATE_PART.put("SECOND", Calendar.SECOND);
-        DATE_PART.put("SS", Calendar.SECOND);
-        DATE_PART.put("S", Calendar.SECOND);
-        DATE_PART.put("MILLISECOND", Calendar.MILLISECOND);
-        DATE_PART.put("MS", Calendar.MILLISECOND);
-
-		// SOUNDEX_INDEX
-		// 34个字符(26个大写字母加1到8这8个数字)
-		// 7: AEIOUY 及它们的小写(下同)
-		// 8: HW
-		// 1: BFPV
-		// 2: CGJKQSXZ
-		// 3: DT
-		// 4: L
-		// 5: MN
-		// 6: R
+//<<<<<<< HEAD
+//        // DATE_PART
+//        DATE_PART.put("SQL_TSI_YEAR", Calendar.YEAR);
+//        DATE_PART.put("YEAR", Calendar.YEAR);
+//        DATE_PART.put("YYYY", Calendar.YEAR);
+//        DATE_PART.put("YY", Calendar.YEAR);
+//        DATE_PART.put("SQL_TSI_MONTH", Calendar.MONTH);
+//        DATE_PART.put("MONTH", Calendar.MONTH);
+//        DATE_PART.put("MM", Calendar.MONTH);
+//        DATE_PART.put("M", Calendar.MONTH);
+//        DATE_PART.put("SQL_TSI_WEEK", Calendar.WEEK_OF_YEAR);
+//        DATE_PART.put("WW", Calendar.WEEK_OF_YEAR);
+//        DATE_PART.put("WK", Calendar.WEEK_OF_YEAR);
+//        DATE_PART.put("WEEK", Calendar.WEEK_OF_YEAR);
+//        DATE_PART.put("DAY", Calendar.DAY_OF_MONTH);
+//        DATE_PART.put("DD", Calendar.DAY_OF_MONTH);
+//        DATE_PART.put("D", Calendar.DAY_OF_MONTH);
+//        DATE_PART.put("SQL_TSI_DAY", Calendar.DAY_OF_MONTH);
+//        DATE_PART.put("DAYOFYEAR", Calendar.DAY_OF_YEAR);
+//        DATE_PART.put("DAY_OF_YEAR", Calendar.DAY_OF_YEAR);
+//        DATE_PART.put("DY", Calendar.DAY_OF_YEAR);
+//        DATE_PART.put("DOY", Calendar.DAY_OF_YEAR);
+//        DATE_PART.put("SQL_TSI_HOUR", Calendar.HOUR_OF_DAY);
+//        DATE_PART.put("HOUR", Calendar.HOUR_OF_DAY);
+//        DATE_PART.put("HH", Calendar.HOUR_OF_DAY);
+//        DATE_PART.put("SQL_TSI_MINUTE", Calendar.MINUTE);
+//        DATE_PART.put("MINUTE", Calendar.MINUTE);
+//        DATE_PART.put("MI", Calendar.MINUTE);
+//        DATE_PART.put("N", Calendar.MINUTE);
+//        DATE_PART.put("SQL_TSI_SECOND", Calendar.SECOND);
+//        DATE_PART.put("SECOND", Calendar.SECOND);
+//        DATE_PART.put("SS", Calendar.SECOND);
+//        DATE_PART.put("S", Calendar.SECOND);
+//        DATE_PART.put("MILLISECOND", Calendar.MILLISECOND);
+//        DATE_PART.put("MS", Calendar.MILLISECOND);
+//
+//		// SOUNDEX_INDEX
+//		// 34个字符(26个大写字母加1到8这8个数字)
+//		// 7: AEIOUY 及它们的小写(下同)
+//		// 8: HW
+//		// 1: BFPV
+//		// 2: CGJKQSXZ
+//		// 3: DT
+//		// 4: L
+//		// 5: MN
+//		// 6: R
+//=======
+        // SOUNDEX_INDEX
         String index = "7AEIOUY8HW1BFPV2CGJKQSXZ3DT4L5MN6R";
         char number = 0;
         for (int i = 0, length = index.length(); i < length; i++) {
@@ -265,7 +289,7 @@ public class Function extends Expression implements FunctionCall {
         addFunction("TRUNCATE", TRUNCATE, VAR_ARGS, Value.NULL);
         // same as TRUNCATE
         addFunction("TRUNC", TRUNCATE, VAR_ARGS, Value.NULL);
-        addFunction("HASH", HASH, 3, Value.BYTES);
+        addFunction("HASH", HASH, VAR_ARGS, Value.BYTES);
         addFunction("ENCRYPT", ENCRYPT, 3, Value.BYTES);
         addFunction("DECRYPT", DECRYPT, 3, Value.BYTES);
         addFunctionNotDeterministic("SECURE_RAND", SECURE_RAND, 1, Value.BYTES);
@@ -275,6 +299,7 @@ public class Function extends Expression implements FunctionCall {
         addFunctionNotDeterministic("RANDOM_UUID", RANDOM_UUID, 0, Value.UUID);
         addFunctionNotDeterministic("SYS_GUID", RANDOM_UUID, 0, Value.UUID);
         addFunctionNotDeterministic("UUID", RANDOM_UUID, 0, Value.UUID);
+        addFunction("ORA_HASH", ORA_HASH, VAR_ARGS, Value.LONG);
         // string
         addFunction("ASCII", ASCII, 1, Value.INT);
         addFunction("BIT_LENGTH", BIT_LENGTH, 1, Value.LONG);
@@ -293,8 +318,6 @@ public class Function extends Expression implements FunctionCall {
         addFunction("LENGTH", LENGTH, 1, Value.LONG);
         // 2 or 3 arguments
         addFunction("LOCATE", LOCATE, VAR_ARGS, Value.INT);
-        // alias for MSSQLServer
-        addFunction("CHARINDEX", LOCATE, VAR_ARGS, Value.INT);
         // same as LOCATE with 2 arguments
         addFunction("POSITION", LOCATE, 2, Value.INT);
         addFunction("INSTR", INSTR, VAR_ARGS, Value.INT);
@@ -302,7 +325,7 @@ public class Function extends Expression implements FunctionCall {
         addFunction("OCTET_LENGTH", OCTET_LENGTH, 1, Value.LONG);
         addFunction("RAWTOHEX", RAWTOHEX, 1, Value.STRING);
         addFunction("REPEAT", REPEAT, 2, Value.STRING);
-        addFunction("REPLACE", REPLACE, VAR_ARGS, Value.STRING);
+        addFunctionWithNull("REPLACE", REPLACE, VAR_ARGS, Value.STRING);
         addFunction("RIGHT", RIGHT, 2, Value.STRING);
         addFunction("RTRIM", RTRIM, VAR_ARGS, Value.STRING);
         addFunction("SOUNDEX", SOUNDEX, 1, Value.STRING);
@@ -328,7 +351,6 @@ public class Function extends Expression implements FunctionCall {
         addFunction("RPAD", RPAD, VAR_ARGS, Value.STRING);
         addFunction("LPAD", LPAD, VAR_ARGS, Value.STRING);
         addFunction("TO_CHAR", TO_CHAR, VAR_ARGS, Value.STRING);
-        addFunction("ORA_HASH", ORA_HASH, VAR_ARGS, Value.INT);
         addFunction("TRANSLATE", TRANSLATE, 3, Value.STRING);
         addFunction("REGEXP_LIKE", REGEXP_LIKE, VAR_ARGS, Value.BOOLEAN);
 
@@ -342,27 +364,29 @@ public class Function extends Expression implements FunctionCall {
         addFunction("TO_DATE", TO_DATE, VAR_ARGS, Value.TIMESTAMP);
         addFunction("TO_TIMESTAMP", TO_TIMESTAMP, VAR_ARGS, Value.TIMESTAMP);
         addFunction("ADD_MONTHS", ADD_MONTHS, 2, Value.TIMESTAMP);
-        // alias for MSSQLServer
-        addFunctionNotDeterministic("GETDATE", CURDATE,
-                0, Value.DATE);
+        addFunction("TO_TIMESTAMP_TZ", TO_TIMESTAMP_TZ, VAR_ARGS, Value.TIMESTAMP_TZ);
         addFunctionNotDeterministic("CURRENT_TIME", CURRENT_TIME,
-                0, Value.TIME);
+                VAR_ARGS, Value.TIME);
+        addFunctionNotDeterministic("LOCALTIME", CURRENT_TIME,
+                VAR_ARGS, Value.TIME);
         addFunctionNotDeterministic("SYSTIME", CURRENT_TIME,
                 0, Value.TIME);
         addFunctionNotDeterministic("CURTIME", CURTIME,
                 0, Value.TIME);
         addFunctionNotDeterministic("CURRENT_TIMESTAMP", CURRENT_TIMESTAMP,
-                VAR_ARGS, Value.TIMESTAMP);
+                VAR_ARGS, Value.TIMESTAMP_TZ);
         addFunctionNotDeterministic("SYSDATE", CURRENT_TIMESTAMP,
-                VAR_ARGS, Value.TIMESTAMP);
+                VAR_ARGS, Value.TIMESTAMP_TZ);
         addFunctionNotDeterministic("SYSTIMESTAMP", CURRENT_TIMESTAMP,
+                VAR_ARGS, Value.TIMESTAMP_TZ);
+        addFunctionNotDeterministic("LOCALTIMESTAMP", LOCALTIMESTAMP,
                 VAR_ARGS, Value.TIMESTAMP);
-        addFunctionNotDeterministic("NOW", NOW,
+        addFunctionNotDeterministic("NOW", LOCALTIMESTAMP,
                 VAR_ARGS, Value.TIMESTAMP);
         addFunction("DATEADD", DATE_ADD,
                 3, Value.TIMESTAMP);
         addFunction("TIMESTAMPADD", DATE_ADD,
-                3, Value.LONG);
+                3, Value.TIMESTAMP);
         addFunction("DATEDIFF", DATE_DIFF,
                 3, Value.LONG);
         addFunction("TIMESTAMPDIFF", DATE_DIFF,
@@ -413,6 +437,7 @@ public class Function extends Expression implements FunctionCall {
                 1, Value.INT);
         addFunction("ISO_DAY_OF_WEEK", ISO_DAY_OF_WEEK,
                 1, Value.INT);
+        addFunction("DATE_TRUNC", DATE_TRUNC, 2, Value.NULL);
         // system
         addFunctionNotDeterministic("DATABASE", DATABASE,
                 0, Value.STRING);
@@ -465,9 +490,8 @@ public class Function extends Expression implements FunctionCall {
         addFunctionNotDeterministic("CURRVAL", CURRVAL,
                 VAR_ARGS, Value.LONG);
         addFunction("ARRAY_GET", ARRAY_GET,
-                2, Value.STRING);
-        addFunction("ARRAY_CONTAINS", ARRAY_CONTAINS,
-                2, Value.BOOLEAN, false, true, true);
+                2, Value.NULL);
+        addFunctionWithNull("ARRAY_CONTAINS", ARRAY_CONTAINS, 2, Value.BOOLEAN);
         addFunction("CSVREAD", CSVREAD,
                 VAR_ARGS, Value.RESULT_SET, false, false, false);
         addFunction("CSVWRITE", CSVWRITE,
@@ -504,6 +528,8 @@ public class Function extends Expression implements FunctionCall {
                 VAR_ARGS, Value.NULL);
         addFunctionNotDeterministic("DISK_SPACE_USED", DISK_SPACE_USED,
                 1, Value.LONG);
+        addFunctionWithNull("SIGNAL", SIGNAL, 2, Value.NULL);
+        addFunctionNotDeterministic("ESTIMATED_ENVELOPE", ESTIMATED_ENVELOPE, 2, Value.LONG);
         addFunction("H2VERSION", H2VERSION, 0, Value.STRING);
 
         // TableFunction
@@ -512,18 +538,21 @@ public class Function extends Expression implements FunctionCall {
         addFunctionWithNull("TABLE_DISTINCT", TABLE_DISTINCT,
                 VAR_ARGS, Value.RESULT_SET);
 
-        // pseudo function
-        addFunctionWithNull("ROW_NUMBER", ROW_NUMBER, 0, Value.LONG);
-
         // ON DUPLICATE KEY VALUES function
         addFunction("VALUES", VALUES, 1, Value.NULL, false, true, false);
     }
 
-    protected Function(Database database, FunctionInfo info) {
+    /**
+     * Creates a new instance of function.
+     *
+     * @param database database
+     * @param info function information
+     */
+    public Function(Database database, FunctionInfo info) {
         this.database = database;
         this.info = info;
         if (info.parameterCount == VAR_ARGS) {
-            varArgs = New.arrayList();
+            varArgs = Utils.newSmallArrayList();
         } else {
             args = new Expression[info.parameterCount];
         }
@@ -531,16 +560,21 @@ public class Function extends Expression implements FunctionCall {
 
     private static void addFunction(String name, int type, int parameterCount,
             int returnDataType, boolean nullIfParameterIsNull, boolean deterministic,
-            boolean bufferResultSetToLocalTemp) { //7个字段
-        FunctionInfo info = new FunctionInfo();
-        info.name = name;
-        info.type = type;
-        info.parameterCount = parameterCount;
-        info.returnDataType = returnDataType;
-        info.nullIfParameterIsNull = nullIfParameterIsNull;
-        info.deterministic = deterministic;
-        info.bufferResultSetToLocalTemp = bufferResultSetToLocalTemp;
-        FUNCTIONS.put(name, info);
+//<<<<<<< HEAD
+//            boolean bufferResultSetToLocalTemp) { //7个字段
+//        FunctionInfo info = new FunctionInfo();
+//        info.name = name;
+//        info.type = type;
+//        info.parameterCount = parameterCount;
+//        info.returnDataType = returnDataType;
+//        info.nullIfParameterIsNull = nullIfParameterIsNull;
+//        info.deterministic = deterministic;
+//        info.bufferResultSetToLocalTemp = bufferResultSetToLocalTemp;
+//        FUNCTIONS.put(name, info);
+//=======
+            boolean bufferResultSetToLocalTemp) {
+        FUNCTIONS.put(name, new FunctionInfo(name, type, parameterCount, returnDataType, nullIfParameterIsNull,
+                deterministic, bufferResultSetToLocalTemp));
     }
 
     private static void addFunctionNotDeterministic(String name, int type,
@@ -559,22 +593,25 @@ public class Function extends Expression implements FunctionCall {
     }
 
     /**
+<<<<<<< HEAD
      * Get the function info object for this function, or null if there is no
      * such function.
      *
      * @param name the function name
      * @return the function info
      */
-    private static FunctionInfo getFunctionInfo(String name) {
-        return FUNCTIONS.get(name);
-    }
-
-	// 我加上的
+//    private static FunctionInfo getFunctionInfo(String name) {
+//        return FUNCTIONS.get(name);
+//    }
+//
+//	// 我加上的
 	public static java.util.Collection<FunctionInfo> getFunctionInfos() {
 		return FUNCTIONS.values();
 	}
 
     /**
+=======
+>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
      * Get an instance of the given function for this database.
      * If no function with this name is found, null is returned.
      *
@@ -587,9 +624,16 @@ public class Function extends Expression implements FunctionCall {
             // if not yet converted to uppercase, do it now
             name = StringUtils.toUpperEnglish(name);
         }
-        FunctionInfo info = getFunctionInfo(name);
+        FunctionInfo info = FUNCTIONS.get(name);
         if (info == null) {
-            return null;
+            switch (database.getMode().getEnum()) {
+            case MSSQLServer:
+                return FunctionsMSSQLServer.getFunction(database, name);
+            case MySQL:
+                return FunctionsMySQL.getFunction(database, name);
+            default:
+                return null;
+            }
         }
         switch (info.type) {
         case TABLE:
@@ -598,6 +642,16 @@ public class Function extends Expression implements FunctionCall {
         default:
             return new Function(database, info);
         }
+    }
+
+    /**
+     * Returns function information for the specified function name.
+     *
+     * @param upperName the function name in upper case
+     * @return the function information or {@code null}
+     */
+    public static FunctionInfo getFunctionInfo(String upperName) {
+        return FUNCTIONS.get(upperName);
     }
 
     /**
@@ -612,14 +666,10 @@ public class Function extends Expression implements FunctionCall {
         } else {
             if (index >= args.length) {
                 throw DbException.get(ErrorCode.INVALID_PARAMETER_COUNT_2,
-                        info.name, "" + args.length);
+                        info.name, Integer.toString(args.length));
             }
             args[index] = param;
         }
-    }
-
-    private static strictfp double log10(double value) {
-        return roundMagic(StrictMath.log(value) / StrictMath.log(10));
     }
 
     @Override
@@ -684,8 +734,12 @@ public class Function extends Expression implements FunctionCall {
                 result = ValueDouble.get(Math.log(v0.getDouble()));
             }
             break;
-        case LOG10: //底数10的多少次幂是v0
-            result = ValueDouble.get(log10(v0.getDouble()));
+//<<<<<<< HEAD
+//        case LOG10: //底数10的多少次幂是v0
+//            result = ValueDouble.get(log10(v0.getDouble()));
+//=======
+        case LOG10:
+            result = ValueDouble.get(Math.log10(v0.getDouble()));
             break;
         case PI:
             result = ValueDouble.get(Math.PI);
@@ -781,9 +835,9 @@ public class Function extends Expression implements FunctionCall {
                     String tmp = v.getString();
                     if (!StringUtils.isNullOrEmpty(separator)
                             && !StringUtils.isNullOrEmpty(tmp)) {
-                        tmp = separator.concat(tmp);
+                        tmp = separator + tmp;
                     }
-                    result = ValueString.get(result.getString().concat(tmp),
+                    result = ValueString.get(result.getString() + tmp,
                             database.getMode().treatEmptyStringsAsNull);
                 }
             }
@@ -841,11 +895,11 @@ public class Function extends Expression implements FunctionCall {
             break;
         case STRINGTOUTF8:
             result = ValueBytes.getNoCopy(v0.getString().
-                    getBytes(Constants.UTF8));
+                    getBytes(StandardCharsets.UTF_8));
             break;
         case UTF8TOSTRING:
             result = ValueString.get(new String(v0.getBytesNoCopy(),
-                    Constants.UTF8),
+                    StandardCharsets.UTF_8),
                     database.getMode().treatEmptyStringsAsNull);
             break;
         case XMLCOMMENT:
@@ -862,100 +916,98 @@ public class Function extends Expression implements FunctionCall {
             break;
         //下面是时间与日期函数, 共21个
         case DAY_NAME: {
-            SimpleDateFormat dayName = new SimpleDateFormat(
-                    "EEEE", Locale.ENGLISH);
-            result = ValueString.get(dayName.format(v0.getDate()),
+            int dayOfWeek = DateTimeUtils.getSundayDayOfWeek(DateTimeUtils.dateAndTimeFromValue(v0)[0]);
+            result = ValueString.get(DateTimeFunctions.getMonthsAndWeeks(1)[dayOfWeek],
                     database.getMode().treatEmptyStringsAsNull);
             break;
         }
         case DAY_OF_MONTH:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
-                    Calendar.DAY_OF_MONTH));
-            break;
         case DAY_OF_WEEK:
-        	//周日，周一............................................, 周六
-        	//SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
-        	//数字是1, 2, 3... , 7，所以周一对应的数字是2
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.DAY_OF_WEEK));
-            break;
+//<<<<<<< HEAD
+//        	//周日，周一............................................, 周六
+//        	//SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+//        	//数字是1, 2, 3... , 7，所以周一对应的数字是2
+//            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(), Calendar.DAY_OF_WEEK));
+//            break;
+//=======
+//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
         case DAY_OF_YEAR:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
-                    Calendar.DAY_OF_YEAR));
-            break;
         case HOUR:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getTimestamp(),
-                    Calendar.HOUR_OF_DAY));
-            break;
         case MINUTE:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getTimestamp(),
-                    Calendar.MINUTE));
-            break;
         case MONTH:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
-                    Calendar.MONTH));
+//<<<<<<< HEAD
+//            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
+//                    Calendar.MONTH));
+//            break;
+//        case MONTH_NAME: {
+//        	//sql = "SELECT MONTHNAME(CURRENT_DATE)"; //不是MONTH_NAME，没有下划线
+//            SimpleDateFormat monthName = new SimpleDateFormat("MMMM", Locale.ENGLISH);
+//            result = ValueString.get(monthName.format(v0.getDate()),
+//                    database.getMode().treatEmptyStringsAsNull);
+//            break;
+//        }
+//        case QUARTER:
+//        	//第几个季度，用1、2、3、4表示
+//        	//因为DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)返回的月份加了1，所以这里要减一
+//        	//0, 1, 2, 3这4个数除以3都是0，所以要加1，同样其他的月份也类似
+//            result = ValueInt.get((DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH) - 1) / 3 + 1);
+//            break;
+//=======
+        case QUARTER:
+        case ISO_YEAR:
+        case ISO_WEEK:
+        case ISO_DAY_OF_WEEK:
+        case SECOND:
+        case WEEK:
+        case YEAR:
+            result = ValueInt.get(DateTimeFunctions.getIntDatePart(v0, info.type));
             break;
+//<<<<<<< HEAD
+//        case ISO_WEEK:
+//            result = ValueInt.get(DateTimeUtils.getIsoWeek(v0.getDate()));
+//            break;
+//        case ISO_DAY_OF_WEEK:
+//        	//这个就正常了，周1用数字1表示，跟DAY_OF_WEEK不一样
+//            result = ValueInt.get(DateTimeUtils.getIsoDayOfWeek(v0.getDate()));
+//=======
         case MONTH_NAME: {
-        	//sql = "SELECT MONTHNAME(CURRENT_DATE)"; //不是MONTH_NAME，没有下划线
-            SimpleDateFormat monthName = new SimpleDateFormat("MMMM", Locale.ENGLISH);
-            result = ValueString.get(monthName.format(v0.getDate()),
+            int month = DateTimeUtils.monthFromDateValue(DateTimeUtils.dateAndTimeFromValue(v0)[0]);
+            result = ValueString.get(DateTimeFunctions.getMonthsAndWeeks(0)[month - 1],
                     database.getMode().treatEmptyStringsAsNull);
             break;
         }
-        case QUARTER:
-        	//第几个季度，用1、2、3、4表示
-        	//因为DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)返回的月份加了1，所以这里要减一
-        	//0, 1, 2, 3这4个数除以3都是0，所以要加1，同样其他的月份也类似
-            result = ValueInt.get((DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH) - 1) / 3 + 1);
-            break;
-        case SECOND:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getTimestamp(),
-                    Calendar.SECOND));
-            break;
-        case WEEK:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
-                    Calendar.WEEK_OF_YEAR));
-            break;
-        case YEAR:
-            result = ValueInt.get(DateTimeUtils.getDatePart(v0.getDate(),
-                    Calendar.YEAR));
-            break;
-        case ISO_YEAR:
-            result = ValueInt.get(DateTimeUtils.getIsoYear(v0.getDate()));
-            break;
-        case ISO_WEEK:
-            result = ValueInt.get(DateTimeUtils.getIsoWeek(v0.getDate()));
-            break;
-        case ISO_DAY_OF_WEEK:
-        	//这个就正常了，周1用数字1表示，跟DAY_OF_WEEK不一样
-            result = ValueInt.get(DateTimeUtils.getIsoDayOfWeek(v0.getDate()));
-            break;
         case CURDATE:
         case CURRENT_DATE: {
-            long now = session.getTransactionStart();
-            // need to normalize
-            result = ValueDate.fromMillis(now);
+            result = session.getTransactionStart().convertTo(Value.DATE);
             break;
         }
         case CURTIME:
         case CURRENT_TIME: {
-            long now = session.getTransactionStart();
-            // need to normalize
-            result = ValueTime.fromMillis(now);
+            ValueTime vt = (ValueTime) session.getTransactionStart().convertTo(Value.TIME);
+            result = vt.convertScale(false, v0 == null ? 0 : v0.getInt());
             break;
         }
-        case NOW:
+        case LOCALTIMESTAMP: {
+            Value vt = session.getTransactionStart().convertTo(Value.TIMESTAMP);
+            result = vt.convertScale(false, v0 == null ? 6 : v0.getInt());
+            break;
+        }
         case CURRENT_TIMESTAMP: {
-            long now = session.getTransactionStart();
-            ValueTimestamp vt = ValueTimestamp.fromMillis(now);
-            //NOW(1)表示毫秒数只保留一位，如NOW()="2012-12-03 22:03:44.647" 则NOW(1)="2012-12-03 22:03:44.6"
-    		//毫秒数一般是3位，如果NOW(100)，100>3了，所以NOW(100)跟NOW()一样
-            if (v0 != null) {
-                Mode mode = database.getMode();
-                //org.h2.value.ValueTimestamp.convertScale(boolean, int)忽视convertOnlyToSmallerScale参数
-                //所以convertOnlyToSmallerScale没用的
-                vt = (ValueTimestamp) vt.convertScale(mode.convertOnlyToSmallerScale, v0.getInt());
-            }
-            result = vt;
+//<<<<<<< HEAD
+//            long now = session.getTransactionStart();
+//            ValueTimestamp vt = ValueTimestamp.fromMillis(now);
+//            //NOW(1)表示毫秒数只保留一位，如NOW()="2012-12-03 22:03:44.647" 则NOW(1)="2012-12-03 22:03:44.6"
+//    		//毫秒数一般是3位，如果NOW(100)，100>3了，所以NOW(100)跟NOW()一样
+//            if (v0 != null) {
+//                Mode mode = database.getMode();
+//                //org.h2.value.ValueTimestamp.convertScale(boolean, int)忽视convertOnlyToSmallerScale参数
+//                //所以convertOnlyToSmallerScale没用的
+//                vt = (ValueTimestamp) vt.convertScale(mode.convertOnlyToSmallerScale, v0.getInt());
+//            }
+//            result = vt;
+//=======
+            ValueTimestampTimeZone vt = session.getTransactionStart();
+            result = vt.convertScale(false, v0 == null ? 6 : v0.getInt());
             break;
         }
         //下面是系统函数 ,共29个，少了3个: ROW_NUMBER、TABLE、TABLE_DISTINCT
@@ -1005,10 +1057,13 @@ public class Function extends Expression implements FunctionCall {
         case DISK_SPACE_USED:
             result = ValueLong.get(getDiskSpaceUsed(session, v0));
             break;
+        case ESTIMATED_ENVELOPE:
+            result = getEstimatedEnvelope(session, v0, values[1]);
+            break;
         case CAST:
         case CONVERT: {
-            v0 = v0.convertTo(dataType);
             Mode mode = database.getMode();
+            v0 = v0.convertTo(dataType, MathUtils.convertLongToInt(precision), mode, null, extTypeInfo);
             v0 = v0.convertScale(mode.convertOnlyToSmallerScale, scale);
             v0 = v0.convertPrecision(getPrecision(), false);
             result = v0;
@@ -1038,13 +1093,12 @@ public class Function extends Expression implements FunctionCall {
             if (v0 == ValueNull.INSTANCE) {
                 result = getNullOrValue(session, args, values, 1);
             }
-            result = convertResult(result);
+            result = result.convertTo(dataType, database.getMode());
             break;
         }
         case CASEWHEN: {
             Value v;
-            if (v0 == ValueNull.INSTANCE ||
-                    !v0.getBoolean().booleanValue()) {
+            if (!v0.getBoolean()) {
                 v = getNullOrValue(session, args, values, 2);
             } else {
                 v = getNullOrValue(session, args, values, 1);
@@ -1083,7 +1137,7 @@ public class Function extends Expression implements FunctionCall {
             result = v0;
             for (int i = 0; i < args.length; i++) {
                 Value v = getNullOrValue(session, args, values, i);
-                if (!(v == ValueNull.INSTANCE)) {
+                if (v != ValueNull.INSTANCE) {
                     result = v.convertTo(dataType);
                     break;
                 }
@@ -1095,7 +1149,7 @@ public class Function extends Expression implements FunctionCall {
             result = ValueNull.INSTANCE;
             for (int i = 0; i < args.length; i++) {
                 Value v = getNullOrValue(session, args, values, i);
-                if (!(v == ValueNull.INSTANCE)) {
+                if (v != ValueNull.INSTANCE) {
                     v = v.convertTo(dataType);
                     if (result == ValueNull.INSTANCE) {
                         result = v;
@@ -1121,8 +1175,7 @@ public class Function extends Expression implements FunctionCall {
                 // (null, when, then, when, then, else)
                 for (int i = 1, len = args.length - 1; i < len; i += 2) {
                     Value when = args[i].getValue(session);
-                    if (!(when == ValueNull.INSTANCE) &&
-                            when.getBoolean().booleanValue()) {
+                    if (when.getBoolean()) {
                         then = args[i + 1];
                         break;
                     }
@@ -1133,7 +1186,7 @@ public class Function extends Expression implements FunctionCall {
                 // (expr, when, then, else)
                 // (expr, when, then, when, then)
                 // (expr, when, then, when, then, else)
-                if (!(v0 == ValueNull.INSTANCE)) {
+                if (v0 != ValueNull.INSTANCE) {
                     for (int i = 1, len = args.length - 1; i < len; i += 2) {
                         Value when = args[i].getValue(session);
                         if (database.areEqual(v0, when)) {
@@ -1176,16 +1229,18 @@ public class Function extends Expression implements FunctionCall {
             break;
         }
         case ARRAY_CONTAINS: {
-            result = ValueBoolean.get(false);
+            result = ValueBoolean.FALSE;
             if (v0.getType() == Value.ARRAY) {
                 Value v1 = getNullOrValue(session, args, values, 1);
                 Value[] list = ((ValueArray) v0).getList();
                 for (Value v : list) {
-                    if (v.equals(v1)) {
-                        result = ValueBoolean.get(true);
+                    if (database.areEqual(v, v1)) {
+                        result = ValueBoolean.TRUE;
                         break;
                     }
                 }
+            } else {
+                result = ValueNull.INSTANCE;
             }
             break;
         }
@@ -1201,10 +1256,6 @@ public class Function extends Expression implements FunctionCall {
             result = null;
         }
         return result;
-    }
-
-    private Value convertResult(Value v) {
-        return v.convertTo(dataType);
     }
 
     private static boolean cancelStatement(Session session, int targetSessionId) {
@@ -1223,14 +1274,30 @@ public class Function extends Expression implements FunctionCall {
         return false;
     }
 
-    private static long getDiskSpaceUsed(Session session, Value v0) {
-        Parser p = new Parser(session);
-        String sql = v0.getString();
-        Table table = p.parseTableName(sql);
-        return table.getDiskSpaceUsed();
+    private static long getDiskSpaceUsed(Session session, Value tableName) {
+        return getTable(session, tableName).getDiskSpaceUsed();
     }
 
-    private static Value getNullOrValue(Session session, Expression[] args,
+    private static Value getEstimatedEnvelope(Session session, Value tableName, Value columnName) {
+        Table table = getTable(session, tableName);
+        Column column = table.getColumn(columnName.getString());
+        ArrayList<Index> indexes = table.getIndexes();
+        if (indexes != null) {
+            for (int i = 1, size = indexes.size(); i < size; i++) {
+                Index index = indexes.get(i);
+                if (index instanceof MVSpatialIndex && index.isFirstColumn(column)) {
+                    return ((MVSpatialIndex) index).getEstimatedBounds(session);
+                }
+            }
+        }
+        return ValueNull.INSTANCE;
+    }
+
+    private static Table getTable(Session session, Value tableName) {
+        return new Parser(session).parseTableName(tableName.getString());
+    }
+
+    protected static Value getNullOrValue(Session session, Expression[] args,
             Value[] values, int i) {
         if (i >= args.length) {
             return null;
@@ -1246,7 +1313,7 @@ public class Function extends Expression implements FunctionCall {
         return v;
     }
 
-    private Value getValueWithArgs(Session session, Expression[] args) {
+    protected Value getValueWithArgs(Session session, Expression[] args) {
         Value[] values = new Value[args.length];
         //如果函数要求所有的参数非null，那么只要有一个参数是null，函数就直接返回null
         if (info.nullIfParameterIsNull) {
@@ -1317,32 +1384,16 @@ public class Function extends Expression implements FunctionCall {
         }
         case TRUNCATE: {
             if (v0.getType() == Value.TIMESTAMP) {
-                java.sql.Timestamp d = v0.getTimestamp();
-                Calendar c = Calendar.getInstance();
-                c.setTime(d);
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                c.set(Calendar.MINUTE, 0);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-                result = ValueTimestamp.fromMillis(c.getTimeInMillis());
+                result = ValueTimestamp.fromDateValueAndNanos(((ValueTimestamp) v0).getDateValue(), 0);
             } else if (v0.getType() == Value.DATE) {
-                ValueDate vd = (ValueDate) v0;
-                Calendar c = Calendar.getInstance();
-                c.setTime(vd.getDate());
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                c.set(Calendar.MINUTE, 0);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-                result = ValueTimestamp.fromMillis(c.getTimeInMillis());
+                result = ValueTimestamp.fromDateValueAndNanos(((ValueDate) v0).getDateValue(), 0);
+            } else if (v0.getType() == Value.TIMESTAMP_TZ) {
+                ValueTimestampTimeZone ts = (ValueTimestampTimeZone) v0;
+                result = ValueTimestampTimeZone.fromDateValueAndNanos(ts.getDateValue(), 0,
+                        ts.getTimeZoneOffsetMins());
             } else if (v0.getType() == Value.STRING) {
-                ValueString vd = (ValueString) v0;
-                Calendar c = Calendar.getInstance();
-                c.setTime(ValueTimestamp.parse(vd.getString(), session.getDatabase().getMode()).getDate());
-                c.set(Calendar.HOUR_OF_DAY, 0);
-                c.set(Calendar.MINUTE, 0);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-                result = ValueTimestamp.fromMillis(c.getTimeInMillis());
+                ValueTimestamp ts = ValueTimestamp.parse(v0.getString(), session.getDatabase().getMode());
+                result = ValueTimestamp.fromDateValueAndNanos(ts.getDateValue(), 0);
             } else {
                 double d = v0.getDouble();
                 int p = v1 == null ? 0 : v1.getInt();
@@ -1353,8 +1404,7 @@ public class Function extends Expression implements FunctionCall {
             break;
         }
         case HASH:
-            result = ValueBytes.getNoCopy(getHash(v0.getString(),
-                    v1.getBytesNoCopy(), v2.getInt()));
+            result = getHash(v0.getString(), v1, v2 == null ? 1 : v2.getInt());
             break;
         case ENCRYPT:
             result = ValueBytes.getNoCopy(encrypt(v0.getString(),
@@ -1373,7 +1423,14 @@ public class Function extends Expression implements FunctionCall {
                     compress(v0.getBytesNoCopy(), algorithm));
             break;
         }
-        //下面是字符串函数, 共20个，这有19个，然后最下面有1个XMLTEXT
+//<<<<<<< HEAD
+//        //下面是字符串函数, 共20个，这有19个，然后最下面有1个XMLTEXT
+//=======
+        case ORA_HASH:
+            result = oraHash(v0,
+                    v1 == null ? 0xffff_ffffL : v1.getLong(),
+                    v2 == null ? 0L : v2.getLong());
+            break;
         case DIFFERENCE:
             result = ValueInt.get(getDifference(
                     v0.getString(), v1.getString()));
@@ -1409,11 +1466,19 @@ public class Function extends Expression implements FunctionCall {
             break;
         }
         case REPLACE: {
-            String s0 = v0.getString();
-            String s1 = v1.getString();
-            String s2 = (v2 == null) ? "" : v2.getString();
-            result = ValueString.get(replace(s0, s1, s2),
-                    database.getMode().treatEmptyStringsAsNull);
+            if (v0 == ValueNull.INSTANCE || v1 == ValueNull.INSTANCE
+                    || v2 == ValueNull.INSTANCE && database.getMode().getEnum() != Mode.ModeEnum.Oracle) {
+                result = ValueNull.INSTANCE;
+            } else {
+                String s0 = v0.getString();
+                String s1 = v1.getString();
+                String s2 = (v2 == null) ? "" : v2.getString();
+                if (s2 == null) {
+                    s2 = "";
+                }
+                result = ValueString.get(StringUtils.replaceAll(s0, s1, s2),
+                        database.getMode().treatEmptyStringsAsNull);
+            }
             break;
         }
         case RIGHT:
@@ -1470,6 +1535,22 @@ public class Function extends Expression implements FunctionCall {
         case REGEXP_REPLACE: {
             String regexp = v1.getString();
             String replacement = v2.getString();
+            if (database.getMode().regexpReplaceBackslashReferences) {
+                if ((replacement.indexOf('\\') >= 0) || (replacement.indexOf('$') >= 0)) {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < replacement.length(); i++) {
+                        char c = replacement.charAt(i);
+                        if (c == '$') {
+                            sb.append('\\');
+                        } else if (c == '\\' && ++i < replacement.length()) {
+                            c = replacement.charAt(i);
+                            sb.append(c >= '0' && c <= '9' ? '$' : '\\');
+                        }
+                        sb.append(c);
+                    }
+                    replacement = sb.toString();
+                }
+            }
             String regexpMode = v3 == null || v3.getString() == null ? "" :
                     v3.getString();
             int flags = makeRegexpFlags(regexpMode);
@@ -1500,17 +1581,13 @@ public class Function extends Expression implements FunctionCall {
                     v1.getInt(), v2 == null ? null : v2.getString(), false),
                     database.getMode().treatEmptyStringsAsNull);
             break;
-        case ORA_HASH:
-            result = ValueLong.get(oraHash(v0.getString(),
-                    v1 == null ? null : v1.getInt(),
-                    v2 == null ? null : v2.getInt()));
-            break;
         case TO_CHAR:
             switch (v0.getType()){
             case Value.TIME:
             case Value.DATE:
             case Value.TIMESTAMP:
-                result = ValueString.get(ToChar.toChar(v0.getTimestamp(),
+            case Value.TIMESTAMP_TZ:
+                result = ValueString.get(ToChar.toCharDateTime(v0,
                         v1 == null ? null : v1.getString(),
                         v2 == null ? null : v2.getString()),
                         database.getMode().treatEmptyStringsAsNull);
@@ -1532,15 +1609,19 @@ public class Function extends Expression implements FunctionCall {
             }
             break;
         case TO_DATE:
-            result = ValueTimestamp.get(ToDateParser.toDate(v0.getString(),
-                    v1 == null ? null : v1.getString()));
+            result = ToDateParser.toDate(v0.getString(),
+                    v1 == null ? null : v1.getString());
             break;
         case TO_TIMESTAMP:
-            result = ValueTimestamp.get(ToDateParser.toTimestamp(v0.getString(),
-                    v1 == null ? null : v1.getString()));
+            result = ToDateParser.toTimestamp(v0.getString(),
+                    v1 == null ? null : v1.getString());
             break;
         case ADD_MONTHS:
-            result = ValueTimestamp.get(DateTimeUtils.addMonths(v0.getTimestamp(), v1.getInt()));
+            result = DateTimeFunctions.dateadd("MONTH", v1.getInt(), v0);
+            break;
+        case TO_TIMESTAMP_TZ:
+            result = ToDateParser.toTimestampTz(v0.getString(),
+                    v1 == null ? null : v1.getString());
             break;
         case TRANSLATE: {
             String matching = v1.getString();
@@ -1558,24 +1639,35 @@ public class Function extends Expression implements FunctionCall {
         // 下面是时间与日期函数 ,共5个
         // date
         case DATE_ADD:
-        	//月份加1，结果是2001-02-28 00:00:00.0 
-    		//sql = "SELECT DATEADD('MONTH', 1, DATE '2001-01-31')";
-            result = ValueTimestamp.get(dateadd(
-                    v0.getString(), v1.getLong(), v2.getTimestamp()));
+//<<<<<<< HEAD
+//        	//月份加1，结果是2001-02-28 00:00:00.0 
+//    		//sql = "SELECT DATEADD('MONTH', 1, DATE '2001-01-31')";
+//            result = ValueTimestamp.get(dateadd(
+//                    v0.getString(), v1.getLong(), v2.getTimestamp()));
+//            break;
+//        case DATE_DIFF:
+//        	//用后面的YEAR减去前面的YEAR，1999-2001=-2
+//    		//sql = "SELECT DATEDIFF('YEAR', DATE '2001-01-31', DATE '1999-01-31')";
+//            result = ValueLong.get(datediff(v0.getString(), v1.getTimestamp(), v2.getTimestamp()));
+//            break;
+//        case EXTRACT: {
+//        	//抽取日期和年份 CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 
+//    		//sql = "SELECT CURRENT_TIMESTAMP, EXTRACT(DAY FROM CURRENT_TIMESTAMP), EXTRACT(YEAR FROM CURRENT_TIMESTAMP)";
+//            int field = getDatePart(v0.getString());
+//            result = ValueInt.get(DateTimeUtils.getDatePart(
+//                    v1.getTimestamp(), field));
+//=======
+            result = DateTimeFunctions.dateadd(v0.getString(), v1.getLong(), v2);
             break;
         case DATE_DIFF:
-        	//用后面的YEAR减去前面的YEAR，1999-2001=-2
-    		//sql = "SELECT DATEDIFF('YEAR', DATE '2001-01-31', DATE '1999-01-31')";
-            result = ValueLong.get(datediff(v0.getString(), v1.getTimestamp(), v2.getTimestamp()));
+            result = ValueLong.get(DateTimeFunctions.datediff(v0.getString(), v1, v2));
             break;
-        case EXTRACT: {
-        	//抽取日期和年份 CURRENT_TIMESTAMP=2012-12-03 22:20:08.597  DAY=3  YEAR=2012 
-    		//sql = "SELECT CURRENT_TIMESTAMP, EXTRACT(DAY FROM CURRENT_TIMESTAMP), EXTRACT(YEAR FROM CURRENT_TIMESTAMP)";
-            int field = getDatePart(v0.getString());
-            result = ValueInt.get(DateTimeUtils.getDatePart(
-                    v1.getTimestamp(), field));
+        case DATE_TRUNC:
+            result = DateTimeFunctions.truncateDate(v0.getString(), v1);
             break;
-        }
+        case EXTRACT:
+            result = DateTimeFunctions.extract(v0.getString(), v1);
+            break;
         case FORMATDATETIME: {
         	//format datetime 格式化日期时间
         	//sql = "SELECT FORMATDATETIME(TIMESTAMP '2001-02-03 04:05:06', 'EEE, d MMM yyyy HH:mm:ss z', 'en', 'GMT')";
@@ -1594,7 +1686,11 @@ public class Function extends Expression implements FunctionCall {
                         null : v2 == ValueNull.INSTANCE ? null : v2.getString();
                 String tz = v3 == null ?
                         null : v3 == ValueNull.INSTANCE ? null : v3.getString();
-                result = ValueString.get(DateTimeUtils.formatDateTime(
+                if (v0 instanceof ValueTimestampTimeZone) {
+                    tz = DateTimeUtils.timeZoneNameFromOffsetMins(
+                            ((ValueTimestampTimeZone) v0).getTimeZoneOffsetMins());
+                }
+                result = ValueString.get(DateTimeFunctions.formatDateTime(
                         v0.getTimestamp(), v1.getString(), locale, tz),
                         database.getMode().treatEmptyStringsAsNull);
             }
@@ -1614,7 +1710,7 @@ public class Function extends Expression implements FunctionCall {
                         null : v2 == ValueNull.INSTANCE ? null : v2.getString();
                 String tz = v3 == null ?
                         null : v3 == ValueNull.INSTANCE ? null : v3.getString();
-                java.util.Date d = DateTimeUtils.parseDateTime(
+                java.util.Date d = DateTimeFunctions.parseDateTime(
                         v0.getString(), v1.getString(), locale, tz);
                 result = ValueTimestamp.fromMillis(d.getTime());
             }
@@ -1660,9 +1756,8 @@ public class Function extends Expression implements FunctionCall {
             String[] columns = StringUtils.arraySplit(columnList,
                     fieldSeparator, true);
             try {
-                ValueResultSet vr = ValueResultSet.get(csv.read(fileName,
+                result = ValueResultSet.get(csv.read(fileName,
                         columns, charset));
-                result = vr;
             } catch (SQLException e) {
                 throw DbException.convert(e);
             }
@@ -1722,18 +1817,21 @@ public class Function extends Expression implements FunctionCall {
             boolean blob = args.length == 1;
             try {
                 long fileLength = FileUtils.size(fileName);
-                InputStream in = new AutoCloseInputStream(
-                        FileUtils.newInputStream(fileName));
-                if (blob) {
-                    result = database.getLobStorage().createBlob(in, fileLength);
-                } else {
-                    Reader reader;
-                    if (v1 == ValueNull.INSTANCE) {
-                        reader = new InputStreamReader(in);
+                final InputStream in = FileUtils.newInputStream(fileName);
+                try {
+                    if (blob) {
+                        result = database.getLobStorage().createBlob(in, fileLength);
                     } else {
-                        reader = new InputStreamReader(in, v1.getString());
+                        Reader reader;
+                        if (v1 == ValueNull.INSTANCE) {
+                            reader = new InputStreamReader(in);
+                        } else {
+                            reader = new InputStreamReader(in, v1.getString());
+                        }
+                        result = database.getLobStorage().createClob(reader, fileLength);
                     }
-                    result = database.getLobStorage().createClob(reader, fileLength);
+                } finally {
+                    IOUtils.closeSilently(in);
                 }
                 session.addTemporaryLob(result);
             } catch (IOException e) {
@@ -1789,6 +1887,14 @@ public class Function extends Expression implements FunctionCall {
             result = session.getVariable(args[0].getSchemaName() + "." +
                     args[0].getTableName() + "." + args[0].getColumnName());
             break;
+        case SIGNAL: {
+            String sqlState = v0.getString();
+            if (sqlState.startsWith("00") || !SIGNAL_PATTERN.matcher(sqlState).matches()) {
+                throw DbException.getInvalidValueException("SQLSTATE", sqlState);
+            }
+            String msgText = v1.getString();
+            throw DbException.fromUser(sqlState, msgText);
+        }
         default:
             throw DbException.throwInternalError("type=" + info.type);
         }
@@ -1844,9 +1950,7 @@ public class Function extends Expression implements FunctionCall {
 
     private static byte[] getPaddedArrayCopy(byte[] data, int blockSize) {
         int size = MathUtils.roundUpInt(data.length, blockSize);
-        byte[] newData = DataUtils.newBytes(size);
-        System.arraycopy(data, 0, newData, 0, data.length);
-        return newData;
+        return Utils.copyBytes(data, size);
     }
 
     private static byte[] decrypt(String algorithm, byte[] key, byte[] data) {
@@ -1867,136 +1971,22 @@ public class Function extends Expression implements FunctionCall {
         return newData;
     }
 
-    private static byte[] getHash(String algorithm, byte[] bytes, int iterations) {
+    private static Value getHash(String algorithm, Value value, int iterations) {
         if (!"SHA256".equalsIgnoreCase(algorithm)) {
             throw DbException.getInvalidValueException("algorithm", algorithm);
         }
-        for (int i = 0; i < iterations; i++) {
-            bytes = SHA256.getHash(bytes, false);
+        if (iterations <= 0) {
+            throw DbException.getInvalidValueException("iterations", iterations);
         }
-        return bytes;
-    }
-
-    /**
-     * Check if a given string is a valid date part string.
-     *
-     * @param part the string
-     * @return true if it is
-     */
-    public static boolean isDatePart(String part) {
-        Integer p = DATE_PART.get(StringUtils.toUpperEnglish(part));
-        return p != null;
-    }
-
-    private static int getDatePart(String part) {
-        Integer p = DATE_PART.get(StringUtils.toUpperEnglish(part));
-        if (p == null) {
-            throw DbException.getInvalidValueException("date part", part);
+        MessageDigest md = hashImpl(value, "SHA-256");
+        if (md == null) {
+            return ValueNull.INSTANCE;
         }
-        return p.intValue();
-    }
-
-    private static Timestamp dateadd(String part, long count, Timestamp d) {
-        int field = getDatePart(part);
-        if (field == Calendar.MILLISECOND) {
-            Timestamp ts = new Timestamp(d.getTime() + count);
-            ts.setNanos(ts.getNanos() + (d.getNanos() % 1000000));
-            return ts;
+        byte[] b = md.digest();
+        for (int i = 1; i < iterations; i++) {
+            b = md.digest(b);
         }
-        // We allow long for manipulating the millisecond component,
-        // for the rest we only allow int.
-        if (count > Integer.MAX_VALUE) {
-            throw DbException.getInvalidValueException("DATEADD count", count);
-        }
-        Calendar calendar = Calendar.getInstance();
-        int nanos = d.getNanos() % 1000000;
-        calendar.setTime(d);
-        calendar.add(field, (int) count);
-        long t = calendar.getTime().getTime();
-        Timestamp ts = new Timestamp(t);
-        ts.setNanos(ts.getNanos() + nanos);
-        return ts;
-    }
-
-    /**
-     * Calculate the number of crossed unit boundaries between two timestamps.
-     * This method is supported for MS SQL Server compatibility.
-     * <pre>
-     * DATEDIFF(YEAR, '2004-12-31', '2005-01-01') = 1
-     * </pre>
-     *
-     * @param part the part
-     * @param d1 the first date
-     * @param d2 the second date
-     * @return the number of crossed boundaries
-     */
-    private static long datediff(String part, Timestamp d1, Timestamp d2) {
-        int field = getDatePart(part);
-        Calendar calendar = Calendar.getInstance();
-        long t1 = d1.getTime(), t2 = d2.getTime();
-        // need to convert to UTC, otherwise we get inconsistent results with
-        // certain time zones (those that are 30 minutes off)
-        TimeZone zone = calendar.getTimeZone();
-        calendar.setTime(d1);
-        t1 += zone.getOffset(calendar.get(Calendar.ERA),
-                calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH),
-                calendar.get(Calendar.DAY_OF_WEEK),
-                calendar.get(Calendar.MILLISECOND));
-        calendar.setTime(d2);
-        t2 += zone.getOffset(calendar.get(Calendar.ERA),
-                calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH),
-                calendar.get(Calendar.DAY_OF_WEEK),
-                calendar.get(Calendar.MILLISECOND));
-        switch (field) {
-        case Calendar.MILLISECOND:
-            return t2 - t1;
-        case Calendar.SECOND:
-        case Calendar.MINUTE:
-        case Calendar.HOUR_OF_DAY:
-        case Calendar.DAY_OF_YEAR:
-        case Calendar.WEEK_OF_YEAR: {
-            // first 'normalize' the numbers so both are not negative
-            long hour = 60 * 60 * 1000;
-            long add = Math.min(t1 / hour * hour, t2 / hour * hour);
-            t1 -= add;
-            t2 -= add;
-            switch (field) {
-            case Calendar.SECOND:
-                return t2 / 1000 - t1 / 1000;
-            case Calendar.MINUTE:
-                return t2 / (60 * 1000) - t1 / (60 * 1000);
-            case Calendar.HOUR_OF_DAY:
-                return t2 / hour - t1 / hour;
-            case Calendar.DAY_OF_YEAR:
-                return t2 / (hour * 24) - t1 / (hour * 24);
-            case Calendar.WEEK_OF_YEAR:
-                return t2 / (hour * 24 * 7) - t1 / (hour * 24 * 7);
-            default:
-                throw DbException.throwInternalError("field:" + field);
-            }
-        }
-        case Calendar.DATE:
-            return t2 / (24 * 60 * 60 * 1000) - t1 / (24 * 60 * 60 * 1000);
-        default:
-            break;
-        }
-        calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        calendar.setTimeInMillis(t1);
-        int year1 = calendar.get(Calendar.YEAR);
-        int month1 = calendar.get(Calendar.MONTH);
-        calendar.setTimeInMillis(t2);
-        int year2 = calendar.get(Calendar.YEAR);
-        int month2 = calendar.get(Calendar.MONTH);
-        int result = year2 - year1;
-        if (field == Calendar.MONTH) {
-            return 12 * result + (month2 - month1);
-        } else if (field == Calendar.YEAR) {
-            return result;
-        } else {
-            throw DbException.getUnsupportedException("DATEDIFF " + part);
-        }
+        return ValueBytes.getNoCopy(b);
     }
 
     private static String substring(String s, int start, int length) {
@@ -2013,29 +2003,6 @@ public class Function extends Expression implements FunctionCall {
             length = len - start;
         }
         return s.substring(start, start + length);
-    }
-
-    private static String replace(String s, String replace, String with) {
-        if (s == null || replace == null || with == null) {
-            return null;
-        }
-        if (replace.length() == 0) {
-            // avoid out of memory
-            return s;
-        }
-        StringBuilder buff = new StringBuilder(s.length());
-        int start = 0;
-        int len = replace.length();
-        while (true) {
-            int i = s.indexOf(replace, start);
-            if (i == -1) {
-                break;
-            }
-            buff.append(s.substring(start, i)).append(with);
-            start = i + len;
-        }
-        buff.append(s.substring(start));
-        return buff.toString();
     }
 
     private static String repeat(String s, int count) {
@@ -2154,7 +2121,7 @@ public class Function extends Expression implements FunctionCall {
                 if (buff == null) {
                     buff = new StringBuilder(size);
                     if (i > 0) {
-                        buff.append(original.substring(0, i));
+                        buff.append(original, 0, i);
                     }
                 }
                 if (index < replaceSize) {
@@ -2169,10 +2136,10 @@ public class Function extends Expression implements FunctionCall {
     }
 
     private static double roundMagic(double d) {
-        if ((d < 0.0000000000001) && (d > -0.0000000000001)) {
+        if ((d < 0.000_000_000_000_1) && (d > -0.000_000_000_000_1)) {
             return 0.0;
         }
-        if ((d > 1000000000000.) || (d < -1000000000000.)) {
+        if ((d > 1_000_000_000_000d) || (d < -1_000_000_000_000d)) {
             return d;
         }
         StringBuilder s = new StringBuilder();
@@ -2244,17 +2211,65 @@ public class Function extends Expression implements FunctionCall {
         return new String(chars);
     }
 
-    private static Integer oraHash(String s, Integer bucket, Integer seed) {
-        int hc = s.hashCode();
-        if (seed != null && seed.intValue() != 0) {
-            hc *= seed.intValue() * 17;
+    private static Value oraHash(Value value, long bucket, long seed) {
+        if ((bucket & 0xffff_ffff_0000_0000L) != 0L) {
+            throw DbException.getInvalidValueException("bucket", bucket);
         }
-        if (bucket == null  || bucket.intValue() <= 0) {
-            // do nothing
-        } else {
-            hc %= bucket.intValue();
+        if ((seed & 0xffff_ffff_0000_0000L) != 0L) {
+            throw DbException.getInvalidValueException("seed", seed);
         }
-        return hc;
+        MessageDigest md = hashImpl(value, "SHA-1");
+        if (md == null) {
+            return ValueNull.INSTANCE;
+        }
+        if (seed != 0L) {
+            byte[] b = new byte[4];
+            Bits.writeInt(b, 0, (int) seed);
+            md.update(b);
+        }
+        long hc = Bits.readLong(md.digest(), 0);
+        // Strip sign and use modulo operation to get value from 0 to bucket inclusive
+        return ValueLong.get((hc & Long.MAX_VALUE) % (bucket + 1));
+    }
+
+    private static MessageDigest hashImpl(Value value, String algorithm) {
+        MessageDigest md;
+        switch (value.getType()) {
+        case Value.NULL:
+            return null;
+        case Value.STRING:
+        case Value.STRING_FIXED:
+        case Value.STRING_IGNORECASE:
+            try {
+                md = MessageDigest.getInstance(algorithm);
+                md.update(value.getString().getBytes(StandardCharsets.UTF_8));
+            } catch (Exception ex) {
+                throw DbException.convert(ex);
+            }
+            break;
+        case Value.BLOB:
+        case Value.CLOB:
+            try {
+                md = MessageDigest.getInstance(algorithm);
+                byte[] buf = new byte[4096];
+                try (InputStream is = value.getInputStream()) {
+                    for (int r; (r = is.read(buf)) > 0; ) {
+                        md.update(buf, 0, r);
+                    }
+                }
+            } catch (Exception ex) {
+                throw DbException.convert(ex);
+            }
+            break;
+        default:
+            try {
+                md = MessageDigest.getInstance(algorithm);
+                md.update(value.getBytesNoCopy());
+            } catch (Exception ex) {
+                throw DbException.convert(ex);
+            }
+        }
+        return md;
     }
 
     private static int makeRegexpFlags(String stringFlags) {
@@ -2288,10 +2303,10 @@ public class Function extends Expression implements FunctionCall {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
         for (Expression e : args) {
             if (e != null) {
-                e.mapColumns(resolver, level);
+                e.mapColumns(resolver, level, state);
             }
         }
     }
@@ -2311,7 +2326,8 @@ public class Function extends Expression implements FunctionCall {
         case GREATEST:
             min = 1;
             break;
-        case NOW:
+        case LOCALTIMESTAMP:
+        case CURRENT_TIME:
         case CURRENT_TIMESTAMP:
         case RAND:
             max = 1;
@@ -2325,7 +2341,12 @@ public class Function extends Expression implements FunctionCall {
         case XMLTEXT:
         case TRUNCATE:
         case TO_TIMESTAMP:
+        case TO_TIMESTAMP_TZ:
             min = 1;
+            max = 2;
+            break;
+        case DATE_TRUNC:
+            min = 2;
             max = 2;
             break;
         case TO_CHAR:
@@ -2337,6 +2358,7 @@ public class Function extends Expression implements FunctionCall {
             min = 1;
             max = 3;
             break;
+        case HASH:
         case REPLACE:
         case LOCATE:
         case INSTR:
@@ -2397,17 +2419,15 @@ public class Function extends Expression implements FunctionCall {
      */
     public void doneWithParameters() {
         if (info.parameterCount == VAR_ARGS) {
-            int len = varArgs.size();
-            checkParameterCount(len);
-            args = new Expression[len];
-            varArgs.toArray(args);
+            checkParameterCount(varArgs.size());
+            args = varArgs.toArray(new Expression[0]);
             varArgs = null;
         } else {
             int len = args.length;
             if (len > 0 && args[len - 1] == null) {
                 throw DbException.get(
                         ErrorCode.INVALID_PARAMETER_COUNT_2,
-                        info.name, "" + len);
+                        info.name, Integer.toString(len));
             }
         }
     }
@@ -2417,6 +2437,7 @@ public class Function extends Expression implements FunctionCall {
         precision = col.getPrecision();
         displaySize = col.getDisplaySize();
         scale = col.getScale();
+        extTypeInfo = col.getExtTypeInfo();
     }
 
     @Override
@@ -2437,6 +2458,69 @@ public class Function extends Expression implements FunctionCall {
         long p;
         Expression p0 = args.length < 1 ? null : args[0];
         switch (info.type) {
+        case DATE_ADD: {
+            t = Value.TIMESTAMP;
+            p = d = ValueTimestamp.DEFAULT_PRECISION;
+            s = ValueTimestamp.MAXIMUM_SCALE;
+            if (p0.isConstant()) {
+                Expression p2 = args[2];
+                switch (p2.getType()) {
+                case Value.TIME:
+                    t = Value.TIME;
+                    p = d = ValueTime.DEFAULT_PRECISION;
+                    break;
+                case Value.DATE: {
+                    int field = DateTimeFunctions.getDatePart(p0.getValue(session).getString());
+                    switch (field) {
+                    case HOUR:
+                    case MINUTE:
+                    case SECOND:
+                    case EPOCH:
+                    case MILLISECOND:
+                    case MICROSECOND:
+                    case NANOSECOND:
+                        // TIMESTAMP result
+                        break;
+                    default:
+                        t = Value.DATE;
+                        p = d = ValueDate.PRECISION;
+                        s = 0;
+                    }
+                    break;
+                }
+                case Value.TIMESTAMP_TZ:
+                    t = Value.TIMESTAMP_TZ;
+                    p = d = ValueTimestampTimeZone.DEFAULT_PRECISION;
+                }
+            }
+            break;
+        }
+        case EXTRACT: {
+            if (p0.isConstant() && DateTimeFunctions.getDatePart(p0.getValue(session).getString()) == Function.EPOCH) {
+                t = Value.DECIMAL;
+                p = ValueLong.PRECISION + ValueTimestamp.MAXIMUM_SCALE;
+                s = ValueTimestamp.MAXIMUM_SCALE;
+                d = ValueLong.PRECISION + ValueTimestamp.MAXIMUM_SCALE + 1;
+            } else {
+                t = Value.INT;
+                p = ValueInt.PRECISION;
+                s = 0;
+                d = ValueInt.DISPLAY_SIZE;
+            }
+            break;
+        }
+        case DATE_TRUNC: {
+            Expression p1 = args[1];
+            t = p1.getType();
+            if (t == Value.TIMESTAMP_TZ) {
+                p = d = ValueTimestampTimeZone.DEFAULT_PRECISION;
+            } else {
+                t = Value.TIMESTAMP;
+                p = d = ValueTimestamp.DEFAULT_PRECISION;
+            }
+            s = ValueTimestamp.MAXIMUM_SCALE;
+            break;
+        }
         case IFNULL:
         case NULLIF:
         case COALESCE:
@@ -2539,20 +2623,24 @@ public class Function extends Expression implements FunctionCall {
             d = displaySize;
             break;
         case TRUNCATE:
-            t = p0.getType();
-            s = p0.getScale();
-            p = p0.getPrecision();
-            d = p0.getDisplaySize();
-            if (t == Value.NULL) {
-                t = Value.INT;
-                p = ValueInt.PRECISION;
-                d = ValueInt.DISPLAY_SIZE;
+            switch (p0.getType()) {
+            case Value.STRING:
+            case Value.DATE:
+            case Value.TIMESTAMP:
+                t = Value.TIMESTAMP;
+                p = d = ValueTimestamp.DEFAULT_PRECISION;
                 s = 0;
-            } else if (t == Value.TIMESTAMP) {
-                t = Value.DATE;
-                p = ValueDate.PRECISION;
+                break;
+            case Value.TIMESTAMP_TZ:
+                t = Value.TIMESTAMP;
+                p = d = ValueTimestampTimeZone.DEFAULT_PRECISION;
                 s = 0;
-                d = ValueDate.DISPLAY_SIZE;
+                break;
+            default:
+                t = Value.DOUBLE;
+                s = 0;
+                p = ValueDouble.PRECISION;
+                d = ValueDouble.DISPLAY_SIZE;
             }
             break;
         case ABS:
@@ -2734,7 +2822,7 @@ public class Function extends Expression implements FunctionCall {
         StatementBuilder buff = new StatementBuilder(info.name);
         if (info.type == CASE) {
             if (args[0] != null) {
-                buff.append(" ").append(args[0].getSQL());
+                buff.append(' ').append(args[0].getSQL());
             }
             for (int i = 1, len = args.length - 1; i < len; i += 2) {
                 buff.append(" WHEN ").append(args[i].getSQL());
@@ -2750,7 +2838,7 @@ public class Function extends Expression implements FunctionCall {
         case CAST: {
             buff.append(args[0].getSQL()).append(" AS ").
                 append(new Column(null, dataType, precision,
-                        scale, displaySize).getCreateSQL());
+                        scale, displaySize, extTypeInfo).getCreateSQL());
             break;
         }
         case CONVERT: {
@@ -2781,10 +2869,10 @@ public class Function extends Expression implements FunctionCall {
     }
 
     @Override
-    public void updateAggregate(Session session) {
+    public void updateAggregate(Session session, int stage) {
         for (Expression e : args) {
             if (e != null) {
-                e.updateAggregate(session);
+                e.updateAggregate(session, stage);
             }
         }
     }
@@ -2891,7 +2979,8 @@ public class Function extends Expression implements FunctionCall {
         case ExpressionVisitor.NOT_FROM_RESOLVER:
         case ExpressionVisitor.OPTIMIZABLE_MIN_MAX_COUNT_ALL:
         case ExpressionVisitor.SET_MAX_DATA_MODIFICATION_ID:
-        case ExpressionVisitor.GET_COLUMNS:
+        case ExpressionVisitor.GET_COLUMNS1:
+        case ExpressionVisitor.GET_COLUMNS2:
             return true;
         default:
             throw DbException.throwInternalError("type=" + visitor.getType());
@@ -2917,6 +3006,21 @@ public class Function extends Expression implements FunctionCall {
     @Override
     public boolean isBufferResultSetToLocalTemp() {
         return info.bufferResultSetToLocalTemp;
+    }
+
+    @Override
+    public boolean isGeneratedKey() {
+        return info.type == NEXTVAL;
+    }
+
+    @Override
+    public int getSubexpressionCount() {
+        return args.length;
+    }
+
+    @Override
+    public Expression getSubexpression(int index) {
+        return args[index];
     }
 
 }

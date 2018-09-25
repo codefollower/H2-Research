@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -52,25 +52,6 @@ public interface Row extends SearchRow {
      * @param deleted deleted flag
      */
     void setDeleted(boolean deleted);
-
-    /**
-     * Set session id.
-     *
-     * @param sessionId the session id
-     */
-    void setSessionId(int sessionId);
-
-    /**
-     * Get session id.
-     *
-     * @return the session id
-     */
-    int getSessionId();
-
-    /**
-     * This record has been committed. The session id is reset.
-     */
-    void commit();
 
     /**
      * Check if the row is deleted.

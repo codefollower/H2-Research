@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,15 +25,19 @@ public class ValueBoolean extends Value {
     public static final int DISPLAY_SIZE = 5;
 
     /**
-     * Of type Object so that Tomcat doesn't set it to null.
+     * TRUE value.
      */
-    private static final Object TRUE = new ValueBoolean(true);
-    private static final Object FALSE = new ValueBoolean(false);
+    public static final ValueBoolean TRUE = new ValueBoolean(true);
 
-    private final Boolean value;
+    /**
+     * FALSE value.
+     */
+    public static final ValueBoolean FALSE = new ValueBoolean(false);
+
+    private final boolean value;
 
     private ValueBoolean(boolean value) {
-        this.value = Boolean.valueOf(value);
+        this.value = value;
     }
 
     @Override
@@ -48,24 +52,22 @@ public class ValueBoolean extends Value {
 
     @Override
     public String getString() {
-        return value.booleanValue() ? "TRUE" : "FALSE";
+        return value ? "TRUE" : "FALSE";
     }
 
     @Override
     public Value negate() {
-        return (ValueBoolean) (value.booleanValue() ? FALSE : TRUE);
+        return value ? FALSE : TRUE;
     }
 
     @Override
-    public Boolean getBoolean() {
+    public boolean getBoolean() {
         return value;
     }
 
     @Override
-    protected int compareSecure(Value o, CompareMode mode) {
-        boolean v2 = ((ValueBoolean) o).value.booleanValue();
-        boolean v = value.booleanValue();
-        return (v == v2) ? 0 : (v ? 1 : -1);
+    public int compareTypeSafe(Value o, CompareMode mode) {
+        return Boolean.compare(value, ((ValueBoolean) o).value);
     }
 
     @Override
@@ -75,7 +77,7 @@ public class ValueBoolean extends Value {
 
     @Override
     public int hashCode() {
-        return value.booleanValue() ? 1 : 0;
+        return value ? 1 : 0;
     }
 
     @Override
@@ -86,7 +88,7 @@ public class ValueBoolean extends Value {
     @Override
     public void set(PreparedStatement prep, int parameterIndex)
             throws SQLException {
-        prep.setBoolean(parameterIndex, value.booleanValue());
+        prep.setBoolean(parameterIndex, value);
     }
 
     /**
@@ -96,7 +98,7 @@ public class ValueBoolean extends Value {
      * @return the value
      */
     public static ValueBoolean get(boolean b) {
-        return (ValueBoolean) (b ? TRUE : FALSE);
+        return b ? TRUE : FALSE;
     }
 
     @Override

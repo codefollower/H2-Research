@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,6 +15,7 @@ import org.h2.message.DbException;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.value.CompareMode;
+import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueNull;
@@ -198,9 +199,7 @@ public class CompareLike extends Condition {
             // can't use an index
             return;
         }
-        int dataType = l.getColumn().getType();
-        if (dataType != Value.STRING && dataType != Value.STRING_IGNORECASE &&
-                dataType != Value.STRING_FIXED) {
+        if (!DataType.isStringType(l.getColumn().getType())) {
             // column is not a varchar - can't use the index
             return;
         }
@@ -335,7 +334,7 @@ public class CompareLike extends Condition {
                 }
                 return false;
             default:
-                DbException.throwInternalError("" + types[pi]);
+                DbException.throwInternalError(Integer.toString(types[pi]));
             }
         }
         return si == sLen;
@@ -424,6 +423,11 @@ public class CompareLike extends Condition {
         }
         patternString = new String(patternChars, 0, patternLength);
 
+        // Clear optimizations
+        shortcutToStartsWith = false;
+        shortcutToEndsWith = false;
+        shortcutToContains = false;
+
         // optimizes the common case of LIKE 'foo%'
         if (compareMode.getName().equals(CompareMode.OFF) && patternLength > 1) {
             int maxMatch = 0;
@@ -475,11 +479,11 @@ public class CompareLike extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
-        left.mapColumns(resolver, level);
-        right.mapColumns(resolver, level);
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
+        left.mapColumns(resolver, level, state);
+        right.mapColumns(resolver, level, state);
         if (escape != null) {
-            escape.mapColumns(resolver, level);
+            escape.mapColumns(resolver, level, state);
         }
     }
 
@@ -493,11 +497,11 @@ public class CompareLike extends Condition {
     }
 
     @Override
-    public void updateAggregate(Session session) {
-        left.updateAggregate(session);
-        right.updateAggregate(session);
+    public void updateAggregate(Session session, int stage) {
+        left.updateAggregate(session, stage);
+        right.updateAggregate(session, stage);
         if (escape != null) {
-            escape.updateAggregate(session);
+            escape.updateAggregate(session, stage);
         }
     }
 

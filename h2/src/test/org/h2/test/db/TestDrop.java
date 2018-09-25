@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,11 +9,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.test.TestBase;
+import org.h2.test.TestDb;
 
 /**
  * Test DROP statement
  */
-public class TestDrop extends TestBase {
+public class TestDrop extends TestDb {
 
     private Connection conn;
     private Statement stat;
@@ -58,7 +59,7 @@ public class TestDrop extends TestBase {
         stat.execute("CREATE TABLE TEST_SCHEMA.A (A INT);");
         stat.execute("CREATE TABLE TEST_SCHEMA.B " +
                 "(B INT AS SELECT A FROM TEST_SCHEMA.A);");
-        stat.execute("DROP SCHEMA TEST_SCHEMA");
+        stat.execute("DROP SCHEMA TEST_SCHEMA CASCADE");
     }
 
     private void testInterSchemaDependency() throws SQLException {

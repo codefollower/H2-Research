@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,6 +14,9 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
 import org.h2.engine.Session;
@@ -21,15 +24,14 @@ import org.h2.engine.UndoLogRecord;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.index.LinkedIndex;
-import org.h2.jdbc.JdbcSQLException;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.RowList;
 import org.h2.schema.Schema;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueDate;
@@ -44,13 +46,13 @@ public class TableLink extends Table {
 
     private static final int MAX_RETRY = 2;
 
-    private static final long ROW_COUNT_APPROXIMATION = 100000;
+    private static final long ROW_COUNT_APPROXIMATION = 100_000;
 
     private final String originalSchema;
     private String driver, url, user, password, originalTable, qualifiedTableName;
     private TableLinkConnection conn;
-    private HashMap<String, PreparedStatement> preparedMap = New.hashMap();
-    private final ArrayList<Index> indexes = New.arrayList();
+    private HashMap<String, PreparedStatement> preparedMap = new HashMap<>();
+    private final ArrayList<Index> indexes = Utils.newSmallArrayList();
     private final boolean emitUpdates;
     private LinkedIndex linkedIndex;
     private DbException connectException;
@@ -60,6 +62,7 @@ public class TableLink extends Table {
     private boolean supportsMixedCaseIdentifiers;
     private boolean globalTemporary;
     private boolean readOnly;
+    private boolean targetsMySql;
 
     public TableLink(Schema schema, int id, String name, String driver,
             String url, String user, String password, String originalSchema,
@@ -72,6 +75,7 @@ public class TableLink extends Table {
         this.originalSchema = originalSchema;
         this.originalTable = originalTable;
         this.emitUpdates = emitUpdates;
+        this.targetsMySql = isMySqlUrl(this.url);
         try {
             connect();
         } catch (DbException e) {
@@ -124,8 +128,8 @@ public class TableLink extends Table {
         rs.close();
         rs = meta.getColumns(null, originalSchema, originalTable, null);
         int i = 0;
-        ArrayList<Column> columnList = New.arrayList();
-        HashMap<String, Column> columnMap = New.hashMap();
+        ArrayList<Column> columnList = Utils.newSmallArrayList();
+        HashMap<String, Column> columnMap = new HashMap<>();
         String catalog = null, schema = null;
         while (rs.next()) {
             String thisCatalog = rs.getString("TABLE_CAT");
@@ -136,8 +140,8 @@ public class TableLink extends Table {
             if (schema == null) {
                 schema = thisSchema;
             }
-            if (!StringUtils.equals(catalog, thisCatalog) ||
-                    !StringUtils.equals(schema, thisSchema)) {
+            if (!Objects.equals(catalog, thisCatalog) ||
+                    !Objects.equals(schema, thisSchema)) {
                 // if the table exists in multiple schemas or tables,
                 // use the alternative solution
                 columnMap.clear();
@@ -170,7 +174,7 @@ public class TableLink extends Table {
         try (Statement stat = conn.getConnection().createStatement()) {
             rs = stat.executeQuery("SELECT * FROM " +
                     qualifiedTableName + " T WHERE 1=0");
-            if (columnList.size() == 0) {
+            if (columnList.isEmpty()) {
                 // alternative solution
                 ResultSetMetaData rsMeta = rs.getMetaData();
                 for (i = 0; i < rsMeta.getColumnCount();) {
@@ -194,8 +198,7 @@ public class TableLink extends Table {
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, e,
                     originalTable + "(" + e.toString() + ")");
         }
-        Column[] cols = new Column[columnList.size()];
-        columnList.toArray(cols);
+        Column[] cols = columnList.toArray(new Column[0]);
         setColumns(cols);
         int id = getId();
         linkedIndex = new LinkedIndex(this, id, IndexColumn.wrap(cols),
@@ -213,7 +216,7 @@ public class TableLink extends Table {
         ArrayList<Column> list;
         if (rs != null && rs.next()) {
             // the problem is, the rows are not sorted by KEY_SEQ
-            list = New.arrayList();
+            list = Utils.newSmallArrayList();
             do {
                 int idx = rs.getInt("KEY_SEQ");
                 if (pkName == null) {
@@ -243,7 +246,7 @@ public class TableLink extends Table {
             rs = null;
         }
         String indexName = null;
-        list = New.arrayList();
+        list = Utils.newSmallArrayList();
         IndexType indexType = null;
         if (rs != null) {
             while (rs.next()) {
@@ -293,10 +296,10 @@ public class TableLink extends Table {
             precision = Math.max(ValueDate.PRECISION, precision);
             break;
         case Types.TIMESTAMP:
-            precision = Math.max(ValueTimestamp.PRECISION, precision);
+            precision = Math.max(ValueTimestamp.MAXIMUM_PRECISION, precision);
             break;
         case Types.TIME:
-            precision = Math.max(ValueTime.PRECISION, precision);
+            precision = Math.max(ValueTime.MAXIMUM_PRECISION, precision);
             break;
         }
         return precision;
@@ -317,7 +320,10 @@ public class TableLink extends Table {
     }
 
     private String convertColumnName(String columnName) {
-        if ((storesMixedCase || storesLowerCase) &&
+        if(targetsMySql) {
+            // MySQL column names are not case-sensitive on any platform
+            columnName = StringUtils.toUpperEnglish(columnName);
+        } else if ((storesMixedCase || storesLowerCase) &&
                 columnName.equals(StringUtils.toLowerEnglish(columnName))) {
             columnName = StringUtils.toUpperEnglish(columnName);
         } else if (storesMixedCase && !supportsMixedCaseIdentifiers) {
@@ -330,9 +336,20 @@ public class TableLink extends Table {
         return columnName;
     }
 
-    private void addIndex(ArrayList<Column> list, IndexType indexType) {
-        Column[] cols = new Column[list.size()];
-        list.toArray(cols);
+    private void addIndex(List<Column> list, IndexType indexType) {
+        // bind the index to the leading recognized columns in the index
+        // (null columns might come from a function-based index)
+        int firstNull = list.indexOf(null);
+        if (firstNull == 0) {
+            trace.info("Omitting linked index - no recognized columns.");
+            return;
+        } else if (firstNull > 0) {
+            trace.info("Unrecognized columns in linked index. " +
+                    "Registering the index against the leading {0} " +
+                    "recognized columns of {1} total columns.", firstNull, list.size());
+            list = list.subList(0, firstNull);
+        }
+        Column[] cols = list.toArray(new Column[0]);
         Index index = new LinkedIndex(this, 0, IndexColumn.wrap(cols), indexType);
         indexes.add(index);
     }
@@ -374,7 +391,7 @@ public class TableLink extends Table {
         if (readOnly) {
             buff.append(" READONLY");
         }
-        buff.append(" /*" + JdbcSQLException.HIDE_SQL + "*/");
+        buff.append(" /*").append(DbException.HIDE_SQL).append("*/");
         return buff.toString();
     }
 
@@ -488,7 +505,7 @@ public class TableLink extends Table {
                     if (trace.isDebugEnabled()) {
                         StatementBuilder buff = new StatementBuilder();
                         buff.append(getName()).append(":\n").append(sql);
-                        if (params != null && params.size() > 0) {
+                        if (params != null && !params.isEmpty()) {
                             buff.append(" {");
                             int i = 1;
                             for (Value v : params) {
@@ -571,6 +588,11 @@ public class TableLink extends Table {
 
     public boolean isOracle() {
         return url.startsWith("jdbc:oracle:");
+    }
+
+    private static boolean isMySqlUrl(String url) {
+        return url.startsWith("jdbc:mysql:")
+                || url.startsWith("jdbc:mariadb:");
     }
 
     @Override

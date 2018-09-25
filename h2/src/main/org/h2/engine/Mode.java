@@ -1,31 +1,54 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
+import java.sql.Types;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.regex.Pattern;
-
-import org.h2.util.New;
 import org.h2.util.StringUtils;
+import org.h2.value.DataType;
+import org.h2.value.Value;
 
 /**
  * The compatibility modes. There is a fixed set of modes (for example
  * PostgreSQL, MySQL). Each mode has different settings.
  */
-@SuppressWarnings("unused")
 public class Mode {
 
-    /**
-     * The name of the default mode.
-     */
-    static final String REGULAR = "REGULAR";
+    public enum ModeEnum {
+        REGULAR, DB2, Derby, MSSQLServer, HSQLDB, MySQL, Oracle, PostgreSQL, Ignite,
+    }
 
-    private static final HashMap<String, Mode> MODES = New.hashMap();
+    /**
+     * Determines how rows with {@code NULL} values in indexed columns are handled
+     * in unique indexes.
+     */
+    public enum UniqueIndexNullsHandling {
+        /**
+         * Multiple rows with identical values in indexed columns with at least one
+         * indexed {@code NULL} value are allowed in unique index.
+         */
+        ALLOW_DUPLICATES_WITH_ANY_NULL,
+
+        /**
+         * Multiple rows with identical values in indexed columns with all indexed
+         * {@code NULL} values are allowed in unique index.
+         */
+        ALLOW_DUPLICATES_WITH_ALL_NULLS,
+
+        /**
+         * Multiple rows with identical values in indexed columns are not allowed in
+         * unique index.
+         */
+        FORBID_ANY_DUPLICATES
+    }
+
+    private static final HashMap<String, Mode> MODES = new HashMap<>();
 
     // Modes are also documented in the features section
 
@@ -78,30 +101,26 @@ public class Mode {
     public boolean squareBracketQuotedNames;
 
     /**
-     * Support for the syntax
-     * [OFFSET .. ROW|ROWS] [FETCH FIRST .. ROW|ROWS ONLY]
-     * as an alternative for LIMIT .. OFFSET.
-     */
-    public boolean supportOffsetFetch = Constants.VERSION_MINOR >= 4 ? true : false;
-
-    /**
      * The system columns 'CTID' and 'OID' are supported.
      */
     public boolean systemColumns;
 
     /**
-     * For unique indexes, NULL is distinct. That means only one row with NULL
-     * in one of the columns is allowed.
+     * Determines how rows with {@code NULL} values in indexed columns are handled
+     * in unique indexes.
      */
-    public boolean uniqueIndexSingleNull; //Derby/HSQLDB/MSSQLServer对于唯一索引只允许整个表中只有一条记录含有null值
-
-    /**
-     * When using unique indexes, multiple rows with NULL in all columns
-     * are allowed, however it is not allowed to have multiple rows with the
-     * same values otherwise.
-     */
-    //只有Oracle为true
-    public boolean uniqueIndexSingleNullExceptAllColumnsAreNull; //对于唯一索引，索引记录可以全为null
+//<<<<<<< HEAD
+//    public boolean uniqueIndexSingleNull; //Derby/HSQLDB/MSSQLServer对于唯一索引只允许整个表中只有一条记录含有null值
+//
+//    /**
+//     * When using unique indexes, multiple rows with NULL in all columns
+//     * are allowed, however it is not allowed to have multiple rows with the
+//     * same values otherwise.
+//     */
+//    //只有Oracle为true
+//    public boolean uniqueIndexSingleNullExceptAllColumnsAreNull; //对于唯一索引，索引记录可以全为null
+//=======
+    public UniqueIndexNullsHandling uniqueIndexNullsHandling = UniqueIndexNullsHandling.ALLOW_DUPLICATES_WITH_ANY_NULL;
 
     /**
      * Empty strings are treated like NULL values. Useful for Oracle emulation.
@@ -124,6 +143,11 @@ public class Mode {
     public boolean logIsLogBase10;
 
     /**
+     * The function REGEXP_REPLACE() uses \ for back-references.
+     */
+    public boolean regexpReplaceBackslashReferences;
+
+    /**
      * SERIAL and BIGSERIAL columns are not automatically primary keys.
      */
     public boolean serialColumnIsNotPK;
@@ -139,7 +163,7 @@ public class Mode {
     public boolean isolationLevelInSelectOrInsertStatement;
 
     /**
-     * MySQL style INSERT ... ON DUPLICATE KEY UPDATE ...
+     * MySQL style INSERT ... ON DUPLICATE KEY UPDATE ... and INSERT IGNORE
      */
     public boolean onDuplicateKeyUpdate;
 
@@ -175,22 +199,33 @@ public class Mode {
     public boolean allowDB2TimestampFormat;
 
     /**
+     * Convert (VAR)CHAR to VAR(BINARY) and vice versa with UTF-8 encoding instead of HEX.
+     */
+    public boolean charToBinaryInUtf8;
+
+    /**
      * An optional Set of hidden/disallowed column types.
      * Certain DBMSs don't support all column types provided by H2, such as
      * "NUMBER" when using PostgreSQL mode.
      */
     public Set<String> disallowedTypes = Collections.emptySet();
 
+    /**
+     * Custom mappings from type names to data types.
+     */
+    public HashMap<String, DataType> typeByNameMap = new HashMap<>();
+
     private final String name;
 
+    private final ModeEnum modeEnum;
+
     static {
-        Mode mode = new Mode(REGULAR);
+        Mode mode = new Mode(ModeEnum.REGULAR);
         mode.nullConcatIsNull = true;
         add(mode);
 
-        mode = new Mode("DB2");
+        mode = new Mode(ModeEnum.DB2);
         mode.aliasColumnName = true;
-        mode.supportOffsetFetch = true;
         mode.sysDummy1 = true;
         mode.isolationLevelInSelectOrInsertStatement = true;
         // See
@@ -203,21 +238,20 @@ public class Mode {
         mode.allowDB2TimestampFormat = true;
         add(mode);
 
-        mode = new Mode("Derby");
+        mode = new Mode(ModeEnum.Derby);
         mode.aliasColumnName = true;
-        mode.uniqueIndexSingleNull = true;
-        mode.supportOffsetFetch = true;
+        mode.uniqueIndexNullsHandling = UniqueIndexNullsHandling.FORBID_ANY_DUPLICATES;
         mode.sysDummy1 = true;
         mode.isolationLevelInSelectOrInsertStatement = true;
         // Derby does not support client info properties as of version 10.12.1.1
         mode.supportedClientInfoPropertiesRegEx = null;
         add(mode);
 
-        mode = new Mode("HSQLDB");
+        mode = new Mode(ModeEnum.HSQLDB);
         mode.aliasColumnName = true;
         mode.convertOnlyToSmallerScale = true;
         mode.nullConcatIsNull = true;
-        mode.uniqueIndexSingleNull = true;
+        mode.uniqueIndexNullsHandling = UniqueIndexNullsHandling.FORBID_ANY_DUPLICATES;
         mode.allowPlusForStringConcat = true;
         // HSQLDB does not support client info properties. See
         // http://hsqldb.org/doc/apidocs/
@@ -226,22 +260,34 @@ public class Mode {
         mode.supportedClientInfoPropertiesRegEx = null;
         add(mode);
 
-        mode = new Mode("MSSQLServer");
+        mode = new Mode(ModeEnum.MSSQLServer);
         mode.aliasColumnName = true;
         mode.squareBracketQuotedNames = true;
-        mode.uniqueIndexSingleNull = true;
+        mode.uniqueIndexNullsHandling = UniqueIndexNullsHandling.FORBID_ANY_DUPLICATES;
         mode.allowPlusForStringConcat = true;
         mode.swapConvertFunctionParameters = true;
         mode.supportPoundSymbolForColumnNames = true;
         // MS SQL Server does not support client info properties. See
         // https://msdn.microsoft.com/en-Us/library/dd571296%28v=sql.110%29.aspx
         mode.supportedClientInfoPropertiesRegEx = null;
+        DataType dt = DataType.createDecimal(19, 19, 4, 21, false, false);
+        dt.type = Value.DECIMAL;
+        dt.sqlType = Types.NUMERIC;
+        dt.name = "MONEY";
+        mode.typeByNameMap.put("MONEY", dt);
+        dt = DataType.createDecimal(10, 10, 4, 12, false, false);
+        dt.type = Value.DECIMAL;
+        dt.sqlType = Types.NUMERIC;
+        dt.name = "SMALLMONEY";
+        mode.typeByNameMap.put("SMALLMONEY", dt);
         add(mode);
 
-        mode = new Mode("MySQL");
+        mode = new Mode(ModeEnum.MySQL);
         mode.convertInsertNullToZero = true;
         mode.indexDefinitionInCreateTable = true;
         mode.lowerCaseIdentifiers = true;
+        // Next one is for MariaDB
+        mode.regexpReplaceBackslashReferences = true;
         mode.onDuplicateKeyUpdate = true;
         // MySQL allows to use any key for client info entries. See
         // http://grepcode.com/file/repo1.maven.org/maven2/mysql/
@@ -250,27 +296,34 @@ public class Mode {
         mode.supportedClientInfoPropertiesRegEx =
                 Pattern.compile(".*");
         mode.prohibitEmptyInPredicate = true;
+        mode.charToBinaryInUtf8 = true;
         add(mode);
 
-        mode = new Mode("Oracle");
+        mode = new Mode(ModeEnum.Oracle);
         mode.aliasColumnName = true;
         mode.convertOnlyToSmallerScale = true;
-        mode.uniqueIndexSingleNullExceptAllColumnsAreNull = true;
+        mode.uniqueIndexNullsHandling = UniqueIndexNullsHandling.ALLOW_DUPLICATES_WITH_ALL_NULLS;
         mode.treatEmptyStringsAsNull = true;
+        mode.regexpReplaceBackslashReferences = true;
         mode.supportPoundSymbolForColumnNames = true;
         // Oracle accepts keys of the form <namespace>.*. See
         // https://docs.oracle.com/database/121/JJDBC/jdbcvers.htm#JJDBC29006
         mode.supportedClientInfoPropertiesRegEx =
                 Pattern.compile(".*\\..*");
         mode.prohibitEmptyInPredicate = true;
+        dt = DataType.createDate(/* 2001-01-01 23:59:59 */ 19, 19, "DATE", false, 0, 0);
+        dt.type = Value.TIMESTAMP;
+        dt.sqlType = Types.TIMESTAMP;
+        dt.name = "DATE";
+        mode.typeByNameMap.put("DATE", dt);
         add(mode);
 
-        mode = new Mode("PostgreSQL");
+        mode = new Mode(ModeEnum.PostgreSQL);
         mode.aliasColumnName = true;
         mode.nullConcatIsNull = true;
-        mode.supportOffsetFetch = true;
         mode.systemColumns = true;
         mode.logIsLogBase10 = true;
+        mode.regexpReplaceBackslashReferences = true;
         mode.serialColumnIsNotPK = true;
         // PostgreSQL only supports the ApplicationName property. See
         // https://github.com/hhru/postgres-jdbc/blob/master/postgresql-jdbc-9.2-1002.src/
@@ -280,22 +333,29 @@ public class Mode {
         mode.prohibitEmptyInPredicate = true;
         mode.padFixedLengthStrings = true;
         // Enumerate all H2 types NOT supported by PostgreSQL:
-        Set<String> disallowedTypes = new java.util.HashSet<String>();
+        Set<String> disallowedTypes = new java.util.HashSet<>();
         disallowedTypes.add("NUMBER");
         disallowedTypes.add("IDENTITY");
         disallowedTypes.add("TINYINT");
+        disallowedTypes.add("BLOB");
         mode.disallowedTypes = disallowedTypes;
+        dt = DataType.createDecimal(19, 19, 2, 21, false, false);
+        dt.type = Value.DECIMAL;
+        dt.sqlType = Types.NUMERIC;
+        dt.name = "MONEY";
+        mode.typeByNameMap.put("MONEY", dt);
         add(mode);
 
-        mode = new Mode("Ignite");
+        mode = new Mode(ModeEnum.Ignite);
         mode.nullConcatIsNull = true;
         mode.allowAffinityKey = true;
         mode.indexDefinitionInCreateTable = true;
         add(mode);
     }
 
-    private Mode(String name) {
-        this.name = name;
+    private Mode(ModeEnum modeEnum) {
+        this.name = modeEnum.name();
+        this.modeEnum = modeEnum;
     }
 
     private static void add(Mode mode) {
@@ -312,7 +372,20 @@ public class Mode {
         return MODES.get(StringUtils.toUpperEnglish(name));
     }
 
+    public static Mode getRegular() {
+        return getInstance(ModeEnum.REGULAR.name());
+    }
+
     public String getName() {
+        return name;
+    }
+
+    public ModeEnum getEnum() {
+        return this.modeEnum;
+    }
+
+    @Override
+    public String toString() {
         return name;
     }
 

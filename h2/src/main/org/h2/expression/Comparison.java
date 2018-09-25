@@ -1,20 +1,22 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.engine.SysProperties;
 import org.h2.index.IndexCondition;
 import org.h2.message.DbException;
+import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueGeometry;
@@ -179,6 +181,9 @@ public class Comparison extends Condition {
         left = left.optimize(session);
         if (right != null) {
             right = right.optimize(session);
+            if (right.getType() == Value.ARRAY && left.getType() != Value.ARRAY) {
+                throw DbException.get(ErrorCode.COMPARING_ARRAY_TO_SCALAR);
+            }
             if (right instanceof ExpressionColumn) {
             	//例如delete top 3 from DeleteTest where 'a1'> name
             	//转成delete top 3 from DeleteTest where name < 'a1'
@@ -205,9 +210,10 @@ public class Comparison extends Condition {
                     // to constant type, but vise versa, then let's do this here
                     // once.
                     if (constType != resType) {
+                        Column column = ((ExpressionColumn) left).getColumn();
                         right = ValueExpression.get(r.convertTo(resType,
                                 MathUtils.convertLongToInt(left.getPrecision()),
-                                session.getDatabase().getMode(), ((ExpressionColumn) left).getColumn()));
+                                session.getDatabase().getMode(), column, column.getExtTypeInfo()));
                     }
                 } else if (right instanceof Parameter) {
                     ((Parameter) right).setColumn(
@@ -248,7 +254,7 @@ public class Comparison extends Condition {
                 result = l == ValueNull.INSTANCE;
                 break;
             case IS_NOT_NULL:
-                result = !(l == ValueNull.INSTANCE);
+                result = l != ValueNull.INSTANCE;
                 break;
             default:
                 throw DbException.throwInternalError("type=" + compareType);
@@ -266,11 +272,7 @@ public class Comparison extends Condition {
                 return ValueNull.INSTANCE;
             }
         }
-        int dataType = Value.getHigherOrder(left.getType(), right.getType());
-        l = l.convertTo(dataType);
-        r = r.convertTo(dataType);
-        boolean result = compareNotNull(database, l, r, compareType);
-        return ValueBoolean.get(result);
+        return ValueBoolean.get(compareNotNull(database, l, r, compareType));
     }
 
     /**
@@ -453,12 +455,16 @@ public class Comparison extends Condition {
         }
         if (addIndex) {
             if (l != null) {
-                filter.addIndexCondition(
-                        IndexCondition.get(compareType, l, right));
+                if (l.getType() == right.getType() || right.getType() != Value.STRING_IGNORECASE) {
+                    filter.addIndexCondition(
+                            IndexCondition.get(compareType, l, right));
+                }
             } else if (r != null) {
-                int compareRev = getReversedCompareType(compareType);
-                filter.addIndexCondition(
-                        IndexCondition.get(compareRev, r, left));
+                if (r.getType() == left.getType() || left.getType() != Value.STRING_IGNORECASE) {
+                    int compareRev = getReversedCompareType(compareType);
+                    filter.addIndexCondition(
+                            IndexCondition.get(compareRev, r, left));
+                }
             }
         }
     }
@@ -472,10 +478,10 @@ public class Comparison extends Condition {
     }
 
     @Override
-    public void updateAggregate(Session session) {
-        left.updateAggregate(session);
+    public void updateAggregate(Session session, int stage) {
+        left.updateAggregate(session, stage);
         if (right != null) {
-            right.updateAggregate(session);
+            right.updateAggregate(session, stage);
         }
     }
 
@@ -494,10 +500,10 @@ public class Comparison extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
-        left.mapColumns(resolver, level);
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
+        left.mapColumns(resolver, level, state);
         if (right != null) {
-            right.mapColumns(resolver, level);
+            right.mapColumns(resolver, level, state);
         }
     }
 
@@ -568,31 +574,40 @@ public class Comparison extends Condition {
                 Database db = session.getDatabase();
                 if (rc && r2c && l.equals(l2)) {
                     return new ConditionIn(db, left,
-                            New.arrayList(Arrays.asList(right, other.right)));
+                            new ArrayList<>(Arrays.asList(right, other.right)));
                 } else if (rc && l2c && l.equals(r2)) {
                     return new ConditionIn(db, left,
-                            New.arrayList(Arrays.asList(right, other.left)));
+                            new ArrayList<>(Arrays.asList(right, other.left)));
                 } else if (lc && r2c && r.equals(l2)) {
                     return new ConditionIn(db, right,
-                            New.arrayList(Arrays.asList(left, other.right)));
+                            new ArrayList<>(Arrays.asList(left, other.right)));
                 } else if (lc && l2c && r.equals(r2)) {
                     return new ConditionIn(db, right,
-                            New.arrayList(Arrays.asList(left, other.left)));
+                            new ArrayList<>(Arrays.asList(left, other.left)));
                 }
             }
         }
         return null;
     }
 
-    /**
-     * Get the left or the right sub-expression of this condition.
-     *
-     * @param getLeft true to get the left sub-expression, false to get the
-     *            right sub-expression.
-     * @return the sub-expression
-     */
-    public Expression getExpression(boolean getLeft) {
-        return getLeft ? this.left : right;
+    @Override
+    public int getSubexpressionCount() {
+        return compareType == IS_NULL || compareType == IS_NOT_NULL ? 1 : 2;
+    }
+
+    @Override
+    public Expression getSubexpression(int index) {
+        switch (index) {
+        case 0:
+            return left;
+        case 1:
+            if (compareType != IS_NULL && compareType != IS_NOT_NULL) {
+                return right;
+            }
+            //$FALL-THROUGH$
+        default:
+            throw new IndexOutOfBoundsException();
+        }
     }
 
 }

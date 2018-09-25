@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,6 +7,7 @@ package org.h2.engine;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
@@ -18,7 +19,6 @@ import org.h2.table.Table;
 import org.h2.table.TableType;
 import org.h2.table.TableView;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
 
@@ -149,11 +149,14 @@ public class User extends RightOwner {
                 return true;
             }
         }
-
-        if (isRightGrantedRecursive(table, rightMask)) {
-            return true;
-        }
-        return false;
+//<<<<<<< HEAD
+//
+//        if (isRightGrantedRecursive(table, rightMask)) {
+//            return true;
+//        }
+//        return false;
+//=======
+        return isRightGrantedRecursive(table, rightMask);
     }
 
     /**
@@ -233,7 +236,7 @@ public class User extends RightOwner {
 
     @Override
     public ArrayList<DbObject> getChildren() {
-        ArrayList<DbObject> children = New.arrayList();
+        ArrayList<DbObject> children = new ArrayList<>();
         for (Right right : database.getAllRights()) {
             if (right.getGrantee() == this) {
                 children.add(right);

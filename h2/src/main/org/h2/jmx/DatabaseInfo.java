@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,6 +8,7 @@ package org.h2.jmx;
 import java.lang.management.ManagementFactory;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.TreeMap;
@@ -21,7 +22,6 @@ import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.store.PageStore;
 import org.h2.table.Table;
-import org.h2.util.New;
 
 /**
  * The MBean implementation.
@@ -31,7 +31,7 @@ import org.h2.util.New;
  */
 public class DatabaseInfo implements DatabaseInfoMBean {
 
-    private static final Map<String, ObjectName> MBEANS = New.hashMap();
+    private static final Map<String, ObjectName> MBEANS = new HashMap<>();
 
     /** Database. */
     private final Database database;
@@ -55,7 +55,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
             throws JMException {
         name = name.replace(':', '_');
         path = path.replace(':', '_');
-        Hashtable<String, String> map = new Hashtable<String, String>();
+        Hashtable<String, String> map = new Hashtable<>();
         map.put("name", name);
         map.put("path", path);
         return new ObjectName("org.h2", map);
@@ -115,9 +115,10 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         return database.isMultiThreaded();
     }
 
+    @Deprecated
     @Override
     public boolean isMvcc() {
-        return database.isMultiVersion();
+        return database.isMVStore();
     }
 
     @Override
@@ -163,7 +164,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         if (p != null) {
             return p.getWriteCount();
         }
-        return database.getMvStore().getStore().getFileStore().getReadCount();
+        return database.getStore().getMvStore().getFileStore().getReadCount();
     }
 
     @Override
@@ -175,7 +176,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         if (p != null) {
             return p.getReadCount();
         }
-        return database.getMvStore().getStore().getFileStore().getReadCount();
+        return database.getStore().getMvStore().getFileStore().getReadCount();
     }
 
     @Override
@@ -187,7 +188,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         if (p != null) {
             return p.getPageCount() * p.getPageSize() / 1024;
         }
-        return database.getMvStore().getStore().getFileStore().size();
+        return database.getStore().getMvStore().getFileStore().size();
     }
 
     @Override
@@ -199,7 +200,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         if (p != null) {
             return p.getCache().getMaxMemory();
         }
-        return database.getMvStore().getStore().getCacheSize() * 1024;
+        return database.getStore().getMvStore().getCacheSize() * 1024;
     }
 
     @Override
@@ -218,7 +219,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         if (p != null) {
             return p.getCache().getMemory();
         }
-        return database.getMvStore().getStore().getCacheSizeUsed() * 1024;
+        return database.getStore().getMvStore().getCacheSizeUsed() * 1024;
     }
 
     @Override
@@ -230,7 +231,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
     public String listSettings() {
         StringBuilder buff = new StringBuilder();
         for (Map.Entry<String, String> e :
-                new TreeMap<String, String>(
+                new TreeMap<>(
                 database.getSettings().getSettings()).entrySet()) {
             buff.append(e.getKey()).append(" = ").append(e.getValue()).append('\n');
         }

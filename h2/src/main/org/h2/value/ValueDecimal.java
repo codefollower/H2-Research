@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -48,7 +48,7 @@ public class ValueDecimal extends Value {
     /**
      * The maximum scale of a BigDecimal value.
      */
-    private static final int BIG_DECIMAL_SCALE_MAX = 100000;
+    private static final int BIG_DECIMAL_SCALE_MAX = 100_000;
 
     private final BigDecimal value;
     private String valueString;
@@ -57,7 +57,7 @@ public class ValueDecimal extends Value {
     private ValueDecimal(BigDecimal value) {
         if (value == null) {
             throw new IllegalArgumentException("null");
-        } else if (!value.getClass().equals(BigDecimal.class)) {
+        } else if (value.getClass() != BigDecimal.class) {
             throw DbException.get(ErrorCode.INVALID_CLASS_2,
                     BigDecimal.class.getName(), value.getClass().getName());
         }
@@ -127,9 +127,8 @@ public class ValueDecimal extends Value {
     }
 
     @Override
-    protected int compareSecure(Value o, CompareMode mode) {
-        ValueDecimal v = (ValueDecimal) o;
-        return value.compareTo(v.value);
+    public int compareTypeSafe(Value o, CompareMode mode) {
+        return value.compareTo(((ValueDecimal) o).value);
     }
 
     @Override

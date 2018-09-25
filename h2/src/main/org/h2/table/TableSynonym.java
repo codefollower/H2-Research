@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,6 +9,7 @@ import org.h2.command.ddl.CreateSynonymData;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
+import org.h2.schema.Schema;
 import org.h2.schema.SchemaObjectBase;
 
 /**
@@ -19,17 +20,28 @@ public class TableSynonym extends SchemaObjectBase {
 
     private CreateSynonymData data;
 
+    /**
+     * The table the synonym is created for.
+     */
     private Table synonymFor;
 
     public TableSynonym(CreateSynonymData data) {
-        initSchemaObjectBase(data.schema, data.id, data.synonymName, Trace.TABLE);
+        super(data.schema, data.id, data.synonymName, Trace.TABLE);
         this.data = data;
     }
 
+    /**
+     * @return the table this is a synonym for
+     */
     public Table getSynonymFor() {
         return synonymFor;
     }
 
+    /**
+     * Set (update) the data.
+     *
+     * @param data the new data
+     */
     public void updateData(CreateSynonymData data) {
         this.data = data;
     }
@@ -38,7 +50,6 @@ public class TableSynonym extends SchemaObjectBase {
     public int getType() {
         return SYNONYM;
     }
-
 
     @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
@@ -56,12 +67,12 @@ public class TableSynonym extends SchemaObjectBase {
 
     @Override
     public String getCreateSQL() {
-        return "CREATE SYNONYM " + getName() + " FOR " + data.synonymForSchema.getName() + "." + data.synonymFor;
+        return "CREATE SYNONYM " + getSQL() + " FOR " + data.synonymForSchema.getName() + "." + data.synonymFor;
     }
 
     @Override
     public String getDropSQL() {
-        return "DROP SYNONYM " + getName();
+        return "DROP SYNONYM " + getSQL();
     }
 
     @Override
@@ -69,15 +80,30 @@ public class TableSynonym extends SchemaObjectBase {
         throw DbException.getUnsupportedException("SYNONYM");
     }
 
+    /**
+     * @return the table this synonym is for
+     */
     public String getSynonymForName() {
         return data.synonymFor;
     }
 
+    /**
+     * @return the schema this synonym is for
+     */
+    public Schema getSynonymForSchema() {
+        return data.synonymForSchema;
+    }
+
+    /**
+     * @return true if this synonym currently points to a real table
+     */
     public boolean isInvalid() {
         return synonymFor.isValid();
     }
 
-
+    /**
+     * Update the table that this is a synonym for, to know about this synonym.
+     */
     public void updateSynonymFor() {
         if (synonymFor != null) {
             synonymFor.removeSynonym(this);

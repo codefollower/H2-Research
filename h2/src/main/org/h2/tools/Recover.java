@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,11 +15,13 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.SequenceInputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -40,9 +42,9 @@ import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.MVStoreTool;
 import org.h2.mvstore.StreamStore;
-import org.h2.mvstore.db.TransactionStore;
-import org.h2.mvstore.db.TransactionStore.TransactionMap;
 import org.h2.mvstore.db.ValueDataType;
+import org.h2.mvstore.tx.TransactionMap;
+import org.h2.mvstore.tx.TransactionStore;
 import org.h2.result.Row;
 import org.h2.result.RowFactory;
 import org.h2.result.SimpleRow;
@@ -61,11 +63,9 @@ import org.h2.store.PageFreeList;
 import org.h2.store.PageLog;
 import org.h2.store.PageStore;
 import org.h2.store.fs.FileUtils;
-import org.h2.util.BitField;
 import org.h2.util.IOUtils;
 import org.h2.util.IntArray;
 import org.h2.util.MathUtils;
-import org.h2.util.New;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
@@ -201,7 +201,7 @@ public class Recover extends Tool implements DataHandler {
      */
     public static Reader readClob(String fileName) throws IOException {
         return new BufferedReader(new InputStreamReader(readBlob(fileName),
-                Constants.UTF8));
+                StandardCharsets.UTF_8));
     }
 
     /**
@@ -214,7 +214,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
-    public static Value.ValueBlob readBlobDb(Connection conn, long lobId,
+    public static ValueLobDb readBlobDb(Connection conn, long lobId,
             long precision) {
         DataHandler h = ((JdbcConnection) conn).getSession().getDataHandler();
         verifyPageStore(h);
@@ -235,7 +235,7 @@ public class Recover extends Tool implements DataHandler {
     /**
      * INTERNAL
      */
-    public static Value.ValueClob readClobDb(Connection conn, long lobId,
+    public static ValueLobDb readClobDb(Connection conn, long lobId,
             long precision) {
         DataHandler h = ((JdbcConnection) conn).getSession().getDataHandler();
         verifyPageStore(h);
@@ -297,7 +297,7 @@ public class Recover extends Tool implements DataHandler {
     public static Reader readClobMap(Connection conn, long lobId, long precision)
             throws Exception {
         InputStream in = readBlobMap(conn, lobId, precision);
-        return new BufferedReader(new InputStreamReader(in, Constants.UTF8));
+        return new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
     }
 
     private void trace(String message) {
@@ -329,7 +329,7 @@ public class Recover extends Tool implements DataHandler {
 
     private void process(String dir, String db) {
         ArrayList<String> list = FileLister.getDatabaseFiles(dir, db, true);
-        if (list.size() == 0) {
+        if (list.isEmpty()) {
             printNoDatabaseFilesFound(dir, db);
         }
         for (String fileName : list) {
@@ -340,14 +340,13 @@ public class Recover extends Tool implements DataHandler {
             } else if (fileName.endsWith(Constants.SUFFIX_MV_FILE)) {
                 String f = fileName.substring(0, fileName.length() -
                         Constants.SUFFIX_PAGE_FILE.length());
-                PrintWriter writer;
-                writer = getWriter(fileName, ".txt");
-                MVStoreTool.dump(fileName, writer, true);
-                MVStoreTool.info(fileName, writer);
-                writer.close();
-                writer = getWriter(f + ".h2.db", ".sql");
-                dumpMVStoreFile(writer, fileName);
-                writer.close();
+                try (PrintWriter writer = getWriter(fileName, ".txt")) {
+                    MVStoreTool.dump(fileName, writer, true);
+                    MVStoreTool.info(fileName, writer);
+                }
+                try (PrintWriter writer = getWriter(f + ".h2.db", ".sql")) {
+                    dumpMVStoreFile(writer, fileName);
+                }
             }
         }
     }
@@ -368,8 +367,8 @@ public class Recover extends Tool implements DataHandler {
         writer.println("-- ERROR: " + error + " storageId: "
                 + storageId + " recordLength: " + recordLength + " valueId: " + valueId);
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < data.length; i++) {
-            int x = data[i] & 0xff;
+        for (byte aData1 : data) {
+            int x = aData1 & 0xff;
             if (x >= ' ' && x < 128) {
                 sb.append((char) x);
             } else {
@@ -378,8 +377,8 @@ public class Recover extends Tool implements DataHandler {
         }
         writer.println("-- dump: " + sb.toString());
         sb = new StringBuilder();
-        for (int i = 0; i < data.length; i++) {
-            int x = data[i] & 0xff;
+        for (byte aData : data) {
+            int x = aData & 0xff;
             sb.append(' ');
             if (x < 16) {
                 sb.append('0');
@@ -552,8 +551,9 @@ public class Recover extends Tool implements DataHandler {
             dumpPageStore(devNull, pageCount);
             stat = new Stats();
             schema.clear();
-            objectIdSet = New.hashSet();
+            objectIdSet = new HashSet<>();
             dumpPageStore(writer, pageCount);
+            writeSchemaSET(writer);
             writeSchema(writer);
             try {
                 dumpPageLogStream(writer, logKey, logFirstTrunkPage,
@@ -615,17 +615,48 @@ public class Recover extends Tool implements DataHandler {
             writeError(writer, e);
         }
         try {
+            // extract the metadata so we can dump the settings
+            ValueDataType type = new ValueDataType();
             for (String mapName : mv.getMapNames()) {
                 if (!mapName.startsWith("table.")) {
                     continue;
                 }
                 String tableId = mapName.substring("table.".length());
-                ValueDataType keyType = new ValueDataType(
-                        null, this, null);
-                ValueDataType valueType = new ValueDataType(
-                        null, this, null);
-                TransactionMap<Value, Value> dataMap = store.begin().openMap(
-                        mapName, keyType, valueType);
+                if (Integer.parseInt(tableId) == 0) {
+                    TransactionMap<Value, Value> dataMap = store.begin().openMap(mapName, type, type);
+                    Iterator<Value> dataIt = dataMap.keyIterator(null);
+                    while (dataIt.hasNext()) {
+                        Value rowId = dataIt.next();
+                        Value[] values = ((ValueArray) dataMap.get(rowId))
+                                .getList();
+                        try {
+                            SimpleRow r = new SimpleRow(values);
+                            MetaRecord meta = new MetaRecord(r);
+                            schema.add(meta);
+                            if (meta.getObjectType() == DbObject.TABLE_OR_VIEW) {
+                                String sql = values[3].getString();
+                                String name = extractTableOrViewName(sql);
+                                tableMap.put(meta.getId(), name);
+                            }
+                        } catch (Throwable t) {
+                            writeError(writer, t);
+                        }
+                    }
+                }
+            }
+            // Have to do these before the tables because settings like COLLATION may affect
+            // some of them, and we can't change settings after we have created user tables
+            writeSchemaSET(writer);
+            writer.println("---- Table Data ----");
+            for (String mapName : mv.getMapNames()) {
+                if (!mapName.startsWith("table.")) {
+                    continue;
+                }
+                String tableId = mapName.substring("table.".length());
+                if (Integer.parseInt(tableId) == 0) {
+                    continue;
+                }
+                TransactionMap<Value, Value> dataMap = store.begin().openMap(mapName, type, type);
                 Iterator<Value> dataIt = dataMap.keyIterator(null);
                 boolean init = false;
                 while (dataIt.hasNext()) {
@@ -654,20 +685,6 @@ public class Recover extends Tool implements DataHandler {
                     }
                     buff.append(");");
                     writer.println(buff.toString());
-                    if (storageId == 0) {
-                        try {
-                            SimpleRow r = new SimpleRow(values);
-                            MetaRecord meta = new MetaRecord(r);
-                            schema.add(meta);
-                            if (meta.getObjectType() == DbObject.TABLE_OR_VIEW) {
-                                String sql = values[3].getString();
-                                String name = extractTableOrViewName(sql);
-                                tableMap.put(meta.getId(), name);
-                            }
-                        } catch (Throwable t) {
-                            writeError(writer, t);
-                        }
-                    }
                 }
             }
             writeSchema(writer);
@@ -1043,7 +1060,7 @@ public class Recover extends Tool implements DataHandler {
 
     private String setStorage(int storageId) {
         this.storageId = storageId;
-        this.storageName = "O_" + String.valueOf(storageId).replace('-', 'M');
+        this.storageName = "O_" + Integer.toString(storageId).replace('-', 'M');
         return storageName;
     }
 
@@ -1247,15 +1264,10 @@ public class Recover extends Tool implements DataHandler {
     private int dumpPageFreeList(PrintWriter writer, Data s, long pageId,
             long pageCount) {
         int pagesAddressed = PageFreeList.getPagesAddressed(pageSize);
-        BitField used = new BitField();
-        for (int i = 0; i < pagesAddressed; i += 8) {
-            int x = s.readByte() & 255;
-            for (int j = 0; j < 8; j++) {
-                if ((x & (1 << j)) != 0) {
-                    used.set(i + j);
-                }
-            }
-        }
+        int len = pagesAddressed >> 3;
+        byte[] b = new byte[len];
+        s.read(b, 0, len);
+        BitSet used = BitSet.valueOf(b);
         int free = 0;
         for (long i = 0, j = pageId; i < pagesAddressed && j < pageCount; i++, j++) {
             if (i == 0 || j % 100 == 0) {
@@ -1476,7 +1488,7 @@ public class Recover extends Tool implements DataHandler {
 
     private void writeRow(PrintWriter writer, Data s, Value[] data) {
         StringBuilder sb = new StringBuilder();
-        sb.append("INSERT INTO " + storageName + " VALUES(");
+        sb.append("INSERT INTO ").append(storageName).append(" VALUES(");
         for (valueId = 0; valueId < recordLength; valueId++) {
             try {
                 Value v = s.readValue();
@@ -1488,10 +1500,8 @@ public class Recover extends Tool implements DataHandler {
                 sb.append(getSQL(columnName, v));
             } catch (Exception e) {
                 writeDataError(writer, "exception " + e, s.getBytes());
-                continue;
             } catch (OutOfMemoryError e) {
                 writeDataError(writer, "out of memory", s.getBytes());
-                continue;
             }
         }
         sb.append(");");
@@ -1513,17 +1523,28 @@ public class Recover extends Tool implements DataHandler {
     }
 
     private void resetSchema() {
-        schema = New.arrayList();
-        objectIdSet = New.hashSet();
-        tableMap = New.hashMap();
-        columnTypeMap = New.hashMap();
+        schema = new ArrayList<>();
+        objectIdSet = new HashSet<>();
+        tableMap = new HashMap<>();
+        columnTypeMap = new HashMap<>();
+    }
+
+    private void writeSchemaSET(PrintWriter writer) {
+        writer.println("---- Schema SET ----");
+        for (MetaRecord m : schema) {
+            if (m.getObjectType() == DbObject.SETTING) {
+                String sql = m.getSQL();
+                writer.println(sql + ";");
+            }
+        }
     }
 
     private void writeSchema(PrintWriter writer) {
         writer.println("---- Schema ----");
         Collections.sort(schema);
         for (MetaRecord m : schema) {
-            if (!isSchemaObjectTypeDelayed(m)) {
+            if (m.getObjectType() != DbObject.SETTING
+                    && !isSchemaObjectTypeDelayed(m)) {
                 // create, but not referential integrity constraints and so on
                 // because they could fail on duplicate keys
                 String sql = m.getSQL();

@@ -1,10 +1,12 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
 
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -14,11 +16,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
+import org.h2.test.TestDb;
 
 /**
  * Tests the compatibility with other databases.
  */
-public class TestCompatibility extends TestBase {
+public class TestCompatibility extends TestDb {
 
     private Connection conn;
 
@@ -35,7 +38,6 @@ public class TestCompatibility extends TestBase {
     public void test() throws SQLException {
         deleteDb("compatibility");
 
-        testOnDuplicateKey();
         testCaseSensitiveIdentifiers();
         testKeyAsColumnInMySQLMode();
 
@@ -52,21 +54,12 @@ public class TestCompatibility extends TestBase {
         testSybaseAndMSSQLServer();
         testIgnite();
 
+        testUnknownSet();
+
         conn.close();
         deleteDb("compatibility");
-    }
 
-    private void testOnDuplicateKey() throws SQLException {
-        Connection c = getConnection("compatibility;MODE=MYSQL");
-        Statement stat = c.createStatement();
-        stat.execute("set mode mysql");
-        stat.execute("create schema s2");
-        stat.execute("create table s2.test(id int primary key, name varchar(255))");
-        stat.execute("insert into s2.test(id, name) values(1, 'a')");
-        stat.execute("insert into s2.test(id, name) values(1, 'b') " +
-                "on duplicate key update name = values(name)");
-        stat.execute("drop schema s2");
-        c.close();
+        testUnknownURL();
     }
 
     private void testKeyAsColumnInMySQLMode() throws SQLException {
@@ -278,20 +271,36 @@ public class TestCompatibility extends TestBase {
 
         /* --------- Disallowed column types --------- */
 
-        String[] DISALLOWED_TYPES = {"NUMBER", "IDENTITY", "TINYINT"};
+        String[] DISALLOWED_TYPES = {"NUMBER", "IDENTITY", "TINYINT", "BLOB"};
         for (String type : DISALLOWED_TYPES) {
             stat.execute("DROP TABLE IF EXISTS TEST");
             try {
                 stat.execute("CREATE TABLE TEST(COL " + type + ")");
                 fail("Expect type " + type + " to not exist in PostgreSQL mode");
-            } catch (org.h2.jdbc.JdbcSQLException e) {
+            } catch (SQLException e) {
                 /* Expected! */
             }
         }
+
+        /* Test MONEY data type */
+        stat.execute("DROP TABLE IF EXISTS TEST");
+        stat.execute("CREATE TABLE TEST(M MONEY)");
+        stat.execute("INSERT INTO TEST(M) VALUES (-92233720368547758.08)");
+        stat.execute("INSERT INTO TEST(M) VALUES (0.11111)");
+        stat.execute("INSERT INTO TEST(M) VALUES (92233720368547758.07)");
+        ResultSet rs = stat.executeQuery("SELECT M FROM TEST ORDER BY M");
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("-92233720368547758.08"), rs.getBigDecimal(1));
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("0.11"), rs.getBigDecimal(1));
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("92233720368547758.07"), rs.getBigDecimal(1));
+        assertFalse(rs.next());
     }
 
     private void testMySQL() throws SQLException {
         Statement stat = conn.createStatement();
+        stat.execute("set mode mysql");
         stat.execute("create schema test_schema");
         stat.execute("use test_schema");
         assertResult("TEST_SCHEMA", stat, "select schema()");
@@ -302,7 +311,6 @@ public class TestCompatibility extends TestBase {
         stat.execute("DROP TABLE IF EXISTS TEST");
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
         stat.execute("INSERT INTO TEST VALUES(1, 'Hello'), (2, 'World')");
-        org.h2.mode.FunctionsMySQL.register(conn);
         assertResult("0", stat, "SELECT UNIX_TIMESTAMP('1970-01-01 00:00:00Z')");
         assertResult("1196418619", stat,
                 "SELECT UNIX_TIMESTAMP('2007-11-30 10:30:19Z')");
@@ -312,6 +320,39 @@ public class TestCompatibility extends TestBase {
                 "SELECT FROM_UNIXTIME(1196300000, '%Y %M')");
         assertResult("2003-12-31", stat,
                 "SELECT DATE('2003-12-31 11:02:03')");
+        assertResult("2003-12-31", stat,
+                "SELECT DATE('2003-12-31 11:02:03')");
+        // check the weird MySQL variant of DELETE
+        stat.execute("DELETE TEST FROM TEST WHERE 1=2");
+
+        // Check conversion between VARCHAR and VARBINARY
+        String string = "ABCD\u1234";
+        byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
+        stat.execute("CREATE TABLE TEST2(C VARCHAR, B VARBINARY)");
+        stat.execute("INSERT INTO TEST2(C) VALUES ('" + string + "')");
+        assertEquals(1, stat.executeUpdate("UPDATE TEST2 SET B = C"));
+        ResultSet rs = stat.executeQuery("SELECT B FROM TEST2");
+        assertTrue(rs.next());
+        assertEquals(bytes, rs.getBytes(1));
+        assertEquals(1, stat.executeUpdate("UPDATE TEST2 SET C = B"));
+        testMySQLBytesCheck(stat, string, bytes);
+        PreparedStatement prep = conn.prepareStatement("UPDATE TEST2 SET C = ?");
+        prep.setBytes(1, bytes);
+        assertEquals(1, prep.executeUpdate());
+        testMySQLBytesCheck(stat, string, bytes);
+        stat.execute("DELETE FROM TEST2");
+        prep = conn.prepareStatement("INSERT INTO TEST2(C) VALUES (?)");
+        prep.setBytes(1, bytes);
+        assertEquals(1, prep.executeUpdate());
+        testMySQLBytesCheck(stat, string, bytes);
+        prep = conn.prepareStatement("SELECT C FROM TEST2 WHERE C = ?");
+        prep.setBytes(1, bytes);
+        testMySQLBytesCheck(prep.executeQuery(), string, bytes);
+        stat.execute("CREATE INDEX TEST2_C ON TEST2(C)");
+        prep = conn.prepareStatement("SELECT C FROM TEST2 WHERE C = ?");
+        prep.setBytes(1, bytes);
+        testMySQLBytesCheck(prep.executeQuery(), string, bytes);
+        stat.execute("DROP TABLE TEST2");
 
         if (config.memory) {
             return;
@@ -333,7 +374,7 @@ public class TestCompatibility extends TestBase {
         stat = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,
                 ResultSet.CONCUR_UPDATABLE);
         assertResult("test", stat, "SHOW TABLES");
-        ResultSet rs = stat.executeQuery("SELECT * FROM TEST");
+        rs = stat.executeQuery("SELECT * FROM TEST");
         rs.next();
         rs.updateString(2, "Hallo");
         rs.updateRow();
@@ -390,8 +431,24 @@ public class TestCompatibility extends TestBase {
 
         stat.execute("CREATE TABLE TEST2(ID INT) ROW_FORMAT=DYNAMIC");
 
+        // check the MySQL index dropping syntax
+        stat.execute("ALTER TABLE TEST_COMMENT_ENGINE ADD CONSTRAINT CommentUnique UNIQUE (SOME_ITEM_ID)");
+        stat.execute("ALTER TABLE TEST_COMMENT_ENGINE DROP INDEX CommentUnique");
+        stat.execute("CREATE INDEX IDX_ATTACHMENT_ID ON TEST_COMMENT_ENGINE (ATTACHMENT_ID)");
+        stat.execute("DROP INDEX IDX_ATTACHMENT_ID ON TEST_COMMENT_ENGINE");
+
         conn.close();
         conn = getConnection("compatibility");
+    }
+
+    private void testMySQLBytesCheck(Statement stat, String string, byte[] bytes) throws SQLException {
+        testMySQLBytesCheck(stat.executeQuery("SELECT C FROM TEST2"), string, bytes);
+    }
+
+    private void testMySQLBytesCheck(ResultSet rs, String string, byte[] bytes) throws SQLException {
+        assertTrue(rs.next());
+        assertEquals(string, rs.getString(1));
+        assertEquals(bytes, rs.getBytes(1));
     }
 
     private void testSybaseAndMSSQLServer() throws SQLException {
@@ -458,6 +515,36 @@ public class TestCompatibility extends TestBase {
 
         // UNIQUEIDENTIFIER is MSSQL's equivalent of UUID
         stat.execute("create table test3 (id UNIQUEIDENTIFIER)");
+
+        /* Test MONEY data type */
+        stat.execute("DROP TABLE IF EXISTS TEST");
+        stat.execute("CREATE TABLE TEST(M MONEY)");
+        stat.execute("INSERT INTO TEST(M) VALUES (-922337203685477.5808)");
+        stat.execute("INSERT INTO TEST(M) VALUES (0.11111)");
+        stat.execute("INSERT INTO TEST(M) VALUES (922337203685477.5807)");
+        rs = stat.executeQuery("SELECT M FROM TEST ORDER BY M");
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("-922337203685477.5808"), rs.getBigDecimal(1));
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("0.1111"), rs.getBigDecimal(1));
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("922337203685477.5807"), rs.getBigDecimal(1));
+        assertFalse(rs.next());
+
+        /* Test SMALLMONEY data type */
+        stat.execute("DROP TABLE IF EXISTS TEST");
+        stat.execute("CREATE TABLE TEST(M SMALLMONEY)");
+        stat.execute("INSERT INTO TEST(M) VALUES (-214748.3648)");
+        stat.execute("INSERT INTO TEST(M) VALUES (0.11111)");
+        stat.execute("INSERT INTO TEST(M) VALUES (214748.3647)");
+        rs = stat.executeQuery("SELECT M FROM TEST ORDER BY M");
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("-214748.3648"), rs.getBigDecimal(1));
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("0.1111"), rs.getBigDecimal(1));
+        assertTrue(rs.next());
+        assertEquals(new BigDecimal("214748.3647"), rs.getBigDecimal(1));
+        assertFalse(rs.next());
     }
 
     private void testDB2() throws SQLException {
@@ -523,6 +610,19 @@ public class TestCompatibility extends TestBase {
                 "select date from test where date = '2014-04-05-09.48.28.020005'");
         assertResult("2014-04-05 09:48:28.020005", stat,
                 "select date from test where date = '2014-04-05 09:48:28.020005'");
+
+        // Test limited support for DB2's special registers
+
+        // Standard SQL functions like LOCALTIMESTAMP, CURRENT_TIMESTAMP and
+        // others are used to compare values, their implementation in H2 is
+        // compatible with standard, but may be not really compatible with DB2.
+        assertResult("TRUE", stat, "SELECT LOCALTIMESTAMP = CURRENT TIMESTAMP");
+        assertResult("TRUE", stat, "SELECT CAST(LOCALTIMESTAMP AS VARCHAR) = CAST(CURRENT TIMESTAMP AS VARCHAR)");
+        assertResult("TRUE", stat, "SELECT CURRENT_TIMESTAMP = CURRENT TIMESTAMP WITH TIME ZONE");
+        assertResult("TRUE", stat,
+                "SELECT CAST(CURRENT_TIMESTAMP AS VARCHAR) = CAST(CURRENT TIMESTAMP WITH TIME ZONE AS VARCHAR)");
+        assertResult("TRUE", stat, "SELECT CURRENT_TIME = CURRENT TIME");
+        assertResult("TRUE", stat, "SELECT CURRENT_DATE = CURRENT DATE");
     }
 
     private void testDerby() throws SQLException {
@@ -564,4 +664,21 @@ public class TestCompatibility extends TestBase {
         stat.execute("DROP TABLE IF EXISTS TEST");
         stat.execute("create table test(id int, v1 varchar, v2 long, primary key(v1, id), shard key (id))");
     }
+
+    private void testUnknownSet() throws SQLException {
+        Statement stat = conn.createStatement();
+        assertThrows(ErrorCode.UNKNOWN_MODE_1, stat).execute("SET MODE Unknown");
+    }
+
+    private void testUnknownURL() throws SQLException {
+        try {
+            getConnection("compatibility;MODE=Unknown").close();
+            deleteDb("compatibility");
+        } catch (SQLException ex) {
+            assertEquals(ErrorCode.UNKNOWN_MODE_1, ex.getErrorCode());
+            return;
+        }
+        fail();
+    }
+
 }

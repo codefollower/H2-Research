@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -36,14 +36,7 @@ public class IndexColumn {
      */
     public String getSQL() {
         StringBuilder buff = new StringBuilder(column.getSQL());
-        if ((sortType & SortOrder.DESCENDING) != 0) {
-            buff.append(" DESC");
-        }
-        if ((sortType & SortOrder.NULLS_FIRST) != 0) {
-            buff.append(" NULLS FIRST");
-        } else if ((sortType & SortOrder.NULLS_LAST) != 0) {
-            buff.append(" NULLS LAST");
-        }
+        SortOrder.typeToString(buff, sortType);
         return buff.toString();
     }
 

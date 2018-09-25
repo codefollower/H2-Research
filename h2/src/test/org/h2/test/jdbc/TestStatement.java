@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,19 +11,22 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.SysProperties;
+import org.h2.jdbc.JdbcPreparedStatementBackwardsCompat;
 import org.h2.jdbc.JdbcStatement;
+import org.h2.jdbc.JdbcStatementBackwardsCompat;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
-import org.h2.util.New;
+import org.h2.test.TestDb;
 
 /**
  * Tests for the Statement implementation.
  */
-public class TestStatement extends TestBase {
+public class TestStatement extends TestDb {
 
     private Connection conn;
 
@@ -68,7 +71,7 @@ public class TestStatement extends TestBase {
 
     private void testUnsupportedOperations() throws Exception {
         conn.setTypeMap(null);
-        HashMap<String, Class<?>> map = New.hashMap();
+        HashMap<String, Class<?>> map = new HashMap<>();
         conn.setTypeMap(map);
         map.put("x", Object.class);
         assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, conn).
@@ -202,13 +205,14 @@ public class TestStatement extends TestBase {
         assertEquals(ResultSet.CONCUR_READ_ONLY,
                 stat2.getResultSetConcurrency());
         assertEquals(0, stat.getMaxFieldSize());
-        assertTrue(!((JdbcStatement) stat2).isClosed());
+        assertFalse(((JdbcStatement) stat2).isClosed());
         stat2.close();
         assertTrue(((JdbcStatement) stat2).isClosed());
 
 
         ResultSet rs;
         int count;
+        long largeCount;
         boolean result;
 
         stat.execute("CREATE TABLE TEST(ID INT)");
@@ -256,6 +260,16 @@ public class TestStatement extends TestBase {
         assertEquals(0, count);
         count = stat.executeUpdate("DELETE FROM TEST WHERE ID=2");
         assertEquals(1, count);
+        JdbcStatementBackwardsCompat statBC = (JdbcStatementBackwardsCompat) stat;
+        largeCount = statBC.executeLargeUpdate("DELETE FROM TEST WHERE ID=-1");
+        assertEquals(0, largeCount);
+        assertEquals(0, statBC.getLargeUpdateCount());
+        largeCount = statBC.executeLargeUpdate("INSERT INTO TEST(VALUE,ID) VALUES('JDBC',2)");
+        assertEquals(1, largeCount);
+        assertEquals(1, statBC.getLargeUpdateCount());
+        largeCount = statBC.executeLargeUpdate("DELETE FROM TEST WHERE ID=2");
+        assertEquals(1, largeCount);
+        assertEquals(1, statBC.getLargeUpdateCount());
 
         assertThrows(ErrorCode.METHOD_NOT_ALLOWED_FOR_QUERY, stat).
                 executeUpdate("SELECT * FROM TEST");
@@ -266,19 +280,19 @@ public class TestStatement extends TestBase {
         trace("execute");
         result = stat.execute(
                 "CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE VARCHAR(255))");
-        assertTrue(!result);
+        assertFalse(result);
         result = stat.execute("INSERT INTO TEST VALUES(1,'Hello')");
-        assertTrue(!result);
+        assertFalse(result);
         result = stat.execute("INSERT INTO TEST(VALUE,ID) VALUES('JDBC',2)");
-        assertTrue(!result);
+        assertFalse(result);
         result = stat.execute("UPDATE TEST SET VALUE='LDBC' WHERE ID=2");
-        assertTrue(!result);
+        assertFalse(result);
         result = stat.execute("DELETE FROM TEST WHERE ID=3");
-        assertTrue(!result);
+        assertFalse(result);
         result = stat.execute("SELECT * FROM TEST");
         assertTrue(result);
         result = stat.execute("DROP TABLE TEST");
-        assertTrue(!result);
+        assertFalse(result);
 
         assertThrows(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY, stat).
                 executeQuery("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE VARCHAR(255))");
@@ -311,10 +325,27 @@ public class TestStatement extends TestBase {
         stat.execute("DROP TABLE TEST");
         stat.executeUpdate("DROP TABLE IF EXISTS TEST");
 
-        assertTrue(stat.getWarnings() == null);
+        assertNull(stat.getWarnings());
         stat.clearWarnings();
-        assertTrue(stat.getWarnings() == null);
+        assertNull(stat.getWarnings());
         assertTrue(conn == stat.getConnection());
+
+        assertEquals("SOME_ID", statBC.enquoteIdentifier("SOME_ID", false));
+        assertEquals("\"SOME ID\"", statBC.enquoteIdentifier("SOME ID", false));
+        assertEquals("\"SOME_ID\"", statBC.enquoteIdentifier("SOME_ID", true));
+        assertEquals("\"FROM\"", statBC.enquoteIdentifier("FROM", false));
+        assertEquals("\"Test\"", statBC.enquoteIdentifier("Test", false));
+        assertEquals("\"TODAY\"", statBC.enquoteIdentifier("TODAY", false));
+        // Other lower case characters don't have upper case mappings
+        assertEquals("\u02B0", statBC.enquoteIdentifier("\u02B0", false));
+
+        assertTrue(statBC.isSimpleIdentifier("SOME_ID"));
+        assertFalse(statBC.isSimpleIdentifier("SOME ID"));
+        assertFalse(statBC.isSimpleIdentifier("FROM"));
+        assertFalse(statBC.isSimpleIdentifier("Test"));
+        assertFalse(statBC.isSimpleIdentifier("TODAY"));
+        // Other lower case characters don't have upper case mappings
+        assertTrue(statBC.isSimpleIdentifier("\u02B0"));
 
         stat.close();
     }
@@ -325,16 +356,19 @@ public class TestStatement extends TestBase {
         stat.execute("create table test1(id identity, x int)");
         stat.execute("drop table if exists test2");
         stat.execute("create table test2(id identity, x int)");
-        stat.execute("merge into test1(x) key(x) values(5)");
+        stat.execute("merge into test1(x) key(x) values(5)",
+                Statement.RETURN_GENERATED_KEYS);
         ResultSet keys;
         keys = stat.getGeneratedKeys();
         keys.next();
         assertEquals(1, keys.getInt(1));
         stat.execute("insert into test2(x) values(10), (11), (12)");
-        stat.execute("merge into test1(x) key(x) values(5)");
+        stat.execute("merge into test1(x) key(x) values(5)",
+                Statement.RETURN_GENERATED_KEYS);
         keys = stat.getGeneratedKeys();
         assertFalse(keys.next());
-        stat.execute("merge into test1(x) key(x) values(6)");
+        stat.execute("merge into test1(x) key(x) values(6)",
+                Statement.RETURN_GENERATED_KEYS);
         keys = stat.getGeneratedKeys();
         keys.next();
         assertEquals(2, keys.getInt(1));
@@ -345,7 +379,8 @@ public class TestStatement extends TestBase {
         Statement stat = conn.createStatement();
         stat.execute("CREATE SEQUENCE SEQ");
         stat.execute("CREATE TABLE TEST(ID INT)");
-        stat.execute("INSERT INTO TEST VALUES(NEXT VALUE FOR SEQ)");
+        stat.execute("INSERT INTO TEST VALUES(NEXT VALUE FOR SEQ)",
+                Statement.RETURN_GENERATED_KEYS);
         ResultSet rs = stat.getGeneratedKeys();
         rs.next();
         assertEquals(1, rs.getInt(1));
@@ -428,6 +463,29 @@ public class TestStatement extends TestBase {
         assertTrue(rs.next());
         assertEquals("World", rs.getString("name"));
         assertFalse(rs.next());
+        ps = conn.prepareStatement("insert into test values(?, ?)");
+        ps.setInt(1, 3);
+        ps.setString(2, "v3");
+        ps.addBatch();
+        ps.setInt(1, 4);
+        ps.setString(2, "v4");
+        ps.addBatch();
+        assertTrue(Arrays.equals(new int[] {1, 1}, ps.executeBatch()));
+        ps.setInt(1, 5);
+        ps.setString(2, "v5");
+        ps.addBatch();
+        ps.setInt(1, 6);
+        ps.setString(2, "v6");
+        ps.addBatch();
+        assertTrue(Arrays.equals(new long[] {1, 1}, ((JdbcStatementBackwardsCompat) ps).executeLargeBatch()));
+        ps.setInt(1, 7);
+        ps.setString(2, "v7");
+        assertEquals(1, ps.executeUpdate());
+        assertEquals(1, ps.getUpdateCount());
+        ps.setInt(1, 8);
+        ps.setString(2, "v8");
+        assertEquals(1, ((JdbcPreparedStatementBackwardsCompat) ps).executeLargeUpdate());
+        assertEquals(1, ((JdbcStatementBackwardsCompat) ps).getLargeUpdateCount());
         stat.execute("drop table test");
     }
 

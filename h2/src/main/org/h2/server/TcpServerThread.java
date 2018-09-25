@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,26 +14,30 @@ import java.io.StringWriter;
 import java.net.Socket;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Objects;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.Command;
 import org.h2.engine.ConnectionInfo;
 import org.h2.engine.Constants;
 import org.h2.engine.Engine;
+import org.h2.engine.GeneratedKeysMode;
 import org.h2.engine.Session;
 import org.h2.engine.SessionRemote;
 import org.h2.engine.SysProperties;
 import org.h2.expression.Parameter;
 import org.h2.expression.ParameterInterface;
 import org.h2.expression.ParameterRemote;
-import org.h2.jdbc.JdbcSQLException;
+import org.h2.jdbc.JdbcException;
 import org.h2.message.DbException;
 import org.h2.result.ResultColumn;
 import org.h2.result.ResultInterface;
+import org.h2.result.ResultWithGeneratedKeys;
 import org.h2.store.LobStorageInterface;
 import org.h2.util.IOUtils;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.SmallMap;
-import org.h2.util.StringUtils;
+import org.h2.value.DataType;
 import org.h2.value.Transfer;
 import org.h2.value.Value;
 import org.h2.value.ValueLobDb;
@@ -61,8 +65,7 @@ public class TcpServerThread implements Runnable {
     TcpServerThread(Socket socket, TcpServer server, int id) {
         this.server = server;
         this.threadId = id;
-        transfer = new Transfer(null);
-        transfer.setSocket(socket);
+        transfer = new Transfer(null, socket);
     }
 
     private void trace(String s) {
@@ -77,23 +80,34 @@ public class TcpServerThread implements Runnable {
             // TODO server: should support a list of allowed databases
             // and a list of allowed clients
             try {
-            	//如果没有加-tcpAllowOthers参数，那么只接受本地连接
+//<<<<<<< HEAD
+//            	//如果没有加-tcpAllowOthers参数，那么只接受本地连接
+//=======
+                Socket socket = transfer.getSocket();
+                if (socket == null) {
+                    // the transfer is already closed, prevent NPE in TcpServer#allow(Socket)
+                    return;
+                }
                 if (!server.allow(transfer.getSocket())) {
                     throw DbException.get(ErrorCode.REMOTE_CONNECTION_NOT_ALLOWED);
                 }
                 int minClientVersion = transfer.readInt();
-                if (minClientVersion < Constants.TCP_PROTOCOL_VERSION_6) {
+                if (minClientVersion < 6) {
                     throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2,
-                            "" + clientVersion, "" + Constants.TCP_PROTOCOL_VERSION_6);
-                } else if (minClientVersion > Constants.TCP_PROTOCOL_VERSION_16) {
-                    throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2,
-                            "" + clientVersion, "" + Constants.TCP_PROTOCOL_VERSION_16);
+                            Integer.toString(minClientVersion), "" + Constants.TCP_PROTOCOL_VERSION_MIN_SUPPORTED);
                 }
                 int maxClientVersion = transfer.readInt();
-                if (maxClientVersion >= Constants.TCP_PROTOCOL_VERSION_16) {
-                    clientVersion = Constants.TCP_PROTOCOL_VERSION_16;
+                if (maxClientVersion < Constants.TCP_PROTOCOL_VERSION_MIN_SUPPORTED) {
+                    throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2,
+                            Integer.toString(maxClientVersion), "" + Constants.TCP_PROTOCOL_VERSION_MIN_SUPPORTED);
+                } else if (minClientVersion > Constants.TCP_PROTOCOL_VERSION_MAX_SUPPORTED) {
+                    throw DbException.get(ErrorCode.DRIVER_VERSION_ERROR_2,
+                            Integer.toString(minClientVersion), "" + Constants.TCP_PROTOCOL_VERSION_MAX_SUPPORTED);
+                }
+                if (maxClientVersion >= Constants.TCP_PROTOCOL_VERSION_MAX_SUPPORTED) {
+                    clientVersion = Constants.TCP_PROTOCOL_VERSION_MAX_SUPPORTED;
                 } else {
-                    clientVersion = minClientVersion;
+                    clientVersion = maxClientVersion;
                 }
                 transfer.setVersion(clientVersion);
                 String db = transfer.readString();
@@ -183,7 +197,7 @@ public class TcpServerThread implements Runnable {
             RuntimeException closeError = null;
             try {
                 Command rollback = session.prepareLocal("ROLLBACK");
-                rollback.executeUpdate();
+                rollback.executeUpdate(false);
             } catch (RuntimeException e) {
                 closeError = e;
                 server.traceError(e);
@@ -233,8 +247,8 @@ public class TcpServerThread implements Runnable {
             String trace = writer.toString();
             String message;
             String sql;
-            if (e instanceof JdbcSQLException) {
-                JdbcSQLException j = (JdbcSQLException) e;
+            if (e instanceof JdbcException) {
+                JdbcException j = (JdbcException) e;
                 message = j.getOriginalMessage();
                 sql = j.getSQL();
             } else {
@@ -315,7 +329,7 @@ public class TcpServerThread implements Runnable {
                 commit = session.prepareLocal("COMMIT");
             }
             int old = session.getModificationId();
-            commit.executeUpdate();
+            commit.executeUpdate(false);
             transfer.writeInt(getState(old)).flush();
             break;
         }
@@ -367,10 +381,48 @@ public class TcpServerThread implements Runnable {
             Command command = (Command) cache.getObject(id, false);
             //if(command!=null)throw new Error();
             setParameters(command);
+            boolean supportsGeneratedKeys = clientVersion >= Constants.TCP_PROTOCOL_VERSION_17;
+            boolean writeGeneratedKeys = supportsGeneratedKeys;
+            Object generatedKeysRequest;
+            if (supportsGeneratedKeys) {
+                int mode = transfer.readInt();
+                switch (mode) {
+                case GeneratedKeysMode.NONE:
+                    generatedKeysRequest = false;
+                    writeGeneratedKeys = false;
+                    break;
+                case GeneratedKeysMode.AUTO:
+                    generatedKeysRequest = true;
+                    break;
+                case GeneratedKeysMode.COLUMN_NUMBERS: {
+                    int len = transfer.readInt();
+                    int[] keys = new int[len];
+                    for (int i = 0; i < len; i++) {
+                        keys[i] = transfer.readInt();
+                    }
+                    generatedKeysRequest = keys;
+                    break;
+                }
+                case GeneratedKeysMode.COLUMN_NAMES: {
+                    int len = transfer.readInt();
+                    String[] keys = new String[len];
+                    for (int i = 0; i < len; i++) {
+                        keys[i] = transfer.readString();
+                    }
+                    generatedKeysRequest = keys;
+                    break;
+                }
+                default:
+                    throw DbException.get(ErrorCode.CONNECTION_BROKEN_1,
+                            "Unsupported generated keys' mode " + mode);
+                }
+            } else {
+                generatedKeysRequest = false;
+            }
             int old = session.getModificationId();
-            int updateCount;
+            ResultWithGeneratedKeys result;
             synchronized (session) {
-                updateCount = command.executeUpdate();
+                result = command.executeUpdate(generatedKeysRequest);
             }
             int status;
             if (session.isClosed()) {
@@ -379,8 +431,22 @@ public class TcpServerThread implements Runnable {
             } else {
                 status = getState(old);
             }
-            transfer.writeInt(status).writeInt(updateCount).
+            transfer.writeInt(status).writeInt(result.getUpdateCount()).
                     writeBoolean(session.getAutoCommit());
+            if (writeGeneratedKeys) {
+                ResultInterface generatedKeys = result.getGeneratedKeys();
+                int columnCount = generatedKeys.getVisibleColumnCount();
+                transfer.writeInt(columnCount);
+                int rowCount = generatedKeys.getRowCount();
+                transfer.writeInt(rowCount);
+                for (int i = 0; i < columnCount; i++) {
+                    ResultColumn.writeColumn(transfer, generatedKeys, i);
+                }
+                for (int i = 0; i < rowCount; i++) {
+                    sendRow(generatedKeys);
+                }
+                generatedKeys.close();
+            }
             transfer.flush();
             break;
         }
@@ -430,7 +496,9 @@ public class TcpServerThread implements Runnable {
         case SessionRemote.SESSION_SET_ID: {
             sessionId = transfer.readString();
             transfer.writeInt(SessionRemote.STATUS_OK);
-            transfer.writeBoolean(session.getAutoCommit());
+            if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_15) {
+                transfer.writeBoolean(session.getAutoCommit());
+            }
             transfer.flush();
             break;
         }
@@ -526,7 +594,7 @@ public class TcpServerThread implements Runnable {
     }
 
     private void writeValue(Value v) throws IOException {
-        if (v.getType() == Value.CLOB || v.getType() == Value.BLOB) {
+        if (DataType.isLargeObject(v.getType())) {
             if (v instanceof ValueLobDb) {
                 ValueLobDb lob = (ValueLobDb) v;
                 if (lob.isStored()) {
@@ -553,7 +621,7 @@ public class TcpServerThread implements Runnable {
      * @param statementId the statement to cancel
      */
     void cancelStatement(String targetSessionId, int statementId) {
-        if (StringUtils.equals(targetSessionId, this.sessionId)) {
+        if (Objects.equals(targetSessionId, this.sessionId)) {
             Command cmd = (Command) cache.getObject(statementId, false);
             cmd.cancel();
         }

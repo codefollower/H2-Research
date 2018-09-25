@@ -19,7 +19,6 @@ import java.util.Properties;
 
 import my.test.TestBase;
 
-import org.h2.util.New;
 
 /**
  * Tests for the two-phase-commit feature.
@@ -90,7 +89,7 @@ public class TestTwoPhaseCommit extends TestBase {
     private void openWith(boolean rollback) throws Exception {
         Connection conn = getConnection("twoPhaseCommit");
         Statement stat = conn.createStatement();
-        ArrayList<String> list = New.arrayList();
+        ArrayList<String> list = new ArrayList<>();
         ResultSet rs = stat.executeQuery("SELECT * FROM INFORMATION_SCHEMA.IN_DOUBT");
         while (rs.next()) {
             list.add(rs.getString("TRANSACTION"));

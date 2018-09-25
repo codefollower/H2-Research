@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,6 +17,7 @@ import org.h2.table.Column;
 import org.h2.table.Table;
 import org.h2.table.TableType;
 import org.h2.util.StatementBuilder;
+import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueInt;
 import org.h2.value.ValueNull;
@@ -104,8 +105,7 @@ public class Analyze extends DefineCommand {
         StatementBuilder buff = new StatementBuilder("SELECT ");
         for (Column col : columns) {
             buff.appendExceptFirst(", ");
-            int type = col.getType();
-            if (type == Value.BLOB || type == Value.CLOB) {
+            if (DataType.isLargeObject(col.getType())) {
                 // can not index LOB columns, so calculating
                 // the selectivity is not required
                 buff.append("MAX(NULL)");
@@ -115,15 +115,14 @@ public class Analyze extends DefineCommand {
         }
         buff.append(" FROM ").append(table.getSQL());
         if (sample > 0) {
-            buff.append(" LIMIT ? SAMPLE_SIZE ? ");
+            buff.append(" FETCH FIRST ROW ONLY SAMPLE_SIZE ? ");
         }
         //如: SELECT SELECTIVITY(ID), SELECTIVITY(NAME), SELECTIVITY(B) FROM PUBLIC.REGULARTABLETEST LIMIT 1 SAMPLE_SIZE 10000
         String sql = buff.toString();
         Prepared command = session.prepare(sql);
         if (sample > 0) {
             ArrayList<Parameter> params = command.getParameters();
-            params.get(0).setValue(ValueInt.get(1));
-            params.get(1).setValue(ValueInt.get(sample));
+            params.get(0).setValue(ValueInt.get(sample));
         }
         ResultInterface result = command.query(0);
         result.next();
@@ -134,23 +133,7 @@ public class Analyze extends DefineCommand {
                 columns[j].setSelectivity(selectivity);
             }
         }
-        if (manual) {
-            db.updateMeta(session, table);
-        } else {
-            Session sysSession = db.getSystemSession();
-            if (sysSession != session) {
-                // if the current session is the system session
-                // (which is the case if we are within a trigger)
-                // then we can't update the statistics because
-                // that would unlock all locked objects
-                synchronized (sysSession) {
-                    // can't take the db lock yet, updateMeta needs to call
-                    // lockMeta, and then it will take the db lock
-                    db.updateMeta(sysSession, table);
-                    sysSession.commit(true);
-                }
-            }
-        }
+        db.updateMeta(session, table);
     }
 
     public void setTop(int top) {

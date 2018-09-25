@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -71,7 +71,7 @@ public class Parameter extends Expression implements ParameterInterface {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
         // can't map
     }
 
@@ -85,8 +85,8 @@ public class Parameter extends Expression implements ParameterInterface {
     @Override
     public Expression optimize(Session session) {
         if (session.getDatabase().getMode().treatEmptyStringsAsNull) {
-            if (value != null && value instanceof ValueString) {
-                value = ValueString.get(value.getString(), true);
+            if (value instanceof ValueString && value.getString().isEmpty()) {
+                value = ValueNull.INSTANCE;
             }
         }
         return this;
@@ -141,7 +141,7 @@ public class Parameter extends Expression implements ParameterInterface {
     }
 
     @Override
-    public void updateAggregate(Session session) {
+    public void updateAggregate(Session session, int stage) {
         // nothing to do
     }
 
@@ -159,7 +159,8 @@ public class Parameter extends Expression implements ParameterInterface {
         case ExpressionVisitor.OPTIMIZABLE_MIN_MAX_COUNT_ALL:
         case ExpressionVisitor.DETERMINISTIC:
         case ExpressionVisitor.READONLY:
-        case ExpressionVisitor.GET_COLUMNS:
+        case ExpressionVisitor.GET_COLUMNS1:
+        case ExpressionVisitor.GET_COLUMNS2:
             return true;
         case ExpressionVisitor.INDEPENDENT:
             return value != null;
@@ -176,7 +177,7 @@ public class Parameter extends Expression implements ParameterInterface {
     @Override
     public Expression getNotIfPossible(Session session) {
         return new Comparison(session, Comparison.EQUAL, this,
-                ValueExpression.get(ValueBoolean.get(false)));
+                ValueExpression.get(ValueBoolean.FALSE));
     }
 
     public void setColumn(Column column) {

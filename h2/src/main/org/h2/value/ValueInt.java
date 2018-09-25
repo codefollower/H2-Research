@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,7 +10,6 @@ import java.sql.SQLException;
 
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
-import org.h2.util.MathUtils;
 
 /**
  * Implementation of the INT data type.
@@ -73,7 +72,7 @@ public class ValueInt extends Value {
     }
 
     private static ValueInt checkRange(long x) {
-        if (x < Integer.MIN_VALUE || x > Integer.MAX_VALUE) {
+        if ((int) x != x) {
             throw DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_1, Long.toString(x));
         }
         return ValueInt.get((int) x);
@@ -103,11 +102,15 @@ public class ValueInt extends Value {
 
     @Override
     public Value divide(Value v) {
-        ValueInt other = (ValueInt) v;
-        if (other.value == 0) {
+        int y = ((ValueInt) v).value;
+        if (y == 0) {
             throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getSQL());
         }
-        return ValueInt.get(value / other.value);
+        int x = value;
+        if (x == Integer.MIN_VALUE && y == -1) {
+            throw DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_1, "2147483648");
+        }
+        return ValueInt.get(x / y);
     }
 
     @Override
@@ -140,14 +143,13 @@ public class ValueInt extends Value {
     }
 
     @Override
-    protected int compareSecure(Value o, CompareMode mode) {
-        ValueInt v = (ValueInt) o;
-        return MathUtils.compareInt(value, v.value);
+    public int compareTypeSafe(Value o, CompareMode mode) {
+        return Integer.compare(value, ((ValueInt) o).value);
     }
 
     @Override
     public String getString() {
-        return String.valueOf(value);
+        return Integer.toString(value);
     }
 
     @Override

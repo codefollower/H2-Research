@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,16 +25,18 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.expression.ParameterInterface;
 import org.h2.message.DbException;
 import org.h2.message.TraceObject;
 import org.h2.result.ResultInterface;
-import org.h2.tools.SimpleResultSet;
+import org.h2.result.ResultWithGeneratedKeys;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.IOUtils;
-import org.h2.util.New;
+import org.h2.util.MergedResultSet;
+import org.h2.util.Utils;
 import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
@@ -56,18 +58,20 @@ import org.h2.value.ValueTimestamp;
  * Represents a prepared statement.
  */
 public class JdbcPreparedStatement extends JdbcStatement implements
-        PreparedStatement {
+        PreparedStatement, JdbcPreparedStatementBackwardsCompat {
 
     protected CommandInterface command;
     private final String sqlStatement;
     private ArrayList<Value[]> batchParameters;
-    private ArrayList<Object> batchIdentities;
+    private MergedResultSet batchIdentities;
     private HashMap<String, Integer> cachedColumnLabelMap;
+    private final Object generatedKeysRequest;
 
     JdbcPreparedStatement(JdbcConnection conn, String sql, int id,
             int resultSetType, int resultSetConcurrency,
-            boolean closeWithResultSet) {
+            boolean closeWithResultSet, Object generatedKeysRequest) {
         super(conn, id, resultSetType, resultSetConcurrency, closeWithResultSet);
+        this.generatedKeysRequest = conn.scopeGeneratedKeys() ? false : generatedKeysRequest;
         setTrace(session.getTrace(), TraceObject.PREPARED_STATEMENT, id);
         this.sqlStatement = sql;
         //这里要事先保存好CommandInterface的实例，而JdbcStatement不需要
@@ -159,12 +163,51 @@ public class JdbcPreparedStatement extends JdbcStatement implements
         }
     }
 
+    /**
+     * Executes a statement (insert, update, delete, create, drop)
+     * and returns the update count.
+     * If another result set exists for this statement, this will be closed
+     * (even if this statement fails).
+     *
+     * If auto commit is on, this statement will be committed.
+     * If the statement is a DDL statement (create, drop, alter) and does not
+     * throw an exception, the current transaction (if any) is committed after
+     * executing the statement.
+     *
+     * @return the update count (number of row affected by an insert, update or
+     *         delete, or 0 if no rows or the statement was a create, drop,
+     *         commit or rollback)
+     * @throws SQLException if this object is closed or invalid
+     */
+    @Override
+    public long executeLargeUpdate() throws SQLException {
+        try {
+            debugCodeCall("executeLargeUpdate");
+            checkClosedForWrite();
+            batchIdentities = null;
+            try {
+                return executeUpdateInternal();
+            } finally {
+                afterWriting();
+            }
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
+    }
+
     private int executeUpdateInternal() throws SQLException {
         closeOldResultSet();
         synchronized (session) {
             try {
                 setExecutingStatement(command);
-                updateCount = command.executeUpdate();
+                ResultWithGeneratedKeys result = command.executeUpdate(generatedKeysRequest);
+                updateCount = result.getUpdateCount();
+                ResultInterface gk = result.getGeneratedKeys();
+                if (gk != null) {
+                    int id = getNextId(TraceObject.RESULT_SET);
+                    generatedKeys = new JdbcResultSet(conn, this, command, gk, id,
+                            false, true, false);
+                }
             } finally {
                 setExecutingStatement(null);
             }
@@ -207,7 +250,13 @@ public class JdbcPreparedStatement extends JdbcStatement implements
                                     updatable, cachedColumnLabelMap);
                         } else {
                             returnsResultSet = false;
-                            updateCount = command.executeUpdate();
+                            ResultWithGeneratedKeys result = command.executeUpdate(generatedKeysRequest);
+                            updateCount = result.getUpdateCount();
+                            ResultInterface gk = result.getGeneratedKeys();
+                            if (gk != null) {
+                                generatedKeys = new JdbcResultSet(conn, this, command, gk, id,
+                                        false, true, false);
+                            }
                         }
                     } finally {
                         if (!lazy) {
@@ -219,7 +268,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements
             } finally {
                 afterWriting();
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw logAndConvert(e);
         }
     }
@@ -235,8 +284,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements
             debugCodeCall("clearParameters");
             checkClosed();
             ArrayList<? extends ParameterInterface> parameters = command.getParameters();
-            for (int i = 0, size = parameters.size(); i < size; i++) {
-                ParameterInterface param = parameters.get(i);
+            for (ParameterInterface param : parameters) {
                 // can only delete old temp files if they are not in the batch
                 param.setValue(null, batchParameters == null);
             }
@@ -287,6 +335,22 @@ public class JdbcPreparedStatement extends JdbcStatement implements
     public int executeUpdate(String sql) throws SQLException {
         try {
             debugCodeCall("executeUpdate", sql);
+            throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
+    }
+
+    /**
+     * Calling this method is not legal on a PreparedStatement.
+     *
+     * @param sql ignored
+     * @throws SQLException Unsupported Feature
+     */
+    @Override
+    public long executeLargeUpdate(String sql) throws SQLException {
+        try {
+            debugCodeCall("executeLargeUpdate", sql);
             throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -502,7 +566,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements
                 setParameter(parameterIndex, ValueNull.INSTANCE);
             } else {
                 Value v = DataType.convertToValue(conn.getSession(), x, type);
-                setParameter(parameterIndex, v.convertTo(type));
+                setParameter(parameterIndex, v.convertTo(type, conn.getMode()));
             }
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -674,7 +738,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements
             if (x == null) {
                 setParameter(parameterIndex, ValueNull.INSTANCE);
             } else {
-                setParameter(parameterIndex, DateTimeUtils.convertDate(x, calendar));
+                setParameter(parameterIndex,
+                        calendar != null ? DateTimeUtils.convertDate(x, calendar) : ValueDate.get(x));
             }
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -700,7 +765,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements
             if (x == null) {
                 setParameter(parameterIndex, ValueNull.INSTANCE);
             } else {
-                setParameter(parameterIndex, DateTimeUtils.convertTime(x, calendar));
+                setParameter(parameterIndex,
+                        calendar != null ? DateTimeUtils.convertTime(x, calendar) : ValueTime.get(x));
             }
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -727,7 +793,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements
             if (x == null) {
                 setParameter(parameterIndex, ValueNull.INSTANCE);
             } else {
-                setParameter(parameterIndex, DateTimeUtils.convertTimestamp(x, calendar));
+                setParameter(parameterIndex,
+                        calendar != null ? DateTimeUtils.convertTimestamp(x, calendar) : ValueTimestamp.get(x));
             }
         } catch (Exception e) {
             throw logAndConvert(e);
@@ -1142,9 +1209,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements
                         TraceObject.RESULT_SET_META_DATA, id, "getMetaData()");
             }
             String catalog = conn.getCatalog();
-            JdbcResultSetMetaData meta = new JdbcResultSetMetaData(
+            return new JdbcResultSetMetaData(
                     null, this, result, catalog, session.getTrace(), id);
-            return meta;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1192,14 +1258,12 @@ public class JdbcPreparedStatement extends JdbcStatement implements
     @Override
     public int[] executeBatch() throws SQLException {
         try {
-            int id = getNextId(TraceObject.PREPARED_STATEMENT);
             debugCodeCall("executeBatch");
             if (batchParameters == null) {
-                // TODO batch: check what other database do if no parameters are
-                // set
-                batchParameters = New.arrayList();
+                // Empty batch is allowed, see JDK-4639504 and other issues
+                batchParameters = Utils.newSmallArrayList();
             }
-            batchIdentities = New.arrayList();
+            batchIdentities = new MergedResultSet();
             int size = batchParameters.size();
             int[] result = new int[size];
             boolean error = false;
@@ -1217,10 +1281,9 @@ public class JdbcPreparedStatement extends JdbcStatement implements
                     }
                     try {
                         result[i] = executeUpdateInternal();
-                        ResultSet rs = conn.getGeneratedKeys(this, id);
-                        while (rs.next()) {
-                            batchIdentities.add(rs.getObject(1));
-                        }
+                        // Cannot use own implementation, it returns batch identities
+                        ResultSet rs = super.getGeneratedKeys();
+                        batchIdentities.add(rs);
                     } catch (Exception re) {
                         SQLException e = logAndConvert(re);
                         if (next == null) {
@@ -1235,8 +1298,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements
                 }
                 batchParameters = null;
                 if (error) {
-                    JdbcBatchUpdateException e = new JdbcBatchUpdateException(next, result);
-                    throw e;
+                    throw new JdbcBatchUpdateException(next, result);
                 }
                 return result;
             } finally {
@@ -1249,14 +1311,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements
 
     @Override
     public ResultSet getGeneratedKeys() throws SQLException {
-        if (batchIdentities != null && !batchIdentities.isEmpty()) {
-            SimpleResultSet rs = new SimpleResultSet();
-            rs.addColumn("identity", java.sql.Types.INTEGER,
-                    10, 0);
-            for (Object o : batchIdentities) {
-                rs.addRow(o);
-            }
-            return rs;
+        if (batchIdentities != null) {
+            return batchIdentities.getResult();
         }
         return super.getGeneratedKeys();
     }
@@ -1276,11 +1332,12 @@ public class JdbcPreparedStatement extends JdbcStatement implements
                 Value[] set = new Value[size];
                 for (int i = 0; i < size; i++) {
                     ParameterInterface param = parameters.get(i);
+                    param.checkSet();
                     Value value = param.getParamValue();
                     set[i] = value;
                 }
                 if (batchParameters == null) {
-                    batchParameters = New.arrayList();
+                    batchParameters = Utils.newSmallArrayList();
                 }
                 batchParameters.add(set);
             } finally {
@@ -1311,6 +1368,25 @@ public class JdbcPreparedStatement extends JdbcStatement implements
         }
     }
 
+    /**
+     * Calling this method is not legal on a PreparedStatement.
+     *
+     * @param sql ignored
+     * @param autoGeneratedKeys ignored
+     * @throws SQLException Unsupported Feature
+     */
+    @Override
+    public long executeLargeUpdate(String sql, int autoGeneratedKeys)
+            throws SQLException {
+        try {
+            if (isDebugEnabled()) {
+                debugCode("executeLargeUpdate("+quote(sql)+", "+autoGeneratedKeys+");");
+            }
+            throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
+    }
 
     /**
      * Calling this method is not legal on a PreparedStatement.
@@ -1337,6 +1413,27 @@ public class JdbcPreparedStatement extends JdbcStatement implements
      * Calling this method is not legal on a PreparedStatement.
      *
      * @param sql ignored
+     * @param columnIndexes ignored
+     * @throws SQLException Unsupported Feature
+     */
+    @Override
+    public long executeLargeUpdate(String sql, int[] columnIndexes)
+            throws SQLException {
+        try {
+            if (isDebugEnabled()) {
+                debugCode("executeLargeUpdate(" + quote(sql) + ", " +
+                                quoteIntArray(columnIndexes) + ");");
+            }
+            throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
+    }
+
+    /**
+     * Calling this method is not legal on a PreparedStatement.
+     *
+     * @param sql ignored
      * @param columnNames ignored
      * @throws SQLException Unsupported Feature
      */
@@ -1346,6 +1443,28 @@ public class JdbcPreparedStatement extends JdbcStatement implements
         try {
             if (isDebugEnabled()) {
                 debugCode("executeUpdate(" + quote(sql) + ", " +
+                                quoteArray(columnNames) + ");");
+            }
+            throw DbException.get(
+                    ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
+    }
+
+    /**
+     * Calling this method is not legal on a PreparedStatement.
+     *
+     * @param sql ignored
+     * @param columnNames ignored
+     * @throws SQLException Unsupported Feature
+     */
+    @Override
+    public long executeLargeUpdate(String sql, String[] columnNames)
+            throws SQLException {
+        try {
+            if (isDebugEnabled()) {
+                debugCode("executeLargeUpdate(" + quote(sql) + ", " +
                                 quoteArray(columnNames) + ");");
             }
             throw DbException.get(
@@ -1430,9 +1549,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements
                         TraceObject.PARAMETER_META_DATA, id, "getParameterMetaData()");
             }
             checkClosed();
-            JdbcParameterMetaData meta = new JdbcParameterMetaData(
+            return new JdbcParameterMetaData(
                     session.getTrace(), this, command, id);
-            return meta;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -1666,11 +1784,29 @@ public class JdbcPreparedStatement extends JdbcStatement implements
     }
 
     /**
-     * [Not supported] Sets the value of a parameter as a SQLXML object.
+     * Sets the value of a parameter as a SQLXML.
+     *
+     * @param parameterIndex the parameter index (1, 2, ...)
+     * @param x the value
+     * @throws SQLException if this object is closed
      */
     @Override
     public void setSQLXML(int parameterIndex, SQLXML x) throws SQLException {
-        throw unsupported("SQLXML");
+        try {
+            if (isDebugEnabled()) {
+                debugCode("setSQLXML("+parameterIndex+", x);");
+            }
+            checkClosedForWrite();
+            Value v;
+            if (x == null) {
+                v = ValueNull.INSTANCE;
+            } else {
+                v = conn.createClob(x.getCharacterStream(), -1);
+            }
+            setParameter(parameterIndex, v);
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**

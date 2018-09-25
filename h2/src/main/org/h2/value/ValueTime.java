@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,8 +11,6 @@ import java.sql.Time;
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
-import org.h2.util.MathUtils;
-import org.h2.util.StringUtils;
 
 /**
  * Implementation of the TIME data type.
@@ -20,15 +18,36 @@ import org.h2.util.StringUtils;
 public class ValueTime extends Value {
 
     /**
-     * The precision in digits.
-     */
-    public static final int PRECISION = 6;
-
-    /**
-     * The display size of the textual representation of a time.
+     * The default precision and display size of the textual representation of a time.
      * Example: 10:00:00
      */
-    static final int DISPLAY_SIZE = 8;
+    public static final int DEFAULT_PRECISION = 8;
+
+    /**
+     * The maximum precision and display size of the textual representation of a time.
+     * Example: 10:00:00.123456789
+     */
+    public static final int MAXIMUM_PRECISION = 18;
+
+    /**
+     * The default scale for time.
+     */
+    static final int DEFAULT_SCALE = 0;
+
+    /**
+     * The maximum scale for time.
+     */
+    public static final int MAXIMUM_SCALE = 9;
+
+    /**
+     * Get display size for the specified scale.
+     *
+     * @param scale scale
+     * @return display size
+     */
+    public static int getDisplaySize(int scale) {
+        return scale == 0 ? 8 : 9 + scale;
+    }
 
     /**
      * Nanoseconds since midnight
@@ -49,6 +68,12 @@ public class ValueTime extends Value {
      * @return the value
      */
     public static ValueTime fromNanos(long nanos) {
+        if (nanos < 0L || nanos >= DateTimeUtils.NANOS_PER_DAY) {
+            StringBuilder builder = new StringBuilder();
+            DateTimeUtils.appendTime(builder, nanos);
+            throw DbException.get(ErrorCode.INVALID_DATETIME_CONSTANT_2,
+                    "TIME", builder.toString());
+        }
         return (ValueTime) Value.cache(new ValueTime(nanos));
     }
 
@@ -81,7 +106,7 @@ public class ValueTime extends Value {
      */
     public static ValueTime parse(String s) {
         try {
-            return fromNanos(DateTimeUtils.parseTimeNanos(s, 0, s.length(), false));
+            return fromNanos(DateTimeUtils.parseTimeNanos(s, 0, s.length()));
         } catch (Exception e) {
             throw DbException.get(ErrorCode.INVALID_DATETIME_CONSTANT_2,
                     e, "TIME", s);
@@ -107,8 +132,8 @@ public class ValueTime extends Value {
 
     @Override
     public String getString() {
-        StringBuilder buff = new StringBuilder(DISPLAY_SIZE);
-        appendTime(buff, nanos, false);
+        StringBuilder buff = new StringBuilder(MAXIMUM_PRECISION);
+        DateTimeUtils.appendTime(buff, nanos);
         return buff.toString();
     }
 
@@ -119,17 +144,42 @@ public class ValueTime extends Value {
 
     @Override
     public long getPrecision() {
-        return PRECISION;
+        return MAXIMUM_PRECISION;
     }
 
     @Override
     public int getDisplaySize() {
-        return DISPLAY_SIZE;
+        return MAXIMUM_PRECISION;
     }
 
     @Override
-    protected int compareSecure(Value o, CompareMode mode) {
-        return MathUtils.compareLong(nanos, ((ValueTime) o).nanos);
+    public boolean checkPrecision(long precision) {
+        // TIME data type does not have precision parameter
+        return true;
+    }
+
+    @Override
+    public Value convertScale(boolean onlyToSmallerScale, int targetScale) {
+        if (targetScale >= MAXIMUM_SCALE) {
+            return this;
+        }
+        if (targetScale < 0) {
+            throw DbException.getInvalidValueException("scale", targetScale);
+        }
+        long n = nanos;
+        long n2 = DateTimeUtils.convertScale(n, targetScale);
+        if (n2 == n) {
+            return this;
+        }
+        if (n2 >= DateTimeUtils.NANOS_PER_DAY) {
+            n2 = DateTimeUtils.NANOS_PER_DAY - 1;
+        }
+        return fromNanos(n2);
+    }
+
+    @Override
+    public int compareTypeSafe(Value o, CompareMode mode) {
+        return Long.compare(nanos, ((ValueTime) o).nanos);
     }
 
     @Override
@@ -186,48 +236,6 @@ public class ValueTime extends Value {
     @Override
     public Value negate() {
         return ValueTime.fromNanos(-nanos);
-    }
-
-    /**
-     * Append a time to the string builder.
-     *
-     * @param buff the target string builder
-     * @param nanos the time in nanoseconds
-     * @param alwaysAddMillis whether to always add at least ".0"
-     */
-    static void appendTime(StringBuilder buff, long nanos,
-            boolean alwaysAddMillis) {
-        if (nanos < 0) {
-            buff.append('-');
-            nanos = -nanos;
-        }
-        long ms = nanos / 1000000;
-        nanos -= ms * 1000000;
-        long s = ms / 1000;
-        ms -= s * 1000;
-        long m = s / 60;
-        s -= m * 60;
-        long h = m / 60;
-        m -= h * 60;
-        StringUtils.appendZeroPadded(buff, 2, h);
-        buff.append(':');
-        StringUtils.appendZeroPadded(buff, 2, m);
-        buff.append(':');
-        StringUtils.appendZeroPadded(buff, 2, s);
-        if (alwaysAddMillis || ms > 0 || nanos > 0) {
-            buff.append('.');
-            int start = buff.length();
-            StringUtils.appendZeroPadded(buff, 3, ms);
-            if (nanos > 0) {
-                StringUtils.appendZeroPadded(buff, 6, nanos);
-            }
-            for (int i = buff.length() - 1; i > start; i--) {
-                if (buff.charAt(i) != '0') {
-                    break;
-                }
-                buff.deleteCharAt(i);
-            }
-        }
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -165,7 +166,7 @@ public class RunScript extends Tool {
             if (sql == null) {
                 break;
             }
-            if (sql.trim().length() == 0) {
+            if (StringUtils.isWhitespaceOrEmpty(sql)) {
                 continue;
             }
             boolean resultSet = stat.execute(sql);
@@ -209,8 +210,7 @@ public class RunScript extends Tool {
             }
             if (trim.startsWith("@") && StringUtils.toUpperEnglish(trim).
                     startsWith("@INCLUDE")) {
-                sql = trim;
-                sql = sql.substring("@INCLUDE".length()).trim();
+                sql = StringUtils.trimSubstring(sql, "@INCLUDE".length());
                 if (!FileUtils.isAbsolute(sql)) {
                     sql = path + SysProperties.FILE_SEPARATOR + sql;
                 }
@@ -321,14 +321,11 @@ public class RunScript extends Tool {
             boolean continueOnError) throws SQLException {
         try {
             org.h2.Driver.load();
-            Connection conn = DriverManager.getConnection(url, user, password);
             if (charset == null) {
-                charset = Constants.UTF8;
+                charset = StandardCharsets.UTF_8;
             }
-            try {
+            try (Connection conn = DriverManager.getConnection(url, user, password)) {
                 process(conn, fileName, continueOnError, charset);
-            } finally {
-                conn.close();
             }
         } catch (IOException e) {
             throw DbException.convertIOException(e, fileName);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,8 +30,8 @@ import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.IOUtils;
 import org.h2.util.JdbcUtils;
-import org.h2.util.New;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 
 /**
  * A facility to read from and write to CSV (comma separated values) files. When
@@ -337,12 +337,12 @@ public class Csv implements SimpleRowSource {
     }
 
     private void readHeader() throws IOException {
-        ArrayList<String> list = New.arrayList();
+        ArrayList<String> list = new ArrayList<>();
         while (true) {
             String v = readValue();
             if (v == null) {
                 if (endOfLine) {
-                    if (endOfFile || list.size() > 0) {
+                    if (endOfFile || !list.isEmpty()) {
                         break;
                     }
                 } else {
@@ -361,8 +361,7 @@ public class Csv implements SimpleRowSource {
                 }
             }
         }
-        columnNames = new String[list.size()];
-        list.toArray(columnNames);
+        columnNames = list.toArray(new String[0]);
     }
 
     private static boolean isSimpleColumnName(String columnName) {
@@ -378,10 +377,7 @@ public class Csv implements SimpleRowSource {
                 }
             }
         }
-        if (columnName.length() == 0) {
-            return false;
-        }
-        return true;
+        return columnName.length() != 0;
     }
 
     private void pushBack() {
@@ -489,16 +485,12 @@ public class Csv implements SimpleRowSource {
                 return null;
             } else if (ch <= ' ') {
                 // ignore spaces
-                continue;
             } else if (lineComment != 0 && ch == lineComment) {
                 // comment until end of line
                 inputBufferStart = -1;
-                while (true) {
+                do {
                     ch = readChar();
-                    if (ch == '\n' || ch < 0 || ch == '\r') {
-                        break;
-                    }
-                }
+                } while (ch != '\n' && ch >= 0 && ch != '\r');
                 endOfLine = true;
                 return null;
             } else {
@@ -551,7 +543,7 @@ public class Csv implements SimpleRowSource {
             buff.append(chars[idx + 1]);
             start = idx + 2;
         }
-        buff.append(s.substring(start));
+        buff.append(s, start, s.length());
         return buff.toString();
     }
 
@@ -594,7 +586,7 @@ public class Csv implements SimpleRowSource {
     }
 
     private static SQLException convertException(String message, Exception e) {
-        return DbException.get(ErrorCode.IO_EXCEPTION_1, e, message).getSQLException();
+        return DbException.getJdbcSQLException(ErrorCode.IO_EXCEPTION_1, e, message);
     }
 
     /**
@@ -858,11 +850,11 @@ public class Csv implements SimpleRowSource {
             } else if (isParam(key, "charset", "characterSet")) {
                 charset = value;
             } else if (isParam(key, "preserveWhitespace")) {
-                setPreserveWhitespace(Boolean.parseBoolean(value));
+                setPreserveWhitespace(Utils.parseBoolean(value, false, false));
             } else if (isParam(key, "writeColumnHeader")) {
-                setWriteColumnHeader(Boolean.parseBoolean(value));
+                setWriteColumnHeader(Utils.parseBoolean(value, true, false));
             } else if (isParam(key, "caseSensitiveColumnNames")) {
-                setCaseSensitiveColumnNames(Boolean.parseBoolean(value));
+                setCaseSensitiveColumnNames(Utils.parseBoolean(value, false, false));
             } else {
                 throw DbException.getUnsupportedException(key);
             }

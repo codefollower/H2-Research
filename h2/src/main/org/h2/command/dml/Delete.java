@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,7 +12,6 @@ import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
-import org.h2.expression.ExpressionVisitor;
 import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.result.RowList;
@@ -30,30 +29,38 @@ import org.h2.value.ValueNull;
 public class Delete extends Prepared {
 
     private Expression condition;
-    private TableFilter tableFilter;
+    private TableFilter targetTableFilter;
 
     /**
      * The limit expression as specified in the LIMIT or TOP clause.
      */
     private Expression limitExpr;
+    /**
+     * This table filter is for MERGE..USING support - not used in stand-alone DML
+     */
+    private TableFilter sourceTableFilter;
 
     public Delete(Session session) {
         super(session);
     }
 
     public void setTableFilter(TableFilter tableFilter) {
-        this.tableFilter = tableFilter;
+        this.targetTableFilter = tableFilter;
     }
 
     public void setCondition(Expression condition) {
         this.condition = condition;
     }
 
+    public Expression getCondition() {
+        return this.condition;
+    }
+
     @Override
     public int update() {
-        tableFilter.startQuery(session);
-        tableFilter.reset();
-        Table table = tableFilter.getTable();
+        targetTableFilter.startQuery(session);
+        targetTableFilter.reset();
+        Table table = targetTableFilter.getTable();
         session.getUser().checkRight(table, Right.DELETE);
         table.fire(session, Trigger.DELETE, true);
         //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
@@ -69,15 +76,21 @@ public class Delete extends Prepared {
         try {
             setCurrentRowNumber(0);
             int count = 0;
-            //比如delete from DeleteTest limit 0，
-            //此时limitRows为0，不删除任何行
-            while (limitRows != 0 && tableFilter.next()) {
+//<<<<<<< HEAD
+//            //比如delete from DeleteTest limit 0，
+//            //此时limitRows为0，不删除任何行
+//            while (limitRows != 0 && tableFilter.next()) {
+//                setCurrentRowNumber(rows.size() + 1);
+//                //condition.getBooleanValue(session)内部会取当前行与之比较，
+//                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
+//                //然后在从当前行中按列id取当前行value数组中对应元素
+//                if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
+//                    Row row = tableFilter.get();
+//=======
+            while (limitRows != 0 && targetTableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
-                //condition.getBooleanValue(session)内部会取当前行与之比较，
-                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
-                //然后在从当前行中按列id取当前行value数组中对应元素
-                if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
-                    Row row = tableFilter.get();
+                if (condition == null || condition.getBooleanValue(session)) {
+                    Row row = targetTableFilter.get();
                     boolean done = false;
                     if (table.fireRow()) {
                         done = table.fireBeforeRow(session, row, null);
@@ -117,7 +130,7 @@ public class Delete extends Prepared {
     public String getPlanSQL() {
         StringBuilder buff = new StringBuilder();
         buff.append("DELETE ");
-        buff.append("FROM ").append(tableFilter.getPlanSQL(false));
+        buff.append("FROM ").append(targetTableFilter.getPlanSQL(false));
         if (condition != null) {
             buff.append("\nWHERE ").append(StringUtils.unEnclose(
                     condition.getSQL()));
@@ -134,19 +147,34 @@ public class Delete extends Prepared {
     @Override
     public void prepare() {
         if (condition != null) {
-            condition.mapColumns(tableFilter, 0);
+            condition.mapColumns(targetTableFilter, 0, Expression.MAP_INITIAL);
+            if (sourceTableFilter != null) {
+                condition.mapColumns(sourceTableFilter, 0, Expression.MAP_INITIAL);
+            }
             condition = condition.optimize(session);
-            condition.createIndexConditions(session, tableFilter);
+            condition.createIndexConditions(session, targetTableFilter);
+        }
+        TableFilter[] filters;
+        if (sourceTableFilter == null) {
+            filters = new TableFilter[] { targetTableFilter };
+        } else {
+            filters = new TableFilter[] { targetTableFilter, sourceTableFilter };
         }
 //<<<<<<< HEAD
-//        //为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
-//        PlanItem item = tableFilter.getBestPlanItem(session, 1);
+////<<<<<<< HEAD
+////        //为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
+////        PlanItem item = tableFilter.getBestPlanItem(session, 1);
+////=======
+//        TableFilter[] filters = new TableFilter[] { tableFilter };
+//        PlanItem item = tableFilter.getBestPlanItem(session, filters, 0,
+//                ExpressionVisitor.allColumnsForTableFilters(filters));
+//        tableFilter.setPlanItem(item);
+//        tableFilter.prepare();
 //=======
-        TableFilter[] filters = new TableFilter[] { tableFilter };
-        PlanItem item = tableFilter.getBestPlanItem(session, filters, 0,
-                ExpressionVisitor.allColumnsForTableFilters(filters));
-        tableFilter.setPlanItem(item);
-        tableFilter.prepare();
+        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0,
+                new AllColumnsForPlan(filters));
+        targetTableFilter.setPlanItem(item);
+        targetTableFilter.prepare();
     }
 
     @Override
@@ -171,6 +199,18 @@ public class Delete extends Prepared {
     @Override
     public boolean isCacheable() {
         return true;
+    }
+
+    public void setSourceTableFilter(TableFilter sourceTableFilter) {
+        this.sourceTableFilter = sourceTableFilter;
+    }
+
+    public TableFilter getTableFilter() {
+        return targetTableFilter;
+    }
+
+    public TableFilter getSourceTableFilter() {
+        return sourceTableFilter;
     }
 
 }

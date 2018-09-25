@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,6 +12,7 @@ import java.lang.reflect.Modifier;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Arrays;
+
 import org.h2.Driver;
 import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
@@ -22,7 +23,6 @@ import org.h2.schema.Schema;
 import org.h2.schema.SchemaObjectBase;
 import org.h2.table.Table;
 import org.h2.util.JdbcUtils;
-import org.h2.util.New;
 import org.h2.util.SourceCompiler;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
@@ -47,7 +47,7 @@ public class FunctionAlias extends SchemaObjectBase {
     private boolean bufferResultSetToLocalTemp = true;
 
     private FunctionAlias(Schema schema, int id, String name) {
-        initSchemaObjectBase(schema, id, name, Trace.FUNCTION);
+        super(schema, id, name, Trace.FUNCTION);
     }
 
     /**
@@ -144,7 +144,7 @@ public class FunctionAlias extends SchemaObjectBase {
     private void loadClass() {
         Class<?> javaClass = JdbcUtils.loadUserClass(className);
         Method[] methods = javaClass.getMethods();
-        ArrayList<JavaMethod> list = New.arrayList();
+        ArrayList<JavaMethod> list = new ArrayList<>(1);
         for (int i = 0, len = methods.length; i < len; i++) {
             Method m = methods[i];
             if (!Modifier.isStatic(m.getModifiers())) {
@@ -163,13 +163,12 @@ public class FunctionAlias extends SchemaObjectBase {
                 list.add(javaMethod);
             }
         }
-        if (list.size() == 0) {
+        if (list.isEmpty()) {
             throw DbException.get(
                     ErrorCode.PUBLIC_STATIC_JAVA_METHOD_NOT_FOUND_1,
                     methodName + " (" + className + ")");
         }
-        javaMethods = new JavaMethod[list.size()];
-        list.toArray(javaMethods);
+        javaMethods = list.toArray(new JavaMethod[0]);
         // Sort elements. Methods with a variable number of arguments must be at
         // the end. Reason: there could be one method without parameters and one
         // with a variable number. The one without parameters needs to be used
@@ -303,29 +302,6 @@ public class FunctionAlias extends SchemaObjectBase {
     }
 
     /**
-     * Checks if the given method takes a variable number of arguments. For Java
-     * 1.4 and older, false is returned. Example:
-     * <pre>
-     * public static double mean(double... values)
-     * </pre>
-     *
-     * @param m the method to test
-     * @return true if the method takes a variable number of arguments.
-     */
-    static boolean isVarArgs(Method m) {
-        if ("1.5".compareTo(SysProperties.JAVA_SPECIFICATION_VERSION) > 0) {
-            return false;
-        }
-        try {
-            Method isVarArgs = m.getClass().getMethod("isVarArgs");
-            Boolean result = (Boolean) isVarArgs.invoke(m);
-            return result.booleanValue();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
      * Should the return value ResultSet be buffered in a local temporary file?
      *
      * @return true if yes
@@ -362,7 +338,7 @@ public class FunctionAlias extends SchemaObjectBase {
             }
             if (paramCount > 0) {
                 Class<?> lastArg = paramClasses[paramClasses.length - 1];
-                if (lastArg.isArray() && FunctionAlias.isVarArgs(method)) {
+                if (lastArg.isArray() && method.isVarArgs()) {
                     varArgs = true;
                     varArgClass = lastArg.getComponentType();
                 }
@@ -434,12 +410,13 @@ public class FunctionAlias extends SchemaObjectBase {
                             paramClass.getComponentType(), array.length);
                     int componentType = DataType.getTypeFromClass(
                             paramClass.getComponentType());
+                    Mode mode = session.getDatabase().getMode();
                     for (int i = 0; i < objArray.length; i++) {
-                        objArray[i] = array[i].convertTo(componentType).getObject();
+                        objArray[i] = array[i].convertTo(componentType, mode).getObject();
                     }
                     o = objArray;
                 } else {
-                    v = v.convertTo(type, -1, session.getDatabase().getMode());
+                    v = v.convertTo(type, session.getDatabase().getMode());
                     o = v.getObject();
                 }
                 if (o == null) {

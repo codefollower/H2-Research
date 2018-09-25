@@ -1,14 +1,16 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.schema;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.h2.api.ErrorCode;
 import org.h2.command.ddl.CreateSynonymData;
 import org.h2.command.ddl.CreateTableData;
@@ -18,6 +20,7 @@ import org.h2.engine.DbObject;
 import org.h2.engine.DbObjectBase;
 import org.h2.engine.DbSettings;
 import org.h2.engine.FunctionAlias;
+import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.SysProperties;
 import org.h2.engine.User;
@@ -29,8 +32,8 @@ import org.h2.table.RegularTable;
 import org.h2.table.Table;
 import org.h2.table.TableLink;
 import org.h2.table.TableSynonym;
-import org.h2.util.New;
 import org.h2.util.StringUtils;
+import org.h2.util.Utils;
 
 /**
  * A schema as created by the SQL statement
@@ -56,7 +59,7 @@ public class Schema extends DbObjectBase {
      * avoid returning the same unique name twice when multiple threads
      * concurrently create objects.
      */
-    private final HashSet<String> temporaryUniqueNames = New.hashSet();
+    private final HashSet<String> temporaryUniqueNames = new HashSet<>();
 
     /**
      * Create a new schema object.
@@ -70,6 +73,7 @@ public class Schema extends DbObjectBase {
      */
     public Schema(Database database, int id, String schemaName, User owner,
             boolean system) {
+        super(database, id, schemaName, Trace.SCHEMA);
         tablesAndViews = database.newConcurrentStringMap();
         synonyms = database.newConcurrentStringMap();
         indexes = database.newConcurrentStringMap();
@@ -78,7 +82,6 @@ public class Schema extends DbObjectBase {
         constraints = database.newConcurrentStringMap();
         constants = database.newConcurrentStringMap();
         functions = database.newConcurrentStringMap();
-        initDbObjectBase(database, id, schemaName, Trace.SCHEMA);
         this.owner = owner;
         this.system = system;
     }
@@ -116,6 +119,28 @@ public class Schema extends DbObjectBase {
         return DbObject.SCHEMA;
     }
 
+    /**
+     * Return whether is this schema is empty (does not contain any objects).
+     *
+     * @return {@code true} if this schema is empty, {@code false} otherwise
+     */
+    public boolean isEmpty() {
+        return tablesAndViews.isEmpty() && synonyms.isEmpty() && indexes.isEmpty() && sequences.isEmpty()
+                && triggers.isEmpty() && constraints.isEmpty() && constants.isEmpty() && functions.isEmpty();
+    }
+
+    @Override
+    public ArrayList<DbObject> getChildren() {
+        ArrayList<DbObject> children = Utils.newSmallArrayList();
+        ArrayList<Right> rights = database.getAllRights();
+        for (Right right : rights) {
+            if (right.getGrantedObject() == this) {
+                children.add(right);
+            }
+        }
+        return children;
+    }
+
     @Override
     public void removeChildrenAndResources(Session session) {
         //删除每个SchemaObject的子类时会触发Schema.remove(SchemaObject)，此方法会在对应的map中清除SchemaObject的子类实例引用，
@@ -135,7 +160,7 @@ public class Schema extends DbObjectBase {
             runLoopAgain = false;
             if (tablesAndViews != null) {
                 // Loop over a copy because the map is modified underneath us.
-                for (Table obj : New.arrayList(tablesAndViews.values())) {
+                for (Table obj : new ArrayList<>(tablesAndViews.values())) {
                     // Check for null because multiple tables might be deleted
                     // in one go underneath us.
                     if (obj.getName() != null) {
@@ -163,6 +188,11 @@ public class Schema extends DbObjectBase {
         while (functions != null && functions.size() > 0) {
             FunctionAlias obj = (FunctionAlias) functions.values().toArray()[0];
             database.removeSchemaObject(session, obj);
+        }
+        for (Right right : database.getAllRights()) {
+            if (right.getGrantedObject() == this) {
+                database.removeDatabaseObject(session, right);
+            }
         }
         database.removeMeta(session, getId());
         owner = null;
@@ -566,29 +596,46 @@ public class Schema extends DbObjectBase {
     /**
      * Get all objects.
      *
-     * @return a (possible empty) list of all objects
+     * @param addTo
+     *                  list to add objects to, or {@code null} to allocate a new
+     *                  list
+     * @return the specified list with added objects, or a new (possibly empty) list
+     *         with all objects
      */
-    public ArrayList<SchemaObject> getAll() {
-        ArrayList<SchemaObject> all = New.arrayList();
-        all.addAll(getMap(DbObject.TABLE_OR_VIEW).values());
-        all.addAll(getMap(DbObject.SEQUENCE).values());
-        all.addAll(getMap(DbObject.INDEX).values());
-        all.addAll(getMap(DbObject.TRIGGER).values());
-        all.addAll(getMap(DbObject.CONSTRAINT).values());
-        all.addAll(getMap(DbObject.CONSTANT).values());
-        all.addAll(getMap(DbObject.FUNCTION_ALIAS).values());
-        return all;
+    public ArrayList<SchemaObject> getAll(ArrayList<SchemaObject> addTo) {
+        if (addTo == null) {
+            addTo = Utils.newSmallArrayList();
+        }
+        addTo.addAll(tablesAndViews.values());
+        addTo.addAll(synonyms.values());
+        addTo.addAll(sequences.values());
+        addTo.addAll(indexes.values());
+        addTo.addAll(triggers.values());
+        addTo.addAll(constraints.values());
+        addTo.addAll(constants.values());
+        addTo.addAll(functions.values());
+        return addTo;
     }
 
     /**
      * Get all objects of the given type.
      *
-     * @param type the object type
-     * @return a (possible empty) list of all objects
+     * @param type
+     *                  the object type
+     * @param addTo
+     *                  list to add objects to, or {@code null} to allocate a new
+     *                  list
+     * @return the specified list with added objects, or a new (possibly empty) list
+     *         with objects of the given type
      */
-    public ArrayList<SchemaObject> getAll(int type) {
-        Map<String, SchemaObject> map = getMap(type);
-        return New.arrayList(map.values());
+    public ArrayList<SchemaObject> getAll(int type, ArrayList<SchemaObject> addTo) {
+        Collection<SchemaObject> values = getMap(type).values();
+        if (addTo != null) {
+            addTo.addAll(values);
+        } else {
+            addTo = new ArrayList<>(values);
+        }
+        return addTo;
     }
 
     /**
@@ -598,14 +645,14 @@ public class Schema extends DbObjectBase {
      */
     public ArrayList<Table> getAllTablesAndViews() {
         synchronized (database) {
-            return New.arrayList(tablesAndViews.values());
+            return new ArrayList<>(tablesAndViews.values());
         }
     }
 
 
     public ArrayList<TableSynonym> getAllSynonyms() {
         synchronized (database) {
-            return New.arrayList(synonyms.values());
+            return new ArrayList<>(synonyms.values());
         }
     }
 
@@ -629,10 +676,9 @@ public class Schema extends DbObjectBase {
     public void remove(SchemaObject obj) {
         String objName = obj.getName();
         Map<String, SchemaObject> map = getMap(obj.getType());
-        if (SysProperties.CHECK && !map.containsKey(objName)) {
+        if (map.remove(objName) == null) {
             DbException.throwInternalError("not found: " + objName);
         }
-        map.remove(objName);
         freeUniqueName(objName);
     }
 
@@ -666,6 +712,12 @@ public class Schema extends DbObjectBase {
         }
     }
 
+    /**
+     * Add a table synonym to the schema.
+     *
+     * @param data the create synonym information
+     * @return the created {@link TableSynonym} object
+     */
     public TableSynonym createSynonym(CreateSynonymData data) {
         synchronized (database) {
             database.lockMeta(data.session);

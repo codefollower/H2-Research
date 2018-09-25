@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -23,7 +23,6 @@ import org.h2.schema.Schema;
 import org.h2.table.Column;
 import org.h2.table.IndexColumn;
 import org.h2.table.Table;
-import org.h2.util.New;
 import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
 import org.h2.value.Value;
@@ -34,30 +33,10 @@ import org.h2.value.ValueNull;
  */
 public class ConstraintReferential extends Constraint {
 
-    /**
-     * The action is to restrict the operation.
-     */
-    public static final int RESTRICT = 0;
-
-    /**
-     * The action is to cascade the operation.
-     */
-    public static final int CASCADE = 1;
-
-    /**
-     * The action is to set the value to the default value.
-     */
-    public static final int SET_DEFAULT = 2;
-
-    /**
-     * The action is to set the value to NULL.
-     */
-    public static final int SET_NULL = 3;
-
     private IndexColumn[] columns;
     private IndexColumn[] refColumns;
-    private int deleteAction;
-    private int updateAction;
+    private ConstraintActionType deleteAction = ConstraintActionType.RESTRICT;
+    private ConstraintActionType updateAction = ConstraintActionType.RESTRICT;
     private Table refTable;
     private Index index;
     private Index refIndex;
@@ -71,24 +50,8 @@ public class ConstraintReferential extends Constraint {
     }
 
     @Override
-    public String getConstraintType() {
-        return Constraint.REFERENTIAL;
-    }
-
-    private static void appendAction(StatementBuilder buff, int action) {
-        switch (action) {
-        case CASCADE:
-            buff.append("CASCADE");
-            break;
-        case SET_DEFAULT:
-            buff.append("SET DEFAULT");
-            break;
-        case SET_NULL:
-            buff.append("SET NULL");
-            break;
-        default:
-            DbException.throwInternalError("action=" + action);
-        }
+    public Type getConstraintType() {
+        return Constraint.Type.REFERENTIAL;
     }
 
     /**
@@ -155,13 +118,11 @@ public class ConstraintReferential extends Constraint {
         if (internalIndex && refIndexOwner && forTable == this.table) {
             buff.append(" INDEX ").append(refIndex.getSQL());
         }
-        if (deleteAction != RESTRICT) {
-            buff.append(" ON DELETE ");
-            appendAction(buff, deleteAction);
+        if (deleteAction != ConstraintActionType.RESTRICT) {
+            buff.append(" ON DELETE ").append(deleteAction.getSqlName());
         }
-        if (updateAction != RESTRICT) {
-            buff.append(" ON UPDATE ");
-            appendAction(buff, updateAction);
+        if (updateAction != ConstraintActionType.RESTRICT) {
+            buff.append(" ON UPDATE ").append(updateAction.getSqlName());
         }
         return buff.append(" NOCHECK").toString();
     }
@@ -225,7 +186,7 @@ public class ConstraintReferential extends Constraint {
 
     @Override
     public HashSet<Column> getReferencedColumns(Table table) {
-        HashSet<Column> result = New.hashSet();
+        HashSet<Column> result = new HashSet<>();
         if (table == this.table) {
             for (IndexColumn c : columns) {
                 result.add(c.column);
@@ -412,7 +373,7 @@ public class ConstraintReferential extends Constraint {
                 int idx = cols[i].getColumnId();
                 Value c = check.getValue(idx);
                 Value f = found.getValue(idx);
-                if (searchTable.compareTypeSafe(c, f) != 0) {
+                if (searchTable.compareValues(c, f) != 0) {
                     allEqual = false;
                     break;
                 }
@@ -467,25 +428,32 @@ public class ConstraintReferential extends Constraint {
         }
         if (newRow == null) {
             // this is a delete
-            if (deleteAction == RESTRICT) {
+            if (deleteAction == ConstraintActionType.RESTRICT) {
                 checkRow(session, oldRow);
             } else {
-            	//ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
-                //ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
-                int i = deleteAction == CASCADE ? 0 : columns.length;
-                Prepared deleteCommand = getDelete(session); //如果不是CASCADE，在此方法中已设置了WHERE之前的参数(null或默认值)
+//<<<<<<< HEAD
+//            	//ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
+//                //ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
+//                int i = deleteAction == CASCADE ? 0 : columns.length;
+//                Prepared deleteCommand = getDelete(session); //如果不是CASCADE，在此方法中已设置了WHERE之前的参数(null或默认值)
+//=======
+                int i = deleteAction == ConstraintActionType.CASCADE ? 0 : columns.length;
+                Prepared deleteCommand = getDelete(session);
                 setWhere(deleteCommand, i, oldRow);
                 updateWithSkipCheck(deleteCommand);
             }
         } else {
             // this is an update
-            if (updateAction == RESTRICT) {
+            if (updateAction == ConstraintActionType.RESTRICT) {
                 checkRow(session, oldRow);
             } else {
             	//ON UPDATE CASCADE和ON UPDATE SET DEFAULT都是一样
                 //都是UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
                 Prepared updateCommand = getUpdate(session);
-                if (updateAction == CASCADE) { //getUpdate(session)中会跳过CASCADE的情形，所以这里补上
+//<<<<<<< HEAD
+//                if (updateAction == CASCADE) { //getUpdate(session)中会跳过CASCADE的情形，所以这里补上
+//=======
+                if (updateAction == ConstraintActionType.CASCADE) {
                     ArrayList<Parameter> params = updateCommand.getParameters();
                     for (int i = 0, len = columns.length; i < len; i++) {
                         Parameter param = params.get(i);
@@ -522,7 +490,7 @@ public class ConstraintReferential extends Constraint {
         }
     }
 
-    public int getDeleteAction() {
+    public ConstraintActionType getDeleteAction() {
         return deleteAction;
     }
 
@@ -531,23 +499,34 @@ public class ConstraintReferential extends Constraint {
      *
      * @param action the action
      */
-    public void setDeleteAction(int action) {
+    public void setDeleteAction(ConstraintActionType action) {
         if (action == deleteAction && deleteSQL == null) {
             return;
         }
-        if (deleteAction != RESTRICT) {
+        if (deleteAction != ConstraintActionType.RESTRICT) {
             throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, "ON DELETE");
         }
         this.deleteAction = action;
         buildDeleteSQL();
     }
 
+    public void updateOnTableColumnRename() {
+        if (deleteAction != null) {
+            deleteSQL = null;
+            buildDeleteSQL();
+        }
+        if (updateAction != null) {
+            updateSQL = null;
+            buildUpdateSQL();
+        }
+    }
+
     private void buildDeleteSQL() {
-        if (deleteAction == RESTRICT) {
+        if (deleteAction == ConstraintActionType.RESTRICT) {
             return;
         }
         StatementBuilder buff = new StatementBuilder();
-        if (deleteAction == CASCADE) {
+        if (deleteAction == ConstraintActionType.CASCADE) {
             buff.append("DELETE FROM ").append(table.getSQL());
         } else {
             appendUpdate(buff); //如UPDATE PUBLIC.MYTABLE SET F1=?
@@ -566,7 +545,7 @@ public class ConstraintReferential extends Constraint {
         return prepare(session, deleteSQL, deleteAction);
     }
 
-    public int getUpdateAction() {
+    public ConstraintActionType getUpdateAction() {
         return updateAction;
     }
 
@@ -575,11 +554,11 @@ public class ConstraintReferential extends Constraint {
      *
      * @param action the action
      */
-    public void setUpdateAction(int action) {
+    public void setUpdateAction(ConstraintActionType action) {
         if (action == updateAction && updateSQL == null) {
             return;
         }
-        if (updateAction != RESTRICT) {
+        if (updateAction != ConstraintActionType.RESTRICT) {
             throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, "ON UPDATE");
         }
         this.updateAction = action;
@@ -587,7 +566,7 @@ public class ConstraintReferential extends Constraint {
     }
 
     private void buildUpdateSQL() {
-        if (updateAction == RESTRICT) {
+        if (updateAction == ConstraintActionType.RESTRICT) {
             return;
         }
         StatementBuilder buff = new StatementBuilder();
@@ -604,15 +583,15 @@ public class ConstraintReferential extends Constraint {
         buildDeleteSQL();
     }
 
-    private Prepared prepare(Session session, String sql, int action) {
+    private Prepared prepare(Session session, String sql, ConstraintActionType action) {
         Prepared command = session.prepare(sql);
-        if (action != CASCADE) {
+        if (action != ConstraintActionType.CASCADE) {
             ArrayList<Parameter> params = command.getParameters();
             for (int i = 0, len = columns.length; i < len; i++) {
                 Column column = columns[i].column;
                 Parameter param = params.get(i);
                 Value value;
-                if (action == SET_NULL) {
+                if (action == ConstraintActionType.SET_NULL) {
                     value = ValueNull.INSTANCE;
                 } else {
                     Expression expr = column.getDefaultExpression();

@@ -1,33 +1,42 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import org.h2.message.DbException;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
 
 /**
  * This hash map supports keys of type Value.
+ * <p>
+ * ValueHashMap is a very simple implementation without allocation of additional
+ * objects for entries. It's very fast with good distribution of hashes, but if
+ * hashes have a lot of collisions this implementation tends to be very slow.
+ * <p>
+ * HashMap in archaic versions of Java have some overhead for allocation of
+ * entries, but slightly better behaviour with limited number of collisions,
+ * because collisions have no impact on non-colliding entries. HashMap in modern
+ * versions of Java also have the same overhead, but it builds a trees of keys
+ * with colliding hashes, that's why even if the all keys have exactly the same
+ * hash code it still offers a good performance similar to TreeMap. So
+ * ValueHashMap is faster in typical cases, but may behave really bad in some
+ * cases. HashMap is slower in typical cases, but its performance does not
+ * degrade too much even in the worst possible case (if keys are comparable).
  *
  * @param <V> the value type
  */
 public class ValueHashMap<V> extends HashBase {
 
-    private Value[] keys;
-    private V[] values;
-
-    /**
-     * Create a new value hash map.
-     *
-     * @return the object
-     */
-    public static <T> ValueHashMap<T> newInstance() {
-        return new ValueHashMap<T>();
-    }
+    Value[] keys;
+    V[] values;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -48,13 +57,18 @@ public class ValueHashMap<V> extends HashBase {
             if (k != null && k != ValueNull.DELETED) {
                 // skip the checkSizePut so we don't end up
                 // accidentally recursing
-                internalPut(k, oldValues[i]);
+                internalPut(k, oldValues[i], false);
             }
         }
     }
 
     private int getIndex(Value key) {
-        return key.hashCode() & mask;
+        int h = key.hashCode();
+        /*
+         * Add some protection against hashes with the same less significant bits
+         * (ValueDouble with integer values, for example).
+         */
+        return (h ^ h >>> 16) & mask;
     }
 
     /**
@@ -65,10 +79,21 @@ public class ValueHashMap<V> extends HashBase {
      */
     public void put(Value key, V value) {
         checkSizePut();
-        internalPut(key, value);
+        internalPut(key, value, false);
     }
 
-    private void internalPut(Value key, V value) {
+    /**
+     * Add a key value pair, values for existing keys are not replaced.
+     *
+     * @param key the key
+     * @param value the new value
+     */
+    public void putIfAbsent(Value key, V value) {
+        checkSizePut();
+        internalPut(key, value, true);
+    }
+
+    private void internalPut(Value key, V value, boolean ifAbsent) {
         int index = getIndex(key);
         int plus = 1;
         int deleted = -1;
@@ -90,6 +115,9 @@ public class ValueHashMap<V> extends HashBase {
                     deleted = index;
                 }
             } else if (k.equals(key)) {
+                if (ifAbsent) {
+                    return;
+                }
                 // update existing
                 values[index] = value;
                 return;
@@ -156,18 +184,72 @@ public class ValueHashMap<V> extends HashBase {
     }
 
     /**
-     * Get the list of keys.
+     * Get the keys.
      *
      * @return all keys
      */
-    public ArrayList<Value> keys() {
-        ArrayList<Value> list = New.arrayList(size);
-        for (Value k : keys) {
-            if (k != null && k != ValueNull.DELETED) {
-                list.add(k);
+    public Iterable<Value> keys() {
+        return new KeyIterable();
+    }
+
+    private final class KeyIterable implements Iterable<Value> {
+        KeyIterable() {
+        }
+
+        @Override
+        public Iterator<Value> iterator() {
+            return new UnifiedIterator<>(false);
+        }
+    }
+
+    public Iterable<Map.Entry<Value, V>> entries() {
+        return new EntryIterable();
+    }
+
+    private final class EntryIterable implements Iterable<Map.Entry<Value, V>> {
+        EntryIterable() {
+        }
+
+        @Override
+        public Iterator<Map.Entry<Value, V>> iterator() {
+            return new UnifiedIterator<>(true);
+        }
+    }
+
+    final class UnifiedIterator<T> implements Iterator<T> {
+        int keysIndex = -1;
+        int left = size;
+
+        private final boolean forEntries;
+
+        UnifiedIterator(boolean forEntries) {
+            this.forEntries = forEntries;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return left > 0;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public T next() {
+            if (left <= 0)
+                throw new NoSuchElementException();
+            left--;
+            for (;;) {
+                keysIndex++;
+                Value key = keys[keysIndex];
+                if (key != null && key != ValueNull.DELETED) {
+                    return (T) (forEntries ? new AbstractMap.SimpleImmutableEntry<>(key, values[keysIndex]) : key);
+                }
             }
         }
-        return list;
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /**
@@ -176,7 +258,7 @@ public class ValueHashMap<V> extends HashBase {
      * @return all values
      */
     public ArrayList<V> values() {
-        ArrayList<V> list = New.arrayList(size);
+        ArrayList<V> list = new ArrayList<>(size);
         int len = keys.length;
         for (int i = 0; i < len; i++) {
             Value k = keys[i];

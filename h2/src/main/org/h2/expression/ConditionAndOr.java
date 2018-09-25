@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (http://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -87,11 +87,11 @@ public class ConditionAndOr extends Condition {
         Value r;
         switch (andOrType) {
         case AND: {
-            if (Boolean.FALSE.equals(l.getBoolean())) {
+            if (l != ValueNull.INSTANCE && !l.getBoolean()) {
                 return l;
             }
             r = right.getValue(session);
-            if (Boolean.FALSE.equals(r.getBoolean())) {
+            if (r != ValueNull.INSTANCE && !r.getBoolean()) {
                 return r;
             }
             if (l == ValueNull.INSTANCE) {
@@ -100,14 +100,14 @@ public class ConditionAndOr extends Condition {
             if (r == ValueNull.INSTANCE) {
                 return r;
             }
-            return ValueBoolean.get(true);
+            return ValueBoolean.TRUE;
         }
         case OR: {
-            if (Boolean.TRUE.equals(l.getBoolean())) {
+            if (l.getBoolean()) {
                 return l;
             }
             r = right.getValue(session);
-            if (Boolean.TRUE.equals(r.getBoolean())) {
+            if (r.getBoolean()) {
                 return r;
             }
             if (l == ValueNull.INSTANCE) {
@@ -116,7 +116,7 @@ public class ConditionAndOr extends Condition {
             if (r == ValueNull.INSTANCE) {
                 return r;
             }
-            return ValueBoolean.get(false);
+            return ValueBoolean.FALSE;
         }
         default:
             throw DbException.throwInternalError("type=" + andOrType);
@@ -152,8 +152,7 @@ public class ConditionAndOr extends Condition {
                         session, compRight, true);
                 if (added != null) {
                     added = added.optimize(session);
-                    ConditionAndOr a = new ConditionAndOr(AND, this, added);
-                    return a;
+                    return new ConditionAndOr(AND, this, added);
                 }
             }
         }
@@ -213,30 +212,30 @@ public class ConditionAndOr extends Condition {
         switch (andOrType) {
         case AND:
             if (l != null) {
-                if (Boolean.FALSE.equals(l.getBoolean())) {
+                if (l != ValueNull.INSTANCE && !l.getBoolean()) {
                     return ValueExpression.get(l);
-                } else if (Boolean.TRUE.equals(l.getBoolean())) {
+                } else if (l.getBoolean()) {
                     return right;
                 }
             } else if (r != null) {
-                if (Boolean.FALSE.equals(r.getBoolean())) {
+                if (r != ValueNull.INSTANCE && !r.getBoolean()) {
                     return ValueExpression.get(r);
-                } else if (Boolean.TRUE.equals(r.getBoolean())) {
+                } else if (r.getBoolean()) {
                     return left;
                 }
             }
             break;
         case OR:
             if (l != null) {
-                if (Boolean.TRUE.equals(l.getBoolean())) {
+                if (l.getBoolean()) {
                     return ValueExpression.get(l);
-                } else if (Boolean.FALSE.equals(l.getBoolean())) {
+                } else if (l != ValueNull.INSTANCE) {
                     return right;
                 }
             } else if (r != null) {
-                if (Boolean.TRUE.equals(r.getBoolean())) {
+                if (r.getBoolean()) {
                     return ValueExpression.get(r);
-                } else if (Boolean.FALSE.equals(r.getBoolean())) {
+                } else if (r != ValueNull.INSTANCE) {
                     return left;
                 }
             }
@@ -258,9 +257,9 @@ public class ConditionAndOr extends Condition {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level) {
-        left.mapColumns(resolver, level);
-        right.mapColumns(resolver, level);
+    public void mapColumns(ColumnResolver resolver, int level, int state) {
+        left.mapColumns(resolver, level, state);
+        right.mapColumns(resolver, level, state);
     }
 
     @Override
@@ -270,9 +269,9 @@ public class ConditionAndOr extends Condition {
     }
 
     @Override
-    public void updateAggregate(Session session) {
-        left.updateAggregate(session);
-        right.updateAggregate(session);
+    public void updateAggregate(Session session, int stage) {
+        left.updateAggregate(session, stage);
+        right.updateAggregate(session, stage);
     }
 
     @Override
@@ -285,15 +284,21 @@ public class ConditionAndOr extends Condition {
         return left.getCost() + right.getCost();
     }
 
-    /**
-     * Get the left or the right sub-expression of this condition.
-     *
-     * @param getLeft true to get the left sub-expression, false to get the
-     *            right sub-expression.
-     * @return the sub-expression
-     */
-    public Expression getExpression(boolean getLeft) {
-        return getLeft ? this.left : right;
+    @Override
+    public int getSubexpressionCount() {
+        return 2;
+    }
+
+    @Override
+    public Expression getSubexpression(int index) {
+        switch (index) {
+        case 0:
+            return left;
+        case 1:
+            return right;
+        default:
+            throw new IndexOutOfBoundsException();
+        }
     }
 
 }
