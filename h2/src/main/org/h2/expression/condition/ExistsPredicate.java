@@ -25,7 +25,7 @@ public class ExistsPredicate extends PredicateWithSubquery {
         query.setSession(session);
         ResultInterface result = query.query(1);
         session.addTemporaryResult(result);
-        return ValueBoolean.get(result.hasNext());
+        return ValueBoolean.get(result.hasNext()); //只要query有记录就返回true
     }
 
     @Override

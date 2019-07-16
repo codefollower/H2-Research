@@ -52,12 +52,18 @@ public class ConditionInQuery extends PredicateWithSubquery {
         query.setSession(session);
         // We need a LocalResult
         query.setNeverLazy(true);
+        // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
+        // 否则为false，
+        // 假设表中字段id的值是1到6，这条语句
+        // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
+        // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
+        // 如果改成ANY，那么什么记录都不删
         query.setDistinctIfPossible();
         LocalResult rows = (LocalResult) query.query(0);
         Value l = left.getValue(session);
         if (!rows.hasNext()) {
             return ValueBoolean.get(all);
-        } else if (l.containsNull()) {
+        } else if (l.containsNull()) { //如果left是null，那么返回null
             return ValueNull.INSTANCE;
         }
         if (!database.getSettings().optimizeInSelect) {
@@ -66,6 +72,9 @@ public class ConditionInQuery extends PredicateWithSubquery {
         if (all || compareType != Comparison.EQUAL) {
             return getValueSlow(rows, l);
         }
+        // 下面代码是处理非all，且是EQUAL或EQUAL_NULL_SAFE的情况
+
+        // 获得结果集中第一列的类型
         int columnCount = query.getColumnCount();
         if (columnCount != 1) {
             l = l.convertTo(Value.ROW);
@@ -85,11 +94,13 @@ public class ConditionInQuery extends PredicateWithSubquery {
                 }
                 l = leftList[0];
             }
+            //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
             l = l.convertTo(colType, database.getMode(), null);
-            if (rows.containsDistinct(new Value[] { l })) {
+            if (rows.containsDistinct(new Value[] { l })) { 
                 return ValueBoolean.TRUE;
             }
         }
+        //结果集中不包含left且有null，那么返回null
         if (rows.containsNull()) {
             return ValueNull.INSTANCE;
         }
@@ -142,6 +153,15 @@ public class ConditionInQuery extends PredicateWithSubquery {
     public Expression optimize(Session session) {
         left = left.optimize(session);
         return super.optimize(session);
+
+//早期的版本ConditionInSelect有下面这个判断
+//      //如where id in(select id,name from ConditionInSelectTest where id=3)
+//      //org.h2.jdbc.JdbcSQLException: Subquery is not a single column query
+//      //子查询不能多于1个列
+//      session.optimizeQueryExpression(query);
+//      if (query.getColumnCount() != 1) {
+//          throw DbException.get(ErrorCode.SUBQUERY_IS_NOT_SINGLE_COLUMN);
+//      }
     }
 
     @Override
@@ -202,6 +222,9 @@ public class ConditionInQuery extends PredicateWithSubquery {
         if (filter != l.getTableFilter()) {
             return;
         }
+        // query中的columnResolver与filter不是同一个实例时就把query加入索引条件
+        // 也就是说如果query中的columnResolver与filter是同一个实例，
+        // 就相当于filter自己找自己了，会出现死循环
         ExpressionVisitor visitor = ExpressionVisitor.getNotFromResolverVisitor(filter);
         if (!query.isEverything(visitor)) {
             return;

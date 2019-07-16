@@ -1,5 +1,6 @@
 package my.test;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -8,6 +9,9 @@ import java.sql.Statement;
 import java.util.Properties;
 
 public abstract class TestBase {
+
+    public static final String TEST_DIR = "./target/mytest";
+    public static final String TEST_DIR_ABSOLUTE_PATH = new File("./target/mytest").getAbsolutePath();
 
     public static void p(Object o) {
         System.out.println(o);

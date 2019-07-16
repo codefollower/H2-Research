@@ -25,6 +25,7 @@ abstract class Condition extends Expression {
         return f;
     }
 
+    //所有Condition的子类都默认使用这个方法的返回值，没有子类覆盖，scale是0
     @Override
     public TypeInfo getType() {
         return TypeInfo.TYPE_BOOLEAN;

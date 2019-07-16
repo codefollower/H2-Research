@@ -29,8 +29,8 @@ public class BackupCommandTest extends TestBase {
         t.conn = getConnection();
         t.start();
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS BackupCommandTestIndex ON BackupCommandTest(name)");
-        sql = "BACKUP TO E:/H2/baseDir/myBackup.zip"; // 文件名要加单引号
-        sql = "BACKUP TO 'E:/H2/baseDir/myBackup.zip'";
+        sql = "BACKUP TO " + TEST_DIR_ABSOLUTE_PATH + "/myBackup.zip"; // 文件名要加单引号
+        sql = "BACKUP TO '" + TEST_DIR_ABSOLUTE_PATH + "/myBackup.zip'";
         stmt.executeUpdate(sql);
 
         sql = "select * from BackupCommandTest";

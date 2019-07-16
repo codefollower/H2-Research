@@ -1327,34 +1327,8 @@ public class Parser {
 
     private void parseUpdateSetClause(Update command, TableFilter filter, int start, boolean allowExtensions) {
         read("SET");
-//<<<<<<< HEAD
-//        if (readIf(OPEN_PAREN)) { //如: update UpdateTest set(name, id) = ('123',10)
-//            ArrayList<Column> columns = Utils.newSmallArrayList();
-//            do {
-//                Column column = readTableColumn(filter);
-//                columns.add(column);
-//            } while (readIfMore(true));
-//            read(EQUAL);
-//            Expression expression = readExpression();
-//            if (columns.size() == 1) {
-//                // the expression is parsed as a simple value
-//                command.setAssignment(columns.get(0), expression);
-//            } else {
-//                for (int i = 0, size = columns.size(); i < size; i++) {
-//                    Column column = columns.get(i);
-//                    Function f = Function.getFunction(database, "ARRAY_GET");
-//                    f.setParameter(0, expression);
-//                    f.setParameter(1, ValueExpression.get(ValueInt.get(i + 1)));
-//                    f.doneWithParameters();
-//                    command.setAssignment(column, f);
-//                }
-//            }
-//        } else {
-//        	//如: update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3
-//            do {
-//=======
         do {
-            if (readIf(OPEN_PAREN)) {
+            if (readIf(OPEN_PAREN)) { //如: update UpdateTest set(name, id) = ('123',10)
                 ArrayList<Column> columns = Utils.newSmallArrayList();
                 do {
                     Column column = readTableColumn(filter);
@@ -1381,25 +1355,10 @@ public class Parser {
                                         ValueExpression.get(ValueInt.get(i + 1))));
                     }
                 }
-            } else {
+            } else { //如: update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3
                 Column column = readTableColumn(filter);
-////<<<<<<< HEAD
-////                read("=");
-////                Expression expression;
-////                if (readIf("DEFAULT")) {
-////                    expression = ValueExpression.getDefault(); //实际上是null
-////                } else {
-////                    expression = readExpression();
-////                }
-////                command.setAssignment(column, expression);
-////            } while (readIf(","));
-////=======
-//                read(EQUAL);
-//                command.setAssignment(column, readExpressionOrDefault());
-//<<<<<<< HEAD
-//            } while (readIf(COMMA)); 
-//        }
-//=======
+                read(EQUAL);
+                command.setAssignment(column, readExpressionOrDefault());
             }
         } while (readIf(COMMA));
         if (readIf(WHERE)) {
@@ -3386,7 +3345,7 @@ public class Parser {
 
     private Expression readExpressionOrDefault() {
         if (readIf("DEFAULT")) {
-            return ValueExpression.getDefault();
+            return ValueExpression.getDefault(); //实际上是null
         }
         return readExpression();
     }
