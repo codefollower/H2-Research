@@ -146,6 +146,7 @@ public class JavaAggregate extends AbstractAggregate {
         super.setEvaluatable(tableFilter, b);
     }
 
+    //调用了两次，一次在optimize，另一次在updateAggregate
     private Aggregate getInstance() {
         Aggregate agg = userAggregate.getInstance();
         try {

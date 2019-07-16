@@ -86,14 +86,8 @@ public class IndexCursor implements Cursor {
         inResult = null;
         inResultTested = null;
         intersects = null;
-//<<<<<<< HEAD
-//        // don't use enhanced for loop to avoid creating objects
-//        for (int i = 0, size = indexConditions.size(); i < size; i++) {
-//            IndexCondition condition = indexConditions.get(i);
-//            if (condition.isAlwaysFalse()) { //如: "select * from IndexCursorTest where 2>3
-//=======
         for (IndexCondition condition : indexConditions) {
-            if (condition.isAlwaysFalse()) {
+            if (condition.isAlwaysFalse()) { //如: "select * from IndexCursorTest where 2>3
                 alwaysFalse = true;
                 break;
             }

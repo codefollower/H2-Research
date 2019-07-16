@@ -79,9 +79,13 @@ public abstract class SelectGroups {
 
         @Override
         public void nextSource() {
-            if (groupIndex == null) {
+            //聚合函数的情形
+            if (groupIndex == null) { //如select count(id) from mytable where id>0时groupIndex=null
                 currentGroupsKey = ValueArray.getEmpty();
-            } else {
+            } else { //group by、having的情形
+                //按当前行，抽取group by字段列表的值，组合成一个key
+                //例如group by id,name，那么先按id的字段下标从当前行中取出值，放到keyValues[0]中，
+                //然后取出name字段的值放到keyValues[1]中。
                 Value[] keyValues = new Value[groupIndex.length];
                 // update group
                 for (int i = 0; i < groupIndex.length; i++) {
@@ -113,6 +117,8 @@ public abstract class SelectGroups {
         @Override
         public void done() {
             super.done();
+            //只有聚会函数，但是没有记录(可能是表本身没有记录，或没有满足条件的记录)
+            //例如假设id最大为10,用此语句测试select count(id) from mytable where id>1000
             if (groupIndex == null && groupByData.size() == 0) {
                 groupByData.put(ValueArray.getEmpty(), createRow());
             }

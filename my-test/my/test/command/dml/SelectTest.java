@@ -31,8 +31,8 @@ public class SelectTest extends TestBase {
         //
 
         // queryFlat();
-        select_init();
-        // queryGroup();
+        // select_init();
+        queryGroup();
         // queryGroupSorted();
         //
         // queryQuick();
@@ -47,7 +47,8 @@ public class SelectTest extends TestBase {
     }
 
     void createTable() throws Exception {
-        stmt.executeUpdate("drop table IF EXISTS mytable,natural_join_test_table1,natural_join_test_table2,mytable1,mytable2");
+        stmt.executeUpdate(
+                "drop table IF EXISTS mytable,natural_join_test_table1,natural_join_test_table2,mytable1,mytable2");
         // stmt.executeUpdate("create table IF NOT EXISTS mytable(id int primary key, name varchar(500))");
         stmt.executeUpdate("create table IF NOT EXISTS mytable(id int, name varchar(500), age int)");
         stmt.executeUpdate("ALTER TABLE mytable ALTER COLUMN id SELECTIVITY 10");
@@ -65,8 +66,10 @@ public class SelectTest extends TestBase {
         stmt.executeUpdate("create table IF NOT EXISTS mytable6(id6 int primary key, name6 varchar(500))");
         stmt.executeUpdate("create table IF NOT EXISTS mytable7(id7 int primary key, name7 varchar(500))");
 
-        stmt.executeUpdate("create table IF NOT EXISTS natural_join_test_table1(id int primary key, name varchar(500), age1 int)");
-        stmt.executeUpdate("create table IF NOT EXISTS natural_join_test_table2(id int primary key, name varchar(500), age2 int)");
+        stmt.executeUpdate(
+                "create table IF NOT EXISTS natural_join_test_table1(id int primary key, name varchar(500), age1 int)");
+        stmt.executeUpdate(
+                "create table IF NOT EXISTS natural_join_test_table2(id int primary key, name varchar(500), age2 int)");
 
         for (int i = 1; i <= 0; i++) {
             if (i % 2 == 0)
@@ -128,10 +131,10 @@ public class SelectTest extends TestBase {
         sql = "select name from mytable as t where id>199 group by id having id>99 order by t.id desc";
 
         // sql =
-        // "select id, name from mytable as t where id>199  order by t.id desc";
-        // sql = "select name from mytable as t where id>199  order by id desc";
+        // "select id, name from mytable as t where id>199 order by t.id desc";
+        // sql = "select name from mytable as t where id>199 order by id desc";
         // sql =
-        // "select distinct name from mytable as t where id>199  order by id desc";
+        // "select distinct name from mytable as t where id>199 order by id desc";
         // sql = "select distinct name from mytable order by id desc";
         // sql = "select name from mytable order by id desc";
         // sql = "SELECT 1 AS A FROM DUAL ORDER BY -A"; //有错 Column "A" not
@@ -140,7 +143,8 @@ public class SelectTest extends TestBase {
 
         sql = "select * from mytable1 t1 LEFT OUTER JOIN mytable2 t2 on t1.id1=t2.id2 where t1.id1>100 group by t1.id1 having t1.id1>150 order by t1.id1 desc";
         // sql =
-        // "select * from mytable1 t1 RIGHT OUTER JOIN mytable2 t2 on t1.id1=t2.id2 where t1.id1>100 group by t1.id1 having t1.id1>150 order by t1.id1 desc";
+        // "select * from mytable1 t1 RIGHT OUTER JOIN mytable2 t2 on t1.id1=t2.id2 where t1.id1>100 group by t1.id1
+        // having t1.id1>150 order by t1.id1 desc";
 
         // sql = "select id, name from mytable where id>198";
 
@@ -335,7 +339,7 @@ public class SelectTest extends TestBase {
         // "SELECT * FROM mytable1 RIGHT OUTER JOIN mytable2 ON mytable2.id2 = mytable1.id1";
         //
         // sql =
-        // "SELECT * FROM  mytable3 INNER JOIN mytable4 ON mytable4.id4 = mytable3.id3";
+        // "SELECT * FROM mytable3 INNER JOIN mytable4 ON mytable4.id4 = mytable3.id3";
         //
         // sql =
         // "SELECT * FROM mytable1 RIGHT OUTER JOIN mytable2 LEFT OUTER JOIN mytable3 INNER JOIN mytable4 "
@@ -463,20 +467,23 @@ public class SelectTest extends TestBase {
         sql = "select id from mytable group by id having id>2";
 
         sql = "select id, count(id) from mytable group by id having id>2";
-        executeQuery();
+        // executeQuery(); //queryGroupSorted
 
-        // sql = "select name, count(name) from mytable group by name having name>2";
+        sql = "select name, count(name) from mytable group by name having name>'2'";
+        // executeQuery(); //queryGroupSorted
+
+        sql = "select age,name, max(age),min(name) from mytable group by age,name having age>0 and name>'2'";
         // executeQuery();
 
         sql = "select id, count(id) from mytable group by id";
         sql = "select count(id) from mytable group by id";
         // sql = "select id,name,count(id) from mytable where id>0";
         sql = "select id,count(id) from mytable where id>0";
-        // sql = "select id,count(id) from mytable where id>0  group by id";
+        // sql = "select id,count(id) from mytable where id>0 group by id";
 
         sql = "select max(id), count(id) from mytable where id>1";
 
-        executeQuery();
+        // executeQuery();
 
         stmt.executeUpdate("delete from mytable");
 
@@ -487,10 +494,10 @@ public class SelectTest extends TestBase {
         stmt.executeUpdate("insert into mytable(id, name) values(" + 3 + ", '" + 5 + "abcdef1234')");
         stmt.executeUpdate("insert into mytable(id, name) values(" + 3 + ", '" + 6 + "abcdef1234')");
 
-        sql = "select id,name,count(id),sum(id) from mytable where id>0  group by id,name  having id<3";
-
+        sql = "select id,count(id),name,sum(id) from mytable where id>0  group by id,name  having id<3";
+        executeQuery();
         // sql =
-        // "select id,count(id) from mytable where id>2  group by id having id=3";
+        // "select id,count(id) from mytable where id>2 group by id having id=3";
 
         sql = "select id,count(id) from mytable t where id>2  group by id having t.id=3";
 
@@ -504,7 +511,8 @@ public class SelectTest extends TestBase {
         stmt.executeUpdate("create table IF NOT EXISTS queryGroupSorted(id int, name varchar(500), age int)");
         stmt.executeUpdate("create index IF NOT EXISTS queryGroupSorted_index_id on queryGroupSorted(id)");
         stmt.executeUpdate("create index IF NOT EXISTS queryGroupSorted_index_name on queryGroupSorted(name)");
-        stmt.executeUpdate("create index IF NOT EXISTS queryGroupSorted_index_id_name_age on queryGroupSorted(id,name,age)");
+        stmt.executeUpdate(
+                "create index IF NOT EXISTS queryGroupSorted_index_id_name_age on queryGroupSorted(id,name,age)");
 
         stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(1, 'a', 10)");
         stmt.executeUpdate("insert into queryGroupSorted(id, name, age) values(2, 'b', 10)");

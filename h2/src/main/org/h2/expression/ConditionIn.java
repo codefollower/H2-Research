@@ -119,7 +119,7 @@ public class ConditionIn extends Condition {
         }
 
         //如select count(*) from ConditionInTest where id in(1,2)
-        //left是id，不是常量，但是valueList全是常时且是相同的类型
+        //left是id，不是常量，但是valueList全是常量且是相同的类型
 
         if (allValuesConstant && !allValuesNull) {
             int leftType = left.getType();

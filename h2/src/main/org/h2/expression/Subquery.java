@@ -69,14 +69,11 @@ public class Subquery extends Expression {
                 }
             }
             return v;
-//<<<<<<< HEAD
 //        } finally {
-//            //对于org.h2.result.LocalResult只有external不为null时才把closed设为true
+//          //对于org.h2.result.LocalResult只有external不为null时才把closed设为true
 //        	//当在org.h2.command.dml.Query.query(int)判断org.h2.result.LocalResult.isClosed()时因为closed为false
 //        	//所以这个close方法并没效果。
 //            result.close();
-//=======
-//>>>>>>> 237dda4106a721c6ba606bbc066b67f48e80efbd
         }
     }
 

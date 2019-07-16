@@ -167,10 +167,17 @@ public class Aggregate extends AbstractAggregate {
     public static final int STAGE_WINDOW = 2;
 
     private static final HashMap<String, AggregateType> AGGREGATES = new HashMap<>(64);
-
+    //对于select GROUP_CONCAT(DISTINCT name ORDER BY id SEPARATOR ',') from AggregateTest
+    //type = GROUP_CONCAT
+    //select = org.h2.command.dml.Select
+    //distinct = true
+    //on = 对应name的表达式org.h2.expression.ExpressionColumn
+    //separator = 对应','的表达式
+    //orderList = ORDER BY id
     private final AggregateType type;
 
     private Expression on;
+    //只有GROUP_CONCAT才有separator、orderList
     private Expression groupConcatSeparator;
     private ArrayList<SelectOrderBy> orderByList;
     private SortOrder orderBySort;
@@ -382,6 +389,8 @@ public class Aggregate extends AbstractAggregate {
     }
 
     private Value getValueQuick(Session session) {
+        //快速聚合查询，行数通过索引里的某个字段就能得到
+        //同样min、max也好得到，因为b-tree索引是有序的，只要字段是索引主键min就是第一行、max就是最后一行
         switch (type) {
         case COUNT:
         case COUNT_ALL:
@@ -761,7 +770,7 @@ public class Aggregate extends AbstractAggregate {
     }
 
     private Index getMinMaxColumnIndex() {
-        if (on instanceof ExpressionColumn) {
+        if (on instanceof ExpressionColumn) { //on是索引的第一个字段，且此索引能够确定第一行和最后一行记录
             ExpressionColumn col = (ExpressionColumn) on;
             Column column = col.getColumn();
             TableFilter filter = col.getTableFilter();
@@ -775,6 +784,7 @@ public class Aggregate extends AbstractAggregate {
 
     @Override
     public boolean isEverything(ExpressionVisitor visitor) {
+        //对应org.h2.command.dml.Select的isQuickAggregateQuery的情况
         if (!super.isEverything(visitor)) {
             return false;
         }
@@ -783,12 +793,12 @@ public class Aggregate extends AbstractAggregate {
         }
         if (visitor.getType() == ExpressionVisitor.OPTIMIZABLE_MIN_MAX_COUNT_ALL) {
             switch (type) {
-            case COUNT:
+            case COUNT: //count(指定字段)的情况，这种场景如果是DISTINCT或字段为null，那么不能使用OPTIMIZABLE_MIN_MAX_COUNT_ALL优化
                 if (!distinct && on.getNullable() == Column.NOT_NULLABLE) {
                     return visitor.getTable().canGetRowCount();
                 }
                 return false;
-            case COUNT_ALL:
+            case COUNT_ALL: //count(*)的情况
                 return visitor.getTable().canGetRowCount();
             case MIN:
             case MAX:

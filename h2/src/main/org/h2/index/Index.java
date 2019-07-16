@@ -251,20 +251,17 @@ public interface Index extends SchemaObject {
      */
     Table getTable();
 
-    /**
-<<<<<<< HEAD
-     * Commit the operation for a row. This is only important for multi-version
-     * indexes. The method is only called if multi-version is enabled.
-     *
-     * @param operation the operation type
-     * @param row the row
-     */
+//    /**
+//     * Commit the operation for a row. This is only important for multi-version
+//     * indexes. The method is only called if multi-version is enabled.
+//     *
+//     * @param operation the operation type
+//     * @param row the row
+//     */
 //    //如果使用了multiVersion，在提交时删除row
 //    void commit(int operation, Row row); //PageDataIndex、ScanIndex、MultiVersionIndex有实现，其他子类什么都没做
 
     /**
-=======
->>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
      * Get the row with the given key.
      *
      * @param session the session

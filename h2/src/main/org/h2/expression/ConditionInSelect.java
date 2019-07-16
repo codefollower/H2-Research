@@ -43,18 +43,12 @@ public class ConditionInSelect extends Condition {
     @Override
     public Value getValue(Session session) {
         query.setSession(session);
-//<<<<<<< HEAD
-//        if (!query.hasOrder()) {
-//            query.setDistinct(true);
-//        }
-//
-//        // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
-//        // 否则为false，
-//        // 假设表中字段id的值是1到6，这条语句
-//        // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
-//        // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
-//        // 如果改成ANY，那么什么记录都不删
-//=======
+        // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
+        // 否则为false，
+        // 假设表中字段id的值是1到6，这条语句
+        // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
+        // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
+        // 如果改成ANY，那么什么记录都不删
         query.setDistinctIfPossible();
         ResultInterface rows = query.query(0);
         Value l = left.getValue(session);
@@ -74,16 +68,11 @@ public class ConditionInSelect extends Condition {
         
         //获得结果集中第一列的类型
         int dataType = rows.getColumnType(0);
-//<<<<<<< HEAD
-//        //如果列的类型是null，那么返回false
-//        if (dataType == Value.NULL) { 
-//            return ValueBoolean.get(false);
-//        }
-//        l = l.convertTo(dataType); //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
-//=======
+        //如果列的类型是null，那么返回false
         if (dataType == Value.NULL) {
             return ValueBoolean.FALSE;
         }
+        //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
         l = l.convertTo(dataType, database.getMode());
         if (rows.containsDistinct(new Value[] { l })) {
             return ValueBoolean.TRUE;
@@ -134,12 +123,9 @@ public class ConditionInSelect extends Condition {
     public Expression optimize(Session session) {
         left = left.optimize(session);
         query.setRandomAccessResult(true);
-//<<<<<<< HEAD
-//        query.prepare();
-//        //如where id in(select id,name from ConditionInSelectTest where id=3)
-//        //org.h2.jdbc.JdbcSQLException: Subquery is not a single column query
-//        //子查询不能多于1个列
-//=======
+        //如where id in(select id,name from ConditionInSelectTest where id=3)
+        //org.h2.jdbc.JdbcSQLException: Subquery is not a single column query
+        //子查询不能多于1个列
         session.optimizeQueryExpression(query);
         if (query.getColumnCount() != 1) {
             throw DbException.get(ErrorCode.SUBQUERY_IS_NOT_SINGLE_COLUMN);

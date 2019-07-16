@@ -68,38 +68,23 @@ import org.h2.value.ValueNull;
  */
 //调用顺序 init=>prepare->query
 public class Select extends Query {
-//<<<<<<< HEAD
-//    private TableFilter topTableFilter;
-//    private final ArrayList<TableFilter> filters = New.arrayList(); //包含NestedJoin
-//    //所有的非NestedJoin都是top filter
-//    //例如"select rownum, * from JoinTest1 CROSS JOIN JoinTest2 CROSS JOIN JoinTest3 CROSS JOIN JoinTest4"
-//    //就有4个top filter，依次是JoinTest1、JoinTest2、JoinTest3、JoinTest4
-//    private final ArrayList<TableFilter> topFilters = New.arrayList();
-//    private ArrayList<Expression> expressions; //select a,b,c from中的a,b,c
-//    private Expression[] expressionArray;
-//    private Expression having; //having子句
-//    private Expression condition; //where子句
-//    //visibleColumnCount不包含缺失的order by、GROUP BY、having字段
-//    //distinctColumnCount包含缺失的order by字段，但不包含GROUP BY、having字段
-//    private int visibleColumnCount, distinctColumnCount;
-//    private ArrayList<SelectOrderBy> orderList; //对应order by，一个字段对应一个SelectOrderBy
-//    private ArrayList<Expression> group; //对应group by，一个字段对应一个Expression
-//    private int[] groupIndex;
-//    private boolean[] groupByExpression;
-//    private HashMap<Expression, Object> currentGroup;
-//=======
 
     /**
      * The main (top) table filter.
      */
     TableFilter topTableFilter;
-
+    //包含NestedJoin
     private final ArrayList<TableFilter> filters = Utils.newSmallArrayList();
+    //所有的非NestedJoin都是top filter
+    //例如"select rownum, * from JoinTest1 CROSS JOIN JoinTest2 CROSS JOIN JoinTest3 CROSS JOIN JoinTest4"
+    //就有4个top filter，依次是JoinTest1、JoinTest2、JoinTest3、JoinTest4
     private final ArrayList<TableFilter> topFilters = Utils.newSmallArrayList();
 
-    private Expression having;
-    private Expression condition;
+    private Expression having; //having子句
+    private Expression condition; //where子句
 
+    //visibleColumnCount不包含缺失的order by、GROUP BY、having字段
+    //distinctColumnCount包含缺失的order by字段，但不包含GROUP BY、having字段
     /**
      * The visible columns (the ones required in the result).
      */
@@ -113,7 +98,7 @@ public class Select extends Query {
     private int[] distinctIndexes;
 
     private int distinctColumnCount;
-    private ArrayList<Expression> group;
+    private ArrayList<Expression> group; //对应group by，一个字段对应一个Expression
 
     /**
      * The indexes of the group-by columns.
@@ -276,59 +261,13 @@ public class Select extends Query {
             condition = new ConditionAndOr(ConditionAndOr.AND, cond, condition);
         }
     }
-//<<<<<<< HEAD
-//    
-//    //当为group by字段建立索引并按此字段排序时就调用此方法 (聚合函数的场景不适用)
-//    //如select id,count(id) from mytable where id>2 group by id having id=3 order by id
-//    //此方法的代码大多数跟queryGroup类似
-//    private void queryGroupSorted(int columnCount, ResultTarget result) {
-//        int rowNumber = 0;
-//        setCurrentRowNumber(0);
-//        currentGroup = null;
-//        Value[] previousKeyValues = null;
-//        while (topTableFilter.next()) {
-//            setCurrentRowNumber(rowNumber + 1);
-//            if (condition == null ||
-//                    Boolean.TRUE.equals(condition.getBooleanValue(session))) {
-//                rowNumber++;
-//                Value[] keyValues = new Value[groupIndex.length]; //group by字段的值组成一个数组
-//                // update group
-//                for (int i = 0; i < groupIndex.length; i++) {
-//                    int idx = groupIndex[i];
-//                    Expression expr = expressions.get(idx);
-//                    keyValues[i] = expr.getValue(session);
-//                }
-//
-//                if (previousKeyValues == null) {
-//                    previousKeyValues = keyValues;
-//                    currentGroup = New.hashMap();
-//                } else if (!Arrays.equals(previousKeyValues, keyValues)) {
-//                	//因为是按group by字段排序的，当前后两行的group by字段值不相等时就可以确定是不同组了，这时直接合并
-//                    addGroupSortedRow(previousKeyValues, columnCount, result);
-//                    previousKeyValues = keyValues;
-//                    currentGroup = New.hashMap();
-//                }
-//                currentGroupRowId++;
-//
-//                //这里计算非group字段的值
-//                for (int i = 0; i < columnCount; i++) {
-//                	//groupByExpression字段不可能为null，因为isGroupSortedQuery为true时，getGroupByExpressionCount() > 0
-//                    if (groupByExpression == null || !groupByExpression[i]) {
-//                        Expression expr = expressions.get(i);
-//                        expr.updateAggregate(session);
-//                    }
-//                }
-//            }
-//        }
-//        //最后一部分也要合并
-//        if (previousKeyValues != null) {
-//            addGroupSortedRow(previousKeyValues, columnCount, result);
-//=======
 
     public Expression getCondition() {
         return condition;
     }
 
+    //当为group by字段建立索引并按此字段排序时就调用此方法 (聚合函数的场景不适用)
+    //如select id,count(id) from mytable where id>2 group by id having id=3 order by id
     private LazyResult queryGroupSorted(int columnCount, ResultTarget result, long offset, boolean quickOffset) {
         LazyResultGroupSorted lazyResult = new LazyResultGroupSorted(expressionArray, columnCount);
         skipOffset(lazyResult, offset, quickOffset);
@@ -484,14 +423,6 @@ public class Select extends Query {
         }
     }
 
-//<<<<<<< HEAD
-//    //看这方法的代码时要时刻想到聚合函数、group by、having都有可能触发它
-//    private void queryGroup(int columnCount, LocalResult result) {
-//        //key是ValueArray类型，如果当前有group by，则key对应group by字段值组成的数组，
-//        //否则当前sql只有普通的聚合函数，此时key对应默认的ValueArray.get(new Value[0])
-//        ValueHashMap<HashMap<Expression, Object>> groups =
-//                ValueHashMap.newInstance();
-//=======
     private void queryGroupWindow(int columnCount, LocalResult result, long offset, boolean quickOffset) {
         initGroupData(columnCount);
         try {
@@ -511,6 +442,7 @@ public class Select extends Query {
         }
     }
 
+    //看这方法的代码时要时刻想到聚合函数、group by、having都有可能触发它
     private void queryGroup(int columnCount, LocalResult result, long offset, boolean quickOffset) {
         initGroupData(columnCount);
         try {
@@ -538,55 +470,6 @@ public class Select extends Query {
             setCurrentRowNumber(rowNumber + 1);
             if (isConditionMet()) {
                 rowNumber++;
-//<<<<<<< HEAD
-//                //聚合函数的情形
-//                if (groupIndex == null) { //如select count(id) from mytable where id>0时groupIndex=null
-//                    key = defaultGroup;
-//                } else { //group by、having的情形
-//                    //避免在ExpressionColumn.getValue中取到旧值
-//                    //例如SELECT id/3 AS A, COUNT(*) FROM mytable GROUP BY A HAVING A>=0
-//                    currentGroup = null; //我加上的
-//                    
-//                	//按当前行，抽取group by字段列表的值，组合成一个key
-//                	//例如group by id,name，那么先按id的字段下标从当前行中取出值，放到keyValues[0]中，
-//                	//然后取出name字段的值放到keyValues[1]中。
-//                    Value[] keyValues = new Value[groupIndex.length];
-//                    // update group
-//                    for (int i = 0; i < groupIndex.length; i++) {
-//                        int idx = groupIndex[i];
-//                        Expression expr = expressions.get(idx);
-//                        keyValues[i] = expr.getValue(session);
-//                    }
-//                    key = ValueArray.get(keyValues);
-//                }
-//                HashMap<Expression, Object> values = groups.get(key);
-//                if (values == null) {
-//                    values = new HashMap<Expression, Object>();
-//                    groups.put(key, values);
-//                }
-//                currentGroup = values;
-//                currentGroupRowId++;
-//                int len = columnCount;
-//                //如果是聚合函数的场景，那么select表达式列表部分不能出现字段
-//                //如果是group by、having的场景，那么select表达式列表部分只允许出现group by字段
-//                for (int i = 0; i < len; i++) {
-//                	//当是聚合函数时groupByExpression为null，group by、having的情形groupByExpression不为null
-//                	//select id,count(id) from mytable where id>0时是聚合函数，但是加入id字段是错误的，
-//                	//从常识理解来看字段和聚合函数放在一起有歧义，不知道该怎么显式结果，
-//                	//所以会报错: Column "ID" must be in the GROUP BY list
-//                	//如果变成这样select id,count(id) from mytable where id>0 group by id
-//                	//那么语义就很明确了：以id分组，然后统计每组的行数。
-//                	//这样显示结果时，
-//                	//1  2
-//                	//2  4
-//                	//3  5
-//                	//就表示id是1的有两行，id是2的有4行，id是3的有5行
-//                    if (groupByExpression == null || !groupByExpression[i]) {
-//                        Expression expr = expressions.get(i);
-//                        expr.updateAggregate(session);
-//                    }
-//                }
-//=======
                 groupData.nextSource();
                 updateAgg(columnCount, stage);
                 if (sampleSize > 0 && rowNumber >= sampleSize) {
@@ -594,16 +477,23 @@ public class Select extends Query {
                 }
             }
         }
-//<<<<<<< HEAD
-//        //只有聚会函数，但是没有记录(可能是表本身没有记录，或没有满足条件的记录)
-//        //例如假设id最大为10,用此语句测试select count(id) from mytable where id>1000
-//        if (groupIndex == null && groups.size() == 0) {
-//            groups.put(defaultGroup, new HashMap<Expression, Object>());
-//=======
         groupData.done();
     }
 
     void updateAgg(int columnCount, int stage) {
+        //如果是聚合函数的场景，那么select表达式列表部分不能出现字段
+        //如果是group by、having的场景，那么select表达式列表部分只允许出现group by字段
+        //当是聚合函数时groupByExpression为null，group by、having的情形groupByExpression不为null
+        //select id,count(id) from mytable where id>0时是聚合函数，但是加入id字段是错误的，
+        //从常识理解来看字段和聚合函数放在一起有歧义，不知道该怎么显式结果，
+        //所以会报错: Column "ID" must be in the GROUP BY list
+        //如果变成这样select id,count(id) from mytable where id>0 group by id
+        //那么语义就很明确了：以id分组，然后统计每组的行数。
+        //这样显示结果时，
+        //1  2
+        //2  4
+        //3  5
+        //就表示id是1的有两行，id是2的有4行，id是3的有5行
         for (int i = 0; i < columnCount; i++) {
             if (groupByExpression == null || !groupByExpression[i]) {
                 Expression expr = expressions.get(i);
@@ -654,10 +544,7 @@ public class Select extends Query {
         if (sort == null) {
             return null;
         }
-//<<<<<<< HEAD
-//        ArrayList<Column> sortColumns = New.arrayList();
-//        //生成orderby字段列表
-//=======
+        //生成orderby字段列表
         ArrayList<Column> sortColumns = Utils.newSmallArrayList();
         for (int idx : sort.getQueryColumnIndexes()) {
             if (idx < 0 || idx >= expressions.size()) {
@@ -677,11 +564,7 @@ public class Select extends Query {
             }
             sortColumns.add(exprCol.getColumn());
         }
-//<<<<<<< HEAD
-//        Column[] sortCols = sortColumns.toArray(new Column[sortColumns.size()]);
-//        int[] sortTypes = sort.getSortTypes();
-//        //如果没有orderby字段直接用scan index
-//=======
+        //如果没有orderby字段直接用scan index
         Column[] sortCols = sortColumns.toArray(new Column[0]);
         if (sortCols.length == 0) {
             // sort just on constants - can use scan index
@@ -689,12 +572,8 @@ public class Select extends Query {
         }
         ArrayList<Index> list = topTableFilter.getTable().getIndexes();
         if (list != null) {
-//<<<<<<< HEAD
-//        	//循环遍历当前表的所有索引，对比每个索引的字段是否是orderby字段(可能会有多个)和排序类型是否一样，
-//        	//如果都一样，那么返回此索引
-//            for (int i = 0, size = list.size(); i < size; i++) {
-//                Index index = list.get(i);
-//=======
+         	//循环遍历当前表的所有索引，对比每个索引的字段是否是orderby字段(可能会有多个)和排序类型是否一样，
+        	//如果都一样，那么返回此索引
             int[] sortTypes = sort.getSortTypesWithNullPosition();
             for (Index index : list) {
                 if (index.getCreateSQL() == null) {
@@ -741,17 +620,7 @@ public class Select extends Query {
         return null;
     }
 
-//<<<<<<< HEAD
-//    //对于select distinct name from mytable, 直接走name的B-tree索引就可以得到name例的值了，不用找PageData索引
-//    private void queryDistinct(ResultTarget result, long limitRows) {
-//        // limitRows must be long, otherwise we get an int overflow
-//        // if limitRows is at or near Integer.MAX_VALUE
-//        // limitRows is never 0 here
-//        if (limitRows > 0 && offsetExpr != null) {
-//            int offset = offsetExpr.getValue(session).getInt();
-//            if (offset > 0) {
-//                limitRows += offset;
-//=======
+    //对于select distinct name from mytable, 直接走name的B-tree索引就可以得到name例的值了，不用找PageData索引
     private void queryDistinct(ResultTarget result, long offset, long limitRows, boolean withTies,
             boolean quickOffset) {
         if (limitRows > 0 && offset > 0) {
@@ -798,20 +667,10 @@ public class Select extends Query {
         }
     }
 
-//<<<<<<< HEAD
-//    private LazyResult queryFlat(int columnCount, ResultTarget result, long limitRows) {
-//        // limitRows must be long, otherwise we get an int overflow
-//        // if limitRows is at or near Integer.MAX_VALUE
-//        // limitRows is never 0 here
-//    	//并不会按offset先跳过前面的行数，而是limitRows加上offset，读够limitRows+offset行，然后这从result中跳
-//    	//因为可能需要排序，offset是相对于最后的结果来说的，而不是排序前的结果
-//        if (limitRows > 0 && offsetExpr != null) {
-//            int offset = offsetExpr.getValue(session).getInt();
-//            if (offset > 0) {
-//                limitRows += offset;
-//=======
     private LazyResult queryFlat(int columnCount, ResultTarget result, long offset, long limitRows, boolean withTies,
             boolean quickOffset) {
+        //并不会按offset先跳过前面的行数，而是limitRows加上offset，读够limitRows+offset行，然后这从result中跳
+        //因为可能需要排序，offset是相对于最后的结果来说的，而不是排序前的结果
         if (limitRows > 0 && offset > 0 && !quickOffset) {
             limitRows += offset;
             if (limitRows < 0) {
@@ -821,33 +680,6 @@ public class Select extends Query {
         }
         ArrayList<Row> forUpdateRows = this.isForUpdateMvcc ? Utils.<Row>newSmallArrayList() : null;
         int sampleSize = getSampleSizeValue(session);
-//<<<<<<< HEAD
-//        while (topTableFilter.next()) {
-//            setCurrentRowNumber(rowNumber + 1);
-//            if (condition == null ||
-//                    Boolean.TRUE.equals(condition.getBooleanValue(session))) {
-//                Value[] row = new Value[columnCount];
-//                for (int i = 0; i < columnCount; i++) {
-//                    Expression expr = expressions.get(i);
-//                    //触发:
-//                    //org.h2.expression.ExpressionColumn.getValue(Session)
-//                    //org.h2.table.TableFilter.getValue(Column)
-//                    row[i] = expr.getValue(session);
-//                }
-//                if (isForUpdateMvcc) {
-//                    topTableFilter.lockRowAdd(forUpdateRows);
-//                }
-//                result.addRow(row);
-//                rowNumber++;
-//                //如果sort为null，说明不用排序，只要读够那么多行就可以了
-//                //同样的，如果sortUsingIndex为true，那么说明当前是按索引先取的，索引是有序的，所以只要读够那么多行也可以了
-//                if ((sort == null || sortUsingIndex) && limitRows > 0 && result.getRowCount() >= limitRows) {
-//                    break;
-//                }
-//                if (sampleSize > 0 && rowNumber >= sampleSize) {
-//                    break;
-//                }
-//=======
         LazyResultQueryFlat lazyResult = new LazyResultQueryFlat(expressionArray,
                 sampleSize, columnCount);
         skipOffset(lazyResult, offset, quickOffset);
@@ -865,6 +697,8 @@ public class Select extends Query {
             row = lazyResult.currentRow();
             result.addRow(row);
         }
+        //如果sort为null，说明不用排序，只要读够那么多行就可以了
+        //同样的，如果sortUsingIndex为true，那么说明当前是按索引先取的，索引是有序的，所以只要读够那么多行也可以了
         if (limitRows != Long.MAX_VALUE && withTies && sort != null && row != null) {
             Value[] expected = row;
             while (lazyResult.next()) {
@@ -954,12 +788,9 @@ public class Select extends Query {
                 !session.getDatabase().getSettings().optimizeInsertFromSelect)) {
             result = createLocalResult(result);
         }
-//<<<<<<< HEAD
-//        //就算target不为null，如果满足下面的特殊条件还是必须建立LocalResult
-//        if (sort != null && (!sortUsingIndex || distinct)) {
-//=======
         // Do not add rows before OFFSET to result if possible
         boolean quickOffset = !fetchPercent;
+        //就算target不为null，如果满足下面的特殊条件还是必须建立LocalResult
         if (sort != null && (!sortUsingIndex || isAnyDistinct() || withTies)) {
             result = createLocalResult(result);
             result.setSortOrder(sort);
@@ -1023,10 +854,7 @@ public class Select extends Query {
                     if (isGroupSortedQuery) {
                         lazyResult = queryGroupSorted(columnCount, to, offset, quickOffset);
                     } else {
-//<<<<<<< HEAD
-//                        //isGroupQuery为true且isGroupSortedQuery为false时，result总是为null的，此时用to也是一样的
-//                        queryGroup(columnCount, result);
-//=======
+                        //isGroupQuery为true且isGroupSortedQuery为false时，result总是为null的，此时用to也是一样的
                         queryGroup(columnCount, result, offset, quickOffset);
                     }
                 } else if (isDistinctQuery) {
@@ -1096,11 +924,6 @@ public class Select extends Query {
         return old != null ? old : session.getDatabase().getResultFactory().create(session, expressionArray,
                 visibleColumnCount);
     }
-//<<<<<<< HEAD
-//    
-//    //把"select *"或"select t.*"转成"select 表的所有字段"
-//    //也就是把单个Wildcard展开成多个ExpressionColumn
-//=======
 
     private LocalResult convertToDistinct(ResultInterface result) {
         LocalResult distinctResult = session.getDatabase().getResultFactory().create(session,
@@ -1115,6 +938,8 @@ public class Select extends Query {
         return distinctResult;
     }
 
+    //把"select *"或"select t.*"转成"select 表的所有字段"
+    //也就是把单个Wildcard展开成多个ExpressionColumn
     private void expandColumnList() {
         Database db = session.getDatabase();
 
@@ -1207,17 +1032,14 @@ public class Select extends Query {
 
     @Override
     public void init() {
-    	//expressions字段会动态加入*扩展后的字段、缺失的order by、GROUP BY字段，还有having表达式
         if (SysProperties.CHECK && checkInit) {
             DbException.throwInternalError();
         }
+        //expressions字段会动态加入*扩展后的字段、缺失的order by、GROUP BY字段，还有having表达式
         expandColumnList();
         visibleColumnCount = expressions.size(); //visibleColumnCount不包含缺失的order by、GROUP BY字段，还有having表达式
         ArrayList<String> expressionSQL;
-//<<<<<<< HEAD
-//        if (orderList != null || group != null) { //只有order by和group by里的字段会引用select表达式中名称
-//            expressionSQL = New.arrayList();
-//=======
+        //只有distinct、order by和group by里的字段会引用select表达式中的名称
         if (distinctExpressions != null || orderList != null || group != null) {
             expressionSQL = new ArrayList<>(visibleColumnCount);
             for (int i = 0; i < visibleColumnCount; i++) {
@@ -1246,15 +1068,12 @@ public class Select extends Query {
             }
         }
         if (orderList != null) {
-//<<<<<<< HEAD
-//        	//在select中加distinct时distinct变量为true
-//        	//此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
-//        	//比如select distinct name from mytable order by id desc是错的
-//        	//错误提示:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
-//        	//这样就没问题select name from mytable order by id desc
-//        	//会自动加order by中的字段到select字段列表中
-//            initOrder(session, expressions, expressionSQL, orderList, visibleColumnCount, distinct, filters);
-//=======
+          	//在select中加distinct时distinct变量为true
+          	//此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
+          	//比如select distinct name from mytable order by id desc是错的
+          	//错误提示:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
+          	//这样就没问题select name from mytable order by id desc
+          	//会自动加order by中的字段到select字段列表中
             initOrder(session, expressions, expressionSQL, orderList,
                     visibleColumnCount, isAnyDistinct(), filters);
         }
@@ -1330,20 +1149,12 @@ public class Select extends Query {
         for (TableFilter f : filters) {
             mapColumns(f, 0);
         }
-//<<<<<<< HEAD
-//        // 我注释掉了，改进办法见ExpressionColumn
-//        // if (havingIndex >= 0) { //在对expressions进行mapColumns时map过了
-//        // Expression expr = expressions.get(havingIndex);
-//        // SelectListColumnResolver res = new SelectListColumnResolver(this);
-//        // 处理having中出现列别名的场景
-//        // //当having不在visibleColumn的字段列表中时，mapColumns什么都不做
-//        // expr.mapColumns(res, 0);
-//        // }
-//
-//=======
-        if (havingIndex >= 0) {
+
+        if (havingIndex >= 0) { //在对expressions进行mapColumns时map过了
             Expression expr = expressions.get(havingIndex);
             SelectListColumnResolver res = new SelectListColumnResolver(this);
+            // 处理having中出现列别名的场景
+            // //当having不在visibleColumn的字段列表中时，mapColumns什么都不做
             expr.mapColumns(res, 0, Expression.MAP_INITIAL);
         }
         checkInit = true;
@@ -1363,9 +1174,7 @@ public class Select extends Query {
             sort = prepareOrder(orderList, expressions.size());
             orderList = null;
         }
-//<<<<<<< HEAD
-//        //init中已经事先mapColumns了
-//=======
+
         ColumnNamer columnNamer = new ColumnNamer(session);
         for (int i = 0; i < expressions.size(); i++) {
             Expression e = expressions.get(i);
@@ -1413,20 +1222,14 @@ public class Select extends Query {
                 //可参考org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
                 isQuickAggregateQuery = isEverything(optimizable);
             }
-//<<<<<<< HEAD
-//        } 
-//
-//        // 这一步里头会为topTableFilter选择最合适的索引，只不过下面3个if如果碰到特殊情况再调整索引
-//        cost = preparePlan(session.isParsingView());
-//
-//        // 以下三个if语句是用来选择不同的index
-//
-//        // 用select distinct name from mytable测试下面的代码，
-//        // 为name建立UNIQUE(name,...)(name是第一个字段)，建表时为name字段加SELECTIVITY 10
-//        // 这样，就不会用其他索引，而是用UNIQUE索引
-//=======
         }
+        // 这一步里头会为topTableFilter选择最合适的索引，只不过下面3个if如果碰到特殊情况再调整索引
         cost = preparePlan(session.isParsingCreateView());
+        // 以下三个if语句是用来选择不同的index
+  
+        // 用select distinct name from mytable测试下面的代码，
+        // 为name建立UNIQUE(name,...)(name是第一个字段)，建表时为name字段加SELECTIVITY 10
+        // 这样，就不会用其他索引，而是用UNIQUE索引
         if (distinct && session.getDatabase().getSettings().optimizeDistinct &&
                 !isGroupQuery && filters.size() == 1 &&
                 expressions.size() == 1 && condition == null) {
@@ -1787,17 +1590,14 @@ public class Select extends Query {
     @Override
     public void mapColumns(ColumnResolver resolver, int level) {
         for (Expression e : expressions) {
-//<<<<<<< HEAD
-//            // 像这样sql =
-//            // "select id, name from natural_join_test_table1, natural_join_test_table2";
-//            // //如果natural_join_test_table1和natural_join_test_table2有相同的id,name
-//            // //那么在第一次org.h2.expression.ExpressionColumn.mapColumn(ColumnResolver,
-//            // Column, int)时
-//            // //columnResolver=null，此时columnResolver设为natural_join_test_table1
-//            // //当第二次mapColumn时，因为id这个ExpressionColumn的columnResolver已经设过了，所以报错:
-//            // //Ambiguous column name "ID";
-//            e.mapColumns(resolver, level);
-//=======
+            // 像这样sql =
+            // "select id, name from natural_join_test_table1, natural_join_test_table2";
+            // //如果natural_join_test_table1和natural_join_test_table2有相同的id,name
+            // //那么在第一次org.h2.expression.ExpressionColumn.mapColumn(ColumnResolver,
+            // Column, int)时
+            // //columnResolver=null，此时columnResolver设为natural_join_test_table1
+            // //当第二次mapColumn时，因为id这个ExpressionColumn的columnResolver已经设过了，所以报错:
+            // //Ambiguous column name "ID";
             e.mapColumns(resolver, level, Expression.MAP_INITIAL);
         }
         if (condition != null) {
@@ -1975,21 +1775,16 @@ public class Select extends Query {
 
     @Override
     public boolean allowGlobalConditions() {
-//<<<<<<< HEAD
-//        if (offsetExpr == null && (limitExpr == null || sort == null)) {
-//            return true;
-//        }
-//        return false;
-//	}
-//	
-//	public String toString() { //我加上的
-//        return getPlanSQL();
-//=======
         return offsetExpr == null && (limitExpr == null || sort == null);
     }
 
     public SortOrder getSortOrder() {
         return sort;
+    }
+
+    @Override
+    public String toString() { // 我加上的
+        return getPlanSQL();
     }
 
     /**
@@ -2051,6 +1846,9 @@ public class Select extends Query {
                     Value[] row = new Value[columnCount];
                     for (int i = 0; i < columnCount; i++) {
                         Expression expr = expressions.get(i);
+                        //触发:
+                        //org.h2.expression.ExpressionColumn.getValue(Session)
+                        //org.h2.table.TableFilter.getValue(Column)
                         row[i] = expr.getValue(getSession());
                     }
                     return row;
@@ -2091,7 +1889,7 @@ public class Select extends Query {
                 setCurrentRowNumber(rowNumber + 1);
                 if (isConditionMet()) {
                     rowNumber++;
-                    Value[] keyValues = new Value[groupIndex.length];
+                    Value[] keyValues = new Value[groupIndex.length]; //group by字段的值组成一个数组
                     // update group
                     for (int i = 0; i < groupIndex.length; i++) {
                         int idx = groupIndex[i];
@@ -2104,6 +1902,7 @@ public class Select extends Query {
                         previousKeyValues = keyValues;
                         groupData.nextLazyGroup();
                     } else if (!Arrays.equals(previousKeyValues, keyValues)) {
+                        //因为是按group by字段排序的，当前后两行的group by字段值不相等时就可以确定是不同组了，这时直接合并
                         row = createGroupSortedRow(previousKeyValues, columnCount);
                         previousKeyValues = keyValues;
                         groupData.nextLazyGroup();

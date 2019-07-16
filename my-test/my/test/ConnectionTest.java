@@ -27,7 +27,6 @@ public class ConnectionTest {
 
     public static void main(String[] args) throws Exception {
         String url = "jdbc:h2:tcp://localhost:9092/mydb;user=sa;password=";
-        url = "jdbc:lealone:tcp://localhost:5210/test;user=sa;password=";
         // url = "jdbc:mysql://localhost:3306/test?user=root&password=zhh";
 
         Connection conn = getConnection(url);
@@ -39,7 +38,7 @@ public class ConnectionTest {
     }
 
     static void run(String url) throws Exception {
-        int count = 10000;
+        int count = 2000;
         Connection[] connections = new Connection[count];
 
         long t1 = System.currentTimeMillis();

@@ -2871,10 +2871,7 @@ public class Parser {
         boolean fromFirst;
         if (readIf(SELECT)) {
             fromFirst = false;
-//<<<<<<< HEAD
-//        } else if (readIf("FROM")) { //支持from ... select ...语法
-//=======
-        } else if (readIf(FROM)) {
+        } else if (readIf(FROM)) { //支持from ... select ...语法
             fromFirst = true;
         } else {
             throw getSyntaxError();
@@ -2892,10 +2889,7 @@ public class Parser {
             parseSelectSimpleSelectPart(command);
         } else {
             parseSelectSimpleSelectPart(command);
-//<<<<<<< HEAD
-//            //没有from，如"select 2"
-//            if (!readIf("FROM")) {
-//=======
+            //没有from，如"select 2"
             if (!readIf(FROM)) {
                 // select without FROM: convert to SELECT ... FROM
                 // SYSTEM_RANGE(1,1)
@@ -2908,10 +2902,7 @@ public class Parser {
                 parseSelectSimpleFromPart(command);
             }
         }
-//<<<<<<< HEAD
-//        //下面代码处理where、group by、having子句
-//        if (readIf("WHERE")) {
-//=======
+        //下面代码处理where、group by、having子句
         if (readIf(WHERE)) {
             Expression condition = readExpression();
             command.addCondition(condition);
@@ -3018,11 +3009,8 @@ public class Parser {
             boolean not = false;
             if (readIf(NOT)) {
                 not = true;
-//<<<<<<< HEAD
-//                //这样不合法: delete from mytable where name not null
-//                //这样才合法: delete from mytable where name is null
-//                if (isToken("NULL")) {
-//=======
+                //这样不合法: delete from mytable where name not null
+                //这样才合法: delete from mytable where name is null
                 if (isToken(NULL)) {
                     // this really only works for NOT NULL!
                     parseIndex = backup;
@@ -3079,16 +3067,8 @@ public class Parser {
                             readConcat());
                 }
             } else if (readIf("IN")) {
-//<<<<<<< HEAD
-//                read("("); 
-//                if (readIf(")")) { //对于IN()直接返回false常量
-//                    if (database.getMode().prohibitEmptyInPredicate) {
-//                        throw getSyntaxError();
-//                    } 
-//                    r = ValueExpression.get(ValueBoolean.get(false));
-//=======
                 read(OPEN_PAREN);
-                if (readIf(CLOSE_PAREN)) {
+                if (readIf(CLOSE_PAREN)) { //对于IN()直接返回false常量
                     if (database.getMode().prohibitEmptyInPredicate) {
                         throw getSyntaxError();
                     }
@@ -4600,7 +4580,7 @@ public class Parser {
         }
         int start = i;
         char[] chars = sqlCommandChars;
-        char c = chars[i++]; //注意这里，c是当前字符，当下面chars[i]时就是下一个字符了
+        char c = chars[i++]; //注意这里，c是当前字符，当下面用到chars[i]时就是下一个字符了
         currentToken = "";
         switch (type) {
         case CHAR_NAME:
@@ -4756,13 +4736,8 @@ public class Parser {
             currentTokenType = VALUE;
             return;
         }
-//<<<<<<< HEAD
-//        case CHAR_DOLLAR_QUOTED_STRING: { //$$字符串，用来定义自定义函数和存储过程的java代码
-//            String result = null;
-//            int begin = i - 1; //前面一个字符也是CHAR_DOLLAR_QUOTED_STRING，所以在sqlCommand.substring(begin, i)时要包含
-//=======
-        case CHAR_DOLLAR_QUOTED_STRING: {
-            int begin = i - 1;
+        case CHAR_DOLLAR_QUOTED_STRING: { //$$字符串，用来定义自定义函数和存储过程的java代码
+            int begin = i - 1; //前面一个字符也是CHAR_DOLLAR_QUOTED_STRING，所以在sqlCommand.substring(begin, i)时要包含
             while (types[i] == CHAR_DOLLAR_QUOTED_STRING) {
                 i++;
             }
@@ -4811,30 +4786,23 @@ public class Parser {
     }
 
     private void checkLiterals(boolean text) {
-//<<<<<<< HEAD
-//        if (!session.getAllowLiterals()) { //默认是false
-//        	
-//        	//有三种选项
-//        	//ALLOW_LITERALS_ALL 都允许
-//        	//ALLOW_LITERALS_NONE 说明不允许出现字面值
-//        	//ALLOW_LITERALS_NUMBERS 只允许数字字面值
-//            int allowed = database.getAllowLiterals(); //默认是ALLOW_LITERALS_ALL
-//            
-//            //如果是ALLOW_LITERALS_NONE，说明不允许出现字面值
-//            //当text参数为true时说明当前要检查字符串类型的字面值，只有ALLOW_LITERALS_ALL才允许
-//            if (allowed == Constants.ALLOW_LITERALS_NONE || (text && allowed != Constants.ALLOW_LITERALS_ALL)) {
-//            	//例如:
-//            	//sql = "select id,name from ParserTest where id > .123";
-//        		//ALLOW_LITERALS_ALL=2 都允许
-//            	//ALLOW_LITERALS_NONE=0 说明不允许出现字面值
-//            	//ALLOW_LITERALS_NUMBERS=1 只允许数字字面值
-//        		//stmt.executeUpdate("SET ALLOW_LITERALS 1"); //只允许数字字面值
-//        		//sql = "select id,name from ParserTest where name = 'abc'"; //这时就不允许出现字符串字面值了
-//=======
-        if (!literalsChecked && !session.getAllowLiterals()) {
-            int allowed = database.getAllowLiterals();
+        //有三种选项
+        //ALLOW_LITERALS_ALL 都允许
+        //ALLOW_LITERALS_NONE 说明不允许出现字面值
+        //ALLOW_LITERALS_NUMBERS 只允许数字字面值
+        if (!literalsChecked && !session.getAllowLiterals()) { //默认是false
+            int allowed = database.getAllowLiterals(); //默认是ALLOW_LITERALS_ALL
+            //如果是ALLOW_LITERALS_NONE，说明不允许出现字面值
+            //当text参数为true时说明当前要检查字符串类型的字面值，只有ALLOW_LITERALS_ALL才允许
             if (allowed == Constants.ALLOW_LITERALS_NONE ||
                     (text && allowed != Constants.ALLOW_LITERALS_ALL)) {
+                //例如:
+                //sql = "select id,name from ParserTest where id > .123";
+                //ALLOW_LITERALS_ALL=2 都允许
+                //ALLOW_LITERALS_NONE=0 说明不允许出现字面值
+                //ALLOW_LITERALS_NUMBERS=1 只允许数字字面值
+                //stmt.executeUpdate("SET ALLOW_LITERALS 1"); //只允许数字字面值
+                //sql = "select id,name from ParserTest where name = 'abc'"; //这时就不允许出现字符串字面值了
                 throw DbException.get(ErrorCode.LITERALS_ARE_NOT_ALLOWED);
             }
         }
@@ -4907,23 +4875,16 @@ public class Parser {
         currentTokenType = VALUE;
     }
 
-//<<<<<<< HEAD
-//    public Session getSession() {
-//        return session;
-//    }
-//    
-//	//此方法涉及以下实例字段:
-//	//originalSQL
-//	//sqlCommand
-//	//sqlCommandChars
-//	//characterTypes
-//	//parseIndex(从0开始)
-//
-//	//types初始化时每个元素都是0
-//	//此方法将注释、$$用空格替换, 把"`"、"["换成双引号，
-//	//同时对SQL中的每个字符标明其类型，以便下一步在read方法中识别sql中的各种结构。
-//=======
-//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
+	//此方法涉及以下实例字段:
+	//originalSQL
+	//sqlCommand
+	//sqlCommandChars
+	//characterTypes
+	//parseIndex(从0开始)
+
+	//types初始化时每个元素都是0
+	//此方法将注释、$$用空格替换, 把"`"、"["换成双引号，
+	//同时对SQL中的每个字符标明其类型，以便下一步在read方法中识别sql中的各种结构。
     private void initialize(String sql) {
         if (sql == null) {
             sql = "";
@@ -5039,11 +5000,11 @@ public class Parser {
                         // $ inside an identifier is supported
                         type = CHAR_NAME;
                     } else {
-                    	//如: 支持自定义的参数顺序，而不是按?出现的顺序排
-                    	//PreparedStatement ps = conn.prepareStatement("delete top $2 from ParserTest where id>10 and name=$1");
-                		//ps.setString(1, "abc");
-                		//ps.setInt(2, 3);
-                		//ps.executeUpdate();
+                    //如: 支持自定义的参数顺序，而不是按?出现的顺序排
+                    //PreparedStatement ps = conn.prepareStatement("delete top $2 from ParserTest where id>10 and name=$1");
+                	//ps.setString(1, "abc");
+                	//ps.setInt(2, 3);
+                	//ps.executeUpdate();
                 		
                         // but not at the start, to support PostgreSQL $1
                         type = CHAR_SPECIAL_1;

@@ -76,19 +76,13 @@ public class Delete extends Prepared {
         try {
             setCurrentRowNumber(0);
             int count = 0;
-//<<<<<<< HEAD
-//            //比如delete from DeleteTest limit 0，
-//            //此时limitRows为0，不删除任何行
-//            while (limitRows != 0 && tableFilter.next()) {
-//                setCurrentRowNumber(rows.size() + 1);
-//                //condition.getBooleanValue(session)内部会取当前行与之比较，
-//                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
-//                //然后在从当前行中按列id取当前行value数组中对应元素
-//                if (condition == null || Boolean.TRUE.equals(condition.getBooleanValue(session))) {
-//                    Row row = tableFilter.get();
-//=======
+            //比如delete from DeleteTest limit 0，
+            //此时limitRows为0，不删除任何行
             while (limitRows != 0 && targetTableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
+                //condition.getBooleanValue(session)内部会取当前行与之比较，
+                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
+                //然后在从当前行中按列id取当前行value数组中对应元素
                 if (condition == null || condition.getBooleanValue(session)) {
                     Row row = targetTableFilter.get();
                     boolean done = false;

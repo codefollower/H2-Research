@@ -9,6 +9,8 @@ package org.h2.util;
  * A list of bits.
  */
 //下标都是从0开始计数的，data[0]表示0到63，data[1]表示64到127。。。
+//此类已经不再用
+@Deprecated
 public final class BitField {
 
     private static final int ADDRESS_BITS = 6; //表示2的6次方，刚好等于64, i >> ADDRESS_BITS时能确定是在data中那个下标

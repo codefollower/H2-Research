@@ -37,6 +37,9 @@ public class ConditionExistsTest extends TestBase {
         stmt.executeUpdate("insert into ConditionExistsTest(id, name) values(3, 'b3')");
 
         sql = "select * from ConditionExistsTest where name>'b' and EXISTS(select name from ConditionExistsTest where id=1)";
+        sql = "select * from ConditionExistsTest where name>'b' or EXISTS(select name from ConditionExistsTest where id=1)";
+        sql = "select * from ConditionExistsTest where name>'c' or "
+                + "EXISTS(select count(*) from ConditionExistsTest where id=4)";
 
         executeQuery();
     }

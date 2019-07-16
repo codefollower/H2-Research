@@ -44,7 +44,7 @@ public abstract class Query extends Prepared {
     /**
      * The column list, including invisible expressions such as order by expressions.
      */
-    ArrayList<Expression> expressions;
+    ArrayList<Expression> expressions; //select a,b,c from中的a,b,c
 
     /**
      * Array of expressions.
@@ -53,7 +53,7 @@ public abstract class Query extends Prepared {
      */
     Expression[] expressionArray;
 
-    ArrayList<SelectOrderBy> orderList;
+    ArrayList<SelectOrderBy> orderList; //对应order by，一个字段对应一个SelectOrderBy
 
     SortOrder sort;
 
@@ -90,10 +90,7 @@ public abstract class Query extends Prepared {
     /**
      * Whether the result needs to support random access.
      */
-//<<<<<<< HEAD
-//    protected boolean randomAccessResult; //在ConditionInSelect时会设为true
-//=======
-    boolean randomAccessResult;
+    boolean randomAccessResult; //在ConditionInSelect时会设为true
 
     private boolean noCache;
     private int lastLimit;
@@ -464,45 +461,6 @@ public abstract class Query extends Prepared {
             if (e == null) {
                 continue;
             }
-//<<<<<<< HEAD
-//            // special case: SELECT 1 AS A FROM DUAL ORDER BY A
-//            // (oracle supports it, but only in order by, not in group by and
-//            // not in having):
-//            // SELECT 1 AS A FROM DUAL ORDER BY -A
-//            boolean isAlias = false;
-//            int idx = expressions.size(); //排序列最后放在什么位置，默认是最后，除非在select字段列表中找到了
-//            if (e instanceof ExpressionColumn) {
-//                // order by expression
-//                ExpressionColumn exprCol = (ExpressionColumn) e;
-//                String tableAlias = exprCol.getOriginalTableAliasName();
-//                String col = exprCol.getOriginalColumnName();
-//                for (int j = 0; j < visible; j++) {
-//                    boolean found = false;
-//                    Expression ec = expressions.get(j);
-//                    if (ec instanceof ExpressionColumn) {
-//                        // select expression
-//                        ExpressionColumn c = (ExpressionColumn) ec;
-//                        found = db.equalsIdentifiers(col, c.getColumnName());
-//                        if (found && tableAlias != null) {
-//                            String ca = c.getOriginalTableAliasName();
-//                            if (ca == null) {
-//                                found = false;
-//                                if (filters != null) {
-//                                    // select id from test order by test.id
-//                                    for (int i = 0, size = filters.size(); i < size; i++) {
-//                                        TableFilter f = filters.get(i);
-//                                        if (db.equalsIdentifiers(f.getTableAlias(), tableAlias)) {
-//                                            found = true;
-//                                            break;
-//                                        }
-//                                    }
-//                                }
-//                            } else {
-//                                found = db.equalsIdentifiers(ca, tableAlias);
-//                            }
-//                        }
-//                    } else if (!(ec instanceof Alias)) {
-//=======
             int idx = initExpression(session, expressions, expressionSQL, e, visible, mustBeInResult, filters);
             o.columnIndexExpr = ValueExpression.get(ValueInt.get(idx + 1));
             o.expression = expressions.get(idx).getNonAliasExpression();
@@ -562,19 +520,6 @@ public abstract class Query extends Prepared {
                     }
                 }
             }
-//<<<<<<< HEAD
-//            
-//            //在select中加distinct时distinct变量为true
-//        	//此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
-//        	//比如select distinct name from mytable order by id desc是错的
-//        	//错误提示:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
-//        	//这样就没问题select name from mytable order by id desc
-//            //会自动加order by中的字段到select字段列表中
-//            if (!isAlias) {
-//                if (mustBeInResult) {
-//                    throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT,
-//                            e.getSQL());
-//=======
         } else if (expressionSQL != null) {
             String s = e.getSQL();
             for (int j = 0, size = expressionSQL.size(); j < size; j++) {
@@ -583,12 +528,18 @@ public abstract class Query extends Prepared {
                 }
             }
         }
+        //在select中加distinct时distinct变量为true
+        //此时如果order by子句中的字段在select字段列表中不存在，那么就认为是错误
+        //比如select distinct name from mytable order by id desc是错的
+        //错误提示:  org.h2.jdbc.JdbcSQLException: Order by expression "ID" must be in the result list in this case; 
+        //这样就没问题select name from mytable order by id desc
+        //会自动加order by中的字段到select字段列表中
         if (expressionSQL == null
                 || mustBeInResult && session.getDatabase().getMode().getEnum() != ModeEnum.MySQL
                         && !checkOrderOther(session, e, expressionSQL)) {
             throw DbException.get(ErrorCode.ORDER_BY_NOT_IN_RESULT, e.getSQL());
         }
-        int idx = expressions.size();
+        int idx = expressions.size(); //排序列最后放在什么位置，默认是最后，除非在select字段列表中找到了
         expressions.add(e);
         expressionSQL.add(e.getSQL());
         return idx;
@@ -643,23 +594,13 @@ public abstract class Query extends Prepared {
      * @param expressionCount the number of columns in the query
      * @return the {@link SortOrder} object
      */
-//<<<<<<< HEAD
-//    //order by字段列表在select字段列表中的位置索引(从0开始计数)和order by字段排序类型生成两个数组:indexes、sortTypes
-//    //得到一个综合的SortOrder实例
-//=======
-//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
+    //order by字段列表在select字段列表中的位置索引(从0开始计数)和order by字段排序类型生成两个数组:indexes、sortTypes
+    //得到一个综合的SortOrder实例
     public SortOrder prepareOrder(ArrayList<SelectOrderBy> orderList, int expressionCount) {
         int size = orderList.size();
         int[] index = new int[size];
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
-//<<<<<<< HEAD
-//			SelectOrderBy o = orderList.get(i);
-//			int idx;
-//			boolean reverse = false;
-//			Expression expr = o.columnIndexExpr;
-//            Value v = expr.getValue(null);
-//=======
             SelectOrderBy o = orderList.get(i);
             int idx;
             boolean reverse = false;

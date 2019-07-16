@@ -244,11 +244,8 @@ public class SelectUnion extends Query {
             break;
         }
         case INTERSECT: {
-//<<<<<<< HEAD
-//        	//先把左边表记录放到临时的LocalResult，然后遍厉右边表时看它是否在临时的LocalResult里，
-//        	//如果在，加到最终的result里。
-//            LocalResult temp = new LocalResult(session, expressionArray, columnCount);
-//=======
+          	//先把左边表记录放到临时的LocalResult，然后遍厉右边表时看它是否在临时的LocalResult里，
+          	//如果在，加到最终的result里。
             LocalResult temp = db.getResultFactory().create(session, expressionArray, columnCount);
             temp.setDistinct();
             while (l.next()) {
@@ -336,7 +333,8 @@ public class SelectUnion extends Query {
         for (int i = 0; i < len; i++) {
             Expression l = le.get(i);
             Expression r = re.get(i);
-            //当两个值需要发生转换时，order数字小的要转到数字大的，比如a是int，b是long，int是23，long是24，那么在做运算时a要转成long
+            //当两个值需要发生转换时，order数字小的要转到数字大的，比如a是int，b是long，int是23，long是24，
+            //那么在做运算时a要转成long
             int type = Value.getHigherOrder(l.getType(), r.getType());
             long prec = Math.max(l.getPrecision(), r.getPrecision());
             int scale = Math.max(l.getScale(), r.getScale());
