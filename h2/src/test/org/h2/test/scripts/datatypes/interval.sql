@@ -1,7 +1,26 @@
--- Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
--- and the EPL 1.0 (http://h2database.com/html/license.html).
+-- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
+
+SELECT TYPE_NAME, PRECISION, PREFIX, SUFFIX, PARAMS, MINIMUM_SCALE, MAXIMUM_SCALE FROM INFORMATION_SCHEMA.TYPE_INFO
+    WHERE TYPE_NAME LIKE 'INTERVAL %';
+> TYPE_NAME                 PRECISION PREFIX     SUFFIX             PARAMS          MINIMUM_SCALE MAXIMUM_SCALE
+> ------------------------- --------- ---------- ------------------ --------------- ------------- -------------
+> INTERVAL DAY              18        INTERVAL ' ' DAY              PRECISION       0             0
+> INTERVAL DAY TO HOUR      18        INTERVAL ' ' DAY TO HOUR      PRECISION       0             0
+> INTERVAL DAY TO MINUTE    18        INTERVAL ' ' DAY TO MINUTE    PRECISION       0             0
+> INTERVAL DAY TO SECOND    18        INTERVAL ' ' DAY TO SECOND    PRECISION,SCALE 0             9
+> INTERVAL HOUR             18        INTERVAL ' ' HOUR             PRECISION       0             0
+> INTERVAL HOUR TO MINUTE   18        INTERVAL ' ' HOUR TO MINUTE   PRECISION       0             0
+> INTERVAL HOUR TO SECOND   18        INTERVAL ' ' HOUR TO SECOND   PRECISION,SCALE 0             9
+> INTERVAL MINUTE           18        INTERVAL ' ' MINUTE           PRECISION       0             0
+> INTERVAL MINUTE TO SECOND 18        INTERVAL ' ' MINUTE TO SECOND PRECISION,SCALE 0             9
+> INTERVAL MONTH            18        INTERVAL ' ' MONTH            PRECISION       0             0
+> INTERVAL SECOND           18        INTERVAL ' ' SECOND           PRECISION,SCALE 0             9
+> INTERVAL YEAR             18        INTERVAL ' ' YEAR             PRECISION       0             0
+> INTERVAL YEAR TO MONTH    18        INTERVAL ' ' YEAR TO MONTH    PRECISION       0             0
+> rows: 13
 
 CREATE TABLE TEST(ID INT PRIMARY KEY,
     I01 INTERVAL YEAR, I02 INTERVAL MONTH, I03 INTERVAL DAY, I04 INTERVAL HOUR, I05 INTERVAL MINUTE,
@@ -784,3 +803,18 @@ SELECT TIMESTAMP WITH TIME ZONE '2014-09-11 23:30:00Z' - TIMESTAMP WITH TIME ZON
 
 SELECT DATE '2018-09-10' - DATE '2014-09-11';
 >> INTERVAL '1460' DAY
+
+SELECT INTERVAL -'1-2' YEAR TO MONTH / INTERVAL '1' MONTH;
+>> -14
+
+SELECT INTERVAL '1 12:03:40.123456789' DAY TO SECOND / INTERVAL '1' SECOND;
+>> 129820.123456789
+
+SELECT INTERVAL -'0.000000001' SECOND / INTERVAL '1' SECOND;
+>> -1E-9
+
+SELECT INTERVAL -'1-2' YEAR TO MONTH / INTERVAL '1' DAY;
+> exception FEATURE_NOT_SUPPORTED_1
+
+SELECT INTERVAL '1' DAY / INTERVAL '0' DAY;
+> exception DIVISION_BY_ZERO_1

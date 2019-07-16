@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
@@ -16,7 +16,6 @@ import org.h2.command.Prepared;
 import org.h2.command.ddl.CreateTableData;
 import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.command.dml.Query;
-import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
@@ -35,11 +34,9 @@ import org.h2.result.Row;
 import org.h2.result.SortOrder;
 import org.h2.schema.Schema;
 import org.h2.util.ColumnNamer;
-import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
-import org.h2.value.DataType;
-import org.h2.value.ExtTypeInfo;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 
 /**
@@ -125,10 +122,7 @@ public class TableView extends Table {
 //            init(oldQuerySQL, null, oldColumnTemplates, session, oldRecursive);
 //=======
         boolean oldRecursive = this.allowRecursive;
-        init(querySQL, null,
-                newColumnTemplates == null ? this.columnTemplates
-                        : newColumnTemplates,
-                session, recursive, literalsChecked, isTableExpression);
+        init(querySQL, null, newColumnTemplates, session, recursive, literalsChecked, isTableExpression);
         DbException e = recompile(session, force, true);
         if (e != null) {
             init(oldQuerySQL, null, oldColumnTemplates, session, oldRecursive,
@@ -251,7 +245,7 @@ public class TableView extends Table {
 //            for (int i = 0, count = query.getColumnCount(); i < count; i++) {
 //=======
             Query compiledQuery = compileViewQuery(session, querySQL, literalsChecked, getName());
-            this.querySQL = compiledQuery.getPlanSQL();
+            this.querySQL = compiledQuery.getPlanSQL(true);
             tables = new ArrayList<>(compiledQuery.getTables());
             ArrayList<Expression> expressions = compiledQuery.getExpressions();
             ColumnNamer columnNamer = new ColumnNamer(session);
@@ -262,7 +256,7 @@ public class TableView extends Table {
                 String name = null;
                 //如CREATE OR REPLACE FORCE VIEW IF NOT EXISTS my_view AS SELECT id,name FROM CreateViewTest
                 //没有为视图指定字段的时候，用select字段列表中的名字，此时columnTemplates==null
-                int type = Value.UNKNOWN;
+                TypeInfo type = TypeInfo.TYPE_UNKNOWN;
                 if (columnTemplates != null && columnTemplates.length > i) {
                     name = columnTemplates[i].getName();
                     type = columnTemplates[i].getType();
@@ -271,19 +265,10 @@ public class TableView extends Table {
                     name = expr.getAlias();
                 }
                 name = columnNamer.getColumnName(expr, i, name);
-                if (type == Value.UNKNOWN) {
+                if (type.getValueType() == Value.UNKNOWN) {
                     type = expr.getType();
                 }
-                long precision = expr.getPrecision();
-                int scale = expr.getScale();
-                int displaySize = expr.getDisplaySize();
-                ExtTypeInfo extTypeInfo = null;
-                if (DataType.isExtInfoType(type)) {
-                    if (expr instanceof ExpressionColumn) {
-                        extTypeInfo = ((ExpressionColumn) expr).getColumn().getExtTypeInfo();
-                    }
-                }
-                Column col = new Column(name, type, precision, scale, displaySize, extTypeInfo);
+                Column col = new Column(name, type);
                 col.setTable(this, i);
                 // Fetch check constraint from view column source
                 ExpressionColumn fromColumn = null;
@@ -389,7 +374,7 @@ public class TableView extends Table {
 
     @Override
     public String getDropSQL() {
-        return "DROP VIEW IF EXISTS " + getSQL() + " CASCADE";
+        return "DROP VIEW IF EXISTS " + getSQL(true) + " CASCADE";
     }
 
     @Override
@@ -411,42 +396,36 @@ public class TableView extends Table {
      * @return the SQL statement
      */
     public String getCreateSQL(boolean orReplace, boolean force) {
-        return getCreateSQL(orReplace, force, getSQL());
+        return getCreateSQL(orReplace, force, getSQL(true));
     }
 
-    private String getCreateSQL(boolean orReplace, boolean force,
-            String quotedName) {
-        StatementBuilder buff = new StatementBuilder("CREATE ");
+    private String getCreateSQL(boolean orReplace, boolean force, String quotedName) {
+        StringBuilder builder = new StringBuilder("CREATE ");
         if (orReplace) {
-            buff.append("OR REPLACE ");
+            builder.append("OR REPLACE ");
         }
         if (force) {
-            buff.append("FORCE ");
+            builder.append("FORCE ");
         }
-        buff.append("VIEW ");
+        builder.append("VIEW ");
         if (isTableExpression) {
-            buff.append("TABLE_EXPRESSION ");
+            builder.append("TABLE_EXPRESSION ");
         }
-        buff.append(quotedName);
+        builder.append(quotedName);
         if (comment != null) {
-            buff.append(" COMMENT ").append(StringUtils.quoteStringSQL(comment));
+            builder.append(" COMMENT ");
+            StringUtils.quoteStringSQL(builder, comment);
         }
         if (columns != null && columns.length > 0) {
-            buff.append('(');
-            for (Column c : columns) {
-                buff.appendExceptFirst(", ");
-                buff.append(c.getSQL());
-            }
-            buff.append(')');
+            builder.append('(');
+            Column.writeColumns(builder, columns, true);
+            builder.append(')');
         } else if (columnTemplates != null) {
-            buff.append('(');
-            for (Column c : columnTemplates) {
-                buff.appendExceptFirst(", ");
-                buff.append(c.getName());
-            }
-            buff.append(')');
+            builder.append('(');
+            Column.writeColumns(builder, columnTemplates, true);
+            builder.append(')');
         }
-        return buff.append(" AS\n").append(querySQL).toString();
+        return builder.append(" AS\n").append(querySQL).toString();
     }
 
     @Override
@@ -546,11 +525,12 @@ public class TableView extends Table {
     }
 
     @Override
-    public String getSQL() {
+    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
         if (isTemporary() && querySQL != null) {
-            return "(\n" + StringUtils.indent(querySQL) + ")";
+            builder.append("(\n");
+            return StringUtils.indent(builder, querySQL, 4, true).append(')');
         }
-        return super.getSQL();
+        return super.getSQL(builder, alwaysQuote);
     }
 
     public String getQuery() {
@@ -569,7 +549,7 @@ public class TableView extends Table {
         if (createException != null) {
             String msg = createException.getMessage();
             throw DbException.get(ErrorCode.VIEW_IS_INVALID_2,
-                    createException, getSQL(), msg);
+                    createException, getSQL(false), msg);
         }
         PlanItem item = getBestPlanItem(session, masks, filters, filter, sortOrder, allColumnsSet);
         return item.getIndex();
@@ -644,8 +624,8 @@ public class TableView extends Table {
      */
     public static TableView createTempView(Session session, User owner,
             String name, Query query, Query topQuery) {
-        Schema mainSchema = session.getDatabase().getSchema(Constants.SCHEMA_MAIN);
-        String querySQL = query.getPlanSQL();
+        Schema mainSchema = session.getDatabase().getMainSchema();
+        String querySQL = query.getPlanSQL(true);
         TableView v = new TableView(mainSchema, 0, name,
                 querySQL, query.getParameters(), null /* column templates */, session,
                 false/* allow recursive */, true /* literals have already been checked when parsing original query */,
@@ -887,7 +867,7 @@ public class TableView extends Table {
         theQuery.prepare();
         // String array of length 1 is to receive extra 'output' field in addition to
         // return value
-        querySQLOutput[0] = StringUtils.cache(theQuery.getPlanSQL());
+        querySQLOutput[0] = StringUtils.cache(theQuery.getPlanSQL(true));
         ColumnNamer columnNamer = new ColumnNamer(theQuery.getSession());
         ArrayList<Expression> withExpressions = theQuery.getExpressions();
         for (int i = 0; i < withExpressions.size(); ++i) {
@@ -896,8 +876,7 @@ public class TableView extends Table {
             // (if found) otherwise use column name derived from column
             // expression
             String columnName = columnNamer.getColumnName(columnExp, i, cols);
-            columnTemplateList.add(new Column(columnName,
-                    columnExp.getType()));
+            columnTemplateList.add(new Column(columnName, columnExp.getType()));
 
         }
         return columnTemplateList;

@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression.aggregate;
@@ -38,8 +38,7 @@ class AggregateDataSelectivity extends AggregateData {
 //        //org.h2.engine.Constants.SELECTIVITY_DISTINCT_COUNT默认是1万，这个值不能改，
 //        //对统计值影响很大。通常这个值越大，统计越精确，但是会使用更多内存。
 //        //SELECTIVITY越大，说明重复的记录越少，在选择索引时更有利。
-//=======
-    void add(Database database, int dataType, Value v) {
+    void add(Database database, Value v) {
         count++;
         if (distinctHashes == null) {
             distinctHashes = new IntIntHashMap();

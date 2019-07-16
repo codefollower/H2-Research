@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -18,7 +18,6 @@ import org.h2.api.ErrorCode;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
-import org.h2.value.DataType;
 
 /**
  * Tests the linked table feature (CREATE LINKED TABLE).
@@ -695,9 +694,6 @@ public class TestLinkedTable extends TestDb {
 
     private void testGeometry() throws SQLException {
         if (config.memory && config.mvStore) {
-            return;
-        }
-        if (DataType.GEOMETRY_CLASS == null) {
             return;
         }
         org.h2.Driver.load();

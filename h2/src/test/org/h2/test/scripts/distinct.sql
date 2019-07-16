@@ -1,5 +1,5 @@
--- Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
--- and the EPL 1.0 (http://h2database.com/html/license.html).
+-- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 
@@ -144,8 +144,44 @@ SELECT DISTINCT ON(C1) C2 FROM TEST ORDER BY C1;
 > 4
 > rows (ordered): 3
 
+SELECT DISTINCT ON(C1) C1, C4, C5 FROM TEST ORDER BY C1, C5;
+> C1 C4 C5
+> -- -- --
+> 1  4  5
+> 2  8  9
+> 3  1  1
+> rows (ordered): 3
+
+SELECT DISTINCT ON(C1) C1, C4, C5 FROM TEST ORDER BY C1, C5 DESC;
+> C1 C4 C5
+> -- -- --
+> 1  6  7
+> 2  8  9
+> 3  1  1
+> rows (ordered): 3
+
+SELECT T1.C1, T2.C5 FROM TEST T1 JOIN (
+    SELECT DISTINCT ON(C1) C1, C4, C5 FROM TEST ORDER BY C1, C5
+) T2 ON T1.C4 = T2.C4 ORDER BY T1.C1;
+> C1 C5
+> -- --
+> 1  5
+> 2  9
+> 3  1
+> rows (ordered): 3
+
+SELECT T1.C1, T2.C5 FROM TEST T1 JOIN (
+    SELECT DISTINCT ON(C1) C1, C4, C5 FROM TEST ORDER BY C1, C5 DESC
+) T2 ON T1.C4 = T2.C4 ORDER BY T1.C1;
+> C1 C5
+> -- --
+> 1  7
+> 2  9
+> 3  1
+> rows (ordered): 3
+
 EXPLAIN SELECT DISTINCT ON(C1) C2 FROM TEST ORDER BY C1;
->> SELECT DISTINCT ON(C1) C2 FROM PUBLIC.TEST /* PUBLIC.TEST.tableScan */ ORDER BY =C1
+>> SELECT DISTINCT ON("C1") "C2" FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ ORDER BY ="C1"
 
 SELECT DISTINCT ON(C1) C2 FROM TEST ORDER BY C3;
 > exception ORDER_BY_NOT_IN_RESULT

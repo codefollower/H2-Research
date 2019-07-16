@@ -1,15 +1,14 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 
 import org.h2.engine.Session;
-import org.h2.expression.Comparison;
+import org.h2.expression.condition.Comparison;
 import org.h2.message.DbException;
 import org.h2.result.ResultInterface;
 import org.h2.result.Row;
@@ -35,7 +34,6 @@ import org.h2.value.ValueNull;
 //比如where id>10 and id<20，就意味着要找(10，20)这个区间内的记录。
 public class IndexCursor implements Cursor {
 
-    private Session session;
     private final TableFilter tableFilter;
     private Index index;
     private Table table;
@@ -48,7 +46,6 @@ public class IndexCursor implements Cursor {
     private int inListIndex;
     private Value[] inList;
     private ResultInterface inResult;
-    private HashSet<Value> inResultTested;
 
     public IndexCursor(TableFilter filter) {
         this.tableFilter = filter;
@@ -78,13 +75,11 @@ public class IndexCursor implements Cursor {
      * @param indexConditions Index conditions.
      */
     public void prepare(Session s, ArrayList<IndexCondition> indexConditions) {
-        this.session = s;
         alwaysFalse = false;
         start = end = null;
         inList = null;
         inColumn = null;
         inResult = null;
-        inResultTested = null;
         intersects = null;
         for (IndexCondition condition : indexConditions) {
             if (condition.isAlwaysFalse()) { //如: "select * from IndexCursorTest where 2>3
@@ -145,17 +140,20 @@ public class IndexCursor implements Cursor {
                     inList = null;
                     inResult = null;
                 }
-                //当OPTIMIZE_IS_NULL设为false时，
-                //对于这样的SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
-                //还是会返回JoinTest1的所有记录，JoinTest2中的全为null
-                if (!session.getDatabase().getSettings().optimizeIsNull) {
-                    if (isStart && isEnd) {
-                        if (v == ValueNull.INSTANCE) {
-                            // join on a column=NULL is always false
-                            alwaysFalse = true;
-                        }
-                    }
-                }
+//<<<<<<< HEAD
+//                //当OPTIMIZE_IS_NULL设为false时，
+//                //对于这样的SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 ON name2=null
+//                //还是会返回JoinTest1的所有记录，JoinTest2中的全为null
+//                if (!session.getDatabase().getSettings().optimizeIsNull) {
+//                    if (isStart && isEnd) {
+//                        if (v == ValueNull.INSTANCE) {
+//                            // join on a column=NULL is always false
+//                            alwaysFalse = true;
+//                        }
+//                    }
+//                }
+//=======
+//>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
             }
         }
         if (inColumn != null) {
@@ -178,7 +176,7 @@ public class IndexCursor implements Cursor {
             if (intersects != null && index instanceof SpatialIndex) {
                 cursor = ((SpatialIndex) index).findByGeometry(tableFilter,
                         start, end, intersects);
-            } else {
+            } else if (index != null) {
                 cursor = index.find(tableFilter, start, end);
             }
         }
@@ -211,7 +209,7 @@ public class IndexCursor implements Cursor {
             row = table.getTemplateRow();
         } else if (row.getValue(columnId) != null) {
             // if an object needs to overlap with both a and b,
-            // then it needs to overlap with the the union of a and b
+            // then it needs to overlap with the union of a and b
             // (not the intersection)
             ValueGeometry vg = (ValueGeometry) row.getValue(columnId).
                     convertTo(Value.GEOMETRY);
@@ -246,32 +244,33 @@ public class IndexCursor implements Cursor {
         } else if (b == null) {
             return a;
         }
-        if (session.getDatabase().getSettings().optimizeIsNull) {
-            // IS NULL must be checked later
-            if (a == ValueNull.INSTANCE) {
-                return b;
-            } else if (b == ValueNull.INSTANCE) {
-                return a;
-            }
+        // IS NULL must be checked later
+        if (a == ValueNull.INSTANCE) {
+            return b;
+        } else if (b == ValueNull.INSTANCE) {
+            return a;
         }
         int comp = table.getDatabase().compare(a, b);
         if (comp == 0) {
             return a;
         }
-        if (a == ValueNull.INSTANCE || b == ValueNull.INSTANCE) {
-            if (session.getDatabase().getSettings().optimizeIsNull) {
-                // column IS NULL AND column <op> <not null> is always false
-                return null;
-            }
-        }
 //<<<<<<< HEAD
-//        if (!bigger) {
-//        	//对于END的场景，比如假设a=10，b=20，所以a.compareTo(b)<0，即comp=-1，所以comp = -comp = 1
-//        	//对于f < 10 and f < 20的场景，显然只要f<10就够了，所以comp>0时还是返回a
-//            comp = -comp;
+//        if (a == ValueNull.INSTANCE || b == ValueNull.INSTANCE) {
+//            if (session.getDatabase().getSettings().optimizeIsNull) {
+//                // column IS NULL AND column <op> <not null> is always false
+//                return null;
+//            }
 //        }
-//        return comp > 0 ? a : b;
+////<<<<<<< HEAD
+////        if (!bigger) {
+////        	//对于END的场景，比如假设a=10，b=20，所以a.compareTo(b)<0，即comp=-1，所以comp = -comp = 1
+////        	//对于f < 10 and f < 20的场景，显然只要f<10就够了，所以comp>0时还是返回a
+////            comp = -comp;
+////        }
+////        return comp > 0 ? a : b;
+////=======
 //=======
+//>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
         return (comp > 0) == bigger ? a : b;
     }
 
@@ -344,13 +343,8 @@ public class IndexCursor implements Cursor {
             while (inResult.next()) {
                 Value v = inResult.currentRow()[0];
                 if (v != ValueNull.INSTANCE) {
-                    if (inResultTested == null) {
-                        inResultTested = new HashSet<>();
-                    }
-                    if (inResultTested.add(v)) {
-                        find(v);
-                        break;
-                    }
+                    find(v);
+                    break;
                 }
             }
         }

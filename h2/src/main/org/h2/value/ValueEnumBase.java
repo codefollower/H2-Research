@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -8,7 +8,7 @@ package org.h2.value;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import org.h2.engine.Mode;
+import org.h2.util.StringUtils;
 
 /**
  * Base implementation of the ENUM data type.
@@ -17,8 +17,6 @@ import org.h2.engine.Mode;
  * client-server communication.
  */
 public class ValueEnumBase extends Value {
-    private static final int PRECISION = 10;
-    private static final int DISPLAY_SIZE = 11;
 
     private final String label;
     private final int ordinal;
@@ -63,11 +61,6 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public int getDisplaySize() {
-        return DISPLAY_SIZE;
-    }
-
-    @Override
     public int getInt() {
         return ordinal;
     }
@@ -83,18 +76,13 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public long getPrecision() {
-        return PRECISION;
-    }
-
-    @Override
     public int getSignum() {
         return Integer.signum(ordinal);
     }
 
     @Override
-    public String getSQL() {
-        return getString();
+    public StringBuilder getSQL(StringBuilder builder) {
+        return StringUtils.quoteStringSQL(builder, label);
     }
 
     @Override
@@ -103,8 +91,18 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public int getType() {
-        return Value.ENUM;
+    public TypeInfo getType() {
+        return TypeInfo.TYPE_ENUM_UNDEFINED;
+    }
+
+    @Override
+    public int getValueType() {
+        return ENUM;
+    }
+
+    @Override
+    public int getMemory() {
+        return 120;
     }
 
     @Override
@@ -138,14 +136,6 @@ public class ValueEnumBase extends Value {
     public Value subtract(final Value v) {
         final Value iv = v.convertTo(Value.INT);
         return convertTo(Value.INT).subtract(iv);
-    }
-
-    @Override
-    public Value convertTo(int targetType, int precision, Mode mode, Object column, ExtTypeInfo extTypeInfo) {
-        if (targetType == Value.ENUM) {
-            return extTypeInfo.cast(this);
-        }
-        return super.convertTo(targetType, precision, mode, column, extTypeInfo);
     }
 
 }

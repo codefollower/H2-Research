@@ -1,5 +1,5 @@
--- Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
--- and the EPL 1.0 (http://h2database.com/html/license.html).
+-- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 
@@ -37,7 +37,7 @@ SELECT *,
 > 7  22    33   33   33    21   21   21
 > 8  33    null null null  22   22   22
 > 9  null  null null null  33   33   33
-> rows (ordered): 9
+> rows: 9
 
 SELECT *,
     LEAD(VALUE, 1) OVER (ORDER BY ID) LD,
@@ -58,7 +58,7 @@ SELECT *,
 > 7  22    33   33   33    21   21   21
 > 8  33    null null null  22   22   22
 > 9  null  null null null  33   33   33
-> rows (ordered): 9
+> rows: 9
 
 SELECT *,
     LEAD(VALUE, 0) OVER (ORDER BY ID) LD,
@@ -79,7 +79,7 @@ SELECT *,
 > 7  22    22   22   22    22   22   22
 > 8  33    33   33   33    33   33   33
 > 9  null  null null null  null null null
-> rows (ordered): 9
+> rows: 9
 
 SELECT *,
     LEAD(VALUE, 2) OVER (ORDER BY ID) LD,
@@ -100,7 +100,7 @@ SELECT *,
 > 7  22    null null null  null null 13
 > 8  33    null null null  21   21   21
 > 9  null  null null null  22   22   22
-> rows (ordered): 9
+> rows: 9
 
 SELECT *,
     LEAD(VALUE, 2, 1111.0) OVER (ORDER BY ID) LD,
@@ -121,7 +121,7 @@ SELECT *,
 > 7  22    null null 1111  null null 13
 > 8  33    1111 1111 1111  21   21   21
 > 9  null  1111 1111 1111  22   22   22
-> rows (ordered): 9
+> rows: 9
 
 SELECT LEAD(VALUE, -1) OVER (ORDER BY ID) FROM TEST;
 > exception INVALID_VALUE_2
@@ -144,7 +144,7 @@ SELECT LAG(VALUE) OVER (ORDER BY ID RANGE CURRENT ROW) FROM TEST;
 DROP TABLE TEST;
 > ok
 
-SELECT C, SUM(I) S, LEAD(SUM(I)) OVER (ORDER /**/ BY SUM(I)) L FROM
+SELECT C, SUM(I) S, LEAD(SUM(I)) OVER (ORDER BY SUM(I)) L FROM
     VALUES (1, 1), (2, 1), (4, 2), (8, 2) T(I, C) GROUP BY C;
 > C S  L
 > - -- ----

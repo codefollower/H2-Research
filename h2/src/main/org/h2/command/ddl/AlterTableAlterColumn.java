@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
@@ -141,7 +141,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             db.updateMeta(session, table);
             break;
         }
-        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_NULL: {
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_NOT_NULL: {
             if (oldColumn.isNullable()) {
                 // no change
                 break;
@@ -209,8 +209,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         }
         case CommandInterface.ALTER_TABLE_DROP_COLUMN: {
             if (table.getColumns().length - columnsToRemove.size() < 1) { //不能删除最后一列
-                throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN,
-                        columnsToRemove.get(0).getSQL());
+                throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, columnsToRemove.get(0).getSQL(false));
             }
             table.dropMultipleColumnsConstraintsAndIndexes(session, columnsToRemove);
             copyData(table);
@@ -247,8 +246,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 .getDependenciesVisitor(dependencies);
         defaultExpression.isEverything(visitor);
         if (dependencies.contains(table)) {
-            throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1,
-                    defaultExpression.getSQL());
+            throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, defaultExpression.getSQL(false));
         }
     }
 
@@ -306,15 +304,19 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             // (because the column to drop is referenced or so)
             checkViews(table, newTable);
         } catch (DbException e) {
-            execute("DROP TABLE " + newTable.getName(), true);
-            throw DbException.get(ErrorCode.VIEW_IS_INVALID_2, e, getSQL(), e.getMessage());
+            StringBuilder builder = new StringBuilder("DROP TABLE ");
+            newTable.getSQL(builder, true);
+            execute(builder.toString(), true);
+            throw e;
         }
         String tableName = table.getName();
         ArrayList<TableView> dependentViews = new ArrayList<>(table.getDependentViews());
         for (TableView view : dependentViews) {
             table.removeDependentView(view);
         }
-        execute("DROP TABLE " + table.getSQL() + " IGNORE", true);
+        StringBuilder builder = new StringBuilder("DROP TABLE ");
+        table.getSQL(builder, true).append(" IGNORE");
+        execute(builder.toString(), true);
         db.renameSchemaObject(session, newTable, tableName);
         for (DbObject child : newTable.getChildren()) {
             if (child instanceof Sequence) {
@@ -419,9 +421,13 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                     columnsToAdd != null && columnsToAdd.contains(nc)) {
                 Expression def = nc.getDefaultExpression();
                 //SELECT F1, F2, NULL这样的SQL也是可以的，所以用NULL表示，这样新的列默认是NULL值
-                columnList.append(def == null ? "NULL" : def.getSQL());
+                if (def == null) {
+                    columnList.append("NULL");
+                } else {
+                    def.getSQL(columnList, true);
+                }
             } else {
-                columnList.append(nc.getSQL());
+                nc.getSQL(columnList, true);
             }
         }
 //<<<<<<< HEAD
@@ -467,7 +473,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             } else if (child.getType() == DbObject.TABLE_OR_VIEW) {
                 DbException.throwInternalError();
             }
-            String quotedName = Parser.quoteIdentifier(tempName + "_" + child.getName());
+            String quotedName = Parser.quoteIdentifier(tempName + "_" + child.getName(), true);
             String sql = null;
             if (child instanceof ConstraintReferential) {
                 ConstraintReferential r = (ConstraintReferential) child;
@@ -507,7 +513,8 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             }
         }
         StringBuilder buff = new StringBuilder();
-        buff.append("INSERT INTO ").append(newTable.getSQL());
+        buff.append("INSERT INTO ");
+        newTable.getSQL(buff, true);
         buff.append(" SELECT ");
         if (columnList.length() == 0) {
             // special case: insert into test select * from
@@ -515,13 +522,16 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         } else {
             buff.append(columnList);
         }
-        buff.append(" FROM ").append(table.getSQL());
+        buff.append(" FROM ");
+        table.getSQL(buff, true);
         try {
             execute(buff.toString(), true);
         } catch (Throwable t) {
             // data was not inserted due to data conversion error or some
             // unexpected reason
-            execute("DROP TABLE " + newTable.getSQL(), true);
+            StringBuilder builder = new StringBuilder("DROP TABLE ");
+            newTable.getSQL(builder, true);
+            execute(builder.toString(), true);
             throw t;
         }
         for (String sql : children) {
@@ -581,7 +591,11 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 // check if the query is still valid
                 // do not execute, not even with limit 1, because that could
                 // have side effects or take a very long time
-                session.prepare(sql);
+                try {
+                    session.prepare(sql);
+                } catch (DbException e) {
+                    throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, e, view.getSQL(false));
+                }
                 checkViewsAreValid(view);
             }
         }
@@ -603,23 +617,21 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             }
             IndexType indexType = index.getIndexType();
             if (indexType.isPrimaryKey() || indexType.isHash()) {
-                throw DbException.get(
-                        ErrorCode.COLUMN_IS_PART_OF_INDEX_1, index.getSQL());
+                throw DbException.get(ErrorCode.COLUMN_IS_PART_OF_INDEX_1, index.getSQL(false));
             }
         }
     }
 
     private void checkNoNullValues(Table table) {
-        String sql = "SELECT COUNT(*) FROM " +
-                table.getSQL() + " WHERE " +
-                oldColumn.getSQL() + " IS NULL";
+        StringBuilder builder = new StringBuilder("SELECT COUNT(*) FROM ");
+        table.getSQL(builder, true).append(" WHERE ");
+        oldColumn.getSQL(builder, true).append(" IS NULL");
+        String sql = builder.toString();
         Prepared command = session.prepare(sql);
         ResultInterface result = command.query(0);
         result.next();
         if (result.currentRow()[0].getInt() > 0) {
-            throw DbException.get(
-                    ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1,
-                    oldColumn.getSQL());
+            throw DbException.get(ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1, oldColumn.getSQL(false));
         }
     }
 

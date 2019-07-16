@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.jdbc;
@@ -89,6 +89,7 @@ public class TestResultSet extends TestDb {
         testFindColumn();
         testColumnLength();
         testArray();
+        testRowValue();
         testEnum();
         testLimitMaxRows();
 
@@ -693,19 +694,19 @@ public class TestResultSet extends TestDb {
         o = rs.getObject("value");
         trace(o.getClass().getName());
         assertTrue(o instanceof Integer);
-        assertTrue(((Integer) o).intValue() == -1);
+        assertTrue((Integer) o == -1);
         o = rs.getObject("value", Integer.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof Integer);
-        assertTrue(((Integer) o).intValue() == -1);
+        assertTrue((Integer) o == -1);
         o = rs.getObject(2);
         trace(o.getClass().getName());
         assertTrue(o instanceof Integer);
-        assertTrue(((Integer) o).intValue() == -1);
+        assertTrue((Integer) o == -1);
         o = rs.getObject(2, Integer.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof Integer);
-        assertTrue(((Integer) o).intValue() == -1);
+        assertTrue((Integer) o == -1);
         assertTrue(rs.getBoolean("Value"));
         assertTrue(rs.getByte("Value") == (byte) -1);
         assertTrue(rs.getShort("Value") == (short) -1);
@@ -816,7 +817,7 @@ public class TestResultSet extends TestDb {
         o = rs.getObject("value", Short.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof Short);
-        assertTrue(((Short) o).shortValue() == -1);
+        assertTrue((Short) o == -1);
         o = rs.getObject(2);
         trace(o.getClass().getName());
         assertTrue(o.getClass() == (SysProperties.OLD_RESULT_SET_GET_OBJECT ? Short.class : Integer.class));
@@ -824,7 +825,7 @@ public class TestResultSet extends TestDb {
         o = rs.getObject(2, Short.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof Short);
-        assertTrue(((Short) o).shortValue() == -1);
+        assertTrue((Short) o == -1);
         assertTrue(rs.getBoolean("Value"));
         assertTrue(rs.getByte("Value") == (byte) -1);
         assertTrue(rs.getInt("Value") == -1);
@@ -935,11 +936,11 @@ public class TestResultSet extends TestDb {
         o = rs.getObject("value");
         trace(o.getClass().getName());
         assertTrue(o instanceof Long);
-        assertTrue(((Long) o).longValue() == -1);
+        assertTrue((Long) o == -1);
         o = rs.getObject("value", Long.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof Long);
-        assertTrue(((Long) o).longValue() == -1);
+        assertTrue((Long) o == -1);
         o = rs.getObject("value", BigInteger.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof BigInteger);
@@ -947,11 +948,11 @@ public class TestResultSet extends TestDb {
         o = rs.getObject(2);
         trace(o.getClass().getName());
         assertTrue(o instanceof Long);
-        assertTrue(((Long) o).longValue() == -1);
+        assertTrue((Long) o == -1);
         o = rs.getObject(2, Long.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof Long);
-        assertTrue(((Long) o).longValue() == -1);
+        assertTrue((Long) o == -1);
         o = rs.getObject(2, BigInteger.class);
         trace(o.getClass().getName());
         assertTrue(o instanceof BigInteger);
@@ -1589,11 +1590,23 @@ public class TestResultSet extends TestDb {
         }
         trace("Test INTERVAL 8");
         ResultSet rs;
+        Object expected;
+
+        rs = stat.executeQuery("CALL INTERVAL '1-2' YEAR TO MONTH");
+        rs.next();
+        assertEquals("INTERVAL '1-2' YEAR TO MONTH", rs.getString(1));
+        try {
+            expected = LocalDateTimeUtils.PERIOD.getMethod("of", int.class, int.class, int.class)
+                    .invoke(null, 1, 2, 0);
+        } catch (ReflectiveOperationException ex) {
+            throw new RuntimeException(ex);
+        }
+        assertEquals(expected, rs.getObject(1, LocalDateTimeUtils.PERIOD));
+        assertThrows(ErrorCode.DATA_CONVERSION_ERROR_1, rs).getObject(1, LocalDateTimeUtils.DURATION);
 
         rs = stat.executeQuery("CALL INTERVAL '-3.1' SECOND");
         rs.next();
         assertEquals("INTERVAL '-3.1' SECOND", rs.getString(1));
-        Object expected;
         try {
             expected = LocalDateTimeUtils.DURATION.getMethod("ofSeconds", long.class, long.class)
                     .invoke(null, -4, 900_000_000);
@@ -1601,10 +1614,7 @@ public class TestResultSet extends TestDb {
             throw new RuntimeException(ex);
         }
         assertEquals(expected, rs.getObject(1, LocalDateTimeUtils.DURATION));
-
-        rs = stat.executeQuery("CALL INTERVAL '1-2' YEAR TO MONTH");
-        rs.next();
-        assertThrows(ErrorCode.DATA_CONVERSION_ERROR_1, rs).getObject(1, LocalDateTimeUtils.DURATION);
+        assertThrows(ErrorCode.DATA_CONVERSION_ERROR_1, rs).getObject(1, LocalDateTimeUtils.PERIOD);
     }
 
     private void testBlob() throws SQLException {
@@ -1851,7 +1861,7 @@ public class TestResultSet extends TestDb {
         assertEquals(Types.NULL, array.getBaseType());
         assertEquals("NULL", array.getBaseTypeName());
 
-        assertTrue(array.toString().endsWith(": (11, 12)"));
+        assertTrue(array.toString().endsWith(": [11, 12]"));
 
         // free
         array.free();
@@ -1891,6 +1901,30 @@ public class TestResultSet extends TestDb {
         assertFalse(rs.next());
 
         stat.execute("DROP TABLE TEST");
+    }
+
+    private void testRowValue() throws SQLException {
+        trace("Test ROW value");
+        ResultSet rs;
+        rs = stat.executeQuery("SELECT (1, 'test')");
+        rs.next();
+        Object[] expectedArray = new Object[] {1, "test"};
+        assertEquals(expectedArray, (Object[]) rs.getObject(1));
+        Array array = rs.getArray(1);
+        assertEquals(expectedArray, (Object[]) array.getArray());
+        ResultSet rowAsResultSet = rs.getObject(1, ResultSet.class);
+        ResultSetMetaData md = rowAsResultSet.getMetaData();
+        assertEquals(2, md.getColumnCount());
+        assertEquals("C1", md.getColumnLabel(1));
+        assertEquals("C1", md.getColumnName(1));
+        assertEquals("C2", md.getColumnLabel(2));
+        assertEquals("C2", md.getColumnName(2));
+        assertEquals(Types.INTEGER, md.getColumnType(1));
+        assertEquals(Types.VARCHAR, md.getColumnType(2));
+        assertTrue(rowAsResultSet.next());
+        assertEquals(1, rowAsResultSet.getInt(1));
+        assertEquals("test", rowAsResultSet.getString(2));
+        assertFalse(rowAsResultSet.next());
     }
 
     private void testEnum() throws SQLException {

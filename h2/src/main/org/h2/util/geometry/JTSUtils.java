@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util.geometry;
@@ -24,7 +24,6 @@ import static org.h2.util.geometry.GeometryUtils.toCanonicalDouble;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Method;
 
-import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.util.geometry.EWKBUtils.EWKBTarget;
 import org.h2.util.geometry.GeometryUtils.DimensionSystemTarget;
@@ -56,6 +55,9 @@ public final class JTSUtils {
      */
     public static final boolean M_IS_SUPPORTED;
 
+    /**
+     * create(int,int,int) method from CoordinateSequenceFactory, if it exists
+     */
     static final Method CREATE;
 
     private static final Method GET_MEASURES;
@@ -169,7 +171,7 @@ public final class JTSUtils {
         }
 
         @Override
-        protected void endCollectionItem(Target target, int index, int total) {
+        protected void endCollectionItem(Target target, int type, int index, int total) {
             subgeometries[index] = ((GeometryTarget) target).getGeometry();
         }
 
@@ -203,8 +205,7 @@ public final class JTSUtils {
             coordinates.setOrdinate(index, X, checkFinite(x));
             coordinates.setOrdinate(index, Y, checkFinite(y));
             coordinates.setOrdinate(index, Z,
-                    (dimensionSystem & DIMENSION_SYSTEM_XYZ) != 0 ? SysProperties.MIXED_GEOMETRIES ? z : checkFinite(z)
-                            : Double.NaN);
+                    (dimensionSystem & DIMENSION_SYSTEM_XYZ) != 0 ? checkFinite(z) : Double.NaN);
             if ((dimensionSystem & DIMENSION_SYSTEM_XYM) != 0) {
                 coordinates.setOrdinate(index, M, checkFinite(m));
             }
@@ -340,6 +341,7 @@ public final class JTSUtils {
                 CoordinateSequence sequence = p.getCoordinateSequence();
                 addCoordinate(sequence, target, 0, 1, getMeasures(sequence));
             }
+            target.endObject(POINT);
         } else if (geometry instanceof LineString) {
             if (parentType != 0 && parentType != MULTI_LINE_STRING && parentType != GEOMETRY_COLLECTION) {
                 throw new IllegalArgumentException();
@@ -355,6 +357,7 @@ public final class JTSUtils {
             for (int i = 0; i < numPoints; i++) {
                 addCoordinate(cs, target, i, numPoints, measures);
             }
+            target.endObject(LINE_STRING);
         } else if (geometry instanceof Polygon) {
             if (parentType != 0 && parentType != MULTI_POLYGON && parentType != GEOMETRY_COLLECTION) {
                 throw new IllegalArgumentException();
@@ -389,6 +392,7 @@ public final class JTSUtils {
                 }
                 target.endNonEmptyPolygon();
             }
+            target.endObject(POLYGON);
         } else if (geometry instanceof GeometryCollection) {
             if (parentType != 0 && parentType != GEOMETRY_COLLECTION) {
                 throw new IllegalArgumentException();
@@ -412,13 +416,12 @@ public final class JTSUtils {
             for (int i = 0; i < numItems; i++) {
                 Target innerTarget = target.startCollectionItem(i, numItems);
                 parseGeometry(gc.getGeometryN(i), innerTarget, type);
-                target.endCollectionItem(innerTarget, i, numItems);
+                target.endCollectionItem(innerTarget, type, i, numItems);
             }
-            target.endCollection(type);
+            target.endObject(type);
         } else {
             throw new IllegalArgumentException();
         }
-
     }
 
     private static void addRing(CoordinateSequence sequence, Target target, int size, int measures) {
@@ -453,8 +456,8 @@ public final class JTSUtils {
         int d = sequence.getDimension();
         if (M_IS_SUPPORTED) {
             d -= measures;
-            z = d > 2 ? sequence.getOrdinate(index, Z) : Double.NaN;
-            m = measures >= 1 ? sequence.getOrdinate(index, d) : Double.NaN;
+            z = d > 2 ? toCanonicalDouble(sequence.getOrdinate(index, Z)) : Double.NaN;
+            m = measures >= 1 ? toCanonicalDouble(sequence.getOrdinate(index, d)) : Double.NaN;
         } else {
             z = d >= 3 ? toCanonicalDouble(sequence.getOrdinate(index, Z)) : Double.NaN;
             m = d >= 4 ? toCanonicalDouble(sequence.getOrdinate(index, M)) : Double.NaN;

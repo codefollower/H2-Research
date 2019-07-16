@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
@@ -121,7 +121,7 @@ public class TestDateTimeUtils extends TestBase {
         assertEquals(dateValue(2001, 2, 28), DateTimeUtils.dateValueFromDenormalizedDate(2000, 14, 29));
         assertEquals(dateValue(1999, 8, 1), DateTimeUtils.dateValueFromDenormalizedDate(2000, -4, -100));
         assertEquals(dateValue(2100, 12, 31), DateTimeUtils.dateValueFromDenormalizedDate(2100, 12, 2000));
-        assertEquals(dateValue(-100, 2, 29), DateTimeUtils.dateValueFromDenormalizedDate(-100, 2, 30));
+        assertEquals(dateValue(-100, 2, 28), DateTimeUtils.dateValueFromDenormalizedDate(-100, 2, 30));
     }
 
     private void testUTC2Value(boolean allTimeZones) {
@@ -159,8 +159,9 @@ public class TestDateTimeUtils extends TestBase {
                 gc.set(year, month - 1, day, j / 2, (j & 1) * 30, 0);
                 long timeMillis = gc.getTimeInMillis();
                 ValueTimestamp ts = DateTimeUtils.convertTimestamp(new Timestamp(timeMillis), gc);
-                assertEquals(ts.getDateValue(), DateTimeUtils.dateValueFromDate(timeMillis));
-                assertEquals(ts.getTimeNanos(), DateTimeUtils.nanosFromDate(timeMillis));
+                timeMillis += DateTimeUtils.getTimeZoneOffset(timeMillis);
+                assertEquals(ts.getDateValue(), DateTimeUtils.dateValueFromLocalMillis(timeMillis));
+                assertEquals(ts.getTimeNanos(), DateTimeUtils.nanosFromLocalMillis(timeMillis));
             }
         }
     }

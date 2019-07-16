@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
-import org.h2.command.Parser;
 import org.h2.command.dml.SetTypes;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
@@ -20,6 +19,7 @@ import org.h2.security.auth.Authenticator;
 import org.h2.store.FileLock;
 import org.h2.store.FileLockMethod;
 import org.h2.util.MathUtils;
+import org.h2.util.ParserUtil;
 import org.h2.util.ThreadDeadlockDetector;
 import org.h2.util.Utils;
 
@@ -86,7 +86,7 @@ public class Engine implements SessionFactory {
             }
             if (database == null) {
                 if (ifExists && !Database.exists(name)) {
-                    throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_1, name);
+                    throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_2, name);
                 }
                 database = new Database(ci, cipher);
                 opened = true;
@@ -155,7 +155,7 @@ public class Engine implements SessionFactory {
         //Prevent to set _PASSWORD
         ci.cleanAuthenticationInfo();
         checkClustering(ci, database);
-        Session session = database.createSession(user);
+        Session session = database.createSession(user, ci.getNetworkConnectionInfo());
         if (session == null) {
             // concurrently closing
             return null;
@@ -228,14 +228,15 @@ public class Engine implements SessionFactory {
         String cipher = ci.removeProperty("CIPHER", null);
         String init = ci.removeProperty("INIT", null); //INIT参数可以放一些初始化的SQL
         Session session;
-        for (int i = 0;; i++) {
+        long start = System.nanoTime();
+        for (;;) {
             session = openSession(ci, ifExists, cipher);
             if (session != null) {
                 break;
             }
             // we found a database that is currently closing
             // wait a bit to avoid a busy loop (the method is synchronized)
-            if (i > 60 * 1000) {
+            if (System.nanoTime() - start > 60_000_000_000L) {
                 // retry at most 1 minute
                 throw DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1,
                         "Waited for database closing longer than 1 minute");
@@ -243,7 +244,7 @@ public class Engine implements SessionFactory {
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
-                // ignore
+                throw DbException.get(ErrorCode.DATABASE_CALLED_AT_SHUTDOWN);
             }
         }
         synchronized (session) {
@@ -256,12 +257,15 @@ public class Engine implements SessionFactory {
                 }
                 //connection相关的参数在org.h2.command.Parser.parseSet()中被转成NoOperation
                 String value = ci.getProperty(setting);
+                if (!ParserUtil.isSimpleIdentifier(setting, false, false)) {
+                    throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, setting);
+                }
                 try {
                     //session.prepareCommand是在本地执行sql，不走jdbc
                     CommandInterface command = session.prepareCommand(
-                            "SET " + Parser.quoteIdentifier(setting) + " " + value,
+                            "SET " + setting + ' ' + value,
                             Integer.MAX_VALUE);
-                    command.executeUpdate(false);
+                    command.executeUpdate(null);
                 } catch (DbException e) {
                     if (e.getErrorCode() == ErrorCode.ADMIN_RIGHTS_REQUIRED) {
                         session.getTrace().error(e, "admin rights required; user: \"" +
@@ -279,7 +283,7 @@ public class Engine implements SessionFactory {
                 try {
                     CommandInterface command = session.prepareCommand(init,
                             Integer.MAX_VALUE);
-                    command.executeUpdate(false);
+                    command.executeUpdate(null);
                 } catch (DbException e) {
                     if (!ignoreUnknownSetting) {
                         session.close();

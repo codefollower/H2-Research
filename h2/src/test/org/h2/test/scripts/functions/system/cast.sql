@@ -1,16 +1,9 @@
--- Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
--- and the EPL 1.0 (http://h2database.com/html/license.html).
+-- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 
-create memory table test(id int primary key, name varchar(255));
-> ok
-
-insert into test values(1, 'Hello');
-> update count: 1
-
-
-select cast(null as varchar(255)) xn, cast(' 10' as int) x10, cast(' 20 ' as int) x20 from test;
+select cast(null as varchar(255)) xn, cast(' 10' as int) x10, cast(' 20 ' as int) x20;
 > XN   X10 X20
 > ---- --- ---
 > null 10  20
@@ -126,3 +119,6 @@ SELECT * FROM (SELECT CAST('2000-01-01 11:11:11.123456789Z' AS TIMESTAMP(0) WITH
 
 SELECT * FROM (SELECT CAST('2000-01-01 11:11:11.123456789Z' AS TIMESTAMP(9) WITH TIME ZONE));
 >> 2000-01-01 11:11:11.123456789+00
+
+EXPLAIN SELECT CAST('A' AS VARCHAR(10)), CAST(NULL AS BOOLEAN), CAST(NULL AS VARCHAR), CAST(1 AS INT);
+>> SELECT CAST('A' AS VARCHAR(10)), UNKNOWN, CAST(NULL AS VARCHAR), 1 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */

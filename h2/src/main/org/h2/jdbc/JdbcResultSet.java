@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbc;
@@ -57,6 +57,7 @@ import org.h2.value.ValueInt;
 import org.h2.value.ValueInterval;
 import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
+import org.h2.value.ValueResultSet;
 import org.h2.value.ValueShort;
 import org.h2.value.ValueString;
 import org.h2.value.ValueTime;
@@ -84,7 +85,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     private final boolean closeStatement;
     private final boolean scrollable;
     private final boolean updatable;
-    private ResultInterface result;
+    ResultInterface result;
     private JdbcConnection conn;
     private JdbcStatement stat;
     private int columnCount;
@@ -1087,7 +1088,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
     public byte[] getBytes(String columnLabel) throws SQLException {
         try {
             debugCodeCall("getBytes", columnLabel);
-            return get(columnLabel).getBytes();
+            return get(columnLabel).convertTo(Value.BYTES, conn.getMode()).getBytes();
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -2864,7 +2865,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
      * @param rowNumber the row number. 0 is not allowed, 1 means the first row,
      *            2 the second. -1 means the last row, -2 the row before the
      *            last row. If the value is too large, the position is moved
-     *            after the last row, if if the value is too small it is moved
+     *            after the last row, if the value is too small it is moved
      *            before the first row.
      * @return true if there is a row available, false if not
      * @throws SQLException if the result set is closed
@@ -2896,7 +2897,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
      *
      * @param rowCount 0 means don't do anything, 1 is the next row, -1 the
      *            previous. If the value is too large, the position is moved
-     *            after the last row, if if the value is too small it is moved
+     *            after the last row, if the value is too small it is moved
      *            before the first row.
      * @return true if there is a row available, false if not
      * @throws SQLException if the result set is closed
@@ -3187,7 +3188,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
             if (index == null) {
                 throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, columnLabel);
             }
-            return index.intValue() + 1;
+            return index + 1;
         }
         for (int i = 0; i < columnCount; i++) {
             if (columnLabel.equalsIgnoreCase(result.getAlias(i))) {
@@ -3606,7 +3607,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
      * Updates a column in the current or insert row.
      *
      * @param columnIndex (1,2,...)
-     * @param x the value
+     * @param xmlObject the value
      * @throws SQLException if the result set is closed or not updatable
      */
     @Override
@@ -3633,7 +3634,7 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
      * Updates a column in the current or insert row.
      *
      * @param columnLabel the column label
-     * @param x the value
+     * @param xmlObject the value
      * @throws SQLException if the result set is closed or not updatable
      */
     @Override
@@ -3928,6 +3929,10 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
         } else if (type == SQLXML.class) {
             int id = getNextId(TraceObject.SQLXML);
             return type.cast(new JdbcSQLXML(conn, value, JdbcLob.State.WITH_VALUE, id));
+        } else if (type == ResultSet.class) {
+            int id = getNextId(TraceObject.RESULT_SET);
+            return type.cast(new JdbcResultSet(conn, null, null,
+                    ((ValueResultSet) value.convertTo(Value.RESULT_SET)).getResult(), id, false, true, false));
         } else if (type == TimestampWithTimeZone.class) {
             ValueTimestampTimeZone v = (ValueTimestampTimeZone) value.convertTo(Value.TIMESTAMP_TZ);
             return type.cast(new TimestampWithTimeZone(v.getDateValue(), v.getTimeNanos(), v.getTimeZoneOffsetMins()));
@@ -3949,6 +3954,10 @@ public class JdbcResultSet extends TraceObject implements ResultSet, JdbcResultS
             return type.cast(LocalDateTimeUtils.valueToInstant(value));
         } else if (type == LocalDateTimeUtils.OFFSET_DATE_TIME) {
             return type.cast(LocalDateTimeUtils.valueToOffsetDateTime(value));
+        } else if (type == LocalDateTimeUtils.ZONED_DATE_TIME) {
+            return type.cast(LocalDateTimeUtils.valueToZonedDateTime(value));
+        } else if (type == LocalDateTimeUtils.PERIOD) {
+            return type.cast(LocalDateTimeUtils.valueToPeriod(value));
         } else if (type == LocalDateTimeUtils.DURATION) {
             return type.cast(LocalDateTimeUtils.valueToDuration(value));
         } else {

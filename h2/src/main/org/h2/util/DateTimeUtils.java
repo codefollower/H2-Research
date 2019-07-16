@@ -1,8 +1,9 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0, and the
- * EPL 1.0 (http://h2database.com/html/license.html). Initial Developer: H2
- * Group Iso8601: Initial Developer: Robert Rathsack (firstName dot lastName at
- * gmx dot de)
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0, and the
+ * EPL 1.0 (https://h2database.com/html/license.html).
+ * Initial Developer: H2 Group
+ * Iso8601: Initial Developer: Robert Rathsack (firstName dot lastName at gmx
+ * dot de)
  */
 package org.h2.util;
 
@@ -67,18 +68,18 @@ public class DateTimeUtils {
     private static final int SHIFT_MONTH = 5;
 
     /**
+     * Gregorian change date for a {@link GregorianCalendar} that represents a
+     * proleptic Gregorian calendar.
+     */
+    private static final Date PROLEPTIC_GREGORIAN_CHANGE = new Date(Long.MIN_VALUE);
+
+    /**
      * Date value for 1970-01-01.
      */
     public static final int EPOCH_DATE_VALUE = (1970 << SHIFT_YEAR) + (1 << SHIFT_MONTH) + 1;
 
     private static final int[] NORMAL_DAYS_PER_MONTH = { 0, 31, 28, 31, 30, 31,
             30, 31, 31, 30, 31, 30, 31 };
-
-    /**
-     * Offsets of month within a year, starting with March, April,...
-     */
-    private static final int[] DAYS_OFFSET = { 0, 31, 61, 92, 122, 153, 184,
-            214, 245, 275, 306, 337, 366 };
 
     /**
      * Multipliers for {@link #convertScale(long, int)}.
@@ -108,12 +109,12 @@ public class DateTimeUtils {
     private static volatile TimeZone timeZone;
 
     /**
-     * Observed JVM behaviour is that if the timezone of the host computer is
-     * changed while the JVM is running, the zone offset does not change but
-     * keeps the initial value. So it is correct to measure this once and use
-     * this value throughout the JVM's lifecycle. In any case, it is safer to
-     * use a fixed value throughout the duration of the JVM's life, rather than
-     * have this offset change, possibly midway through a long-running query.
+     * Raw offset doesn't change during DST transitions, but changes during
+     * other transitions that some time zones have. H2 1.4.193 and later
+     * versions use zone offset that is valid for startup time for performance
+     * reasons. This code is now used only by old PageStore engine and its
+     * datetime storage code has issues with all time zone transitions, so this
+     * buggy logic is preserved as is too.
      */
     private static int zoneOffsetMillis = createGregorianCalendar().get(Calendar.ZONE_OFFSET);
 
@@ -122,16 +123,17 @@ public class DateTimeUtils {
     }
 
     /**
-     * Returns local time zone.
+     * Returns local time zone offset for a specified timestamp.
      *
-     * @return local time zone
+     * @param ms milliseconds since Epoch in UTC
+     * @return local time zone offset
      */
-    static TimeZone getTimeZone() {
+    public static int getTimeZoneOffset(long ms) {
         TimeZone tz = timeZone;
         if (tz == null) {
             timeZone = tz = TimeZone.getDefault();
         }
-        return tz;
+        return tz.getOffset(ms);
     }
 
     /**
@@ -185,7 +187,9 @@ public class DateTimeUtils {
      * @return a new calendar instance.
      */
     public static GregorianCalendar createGregorianCalendar() {
-        return new GregorianCalendar();
+        GregorianCalendar c = new GregorianCalendar();
+        c.setGregorianChange(PROLEPTIC_GREGORIAN_CHANGE);
+        return c;
     }
 
     /**
@@ -199,7 +203,9 @@ public class DateTimeUtils {
      * @return a new calendar instance.
      */
     public static GregorianCalendar createGregorianCalendar(TimeZone tz) {
-        return new GregorianCalendar(tz);
+        GregorianCalendar c = new GregorianCalendar(tz);
+        c.setGregorianChange(PROLEPTIC_GREGORIAN_CHANGE);
+        return c;
     }
 
     /**
@@ -456,6 +462,14 @@ public class DateTimeUtils {
         return ((((hour * 60L) + minute) * 60) + second) * NANOS_PER_SECOND + nanos;
     }
 
+    /**
+     * Parse nanoseconds.
+     *
+     * @param s String to parse.
+     * @param start Begin position at the string to read.
+     * @param end End position at the string to read.
+     * @return Parsed nanoseconds.
+     */
     static int parseNanos(String s, int start, int end) {
         if (start >= end) {
             throw new IllegalArgumentException(s);
@@ -568,8 +582,9 @@ public class DateTimeUtils {
                     }
                 } else {
                     long millis = convertDateTimeValueToMillis(tz, dateValue, nanos / 1_000_000);
-                    dateValue = dateValueFromDate(millis);
-                    nanos = nanos % 1_000_000 + nanosFromDate(millis);
+                    millis += getTimeZoneOffset(millis);
+                    dateValue = dateValueFromLocalMillis(millis);
+                    nanos = nanos % 1_000_000 + nanosFromLocalMillis(millis);
                 }
             }
         }
@@ -944,13 +959,7 @@ public class DateTimeUtils {
         if (month != 2) {
             return NORMAL_DAYS_PER_MONTH[month];
         }
-        // All leap years divisible by 4
-        return (year & 3) == 0
-                // All such years before 1582 are Julian and leap
-                && (year < 1582
-                        // Otherwise check Gregorian conditions
-                        || year % 100 != 0 || year % 400 == 0)
-                ? 29 : 28;
+        return (year & 3) == 0 && (year % 100 != 0 || year % 400 == 0) ? 29 : 28;
     }
 
     /**
@@ -962,14 +971,7 @@ public class DateTimeUtils {
      * @return true if it is valid
      */
     public static boolean isValidDate(int year, int month, int day) {
-        if (month < 1 || month > 12 || day < 1) {
-            return false;
-        }
-        if (year == 1582 && month == 10) {
-            // special case: days 1582-10-05 .. 1582-10-14 don't exist
-            return day < 5 || (day > 14 && day <= 31);
-        }
-        return day <= getDaysInMonth(year, month);
+        return month >= 1 && month <= 12 && day >= 1 && day <= getDaysInMonth(year, month);
     }
 
     /**
@@ -1130,14 +1132,12 @@ public class DateTimeUtils {
     }
 
     /**
-     * Convert a UTC datetime in millis to an encoded date in the default
-     * timezone.
+     * Convert a local datetime in millis to an encoded date.
      *
      * @param ms the milliseconds
      * @return the date value
      */
-    public static long dateValueFromDate(long ms) {
-        ms += getTimeZone().getOffset(ms);
+    public static long dateValueFromLocalMillis(long ms) {
         long absoluteDay = ms / MILLIS_PER_DAY;
         // Round toward negative infinity
         if (ms < 0 && (absoluteDay * MILLIS_PER_DAY != ms)) {
@@ -1163,14 +1163,12 @@ public class DateTimeUtils {
     }
 
     /**
-     * Convert a time in milliseconds in UTC to the nanoseconds since midnight
-     * (in the default timezone).
+     * Convert a time in milliseconds in local time to the nanoseconds since midnight.
      *
      * @param ms the milliseconds
      * @return the nanoseconds
      */
-    public static long nanosFromDate(long ms) {
-        ms += getTimeZone().getOffset(ms);
+    public static long nanosFromLocalMillis(long ms) {
         long absoluteDay = ms / MILLIS_PER_DAY;
         // Round toward negative infinity
         if (ms < 0 && (absoluteDay * MILLIS_PER_DAY != ms)) {
@@ -1243,11 +1241,13 @@ public class DateTimeUtils {
     }
 
     /**
+     * Creates the instance of the {@link ValueTimestampTimeZone} from milliseconds.
+     *
      * @param ms milliseconds since 1970-01-01 (UTC)
      * @return timestamp with time zone with specified value and current time zone
      */
     public static ValueTimestampTimeZone timestampTimeZoneFromMillis(long ms) {
-        int offset = getTimeZone().getOffset(ms);
+        int offset = getTimeZoneOffset(ms);
         ms += offset;
         long absoluteDay = ms / MILLIS_PER_DAY;
         // Round toward negative infinity
@@ -1268,14 +1268,11 @@ public class DateTimeUtils {
      * @return the absolute day
      */
     public static long absoluteDayFromYear(long year) {
-        year--;
-        long a = ((year * 1461L) >> 2) - 719_177;
-        if (year < 1582) {
-            // Julian calendar
-            a += 13;
-        } else if (year < 1900 || year > 2099) {
-            // Gregorian calendar (slow mode)
-            a += (year / 400) - (year / 100) + 15;
+        long a = 365 * year - 719_528;
+        if (year >= 0) {
+            a += (year + 3) / 4 - (year + 99) / 100 + (year + 399) / 400;
+        } else {
+            a -= year / -4 - year / -100 + year / -400;
         }
         return a;
     }
@@ -1290,40 +1287,13 @@ public class DateTimeUtils {
         long y = yearFromDateValue(dateValue);
         int m = monthFromDateValue(dateValue);
         int d = dayFromDateValue(dateValue);
-        if (m <= 2) {
-            y--;
-            m += 12;
-        }
-        long a = ((y * 1461L) >> 2) + DAYS_OFFSET[m - 3] + d - 719_484;
-        if (y <= 1582 && ((y < 1582) || (m * 100 + d < 10_15))) {
-            // Julian calendar (cutover at 1582-10-04 / 1582-10-15)
-            a += 13;
-        } else if (y < 1900 || y > 2099) {
-            // Gregorian calendar (slow mode)
-            a += (y / 400) - (y / 100) + 15;
-        }
-        return a;
-    }
-
-    /**
-     * Calculate the absolute day from an encoded date value in proleptic Gregorian
-     * calendar.
-     *
-     * @param dateValue the date value
-     * @return the absolute day in proleptic Gregorian calendar
-     */
-    public static long prolepticGregorianAbsoluteDayFromDateValue(long dateValue) {
-        long y = yearFromDateValue(dateValue);
-        int m = monthFromDateValue(dateValue);
-        int d = dayFromDateValue(dateValue);
-        if (m <= 2) {
-            y--;
-            m += 12;
-        }
-        long a = ((y * 1461L) >> 2) + DAYS_OFFSET[m - 3] + d - 719_484;
-        if (y < 1900 || y > 2099) {
-            // Slow mode
-            a += (y / 400) - (y / 100) + 15;
+        long a = absoluteDayFromYear(y);
+        a += ((367 * m - 362) / 12) + d - 1;
+        if (m > 2) {
+            a--;
+            if ((y & 3) != 0 || (y % 100 == 0 && y % 400 != 0)) {
+                a--;
+            }
         }
         return a;
     }
@@ -1336,37 +1306,26 @@ public class DateTimeUtils {
      */
     public static long dateValueFromAbsoluteDay(long absoluteDay) {
         long d = absoluteDay + 719_468;
-        long y100, offset;
-        if (d > 578_040) {
-            // Gregorian calendar
-            long y400 = d / 146_097;
-            d -= y400 * 146_097;
-            y100 = d / 36_524;
-            d -= y100 * 36_524;
-            offset = y400 * 400 + y100 * 100;
-        } else {
-            // Julian calendar
-            y100 = 0;
-            d += 292_200_000_002L;
-            offset = -800_000_000;
+        long a = 0;
+        if (d < 0) {
+            a = (d + 1) / 146_097 - 1;
+            d -= a * 146_097;
+            a *= 400;
         }
-        long y4 = d / 1461;
-        d -= y4 * 1461;
-        long y = d / 365;
-        d -= y * 365;
-        if (d == 0 && (y == 4 || y100 == 4)) {
+        long y = (400 * d + 591) / 146_097;
+        int day = (int) (d - (365 * y + y / 4 - y / 100 + y / 400));
+        if (day < 0) {
             y--;
-            d += 365;
+            day = (int) (d - (365 * y + y / 4 - y / 100 + y / 400));
         }
-        y += offset + y4 * 4;
-        // month of a day
-        int m = ((int) d * 2 + 1) * 5 / 306;
-        d -= DAYS_OFFSET[m] - 1;
+        y += a;
+        int m = (day * 5 + 2) / 153;
+        day -= (m * 306 + 5) / 10 - 1;
         if (m >= 10) {
             y++;
             m -= 12;
         }
-        return dateValue(y, m + 3, (int) d);
+        return dateValue(y, m + 3, day);
     }
 
     /**
@@ -1377,15 +1336,11 @@ public class DateTimeUtils {
      * @return the next date value
      */
     public static long incrementDateValue(long dateValue) {
-        int year = yearFromDateValue(dateValue);
-        if (year == 1582) {
-            // Use slow way instead of rarely needed large custom code.
-            return dateValueFromAbsoluteDay(absoluteDayFromDateValue(dateValue) + 1);
-        }
         int day = dayFromDateValue(dateValue);
         if (day < 28) {
             return dateValue + 1;
         }
+        int year = yearFromDateValue(dateValue);
         int month = monthFromDateValue(dateValue);
         if (day < getDaysInMonth(year, month)) {
             return dateValue + 1;
@@ -1407,14 +1362,10 @@ public class DateTimeUtils {
      * @return the previous date value
      */
     public static long decrementDateValue(long dateValue) {
-        int year = yearFromDateValue(dateValue);
-        if (year == 1582) {
-            // Use slow way instead of rarely needed large custom code.
-            return dateValueFromAbsoluteDay(absoluteDayFromDateValue(dateValue) - 1);
-        }
         if (dayFromDateValue(dateValue) > 1) {
             return dateValue - 1;
         }
+        int year = yearFromDateValue(dateValue);
         int month = monthFromDateValue(dateValue);
         if (month > 1) {
             month--;
@@ -1486,6 +1437,11 @@ public class DateTimeUtils {
         }
     }
 
+    /**
+     * Skip trailing zeroes.
+     *
+     * @param buff String buffer.
+     */
     static void stripTrailingZeroes(StringBuilder buff) {
         int i = buff.length() - 1;
         if (buff.charAt(i) == '0') {
@@ -1522,18 +1478,17 @@ public class DateTimeUtils {
     /**
      * Formats timestamp with time zone as string.
      *
+     * @param buff the target string builder
      * @param dateValue the year-month-day bit field
      * @param timeNanos nanoseconds since midnight
      * @param timeZoneOffsetMins the time zone offset in minutes
-     * @return formatted string
      */
-    public static String timestampTimeZoneToString(long dateValue, long timeNanos, short timeZoneOffsetMins) {
-        StringBuilder buff = new StringBuilder(ValueTimestampTimeZone.MAXIMUM_PRECISION);
+    public static void appendTimestampTimeZone(StringBuilder buff, long dateValue, long timeNanos,
+            short timeZoneOffsetMins) {
         appendDate(buff, dateValue);
         buff.append(' ');
         appendTime(buff, timeNanos);
         appendTimeZone(buff, timeZoneOffsetMins);
-        return buff.toString();
     }
 
     /**

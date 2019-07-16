@@ -1,13 +1,8 @@
 package my.test.expression;
 
 import java.sql.CallableStatement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 import my.test.TestBase;
-
-import org.h2.expression.Function;
+ 
 
 public class FunctionTest extends TestBase {
 	public static void main(String[] args) throws Exception {
@@ -45,38 +40,38 @@ public class FunctionTest extends TestBase {
 		}
 	}
 
-	void printFunctionInfos() {
-		HashMap<Integer, List<Object>> FUNCTIONS = new java.util.LinkedHashMap<Integer, List<Object>>();
-		for (Object fi : Function.getFunctionInfos()) {
-			List<Object> list = FUNCTIONS.get(fi.hashCode());
-			if (list == null)
-				list = new ArrayList<Object>();
-			list.add(fi);
-			FUNCTIONS.put(fi.hashCode(), list);
-			//System.out.println(fi);
-		}
-
-		for (List<Object> fi : FUNCTIONS.values()) {
-			Object last = null;
-			for (Object o : fi) {
-				System.out.print(o);
-				if (last != null) {
-					if (!last.equals(o))
-						System.out.print(" 与前面不同  ");
-					else
-						System.out.print(" 与前面相同  ");
-
-					//System.out.println(last);
-					//System.out.println(o);
-					//System.out.println();
-				}
-				last = o;
-
-			}
-			System.out.println();
-			//System.out.println(fi);
-		}
-	}
+//	void printFunctionInfos() {
+//		HashMap<Integer, List<Object>> FUNCTIONS = new java.util.LinkedHashMap<Integer, List<Object>>();
+//		for (Object fi : Function.getFunctionInfos()) {
+//			List<Object> list = FUNCTIONS.get(fi.hashCode());
+//			if (list == null)
+//				list = new ArrayList<Object>();
+//			list.add(fi);
+//			FUNCTIONS.put(fi.hashCode(), list);
+//			//System.out.println(fi);
+//		}
+//
+//		for (List<Object> fi : FUNCTIONS.values()) {
+//			Object last = null;
+//			for (Object o : fi) {
+//				System.out.print(o);
+//				if (last != null) {
+//					if (!last.equals(o))
+//						System.out.print(" 与前面不同  ");
+//					else
+//						System.out.print(" 与前面相同  ");
+//
+//					//System.out.println(last);
+//					//System.out.println(o);
+//					//System.out.println();
+//				}
+//				last = o;
+//
+//			}
+//			System.out.println();
+//			//System.out.println(fi);
+//		}
+//	}
 
 	//测试org.h2.expression.Function
 	@Override

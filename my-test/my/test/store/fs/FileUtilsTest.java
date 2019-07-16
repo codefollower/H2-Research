@@ -71,7 +71,7 @@ public class FileUtilsTest {
 		
 		FileUtils.newInputStream("classpath:my/test/store/fs/FileUtilsTest.class");
 		
-		p(FileUtils.createTempFile("file:~/my3", "log", true, false));
+		p(FileUtils.createTempFile("file:~/my3", "log", true));
 	}
 	
 	public static void test(String scheme) throws Exception {
@@ -113,7 +113,7 @@ public class FileUtilsTest {
 		
 		FileUtils.newInputStream("classpath:my/test/store/fs/FileUtilsTest.class");
 		
-		p(FileUtils.createTempFile(scheme+":~/my3", "log", true, false));
+		p(FileUtils.createTempFile(scheme+":~/my3", "log", true));
 	}
 	
 	static void p(Object v) {

@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -43,6 +43,7 @@ public class TestSpaceReuse extends TestDb {
             Connection conn = getConnection("spaceReuse");
             Statement stat = conn.createStatement();
             stat.execute("set retention_time 0");
+            stat.execute("set write_delay 0"); // disable auto-commit so that free-unused runs on commit
             stat.execute("create table if not exists t(i int)");
             stat.execute("insert into t select x from system_range(1, 500)");
             conn.close();

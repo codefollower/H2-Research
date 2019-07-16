@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: Jason Brittain (jason.brittain at gmail.com)
  */
 package org.h2.mode;
@@ -14,15 +14,17 @@ import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
-import org.h2.expression.Function;
-import org.h2.expression.FunctionInfo;
 import org.h2.expression.ValueExpression;
+import org.h2.expression.function.Function;
+import org.h2.expression.function.FunctionInfo;
 import org.h2.message.DbException;
 import org.h2.util.StringUtils;
-import org.h2.value.DataType;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueInt;
+import org.h2.value.ValueNull;
 import org.h2.value.ValueString;
+import org.h2.value.ValueLong;
 
 /**
  * This class implements some MySQL-specific functions.
@@ -32,17 +34,20 @@ import org.h2.value.ValueString;
  */
 public class FunctionsMySQL extends FunctionsBase {
 
-    private static final int UNIX_TIMESTAMP = 1001, FROM_UNIXTIME = 1002, DATE = 1003;
+    private static final int UNIX_TIMESTAMP = 1001, FROM_UNIXTIME = 1002, DATE = 1003, LAST_INSERT_ID = 1004;
 
     private static final HashMap<String, FunctionInfo> FUNCTIONS = new HashMap<>();
 
     static {
         FUNCTIONS.put("UNIX_TIMESTAMP", new FunctionInfo("UNIX_TIMESTAMP", UNIX_TIMESTAMP,
-                VAR_ARGS, Value.INT, false, false, false));
+                VAR_ARGS, Value.INT, false, false, true, false));
         FUNCTIONS.put("FROM_UNIXTIME", new FunctionInfo("FROM_UNIXTIME", FROM_UNIXTIME,
-                VAR_ARGS, Value.STRING, false, true, false));
+                VAR_ARGS, Value.STRING, false, true, true, false));
         FUNCTIONS.put("DATE", new FunctionInfo("DATE", DATE,
-                1, Value.DATE, false, true, false));
+                1, Value.DATE, false, true, true, false));
+        FUNCTIONS.put("LAST_INSERT_ID", new FunctionInfo("LAST_INSERT_ID", LAST_INSERT_ID,
+                VAR_ARGS, Value.LONG, false, false, true, false));
+
     }
 
     /**
@@ -175,6 +180,10 @@ public class FunctionsMySQL extends FunctionsBase {
             min = 1;
             max = 1;
             break;
+        case LAST_INSERT_ID:
+            min = 0;
+            max = 1;
+            break;
         default:
             DbException.throwInternalError("type=" + info.type);
             return;
@@ -201,11 +210,7 @@ public class FunctionsMySQL extends FunctionsBase {
         if (allConst) {
             return ValueExpression.get(getValue(session));
         }
-        dataType = info.returnDataType;
-        DataType dt = DataType.getDataType(dataType);
-        precision = dt.defaultPrecision;
-        scale = dt.defaultScale;
-        displaySize = dt.defaultDisplaySize;
+        type = TypeInfo.getTypeInfo(info.returnDataType);
         return this;
     }
 
@@ -224,16 +229,33 @@ public class FunctionsMySQL extends FunctionsBase {
                     v1 == null ? fromUnixTime(v0.getInt()) : fromUnixTime(v0.getInt(), v1.getString()));
             break;
         case DATE:
-            switch (v0.getType()) {
+            switch (v0.getValueType()) {
             case Value.DATE:
                 result = v0;
                 break;
             default:
-                v0 = v0.convertTo(Value.TIMESTAMP);
+                try {
+                    v0 = v0.convertTo(Value.TIMESTAMP);
+                } catch (DbException ex) {
+                    v0 = ValueNull.INSTANCE;
+                }
                 //$FALL-THROUGH$
             case Value.TIMESTAMP:
             case Value.TIMESTAMP_TZ:
                 result = v0.convertTo(Value.DATE);
+            }
+            break;
+        case LAST_INSERT_ID:
+            if (args.length == 0) {
+                result = session.getLastIdentity();
+            } else {
+                if (v0 == ValueNull.INSTANCE) {
+                    session.setLastIdentity(ValueLong.get(0));
+                    result = v0;
+                } else {
+                    result = v0.convertTo(Value.LONG);
+                    session.setLastIdentity(result);
+                }
             }
             break;
         default:

@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
@@ -109,7 +109,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
             }
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
         }
-        if (getSchema().findConstraint(session, constraintName) != null) {
+        if (constraintName != null && getSchema().findConstraint(session, constraintName) != null) {
             if (ifNotExists) {
                 return 0;
             }
@@ -228,8 +228,9 @@ public class AlterTableAddConstraint extends SchemaCommand {
             }
             session.getUser().checkRight(refTable, Right.ALL);
             if (!refTable.canReference()) {
-                throw DbException.getUnsupportedException("Reference " +
-                        refTable.getSQL());
+                StringBuilder builder = new StringBuilder("Reference ");
+                refTable.getSQL(builder, false);
+                throw DbException.getUnsupportedException(builder.toString());
             }
             boolean isOwner = false;
             IndexColumn.mapColumns(indexColumns, table);

@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
@@ -57,7 +57,10 @@ public interface LocalResult extends ResultInterface, ResultTarget {
     public void setMaxMemoryRows(int maxValue);
 
     /**
-     * @param sort Sort order.
+     * Sets sort order to be used by this result. When rows are presorted by the
+     * query this method should not be used.
+     *
+     * @param sort the sort order
      */
     public void setSortOrder(SortOrder sort);
 
@@ -72,6 +75,22 @@ public interface LocalResult extends ResultInterface, ResultTarget {
      * @param distinctIndexes distinct indexes
      */
     public void setDistinct(int[] distinctIndexes);
+
+    /**
+     * Check if this result set contains the given row.
+     *
+     * @param values the row
+     * @return true if the row exists
+     */
+    boolean containsDistinct(Value[] values);
+
+    /**
+     * Check if this result set contains a NULL value. This method may reset
+     * this result.
+     *
+     * @return true if there is a NULL value
+     */
+    boolean containsNull();
 
     /**
      * Remove the row from the result set if it exists.
@@ -139,9 +158,14 @@ public interface LocalResult extends ResultInterface, ResultTarget {
     public void setFetchPercent(boolean fetchPercent);
 
     /**
-     * @param withTies whether tied rows should be included in result too
+     * Enables inclusion of tied rows to result and sets the sort order for tied
+     * rows. The specified sort order must be the same as sort order if sort
+     * order was set. Passed value will be used if sort order was not set that
+     * is possible when rows are presorted.
+     *
+     * @param withTiesSortOrder the sort order for tied rows
      */
-    public void setWithTies(boolean withTies);
+    public void setWithTies(SortOrder withTiesSortOrder);
 
     /**
      * Set the offset of the first row to return.

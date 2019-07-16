@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
@@ -18,6 +18,7 @@ import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultWithGeneratedKeys;
+import org.h2.result.ResultWithPaddedStrings;
 import org.h2.util.MathUtils;
 
 /**
@@ -101,12 +102,21 @@ public abstract class Command implements CommandInterface {
      * Execute an updating statement (for example insert, delete, or update), if
      * this is possible.
      *
-     * @return the update count
+     * @param generatedKeysRequest
+     *            {@code false} if generated keys are not needed, {@code true} if
+     *            generated keys should be configured automatically, {@code int[]}
+     *            to specify column indices to return generated keys from, or
+     *            {@code String[]} to specify column names to return generated keys
+     *            from
+     * @return the update count and generated keys, if any
      * @throws DbException if the command is not an updating statement
      */
-    public int update() { //子类要实现这个方法
-        throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_QUERY);
-    }
+//<<<<<<< HEAD
+//    public int update() { //子类要实现这个方法
+//        throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_QUERY);
+//    }
+//=======
+    public abstract ResultWithGeneratedKeys update(Object generatedKeysRequest);
 
     /**
      * Execute a query statement, if this is possible.
@@ -114,10 +124,14 @@ public abstract class Command implements CommandInterface {
      * @param maxrows the maximum number of rows returned
      * @return the local result set
      * @throws DbException if the command is not a query
-     */ 
-    public ResultInterface query(int maxrows) { //子类要实现这个方法 
-        throw DbException.get(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY);
-    }
+//<<<<<<< HEAD
+//     */ 
+//    public ResultInterface query(int maxrows) { //子类要实现这个方法 
+//        throw DbException.get(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY);
+//    }
+//=======
+//     */
+    public abstract ResultInterface query(int maxrows);
 
     @Override
     public final ResultInterface getMetaData() {
@@ -152,11 +166,14 @@ public abstract class Command implements CommandInterface {
     @Override
     public void stop() {
 //<<<<<<< HEAD
-//        session.endStatement();
-//        session.setCurrentCommand(null);
-//        //DDL的isTransactional默认都是false，相当于每执行完一条DDL都默认提交事务
+////<<<<<<< HEAD
+////        session.endStatement();
+////        session.setCurrentCommand(null);
+////        //DDL的isTransactional默认都是false，相当于每执行完一条DDL都默认提交事务
+////=======
+//        session.setCurrentCommand(null, false);
 //=======
-        session.setCurrentCommand(null, false);
+        session.setCurrentCommand(null);
         if (!isTransactional()) {
             session.commit(true);
         } else if (session.getAutoCommit()) { //如果是自动提交模式，那么执行完一条SQL时由系统自动提交，非自动提交模式由应用负责提交
@@ -205,13 +222,16 @@ public abstract class Command implements CommandInterface {
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized (sync) {
             session.startStatementWithinTransaction();
-            session.setCurrentCommand(this, false);
+            session.setCurrentCommand(this);
             try {
                 while (true) {
                     database.checkPowerOff();
                     try {
                         ResultInterface result = query(maxrows);
                         callStop = !result.isLazy();
+                        if (database.getMode().padFixedLengthStrings) {
+                            return ResultWithPaddedStrings.get(result);
+                        }
                         return result;
                     } catch (DbException e) {
                         start = filterConcurrentUpdate(e, start);
@@ -269,18 +289,13 @@ public abstract class Command implements CommandInterface {
         synchronized (sync) {
             Session.Savepoint rollback = session.setSavepoint();
             session.startStatementWithinTransaction();
-            session.setCurrentCommand(this, generatedKeysRequest);
+            session.setCurrentCommand(this);
             DbException ex = null;
             try {
                 while (true) {
                     database.checkPowerOff();
                     try {
-                        int updateCount = update();
-                        if (!Boolean.FALSE.equals(generatedKeysRequest)) {
-                            return new ResultWithGeneratedKeys.WithKeys(updateCount,
-                                    session.getGeneratedKeys().getKeys(session));
-                        }
-                        return ResultWithGeneratedKeys.of(updateCount);
+                        return update(generatedKeysRequest);
                     } catch (DbException e) {
                         start = filterConcurrentUpdate(e, start); //如果是并发更新异常，会进行重试，直到超时为止
                     } catch (OutOfMemoryError e) {

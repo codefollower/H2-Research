@@ -1,5 +1,5 @@
--- Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
--- and the EPL 1.0 (http://h2database.com/html/license.html).
+-- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 
@@ -24,6 +24,15 @@ select sum(v), sum(v) filter (where v >= 4) from test where v <= 10;
 > SUM(V) SUM(V) FILTER (WHERE (V >= 4))
 > ------ ------------------------------
 > 55     49
+> rows: 1
+
+insert into test values (1), (2), (8);
+> update count: 3
+
+select sum(v), sum(all v), sum(distinct v) from test;
+> SUM(V) SUM(V) SUM(DISTINCT V)
+> ------ ------ ---------------
+> 89     89     78
 > rows: 1
 
 drop table test;
@@ -80,7 +89,7 @@ SELECT
 > 6  21 21    21    36
 > 7  28 28    15    36
 > 8  36 36    8     36
-> rows (ordered): 8
+> rows: 8
 
 SELECT I, V, SUM(V) OVER W S, SUM(DISTINCT V) OVER W D FROM
     VALUES (1, 1), (2, 1), (3, 1), (4, 1), (5, 2), (6, 2), (7, 3) T(I, V)
@@ -94,4 +103,31 @@ SELECT I, V, SUM(V) OVER W S, SUM(DISTINCT V) OVER W D FROM
 > 5 2 6  3
 > 6 2 8  3
 > 7 3 11 6
-> rows (ordered): 7
+> rows: 7
+
+SELECT * FROM (SELECT SUM(V) OVER (ORDER BY V ROWS BETWEEN CURRENT ROW AND CURRENT ROW) S FROM (VALUES 1, 2, 2) T(V));
+> S
+> -
+> 1
+> 2
+> 2
+> rows: 3
+
+SELECT V, SUM(V) FILTER (WHERE V <> 1) OVER (ROWS CURRENT ROW) S FROM (VALUES 1, 2, 2) T(V);
+> V S
+> - ----
+> 1 null
+> 2 2
+> 2 2
+> rows: 3
+
+SELECT V,
+    SUM(V) FILTER (WHERE V <> 1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) S,
+    SUM(V) FILTER (WHERE V <> 1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) T
+    FROM (VALUES 1, 2, 2) T(V);
+> V S T
+> - - -
+> 1 4 2
+> 2 4 4
+> 2 4 4
+> rows: 3

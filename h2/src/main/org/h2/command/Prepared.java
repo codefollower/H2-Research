@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
@@ -17,7 +17,7 @@ import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.ResultInterface;
 import org.h2.table.TableView;
-import org.h2.util.StatementBuilder;
+import org.h2.util.MathUtils;
 import org.h2.value.Value;
 
 /**
@@ -61,7 +61,7 @@ public abstract class Prepared {
      * already read, {@code >0} if object is stored and its id is not yet read.
      */
     private int persistedObjectId;
-    private int currentRowNumber;
+    private long currentRowNumber;
     private int rowScanCount;
     /**
      * Common table expressions (CTE) in queries require us to create temporary views,
@@ -287,9 +287,10 @@ public abstract class Prepared {
     /**
      * Get the SQL statement with the execution plan.
      *
+     * @param alwaysQuote quote all identifiers
      * @return the execution plan
      */
-    public String getPlanSQL() { //只有CRUD及Merge实现了此方法
+    public String getPlanSQL(boolean alwaysQuote) { //只有CRUD及Merge实现了此方法
         return null;
     }
 
@@ -363,7 +364,7 @@ public abstract class Prepared {
      *
      * @param rowNumber the row number
      */
-    public void setCurrentRowNumber(int rowNumber) {
+    public void setCurrentRowNumber(long rowNumber) {
         if ((++rowScanCount & 127) == 0) {
             checkCanceled();
         }
@@ -376,7 +377,7 @@ public abstract class Prepared {
      *
      * @return the row number
      */
-    public int getCurrentRowNumber() {
+    public long getCurrentRowNumber() {
         return currentRowNumber;
     }
 
@@ -389,7 +390,9 @@ public abstract class Prepared {
         if ((currentRowNumber & 127) == 0) {
             session.getDatabase().setProgress(
                     DatabaseEventListener.STATE_STATEMENT_PROGRESS,
-                    sqlStatement, currentRowNumber, 0);
+                    sqlStatement,
+                    // TODO update interface
+                    MathUtils.convertLongToInt(currentRowNumber), 0);
         }
     }
 
@@ -410,14 +413,17 @@ public abstract class Prepared {
      * @return the SQL snippet
      */
     protected static String getSQL(Value[] values) {
-        StatementBuilder buff = new StatementBuilder();
-        for (Value v : values) {
-            buff.appendExceptFirst(", ");
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0, l = values.length; i < l; i++) {
+            if (i > 0) {
+                builder.append(", ");
+            }
+            Value v = values[i];
             if (v != null) {
-                buff.append(v.getSQL());
+                v.getSQL(builder);
             }
         }
-        return buff.toString();
+        return builder.toString();
     }
 
     /**
@@ -426,15 +432,10 @@ public abstract class Prepared {
      * @param list the expression list
      * @return the SQL snippet
      */
-    protected static String getSQL(Expression[] list) {
-        StatementBuilder buff = new StatementBuilder();
-        for (Expression e : list) {
-            buff.appendExceptFirst(", ");
-            if (e != null) {
-                buff.append(e.getSQL());
-            }
-        }
-        return buff.toString();
+    protected static String getSimpleSQL(Expression[] list) {
+        StringBuilder builder = new StringBuilder();
+        Expression.writeExpressions(builder, list, false);
+        return builder.toString();
     }
 
     /**

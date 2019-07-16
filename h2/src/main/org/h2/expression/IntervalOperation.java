@@ -1,11 +1,13 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
 import static org.h2.util.DateTimeUtils.NANOS_PER_DAY;
+import static org.h2.util.DateTimeUtils.NANOS_PER_HOUR;
+import static org.h2.util.DateTimeUtils.NANOS_PER_MINUTE;
 import static org.h2.util.DateTimeUtils.absoluteDayFromDateValue;
 import static org.h2.util.DateTimeUtils.dateAndTimeFromValue;
 import static org.h2.util.DateTimeUtils.dateTimeToValue;
@@ -18,14 +20,16 @@ import java.math.BigInteger;
 import org.h2.api.ErrorCode;
 import org.h2.api.IntervalQualifier;
 import org.h2.engine.Session;
+import org.h2.expression.function.DateTimeFunctions;
 import org.h2.message.DbException;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
-import org.h2.util.DateTimeFunctions;
 import org.h2.util.IntervalUtils;
 import org.h2.value.DataType;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueDate;
+import org.h2.value.ValueDecimal;
 import org.h2.value.ValueInterval;
 import org.h2.value.ValueNull;
 import org.h2.value.ValueTime;
@@ -46,6 +50,11 @@ public class IntervalOperation extends Expression {
          * Interval minus interval.
          */
         INTERVAL_MINUS_INTERVAL,
+
+        /**
+         * Interval divided by interval (non-standard).
+         */
+        INTERVAL_DIVIDE_INTERVAL,
 
         /**
          * Date-time plus interval.
@@ -75,7 +84,7 @@ public class IntervalOperation extends Expression {
 
     private final IntervalOpType opType;
     private Expression left, right;
-    private int dataType;
+    private TypeInfo type;
 
     private static BigInteger nanosFromValue(Value v) {
         long[] a = dateAndTimeFromValue(v);
@@ -87,32 +96,37 @@ public class IntervalOperation extends Expression {
         this.opType = opType;
         this.left = left;
         this.right = right;
-        int l = left.getType(), r = right.getType();
+        int l = left.getType().getValueType(), r = right.getType().getValueType();
         switch (opType) {
         case INTERVAL_PLUS_INTERVAL:
         case INTERVAL_MINUS_INTERVAL:
-            dataType = Value.getHigherOrder(l, r);
+            type = TypeInfo.getTypeInfo(Value.getHigherOrder(l, r));
+            break;
+        case INTERVAL_DIVIDE_INTERVAL:
+            type = TypeInfo.TYPE_DECIMAL_DEFAULT;
             break;
         case DATETIME_PLUS_INTERVAL:
         case DATETIME_MINUS_INTERVAL:
         case INTERVAL_MULTIPLY_NUMERIC:
         case INTERVAL_DIVIDE_NUMERIC:
-            dataType = l;
+            type = left.getType();
             break;
         case DATETIME_MINUS_DATETIME:
             if (l == Value.TIME && r == Value.TIME) {
-                dataType = Value.INTERVAL_HOUR_TO_SECOND;
+                type = TypeInfo.TYPE_INTERVAL_HOUR_TO_SECOND;
             } else if (l == Value.DATE && r == Value.DATE) {
-                dataType = Value.INTERVAL_DAY;
+                type = TypeInfo.TYPE_INTERVAL_DAY;
             } else {
-                dataType = Value.INTERVAL_DAY_TO_SECOND;
+                type = TypeInfo.TYPE_INTERVAL_DAY_TO_SECOND;
             }
         }
     }
 
     @Override
-    public String getSQL() {
-        return '(' + left.getSQL() + ' ' + getOperationToken() + ' ' + right.getSQL() + ')';
+    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+        builder.append('(');
+        left.getSQL(builder, alwaysQuote).append(' ').append(getOperationToken()).append(' ');
+        return right.getSQL(builder, alwaysQuote).append(')');
     }
 
     private char getOperationToken() {
@@ -126,6 +140,7 @@ public class IntervalOperation extends Expression {
             return '-';
         case INTERVAL_MULTIPLY_NUMERIC:
             return '*';
+        case INTERVAL_DIVIDE_INTERVAL:
         case INTERVAL_DIVIDE_NUMERIC:
             return '/';
         default:
@@ -140,7 +155,7 @@ public class IntervalOperation extends Expression {
         if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {
             return ValueNull.INSTANCE;
         }
-        int lType = l.getType(), rType = r.getType();
+        int lType = l.getValueType(), rType = r.getValueType();
         switch (opType) {
         case INTERVAL_PLUS_INTERVAL:
         case INTERVAL_MINUS_INTERVAL: {
@@ -150,6 +165,9 @@ public class IntervalOperation extends Expression {
                     IntervalQualifier.valueOf(Value.getHigherOrder(lType, rType) - Value.INTERVAL_YEAR),
                     opType == IntervalOpType.INTERVAL_PLUS_INTERVAL ? a1.add(a2) : a1.subtract(a2));
         }
+        case INTERVAL_DIVIDE_INTERVAL:
+            return ValueDecimal.get(IntervalUtils.intervalToAbsolute((ValueInterval) l))
+                    .divide(ValueDecimal.get(IntervalUtils.intervalToAbsolute((ValueInterval) r)));
         case DATETIME_PLUS_INTERVAL:
         case DATETIME_MINUS_INTERVAL:
             return getDateTimeWithInterval(l, r, lType, rType);
@@ -168,8 +186,8 @@ public class IntervalOperation extends Expression {
                 if (negative) {
                     diff = -diff;
                 }
-                return ValueInterval.from(IntervalQualifier.HOUR_TO_SECOND, negative, diff / 3_600_000_000_000L,
-                        diff % 3_600_000_000_000L);
+                return ValueInterval.from(IntervalQualifier.HOUR_TO_SECOND, negative, diff / NANOS_PER_HOUR,
+                        diff % NANOS_PER_HOUR);
             } else if (lType == Value.DATE && rType == Value.DATE) {
                 long diff = absoluteDayFromDateValue(((ValueDate) l).getDateValue())
                         - absoluteDayFromDateValue(((ValueDate) r).getDateValue());
@@ -184,7 +202,7 @@ public class IntervalOperation extends Expression {
                     l = l.convertTo(Value.TIMESTAMP_TZ);
                     r = r.convertTo(Value.TIMESTAMP_TZ);
                     diff = diff.add(BigInteger.valueOf((((ValueTimestampTimeZone) r).getTimeZoneOffsetMins()
-                            - ((ValueTimestampTimeZone) l).getTimeZoneOffsetMins()) * 60_000_000_000L));
+                            - ((ValueTimestampTimeZone) l).getTimeZoneOffsetMins()) * NANOS_PER_MINUTE));
                 }
                 return IntervalUtils.intervalFromAbsolute(IntervalQualifier.DAY_TO_SECOND, diff);
             }
@@ -273,23 +291,8 @@ public class IntervalOperation extends Expression {
     }
 
     @Override
-    public int getType() {
-        return dataType;
-    }
-
-    @Override
-    public long getPrecision() {
-        return Math.max(left.getPrecision(), right.getPrecision());
-    }
-
-    @Override
-    public int getDisplaySize() {
-        return Math.max(left.getDisplaySize(), right.getDisplaySize());
-    }
-
-    @Override
-    public int getScale() {
-        return Math.max(left.getScale(), right.getScale());
+    public TypeInfo getType() {
+        return type;
     }
 
     @Override
@@ -308,22 +311,21 @@ public class IntervalOperation extends Expression {
         return left.getCost() + 1 + right.getCost();
     }
 
-    /**
-     * Get the left sub-expression of this operation.
-     *
-     * @return the left sub-expression
-     */
-    public Expression getLeftSubExpression() {
-        return left;
+    @Override
+    public int getSubexpressionCount() {
+        return 2;
     }
 
-    /**
-     * Get the right sub-expression of this operation.
-     *
-     * @return the right sub-expression
-     */
-    public Expression getRightSubExpression() {
-        return right;
+    @Override
+    public Expression getSubexpression(int index) {
+        switch (index) {
+        case 0:
+            return left;
+        case 1:
+            return right;
+        default:
+            throw new IndexOutOfBoundsException();
+        }
     }
 
 }

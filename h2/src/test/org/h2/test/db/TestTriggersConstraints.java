@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -591,8 +591,7 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
         assertSingleValue(stat, "select count(*) from test1", 3);
         assertSingleValue(stat, "select count(*) from test2", 1);
 
-        stat.execute("drop table test1");
-        stat.execute("drop table test2");
+        stat.execute("drop table test1, test2");
         conn.close();
     }
 
@@ -624,17 +623,17 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
         ResultSet rs;
         rs = stat.executeQuery("SCRIPT");
         checkRows(rs, new String[] {
-                "CREATE FORCE TRIGGER PUBLIC.INS_BEFORE " +
-                    "BEFORE INSERT ON PUBLIC.TEST " +
+                "CREATE FORCE TRIGGER \"PUBLIC\".\"INS_BEFORE\" " +
+                    "BEFORE INSERT ON \"PUBLIC\".\"TEST\" " +
                     "FOR EACH ROW NOWAIT CALL \"" + getClass().getName() + "\";",
-                "CREATE FORCE TRIGGER PUBLIC.INS_AFTER " +
-                    "AFTER INSERT ON PUBLIC.TEST " +
+                "CREATE FORCE TRIGGER \"PUBLIC\".\"INS_AFTER\" " +
+                    "AFTER INSERT ON \"PUBLIC\".\"TEST\" " +
                     "FOR EACH ROW NOWAIT CALL \"" + getClass().getName() + "\";",
-                "CREATE FORCE TRIGGER PUBLIC.UPD_BEFORE " +
-                    "BEFORE UPDATE ON PUBLIC.TEST " +
+                "CREATE FORCE TRIGGER \"PUBLIC\".\"UPD_BEFORE\" " +
+                    "BEFORE UPDATE ON \"PUBLIC\".\"TEST\" " +
                     "FOR EACH ROW NOWAIT CALL \"" + getClass().getName() + "\";",
-                "CREATE FORCE TRIGGER PUBLIC.INS_AFTER_ROLLBACK " +
-                    "AFTER INSERT, ROLLBACK ON PUBLIC.TEST " +
+                "CREATE FORCE TRIGGER \"PUBLIC\".\"INS_AFTER_ROLLBACK\" " +
+                    "AFTER INSERT, ROLLBACK ON \"PUBLIC\".\"TEST\" " +
                     "FOR EACH ROW NOWAIT CALL \"" + getClass().getName() + "\";",
                         });
         while (rs.next()) {

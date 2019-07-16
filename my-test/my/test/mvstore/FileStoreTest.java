@@ -104,7 +104,7 @@ public class FileStoreTest extends TestBase {
         p(fp.toRealPath());
 
         try {
-            p(fp.createTempFile(".my", true, false));
+            p(fp.createTempFile(".my", true));
         } catch (IOException e) {
             e.printStackTrace();
         }

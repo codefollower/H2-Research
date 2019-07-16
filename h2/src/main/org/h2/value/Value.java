@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -11,27 +11,27 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.lang.ref.SoftReference;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.sql.Types;
 import org.h2.api.ErrorCode;
 import org.h2.api.IntervalQualifier;
 import org.h2.engine.Mode;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
+import org.h2.result.ResultInterface;
+import org.h2.result.SimpleResult;
 import org.h2.store.DataHandler;
-import org.h2.tools.SimpleResultSet;
 import org.h2.util.Bits;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.IntervalUtils;
 import org.h2.util.JdbcUtils;
-import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
+import org.h2.util.geometry.GeoJsonUtils;
 
 /**
  * This is the base class for all value classes.
@@ -41,7 +41,7 @@ import org.h2.util.StringUtils;
  * @author Noel Grandin
  * @author Nicolas Fortin, Atelier SIG, IRSTV FR CNRS 24888
  */
-public abstract class Value {
+public abstract class Value extends VersionedValue {
 
     /**
      * The data type is unknown at this time.
@@ -142,6 +142,7 @@ public abstract class Value {
      * The value type for RESULT_SET values.
      */
     public static final int RESULT_SET = 18;
+
     /**
      * The value type for JAVA_OBJECT values.
      */
@@ -242,19 +243,28 @@ public abstract class Value {
     public static final int INTERVAL_MINUTE_TO_SECOND = 38;
 
     /**
+     * The value type for ROW values.
+     */
+    public static final int ROW = 39;
+
+    /**
+     * The value type for JSON values.
+     */
+    public static final int JSON = 40;
+
+    /**
      * The number of value types.
      */
-    public static final int TYPE_COUNT = INTERVAL_MINUTE_TO_SECOND + 1;
+    public static final int TYPE_COUNT = JSON + 1;
 
     private static SoftReference<Value[]> softCache;
-    private static final BigDecimal MAX_LONG_DECIMAL =
-            BigDecimal.valueOf(Long.MAX_VALUE);
+
+    private static final BigDecimal MAX_LONG_DECIMAL = BigDecimal.valueOf(Long.MAX_VALUE);
 
     /**
      * The smallest Long value, as a BigDecimal.
      */
-    public static final BigDecimal MIN_LONG_DECIMAL =
-            BigDecimal.valueOf(Long.MIN_VALUE);
+    public static final BigDecimal MIN_LONG_DECIMAL = BigDecimal.valueOf(Long.MIN_VALUE);
 
     /**
      * Check the range of the parameters.
@@ -277,28 +287,32 @@ public abstract class Value {
      *
      * @return the SQL expression
      */
-    public abstract String getSQL();
+    public String getSQL() {
+        return getSQL(new StringBuilder()).toString();
+    }
+
+    /**
+     * Appends the SQL expression for this value to the specified builder.
+     *
+     * @param builder
+     *            string builder
+     * @return the specified string builder
+     */
+    public abstract StringBuilder getSQL(StringBuilder builder);
+
+    /**
+     * Returns the data type.
+     *
+     * @return the data type
+     */
+    public abstract TypeInfo getType();
 
     /**
      * Get the value type.
      *
-     * @return the type
+     * @return the value type
      */
-    public abstract int getType();
-
-    /**
-     * Get the precision.
-     *
-     * @return the precision
-     */
-    public abstract long getPrecision();
-
-    /**
-     * Get the display size in characters.
-     *
-     * @return the display size
-     */
-    public abstract int getDisplaySize();
+    public abstract int getValueType();
 
     /**
      * Get the memory used by this object.
@@ -306,7 +320,11 @@ public abstract class Value {
      * @return the memory used in bytes
      */
     public int getMemory() {
-        return DataType.getDataType(getType()).memory;
+        /*
+         * Java 11 with -XX:-UseCompressedOops for all values up to ValueLong
+         * and ValueDouble.
+         */
+        return 24;
     }
 
     /**
@@ -428,11 +446,15 @@ public abstract class Value {
             return 43_000;
         case GEOMETRY:
             return 44_000;
+        case ENUM:
+            return 45_000;
+        case JSON:
+            return 46_000;
         case ARRAY:
             return 50_000;
-        case RESULT_SET:
+        case ROW:
             return 51_000;
-        case ENUM:
+        case RESULT_SET:
             return 52_000;
         default:
             if (JdbcUtils.customDataTypesHandler != null) {
@@ -454,14 +476,11 @@ public abstract class Value {
     public static int getHigherOrder(int t1, int t2) {
         if (t1 == Value.UNKNOWN || t2 == Value.UNKNOWN) {
             if (t1 == t2) {
-                throw DbException.get(
-                        ErrorCode.UNKNOWN_DATA_TYPE_1, "?, ?");
+                throw DbException.get(ErrorCode.UNKNOWN_DATA_TYPE_1, "?, ?");
             } else if (t1 == Value.NULL) {
-                throw DbException.get(
-                        ErrorCode.UNKNOWN_DATA_TYPE_1, "NULL, ?");
+                throw DbException.get(ErrorCode.UNKNOWN_DATA_TYPE_1, "NULL, ?");
             } else if (t2 == Value.NULL) {
-                throw DbException.get(
-                        ErrorCode.UNKNOWN_DATA_TYPE_1, "?, NULL");
+                throw DbException.get(ErrorCode.UNKNOWN_DATA_TYPE_1, "?, NULL");
             }
         }
         if (t1 == t2) {
@@ -470,6 +489,25 @@ public abstract class Value {
         int o1 = getOrder(t1);
         int o2 = getOrder(t2);
         return o1 > o2 ? t1 : t2;
+    }
+
+    /**
+     * Get the higher data type of two data types. If values need to be
+     * converted to match the other operands data type, the value with the
+     * lower order is converted to the value with the higher order.
+     *
+     * @param type1 the first data type
+     * @param type2 the second data type
+     * @return the higher data type of the two
+     */
+    public static TypeInfo getHigherType(TypeInfo type1, TypeInfo type2) {
+        int t1 = type1.getValueType(), t2 = type2.getValueType();
+        int dataType = getHigherOrder(t1, t2);
+        long precision = Math.max(type1.getPrecision(), type2.getPrecision());
+        int scale = Math.max(type1.getScale(), type2.getScale());
+        ExtTypeInfo ext1 = type1.getExtTypeInfo();
+        ExtTypeInfo ext = dataType == t1 && ext1 != null ? ext1 : dataType == t2 ? type2.getExtTypeInfo() : null;
+        return TypeInfo.getTypeInfo(dataType, precision, scale, ext);
     }
 
     /**
@@ -491,7 +529,7 @@ public abstract class Value {
             int index = hash & (SysProperties.OBJECT_CACHE_SIZE - 1);
             Value cached = cache[index];
             if (cached != null) {
-                if (cached.getType() == v.getType() && v.equals(cached)) {
+                if (cached.getValueType() == v.getValueType() && v.equals(cached)) {
                     // cacheHit++;
                     return cached;
                 }
@@ -671,9 +709,7 @@ public abstract class Value {
      * @return the converted value
      */
     public final Value convertTo(int targetType) {
-        // Use -1 to indicate "default behaviour" where value conversion should not
-        // depend on any datatype precision.
-        return convertTo(targetType, null);
+        return convertTo(targetType, null, null, null);
     }
 
     /**
@@ -681,39 +717,49 @@ public abstract class Value {
      * @param enumerators the extended type information for the ENUM data type
      * @return value represented as ENUM
      */
-    public final Value convertToEnum(ExtTypeInfo enumerators) {
-        // Use -1 to indicate "default behaviour" where value conversion should not
-        // depend on any datatype precision.
-        return convertTo(ENUM, -1, null, null, enumerators);
+    private Value convertToEnum(ExtTypeInfo enumerators) {
+        return convertTo(ENUM, null, null, enumerators);
     }
 
     /**
-     * Compare a value to the specified type.
+     * Convert a value to the specified type.
      *
      * @param targetType the type of the returned value
      * @param mode the mode
      * @return the converted value
      */
     public final Value convertTo(int targetType, Mode mode) {
-        return convertTo(targetType, -1, mode, null, null);
+        return convertTo(targetType, mode, null, null);
     }
 
     /**
-     * Compare a value to the specified type.
+     * Convert a value to the specified type.
      *
      * @param targetType the type of the returned value
-     * @param precision the precision of the column to convert this value to.
-     *        The special constant <code>-1</code> is used to indicate that
-     *        the precision plays no role when converting the value
+     * @param mode the conversion mode
+     * @param column the column (if any), used for to improve the error message if conversion fails
+     * @return the converted value
+     */
+    public final Value convertTo(TypeInfo targetType, Mode mode, Object column) {
+        return convertTo(targetType.getValueType(), mode, column, targetType.getExtTypeInfo());
+    }
+
+    /**
+     * Convert a value to the specified type.
+     *
+     * @param targetType the type of the returned value
      * @param mode the conversion mode
      * @param column the column (if any), used for to improve the error message if conversion fails
      * @param extTypeInfo the extended data type information, or null
      * @return the converted value
      */
-    public Value convertTo(int targetType, int precision, Mode mode, Object column, ExtTypeInfo extTypeInfo) {
+    protected Value convertTo(int targetType, Mode mode, Object column, ExtTypeInfo extTypeInfo) {
         // converting NULL is done in ValueNull
         // converting BLOB to CLOB and vice versa is done in ValueLob
-        if (getType() == targetType) {
+        if (getValueType() == targetType) {
+            if (extTypeInfo != null) {
+                return extTypeInfo.cast(this);
+            }
             return this;
         }
         try {
@@ -751,7 +797,7 @@ public abstract class Value {
             case STRING_IGNORECASE:
                 return convertToStringIgnoreCase(mode);
             case STRING_FIXED:
-                return convertToStringFixed(precision, mode);
+                return convertToStringFixed(mode);
             case JAVA_OBJECT:
                 return convertToJavaObject();
             case ENUM:
@@ -779,8 +825,12 @@ public abstract class Value {
             case Value.INTERVAL_HOUR_TO_SECOND:
             case Value.INTERVAL_MINUTE_TO_SECOND:
                 return convertToIntervalDayTime(targetType);
+            case Value.JSON:
+                return convertToJson();
             case ARRAY:
                 return convertToArray();
+            case ROW:
+                return convertToRow();
             case RESULT_SET:
                 return convertToResultSet();
             default:
@@ -795,7 +845,7 @@ public abstract class Value {
     }
 
     private ValueBoolean convertToBoolean() {
-        switch (getType()) {
+        switch (getValueType()) {
         case BYTE:
         case SHORT:
         case INT:
@@ -828,7 +878,7 @@ public abstract class Value {
     }
 
     private ValueByte convertToByte(Object column) {
-        switch (getType()) {
+        switch (getValueType()) {
         case BOOLEAN:
             return ValueByte.get(getBoolean() ? (byte) 1 : (byte) 0);
         case SHORT:
@@ -852,7 +902,7 @@ public abstract class Value {
     }
 
     private ValueShort convertToShort(Object column) {
-        switch (getType()) {
+        switch (getValueType()) {
         case BOOLEAN:
             return ValueShort.get(getBoolean() ? (short) 1 : (short) 0);
         case BYTE:
@@ -877,7 +927,7 @@ public abstract class Value {
     }
 
     private ValueInt convertToInt(Object column) {
-        switch (getType()) {
+        switch (getValueType()) {
         case BOOLEAN:
             return ValueInt.get(getBoolean() ? 1 : 0);
         case BYTE:
@@ -901,7 +951,7 @@ public abstract class Value {
     }
 
     private ValueLong convertToLong(Object column) {
-        switch (getType()) {
+        switch (getValueType()) {
         case BOOLEAN:
             return ValueLong.get(getBoolean() ? 1 : 0);
         case BYTE:
@@ -930,7 +980,7 @@ public abstract class Value {
     }
 
     private ValueDecimal convertToDecimal() {
-        switch (getType()) {
+        switch (getValueType()) {
         case BOOLEAN:
             return (ValueDecimal) (getBoolean() ? ValueDecimal.ONE : ValueDecimal.ZERO);
         case BYTE:
@@ -940,21 +990,9 @@ public abstract class Value {
             return ValueDecimal.get(BigDecimal.valueOf(getInt()));
         case LONG:
             return ValueDecimal.get(BigDecimal.valueOf(getLong()));
-        case DOUBLE: {
-            double d = getDouble();
-            if (Double.isInfinite(d) || Double.isNaN(d)) {
-                throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, Double.toString(d));
-            }
-            return ValueDecimal.get(BigDecimal.valueOf(d));
-        }
-        case FLOAT: {
-            float f = getFloat();
-            if (Float.isInfinite(f) || Float.isNaN(f)) {
-                throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, Float.toString(f));
-            }
-            // better rounding behavior than BigDecimal.valueOf(f)
-            return ValueDecimal.get(new BigDecimal(Float.toString(f)));
-        }
+        case DOUBLE:
+        case FLOAT:
+            return ValueDecimal.get(getBigDecimal());
         case TIMESTAMP_TZ:
             throw getDataConversionError(DECIMAL);
         }
@@ -962,7 +1000,7 @@ public abstract class Value {
     }
 
     private ValueDouble convertToDouble() {
-        switch (getType()) {
+        switch (getValueType()) {
         case BOOLEAN:
             return getBoolean() ? ValueDouble.ONE : ValueDouble.ZERO;
         case BYTE:
@@ -983,7 +1021,7 @@ public abstract class Value {
     }
 
     private ValueFloat convertToFloat() {
-        switch (getType()) {
+        switch (getValueType()) {
         case BOOLEAN:
             return getBoolean() ? ValueFloat.ONE : ValueFloat.ZERO;
         case BYTE:
@@ -1004,7 +1042,7 @@ public abstract class Value {
     }
 
     private ValueDate convertToDate() {
-        switch (getType()) {
+        switch (getValueType()) {
         case TIME:
             // because the time has set the date to 1970-01-01,
             // this will be the result
@@ -1024,7 +1062,7 @@ public abstract class Value {
     }
 
     private ValueTime convertToTime() {
-        switch (getType()) {
+        switch (getValueType()) {
         case DATE:
             // need to normalize the year, month and day because a date
             // has the time set to 0, the result will be 0
@@ -1035,7 +1073,9 @@ public abstract class Value {
             ValueTimestampTimeZone ts = (ValueTimestampTimeZone) this;
             long dateValue = ts.getDateValue(), timeNanos = ts.getTimeNanos();
             long millis = DateTimeUtils.getMillis(dateValue, timeNanos, ts.getTimeZoneOffsetMins());
-            return ValueTime.fromNanos(DateTimeUtils.nanosFromDate(millis) + timeNanos % 1_000_000);
+            return ValueTime.fromNanos(
+                    DateTimeUtils.nanosFromLocalMillis(millis + DateTimeUtils.getTimeZoneOffset(millis))
+                            + timeNanos % 1_000_000);
         }
         case ENUM:
             throw getDataConversionError(TIME);
@@ -1044,7 +1084,7 @@ public abstract class Value {
     }
 
     private ValueTimestamp convertToTimestamp(Mode mode) {
-        switch (getType()) {
+        switch (getValueType()) {
         case TIME:
             return DateTimeUtils.normalizeTimestamp(0, ((ValueTime) this).getNanos());
         case DATE:
@@ -1062,7 +1102,7 @@ public abstract class Value {
     }
 
     private ValueTimestampTimeZone convertToTimestampTimeZone() {
-        switch (getType()) {
+        switch (getValueType()) {
         case TIME: {
             ValueTimestamp ts = DateTimeUtils.normalizeTimestamp(0, ((ValueTime) this).getNanos());
             return DateTimeUtils.timestampTimeZoneFromLocalDateValueAndNanos(ts.getDateValue(), ts.getTimeNanos());
@@ -1080,12 +1120,13 @@ public abstract class Value {
     }
 
     private ValueBytes convertToBytes(Mode mode) {
-        switch (getType()) {
+        switch (getValueType()) {
         case JAVA_OBJECT:
         case BLOB:
+        case GEOMETRY:
+        case JSON:
             return ValueBytes.getNoCopy(getBytesNoCopy());
         case UUID:
-        case GEOMETRY:
             return ValueBytes.getNoCopy(getBytes());
         case BYTE:
             return ValueBytes.getNoCopy(new byte[] { getByte() });
@@ -1114,7 +1155,7 @@ public abstract class Value {
 
     private ValueString convertToString(Mode mode) {
         String s;
-        if (getType() == BYTES && mode != null && mode.charToBinaryInUtf8) {
+        if (getValueType() == BYTES && mode != null && mode.charToBinaryInUtf8) {
             // Bugfix - Can't use the locale encoding when enabling
             // charToBinaryInUtf8 in mode.
             // The following two target types also are the same issue.
@@ -1128,7 +1169,7 @@ public abstract class Value {
 
     private ValueString convertToStringIgnoreCase(Mode mode) {
         String s;
-        if (getType() == BYTES && mode != null && mode.charToBinaryInUtf8) {
+        if (getValueType() == BYTES && mode != null && mode.charToBinaryInUtf8) {
             s = new String(getBytesNoCopy(), StandardCharsets.UTF_8);
         } else {
             s = getString();
@@ -1136,21 +1177,23 @@ public abstract class Value {
         return ValueStringIgnoreCase.get(s);
     }
 
-    private ValueString convertToStringFixed(int precision, Mode mode) {
+    private ValueString convertToStringFixed(Mode mode) {
         String s;
-        if (getType() == BYTES && mode != null && mode.charToBinaryInUtf8) {
+        if (getValueType() == BYTES && mode != null && mode.charToBinaryInUtf8) {
             s = new String(getBytesNoCopy(), StandardCharsets.UTF_8);
         } else {
             s = getString();
         }
-        return ValueStringFixed.get(s, precision, mode);
+        return ValueStringFixed.get(s);
     }
 
     private ValueJavaObject convertToJavaObject() {
-        switch (getType()) {
+        switch (getValueType()) {
         case BYTES:
         case BLOB:
             return ValueJavaObject.getNoCopy(null, getBytesNoCopy(), getDataHandler());
+        case GEOMETRY:
+            return ValueJavaObject.getNoCopy(getObject(), null, getDataHandler());
         case ENUM:
         case TIMESTAMP_TZ:
             throw getDataConversionError(JAVA_OBJECT);
@@ -1159,7 +1202,7 @@ public abstract class Value {
     }
 
     private ValueEnum convertToEnumInternal(ExtTypeInfoEnum extTypeInfo) {
-        switch (getType()) {
+        switch (getValueType()) {
         case BYTE:
         case SHORT:
         case INT:
@@ -1183,9 +1226,13 @@ public abstract class Value {
     }
 
     private ValueLobDb convertToBlob() {
-        switch (getType()) {
+        switch (getValueType()) {
         case BYTES:
+        case GEOMETRY:
+        case JSON:
             return ValueLobDb.createSmallLob(Value.BLOB, getBytesNoCopy());
+        case UUID:
+            return ValueLobDb.createSmallLob(Value.BLOB, getBytes());
         case TIMESTAMP_TZ:
             throw getDataConversionError(BLOB);
         }
@@ -1197,7 +1244,7 @@ public abstract class Value {
     }
 
     private ValueUuid convertToUuid() {
-        switch (getType()) {
+        switch (getValueType()) {
         case BYTES:
             return ValueUuid.get(getBytesNoCopy());
         case JAVA_OBJECT:
@@ -1214,7 +1261,7 @@ public abstract class Value {
 
     private Value convertToGeometry(ExtTypeInfoGeometry extTypeInfo) {
         ValueGeometry result;
-        switch (getType()) {
+        switch (getValueType()) {
         case BYTES:
             result = ValueGeometry.getFromEWKB(getBytesNoCopy());
             break;
@@ -1227,6 +1274,21 @@ public abstract class Value {
             //$FALL-THROUGH$
         case TIMESTAMP_TZ:
             throw getDataConversionError(GEOMETRY);
+        case JSON: {
+            int srid = 0;
+            if (extTypeInfo != null) {
+                Integer s = extTypeInfo.getSrid();
+                if (s != null) {
+                    srid = s;
+                }
+            }
+            try {
+                result = ValueGeometry.get(GeoJsonUtils.geoJsonToEwkb(getBytesNoCopy(), srid));
+            } catch (RuntimeException ex) {
+                throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, getTraceSQL());
+            }
+            break;
+        }
         default:
             result = ValueGeometry.get(getString());
         }
@@ -1234,7 +1296,7 @@ public abstract class Value {
     }
 
     private ValueInterval convertToIntervalYearMonth(int targetType) {
-        switch (getType()) {
+        switch (getValueType()) {
         case Value.STRING:
         case Value.STRING_IGNORECASE:
         case Value.STRING_FIXED: {
@@ -1257,7 +1319,7 @@ public abstract class Value {
     }
 
     private ValueInterval convertToIntervalDayTime(int targetType) {
-        switch (getType()) {
+        switch (getValueType()) {
         case Value.STRING:
         case Value.STRING_IGNORECASE:
         case Value.STRING_FIXED: {
@@ -1286,23 +1348,99 @@ public abstract class Value {
         throw getDataConversionError(targetType);
     }
 
+    private ValueJson convertToJson() {
+        switch (getValueType()) {
+        case BOOLEAN:
+            return ValueJson.get(getBoolean());
+        case BYTE:
+        case SHORT:
+        case INT:
+            return ValueJson.get(getInt());
+        case LONG:
+            return ValueJson.get(getLong());
+        case FLOAT:
+        case DOUBLE:
+        case DECIMAL:
+            return ValueJson.get(getBigDecimal());
+        case BYTES:
+        case BLOB:
+            return ValueJson.fromJson(getBytesNoCopy());
+        case STRING:
+        case STRING_IGNORECASE:
+        case STRING_FIXED:
+        case CLOB:
+            return ValueJson.get(getString());
+        case GEOMETRY: {
+            ValueGeometry vg = (ValueGeometry) this;
+            return ValueJson.getInternal(GeoJsonUtils.ewkbToGeoJson(vg.getBytesNoCopy(), vg.getDimensionSystem()));
+        }
+        default:
+            throw getDataConversionError(Value.JSON);
+        }
+    }
+
     private ValueArray convertToArray() {
-        return ValueArray.get(new Value[] { ValueString.get(getString()) });
+        Value[] a;
+        switch (getValueType()) {
+        case ROW:
+            a = ((ValueRow) this).getList();
+            break;
+        case BLOB:
+        case CLOB:
+        case RESULT_SET:
+            a = new Value[] { ValueString.get(getString()) };
+            break;
+        default:
+            a = new Value[] { this };
+        }
+        return ValueArray.get(a);
+    }
+
+    private Value convertToRow() {
+        Value[] a;
+        if (getValueType() == RESULT_SET) {
+            ResultInterface result = ((ValueResultSet) this).getResult();
+            if (result.hasNext()) {
+                a = result.currentRow();
+                if (result.hasNext()) {
+                    throw DbException.get(ErrorCode.SCALAR_SUBQUERY_CONTAINS_MORE_THAN_ONE_ROW);
+                }
+            } else {
+                return ValueNull.INSTANCE;
+            }
+        } else {
+            a = new Value[] { this };
+        }
+        return ValueRow.get(a);
     }
 
     private ValueResultSet convertToResultSet() {
-        String s = getString();
-        SimpleResultSet rs = new SimpleResultSet();
-        rs.setAutoClose(false);
-        rs.addColumn("X", Types.VARCHAR, s.length(), 0);
-        rs.addRow(s);
-        return ValueResultSet.get(rs);
+        SimpleResult result = new SimpleResult();
+        if (getValueType() == ROW) {
+            Value[] values = ((ValueRow) this).getList();
+            for (int i = 0; i < values.length;) {
+                Value v = values[i++];
+                String columnName = "C" + i;
+                result.addColumn(columnName, columnName, v.getType());
+            }
+            result.addRow(values);
+        } else {
+            result.addColumn("X", "X", getType());
+            result.addRow(this);
+        }
+        return ValueResultSet.get(result);
     }
 
-    private DbException getDataConversionError(int targetType) {
-        DataType from = DataType.getDataType(getType());
+    /**
+     * Creates new instance of the DbException for data conversion error.
+     *
+     * @param targetType Target data type.
+     * @return instance of the DbException.
+     */
+    DbException getDataConversionError(int targetType) {
+        DataType from = DataType.getDataType(getValueType());
         DataType to = DataType.getDataType(targetType);
-        throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, (from != null ? from.name : "type=" + getType())
+        throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, (from != null ? from.name : "type=" + getValueType())
                 + " to " + (to != null ? to.name : "type=" + targetType));
     }
 
@@ -1324,7 +1462,7 @@ public abstract class Value {
      * @param v the other value
      * @param databaseMode the database mode
      * @param compareMode the compare mode
-     * @return 0 if both values are equal, -1 if the other value is smaller, and
+     * @return 0 if both values are equal, -1 if this value is smaller, and
      *         1 otherwise
      */
     public final int compareTo(Value v, Mode databaseMode, CompareMode compareMode) {
@@ -1332,13 +1470,13 @@ public abstract class Value {
             return 0;
         }
         if (this == ValueNull.INSTANCE) {
-            return v == ValueNull.INSTANCE ? 0 : -1;
+            return -1;
         } else if (v == ValueNull.INSTANCE) {
             return 1;
         }
         Value l = this;
-        int leftType = l.getType();
-        int rightType = v.getType();
+        int leftType = l.getValueType();
+        int rightType = v.getValueType();
         if (leftType != rightType || leftType == Value.ENUM) {
             int dataType = Value.getHigherOrder(leftType, rightType);
             if (dataType == Value.ENUM) {
@@ -1353,9 +1491,51 @@ public abstract class Value {
         return l.compareTypeSafe(v, compareMode);
     }
 
-    public int getScale() {
-    	//ValueDecimal、ValueDouble、ValueFloat、ValueTimestamp覆盖了，但是ValueDouble、ValueFloat还是返回0
-        return 0;
+//<<<<<<< HEAD
+//    public int getScale() {
+//    	//ValueDecimal、ValueDouble、ValueFloat、ValueTimestamp覆盖了，但是ValueDouble、ValueFloat还是返回0
+//        return 0;
+//=======
+    /**
+     * Compare this value against another value using the specified compare
+     * mode.
+     *
+     * @param v the other value
+     * @param forEquality perform only check for equality
+     * @param databaseMode the database mode
+     * @param compareMode the compare mode
+     * @return 0 if both values are equal, -1 if this value is smaller, 1
+     *         if other value is larger, {@link Integer#MIN_VALUE} if order is
+     *         not defined due to NULL comparison
+     */
+    public int compareWithNull(Value v, boolean forEquality, Mode databaseMode, CompareMode compareMode) {
+        if (this == ValueNull.INSTANCE || v == ValueNull.INSTANCE) {
+            return Integer.MIN_VALUE;
+        }
+        Value l = this;
+        int leftType = l.getValueType();
+        int rightType = v.getValueType();
+        if (leftType != rightType || leftType == Value.ENUM) {
+            int dataType = Value.getHigherOrder(leftType, rightType);
+            if (dataType == Value.ENUM) {
+                ExtTypeInfoEnum enumerators = ExtTypeInfoEnum.getEnumeratorsForBinaryOperation(l, v);
+                l = l.convertToEnum(enumerators);
+                v = v.convertToEnum(enumerators);
+            } else {
+                l = l.convertTo(dataType, databaseMode);
+                v = v.convertTo(dataType, databaseMode);
+            }
+        }
+        return l.compareTypeSafe(v, compareMode);
+    }
+
+    /**
+     * Returns true if this value is NULL or contains NULL value.
+     *
+     * @return true if this value is NULL or contains NULL value
+     */
+    public boolean containsNull() {
+        return false;
     }
 
     /**
@@ -1376,11 +1556,10 @@ public abstract class Value {
      * a fixed precision are not truncated.
      *
      * @param precision the new precision
-     * @param force true if losing numeric precision is allowed
      * @return the new value
      */
-    
-    public Value convertPrecision(long precision, boolean force) {
+    @SuppressWarnings("unused")
+    public Value convertPrecision(long precision) {
         return this;
     }
 
@@ -1400,7 +1579,14 @@ public abstract class Value {
         return (short) x;
     }
 
-    private static int convertToInt(long x, Object column) {
+    /**
+     * Convert to integer, throwing exception if out of range.
+     *
+     * @param x integer value.
+     * @param column Column info.
+     * @return x
+     */
+    public static int convertToInt(long x, Object column) {
         if (x > Integer.MAX_VALUE || x < Integer.MIN_VALUE) {
             throw DbException.get(
                     ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, Long.toString(x), getColumnName(column));
@@ -1424,7 +1610,7 @@ public abstract class Value {
             throw DbException.get(
                     ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_2, x.toString(), getColumnName(column));
         }
-        return x.setScale(0, BigDecimal.ROUND_HALF_UP).longValue();
+        return x.setScale(0, RoundingMode.HALF_UP).longValue();
     }
 
     private static String getColumnName(Object column) {
@@ -1469,7 +1655,7 @@ public abstract class Value {
      *         given precision
      */
     public boolean checkPrecision(long precision) {
-        return getPrecision() <= precision;
+        return getType().getPrecision() <= precision;
     }
 
     /**
@@ -1479,7 +1665,7 @@ public abstract class Value {
      * @return the SQL expression
      */
     public String getTraceSQL() {
-        return getSQL();
+        return getSQL(new StringBuilder()).toString();
     }
 
     @Override
@@ -1496,7 +1682,7 @@ public abstract class Value {
      */
     protected final DbException getUnsupportedExceptionForOperation(String op) {
         return DbException.getUnsupportedException(
-                DataType.getDataType(getType()).name + " " + op);
+                DataType.getDataType(getValueType()).name + " " + op);
     }
 
     /**
@@ -1536,12 +1722,16 @@ public abstract class Value {
         return this;
     }
 
-    public ResultSet getResultSet() {
-        SimpleResultSet rs = new SimpleResultSet();
-        rs.setAutoClose(false);
-        rs.addColumn("X", DataType.convertTypeToSQLType(getType()),
-                MathUtils.convertLongToInt(getPrecision()), getScale());
-        rs.addRow(getObject());
+    /**
+     * Returns result for result set value, or single-row result with this value
+     * in column X for other values.
+     *
+     * @return result
+     */
+    public ResultInterface getResult() {
+        SimpleResult rs = new SimpleResult();
+        rs.addColumn("X", "X", getType());
+        rs.addRow(this);
         return rs;
     }
 

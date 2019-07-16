@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbc;
@@ -44,8 +44,8 @@ public class JdbcClob extends JdbcLob implements NClob {
         try {
             debugCodeCall("length");
             checkReadable();
-            if (value.getType() == Value.CLOB) {
-                long precision = value.getPrecision();
+            if (value.getValueType() == Value.CLOB) {
+                long precision = value.getType().getPrecision();
                 if (precision > 0) {
                     return precision;
                 }
@@ -206,7 +206,7 @@ public class JdbcClob extends JdbcLob implements NClob {
                 throw DbException.getInvalidValueException("str", str);
             }
             completeWrite(conn.createClob(new RangeReader(new StringReader(str), offset, len), -1));
-            return (int) value.getPrecision();
+            return (int) value.getType().getPrecision();
         } catch (Exception e) {
             throw logAndConvert(e);
         }

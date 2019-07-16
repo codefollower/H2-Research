@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
@@ -12,6 +12,7 @@ import org.h2.command.dml.SelectGroups;
 import org.h2.command.dml.SelectListColumnResolver;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
+import org.h2.expression.condition.Comparison;
 import org.h2.index.IndexCondition;
 import org.h2.message.DbException;
 import org.h2.schema.Constant;
@@ -21,6 +22,7 @@ import org.h2.table.ColumnResolver;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
 import org.h2.value.ExtTypeInfo;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueNull;
@@ -33,7 +35,8 @@ public class ExpressionColumn extends Expression {
     private final Database database;
     private final String schemaName;
     private final String tableAlias;
-    private final String columnName;
+    private String columnName;
+    private final boolean rowId;
     private ColumnResolver columnResolver;
     private int queryLevel;
     private Column column;
@@ -50,37 +53,42 @@ public class ExpressionColumn extends Expression {
         this.schemaName = null;
         this.tableAlias = null;
         this.columnName = null;
+        this.rowId = column.isRowId();
     }
     
     //对于SELECT public.t.id FROM ExpressionColumnTest as t
     //schemaName = public
     //tableAlias = t
     //columnName = id
-    public ExpressionColumn(Database database, String schemaName, String tableAlias, String columnName) {
+    public ExpressionColumn(Database database, String schemaName,
+            String tableAlias, String columnName, boolean rowId) {
         this.database = database;
         this.schemaName = schemaName;
         this.tableAlias = tableAlias;
         this.columnName = columnName;
+        this.rowId = rowId;
     }
 
     @Override
-    public String getSQL() {
-        String sql;
-        boolean quote = database.getSettings().databaseToUpper;
-        if (column != null) {
-            sql = column.getSQL();
-        } else {
-            sql = quote ? Parser.quoteIdentifier(columnName) : columnName;
+    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+        if (schemaName != null) {
+            Parser.quoteIdentifier(builder, schemaName, alwaysQuote).append('.');
         }
         if (tableAlias != null) {
-            String a = quote ? Parser.quoteIdentifier(tableAlias) : tableAlias;
-            sql = a + "." + sql;
+            Parser.quoteIdentifier(builder, tableAlias, alwaysQuote).append('.');
         }
-        if (schemaName != null) {
-            String s = quote ? Parser.quoteIdentifier(schemaName) : schemaName;
-            sql = s + "." + sql;
+        if (column != null) {
+            if (columnResolver != null && columnResolver.hasDerivedColumnList()) {
+                Parser.quoteIdentifier(builder, columnName, alwaysQuote);
+            } else {
+                column.getSQL(builder, alwaysQuote);
+            }
+        } else if (rowId) {
+            builder.append(columnName);
+        } else {
+            Parser.quoteIdentifier(builder, columnName, alwaysQuote);
         }
-        return sql;
+        return builder;
     }
 
     public TableFilter getTableFilter() {
@@ -103,20 +111,20 @@ public class ExpressionColumn extends Expression {
                 schemaName, resolver.getSchemaName())) {
             return;
         }
-        for (Column col : resolver.getColumns()) {
-            String n = resolver.getDerivedColumnName(col);
-            if (n == null) {
-                n = col.getName();
-            }
-            if (database.equalsIdentifiers(columnName, n)) {
-                mapColumn(resolver, col, level);
-                return;
-            }
-        }
-        if (database.equalsIdentifiers(Column.ROWID, columnName)) {
+        if (rowId) {
             Column col = resolver.getRowIdColumn();
             if (col != null) {
                 mapColumn(resolver, col, level);
+            }
+            return;
+        }
+        for (Column col : resolver.getColumns()) {
+            String n = resolver.getColumnName(col);
+            if (database.equalsIdentifiers(columnName, n)) {
+                mapColumn(resolver, col, level);
+                if (resolver.hasDerivedColumnList()) {
+                    columnName = n;
+                }
                 return;
             }
         }
@@ -158,31 +166,49 @@ public class ExpressionColumn extends Expression {
                     return constant.getValue(); //对于常量字段的优化是直接返回ValueExpression
                 }
             }
-            //我加上的
-//            if (select != null) {
-//                for (Expression e : select.getExpressions()) {
-//                    if (database.equalsIdentifiers(columnName, e.getAlias()))
-//                        return e.getNonAliasExpression().optimize(session);
+//<<<<<<< HEAD
+//            //我加上的
+////            if (select != null) {
+////                for (Expression e : select.getExpressions()) {
+////                    if (database.equalsIdentifiers(columnName, e.getAlias()))
+////                        return e.getNonAliasExpression().optimize(session);
+////                }
+////            }
+//            String name = columnName;
+//            if (tableAlias != null) {
+//                name = tableAlias + "." + name;
+//                if (schemaName != null) {
+//                    name = schemaName + "." + name;
 //                }
 //            }
-            String name = columnName;
-            if (tableAlias != null) {
-                name = tableAlias + "." + name;
-                if (schemaName != null) {
-                    name = schemaName + "." + name;
-                }
-            }
-            throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, name);
+//            throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, name);
+//=======
+            throw getColumnException(ErrorCode.COLUMN_NOT_FOUND_1);
         }
         return columnResolver.optimize(this, column);
     }
 
+    /**
+     * Get exception to throw, with column and table info added
+     * @param code SQL error code
+     * @return DbException
+     */
+    public DbException getColumnException(int code) {
+        String name = columnName;
+        if (tableAlias != null) {
+            name = tableAlias + '.' + name;
+            if (schemaName != null) {
+                name = schemaName + '.' + name;
+            }
+        }
+        return DbException.get(code, name);
+    }
+
     @Override
     public void updateAggregate(Session session, int stage) {
-        Value now = columnResolver.getValue(column);
         Select select = columnResolver.getSelect();
         if (select == null) {
-            throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
+            throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
         }
         SelectGroups groupData = select.getGroupDataIfCurrent(false);
         if (groupData == null) {
@@ -192,16 +218,23 @@ public class ExpressionColumn extends Expression {
         Value v = (Value) groupData.getCurrentGroupExprData(this);
         if (v == null) {
 //<<<<<<< HEAD
-//            values.put(this, now); //如果不是非group by字段，则只保留第一次出现的值
+////<<<<<<< HEAD
+////            values.put(this, now); //如果不是非group by字段，则只保留第一次出现的值
+////=======
+//            groupData.setCurrentGroupExprData(this, now);
+//        } else {
+//            // 如果不注释掉，这样的SQL会出错
+//            // SELECT id/3 AS A, COUNT(*) FROM mytable GROUP BY A HAVING A>=0
+//            
+//            // if (!database.areEqual(now, v)) {
+//            // throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
+//            // }
 //=======
-            groupData.setCurrentGroupExprData(this, now);
-        } else {
-            // 如果不注释掉，这样的SQL会出错
-            // SELECT id/3 AS A, COUNT(*) FROM mytable GROUP BY A HAVING A>=0
-            
-            // if (!database.areEqual(now, v)) {
-            // throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
-            // }
+            groupData.setCurrentGroupExprData(this, columnResolver.getValue(column));
+        } else if (!select.isGroupWindowStage2()) {
+            if (!database.areEqual(columnResolver.getValue(column), v)) {
+                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
+            }
         }
     }
 
@@ -216,20 +249,23 @@ public class ExpressionColumn extends Expression {
                     return v;
                 }
                 if (select.isGroupWindowStage2()) {
-                    throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
+                    throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
                 }
             }
         }
         Value value = columnResolver.getValue(column);
         if (value == null) {
             if (select == null) {
-                throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, getSQL());
+                throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, getSQL(false));
             } else {
-                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL());
+                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
             }
         }
+        /*
+         * ENUM values are stored as integers.
+         */
         if (value != ValueNull.INSTANCE) {
-            ExtTypeInfo extTypeInfo = column.getExtTypeInfo();
+            ExtTypeInfo extTypeInfo = column.getType().getExtTypeInfo();
             if (extTypeInfo != null) {
                 return extTypeInfo.cast(value);
             }
@@ -238,8 +274,8 @@ public class ExpressionColumn extends Expression {
     }
 
     @Override
-    public int getType() {
-        return column == null ? Value.UNKNOWN : column.getType();
+    public TypeInfo getType() {
+        return column == null ? TypeInfo.TYPE_UNKNOWN : column.getType();
     }
 
     @Override
@@ -248,21 +284,6 @@ public class ExpressionColumn extends Expression {
 
     public Column getColumn() {
         return column;
-    }
-
-    @Override
-    public int getScale() {
-        return column.getScale();
-    }
-
-    @Override
-    public long getPrecision() {
-        return column.getPrecision();
-    }
-
-    @Override
-    public int getDisplaySize() {
-        return column.getDisplaySize();
     }
 
     public String getOriginalColumnName() {
@@ -294,10 +315,7 @@ public class ExpressionColumn extends Expression {
     public String getAlias() {
         if (column != null) {
             if (columnResolver != null) {
-                String name = columnResolver.getDerivedColumnName(column);
-                if (name != null) {
-                    return name;
-                }
+                return columnResolver.getColumnName(column);
             }
             return column.getName();
         }
@@ -320,7 +338,7 @@ public class ExpressionColumn extends Expression {
     @Override
     public boolean isEverything(ExpressionVisitor visitor) {
         switch (visitor.getType()) {
-        case ExpressionVisitor.OPTIMIZABLE_MIN_MAX_COUNT_ALL:
+        case ExpressionVisitor.OPTIMIZABLE_AGGREGATE:
             return false;
         case ExpressionVisitor.READONLY:
         case ExpressionVisitor.DETERMINISTIC:
@@ -349,9 +367,15 @@ public class ExpressionColumn extends Expression {
             }
             return true;
         case ExpressionVisitor.GET_COLUMNS1:
+            if (column == null) {
+                throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, getSQL(false));
+            }
             visitor.addColumn1(column);
             return true;
         case ExpressionVisitor.GET_COLUMNS2:
+            if (column == null) {
+                throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, getSQL(false));
+            }
             visitor.addColumn2(column);
             return true;
         default:
@@ -372,7 +396,7 @@ public class ExpressionColumn extends Expression {
     	//按字段b删除，实际上就是删除b=true的记录
     	//如果没有为字段b建立索引，就在org.h2.table.TableFilter.prepare()中删除这个无用条件
         TableFilter tf = getTableFilter();
-        if (filter == tf && column.getType() == Value.BOOLEAN) {
+        if (filter == tf && column.getType().getValueType() == Value.BOOLEAN) {
             IndexCondition cond = IndexCondition.get(
                     Comparison.EQUAL, this, ValueExpression.get(
                             ValueBoolean.TRUE));
@@ -382,8 +406,7 @@ public class ExpressionColumn extends Expression {
 
     @Override
     public Expression getNotIfPossible(Session session) {
-        return new Comparison(session, Comparison.EQUAL, this,
-                ValueExpression.get(ValueBoolean.FALSE));
+        return new Comparison(session, Comparison.EQUAL, this, ValueExpression.getBoolean(false));
     }
 
 }

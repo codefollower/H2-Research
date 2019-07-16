@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.message;
@@ -88,7 +88,12 @@ public class TraceSystem implements TraceWriter {
     private SimpleDateFormat dateFormat;
     private Writer fileWriter;
     private PrintWriter printWriter;
-    private int checkSize;
+    /**
+     * Starts at -1 so that we check the file size immediately upon open. This
+     * Can be important if we open and close the trace file without managing to
+     * have written CHECK_SIZE_EACH_WRITES bytes each time.
+     */
+    private int checkSize = -1;
     private boolean closed;
     private boolean writingErrorLogged;
     private TraceWriter writer = this;
@@ -248,8 +253,8 @@ public class TraceSystem implements TraceWriter {
 
     private synchronized void writeFile(String s, Throwable t) {
         try {
-            if (checkSize++ >= CHECK_SIZE_EACH_WRITES) {
-                checkSize = 0;
+            checkSize = (checkSize + 1) % CHECK_SIZE_EACH_WRITES;
+            if (checkSize == 0) {
                 closeWriter();
                 if (maxFileSize > 0 && FileUtils.size(fileName) > maxFileSize) {
                     String old = fileName + ".old";

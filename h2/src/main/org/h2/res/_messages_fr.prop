@@ -8,6 +8,7 @@
 22004=#Numeric value out of range: {0} in column {1}
 22007=Impossible d''analyser {0} constante {1}
 22012=Division par zéro: {0}
+22013=#Invalid PRECEDING or FOLLOWING size in window function: {0}
 22018=Erreur lors de la conversion de données {0}
 22025=Erreur dans LIKE ESCAPE: {0}
 22030=Valeur non permise pour la colonne {0}: {1}
@@ -149,8 +150,8 @@
 90116=Les littérals de ce type ne sont pas permis
 90117=Les connexions à distance à ce serveur ne sont pas autorisées, voir -tcpAllowOthers
 90118=Impossible de supprimer la table {0}
-90119=Le type de données utilisateur {0} existe déjà
-90120=Type de données utilisateur {0} non trouvé
+90119=Le domaine {0} existe déjà
+90120=Le domaine {0} non trouvé
 90121=La base de données est déjà fermée (pour désactiver la fermeture automatique à l''arrêt de la VM, ajoutez "; DB_CLOSE_ON_EXIT = FALSE" à l''URL db)
 90122=#The WITH TIES clause is not allowed without a corresponding ORDER BY clause.
 90123=Impossible de mélanger des paramètres indexés et non-indexés
@@ -175,6 +176,9 @@
 90142=La taille de l''étape ne doit pas être de 0
 90143=#Row {1} not found in primary index {0}
 90144=#Authenticator not enabled on database {0}
+90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
+90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
+90147=#Method {0} is not allowed when connection is in auto-commit mode
 HY000=Erreur générale: {0}
 HY004=Type de données inconnu: {0}
 HYC00=Fonctionnalité non supportée: {0}

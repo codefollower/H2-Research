@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -18,6 +18,7 @@ import org.h2.security.SHA256;
 import org.h2.store.fs.FilePathEncrypt;
 import org.h2.store.fs.FilePathRec;
 import org.h2.store.fs.FileUtils;
+import org.h2.util.NetworkConnectionInfo;
 import org.h2.util.SortedProperties;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
@@ -45,6 +46,8 @@ public class ConnectionInfo implements Cloneable {
     private boolean ssl;
     private boolean persistent;
     private boolean unnamed;
+
+    private NetworkConnectionInfo networkConnectionInfo;
 
     /**
      * Create a connection info object.
@@ -105,7 +108,7 @@ public class ConnectionInfo implements Cloneable {
         HashSet<String> set = new HashSet<>(128);
         set.addAll(SetTypes.getTypes());
         for (String key : connectionTime) {
-            if (!set.add(key) && SysProperties.CHECK) {
+            if (!set.add(key)) {
                 DbException.throwInternalError(key);
             }
         }
@@ -269,7 +272,7 @@ public class ConnectionInfo implements Cloneable {
 			//[optimize_distinct=true, early_filter=true, nested_joins=false]
             String[] list = StringUtils.arraySplit(settings, ';', false);
             for (String setting : list) {
-                if (setting.length() == 0) {
+                if (setting.isEmpty()) {
                     continue;
                 }
                 int equal = setting.indexOf('=');
@@ -359,7 +362,7 @@ public class ConnectionInfo implements Cloneable {
         if (passwordHash) {
             return StringUtils.convertHexToBytes(new String(password));
         }
-        if (userName.length() == 0 && password.length == 0) {
+        if (userName.isEmpty() && password.length == 0) {
             return new byte[0];
         }
         //会生成32个字节，32*8刚好是256 bit，刚好对应SHA256的名字
@@ -663,6 +666,24 @@ public class ConnectionInfo implements Cloneable {
         this.name = serverKey;
     }
 
+    /**
+     * Returns the network connection information, or {@code null}.
+     *
+     * @return the network connection information, or {@code null}
+     */
+    public NetworkConnectionInfo getNetworkConnectionInfo() {
+        return networkConnectionInfo;
+    }
+
+    /**
+     * Sets the network connection information.
+     *
+     * @param networkConnectionInfo the network connection information
+     */
+    public void setNetworkConnectionInfo(NetworkConnectionInfo networkConnectionInfo) {
+        this.networkConnectionInfo = networkConnectionInfo;
+    }
+
     public DbSettings getDbSettings() {
         DbSettings defaultSettings = DbSettings.getDefaultSettings();
         HashMap<String, String> s = new HashMap<>();
@@ -680,7 +701,7 @@ public class ConnectionInfo implements Cloneable {
 		//假设url="my.url"，那么可以在h2.urlMap.properties中重新映射: my.url=my.url=jdbc:h2:tcp://localhost:9092/test9
 		//最后返回的url实际是jdbc:h2:tcp://localhost:9092/test9
         String urlMap = SysProperties.URL_MAP;
-        if (urlMap != null && urlMap.length() > 0) {
+        if (urlMap != null && !urlMap.isEmpty()) {
             try {
                 SortedProperties prop;
                 prop = SortedProperties.loadProperties(urlMap);
@@ -690,7 +711,7 @@ public class ConnectionInfo implements Cloneable {
                     prop.store(urlMap);
                 } else {
                     url2 = url2.trim();
-                    if (url2.length() > 0) {
+                    if (!url2.isEmpty()) {
                         return url2;
                     }
                 }

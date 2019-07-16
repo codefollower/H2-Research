@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
@@ -53,9 +53,7 @@ public class CreateSequence extends SchemaCommand {
             throw DbException.get(ErrorCode.SEQUENCE_ALREADY_EXISTS_1, sequenceName);
         }
         int id = getObjectId();
-        Sequence sequence = new Sequence(getSchema(), id, sequenceName, options.getStartValue(session),
-                options.getIncrement(session), options.getCacheSize(session), options.getMinValue(null, session),
-                options.getMaxValue(null, session), Boolean.TRUE.equals(options.getCycle()), belongsToTable);
+        Sequence sequence = new Sequence(session, getSchema(), id, sequenceName, options, belongsToTable);
         db.addSchemaObject(session, sequence);
         return 0;
     }

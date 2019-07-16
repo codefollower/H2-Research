@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.message;
@@ -312,8 +312,9 @@ public class TraceObject { //jdbc和jdbcx中的类继承了它，下面16个常�
         if (x == null) {
             return "null";
         }
-        return "org.h2.util.StringUtils.convertHexToBytes(\"" +
-                StringUtils.convertBytesToHex(x) + "\")";
+        StringBuilder builder = new StringBuilder(x.length * 2 + 45)
+                .append("org.h2.util.StringUtils.convertHexToBytes(\"");
+        return StringUtils.convertBytesToHex(builder, x).append("\")").toString();
     }
 
     /**

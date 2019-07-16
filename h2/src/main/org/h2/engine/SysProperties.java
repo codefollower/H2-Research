@@ -1,9 +1,11 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
+
+import java.io.File;
 
 import org.h2.util.MathUtils;
 import org.h2.util.Utils;
@@ -42,26 +44,16 @@ public class SysProperties {
     public static final String H2_BROWSER = "h2.browser";
 
     /**
-     * System property <code>file.encoding</code> (default: Cp1252).<br />
-     * It is usually set by the system and is the default encoding used for the
-     * RunScript and CSV tool.
+     * System property <code>file.separator</code>.<br />
+     * It is set by the system, and used to build absolute file names.
      */
-    public static final String FILE_ENCODING =
-            Utils.getProperty("file.encoding", "Cp1252");
+    public static final String FILE_SEPARATOR = File.separator;
 
     /**
-     * System property <code>file.separator</code> (default: /).<br />
-     * It is usually set by the system, and used to build absolute file names.
+     * System property <code>line.separator</code>.<br />
+     * It is set by the system, and used by the script and trace tools.
      */
-    public static final String FILE_SEPARATOR =
-            Utils.getProperty("file.separator", "/");
-
-    /**
-     * System property <code>line.separator</code> (default: \n).<br />
-     * It is usually set by the system, and used by the script and trace tools.
-     */
-    public static final String LINE_SEPARATOR =
-            Utils.getProperty("line.separator", "\n");
+    public static final String LINE_SEPARATOR = System.lineSeparator();
 
     /**
      * System property <code>user.home</code> (empty string if not set).<br />
@@ -391,6 +383,13 @@ public class SysProperties {
             Utils.getProperty("h2.prefixTempFile", "h2.temp");
 
     /**
+     * System property <code>h2.forceAutoCommitOffOnCommit</code> (default: false).<br />
+     * Throw error if transaction's auto-commit property is true when a commit is executed.
+     */
+    public static boolean FORCE_AUTOCOMMIT_OFF_ON_COMMIT =
+            Utils.getProperty("h2.forceAutoCommitOffOnCommit", false);
+
+    /**
      * System property <code>h2.serverCachedObjects</code> (default: 64).<br />
      * TCP Server: number of cached objects per session.
      */
@@ -426,10 +425,20 @@ public class SysProperties {
      * System property <code>h2.sortBinaryUnsigned</code>
      * (default: true).<br />
      * Whether binary data should be sorted in unsigned mode
-     * (0xff is larger than 0x00).
+     * (0xff is larger than 0x00) by default in new databases.
      */
     public static final boolean SORT_BINARY_UNSIGNED =
             Utils.getProperty("h2.sortBinaryUnsigned", true);
+
+    /**
+     * System property {@code h2.sortUuidUnsigned}, {@code false} by default
+     * unless {@code h2.preview} is enabled.
+     * Whether UUID data should be sorted in unsigned mode
+     * ('ffffffff-ffff-ffff-ffff-ffffffffffff' is larger than
+     * '00000000-0000-0000-0000-000000000000') by default in new databases.
+     */
+    public static final boolean SORT_UUID_UNSIGNED =
+            Utils.getProperty("h2.sortUuidUnsigned", PREVIEW);
 
     /**
      * System property <code>h2.sortNullsHigh</code> (default: false).<br />
@@ -565,18 +574,6 @@ public class SysProperties {
     public static final String AUTH_CONFIG_FILE =
             Utils.getProperty("h2.authConfigFile", null);
 
-    /**
-     * System property {@code h2.mixedGeometries}, {@code false} by default.
-     * <p>
-     * If {@code true} illegal geometries with mixed XY/XYZ dimensionality like
-     * {@code 'LINESTRING (1 2, 3 4 5)'} are accepted.
-     * </p>
-     * <p>
-     * If {@code false} such geometries are rejected with data conversion error.
-     * </p>
-     */
-    public static final boolean MIXED_GEOMETRIES = Utils.getProperty("h2.mixedGeometries", false);
-
     private static final String H2_BASE_DIR = "h2.baseDir";
 
     private SysProperties() {
@@ -622,7 +619,7 @@ public class SysProperties {
         String s = Utils.getProperty(key, null);
         if (s != null) {
             try {
-                return Integer.decode(s).intValue();
+                return Integer.decode(s);
             } catch (NumberFormatException e) {
                 // ignore
             }

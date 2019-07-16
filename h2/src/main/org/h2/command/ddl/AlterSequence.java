@@ -1,13 +1,12 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.ddl;
 
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
-import org.h2.engine.Database;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
@@ -56,13 +55,12 @@ public class AlterSequence extends SchemaCommand {
         table = column.getTable();
         sequence = column.getSequence();
         if (sequence == null && !ifExists) {
-            throw DbException.get(ErrorCode.SEQUENCE_NOT_FOUND_1, column.getSQL());
+            throw DbException.get(ErrorCode.SEQUENCE_NOT_FOUND_1, column.getSQL(false));
         }
     }
 
     @Override
     public int update() {
-        Database db = session.getDatabase();
         if (sequence == null) {
             sequence = getSchema().findSequence(sequenceName);
             if (sequence == null) {
@@ -87,7 +85,7 @@ public class AlterSequence extends SchemaCommand {
             sequence.modify(options.getStartValue(session), options.getMinValue(sequence, session),
                     options.getMaxValue(sequence, session), options.getIncrement(session));
         }
-        db.updateMeta(session, sequence);
+        sequence.flush(session);
         return 0;
     }
 

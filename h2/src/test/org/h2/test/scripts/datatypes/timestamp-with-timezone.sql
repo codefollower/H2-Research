@@ -1,7 +1,14 @@
--- Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
--- and the EPL 1.0 (http://h2database.com/html/license.html).
+-- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
+
+SELECT TYPE_NAME, PRECISION, PREFIX, SUFFIX, PARAMS, MINIMUM_SCALE, MAXIMUM_SCALE FROM INFORMATION_SCHEMA.TYPE_INFO
+    WHERE TYPE_NAME = 'TIMESTAMP WITH TIME ZONE';
+> TYPE_NAME                PRECISION PREFIX                     SUFFIX PARAMS MINIMUM_SCALE MAXIMUM_SCALE
+> ------------------------ --------- -------------------------- ------ ------ ------------- -------------
+> TIMESTAMP WITH TIME ZONE 35        TIMESTAMP WITH TIME ZONE ' '      SCALE  0             9
+> rows: 1
 
 CREATE TABLE tab_with_timezone(x TIMESTAMP WITH TIME ZONE);
 > ok

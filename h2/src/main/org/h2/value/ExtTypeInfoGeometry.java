@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
@@ -51,7 +51,7 @@ public final class ExtTypeInfoGeometry extends ExtTypeInfo {
 
     @Override
     public Value cast(Value value) {
-        if (value.getType() != Value.GEOMETRY) {
+        if (value.getValueType() != Value.GEOMETRY) {
             value = value.convertTo(Value.GEOMETRY);
         }
         ValueGeometry g = (ValueGeometry) value;
@@ -65,6 +65,25 @@ public final class ExtTypeInfoGeometry extends ExtTypeInfo {
     @Override
     public String getCreateSQL() {
         return toSQL(type, srid);
+    }
+
+    /**
+     * Returns the type and dimension system of geometries.
+     *
+     * @return the type and dimension system of geometries, or 0 if not
+     *         constrained
+     */
+    public int getType() {
+        return type;
+    }
+
+    /**
+     * Returns the SRID of geometries.
+     *
+     * @return the SRID of geometries, or {@code null} if not constrained
+     */
+    public Integer getSrid() {
+        return srid;
     }
 
 }

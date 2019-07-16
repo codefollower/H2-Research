@@ -8,6 +8,7 @@
 22004=#Numeric value out of range: {0} in column {1}
 22007=Não é possível converter {1} para {0}
 22012=Divisão por zero: {0}
+22013=#Invalid PRECEDING or FOLLOWING size in window function: {0}
 22018=Erro na conversão de dado, convertendo {0}
 22025=Erro em LIKE ESCAPE: {0}
 22030=#Value not permitted for column {0}: {1}
@@ -149,8 +150,8 @@
 90116=Literais deste tipo não são permitidas
 90117=Conecções remotas para este servidor não estão habilitadas, veja -tcpAllowOthers
 90118=Não pode apagar a tabela {0}
-90119=Tipo de dados do usuário {0} já existe
-90120=Tipo de dados do usuário {0} não foram encontrados
+90119=Domínio {0} já existe
+90120=Domínio {0} não foram encontrados
 90121=Base de dados já está fechada (para desabilitar o fechamento automático quando a VM terminar, addicione ";DB_CLOSE_ON_EXIT=FALSE" na url da base de dados)
 90122=#The WITH TIES clause is not allowed without a corresponding ORDER BY clause.
 90123=Não pode combinar parâmetros de índices com não índices
@@ -175,6 +176,9 @@
 90142=#Step size must not be zero
 90143=#Row {1} not found in primary index {0}
 90144=#Authenticator not enabled on database {0}
+90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
+90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
+90147=#Method {0} is not allowed when connection is in auto-commit mode
 HY000=Erro geral: {0}
 HY004=Tipo de dados desconhecido: {0}
 HYC00=Recurso não suportado: {0}

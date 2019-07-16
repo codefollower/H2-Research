@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
@@ -59,14 +59,6 @@ public class Mode {
      * table name is returned.
      */
     public boolean aliasColumnName;
-
-    /**
-     * When inserting data, if a column is defined to be NOT NULL and NULL is
-     * inserted, then a 0 (or empty string, or the current timestamp for
-     * timestamp columns) value is used. Usually, this operation is not allowed
-     * and an exception is thrown.
-     */
-    public boolean convertInsertNullToZero;
 
     /**
      * When converting the scale of decimal data, the number is only converted
@@ -138,9 +130,14 @@ public class Mode {
     public boolean allowPlusForStringConcat;
 
     /**
-     * The function LOG() uses base 10 instead of E.
+     * The single-argument function LOG() uses base 10 instead of E.
      */
     public boolean logIsLogBase10;
+
+    /**
+     * Swap the parameters of LOG() function.
+     */
+    public boolean swapLogFunctionParameters;
 
     /**
      * The function REGEXP_REPLACE() uses \ for back-references.
@@ -163,9 +160,19 @@ public class Mode {
     public boolean isolationLevelInSelectOrInsertStatement;
 
     /**
-     * MySQL style INSERT ... ON DUPLICATE KEY UPDATE ... and INSERT IGNORE
+     * MySQL style INSERT ... ON DUPLICATE KEY UPDATE ... and INSERT IGNORE.
      */
     public boolean onDuplicateKeyUpdate;
+
+    /**
+     * MySQL style REPLACE INTO.
+     */
+    public boolean replaceInto;
+
+    /**
+     * PostgreSQL style INSERT ... ON CONFLICT DO NOTHING.
+     */
+    public boolean insertOnConflict;
 
     /**
      * Pattern describing the keys the java.sql.Connection.setClientInfo()
@@ -199,9 +206,38 @@ public class Mode {
     public boolean allowDB2TimestampFormat;
 
     /**
+     * Discard SQLServer table hints (e.g. "SELECT * FROM table WITH (NOLOCK)")
+     */
+    public boolean discardWithTableHints;
+
+    /**
+     * Use "IDENTITY" as an alias for "auto_increment" (SQLServer style)
+     */
+    public boolean useIdentityAsAutoIncrement;
+
+    /**
      * Convert (VAR)CHAR to VAR(BINARY) and vice versa with UTF-8 encoding instead of HEX.
      */
     public boolean charToBinaryInUtf8;
+
+    /**
+     * If {@code true}, datetime value function return the same value within a
+     * transaction, if {@code false} datetime value functions return the same
+     * value within a command.
+     */
+    public boolean dateTimeValueWithinTransaction;
+
+    /**
+     * If {@code true} {@code 0x}-prefixed numbers are parsed as binary string
+     * literals, if {@code false} they are parsed as hexadecimal numeric values.
+     */
+    public boolean zeroExLiteralsAreBinaryStrings;
+
+    /**
+     * If {@code true} unrelated ORDER BY expression are allowed in DISTINCT
+     * queries, if {@code false} they are disallowed.
+     */
+    public boolean allowUnrelatedOrderByExpressionsInDistinctQueries;
 
     /**
      * An optional Set of hidden/disallowed column types.
@@ -222,6 +258,7 @@ public class Mode {
     static {
         Mode mode = new Mode(ModeEnum.REGULAR);
         mode.nullConcatIsNull = true;
+        mode.dateTimeValueWithinTransaction = true;
         add(mode);
 
         mode = new Mode(ModeEnum.DB2);
@@ -248,10 +285,7 @@ public class Mode {
         add(mode);
 
         mode = new Mode(ModeEnum.HSQLDB);
-        mode.aliasColumnName = true;
-        mode.convertOnlyToSmallerScale = true;
         mode.nullConcatIsNull = true;
-        mode.uniqueIndexNullsHandling = UniqueIndexNullsHandling.FORBID_ANY_DUPLICATES;
         mode.allowPlusForStringConcat = true;
         // HSQLDB does not support client info properties. See
         // http://hsqldb.org/doc/apidocs/
@@ -265,17 +299,21 @@ public class Mode {
         mode.squareBracketQuotedNames = true;
         mode.uniqueIndexNullsHandling = UniqueIndexNullsHandling.FORBID_ANY_DUPLICATES;
         mode.allowPlusForStringConcat = true;
+        mode.swapLogFunctionParameters = true;
         mode.swapConvertFunctionParameters = true;
         mode.supportPoundSymbolForColumnNames = true;
+        mode.discardWithTableHints = true;
+        mode.useIdentityAsAutoIncrement = true;
         // MS SQL Server does not support client info properties. See
         // https://msdn.microsoft.com/en-Us/library/dd571296%28v=sql.110%29.aspx
         mode.supportedClientInfoPropertiesRegEx = null;
-        DataType dt = DataType.createDecimal(19, 19, 4, 21, false, false);
+        mode.zeroExLiteralsAreBinaryStrings = true;
+        DataType dt = DataType.createNumeric(19, 4, false);
         dt.type = Value.DECIMAL;
         dt.sqlType = Types.NUMERIC;
         dt.name = "MONEY";
         mode.typeByNameMap.put("MONEY", dt);
-        dt = DataType.createDecimal(10, 10, 4, 12, false, false);
+        dt = DataType.createNumeric(10, 4, false);
         dt.type = Value.DECIMAL;
         dt.sqlType = Types.NUMERIC;
         dt.name = "SMALLMONEY";
@@ -283,12 +321,12 @@ public class Mode {
         add(mode);
 
         mode = new Mode(ModeEnum.MySQL);
-        mode.convertInsertNullToZero = true;
         mode.indexDefinitionInCreateTable = true;
         mode.lowerCaseIdentifiers = true;
         // Next one is for MariaDB
         mode.regexpReplaceBackslashReferences = true;
         mode.onDuplicateKeyUpdate = true;
+        mode.replaceInto = true;
         // MySQL allows to use any key for client info entries. See
         // http://grepcode.com/file/repo1.maven.org/maven2/mysql/
         //     mysql-connector-java/5.1.24/com/mysql/jdbc/
@@ -297,6 +335,8 @@ public class Mode {
                 Pattern.compile(".*");
         mode.prohibitEmptyInPredicate = true;
         mode.charToBinaryInUtf8 = true;
+        mode.zeroExLiteralsAreBinaryStrings = true;
+        mode.allowUnrelatedOrderByExpressionsInDistinctQueries = true;
         add(mode);
 
         mode = new Mode(ModeEnum.Oracle);
@@ -325,6 +365,7 @@ public class Mode {
         mode.logIsLogBase10 = true;
         mode.regexpReplaceBackslashReferences = true;
         mode.serialColumnIsNotPK = true;
+        mode.insertOnConflict = true;
         // PostgreSQL only supports the ApplicationName property. See
         // https://github.com/hhru/postgres-jdbc/blob/master/postgresql-jdbc-9.2-1002.src/
         //     org/postgresql/jdbc4/AbstractJdbc4Connection.java
@@ -339,17 +380,19 @@ public class Mode {
         disallowedTypes.add("TINYINT");
         disallowedTypes.add("BLOB");
         mode.disallowedTypes = disallowedTypes;
-        dt = DataType.createDecimal(19, 19, 2, 21, false, false);
+        dt = DataType.createNumeric(19, 2, false);
         dt.type = Value.DECIMAL;
         dt.sqlType = Types.NUMERIC;
         dt.name = "MONEY";
         mode.typeByNameMap.put("MONEY", dt);
+        mode.dateTimeValueWithinTransaction = true;
         add(mode);
 
         mode = new Mode(ModeEnum.Ignite);
         mode.nullConcatIsNull = true;
         mode.allowAffinityKey = true;
         mode.indexDefinitionInCreateTable = true;
+        mode.dateTimeValueWithinTransaction = true;
         add(mode);
     }
 

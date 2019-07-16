@@ -1,25 +1,19 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.command.ddl.CreateTableData;
-import org.h2.constraint.Constraint;
-import org.h2.constraint.ConstraintReferential;
 import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
@@ -38,19 +32,15 @@ import org.h2.result.SearchRow;
 import org.h2.schema.SchemaObject;
 import org.h2.table.Column;
 import org.h2.table.IndexColumn;
-import org.h2.table.Table;
-import org.h2.table.TableBase;
-import org.h2.table.TableType;
+import org.h2.table.RegularTable;
 import org.h2.util.DebuggingThreadLocal;
 import org.h2.util.MathUtils;
 import org.h2.util.Utils;
-import org.h2.value.DataType;
-import org.h2.value.Value;
 
 /**
  * A table stored in a MVStore.
  */
-public class MVTable extends TableBase {
+public class MVTable extends RegularTable {
     /**
      * The table name this thread is waiting to lock.
      */
@@ -105,12 +95,7 @@ public class MVTable extends TableBase {
 
     private MVPrimaryIndex primaryIndex;
     private final ArrayList<Index> indexes = Utils.newSmallArrayList();
-    private volatile long lastModificationId;
-    private volatile Session lockExclusiveSession;
-
-    // using a ConcurrentHashMap as a set
-    private final ConcurrentHashMap<Session, Session> lockSharedSessions =
-            new ConcurrentHashMap<>();
+    private final AtomicLong lastModificationId = new AtomicLong();
 
     /**
      * The queue of sessions waiting to lock the table. It is a FIFO queue to
@@ -120,8 +105,6 @@ public class MVTable extends TableBase {
     private final Trace traceLock;
     private final AtomicInteger changesUntilAnalyze;
     private int nextAnalyze;
-    private final boolean containsLargeObject;
-    private Column rowIdColumn;
 
     private final MVTableEngine.Store store;
     private final TransactionStore transactionStore;
@@ -132,15 +115,6 @@ public class MVTable extends TableBase {
         changesUntilAnalyze = nextAnalyze <= 0 ? null : new AtomicInteger(nextAnalyze);
         this.store = store;
         this.transactionStore = store.getTransactionStore();
-        this.isHidden = data.isHidden;
-        boolean b = false;
-        for (Column col : getColumns()) {
-            if (DataType.isLargeObject(col.getType())) {
-                b = true;
-                break;
-            }
-        }
-        containsLargeObject = b;
         traceLock = database.getTrace(Trace.LOCK);
 
         primaryIndex = new MVPrimaryIndex(database, this, getId(),
@@ -316,104 +290,12 @@ public class MVTable extends TableBase {
         return false;
     }
 
-    private static String getDeadlockDetails(ArrayList<Session> sessions, boolean exclusive) {
-        // We add the thread details here to make it easier for customers to
-        // match up these error messages with their own logs.
-        StringBuilder buff = new StringBuilder();
-        for (Session s : sessions) {
-            Table lock = s.getWaitForLock();
-            Thread thread = s.getWaitForLockThread();
-            buff.append("\nSession ").append(s.toString())
-                    .append(" on thread ").append(thread.getName())
-                    .append(" is waiting to lock ").append(lock.toString())
-                    .append(exclusive ? " (exclusive)" : " (shared)")
-                    .append(" while locking ");
-            int i = 0;
-            for (Table t : s.getLocks()) {
-                if (i++ > 0) {
-                    buff.append(", ");
-                }
-                buff.append(t.toString());
-                if (t instanceof MVTable) {
-                    if (t.isLockedExclusivelyBy(s)) {
-                        buff.append(" (exclusive)");
-                    } else {
-                        buff.append(" (shared)");
-                    }
-                }
-            }
-            buff.append('.');
-        }
-        return buff.toString();
-    }
-
-    @Override
-    public ArrayList<Session> checkDeadlock(Session session, Session clash,
-            Set<Session> visited) {
-        // only one deadlock check at any given time
-        synchronized (MVTable.class) {
-            if (clash == null) {
-                // verification is started
-                clash = session;
-                visited = new HashSet<>();
-            } else if (clash == session) {
-                // we found a circle where this session is involved
-                return new ArrayList<>(0);
-            } else if (visited.contains(session)) {
-                // we have already checked this session.
-                // there is a circle, but the sessions in the circle need to
-                // find it out themselves
-                return null;
-            }
-            visited.add(session);
-            ArrayList<Session> error = null;
-            for (Session s : lockSharedSessions.keySet()) {
-                if (s == session) {
-                    // it doesn't matter if we have locked the object already
-                    continue;
-                }
-                Table t = s.getWaitForLock();
-                if (t != null) {
-                    error = t.checkDeadlock(s, clash, visited);
-                    if (error != null) {
-                        error.add(session);
-                        break;
-                    }
-                }
-            }
-            // take a local copy so we don't see inconsistent data, since we are
-            // not locked while checking the lockExclusiveSession value
-            Session copyOfLockExclusiveSession = lockExclusiveSession;
-            if (error == null && copyOfLockExclusiveSession != null) {
-                Table t = copyOfLockExclusiveSession.getWaitForLock();
-                if (t != null) {
-                    error = t.checkDeadlock(copyOfLockExclusiveSession, clash,
-                            visited);
-                    if (error != null) {
-                        error.add(session);
-                    }
-                }
-            }
-            return error;
-        }
-    }
-
     private void traceLock(Session session, boolean exclusive, TraceLockEvent eventEnum, String extraInfo) {
         if (traceLock.isDebugEnabled()) {
             traceLock.debug("{0} {1} {2} {3} {4}", session.getId(),
                     exclusive ? "exclusive write lock" : "shared read lock", eventEnum.getEventText(),
                     getName(), extraInfo);
         }
-    }
-
-    @Override
-    public boolean isLockedExclusively() {
-        return lockExclusiveSession != null;
-    }
-
-    @Override
-    public boolean isLockedExclusivelyBy(Session session) {
-        return lockExclusiveSession == session;
     }
 
     @Override
@@ -444,26 +326,6 @@ public class MVTable extends TableBase {
                 }
             }
         }
-    }
-
-    @Override
-    public boolean canTruncate() {
-        if (getCheckForeignKeyConstraints() &&
-                database.getReferentialIntegrity()) {
-            ArrayList<Constraint> constraints = getConstraints();
-            if (constraints != null) {
-                for (Constraint c : constraints) {
-                    if (c.getConstraintType() != Constraint.Type.REFERENTIAL) {
-                        continue;
-                    }
-                    ConstraintReferential ref = (ConstraintReferential) c;
-                    if (ref.getRefTable() == this) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
     }
 
     @Override
@@ -613,7 +475,7 @@ public class MVTable extends TableBase {
         } else {
             addRowsToIndex(session, buffer, index);
         }
-        if (SysProperties.CHECK && remaining != 0) {
+        if (remaining != 0) {
             DbException.throwInternalError("rowcount remaining=" + remaining +
                     " " + getName());
         }
@@ -640,33 +502,15 @@ public class MVTable extends TableBase {
             remaining--;
         }
         addRowsToIndex(session, buffer, index);
-        if (SysProperties.CHECK && remaining != 0) {
+        if (remaining != 0) {
             DbException.throwInternalError("rowcount remaining=" + remaining +
                     " " + getName());
         }
     }
 
-    private static void addRowsToIndex(Session session, ArrayList<Row> list,
-            Index index) {
-        sortRows(list, index);
-        for (Row row : list) {
-            index.add(session, row);
-        }
-        list.clear();
-    }
-
-    private static void sortRows(ArrayList<? extends SearchRow> list, final Index index) {
-        Collections.sort(list, new Comparator<SearchRow>() {
-            @Override
-            public int compare(SearchRow r1, SearchRow r2) {
-                return index.compareRows(r1, r2);
-            }
-        });
-    }
-
     @Override
     public void removeRow(Session session, Row row) {
-        lastModificationId = database.getNextModificationDataId();
+        syncLastModificationIdWithDatabase();
         Transaction t = session.getTransaction();
         long savepoint = t.setSavepoint();
         try {
@@ -687,7 +531,7 @@ public class MVTable extends TableBase {
 
     @Override
     public void truncate(Session session) {
-        lastModificationId = database.getNextModificationDataId();
+        syncLastModificationIdWithDatabase();
         for (int i = indexes.size() - 1; i >= 0; i--) {
             Index index = indexes.get(i);
             index.truncate(session);
@@ -699,7 +543,7 @@ public class MVTable extends TableBase {
 
     @Override
     public void addRow(Session session, Row row) {
-        lastModificationId = database.getNextModificationDataId();
+        syncLastModificationIdWithDatabase();
         Transaction t = session.getTransaction();
         long savepoint = t.setSavepoint();
         try {
@@ -720,7 +564,7 @@ public class MVTable extends TableBase {
     @Override
     public void updateRow(Session session, Row oldRow, Row newRow) {
         newRow.setKey(oldRow.getKey());
-        lastModificationId = database.getNextModificationDataId();
+        syncLastModificationIdWithDatabase();
         Transaction t = session.getTransaction();
         long savepoint = t.setSavepoint();
         try {
@@ -739,8 +583,8 @@ public class MVTable extends TableBase {
     }
 
     @Override
-    public void lockRows(Session session, Iterable<Row> rowsForUpdate) {
-        primaryIndex.lockRows(session, rowsForUpdate);
+    public Row lockRow(Session session, Row row) {
+        return primaryIndex.lockRow(session, row);
     }
 
     private void analyzeIfRequired(Session session) {
@@ -753,16 +597,6 @@ public class MVTable extends TableBase {
                 session.markTableForAnalyze(this);
             }
         }
-    }
-
-    @Override
-    public void checkSupportAlter() {
-        // ok
-    }
-
-    @Override
-    public TableType getTableType() {
-        return TableType.TABLE;
     }
 
     @Override
@@ -782,26 +616,7 @@ public class MVTable extends TableBase {
 
     @Override
     public long getMaxDataModificationId() {
-        return lastModificationId;
-    }
-
-    public boolean getContainsLargeObject() {
-        return containsLargeObject;
-    }
-
-    @Override
-    public boolean isDeterministic() {
-        return true;
-    }
-
-    @Override
-    public boolean canGetRowCount() {
-        return true;
-    }
-
-    @Override
-    public boolean canDrop() {
-        return true;
+        return lastModificationId.get();
     }
 
     @Override
@@ -855,11 +670,6 @@ public class MVTable extends TableBase {
         return primaryIndex.getDiskSpaceUsed();
     }
 
-    @Override
-    public void checkRename() {
-        // ok
-    }
-
     /**
      * Get a new transaction.
      *
@@ -868,20 +678,6 @@ public class MVTable extends TableBase {
     Transaction getTransactionBegin() {
         // TODO need to commit/rollback the transaction
         return transactionStore.begin();
-    }
-
-    @Override
-    public Column getRowIdColumn() {
-        if (rowIdColumn == null) {
-            rowIdColumn = new Column(Column.ROWID, Value.LONG);
-            rowIdColumn.setTable(this, SearchRow.ROWID_INDEX);
-        }
-        return rowIdColumn;
-    }
-
-    @Override
-    public String toString() {
-        return getSQL();
     }
 
     @Override
@@ -895,8 +691,24 @@ public class MVTable extends TableBase {
      */
     public void commit() {
         if (database != null) {
-            lastModificationId = database.getNextModificationDataId();
+            syncLastModificationIdWithDatabase();
         }
+    }
+
+    // Field lastModificationId can not be just a volatile, because window of opportunity
+    // between reading database's modification id and storing this value in the field
+    // could be exploited by another thread.
+    // Second thread may do the same with possibly bigger (already advanced)
+    // modification id, and when first thread finally updates the field, it will
+    // result in lastModificationId jumping back.
+    // This is, of course, unacceptable.
+    private void syncLastModificationIdWithDatabase() {
+        long nextModificationDataId = database.getNextModificationDataId();
+        long currentId;
+        do {
+            currentId = lastModificationId.get();
+        } while (nextModificationDataId > currentId &&
+                !lastModificationId.compareAndSet(currentId, nextModificationDataId));
     }
 
     /**

@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.jdbc;
@@ -44,8 +44,8 @@ public class JdbcBlob extends JdbcLob implements Blob {
         try {
             debugCodeCall("length");
             checkReadable();
-            if (value.getType() == Value.BLOB) {
-                long precision = value.getPrecision();
+            if (value.getValueType() == Value.BLOB) {
+                long precision = value.getType().getPrecision();
                 if (precision > 0) {
                     return precision;
                 }
@@ -144,7 +144,7 @@ public class JdbcBlob extends JdbcLob implements Blob {
                 throw DbException.getInvalidValueException("pos", pos);
             }
             completeWrite(conn.createBlob(new ByteArrayInputStream(bytes, offset, len), -1));
-            return (int) value.getPrecision();
+            return (int) value.getType().getPrecision();
         } catch (Exception e) {
             throw logAndConvert(e);
         }

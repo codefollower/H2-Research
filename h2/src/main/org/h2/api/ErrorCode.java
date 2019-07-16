@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.api;
@@ -132,6 +132,15 @@ public class ErrorCode {
      * </pre>
      */
     public static final int DIVISION_BY_ZERO_1 = 22012;
+
+    /**
+     * The error with code <code>22013</code> is thrown when preceding or
+     * following size in a window function is null or negative. Example:
+     * <pre>
+     * FIRST_VALUE(N) OVER(ORDER BY N ROWS -1 PRECEDING)
+     * </pre>
+     */
+    public static final int INVALID_PRECEDING_OR_FOLLOWING_1 = 22013;
 
     /**
      * The error with code <code>22018</code> is thrown when
@@ -405,7 +414,7 @@ public class ErrorCode {
     /**
      * The error with code <code>42131</code> is thrown when
      * identical expressions should be used, but different
-     * exceptions were found.
+     * expressions were found.
      * Example:
      * <pre>
      * SELECT MODE(A ORDER BY B) FROM TEST;
@@ -602,13 +611,11 @@ public class ErrorCode {
     public static final int PARAMETER_NOT_SET_1 = 90012;
 
     /**
-     * The error with code <code>90013</code> is thrown when
-     * trying to open a database that does not exist using the flag
-     * IFEXISTS=TRUE, or when trying to access a database object with a catalog
-     * name that does not match the database name. Example:
+     * The error with code <code>90013</code> is thrown when when trying to access
+     * a database object with a catalog name that does not match the database
+     * name.
      * <pre>
-     * CREATE TABLE TEST(ID INT);
-     * SELECT XYZ.PUBLIC.TEST.ID FROM TEST;
+     * SELECT * FROM database_that_does_not_exist.table_name
      * </pre>
      */
     public static final int DATABASE_NOT_FOUND_1 = 90013;
@@ -1748,7 +1755,13 @@ public class ErrorCode {
      * CREATE DOMAIN EMAIL AS VARCHAR CHECK LOCATE('@', VALUE) > 0;
      * </pre>
      */
-    public static final int USER_DATA_TYPE_ALREADY_EXISTS_1 = 90119;
+    public static final int DOMAIN_ALREADY_EXISTS_1 = 90119;
+
+    /**
+     * Deprecated since 1.4.198. Use {@link #DOMAIN_ALREADY_EXISTS_1} instead.
+     */
+    @Deprecated
+    public static final int USER_DATA_TYPE_ALREADY_EXISTS_1 = DOMAIN_ALREADY_EXISTS_1;
 
     /**
      * The error with code <code>90120</code> is thrown when
@@ -1758,7 +1771,13 @@ public class ErrorCode {
      * DROP DOMAIN UNKNOWN;
      * </pre>
      */
-    public static final int USER_DATA_TYPE_NOT_FOUND_1 = 90120;
+    public static final int DOMAIN_NOT_FOUND_1 = 90120;
+
+    /**
+     * Deprecated since 1.4.198. Use {@link #DOMAIN_NOT_FOUND_1} instead.
+     */
+    @Deprecated
+    public static final int USER_DATA_TYPE_NOT_FOUND_1 = DOMAIN_NOT_FOUND_1;
 
     /**
      * The error with code <code>90121</code> is thrown when
@@ -2018,8 +2037,39 @@ public class ErrorCode {
      */
     public static final int AUTHENTICATOR_NOT_AVAILABLE = 90144;
 
+    /**
+     * The error with code <code>90145</code> is thrown when trying to execute a
+     * SELECT statement with non-window aggregates, DISTINCT, GROUP BY, or
+     * HAVING clauses together with FOR UPDATE clause.
+     *
+     * <pre>
+     * SELECT DISTINCT NAME FOR UPDATE;
+     * SELECT MAX(VALUE) FOR UPDATE;
+     * </pre>
+     */
+    public static final int FOR_UPDATE_IS_NOT_ALLOWED_IN_DISTINCT_OR_GROUPED_SELECT = 90145;
 
-    // next is 90145
+    /**
+     * The error with code <code>90146</code> is thrown when trying to open a
+     * database that does not exist remotely without enabling remote database
+     * creation first, or using the flag IFEXISTS=TRUE
+     * <pre>
+     * jdbc:h2:./database_that_does_not_exist
+     * </pre>
+     */
+    public static final int DATABASE_NOT_FOUND_2 = 90146;
+
+    /**
+     * The error with code <code>90147</code> is thrown when trying to execute a
+     * statement which closes the transaction (such as commit and rollback) and
+     * autocommit mode is on.
+     *
+     * @see org.h2.engine.SysProperties#FORCE_AUTOCOMMIT_OFF_ON_COMMIT
+     */
+    public static final int METHOD_DISABLED_ON_AUTOCOMMIT_TRUE = 90147;
+
+
+    // next is 90148
 
     private ErrorCode() {
         // utility class

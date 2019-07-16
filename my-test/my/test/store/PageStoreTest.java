@@ -4,7 +4,7 @@ import my.test.TestBase;
 import org.h2.engine.ConnectionInfo;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
-import org.h2.store.PageStore;
+import org.h2.pagestore.db.PageStoreTable;
 import org.h2.store.fs.FileUtils;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -49,25 +49,25 @@ public class PageStoreTest extends TestBase {
 		executeQuery();
 		//stmt.executeUpdate("DROP ALL OBJECTS DELETE FILES");
 	}
-	/**
-	 * @param args
-	 */
-	public static void main0(String[] args) {
-		String databaseName = "mydb";
-		//FileUtils.delete("E:/H2/eclipse-workspace-client/mydb.h2.db");
-		FileUtils.delete("E:/H2/eclipse-workspace-server/mydb.h2.db");
-		Database db = new Database(new ConnectionInfo(databaseName), null);
-
-		PageStore ps = new PageStore(db, databaseName + Constants.SUFFIX_PAGE_FILE, "rw", 16384);
-		//ps.setPageSize(16384);
-		ps.setPageSize(1024);
-		ps.setLogMode(2);
-		ps.setLockFile(true);
-		//ps.open();
-
-		System.out.println("ddd");
-
-	}
+//	/**
+//	 * @param args
+//	 */
+//	public static void main0(String[] args) {
+//		String databaseName = "mydb";
+//		//FileUtils.delete("E:/H2/eclipse-workspace-client/mydb.h2.db");
+//		FileUtils.delete("E:/H2/eclipse-workspace-server/mydb.h2.db");
+//		Database db = new Database(new ConnectionInfo(databaseName), null);
+//
+//		PageStoreTable ps = new PageStoreTable(db, databaseName + Constants.SUFFIX_PAGE_FILE, "rw", 16384);
+//		//ps.setPageSize(16384);
+//		ps.setPageSize(1024);
+//		ps.setLogMode(2);
+//		ps.setLockFile(true);
+//		//ps.open();
+//
+//		System.out.println("ddd");
+//
+//	}
 
 	//重点测试find
 	public static void main1(String[] args) throws Exception {

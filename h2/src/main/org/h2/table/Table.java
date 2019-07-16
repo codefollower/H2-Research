@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
@@ -99,8 +99,7 @@ public abstract class Table extends SchemaObjectBase {
     private volatile Row nullRow;
     private boolean tableExpression;
 
-    public Table(Schema schema, int id, String name, boolean persistIndexes,
-            boolean persistData) {
+    protected Table(Schema schema, int id, String name, boolean persistIndexes, boolean persistData) {
         super(schema, id, name, Trace.TABLE);
         columnMap = schema.getDatabase().newStringMap();
         this.persistIndexes = persistIndexes;
@@ -183,19 +182,14 @@ public abstract class Table extends SchemaObjectBase {
     public abstract void removeRow(Session session, Row row);
 
     /**
-     * Locks rows, preventing any updated to them, except from the session specified.
+     * Locks row, preventing any updated to it, except from the session specified.
      *
      * @param session the session
-     * @param rowsForUpdate rows to lock
+     * @param row to lock
+     * @return locked row, or null if row does not exist anymore
      */
-    public void lockRows(Session session, Iterable<Row> rowsForUpdate) {
-        for (Row row : rowsForUpdate) {
-            Row newRow = row.getCopy();
-            removeRow(session, row);
-            session.log(this, UndoLogRecord.DELETE, row);
-            addRow(session, newRow);
-            session.log(this, UndoLogRecord.INSERT, newRow);
-        }
+    public Row lockRow(Session session, Row row) {
+        throw DbException.getUnsupportedException("lockRow()");
     }
 
     /**
@@ -450,9 +444,9 @@ public abstract class Table extends SchemaObjectBase {
         }
         for (int i = 0; i < columns.length; i++) {
             Column col = columns[i];
-            int dataType = col.getType();
+            int dataType = col.getType().getValueType();
             if (dataType == Value.UNKNOWN) {
-                throw DbException.get(ErrorCode.UNKNOWN_DATA_TYPE_1, col.getSQL());
+                throw DbException.get(ErrorCode.UNKNOWN_DATA_TYPE_1, col.getSQL(false));
             }
             col.setTable(this, i);
             String columnName = col.getName();
@@ -617,8 +611,7 @@ public abstract class Table extends SchemaObjectBase {
                     if (columns.size() == 1) {
                         constraintsToDrop.add(constraint);
                     } else {
-                        throw DbException.get(
-                                ErrorCode.COLUMN_IS_REFERENCED_1, constraint.getSQL());
+                        throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, constraint.getSQL(false));
                     }
                 }
             }
@@ -637,8 +630,7 @@ public abstract class Table extends SchemaObjectBase {
                     if (index.getColumns().length == 1) {
                         indexesToDrop.add(index);
                     } else {
-                        throw DbException.get(
-                                ErrorCode.COLUMN_IS_REFERENCED_1, index.getSQL());
+                        throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, index.getSQL(false));
                     }
                 }
             }
@@ -655,6 +647,13 @@ public abstract class Table extends SchemaObjectBase {
         }
     }
 
+    /**
+     * Create a new row for a table.
+     *
+     * @param data the values.
+     * @param memory whether the row is in memory.
+     * @return the created row.
+     */
     public Row createRow(Value[] data, int memory) {
         return database.createRow(data, memory);
     }
@@ -720,6 +719,32 @@ public abstract class Table extends SchemaObjectBase {
             throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, columnName);
         }
         return column;
+    }
+
+    /**
+     * Get the column with the given name.
+     *
+     * @param columnName the column name
+     * @param ifExists if (@code true) return {@code null} if column does not exist
+     * @return the column
+     * @throws DbException if the column was not found
+     */
+    public Column getColumn(String columnName, boolean ifExists) {
+        Column column = columnMap.get(columnName);
+        if (column == null && !ifExists) {
+            throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, columnName);
+        }
+        return column;
+    }
+
+    /**
+     * Get the column with the given name if it exists.
+     *
+     * @param columnName the column name, or {@code null}
+     * @return the column
+     */
+    public Column findColumn(String columnName) {
+        return columnMap.get(columnName);
     }
 
     /**
@@ -992,6 +1017,22 @@ public abstract class Table extends SchemaObjectBase {
         if (triggers != null) {
             for (TriggerObject trigger : triggers) {
                 if (trigger.isSelectTrigger()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check whether this table has a select trigger.
+     *
+     * @return true if it has
+     */
+    public boolean hasInsteadOfTrigger() {
+        if (triggers != null) {
+            for (TriggerObject trigger : triggers) {
+                if (trigger.isInsteadOf()) {
                     return true;
                 }
             }

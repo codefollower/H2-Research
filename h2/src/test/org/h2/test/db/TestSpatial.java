@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.db;
@@ -672,7 +672,7 @@ public class TestSpatial extends TestDb {
      * @param object the object
      * @return the string representation
      */
-    public static String getObjectString(Object object) {
+    public static String getObjectString(Geometry object) {
         return object.toString();
     }
 
@@ -717,6 +717,11 @@ public class TestSpatial extends TestDb {
             assertEquals("geometry",
                     columnMeta.getString("TYPE_NAME").toLowerCase());
             assertFalse(columnMeta.next());
+
+            ResultSet rs = stat.executeQuery("select point_table(1, 1)");
+            assertTrue(rs.next());
+            ResultSet rs2 = (ResultSet) rs.getObject(1);
+            assertEquals("GEOMETRY", rs2.getMetaData().getColumnTypeName(1));
         }
         deleteDb("spatial");
     }

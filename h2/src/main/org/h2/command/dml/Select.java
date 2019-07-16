@@ -1,6 +1,6 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
@@ -8,28 +8,32 @@ package org.h2.command.dml;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map.Entry;
 import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.Parser;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
-import org.h2.engine.SysProperties;
 import org.h2.expression.Alias;
-import org.h2.expression.Comparison;
-import org.h2.expression.ConditionAndOr;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.expression.Wildcard;
-import org.h2.expression.aggregate.Aggregate;
-import org.h2.expression.aggregate.Window;
+import org.h2.expression.analysis.DataAnalysisOperation;
+import org.h2.expression.analysis.Window;
+import org.h2.expression.condition.Comparison;
+import org.h2.expression.condition.ConditionAndOr;
+import org.h2.expression.function.Function;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
+import org.h2.index.ViewIndex;
 import org.h2.message.DbException;
 import org.h2.result.LazyResult;
 import org.h2.result.LocalResult;
@@ -44,14 +48,15 @@ import org.h2.table.IndexColumn;
 import org.h2.table.JoinBatch;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
+import org.h2.table.TableFilter.TableFilterVisitor;
+import org.h2.table.TableType;
 import org.h2.table.TableView;
 import org.h2.util.ColumnNamer;
-import org.h2.util.StatementBuilder;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
+import org.h2.value.DataType;
 import org.h2.value.Value;
-import org.h2.value.ValueArray;
-import org.h2.value.ValueNull;
+import org.h2.value.ValueRow;
 
 /**
  * This class represents a simple SELECT statement.
@@ -80,15 +85,27 @@ public class Select extends Query {
     //就有4个top filter，依次是JoinTest1、JoinTest2、JoinTest3、JoinTest4
     private final ArrayList<TableFilter> topFilters = Utils.newSmallArrayList();
 
-    private Expression having; //having子句
-    private Expression condition; //where子句
+    /**
+     * Parent select for selects in table filters.
+     */
+    private Select parentSelect;
+
+    /**
+     * WHERE condition.
+     */
+    private Expression condition;
 
     //visibleColumnCount不包含缺失的order by、GROUP BY、having字段
     //distinctColumnCount包含缺失的order by字段，但不包含GROUP BY、having字段
     /**
-     * The visible columns (the ones required in the result).
+     * HAVING condition.
      */
-    int visibleColumnCount;
+    private Expression having;
+
+    /**
+     * QUALIFY condition.
+     */
+    private Expression qualify;
 
     /**
      * {@code DISTINCT ON(...)} expressions.
@@ -97,7 +114,6 @@ public class Select extends Query {
 
     private int[] distinctIndexes;
 
-    private int distinctColumnCount;
     private ArrayList<Expression> group; //对应group by，一个字段对应一个Expression
 
     /**
@@ -110,9 +126,27 @@ public class Select extends Query {
      */
     boolean[] groupByExpression;
 
+    /**
+     * Grouped data for aggregates.
+     */
     SelectGroups groupData;
 
     private int havingIndex;
+
+    private int qualifyIndex;
+
+    private int[] groupByCopies;
+
+    /**
+     * Whether this SELECT is an explicit table (TABLE tableName). It is used in
+     * {@link #getPlanSQL(boolean)} to generate SQL similar to original query.
+     */
+    private boolean isExplicitTable;
+
+    /**
+     * This flag is set when SELECT statement contains (non-window) aggregate
+     * functions, GROUP BY clause or HAVING clause.
+     */
     boolean isGroupQuery;
     private boolean isGroupSortedQuery;
     private boolean isWindowQuery;
@@ -127,8 +161,9 @@ public class Select extends Query {
 
     private HashMap<String, Window> windows;
 
-    public Select(Session session) {
+    public Select(Session session, Select parentSelect) {
         super(session);
+        this.parentSelect = parentSelect;
     }
 
     @Override
@@ -164,13 +199,25 @@ public class Select extends Query {
         this.expressions = expressions;
     }
 
+    /**
+     * Convert this SELECT to an explicit table (TABLE tableName).
+     */
+    public void setExplicitTable() {
+        setWildcard();
+        isExplicitTable = true;
+    }
+
+    /**
+     * Sets a wildcard expression as in "SELECT * FROM TEST".
+     */
     public void setWildcard() {
         expressions = new ArrayList<>(1);
         expressions.add(new Wildcard(null, null));
     }
 
     /**
-     * Called if this query contains aggregate functions.
+     * Set when SELECT statement contains (non-window) aggregate functions,
+     * GROUP BY clause or HAVING clause.
      */
     public void setGroupQuery() { //有group by或having或聚合函数(包括自定义的聚合函数)时都会调用
         isGroupQuery = true;
@@ -191,11 +238,19 @@ public class Select extends Query {
         return group;
     }
 
+    /**
+     * Get the group data if there is currently a group-by active.
+     *
+     * @param window is this a window function
+     * @return the grouped data
+     */
     public SelectGroups getGroupDataIfCurrent(boolean window) {
         return groupData != null && (window || groupData.isCurrentGroup()) ? groupData : null;
     }
 
-    @Override
+    /**
+     * Set the distinct flag.
+     */
     public void setDistinct() {
         if (distinctExpressions != null) {
             throw DbException.getUnsupportedException("DISTINCT ON together with DISTINCT");
@@ -204,20 +259,15 @@ public class Select extends Query {
     }
 
     /**
-     * Set the distinct expressions.
+     * Set the DISTINCT ON expressions.
+     *
+     * @param distinctExpressions array of expressions
      */
     public void setDistinct(Expression[] distinctExpressions) {
         if (distinct) {
             throw DbException.getUnsupportedException("DISTINCT ON together with DISTINCT");
         }
         this.distinctExpressions = distinctExpressions;
-    }
-
-    @Override
-    public void setDistinctIfPossible() {
-        if (!isAnyDistinct() && offsetExpr == null && limitExpr == null) {
-            distinct = true;
-        }
     }
 
     @Override
@@ -306,18 +356,30 @@ public class Select extends Query {
         if (isHavingNullOrFalse(row)) {
             return null;
         }
-        row = keepOnlyDistinct(row, columnCount);
-        return row;
+        return rowForResult(row, columnCount);
     }
-    
-    //例如:select id,count(id) from mytable where id>2 group by id having id=3 order by id
-    //having id=3也加到expressions中了，此时columnCount是3，但是distinctColumnCount是2，所以要去掉一列
-    private Value[] keepOnlyDistinct(Value[] row, int columnCount) {
-        if (columnCount == distinctColumnCount) {
+//<<<<<<< HEAD
+//    
+//    //例如:select id,count(id) from mytable where id>2 group by id having id=3 order by id
+//    //having id=3也加到expressions中了，此时columnCount是3，但是distinctColumnCount是2，所以要去掉一列
+//    private Value[] keepOnlyDistinct(Value[] row, int columnCount) {
+//        if (columnCount == distinctColumnCount) {
+//=======
+
+    /**
+     * Removes HAVING and QUALIFY columns from the row.
+     *
+     * @param row
+     *            the complete row
+     * @param columnCount
+     *            the number of columns to keep
+     * @return the same or the truncated row
+     */
+    private Value[] rowForResult(Value[] row, int columnCount) {
+        if (columnCount == resultColumnCount) {
             return row;
         }
-        // remove columns so that 'distinct' can filter duplicate rows
-        return Arrays.copyOf(row, distinctColumnCount);
+        return Arrays.copyOf(row, resultColumnCount);
     }
 
     private boolean isHavingNullOrFalse(Value[] row) {
@@ -396,17 +458,41 @@ public class Select extends Query {
         return true;
     }
 
-    private int getGroupByExpressionCount() {
-        if (groupByExpression == null) {
-            return 0;
-        }
-        int count = 0;
-        for (boolean b : groupByExpression) {
-            if (b) {
-                ++count; //只要找到一个其实就可以退出了
+//<<<<<<< HEAD
+//    private int getGroupByExpressionCount() {
+//        if (groupByExpression == null) {
+//            return 0;
+//        }
+//        int count = 0;
+//        for (boolean b : groupByExpression) {
+//            if (b) {
+//                ++count; //只要找到一个其实就可以退出了
+//=======
+    boolean isConditionMetForUpdate() {
+        if (isConditionMet()) {
+            int count = filters.size();
+            boolean notChanged = true;
+            for (int i = 0; i < count; i++) {
+                TableFilter tableFilter = filters.get(i);
+                if (!tableFilter.isJoinOuter() && !tableFilter.isJoinOuterIndirect()) {
+                    Row row = tableFilter.get();
+                    Table table = tableFilter.getTable();
+                    // Views, function tables, links, etc. do not support locks
+                    if (table.isMVStore()) {
+                        Row lockedRow = table.lockRow(session, row);
+                        if (lockedRow == null) {
+                            return false;
+                        }
+                        if (!row.hasSharedData(lockedRow)) {
+                            tableFilter.set(lockedRow);
+                            notChanged = false;
+                        }
+                    }
+                }
             }
+            return notChanged || isConditionMet();
         }
-        return count;
+        return false;
     }
 
     boolean isConditionMet() {
@@ -416,8 +502,8 @@ public class Select extends Query {
     private void queryWindow(int columnCount, LocalResult result, long offset, boolean quickOffset) {
         initGroupData(columnCount);
         try {
-            gatherGroup(columnCount, Aggregate.STAGE_WINDOW);
-            processGroupResult(columnCount, result, offset, quickOffset);
+            gatherGroup(columnCount, DataAnalysisOperation.STAGE_WINDOW);
+            processGroupResult(columnCount, result, offset, quickOffset, false);
         } finally {
             groupData.reset();
         }
@@ -426,14 +512,18 @@ public class Select extends Query {
     private void queryGroupWindow(int columnCount, LocalResult result, long offset, boolean quickOffset) {
         initGroupData(columnCount);
         try {
-            gatherGroup(columnCount, Aggregate.STAGE_GROUP);
-            while (groupData.next() != null) {
-                updateAgg(columnCount, Aggregate.STAGE_WINDOW);
-            }
-            groupData.done();
+            gatherGroup(columnCount, DataAnalysisOperation.STAGE_GROUP);
             try {
                 isGroupWindowStage2 = true;
-                processGroupResult(columnCount, result, offset, quickOffset);
+                while (groupData.next() != null) {
+                    if (havingIndex < 0 || expressions.get(havingIndex).getBooleanValue(session)) {
+                        updateAgg(columnCount, DataAnalysisOperation.STAGE_WINDOW);
+                    } else {
+                        groupData.remove();
+                    }
+                }
+                groupData.done();
+                processGroupResult(columnCount, result, offset, quickOffset, /* Having was performed earlier */ false);
             } finally {
                 isGroupWindowStage2 = false;
             }
@@ -446,8 +536,8 @@ public class Select extends Query {
     private void queryGroup(int columnCount, LocalResult result, long offset, boolean quickOffset) {
         initGroupData(columnCount);
         try {
-            gatherGroup(columnCount, Aggregate.STAGE_GROUP);
-            processGroupResult(columnCount, result, offset, quickOffset);
+            gatherGroup(columnCount, DataAnalysisOperation.STAGE_GROUP);
+            processGroupResult(columnCount, result, offset, quickOffset, true);
         } finally {
             groupData.reset();
         }
@@ -455,20 +545,33 @@ public class Select extends Query {
 
     private void initGroupData(int columnCount) {
         if (groupData == null) {
-            groupData = SelectGroups.getInstance(session, expressions, isGroupQuery, groupIndex);
+            setGroupData(SelectGroups.getInstance(session, expressions, isGroupQuery, groupIndex));
         } else {
-            updateAgg(columnCount, Aggregate.STAGE_RESET);
+            updateAgg(columnCount, DataAnalysisOperation.STAGE_RESET);
         }
         groupData.reset();
     }
 
+    void setGroupData(final SelectGroups groupData) {
+        this.groupData = groupData;
+        topTableFilter.visit(new TableFilterVisitor() {
+            @Override
+            public void accept(TableFilter f) {
+                Select s = f.getSelect();
+                if (s != null) {
+                    s.groupData = groupData;
+                }
+            }
+        });
+    }
+
     private void gatherGroup(int columnCount, int stage) {
-        int rowNumber = 0;
+        long rowNumber = 0;
         setCurrentRowNumber(0);
         int sampleSize = getSampleSizeValue(session);
         while (topTableFilter.next()) {
             setCurrentRowNumber(rowNumber + 1);
-            if (isConditionMet()) {
+            if (isForUpdateMvcc ? isConditionMetForUpdate() : isConditionMet()) {
                 rowNumber++;
                 groupData.nextSource();
                 updateAgg(columnCount, stage);
@@ -480,6 +583,12 @@ public class Select extends Query {
         groupData.done();
     }
 
+
+    /**
+     * Update any aggregate expressions with the query stage.
+     * @param columnCount number of columns
+     * @param stage see STAGE_RESET/STAGE_GROUP/STAGE_WINDOW in DataAnalysisOperation
+     */
     void updateAgg(int columnCount, int stage) {
         //如果是聚合函数的场景，那么select表达式列表部分不能出现字段
         //如果是group by、having的场景，那么select表达式列表部分只允许出现group by字段
@@ -495,15 +604,17 @@ public class Select extends Query {
         //3  5
         //就表示id是1的有两行，id是2的有4行，id是3的有5行
         for (int i = 0; i < columnCount; i++) {
-            if (groupByExpression == null || !groupByExpression[i]) {
+            if ((groupByExpression == null || !groupByExpression[i])
+                    && (groupByCopies == null || groupByCopies[i] < 0)) {
                 Expression expr = expressions.get(i);
                 expr.updateAggregate(session, stage);
             }
         }
     }
 
-    private void processGroupResult(int columnCount, LocalResult result, long offset, boolean quickOffset) {
-        for (ValueArray currentGroupsKey; (currentGroupsKey = groupData.next()) != null;) {
+    private void processGroupResult(int columnCount, LocalResult result, long offset, boolean quickOffset,
+            boolean withHaving) {
+        for (ValueRow currentGroupsKey; (currentGroupsKey = groupData.next()) != null;) {
             Value[] keyValues = currentGroupsKey.getList();
             Value[] row = new Value[columnCount];
             //先填充group by字段
@@ -515,20 +626,29 @@ public class Select extends Query {
                 if (groupByExpression != null && groupByExpression[j]) {
                     continue;
                 }
+                if (groupByCopies != null) {
+                    int original = groupByCopies[j];
+                    if (original >= 0) {
+                        row[j] = row[original];
+                        continue;
+                    }
+                }
                 Expression expr = expressions.get(j);
                 row[j] = expr.getValue(session);
             }
             //根据having条件过滤，having条件也会加入expressions中，
             //所以在上面row[j] = expr.getValue(session)时已经算好了true或false
-            if (isHavingNullOrFalse(row)) {
+            if (withHaving && isHavingNullOrFalse(row)) {
+                continue;
+            }
+            if (qualifyIndex >= 0 && !row[qualifyIndex].getBoolean()) {
                 continue;
             }
             if (quickOffset && offset > 0) {
                 offset--;
                 continue;
             }
-            row = keepOnlyDistinct(row, columnCount);
-            result.addRow(row);
+            result.addRow(rowForResult(row, columnCount));
         }
     }
 
@@ -630,7 +750,7 @@ public class Select extends Query {
                 limitRows = Long.MAX_VALUE;
             }
         }
-        int rowNumber = 0;
+        long rowNumber = 0;
         setCurrentRowNumber(0);
         Index index = topTableFilter.getIndex();
         SearchRow first = null;
@@ -655,8 +775,7 @@ public class Select extends Query {
                 offset--;
                 continue;
             }
-            Value[] row = { value };
-            result.addRow(row);
+            result.addRow(value);
             if ((sort == null || sortUsingIndex) && limitRows > 0 &&
                     rowNumber >= limitRows && !withTies) {
                 break;
@@ -678,10 +797,9 @@ public class Select extends Query {
                 limitRows = Long.MAX_VALUE;
             }
         }
-        ArrayList<Row> forUpdateRows = this.isForUpdateMvcc ? Utils.<Row>newSmallArrayList() : null;
         int sampleSize = getSampleSizeValue(session);
-        LazyResultQueryFlat lazyResult = new LazyResultQueryFlat(expressionArray,
-                sampleSize, columnCount);
+        LazyResultQueryFlat lazyResult = new LazyResultQueryFlat(expressionArray, columnCount, sampleSize,
+                isForUpdateMvcc);
         skipOffset(lazyResult, offset, quickOffset);
         if (result == null) {
             return lazyResult;
@@ -691,9 +809,6 @@ public class Select extends Query {
         }
         Value[] row = null;
         while (result.getRowCount() < limitRows && lazyResult.next()) {
-            if (forUpdateRows != null) {
-                topTableFilter.lockRowAdd(forUpdateRows);
-            }
             row = lazyResult.currentRow();
             result.addRow(row);
         }
@@ -706,22 +821,16 @@ public class Select extends Query {
                 if (sort.compare(expected, row) != 0) {
                     break;
                 }
-                if (forUpdateRows != null) {
-                    topTableFilter.lockRowAdd(forUpdateRows);
-                }
                 result.addRow(row);
             }
             result.limitsWereApplied();
-        }
-        if (forUpdateRows != null) {
-            topTableFilter.lockRows(forUpdateRows);
         }
         return null;
     }
 
     private static void skipOffset(LazyResultSelect lazyResult, long offset, boolean quickOffset) {
         if (quickOffset) {
-            while (offset > 0 && lazyResult.next()) {
+            while (offset > 0 && lazyResult.skip()) {
                 offset--;
             }
         }
@@ -738,50 +847,17 @@ public class Select extends Query {
         }
     }
 
-    @Override
-    public ResultInterface queryMeta() {
-        LocalResult result = session.getDatabase().getResultFactory().create(session, expressionArray,
-                visibleColumnCount);
-        result.done();
-        return result;
-    }
-
     //执行insert into t select时target不为null
     @Override
     protected ResultInterface queryWithoutCache(int maxRows, ResultTarget target) {
-        int limitRows = maxRows == 0 ? -1 : maxRows;
-        if (limitExpr != null) {
-            Value v = limitExpr.getValue(session);
-            int l = v == ValueNull.INSTANCE ? -1 : v.getInt();
-            if (limitRows < 0) {
-                limitRows = l;
-            } else if (l >= 0) {
-                limitRows = Math.min(l, limitRows);
-            }
-        }
-        boolean fetchPercent = this.fetchPercent;
-        if (fetchPercent) {
-            // Need to check it row, because negative limit has special treatment later
-            if (limitRows < 0 || limitRows > 100) {
-                throw DbException.getInvalidValueException("FETCH PERCENT", limitRows);
-            }
-            // 0 PERCENT means 0
-            if (limitRows == 0) {
-                fetchPercent = false;
-            }
-        }
-        long offset;
-        if (offsetExpr != null) {
-            offset = offsetExpr.getValue(session).getLong();
-            if (offset < 0) {
-                offset = 0;
-            }
-        } else {
-            offset = 0;
-        }
+        disableLazyForJoinSubqueries(topTableFilter);
+        OffsetFetch offsetFetch = getOffsetFetch(maxRows);
+        long offset = offsetFetch.offset;
+        int fetch = offsetFetch.fetch;
+        boolean fetchPercent = offsetFetch.fetchPercent;
         boolean lazy = session.isLazyQueryExecution() &&
                 target == null && !isForUpdate && !isQuickAggregateQuery &&
-                limitRows != 0 && !fetchPercent && !withTies && offset == 0 && isReadOnly();
+                fetch != 0 && !fetchPercent && !withTies && offset == 0 && isReadOnly();
         int columnCount = expressions.size();
         LocalResult result = null;
         if (!lazy && (target == null ||
@@ -791,7 +867,7 @@ public class Select extends Query {
         // Do not add rows before OFFSET to result if possible
         boolean quickOffset = !fetchPercent;
         //就算target不为null，如果满足下面的特殊条件还是必须建立LocalResult
-        if (sort != null && (!sortUsingIndex || isAnyDistinct() || withTies)) {
+        if (sort != null && (!sortUsingIndex || isAnyDistinct())) {
             result = createLocalResult(result);
             result.setSortOrder(sort);
             if (!sortUsingIndex) {
@@ -812,35 +888,20 @@ public class Select extends Query {
         if (isWindowQuery || isGroupQuery && !isGroupSortedQuery) {
             result = createLocalResult(result);
         }
-        if (!lazy && (limitRows >= 0 || offset > 0)) {
+        if (!lazy && (fetch >= 0 || offset > 0)) {
             result = createLocalResult(result);
         }
         topTableFilter.startQuery(session);
         topTableFilter.reset();
         boolean exclusive = isForUpdate && !isForUpdateMvcc; //见setForUpdate(boolean)
-        if (isForUpdateMvcc) {
-            if (isGroupQuery) {
-                throw DbException.getUnsupportedException(
-                        "MVCC=TRUE && FOR UPDATE && GROUP");
-            } else if (isAnyDistinct()) {
-                throw DbException.getUnsupportedException(
-                        "MVCC=TRUE && FOR UPDATE && DISTINCT");
-            } else if (isQuickAggregateQuery) {
-                throw DbException.getUnsupportedException(
-                        "MVCC=TRUE && FOR UPDATE && AGGREGATE");
-            } else if (topTableFilter.getJoin() != null) {
-                throw DbException.getUnsupportedException(
-                        "MVCC=TRUE && FOR UPDATE && JOIN");
-            }
-        }
         topTableFilter.lock(session, exclusive, exclusive);
         ResultTarget to = result != null ? result : target;
         lazy &= to == null;
         LazyResult lazyResult = null;
         //如果行数限制是0，那么什么也不做
-        if (limitRows != 0) {
+        if (fetch != 0) {
             // Cannot apply limit now if percent is specified
-            int limit = fetchPercent ? -1 : limitRows;
+            int limit = fetchPercent ? -1 : fetch;
             try {
                 if (isQuickAggregateQuery) {
                     queryQuick(columnCount, to, quickOffset && offset > 0);
@@ -871,10 +932,10 @@ public class Select extends Query {
                 }
             }
         }
-        assert lazy == (lazyResult != null): lazy;
+        assert lazy == (lazyResult != null) : lazy;
         if (lazyResult != null) {
-            if (limitRows > 0) {
-                lazyResult.setLimit(limitRows);
+            if (fetch > 0) {
+                lazyResult.setLimit(fetch);
             }
             if (randomAccessResult) {
                 return convertToDistinct(lazyResult);
@@ -882,32 +943,26 @@ public class Select extends Query {
                 return lazyResult;
             }
         }
-        if (offset != 0) {
-            if (offset > Integer.MAX_VALUE) {
-                throw DbException.getInvalidValueException("OFFSET", offset);
-            }
-            result.setOffset((int) offset);
-        }
-        if (limitRows >= 0) {
-            result.setLimit(limitRows);
-            result.setFetchPercent(fetchPercent);
-            result.setWithTies(withTies);
-        }
         if (result != null) {
-            result.done();
-            if (randomAccessResult && !distinct) {
-                result = convertToDistinct(result);
-            }
-            if (target != null) {
-                while (result.next()) {
-                    target.addRow(result.currentRow());
-                }
-                result.close();
-                return null;
-            }
-            return result;
+            return finishResult(result, offset, fetch, fetchPercent, target);
         }
         return null;
+    }
+
+    private void disableLazyForJoinSubqueries(final TableFilter top) {
+        if (session.isLazyQueryExecution()) {
+            top.visit(new TableFilter.TableFilterVisitor() {
+                @Override
+                public void accept(TableFilter f) {
+                    if (f != top && f.getTable().getTableType() == TableType.VIEW) {
+                        ViewIndex idx = (ViewIndex) f.getIndex();
+                        if (idx != null && idx.getQuery() != null) {
+                            idx.getQuery().setNeverLazy(true);
+                        }
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -922,109 +977,171 @@ public class Select extends Query {
 
     private LocalResult createLocalResult(LocalResult old) {
         return old != null ? old : session.getDatabase().getResultFactory().create(session, expressionArray,
-                visibleColumnCount);
-    }
-
-    private LocalResult convertToDistinct(ResultInterface result) {
-        LocalResult distinctResult = session.getDatabase().getResultFactory().create(session,
-            expressionArray, visibleColumnCount);
-        distinctResult.setDistinct();
-        result.reset();
-        while (result.next()) {
-            distinctResult.addRow(result.currentRow());
-        }
-        result.close();
-        distinctResult.done();
-        return distinctResult;
+                visibleColumnCount, resultColumnCount);
     }
 
     //把"select *"或"select t.*"转成"select 表的所有字段"
     //也就是把单个Wildcard展开成多个ExpressionColumn
     private void expandColumnList() {
-        Database db = session.getDatabase();
-
         // the expressions may change within the loop
-        for (int i = 0; i < expressions.size(); i++) {
+        for (int i = 0; i < expressions.size();) {
             Expression expr = expressions.get(i);
-            //select表达式中可以同时出现*和字段名
-            //如select id, * from mytable as t where id>199
-            //当expr是id时是一个ExpressionColumn
-            //当expr是*时是一个Wildcard
-            //只有子类org.h2.expression.Wildcard覆盖了isWildcard方法并且返回为true
-            if (!expr.isWildcard()) {
+//<<<<<<< HEAD
+//            //select表达式中可以同时出现*和字段名
+//            //如select id, * from mytable as t where id>199
+//            //当expr是id时是一个ExpressionColumn
+//            //当expr是*时是一个Wildcard
+//            //只有子类org.h2.expression.Wildcard覆盖了isWildcard方法并且返回为true
+//            if (!expr.isWildcard()) {
+//                continue;
+//            }
+//            String schemaName = expr.getSchemaName();
+//            //ExpressionColumn类没有覆盖getTableAlias方法，所以哪怕这样 public.t.id引用列，也不会返回t
+//            //不过这里的代码没问题，因为运行到这里时expr肯定是Wildcard，Wildcard有覆盖getTableAlias方法,
+//            //这些注释只是顺便提一下getTableAlias在超类和不同子类中的实现差别
+//            String tableAlias = expr.getTableAlias();
+//            
+//            //如"select *"
+//            if (tableAlias == null) {
+//                expressions.remove(i);
+//                //有可能是多表join，这时一个*就会先扩展成多表的字段
+//=======
+            if (!(expr instanceof Wildcard)) {
+                i++;
                 continue;
             }
-            String schemaName = expr.getSchemaName();
-            //ExpressionColumn类没有覆盖getTableAlias方法，所以哪怕这样 public.t.id引用列，也不会返回t
-            //不过这里的代码没问题，因为运行到这里时expr肯定是Wildcard，Wildcard有覆盖getTableAlias方法,
-            //这些注释只是顺便提一下getTableAlias在超类和不同子类中的实现差别
-            String tableAlias = expr.getTableAlias();
-            
-            //如"select *"
+            expressions.remove(i);
+            Wildcard w = (Wildcard) expr;
+            String tableAlias = w.getTableAlias();
+            boolean hasExceptColumns = w.getExceptColumns() != null;
+            HashMap<Column, ExpressionColumn> exceptTableColumns = null;
             if (tableAlias == null) {
-                expressions.remove(i);
-                //有可能是多表join，这时一个*就会先扩展成多表的字段
-                for (TableFilter filter : filters) {
-                    i = expandColumnList(filter, i);
+                if (hasExceptColumns) {
+                    for (TableFilter filter : filters) {
+                        w.mapColumns(filter, 1, Expression.MAP_INITIAL);
+                    }
+                    exceptTableColumns = w.mapExceptColumns();
                 }
-                i--; //expandColumnList里多加了1，所以要减一
-                
-            } else { //如"select t.*"
-
-            	//如select public.t.* from mytable as t where id>199
-            	//其中public是schemaName
-            	//t是tableAlias
+                for (TableFilter filter : filters) {
+                    i = expandColumnList(filter, i, false, exceptTableColumns);
+                }
+//<<<<<<< HEAD
+//                i--; //expandColumnList里多加了1，所以要减一
+//                
+//            } else { //如"select t.*"
+//
+//            	//如select public.t.* from mytable as t where id>199
+//            	//其中public是schemaName
+//            	//t是tableAlias
+//=======
+            } else {
+                Database db = session.getDatabase();
+                String schemaName = w.getSchemaName();
                 TableFilter filter = null;
                 for (TableFilter f : filters) {
                     //select mytable.* from mytable as t这种用法是错的，MySQL也报错
                     //必须这样select t.* from mytable as t或者select mytable.* from mytable
                     if (db.equalsIdentifiers(tableAlias, f.getTableAlias())) {
-                        if (schemaName == null ||
-                                db.equalsIdentifiers(schemaName,
-                                        f.getSchemaName())) {
+                        if (schemaName == null || db.equalsIdentifiers(schemaName, f.getSchemaName())) {
+                            if (hasExceptColumns) {
+                                w.mapColumns(f, 1, Expression.MAP_INITIAL);
+                                exceptTableColumns = w.mapExceptColumns();
+                            }
                             filter = f;
                             break;
                         }
                     }
                 }
                 if (filter == null) {
-                    throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1,
-                            tableAlias);
+                    throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableAlias);
                 }
-                expressions.remove(i);
-
-                // expandColumnList里多加了1，所以要减一
-                // 所以下次实际是展开后的下一个元素开始
-                // 比如select public.t.id, *, name from mytable as t where id>199
-                // 展开后是select public.t.id, [id, name], name from mytable as t where id>199
-                // 下次就从最后一个name开始
-                i = expandColumnList(filter, i);
-                i--;  
+//<<<<<<< HEAD
+//                expressions.remove(i);
+//
+//                // expandColumnList里多加了1，所以要减一
+//                // 所以下次实际是展开后的下一个元素开始
+//                // 比如select public.t.id, *, name from mytable as t where id>199
+//                // 展开后是select public.t.id, [id, name], name from mytable as t where id>199
+//                // 下次就从最后一个name开始
+//                i = expandColumnList(filter, i);
+//                i--;  
+//=======
+                i = expandColumnList(filter, i, true, exceptTableColumns);
             }
         }
     }
 
-    //这个方法已经能够处理没有字段的表
-    private int expandColumnList(TableFilter filter, int index) {
-        Table t = filter.getTable();
+//<<<<<<< HEAD
+//    //这个方法已经能够处理没有字段的表
+//    private int expandColumnList(TableFilter filter, int index) {
+//        Table t = filter.getTable();
+//        String alias = filter.getTableAlias();
+//        Column[] columns = t.getColumns();                
+//        // 原先是select * from natural_join_test_table1 natural join natural_join_test_table2
+//        // AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
+//        // [NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME,
+//        // NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
+//        for (Column c : columns) { 
+//            if (!c.getVisible()) {
+//                continue;
+//            }
+//            // 跳过Natural Join列，
+//            // 右边的表对应的TableFilter有Natural Join列，而左边没有
+//            if (filter.isNaturalJoinColumn(c)) {
+//                continue;
+//=======
+    private int expandColumnList(TableFilter filter, int index, boolean forAlias,
+            HashMap<Column, ExpressionColumn> except) {
+        String schema = filter.getSchemaName();
         String alias = filter.getTableAlias();
-        Column[] columns = t.getColumns();                
-        // 原先是select * from natural_join_test_table1 natural join natural_join_test_table2
-        // AGE2没有忽略，只有NATURAL_JOIN_TEST_TABLE2的id和name被忽略了，因为他们是Natural Join列
-        // [NATURAL_JOIN_TEST_TABLE1.ID, NATURAL_JOIN_TEST_TABLE1.NAME,
-        // NATURAL_JOIN_TEST_TABLE1.AGE1, NATURAL_JOIN_TEST_TABLE2.AGE2]
-        for (Column c : columns) { 
-            if (!c.getVisible()) {
-                continue;
+        if (forAlias) {
+            for (Column c : filter.getTable().getColumns()) {
+                index = addExpandedColumn(filter, index, except, schema, alias, c);
             }
-            // 跳过Natural Join列，
-            // 右边的表对应的TableFilter有Natural Join列，而左边没有
-            if (filter.isNaturalJoinColumn(c)) {
-                continue;
+        } else {
+            LinkedHashMap<Column, Column> commonJoinColumns = filter.getCommonJoinColumns();
+            if (commonJoinColumns != null) {
+                TableFilter replacementFilter = filter.getCommonJoinColumnsFilter();
+                String replacementSchema = replacementFilter.getSchemaName();
+                String replacementAlias = replacementFilter.getTableAlias();
+                for (Entry<Column, Column> entry : commonJoinColumns.entrySet()) {
+                    Column left = entry.getKey(), right = entry.getValue();
+                    if (!filter.isCommonJoinColumnToExclude(right)
+                            && (except == null || except.remove(left) == null && except.remove(right) == null)) {
+                        Database database = session.getDatabase();
+                        Expression e;
+                        if (left == right
+                                || DataType.hasTotalOrdering(left.getType().getValueType())
+                                && DataType.hasTotalOrdering(right.getType().getValueType())) {
+                            e = new ExpressionColumn(database, replacementSchema, replacementAlias,
+                                    replacementFilter.getColumnName(right), false);
+                        } else {
+                            e = new Alias(Function.getFunctionWithArgs(database, Function.COALESCE,
+                                    new ExpressionColumn(database, schema, alias, filter.getColumnName(left), false),
+                                    new ExpressionColumn(database, replacementSchema, replacementAlias,
+                                            replacementFilter.getColumnName(right), false)), //
+                                    left.getName(), true);
+                        }
+                        expressions.add(index++, e);
+                    }
+                }
             }
-            String name = filter.getDerivedColumnName(c);
+            for (Column c : filter.getTable().getColumns()) {
+                if (commonJoinColumns == null || !commonJoinColumns.containsKey(c)) {
+                    if (!filter.isCommonJoinColumnToExclude(c)) {
+                        index = addExpandedColumn(filter, index, except, schema, alias, c);
+                    }
+                }
+            }
+        }
+        return index;
+    }
+
+    private int addExpandedColumn(TableFilter filter, int index, HashMap<Column, ExpressionColumn> except,
+            String schema, String alias, Column c) {
+        if ((except == null || except.remove(c) == null) && c.getVisible()) {
             ExpressionColumn ec = new ExpressionColumn(
-                    session.getDatabase(), null, alias, name != null ? name : c.getName());
+                    session.getDatabase(), schema, alias, filter.getColumnName(c), false);
             expressions.add(index++, ec);
         }
         return index;
@@ -1032,10 +1149,11 @@ public class Select extends Query {
 
     @Override
     public void init() {
-        if (SysProperties.CHECK && checkInit) {
+        if (checkInit) {
             DbException.throwInternalError();
         }
         //expressions字段会动态加入*扩展后的字段、缺失的order by、GROUP BY字段，还有having表达式
+        Collections.sort(filters, TableFilter.ORDER_IN_FROM_COMPARATOR);
         expandColumnList();
         visibleColumnCount = expressions.size(); //visibleColumnCount不包含缺失的order by、GROUP BY字段，还有having表达式
         ArrayList<String> expressionSQL;
@@ -1047,7 +1165,7 @@ public class Select extends Query {
                 //例如: select name as n, id from mytable order id
                 //expressionSQL是[name, id]而不是[n, id], 不使用org.h2.expression.Alias的别名
                 expr = expr.getNonAliasExpression();
-                String sql = expr.getSQL();
+                String sql = expr.getSQL(true);
                 expressionSQL.add(sql);
             }
         } else {
@@ -1077,13 +1195,20 @@ public class Select extends Query {
             initOrder(session, expressions, expressionSQL, orderList,
                     visibleColumnCount, isAnyDistinct(), filters);
         }
-        distinctColumnCount = expressions.size();
+        resultColumnCount = expressions.size();
         if (having != null) {
             expressions.add(having);
             havingIndex = expressions.size() - 1;
             having = null;
         } else {
             havingIndex = -1;
+        }
+        if (qualify != null) {
+            expressions.add(qualify);
+            qualifyIndex = expressions.size() - 1;
+            qualify = null;
+        } else {
+            qualifyIndex = -1;
         }
 
         if (withTies && !hasOrder()) {
@@ -1107,12 +1232,12 @@ public class Select extends Query {
             groupIndex = new int[size];
             for (int i = 0; i < size; i++) {
                 Expression expr = group.get(i);
-                String sql = expr.getSQL();
+                String sql = expr.getSQL(true);
                 int found = -1;
                 for (int j = 0; j < expSize; j++) {
                     String s2 = expressionSQL.get(j);
                     if (db.equalsIdentifiers(s2, sql)) {
-                        found = j;
+                        found = mergeGroupByExpressions(db, j, expressionSQL, false);
                         break;
                     }
                 }
@@ -1121,12 +1246,12 @@ public class Select extends Query {
                     for (int j = 0; j < expSize; j++) {
                         Expression e = expressions.get(j);
                         if (db.equalsIdentifiers(sql, e.getAlias())) {
-                            found = j;
+                            found = mergeGroupByExpressions(db, j, expressionSQL, true);
                             break;
                         }
                         sql = expr.getAlias();
                         if (db.equalsIdentifiers(sql, e.getAlias())) {
-                            found = j;
+                            found = mergeGroupByExpressions(db, j, expressionSQL, true);
                             break;
                         }
                     }
@@ -1139,6 +1264,14 @@ public class Select extends Query {
                     groupIndex[i] = found;
                 }
             }
+            checkUsed: if (groupByCopies != null) {
+                for (int i : groupByCopies) {
+                    if (i >= 0) {
+                        break checkUsed;
+                    }
+                }
+                groupByCopies = null;
+            }
             groupByExpression = new boolean[expressions.size()];
             for (int gi : groupIndex) {
                 groupByExpression[gi] = true;
@@ -1149,15 +1282,68 @@ public class Select extends Query {
         for (TableFilter f : filters) {
             mapColumns(f, 0);
         }
+//<<<<<<< HEAD
+//
+//        if (havingIndex >= 0) { //在对expressions进行mapColumns时map过了
+//            Expression expr = expressions.get(havingIndex);
+//=======
+        mapCondition(havingIndex);
+        mapCondition(qualifyIndex);
+        checkInit = true;
+    }
 
-        if (havingIndex >= 0) { //在对expressions进行mapColumns时map过了
-            Expression expr = expressions.get(havingIndex);
+    private void mapCondition(int index) {
+        if (index >= 0) {
+            Expression expr = expressions.get(index);
             SelectListColumnResolver res = new SelectListColumnResolver(this);
             // 处理having中出现列别名的场景
             // //当having不在visibleColumn的字段列表中时，mapColumns什么都不做
             expr.mapColumns(res, 0, Expression.MAP_INITIAL);
         }
-        checkInit = true;
+    }
+
+    private int mergeGroupByExpressions(Database db, int index, ArrayList<String> expressionSQL, boolean scanPrevious)
+    {
+        /*
+         * -1: uniqueness of expression is not known yet
+         *
+         * -2: expression that is used as a source for a copy or does not have
+         * copies
+         *
+         * >=0: expression is a copy of expression at this index
+         */
+        if (groupByCopies != null) {
+            int c = groupByCopies[index];
+            if (c >= 0) {
+                return c;
+            } else if (c == -2) {
+                return index;
+            }
+        } else {
+            groupByCopies = new int[expressionSQL.size()];
+            Arrays.fill(groupByCopies, -1);
+        }
+        String sql = expressionSQL.get(index);
+        if (scanPrevious) {
+            /*
+             * If expression was matched using an alias previous expressions may
+             * be identical.
+             */
+            for (int i = 0; i < index; i++) {
+                if (db.equalsIdentifiers(sql, expressionSQL.get(i))) {
+                    index = i;
+                    break;
+                }
+            }
+        }
+        int l = expressionSQL.size();
+        for (int i = index + 1; i < l; i++) {
+            if (db.equalsIdentifiers(sql, expressionSQL.get(i))) {
+                groupByCopies[i] = index;
+            }
+        }
+        groupByCopies[index] = -2;
+        return index;
     }
 
     @Override
@@ -1166,7 +1352,7 @@ public class Select extends Query {
             // sometimes a subquery is prepared twice (CREATE TABLE AS SELECT)
             return;
         }
-        if (SysProperties.CHECK && !checkInit) {
+        if (!checkInit) {
             DbException.throwInternalError("not initialized");
         }
         //得到一个综合的SortOrder实例后清除无用的orderList
@@ -1207,21 +1393,26 @@ public class Select extends Query {
                 }
             }
         }
-        
-        //这里是针对min、max、count三个聚合函数的特别优化，见org.h2.expression.Aggregate.getValue(Session)
-        //有group by或having或聚合函数时isGroupQuery=true
-        //同时满足下面5个条件时isQuickAggregateQuery为true
-        //isGroupQuery=true、groupIndex=null(即没有group by子句)、没有having、单表、无where
-        //测试下面代码用select count(id) from mytable
-        if (isGroupQuery && groupIndex == null && havingIndex < 0 && filters.size() == 1) {
-            if (condition == null) {
-                Table t = filters.get(0).getTable();
-                //返回OPTIMIZABLE_MIN_MAX_COUNT_ALL类型
-                ExpressionVisitor optimizable = ExpressionVisitor.getOptimizableVisitor(t);
-                //isEverything里再判断所有的select字段表达式对于OPTIMIZABLE_MIN_MAX_COUNT_ALL是否可优化
-                //可参考org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
-                isQuickAggregateQuery = isEverything(optimizable);
-            }
+//<<<<<<< HEAD
+//        
+//        //这里是针对min、max、count三个聚合函数的特别优化，见org.h2.expression.Aggregate.getValue(Session)
+//        //有group by或having或聚合函数时isGroupQuery=true
+//        //同时满足下面5个条件时isQuickAggregateQuery为true
+//        //isGroupQuery=true、groupIndex=null(即没有group by子句)、没有having、单表、无where
+//        //测试下面代码用select count(id) from mytable
+//        if (isGroupQuery && groupIndex == null && havingIndex < 0 && filters.size() == 1) {
+//            if (condition == null) {
+//                Table t = filters.get(0).getTable();
+//                //返回OPTIMIZABLE_MIN_MAX_COUNT_ALL类型
+//                ExpressionVisitor optimizable = ExpressionVisitor.getOptimizableVisitor(t);
+//                //isEverything里再判断所有的select字段表达式对于OPTIMIZABLE_MIN_MAX_COUNT_ALL是否可优化
+//                //可参考org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
+//                isQuickAggregateQuery = isEverything(optimizable);
+//            }
+//=======
+        if (isGroupQuery && groupIndex == null && havingIndex < 0 && qualifyIndex < 0 && condition == null
+                && filters.size() == 1) {
+            isQuickAggregateQuery = isEverything(ExpressionVisitor.getOptimizableVisitor(filters.get(0).getTable()));
         }
         // 这一步里头会为topTableFilter选择最合适的索引，只不过下面3个if如果碰到特殊情况再调整索引
         cost = preparePlan(session.isParsingCreateView());
@@ -1301,18 +1492,25 @@ public class Select extends Query {
                     }
                 }
             }
+            if (sortUsingIndex && isForUpdateMvcc && !topTableFilter.getIndex().isRowIdIndex()) {
+                sortUsingIndex = false;
+            }
         }
-        //没有快速聚合函数，有group by的情型
-        //其实不需要调用getGroupByExpressionCount()的，
-        //只要判断groupByExpression!=null即可，此时getGroupByExpressionCount()必定>0
-        //因为在调用init时，如果groupByExpression不为null，必定包含true值的
-        if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) {
+//<<<<<<< HEAD
+//        //没有快速聚合函数，有group by的情型
+//        //其实不需要调用getGroupByExpressionCount()的，
+//        //只要判断groupByExpression!=null即可，此时getGroupByExpressionCount()必定>0
+//        //因为在调用init时，如果groupByExpression不为null，必定包含true值的
+//        if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) {
+//=======
+        if (!isQuickAggregateQuery && isGroupQuery) {
             Index index = getGroupSortedIndex();
-            Index current = topTableFilter.getIndex();
-            if (index != null && current != null && (current.getIndexType().isScan() ||
-                    current == index)) {
-                topTableFilter.setIndex(index);
-                isGroupSortedQuery = true;
+            if (index != null) {
+                Index current = topTableFilter.getIndex();
+                if (current != null && (current.getIndexType().isScan() || current == index)) {
+                    topTableFilter.setIndex(index);
+                    isGroupSortedQuery = true;
+                }
             }
         }
         expressionArray = expressions.toArray(new Expression[0]);
@@ -1368,6 +1566,7 @@ public class Select extends Query {
     private double preparePlan(boolean parse) {
         TableFilter[] topArray = topFilters.toArray(new TableFilter[0]);
         for (TableFilter t : topArray) {
+            t.createIndexConditions();
             t.setFullCondition(condition);
         }
 
@@ -1421,12 +1620,12 @@ public class Select extends Query {
     }
 
     @Override
-    public String getPlanSQL() {
+    public String getPlanSQL(boolean alwaysQuote) {
         // can not use the field sqlStatement because the parameter
         // indexes may be incorrect: ? may be in fact ?2 for a subquery
         // but indexes may be set manually as well
         Expression[] exprList = expressions.toArray(new Expression[0]);
-        StatementBuilder buff = new StatementBuilder();
+        StringBuilder builder = new StringBuilder();
         for (TableFilter f : topFilters) {
             Table t = f.getTable();
             TableView tableView = t.isView() ? (TableView) t : null;
@@ -1437,128 +1636,117 @@ public class Select extends Query {
                     // since using a with statement will re-create the common table expression
                     // views.
                 } else {
-                    buff.append("WITH RECURSIVE ")
-                            .append(t.getSchema().getSQL()).append('.').append(Parser.quoteIdentifier(t.getName()))
-                            .append('(');
-                    buff.resetCount();
-                    for (Column c : t.getColumns()) {
-                        buff.appendExceptFirst(",");
-                        buff.append(c.getName());
-                    }
-                    buff.append(") AS ").append(t.getSQL()).append('\n');
+                    builder.append("WITH RECURSIVE ");
+                    t.getSchema().getSQL(builder, alwaysQuote).append('.');
+                    Parser.quoteIdentifier(builder, t.getName(), alwaysQuote).append('(');
+                    Column.writeColumns(builder, t.getColumns(), alwaysQuote);
+                    builder.append(") AS ");
+                    t.getSQL(builder, alwaysQuote).append('\n');
                 }
             }
         }
-        buff.resetCount();
-        buff.append("SELECT");
-        if (isAnyDistinct()) {
-            buff.append(" DISTINCT");
-            if (distinctExpressions != null) {
-                buff.append(" ON(");
-                for (Expression distinctExpression: distinctExpressions) {
-                    buff.appendExceptFirst(", ");
-                    buff.append(distinctExpression.getSQL());
-                }
-                buff.append(')');
-                buff.resetCount();
-            }
-        }
-        for (int i = 0; i < visibleColumnCount; i++) {
-            buff.appendExceptFirst(",");
-            buff.append('\n');
-            buff.append(StringUtils.indent(exprList[i].getSQL(), 4, false));
-        }
-        buff.append("\nFROM ");
-        TableFilter filter = topTableFilter;
-        if (filter != null) {
-            buff.resetCount();
-            int i = 0;
-            do {
-                buff.appendExceptFirst("\n");
-                buff.append(filter.getPlanSQL(i++ > 0));
-                filter = filter.getJoin();
-            } while (filter != null);
+        if (isExplicitTable) {
+            builder.append("TABLE ");
+            filters.get(0).getPlanSQL(builder, false, alwaysQuote);
         } else {
-            buff.resetCount();
-            int i = 0;
-            for (TableFilter f : topFilters) {
+            builder.append("SELECT");
+            if (isAnyDistinct()) {
+                builder.append(" DISTINCT");
+                if (distinctExpressions != null) {
+                    builder.append(" ON(");
+                    Expression.writeExpressions(builder, distinctExpressions, alwaysQuote);
+                    builder.append(')');
+                }
+            }
+            for (int i = 0; i < visibleColumnCount; i++) {
+                if (i > 0) {
+                    builder.append(',');
+                }
+                builder.append('\n');
+                StringUtils.indent(builder, exprList[i].getSQL( alwaysQuote), 4, false);
+            }
+            builder.append("\nFROM ");
+            TableFilter filter = topTableFilter;
+            if (filter != null) {
+                int i = 0;
                 do {
-                    buff.appendExceptFirst("\n");
-                    buff.append(f.getPlanSQL(i++ > 0));
-                    f = f.getJoin();
-                } while (f != null);
+                    if (i > 0) {
+                        builder.append('\n');
+                    }
+                    filter.getPlanSQL(builder, i++ > 0, alwaysQuote);
+                    filter = filter.getJoin();
+                } while (filter != null);
+            } else {
+                int i = 0;
+                for (TableFilter f : topFilters) {
+                    do {
+                        if (i > 0) {
+                            builder.append('\n');
+                        }
+                        f.getPlanSQL(builder, i++ > 0, alwaysQuote);
+                        f = f.getJoin();
+                    } while (f != null);
+                }
             }
-        }
-        if (condition != null) {
-            buff.append("\nWHERE ").append(
-                    StringUtils.unEnclose(condition.getSQL()));
-        }
-        if (groupIndex != null) {
-            buff.append("\nGROUP BY ");
-            buff.resetCount();
-            for (int gi : groupIndex) {
-                Expression g = exprList[gi];
-                g = g.getNonAliasExpression();
-                buff.appendExceptFirst(", ");
-                buff.append(StringUtils.unEnclose(g.getSQL()));
+            if (condition != null) {
+                builder.append("\nWHERE ");
+                condition.getUnenclosedSQL(builder, alwaysQuote);
             }
-        }
-        if (group != null) {
-            buff.append("\nGROUP BY ");
-            buff.resetCount();
-            for (Expression g : group) {
-                buff.appendExceptFirst(", ");
-                buff.append(StringUtils.unEnclose(g.getSQL()));
+            if (groupIndex != null) {
+                builder.append("\nGROUP BY ");
+                for (int i = 0, l = groupIndex.length; i < l; i++) {
+                    if (i > 0) {
+                        builder.append(", ");
+                    }
+                    exprList[groupIndex[i]].getNonAliasExpression().getUnenclosedSQL(builder, alwaysQuote);
+                }
+            } else if (group != null) {
+                builder.append("\nGROUP BY ");
+                for (int i = 0, l = group.size(); i < l; i++) {
+                    if (i > 0) {
+                        builder.append(", ");
+                    }
+                    group.get(i).getUnenclosedSQL(builder, alwaysQuote);
+                }
             }
+            getFilterSQL(builder, "\nHAVING ", exprList, having, havingIndex);
+            getFilterSQL(builder, "\nQUALIFY ", exprList, qualify, qualifyIndex);
         }
-        if (having != null) {
-            // could be set in addGlobalCondition
-            // in this case the query is not run directly, just getPlanSQL is
-            // called
-            Expression h = having;
-            buff.append("\nHAVING ").append(
-                    StringUtils.unEnclose(h.getSQL()));
-        } else if (havingIndex >= 0) {
-            Expression h = exprList[havingIndex];
-            buff.append("\nHAVING ").append(
-                    StringUtils.unEnclose(h.getSQL()));
-        }
-        if (sort != null) {
-            buff.append("\nORDER BY ").append(
-                    sort.getSQL(exprList, visibleColumnCount));
-        }
-        if (orderList != null) {
-            buff.append("\nORDER BY ");
-            buff.resetCount();
-            for (SelectOrderBy o : orderList) {
-                buff.appendExceptFirst(", ");
-                buff.append(StringUtils.unEnclose(o.getSQL()));
-            }
-        }
-        appendLimitToSQL(buff.builder());
+        appendEndOfQueryToSQL(builder, alwaysQuote, exprList);
         if (sampleSizeExpr != null) {
-            buff.append("\nSAMPLE_SIZE ").append(
-                    StringUtils.unEnclose(sampleSizeExpr.getSQL()));
+            builder.append("\nSAMPLE_SIZE ");
+            sampleSizeExpr.getUnenclosedSQL(builder, alwaysQuote);
         }
         if (isForUpdate) {
-            buff.append("\nFOR UPDATE");
+            builder.append("\nFOR UPDATE");
         }
         if (isQuickAggregateQuery) {
-            buff.append("\n/* direct lookup */");
+            builder.append("\n/* direct lookup */");
         }
         if (isDistinctQuery) {
-            buff.append("\n/* distinct */");
+            builder.append("\n/* distinct */");
         }
         if (sortUsingIndex) {
-            buff.append("\n/* index sorted */");
+            builder.append("\n/* index sorted */");
         }
         if (isGroupQuery) {
             if (isGroupSortedQuery) {
-                buff.append("\n/* group sorted */");
+                builder.append("\n/* group sorted */");
             }
         }
-        // buff.append("\n/* cost: " + cost + " */");
-        return buff.toString();
+        // builder.append("\n/* cost: " + cost + " */");
+        return builder.toString();
+    }
+
+    private static void getFilterSQL(StringBuilder builder, String sql, Expression[] exprList, Expression condition,
+            int conditionIndex) {
+        if (condition != null) {
+            builder.append(sql);
+            condition.getUnenclosedSQL(builder, true);
+        } else if (conditionIndex >= 0) {
+            builder.append(sql);
+            exprList[conditionIndex].getUnenclosedSQL(builder, true);
+        }
     }
 
     public void setHaving(Expression having) {
@@ -1569,9 +1757,12 @@ public class Select extends Query {
         return having;
     }
 
-    @Override
-    public int getColumnCount() {
-        return visibleColumnCount;
+    public void setQualify(Expression qualify) {
+        this.qualify = qualify;
+    }
+
+    public Expression getQualify() {
+        return qualify;
     }
 
     public TableFilter getTopTableFilter() {
@@ -1580,9 +1771,11 @@ public class Select extends Query {
 
     @Override
     public void setForUpdate(boolean b) {
+        if (b && (isAnyDistinct() || isGroupQuery)) {
+            throw DbException.get(ErrorCode.FOR_UPDATE_IS_NOT_ALLOWED_IN_DISTINCT_OR_GROUPED_SELECT);
+        }
         this.isForUpdate = b;
-        if (session.getDatabase().getSettings().selectForUpdateMvcc &&
-                session.getDatabase().isMVStore()) {
+        if (session.getDatabase().isMVStore()) {
             isForUpdateMvcc = b;
         }
     }
@@ -1670,6 +1863,14 @@ public class Select extends Query {
         }
         comp = comp.optimize(session);
         boolean addToCondition = true;
+        if (isWindowQuery) {
+            if (qualify == null) {
+                qualify = comp;
+            } else {
+                qualify = new ConditionAndOr(ConditionAndOr.AND, comp, qualify);
+            }
+            return;
+        }
         if (isGroupQuery) {
             addToCondition = false;
             for (int i = 0; groupIndex != null && i < groupIndex.length; i++) {
@@ -1708,6 +1909,9 @@ public class Select extends Query {
         }
         if (having != null) {
             having.updateAggregate(s, stage);
+        }
+        if (qualify != null) {
+            qualify.updateAggregate(s, stage);
         }
     }
 
@@ -1760,12 +1964,10 @@ public class Select extends Query {
         if (having != null && !having.isEverything(v2)) {
             return false;
         }
+        if (qualify != null && !qualify.isEverything(v2)) {
+            return false;
+        }
         return true;
-    }
-
-    @Override
-    public boolean isReadOnly() {
-        return isEverything(ExpressionVisitor.READONLY_VISITOR);
     }
 
     @Override
@@ -1775,24 +1977,24 @@ public class Select extends Query {
 
     @Override
     public boolean allowGlobalConditions() {
-        return offsetExpr == null && (limitExpr == null || sort == null);
+        return offsetExpr == null && (limitExpr == null && distinctExpressions == null || sort == null);
     }
 
     public SortOrder getSortOrder() {
         return sort;
     }
 
-    @Override
-    public String toString() { // 我加上的
-        return getPlanSQL();
-    }
+//    @Override
+//    public String toString() { // 我加上的
+//        return getPlanSQL();
+//    }
 
     /**
      * Lazy execution for this select.
      */
     private abstract class LazyResultSelect extends LazyResult {
 
-        int rowNumber;
+        long rowNumber;
         int columnCount;
 
         LazyResultSelect(Expression[] expressions, int columnCount) {
@@ -1829,19 +2031,22 @@ public class Select extends Query {
      */
     private final class LazyResultQueryFlat extends LazyResultSelect {
 
-        int sampleSize;
+        private int sampleSize;
 
-        LazyResultQueryFlat(Expression[] expressions, int sampleSize, int columnCount) {
+        private boolean forUpdate;
+
+        LazyResultQueryFlat(Expression[] expressions, int columnCount, int sampleSize, boolean forUpdate) {
             super(expressions, columnCount);
             this.sampleSize = sampleSize;
+            this.forUpdate = forUpdate;
         }
 
         @Override
         protected Value[] fetchNextRow() {
-            while ((sampleSize <= 0 || rowNumber < sampleSize) &&
-                    topTableFilter.next()) {
+            while ((sampleSize <= 0 || rowNumber < sampleSize) && topTableFilter.next()) {
                 setCurrentRowNumber(rowNumber + 1);
-                if (isConditionMet()) {
+                // This method may lock rows
+                if (forUpdate ? isConditionMetForUpdate() : isConditionMet()) {
                     ++rowNumber;
                     Value[] row = new Value[columnCount];
                     for (int i = 0; i < columnCount; i++) {
@@ -1856,6 +2061,20 @@ public class Select extends Query {
             }
             return null;
         }
+
+        @Override
+        protected boolean skipNextRow() {
+            while ((sampleSize <= 0 || rowNumber < sampleSize) && topTableFilter.next()) {
+                setCurrentRowNumber(rowNumber + 1);
+                // This method does not lock rows
+                if (isConditionMet()) {
+                    ++rowNumber;
+                    return true;
+                }
+            }
+            return false;
+        }
+
     }
 
     /**
@@ -1868,10 +2087,11 @@ public class Select extends Query {
         LazyResultGroupSorted(Expression[] expressions, int columnCount) {
             super(expressions, columnCount);
             if (groupData == null) {
-                groupData = SelectGroups.getInstance(getSession(), Select.this.expressions, isGroupQuery, groupIndex);
+                setGroupData(SelectGroups.getInstance(getSession(), Select.this.expressions, isGroupQuery,
+                        groupIndex));
             } else {
                 // TODO is this branch possible?
-                updateAgg(columnCount, Aggregate.STAGE_RESET);
+                updateAgg(columnCount, DataAnalysisOperation.STAGE_RESET);
                 groupData.resetLazy();
             }
         }
@@ -1908,7 +2128,7 @@ public class Select extends Query {
                         groupData.nextLazyGroup();
                     }
                     groupData.nextLazyRow();
-                    updateAgg(columnCount, Aggregate.STAGE_GROUP);
+                    updateAgg(columnCount, DataAnalysisOperation.STAGE_GROUP);
                     if (row != null) {
                         return row;
                     }
@@ -1922,4 +2142,14 @@ public class Select extends Query {
             return row;
         }
     }
+
+    /**
+     * Returns parent select, or null.
+     *
+     * @return parent select, or null
+     */
+    public Select getParentSelect() {
+        return parentSelect;
+    }
+
 }

@@ -1,12 +1,13 @@
 /*
- * Copyright 2004-2018 H2 Group. Multiple-Licensed under the MPL 2.0,
- * and the EPL 1.0 (http://h2database.com/html/license.html).
+ * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.TreeMap;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.engine.SessionInterface;
@@ -14,9 +15,9 @@ import org.h2.expression.Expression;
 import org.h2.message.DbException;
 import org.h2.mvstore.db.MVTempResult;
 import org.h2.util.Utils;
-import org.h2.util.ValueHashMap;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
-import org.h2.value.ValueArray;
+import org.h2.value.ValueRow;
 
 /**
  * A local result set contains all row data of a result set.
@@ -29,22 +30,26 @@ public class LocalResultImpl implements LocalResult {
     private int maxMemoryRows;
     private Session session;
     private int visibleColumnCount;
+    private int resultColumnCount;
     private Expression[] expressions;
     private int rowId, rowCount;
     private ArrayList<Value[]> rows;
     private SortOrder sort;
-    private ValueHashMap<Value[]> distinctRows;
+    // HashSet cannot be used here, because we need to compare values of
+    // different type or scale properly.
+    private TreeMap<Value, Value[]> distinctRows;
     private Value[] currentRow;
     private int offset;
     private int limit = -1;
     private boolean fetchPercent;
-    private boolean withTies;
+    private SortOrder withTiesSortOrder;
     private boolean limitsWereApplied;
     private ResultExternal external;
     private boolean distinct;
     private int[] distinctIndexes;
     private boolean closed;
     private boolean containsLobs;
+    private Boolean containsNull;
 
     /**
      * Construct a local result object.
@@ -56,12 +61,18 @@ public class LocalResultImpl implements LocalResult {
     /**
      * Construct a local result object.
      *
-     * @param session the session
-     * @param expressions the expression array
-     * @param visibleColumnCount the number of visible columns
+     * @param session
+     *            the session
+     * @param expressions
+     *            the expression array
+     * @param visibleColumnCount
+     *            the number of visible columns
+     * @param resultColumnCount
+     *            the number of columns including visible columns and additional
+     *            virtual columns for ORDER BY and DISTINCT ON clauses
      */
     public LocalResultImpl(Session session, Expression[] expressions,
-            int visibleColumnCount) {
+            int visibleColumnCount, int resultColumnCount) {
         this.session = session;
         if (session == null) {
             this.maxMemoryRows = Integer.MAX_VALUE;
@@ -75,6 +86,7 @@ public class LocalResultImpl implements LocalResult {
         }
         rows = Utils.newSmallArrayList();
         this.visibleColumnCount = visibleColumnCount;
+        this.resultColumnCount = resultColumnCount;
         rowId = -1;
         this.expressions = expressions;
     }
@@ -115,6 +127,7 @@ public class LocalResultImpl implements LocalResult {
         copy.maxMemoryRows = this.maxMemoryRows;
         copy.session = (Session) targetSession;
         copy.visibleColumnCount = this.visibleColumnCount;
+        copy.resultColumnCount = this.resultColumnCount;
         copy.expressions = this.expressions;
         copy.rowId = -1;
         copy.rowCount = this.rowCount;
@@ -127,14 +140,10 @@ public class LocalResultImpl implements LocalResult {
         copy.offset = 0;
         copy.limit = -1;
         copy.external = e2;
+        copy.containsNull = containsNull;
         return copy;
     }
 
-    /**
-     * Set the sort order.
-     *
-     * @param sort the sort order
-     */
     @Override
     public void setSortOrder(SortOrder sort) {
         this.sort = sort;
@@ -147,7 +156,7 @@ public class LocalResultImpl implements LocalResult {
     public void setDistinct() {
         assert distinctIndexes == null;
         distinct = true;
-        distinctRows = new ValueHashMap<>();
+        distinctRows = new TreeMap<>(session.getDatabase().getCompareMode());
     }
 
     /**
@@ -159,7 +168,7 @@ public class LocalResultImpl implements LocalResult {
     public void setDistinct(int[] distinctIndexes) {
         assert !distinct;
         this.distinctIndexes = distinctIndexes;
-        distinctRows = new ValueHashMap<>();
+        distinctRows = new TreeMap<>(session.getDatabase().getCompareMode());
     }
 
     /**
@@ -181,7 +190,7 @@ public class LocalResultImpl implements LocalResult {
         }
         assert values.length == visibleColumnCount;
         if (distinctRows != null) {
-            ValueArray array = ValueArray.get(values);
+            ValueRow array = ValueRow.get(values);
             distinctRows.remove(array);
             rowCount = distinctRows.size();
         } else {
@@ -202,14 +211,35 @@ public class LocalResultImpl implements LocalResult {
             return external.contains(values);
         }
         if (distinctRows == null) {
-            distinctRows = new ValueHashMap<>();
+            distinctRows = new TreeMap<>(session.getDatabase().getCompareMode());
             for (Value[] row : rows) {
-                ValueArray array = getArrayOfDistinct(row);
+                ValueRow array = getDistinctRow(row);
                 distinctRows.put(array, array.getList());
             }
         }
-        ValueArray array = ValueArray.get(values);
+        ValueRow array = ValueRow.get(values);
         return distinctRows.get(array) != null;
+    }
+
+    @Override
+    public boolean containsNull() {
+        Boolean r = containsNull;
+        if (r == null) {
+            r = false;
+            reset();
+            loop: while (next()) {
+                Value[] row = currentRow;
+                for (int i = 0; i < visibleColumnCount; i++) {
+                    if (row[i].containsNull()) {
+                        r = true;
+                        break loop;
+                    }
+                }
+            }
+            reset();
+            containsNull = r;
+        }
+        return r;
     }
 
     @Override
@@ -265,7 +295,7 @@ public class LocalResultImpl implements LocalResult {
         }
     }
 
-    private ValueArray getArrayOfDistinct(Value[] values) {
+    private ValueRow getDistinctRow(Value[] values) {
         if (distinctIndexes != null) {
             int cnt = distinctIndexes.length;
             Value[] newValues = new Value[cnt];
@@ -276,16 +306,12 @@ public class LocalResultImpl implements LocalResult {
         } else if (values.length > visibleColumnCount) {
             values = Arrays.copyOf(values, visibleColumnCount);
         }
-        return ValueArray.get(values);
+        return ValueRow.get(values);
     }
 
     private void createExternalResult() {
-        Database database = session.getDatabase();
-        external = database.isMVStore()
-                || /* not supported by ResultTempTable */ distinct && expressions.length != visibleColumnCount
-                || distinctIndexes != null
-                ? MVTempResult.of(database, expressions, distinct, distinctIndexes, visibleColumnCount, sort)
-                        : new ResultTempTable(session, expressions, distinct, sort);
+        external = MVTempResult.of(session.getDatabase(), expressions, distinct, distinctIndexes, visibleColumnCount,
+                resultColumnCount, sort);
     }
 
     /**
@@ -294,12 +320,16 @@ public class LocalResultImpl implements LocalResult {
      * @param values the row to add
      */
     @Override
-    public void addRow(Value[] values) {
+    public void addRow(Value... values) {
+        assert values.length == resultColumnCount;
         cloneLobs(values);
         if (isAnyDistinct()) {
             if (distinctRows != null) {
-                ValueArray array = getArrayOfDistinct(values);
-                distinctRows.putIfAbsent(array, values);
+                ValueRow array = getDistinctRow(values);
+                Value[] previous = distinctRows.get(array);
+                if (previous == null || sort != null && sort.compare(previous, values) > 0) {
+                    distinctRows.put(array, values);
+                }
                 rowCount = distinctRows.size();
                 if (rowCount > maxMemoryRows) {
                     createExternalResult();
@@ -340,10 +370,10 @@ public class LocalResultImpl implements LocalResult {
             addRowsToDisk();
         } else {
             if (isAnyDistinct()) {
-                rows = distinctRows.values();
+                rows = new ArrayList<>(distinctRows.values());
             }
-            if (sort != null && limit != 0) {
-                boolean withLimit = limit > 0 && !withTies;
+            if (sort != null && limit != 0 && !limitsWereApplied) {
+                boolean withLimit = limit > 0 && withTiesSortOrder == null;
                 if (offset > 0 || withLimit) {
                     sort.sort(rows, offset, withLimit ? limit : rows.size());
                 } else {
@@ -389,9 +419,9 @@ public class LocalResultImpl implements LocalResult {
                 return;
             }
             int to = offset + limit;
-            if (withTies && sort != null) {
+            if (withTiesSortOrder != null) {
                 Value[] expected = rows.get(to - 1);
-                while (to < rows.size() && sort.compare(expected, rows.get(to)) == 0) {
+                while (to < rows.size() && withTiesSortOrder.compare(expected, rows.get(to)) == 0) {
                     to++;
                     rowCount++;
                 }
@@ -425,9 +455,9 @@ public class LocalResultImpl implements LocalResult {
                 addRowsToDisk();
             }
         }
-        if (withTies && sort != null && row != null) {
+        if (withTiesSortOrder != null && row != null) {
             Value[] expected = row;
-            while ((row = temp.next()) != null && sort.compare(expected, row) == 0) {
+            while ((row = temp.next()) != null && withTiesSortOrder.compare(expected, row) == 0) {
                 rows.add(row);
                 rowCount++;
                 if (rows.size() > maxMemoryRows) {
@@ -474,12 +504,10 @@ public class LocalResultImpl implements LocalResult {
         this.fetchPercent = fetchPercent;
     }
 
-    /**
-     * @param withTies whether tied rows should be included in result too
-     */
     @Override
-    public void setWithTies(boolean withTies) {
-        this.withTies = withTies;
+    public void setWithTies(SortOrder withTiesSortOrder) {
+        assert sort == null || sort == withTiesSortOrder;
+        this.withTiesSortOrder = withTiesSortOrder;
     }
 
     @Override
@@ -512,23 +540,13 @@ public class LocalResultImpl implements LocalResult {
     }
 
     @Override
-    public int getDisplaySize(int i) {
-        return expressions[i].getDisplaySize();
-    }
-
-    @Override
     public String getColumnName(int i) {
         return expressions[i].getColumnName();
     }
 
     @Override
-    public int getColumnType(int i) {
+    public TypeInfo getColumnType(int i) {
         return expressions[i].getType();
-    }
-
-    @Override
-    public long getColumnPrecision(int i) {
-        return expressions[i].getPrecision();
     }
 
     @Override
@@ -539,11 +557,6 @@ public class LocalResultImpl implements LocalResult {
     @Override
     public boolean isAutoIncrement(int i) {
         return expressions[i].isAutoIncrement();
-    }
-
-    @Override
-    public int getColumnScale(int i) {
-        return expressions[i].getScale();
     }
 
     /**
