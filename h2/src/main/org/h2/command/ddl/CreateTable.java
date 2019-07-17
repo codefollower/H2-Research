@@ -104,22 +104,9 @@ public class CreateTable extends CommandWithColumns {
                 }
             }
         }
-//<<<<<<< HEAD
-//        if (pkColumns != null) {
-//            for (Column c : data.columns) {
-//                for (IndexColumn idxCol : pkColumns) {
-//                    if (c.getName().equals(idxCol.columnName)) {
-//                        c.setNullable(false);
-//                    }
-//                }
-//            }
-//        }
-//        data.id = getObjectId(); //第一次新建时会分配一个id
-//        data.create = create; //只有在打开数据库通过MetaRecord的方式执行时create才为false，会调用Prepared.setObjectId(int)
-//=======
         changePrimaryKeysToNotNull(data.columns);
-        data.id = getObjectId();
-        data.create = create;
+        data.id = getObjectId(); //第一次新建时会分配一个id
+        data.create = create; //只有在打开数据库通过MetaRecord的方式执行时create才为false，会调用Prepared.setObjectId(int)
         data.session = session;
         Table table = getSchema().createTable(data);
         ArrayList<Sequence> sequences = generateSequences(data.columns, data.temporary);
@@ -143,15 +130,6 @@ public class CreateTable extends CommandWithColumns {
             for (Sequence sequence : sequences) {
                 table.addSequence(sequence);
             }
-//<<<<<<< HEAD
-//            //这里不会存在AlterTableAlterColumn
-//            //只有AlterTableAddConstraint和CreateIndex
-//            for (DefineCommand command : constraintCommands) {
-//                command.setTransactional(transactional);
-//                command.update();
-//            }
-//            if (asQuery != null) {
-//=======
             createConstraints();
             if (asQuery != null && !withNoData) {
                 boolean old = session.isUndoLogEnabled();

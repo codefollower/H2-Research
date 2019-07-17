@@ -119,17 +119,7 @@ public class ValueExpression extends Expression {
 
     @Override
     public void createIndexConditions(Session session, TableFilter filter) {
-//<<<<<<< HEAD
-//        if (value.getType() == Value.BOOLEAN) {
-////<<<<<<< HEAD
-////            boolean v = ((ValueBoolean) value).getBoolean().booleanValue();
-////            if (!v) { //如delete from DeleteTest where 3<2
-////=======
-//            boolean v = ((ValueBoolean) value).getBoolean();
-//            if (!v) {
-//                filter.addIndexCondition(IndexCondition.get(Comparison.FALSE, null, this));
-//            }
-//=======
+        //如delete from DeleteTest where 3<2
         if (value.getValueType() == Value.BOOLEAN && !value.getBoolean()) {
             filter.addIndexCondition(IndexCondition.get(Comparison.FALSE, null, this));
         }

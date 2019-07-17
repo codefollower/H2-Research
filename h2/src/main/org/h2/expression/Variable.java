@@ -41,30 +41,11 @@ public class Variable extends Expression {
     @Override
     public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
         builder.append('@');
+        // 调用这个方法而不是直接调用StringUtils.quoteIdentifier性能更好，因为大多数情况就是一个普通的标识符，没有什么特殊的，
+        // 这时就不必要再重新构造一个加引号的字符串
         return Parser.quoteIdentifier(builder, name, alwaysQuote);
     }
 
-
-//<<<<<<< HEAD
-//    public long getPrecision() {
-//        return lastValue.getPrecision();
-//    }
-//
-//    @Override
-//    public String getSQL() {
-//    	//调用这个方法而不是直接调用StringUtils.quoteIdentifier性能更好，因为大多数情况就是一个普通的标识符，没有什么特殊的，
-//        //这时就不必要再重新构造一个加引号的字符串
-//        return "@" + Parser.quoteIdentifier(name);
-//    }
-//
-//    @Override
-//    public int getScale() {
-//        return lastValue.getScale();
-//    }
-//
-//    @Override
-//    public int getType() {
-//=======
     @Override
     public TypeInfo getType() {
         return lastValue.getType();

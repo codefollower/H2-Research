@@ -702,6 +702,9 @@ public final class DateTimeFunctions {
             case DAY_OF_YEAR:
                 return DateTimeUtils.getDayOfYear(dateValue);
             case DAY_OF_WEEK:
+                // 周日，周一............................................, 周六
+                // SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+                // 数字是1, 2, 3... , 7，所以周一对应的数字是2
                 return DateTimeUtils.getSundayDayOfWeek(dateValue);
             case DOW: {
                 int dow = DateTimeUtils.getSundayDayOfWeek(dateValue);
@@ -715,12 +718,16 @@ public final class DateTimeFunctions {
                 return DateTimeUtils.getWeekOfYear(dateValue, gc.getFirstDayOfWeek() - 1,
                         gc.getMinimalDaysInFirstWeek());
             case QUARTER:
+                // 第几个季度，用1、2、3、4表示
+                // 因为DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)返回的月份加了1，所以这里要减一
+                // 0, 1, 2, 3这4个数除以3都是0，所以要加1，同样其他的月份也类似
                 return (DateTimeUtils.monthFromDateValue(dateValue) - 1) / 3 + 1;
             case ISO_YEAR:
                 return DateTimeUtils.getIsoWeekYear(dateValue);
             case ISO_WEEK:
                 return DateTimeUtils.getIsoWeekOfYear(dateValue);
             case ISO_DAY_OF_WEEK:
+                //这个就正常了，周1用数字1表示，跟DAY_OF_WEEK不一样
                 return DateTimeUtils.getIsoDayOfWeek(dateValue);
             case TIMEZONE_HOUR:
             case TIMEZONE_MINUTE: {

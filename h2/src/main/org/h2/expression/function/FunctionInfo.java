@@ -10,10 +10,7 @@ import org.h2.value.DataType;
 /**
  * This class contains information about a built-in function.
  */
-//<<<<<<< HEAD
-//class FunctionInfo { //7个字段
-//=======
-public final class FunctionInfo {
+public final class FunctionInfo { //8个字段
 
     /**
      * The name of the function.
@@ -33,24 +30,18 @@ public final class FunctionInfo {
     /**
      * The data type of the return value.
      */
-//<<<<<<< HEAD
-//    int parameterCount;
-//    
-//    //注释多了个if，这个变量表示: 只要传给函数的参数有一个是null，那么函数返回值就是null
-//=======
     public final int returnDataType;
 
     /**
      * If the result of the function is NULL if any of the parameters is NULL.
      */
+    //注释多了个if，这个变量表示: 只要传给函数的参数有一个是null，那么函数返回值就是null
     final boolean nullIfParameterIsNull;
 
     /**
      * If this function always returns the same value for the same parameters.
      */
-//<<<<<<< HEAD
-//    boolean deterministic; //对于相同的参数，每次调用可能返回不同值，比如:CURRENT_TIME、RAND之类的函数
-//=======
+    //对于相同的参数，每次调用可能返回不同值，比如:CURRENT_TIME、RAND之类的函数
     public final boolean deterministic;
 
     /**
@@ -150,6 +141,4 @@ public final class FunctionInfo {
 				&& nullIfParameterIsNull == fi.nullIfParameterIsNull
 				&& deterministic == fi.deterministic;
 	}
-
-
 }

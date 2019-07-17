@@ -31,13 +31,12 @@ class AggregateDataSelectivity extends AggregateData {
         this.distinct = distinct;
     }
 
+ 
+    // 是基于某个表达式(多数是单个字段)算不重复的记录数所占总记录数的百分比
+    // org.h2.engine.Constants.SELECTIVITY_DISTINCT_COUNT默认是1万，这个值不能改，
+    // 对统计值影响很大。通常这个值越大，统计越精确，但是会使用更多内存。
+    // SELECTIVITY越大，说明重复的记录越少，在选择索引时更有利。
     @Override
-//<<<<<<< HEAD:h2/src/main/org/h2/expression/AggregateDataSelectivity.java
-//    void add(Database database, int dataType, boolean distinct, Value v) {
-//        //是基于某个表达式(多数是单个字段)算不重复的记录数所占总记录数的百分比
-//        //org.h2.engine.Constants.SELECTIVITY_DISTINCT_COUNT默认是1万，这个值不能改，
-//        //对统计值影响很大。通常这个值越大，统计越精确，但是会使用更多内存。
-//        //SELECTIVITY越大，说明重复的记录越少，在选择索引时更有利。
     void add(Database database, Value v) {
         count++;
         if (distinctHashes == null) {

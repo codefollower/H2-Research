@@ -10,6 +10,7 @@ public class ConditionInSelectTest extends TestBase {
 	//测试org.h2.expression.ConditionInSelect
 	@Override
 	public void startInternal() throws Exception {
+	    stmt.executeUpdate("set BATCH_JOINS true");
 		stmt.executeUpdate("drop table IF EXISTS ConditionInSelectTest");
 		stmt.executeUpdate("create table IF NOT EXISTS ConditionInSelectTest(id int, name varchar(500))");
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS ConditionInSelectTestIndex ON ConditionInSelectTest(name)");

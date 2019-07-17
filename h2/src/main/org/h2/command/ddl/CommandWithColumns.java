@@ -77,6 +77,8 @@ public abstract class CommandWithColumns extends SchemaCommand {
      * Create the constraints.
      */
     protected void createConstraints() {
+        //这里不会存在AlterTableAlterColumn
+        //只有AlterTableAddConstraint和CreateIndex
         if (constraintCommands != null) {
             for (DefineCommand command : constraintCommands) {
                 command.setTransactional(transactional);

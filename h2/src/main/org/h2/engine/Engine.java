@@ -60,23 +60,6 @@ public class Engine implements SessionFactory {
         ci.removeProperty("NO_UPGRADE", false);
         boolean openNew = ci.getProperty("OPEN_NEW", false);
         boolean opened = false;
-//<<<<<<< HEAD
-//        if (database == null) {
-//            if (ifExists && !Database.exists(name)) {
-//                throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_1, name);
-//            }
-//            database = new Database(ci, cipher);
-//            opened = true;
-//            //如果数据库不存在，那么当前连接server的用户肯定也不存在，所以直接把此用户当成admin，并创建它。
-//            if (database.getAllUsers().size() == 0) {
-//                // users is the last thing we add, so if no user is around,
-//                // the database is new (or not initialized correctly)
-//                user = new User(database, database.allocateObjectId(),
-//                        ci.getUserName(), false);
-//                user.setAdmin(true);
-//                user.setUserPasswordHash(ci.getUserPasswordHash());
-//                database.setMasterUser(user);
-//=======
         User user = null;
         synchronized (DATABASES) {
             if (openNew || ci.isUnnamedInMemory()) {
@@ -90,6 +73,7 @@ public class Engine implements SessionFactory {
                 }
                 database = new Database(ci, cipher);
                 opened = true;
+                //如果数据库不存在，那么当前连接server的用户肯定也不存在，所以直接把此用户当成admin，并创建它。
                 if (database.getAllUsers().isEmpty()) {
                     // users is the last thing we add, so if no user is around,
                     // the database is new (or not initialized correctly)
@@ -190,11 +174,7 @@ public class Engine implements SessionFactory {
         try {
             ConnectionInfo backup = null;
             String lockMethodName = ci.getProperty("FILE_LOCK", null);
-//<<<<<<< HEAD
-//            //默认是FileLock.LOCK_FILE
-//            int fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
-//            if (fileLockMethod == FileLock.LOCK_SERIALIZED) {
-//=======
+            //默认是FileLock.LOCK_FILE
             FileLockMethod fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
             if (fileLockMethod == FileLockMethod.SERIALIZED) {
                 // In serialized mode, database instance sharing is not possible

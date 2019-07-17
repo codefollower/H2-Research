@@ -116,7 +116,7 @@ public class Wildcard extends Expression {
     @Override
     public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
         if (table != null) {
-            StringUtils.quoteIdentifier(builder, table).append('.');
+            StringUtils.quoteIdentifier(builder, table).append('.'); //此时返回: "WildcardTest".*
         }
         builder.append('*');
         if (exceptColumns != null) {
@@ -124,9 +124,6 @@ public class Wildcard extends Expression {
             writeExpressions(builder, exceptColumns, alwaysQuote);
             builder.append(')');
         }
-//<<<<<<< HEAD
-//        return StringUtils.quoteIdentifier(table) + ".*"; //此时返回: "WildcardTest".*
-//=======
         return builder;
     }
 

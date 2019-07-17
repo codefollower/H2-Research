@@ -2815,7 +2815,7 @@ public class MVStore implements AutoCloseable {
     public void removeMap(String name) {
         int id = getMapId(name);
         if(id > 0) {
-            MVMap map = getMap(id);
+            MVMap<?,?> map = getMap(id);
             if (map == null) {
                 map = openMap(name);
             }

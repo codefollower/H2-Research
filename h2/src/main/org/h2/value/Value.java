@@ -1558,7 +1558,7 @@ public abstract class Value extends VersionedValue {
      * @param precision the new precision
      * @return the new value
      */
-    @SuppressWarnings("unused")
+    //@SuppressWarnings("unused")
     public Value convertPrecision(long precision) {
         return this;
     }

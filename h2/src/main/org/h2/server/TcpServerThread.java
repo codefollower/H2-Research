@@ -82,14 +82,12 @@ public class TcpServerThread implements Runnable {
             // TODO server: should support a list of allowed databases
             // and a list of allowed clients
             try {
-//<<<<<<< HEAD
-//            	//如果没有加-tcpAllowOthers参数，那么只接受本地连接
-//=======
                 Socket socket = transfer.getSocket();
                 if (socket == null) {
                     // the transfer is already closed, prevent NPE in TcpServer#allow(Socket)
                     return;
                 }
+                //如果没有加-tcpAllowOthers参数，那么只接受本地连接
                 if (!server.allow(transfer.getSocket())) {
                     throw DbException.get(ErrorCode.REMOTE_CONNECTION_NOT_ALLOWED);
                 }

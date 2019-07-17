@@ -20,7 +20,7 @@ import org.h2.value.ValueCollectionBase;
 /**
  * An expression is a operation, a value, or a function in a query.
  */
-//12个抽象方法
+//9个抽象方法
 public abstract class Expression {
 
     /**
@@ -333,15 +333,6 @@ public abstract class Expression {
      *
      * @return the alias name
      */
-
-//    /**
-//     * Only returns true if the expression is a wildcard.
-//     *
-//     * @return if this expression is a wildcard
-//     */
-//    public boolean isWildcard() { //只有子类org.h2.expression.Wildcard覆盖了此方法并且返回为true
-//        return false;
-
     public String getAlias() { //只有子类Alias和ExpressionColumn覆盖了此方法
         return getUnenclosedSQL(new StringBuilder(), false).toString();
     }

@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -42,9 +41,9 @@ public class Utils {
      */
     private static final long[] EMPTY_LONG_ARRAY = {};
 
-    private static final int GC_DELAY = 50;
-    private static final int MAX_GC = 8;
-    private static long lastGC;
+//    private static final int GC_DELAY = 50;
+//    private static final int MAX_GC = 8;
+//    private static long lastGC;
 
     private static final HashMap<String, byte[]> RESOURCES = new HashMap<>();
 

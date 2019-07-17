@@ -276,16 +276,11 @@ public class TcpServer implements Service {
         try {
             while (!stop) {
                 Socket s = serverSocket.accept();
-//<<<<<<< HEAD
-//                //s.setSoTimeout(2000); //我加上的
-//                TcpServerThread c = new TcpServerThread(s, this, nextThreadId++);
-//                running.add(c);
-//                //TcpServerThread线程名是: "H2 TCP Server (tcp://localhost:9092) thread"
-//                Thread thread = new Thread(c, threadName + " thread");
-//=======
+                //s.setSoTimeout(2000); //我加上的
                 int id = nextThreadId++;
                 TcpServerThread c = new TcpServerThread(s, this, id);
                 running.add(c);
+                //TcpServerThread线程名是: "H2 TCP Server (tcp://localhost:9092) thread"
                 Thread thread = new Thread(c, threadName + " thread-" + id);
                 thread.setDaemon(isDaemon);
                 c.setThread(thread);

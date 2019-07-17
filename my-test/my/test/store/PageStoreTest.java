@@ -1,11 +1,6 @@
 package my.test.store;
 
 import my.test.TestBase;
-import org.h2.engine.ConnectionInfo;
-import org.h2.engine.Constants;
-import org.h2.engine.Database;
-import org.h2.pagestore.db.PageStoreTable;
-import org.h2.store.fs.FileUtils;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;

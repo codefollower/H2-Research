@@ -4729,9 +4729,10 @@ public class Parser {
         case ROWNUM:
         	//ROW_NUMBER函数虽然定义了，但ROW_NUMBER()函数无效，不支持这样的语法
     		//sql = "SELECT ROW_NUMBER()"; 
-    		//ROWNUM函数虽然没有定义，但ROWNUM()是有效，Parser在解析时把他当成ROWNUM伪字段处理
+    		//ROWNUM函数虽然没有定义，但ROWNUM()是有效的，Parser在解析时把他当成ROWNUM伪字段处理
     		//当成了org.h2.expression.Rownum，见org.h2.command.Parser.readTerm()
-    		//sql = "SELECT ROWNUM()"; 
+    		//sql = "SELECT ROWNUM()"; 这样就没问题了,在这个方法中org.h2.command.Parser.readFunction(Schema, String)
+            //把ROW_NUMBER转成org.h2.expression.Rownum了
             read();
             if (readIf(OPEN_PAREN)) {
                 read(CLOSE_PAREN);
