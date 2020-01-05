@@ -52,6 +52,12 @@
 
   <dependencies>
 
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.8</version>
+      <scope>test</scope>
+    </dependency>
     <!-- START COMPILE DEPENDENCIES !-->
     <dependency>
       <groupId>javax.servlet</groupId>
@@ -172,7 +178,7 @@
 
   <build>
     <sourceDirectory>h2/src/main</sourceDirectory>
-    <testSourceDirectory>mytest</testSourceDirectory>
+    <testSourceDirectory>my-test</testSourceDirectory>
   </build>
 
 </project>
