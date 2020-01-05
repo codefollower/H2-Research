@@ -1,17 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="src" path="h2/src/main"/>
-	<classpathentry kind="src" path="my-test"/>
-	<classpathentry kind="lib" path="lib/junit-4.8.2.jar"/>
-	<classpathentry kind="lib" path="lib/lucene-analyzers-common-6.3.0.jar"/>
-	<classpathentry kind="lib" path="lib/lucene-queryparser-6.3.0.jar"/>
-	<classpathentry kind="lib" path="lib/lucene-core-6.3.0.jar"/>
-	<classpathentry kind="lib" path="lib/slf4j-api-1.6.1.jar"/>
-	<classpathentry kind="lib" path="lib/tools.jar"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE1.8_181"/>
-	<classpathentry kind="lib" path="lib/org.osgi.enterprise-4.2.0.jar"/>
-	<classpathentry kind="lib" path="lib/org.osgi.core-4.2.0.jar"/>
-	<classpathentry kind="lib" path="lib/jts-core-1.15.0.jar"/>
-	<classpathentry kind="lib" path="lib/servlet-api.jar"/>
-	<classpathentry kind="output" path="target/classes"/>
+  <classpathentry kind="src" path="h2/src/main" including="**/*.java"/>
+  <classpathentry kind="output" path="target/classes"/>
+  <classpathentry kind="var" path="M2_REPO/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.jar"/>
+  <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+  <classpathentry kind="var" path="M2_REPO/org/apache/lucene/lucene-core/8.2.0/lucene-core-8.2.0.jar" sourcepath="M2_REPO/org/apache/lucene/lucene-core/8.2.0/lucene-core-8.2.0-sources.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/apache/lucene/lucene-analyzers-common/8.2.0/lucene-analyzers-common-8.2.0.jar" sourcepath="M2_REPO/org/apache/lucene/lucene-analyzers-common/8.2.0/lucene-analyzers-common-8.2.0-sources.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/apache/lucene/lucene-queryparser/8.2.0/lucene-queryparser-8.2.0.jar" sourcepath="M2_REPO/org/apache/lucene/lucene-queryparser/8.2.0/lucene-queryparser-8.2.0-sources.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/apache/lucene/lucene-queries/8.2.0/lucene-queries-8.2.0.jar" sourcepath="M2_REPO/org/apache/lucene/lucene-queries/8.2.0/lucene-queries-8.2.0-sources.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/apache/lucene/lucene-sandbox/8.2.0/lucene-sandbox-8.2.0.jar" sourcepath="M2_REPO/org/apache/lucene/lucene-sandbox/8.2.0/lucene-sandbox-8.2.0-sources.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/slf4j/slf4j-api/1.7.28/slf4j-api-1.7.28.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/osgi/org.osgi.core/5.0.0/org.osgi.core-5.0.0.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/osgi/org.osgi.enterprise/5.0.0/org.osgi.enterprise-5.0.0.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/locationtech/jts/jts-core/1.16.1/jts-core-1.16.1.jar" sourcepath="M2_REPO/org/locationtech/jts/jts-core/1.16.1/jts-core-1.16.1-sources.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/slf4j/slf4j-nop/1.7.28/slf4j-nop-1.7.28.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/postgresql/postgresql/42.2.8/postgresql-42.2.8.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/junit/jupiter/junit-jupiter-engine/5.5.2/junit-jupiter-engine-5.5.2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/apiguardian/apiguardian-api/1.1.0/apiguardian-api-1.1.0.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/junit/platform/junit-platform-engine/1.5.2/junit-platform-engine-1.5.2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/opentest4j/opentest4j/1.2.0/opentest4j-1.2.0.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/junit/platform/junit-platform-commons/1.5.2/junit-platform-commons-1.5.2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/junit/jupiter/junit-jupiter-api/5.5.2/junit-jupiter-api-5.5.2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/ow2/asm/asm/7.2/asm-7.2.jar"/>
+  <classpathentry kind="lib" path="D:/JavaSE1.8_181/lib/tools.jar"/>
 </classpath>

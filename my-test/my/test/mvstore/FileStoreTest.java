@@ -27,7 +27,7 @@ import org.h2.mvstore.FileStore;
 import org.h2.mvstore.WriteBuffer;
 import org.h2.mvstore.cache.FilePathCache;
 import org.h2.store.fs.FilePath;
-import org.h2.store.fs.FilePathEncrypt;
+import org.h2.store.fs.encrypt.FilePathEncrypt; 
 
 public class FileStoreTest extends TestBase {
 

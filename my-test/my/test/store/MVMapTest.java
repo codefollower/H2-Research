@@ -101,10 +101,10 @@ public class MVMapTest {
     void testCompact() {
         initMVStore();
 
-        int targetFillRate = 80;
-        int write = 100;
+        // int targetFillRate = 80;
+        // int write = 100;
         // store.compact(targetFillRate, write);
-        store.compactMoveChunks(targetFillRate, write);
+        // store.compactMoveChunks(targetFillRate, write);
     }
 
     void openMap() {
