@@ -42,7 +42,7 @@
     <asm.version>7.2</asm.version>
     <jts.version>1.16.1</jts.version>
     <junit.version>5.5.2</junit.version>
-    <lucene.version>8.2.0</lucene.version>
+    <lucene.version>8.4.0</lucene.version>
     <osgi.version>5.0.0</osgi.version>
     <pgjdbc.version>42.2.8</pgjdbc.version>
     <servlet.version>4.0.1</servlet.version>
