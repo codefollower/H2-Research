@@ -179,6 +179,23 @@
   <build>
     <sourceDirectory>h2/src/main</sourceDirectory>
     <testSourceDirectory>my-test</testSourceDirectory>
+	<resources>
+      <resource>
+        <directory>h2/src/main</directory>
+        <includes>
+          <include>**/*.prop</include>
+          <include>**/*.png</include>
+          <include>**/*.jsp</include>
+          <include>**/*.ico</include>
+          <include>**/*.gif</include>
+          <include>**/*.css</include>
+          <include>**/*.js</include>
+          <include>org/h2/res/help.csv</include>
+          <include>org/h2/res/javadoc.properties</include>
+          <include>org/h2/server/pg/pg_catalog.sql</include>
+          <include>META-INF/**</include>
+        </includes>
+      </resource>
+    </resources>
   </build>
-
 </project>
