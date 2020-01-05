@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,7 +17,7 @@ import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.Row;
-import org.h2.result.RowFactory;
+import org.h2.result.SearchRow;
 import org.h2.store.Data;
 import org.h2.store.DataReader;
 import org.h2.store.InDoubtTransaction;
@@ -325,7 +325,7 @@ public class PageLog {
                 } else if (x == ADD) {
                     int sessionId = in.readVarInt();
                     int tableId = in.readVarInt();
-                    Row row = readRow(store.getDatabase().getRowFactory(), in, data);
+                    Row row = readRow(in, data);
                     if (stage == RECOVERY_STAGE_UNDO) {
                         store.allocateIfIndexRoot(pos, tableId, row);
                     } else if (stage == RECOVERY_STAGE_REDO) {
@@ -461,12 +461,11 @@ public class PageLog {
     /**
      * Read a row from an input stream.
      *
-     * @param rowFactory the row factory
      * @param in the input stream
      * @param data a temporary buffer
      * @return the row
      */
-    public static Row readRow(RowFactory rowFactory, DataReader in, Data data) throws IOException {
+    public static Row readRow(DataReader in, Data data) throws IOException {
         long key = in.readVarLong();
         int len = in.readVarInt();
         data.reset();
@@ -477,9 +476,7 @@ public class PageLog {
         for (int i = 0; i < columnCount; i++) {
             values[i] = data.readValue();
         }
-        Row row = rowFactory.createRow(values, Row.MEMORY_CALCULATE);
-        row.setKey(key);
-        return row;
+        return Row.get(values, SearchRow.MEMORY_CALCULATE, key);
     }
 
     /**
@@ -640,7 +637,11 @@ public class PageLog {
         data.reset();
         int columns = row.getColumnCount();
         data.writeVarInt(columns);
-        data.checkCapacity(row.getByteCount(data));
+        int size = 0;
+        for (Value v : row.getValueList()) {
+            size += data.getValueLen(v);
+        }
+        data.checkCapacity(size);
         if (session.isRedoLogBinaryEnabled()) {
             for (int i = 0; i < columns; i++) {
                 data.writeValue(row.getValue(i));
@@ -648,7 +649,7 @@ public class PageLog {
         } else {
             for (int i = 0; i < columns; i++) {
                 Value v = row.getValue(i);
-                if (v.getValueType() == Value.BYTES) {
+                if (v.getValueType() == Value.VARBINARY) {
                     data.writeValue(ValueNull.INSTANCE); //字节类型写null值
                 } else {
                     data.writeValue(v);

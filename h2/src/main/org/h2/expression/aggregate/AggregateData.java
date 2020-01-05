@@ -1,12 +1,12 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression.aggregate;
 
 import org.h2.engine.Constants;
-import org.h2.engine.Database;
+import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.value.Value;
 
@@ -21,9 +21,12 @@ abstract class AggregateData {
      * @param aggregateType the type of the aggregate operation
      * @param distinct if the calculation should be distinct
      * @param dataType the data type of the computed result
+     * @param orderedWithOrder
+     *            if aggregate is an ordered aggregate with ORDER BY clause
      * @return the aggregate data object of the specified type
      */
-    static AggregateData create(AggregateType aggregateType, boolean distinct, int dataType) {
+    static AggregateData create(AggregateType aggregateType, boolean distinct, int dataType,
+            boolean orderedWithOrder) {
         switch (aggregateType) {
         case COUNT_ALL:
             return new AggregateDataCount(true);
@@ -32,8 +35,6 @@ abstract class AggregateData {
                 return new AggregateDataCount(false);
             }
             break;
-        case LISTAGG:
-        case ARRAY_AGG:
         case RANK:
         case DENSE_RANK:
         case PERCENT_RANK:
@@ -61,10 +62,11 @@ abstract class AggregateData {
                 return new AggregateDataDefault(aggregateType, dataType);
             }
             break;
-        case SELECTIVITY:
-            return new AggregateDataSelectivity(distinct);
         case HISTOGRAM:
             return new AggregateDataDistinctWithCounts(false, Constants.SELECTIVITY_DISTINCT_COUNT);
+        case LISTAGG:
+        case ARRAY_AGG:
+            return new AggregateDataCollecting(distinct, orderedWithOrder);
         case MODE:
             return new AggregateDataDistinctWithCounts(true, Integer.MAX_VALUE);
         case ENVELOPE:
@@ -72,23 +74,23 @@ abstract class AggregateData {
         default:
             throw DbException.throwInternalError("type=" + aggregateType);
         }
-        return new AggregateDataCollecting(distinct);
+        return new AggregateDataCollecting(distinct, false);
     }
 
     /**
      * Add a value to this aggregate.
      *
-     * @param database the database
+     * @param session the session
      * @param v the value
      */
-    abstract void add(Database database, Value v);
+    abstract void add(Session session, Value v);
 
     /**
      * Get the aggregate result.
      *
-     * @param database the database
+     * @param session the session
      * @param dataType the datatype of the computed result
      * @return the value
      */
-    abstract Value getValue(Database database, int dataType);
+    abstract Value getValue(Session session, int dataType);
 }

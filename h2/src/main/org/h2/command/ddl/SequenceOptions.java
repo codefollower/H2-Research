@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,6 +18,8 @@ import org.h2.value.ValueNull;
 public class SequenceOptions {
 
     private Expression start;
+
+    private Expression restart;
 
     private Expression increment;
 
@@ -59,6 +61,30 @@ public class SequenceOptions {
     }
 
     /**
+     * Gets restart value.
+     *
+     * @param session
+     *            the session to calculate the value
+     * @param startValue
+     *            the start value to use if restart without value is specified
+     * @return restart value or {@code null} if value is not defined.
+     */
+    public Long getRestartValue(Session session, long startValue) {
+        return restart == ValueExpression.DEFAULT ? (Long) startValue : getLong(session, restart);
+    }
+
+    /**
+     * Sets restart value expression, or {@link ValueExpression#DEFAULT}.
+     *
+     * @param restart
+     *            RESTART WITH value expression, or
+     *            {@link ValueExpression#DEFAULT} for simple RESTART
+     */
+    public void setRestartValue(Expression restart) {
+        this.restart = restart;
+    }
+
+    /**
      * Gets increment value.
      *
      * @param session The session to calculate the value.
@@ -85,7 +111,7 @@ public class SequenceOptions {
      * @return max value when the MAXVALUE expression is set, otherwise returns default max value.
      */
     public Long getMaxValue(Sequence sequence, Session session) {
-        if (maxValue == ValueExpression.getNull() && sequence != null) {
+        if (maxValue == ValueExpression.NULL && sequence != null) {
             return Sequence.getDefaultMaxValue(getCurrentStart(sequence, session),
                     increment != null ? getIncrement(session) : sequence.getIncrement());
         }
@@ -109,7 +135,7 @@ public class SequenceOptions {
      * @return min value when the MINVALUE expression is set, otherwise returns default min value.
      */
     public Long getMinValue(Sequence sequence, Session session) {
-        if (minValue == ValueExpression.getNull() && sequence != null) {
+        if (minValue == ValueExpression.NULL && sequence != null) {
             return Sequence.getDefaultMinValue(getCurrentStart(sequence, session),
                     increment != null ? getIncrement(session) : sequence.getIncrement());
         }
@@ -163,7 +189,7 @@ public class SequenceOptions {
     }
 
     boolean isRangeSet() {
-        return start != null || minValue != null || maxValue != null || increment != null;
+        return restart != null || start != null || minValue != null || maxValue != null || increment != null;
     }
 
     private long getCurrentStart(Sequence sequence, Session session) {

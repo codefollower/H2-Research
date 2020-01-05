@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -162,7 +162,7 @@ public class PageBtreeIndex extends PageIndex {
      */
     private SearchRow getSearchRow(Row row) {
         SearchRow r = table.getTemplateSimpleRow(columns.length == 1);
-        r.setKey(row);
+        r.setKey(row.getKey());
         for (Column c : columns) {
             int idx = c.getColumnId();
             r.setValue(idx, row.getValue(idx));
@@ -318,11 +318,6 @@ public class PageBtreeIndex extends PageIndex {
         } finally {
             store.incrementChangeCount();
         }
-    }
-
-    @Override
-    public void checkRename() {
-        // ok
     }
 
     /**

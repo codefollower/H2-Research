@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -34,6 +34,7 @@ import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.command.dml.Query;
 import org.h2.engine.SysProperties;
+import org.h2.engine.Mode.ModeEnum;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.jdbc.JdbcPreparedStatement;
 import org.h2.test.TestAll;
@@ -153,29 +154,24 @@ public class TestScript extends TestDb {
         for (String s : new String[] { "array", "bigint", "binary", "blob",
                 "boolean", "char", "clob", "date", "decimal", decimal2, "double", "enum",
                 "geometry", "identity", "int", "json", "interval", "other", "real", "row", "smallint",
-                "time", "timestamp-with-timezone", "timestamp", "tinyint",
+                "time-with-time-zone", "time", "timestamp-with-time-zone", "timestamp", "tinyint",
                 "uuid", "varchar", "varchar-ignorecase" }) {
             testScript("datatypes/" + s + ".sql");
         }
         for (String s : new String[] { "alterTableAdd", "alterTableAlterColumn", "alterTableDropColumn",
-                "alterTableRename", "createAlias", "createSequence", "createSynonym", "createTable", "createTrigger",
-                "createView", "dropAllObjects", "dropDomain", "dropIndex", "dropSchema", "dropTable",
-                "truncateTable" }) {
+                "alterTableRename", "analyze", "createAlias", "createDomain", "createSequence", "createSynonym",
+                "createTable", "createTrigger", "createView", "dropAllObjects", "dropDomain", "dropIndex",
+                "dropSchema", "dropTable", "grant", "truncateTable" }) {
             testScript("ddl/" + s + ".sql");
         }
-        for (String s : new String[] { "delete", "error_reporting", "insert", "insertIgnore", "merge", "mergeUsing",
-                "replace", "script", "select", "show", "table", "update", "values", "with" }) {
+        for (String s : new String[] { "delete", "error_reporting", "execute_immediate", "insert", "insertIgnore",
+                "merge", "mergeUsing", "replace", "script", "select", "show", "table", "update", "values", "with" }) {
             testScript("dml/" + s + ".sql");
-        }
-        for (String s : new String[] { "boolean-test", "conditions", "data-change-delta-table",
-                "help", "null-predicate", "type-predicate",
-                "unique-predicate" }) {
-            testScript("other/" + s + ".sql");
         }
         for (String s : new String[] { "any", "array-agg", "avg", "bit-and", "bit-or", "count", "envelope",
                 "every", "histogram",
                 "json_arrayagg", "json_objectagg",
-                "listagg", "max", "min", "mode", "percentile", "rank", "selectivity",
+                "listagg", "max", "min", "mode", "percentile", "rank",
                 "stddev-pop", "stddev-samp", "sum", "var-pop", "var-samp" }) {
             testScript("functions/aggregate/" + s + ".sql");
         }
@@ -194,7 +190,7 @@ public class TestScript extends TestDb {
         for (String s : new String[] { "ascii", "bit-length", "char", "concat",
                 "concat-ws", "difference", "hextoraw", "insert", "instr",
                 "left", "length", "locate", "lower", "lpad", "ltrim",
-                "octet-length", "position", "rawtohex", "regexp-like",
+                "octet-length", "position", "quote_ident", "rawtohex", "regexp-like",
                 "regex-replace", "repeat", "replace", "right", "rpad", "rtrim",
                 "soundex", "space", "stringdecode", "stringencode",
                 "stringtoutf8", "substring", "to-char", "translate", "trim",
@@ -203,14 +199,15 @@ public class TestScript extends TestDb {
             testScript("functions/string/" + s + ".sql");
         }
         for (String s : new String[] { "array-cat", "array-contains", "array-get",
-                "array-length","array-slice", "autocommit", "cancel-session", "casewhen",
-                "cast", "coalesce", "convert", "csvread", "csvwrite", "current_schema", "currval",
-                "database-path", "database", "decode", "disk-space-used",
+                "array-slice", "autocommit", "cancel-session", "casewhen",
+                "cardinality", "cast", "coalesce", "convert", "csvread", "csvwrite", "current_catalog",
+                "current_schema", "current_user", "currval",
+                "database-path", "decode", "disk-space-used",
                 "file-read", "file-write", "greatest", "h2version", "identity",
                 "ifnull", "last-insert-id", "least", "link-schema", "lock-mode", "lock-timeout",
                 "memory-free", "memory-used", "nextval", "nullif", "nvl2",
                 "readonly", "rownum", "scope-identity", "session-id",
-                "set", "table", "transaction-id", "truncate-value", "unnest", "user" }) {
+                "set", "table", "transaction-id", "truncate-value", "unnest" }) {
             testScript("functions/system/" + s + ".sql");
         }
         for (String s : new String[] { "add_months", "current_date", "current_timestamp",
@@ -222,6 +219,13 @@ public class TestScript extends TestDb {
         }
         for (String s : new String[] { "lead", "nth_value", "ntile", "ratio_to_report", "row_number" }) {
             testScript("functions/window/" + s + ".sql");
+        }
+        for (String s : new String[] { "at-time-zone", "boolean-test", "conditions", "data-change-delta-table", "help",
+                "sequence", "set" }) {
+            testScript("other/" + s + ".sql");
+        }
+        for (String s : new String[] { "in", "null", "type", "unique" }) {
+            testScript("predicates/" + s + ".sql");
         }
 
         deleteDb("script");
@@ -424,7 +428,8 @@ public class TestScript extends TestDb {
 
     private void process(String sql, boolean allowReconnect) throws Exception {
         if (allowReconnect && reconnectOften) {
-            if (!containsTempTables() && ((JdbcConnection) conn).isRegularMode()
+            if (!containsTempTables()
+                    && ((JdbcConnection) conn).getMode().getEnum() == ModeEnum.REGULAR
                     && conn.getSchema().equals("PUBLIC")) {
                 boolean autocommit = conn.getAutoCommit();
                 if (autocommit && random.nextInt(10) < 1) {

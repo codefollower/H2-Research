@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -22,6 +22,7 @@ import org.h2.store.FileStore;
 import org.h2.store.LobStorageFrontend;
 import org.h2.test.TestBase;
 import org.h2.test.utils.MemoryFootprint;
+import org.h2.util.DateTimeUtils;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.TempFileDeleter;
 import org.h2.util.Utils;
@@ -49,6 +50,7 @@ import org.h2.value.ValueString;
 import org.h2.value.ValueStringFixed;
 import org.h2.value.ValueStringIgnoreCase;
 import org.h2.value.ValueTime;
+import org.h2.value.ValueTimeTimeZone;
 import org.h2.value.ValueTimestamp;
 import org.h2.value.ValueTimestampTimeZone;
 import org.h2.value.ValueUuid;
@@ -58,6 +60,10 @@ import org.h2.value.ValueUuid;
  * they occupy, and this tests if this estimation is correct.
  */
 public class TestValueMemory extends TestBase implements DataHandler {
+
+    private static final long MIN_ABSOLUTE_DAY = DateTimeUtils.absoluteDayFromDateValue(DateTimeUtils.MIN_DATE_VALUE);
+
+    private static final long MAX_ABSOLUTE_DAY = DateTimeUtils.absoluteDayFromDateValue(DateTimeUtils.MAX_DATE_VALUE);
 
     private final Random random = new Random(1);
     private final SmallLRUCache<String, String[]> lobFileListCache = SmallLRUCache
@@ -164,40 +170,37 @@ public class TestValueMemory extends TestBase implements DataHandler {
             return ValueNull.INSTANCE;
         case Value.BOOLEAN:
             return ValueBoolean.FALSE;
-        case Value.BYTE:
+        case Value.TINYINT:
             return ValueByte.get((byte) random.nextInt());
-        case Value.SHORT:
+        case Value.SMALLINT:
             return ValueShort.get((short) random.nextInt());
         case Value.INT:
             return ValueInt.get(random.nextInt());
-        case Value.LONG:
+        case Value.BIGINT:
             return ValueLong.get(random.nextLong());
-        case Value.DECIMAL:
+        case Value.NUMERIC:
             return ValueDecimal.get(new BigDecimal(random.nextInt()));
             // + "12123344563456345634565234523451312312"
         case Value.DOUBLE:
             return ValueDouble.get(random.nextDouble());
-        case Value.FLOAT:
+        case Value.REAL:
             return ValueFloat.get(random.nextFloat());
         case Value.TIME:
-            return ValueTime.get(new java.sql.Time(random.nextLong()));
+            return ValueTime.fromNanos(randomTimeNanos());
+        case Value.TIME_TZ:
+            return ValueTimeTimeZone.fromNanos(randomTimeNanos(), randomZoneOffset());
         case Value.DATE:
-            return ValueDate.get(new java.sql.Date(random.nextLong()));
+            return ValueDate.fromDateValue(randomDateValue());
         case Value.TIMESTAMP:
-            return ValueTimestamp.fromMillis(random.nextLong());
+            return ValueTimestamp.fromDateValueAndNanos(randomDateValue(), randomTimeNanos());
         case Value.TIMESTAMP_TZ:
-            // clamp to max legal value
-            long nanos = Math.max(Math.min(random.nextLong(),
-                    24L * 60 * 60 * 1000 * 1000 * 1000 - 1), 0);
-            int timeZoneOffsetMins = (int) (random.nextFloat() * (24 * 60))
-                    - (12 * 60);
             return ValueTimestampTimeZone.fromDateValueAndNanos(
-                    random.nextLong(), nanos, (short) timeZoneOffsetMins);
-        case Value.BYTES:
+                    randomDateValue(), randomTimeNanos(), randomZoneOffset());
+        case Value.VARBINARY:
             return ValueBytes.get(randomBytes(random.nextInt(1000)));
-        case Value.STRING:
+        case Value.VARCHAR:
             return ValueString.get(randomString(random.nextInt(100)));
-        case Value.STRING_IGNORECASE:
+        case Value.VARCHAR_IGNORECASE:
             return ValueStringIgnoreCase.get(randomString(random.nextInt(100)));
         case Value.BLOB: {
             int len = (int) Math.abs(random.nextGaussian() * 10);
@@ -219,7 +222,7 @@ public class TestValueMemory extends TestBase implements DataHandler {
             return ValueJavaObject.getNoCopy(null, randomBytes(random.nextInt(100)), this);
         case Value.UUID:
             return ValueUuid.get(random.nextLong(), random.nextLong());
-        case Value.STRING_FIXED:
+        case Value.CHAR:
             return ValueStringFixed.get(randomString(random.nextInt(100)));
         case Value.GEOMETRY:
             return ValueGeometry.get("POINT (" + random.nextInt(100) + ' ' + random.nextInt(100) + ')');
@@ -249,11 +252,24 @@ public class TestValueMemory extends TestBase implements DataHandler {
         }
     }
 
+    private long randomDateValue() {
+        return DateTimeUtils.dateValueFromAbsoluteDay(
+                (random.nextLong() & Long.MAX_VALUE) % (MAX_ABSOLUTE_DAY - MIN_ABSOLUTE_DAY + 1) + MIN_ABSOLUTE_DAY);
+    }
+
+    private long randomTimeNanos() {
+        return (random.nextLong() & Long.MAX_VALUE) % DateTimeUtils.NANOS_PER_DAY;
+    }
+
+    private short randomZoneOffset() {
+        return (short) (random.nextInt() % (18 * 60));
+    }
+
     private Value[] createArray() throws SQLException {
         int len = random.nextInt(20);
         Value[] list = new Value[len];
         for (int i = 0; i < list.length; i++) {
-            list[i] = create(Value.STRING);
+            list[i] = create(Value.VARCHAR);
         }
         return list;
     }

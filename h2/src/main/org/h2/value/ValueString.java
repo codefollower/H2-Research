@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,6 +8,7 @@ package org.h2.value;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import org.h2.engine.CastDataProvider;
 import org.h2.engine.SysProperties;
 import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
@@ -47,7 +48,7 @@ public class ValueString extends Value {
     }
 
     @Override
-    public int compareTypeSafe(Value o, CompareMode mode) {
+    public int compareTypeSafe(Value o, CompareMode mode, CastDataProvider provider) {
         return mode.compareString(value, ((ValueString) o).value, false);
     }
 
@@ -130,7 +131,7 @@ public class ValueString extends Value {
 
     @Override
     public int getValueType() {
-        return STRING;
+        return VARCHAR;
     }
 
     /**
@@ -140,20 +141,19 @@ public class ValueString extends Value {
      * @return the value
      */
     public static Value get(String s) {
-        return get(s, false);
+        return get(s, null);
     }
 
     /**
      * Get or create a string value for the given string.
      *
      * @param s the string
-     * @param treatEmptyStringsAsNull whether or not to treat empty strings as
-     *            NULL
+     * @param provider the cast information provider, or {@code null}
      * @return the value
      */
-    public static Value get(String s, boolean treatEmptyStringsAsNull) {
+    public static Value get(String s, CastDataProvider provider) {
         if (s.isEmpty()) {
-            return treatEmptyStringsAsNull ? ValueNull.INSTANCE : EMPTY;
+            return provider != null && provider.getMode().treatEmptyStringsAsNull ? ValueNull.INSTANCE : EMPTY;
         }
         ValueString obj = new ValueString(StringUtils.cache(s));
         //字符串长度太大时就不缓存了

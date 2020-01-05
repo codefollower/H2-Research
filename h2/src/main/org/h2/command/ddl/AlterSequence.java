@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -82,8 +82,11 @@ public class AlterSequence extends SchemaCommand {
             sequence.setCacheSize(cache);
         }
         if (options.isRangeSet()) {
-            sequence.modify(options.getStartValue(session), options.getMinValue(sequence, session),
-                    options.getMaxValue(sequence, session), options.getIncrement(session));
+            Long startValue = options.getStartValue(session);
+            sequence.modify(startValue,
+                    options.getRestartValue(session, startValue != null ? startValue : sequence.getStartValue()),
+                    options.getMinValue(sequence, session), options.getMaxValue(sequence, session),
+                    options.getIncrement(session));
         }
         sequence.flush(session);
         return 0;

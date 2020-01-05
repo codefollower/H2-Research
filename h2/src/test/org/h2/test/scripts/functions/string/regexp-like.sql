@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -6,10 +6,8 @@
 call select 1 from dual where regexp_like('x', 'x', '\');
 > exception INVALID_VALUE_2
 
-select x from dual where REGEXP_LIKE('A', '[a-z]', 'i');
->> 1
+CALL REGEXP_LIKE('A', '[a-z]', 'i');
+>> TRUE
 
-select x from dual where REGEXP_LIKE('A', '[a-z]', 'c');
-> X
-> -
-> rows: 0
+CALL REGEXP_LIKE('A', '[a-z]', 'c');
+>> FALSE

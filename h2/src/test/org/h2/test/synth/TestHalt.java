@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,8 +13,8 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import org.h2.test.TestAll;
 import org.h2.test.TestBase;
@@ -87,8 +87,7 @@ public abstract class TestHalt extends TestBase {
      */
     protected Random random = new Random();
 
-    private final SimpleDateFormat dateFormat =
-            new SimpleDateFormat("MM-dd HH:mm:ss ");
+    private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss");
     private int errorId;
     private int sequenceId;
 
@@ -190,7 +189,7 @@ public abstract class TestHalt extends TestBase {
         f.getParentFile().mkdirs();
         try (FileWriter writer = new FileWriter(f, true)) {
             PrintWriter w = new PrintWriter(writer);
-            s = dateFormat.format(new Date()) + ": " + s;
+            s = dateFormat.format(LocalDateTime.now()) + " : " + s;
             w.println(s);
             if (e != null) {
                 e.printStackTrace(w);
@@ -297,7 +296,7 @@ public abstract class TestHalt extends TestBase {
 //            lock.delete();
 //            System.gc();
 //        }
-//        Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
+//        Class.forName("org.apache.derby.iapi.jdbc.AutoloadedDriver").newInstance();
 //        try {
 //            return DriverManager.getConnection(
 //                    "jdbc:derby:test3;create=true", "sa", "sa");
@@ -323,7 +322,7 @@ public abstract class TestHalt extends TestBase {
 //    void disconnectDerby() {
 //        // super.disconnect();
 //        try {
-//            Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
+//            Class.forName("org.apache.derby.iapi.jdbc.AutoloadedDriver");
 //            DriverManager.getConnection(
 //                    "jdbc:derby:;shutdown=true", "sa", "sa");
 //        } catch (Exception e) {

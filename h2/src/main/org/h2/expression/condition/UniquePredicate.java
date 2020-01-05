@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -76,7 +76,7 @@ public class UniquePredicate extends PredicateWithSubquery {
     public Expression optimize(Session session) {
         super.optimize(session);
         if (query.isStandardDistinct()) {
-            return ValueExpression.getBoolean(true);
+            return ValueExpression.TRUE;
         }
         return this;
     }
@@ -85,7 +85,7 @@ public class UniquePredicate extends PredicateWithSubquery {
     public Value getValue(Session session) {
         query.setSession(session);
         int columnCount = query.getColumnCount();
-        LocalResult result = session.getDatabase().getResultFactory().create(session,
+        LocalResult result = new LocalResult(session,
                 query.getExpressions().toArray(new Expression[0]), columnCount, columnCount);
         result.setDistinct();
         Target target = new Target(columnCount, result);

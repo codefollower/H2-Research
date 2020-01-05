@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -151,7 +151,7 @@ public class CreateView extends SchemaCommand {
                 // non table expressions are fine to use unknown column type
                 columnTemplatesAsUnknowns[i] = new Column(columnNames[i], TypeInfo.TYPE_UNKNOWN);
                 // table expressions can't have unknown types - so we use string instead
-                columnTemplatesAsStrings[i] = new Column(columnNames[i], Value.STRING);
+                columnTemplatesAsStrings[i] = new Column(columnNames[i], Value.VARCHAR);
             }
         }
         if (view == null) {

@@ -1,12 +1,14 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
 
 import java.util.ArrayList;
-
+import java.util.HashSet;
+import java.util.Set;
+import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.expression.Parameter;
 import org.h2.expression.ParameterInterface;
@@ -71,11 +73,6 @@ class CommandList extends Command {
     }
 
     @Override
-    public void prepareJoinBatch() {
-        command.prepareJoinBatch();
-    }
-
-    @Override
     public ResultInterface query(int maxrows) {
         ResultInterface result = command.query(maxrows);
         executeRemaining();
@@ -118,4 +115,17 @@ class CommandList extends Command {
         return command.getCommandType();
     }
 
+    @Override
+    public Set<DbObject> getDependencies() {
+        HashSet<DbObject> dependencies = new HashSet<>();
+        for (Prepared prepared : commands) {
+            prepared.collectDependencies(dependencies);
+        }
+        return dependencies;
+    }
+
+    @Override
+    protected boolean isCurrentCommandADefineCommand() {
+        return command.isCurrentCommandADefineCommand();
+    }
 }

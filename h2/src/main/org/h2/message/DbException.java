@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -67,8 +67,7 @@ public class DbException extends RuntimeException {
 
     static {
         try {
-            byte[] messages = Utils.getResource(
-                    "/org/h2/res/_messages_en.prop");
+            byte[] messages = Utils.getResource("/org/h2/res/_messages_en.prop");
             if (messages != null) {
                 MESSAGES.load(new ByteArrayInputStream(messages));
             }
@@ -102,11 +101,7 @@ public class DbException extends RuntimeException {
     }
 
     private static String translate(String key, String... params) {
-        String message = null;
-        if (MESSAGES != null) {
-            // Tomcat sets final static fields to null sometimes
-            message = MESSAGES.getProperty(key);
-        }
+        String message = MESSAGES.getProperty(key);
         if (message == null) {
             message = "(Message " + key + " not found)";
         }
@@ -501,6 +496,7 @@ public class DbException extends RuntimeException {
         case METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT:
         case ACCESS_DENIED_TO_CLASS_1:
         case RESULT_SET_READONLY:
+        case CURRENT_SEQUENCE_VALUE_IS_NOT_DEFINED_IN_SESSION_1:
             return new JdbcSQLNonTransientException(message, sql, state, errorCode, cause, stackTrace);
         case FEATURE_NOT_SUPPORTED_1:
             return new JdbcSQLFeatureNotSupportedException(message, sql, state, errorCode, cause, stackTrace);
@@ -525,7 +521,6 @@ public class DbException extends RuntimeException {
         case TRIGGER_NOT_FOUND_1:
         case ERROR_CREATING_TRIGGER_OBJECT_3:
         case CONSTRAINT_ALREADY_EXISTS_1:
-        case INVALID_VALUE_SCALE_PRECISION:
         case SUBQUERY_IS_NOT_SINGLE_COLUMN:
         case INVALID_USE_OF_AGGREGATE_FUNCTION_1:
         case CONSTRAINT_NOT_FOUND_1:
@@ -572,11 +567,17 @@ public class DbException extends RuntimeException {
         case PUBLIC_STATIC_JAVA_METHOD_NOT_FOUND_1:
         case JAVA_OBJECT_SERIALIZER_CHANGE_WITH_DATA_TABLE:
         case FOR_UPDATE_IS_NOT_ALLOWED_IN_DISTINCT_OR_GROUPED_SELECT:
+        case INVALID_VALUE_PRECISION:
+        case INVALID_VALUE_SCALE:
+        case CONSTRAINT_IS_USED_BY_CONSTRAINT_2:
+        case UNCOMPARABLE_REFERENCED_COLUMN_2:
+        case GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1:
+        case GENERATED_COLUMN_CANNOT_BE_UPDATABLE_BY_CONSTRAINT_2:
             return new JdbcSQLSyntaxErrorException(message, sql, state, errorCode, cause, stackTrace);
         case HEX_STRING_ODD_1:
         case HEX_STRING_WRONG_1:
         case INVALID_VALUE_2:
-        case SEQUENCE_ATTRIBUTES_INVALID:
+        case SEQUENCE_ATTRIBUTES_INVALID_6:
         case INVALID_TO_CHAR_FORMAT:
         case PARAMETER_NOT_SET_1:
         case PARSE_ERROR_1:
@@ -589,7 +590,8 @@ public class DbException extends RuntimeException {
             return new JdbcSQLDataException(message, sql, state, errorCode, cause, stackTrace);
         case URL_RELATIVE_TO_CWD:
         case DATABASE_NOT_FOUND_1:
-        case DATABASE_NOT_FOUND_2:
+        case DATABASE_NOT_FOUND_WITH_IF_EXISTS_1:
+        case REMOTE_DATABASE_NOT_FOUND_1:
         case TRACE_CONNECTION_NOT_CLOSED:
         case DATABASE_ALREADY_OPEN_1:
         case FILE_CORRUPTED_1:

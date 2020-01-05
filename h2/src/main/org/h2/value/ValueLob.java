@@ -1,19 +1,20 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
 
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.nio.file.Paths;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
+import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
-import org.h2.engine.Mode;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
@@ -280,8 +281,8 @@ public class ValueLob extends Value {
     private static int getNewObjectId(DataHandler h) {
         String path = h.getDatabasePath();
         if (path != null && path.isEmpty()) {
-            path = new File(Utils.getProperty("java.io.tmpdir", "."),
-                    SysProperties.PREFIX_TEMP_FILE).getAbsolutePath();
+            path = Paths.get(Utils.getProperty("java.io.tmpdir", "."),
+                    SysProperties.PREFIX_TEMP_FILE).toAbsolutePath().toString();
         }
         int newId = 0;
         int lobsPerDir = SysProperties.LOB_FILES_PER_DIRECTORY;
@@ -369,22 +370,22 @@ public class ValueLob extends Value {
      * Convert a lob to another data type. The data is fully read in memory
      * except when converting to BLOB or CLOB.
      *
-     * @param t the new type
-     * @param mode the database mode
-     * @param column the column (if any), used for to improve the error message if conversion fails
+     * @param targetType the new type
      * @param extTypeInfo the extended data type information, or null
+     * @param provider the cast information provider
+     * @param column the column (if any), used for to improve the error message if conversion fails
      * @return the converted value
      */
     @Override
-    protected Value convertTo(int t, Mode mode, Object column, ExtTypeInfo extTypeInfo) {
-        if (t == valueType) {
+    protected Value convertTo(int targetType, ExtTypeInfo extTypeInfo, CastDataProvider provider, Object column) {
+        if (targetType == valueType) {
             return this;
-        } else if (t == Value.CLOB) {
+        } else if (targetType == Value.CLOB) {
             return ValueLobDb.createTempClob(getReader(), -1, handler);
-        } else if (t == Value.BLOB) {
+        } else if (targetType == Value.BLOB) {
             return ValueLobDb.createTempBlob(getInputStream(), -1, handler);
         }
-        return super.convertTo(t, mode, column, null);
+        return super.convertTo(targetType, null, provider, column);
     }
 
     @Override
@@ -519,7 +520,7 @@ public class ValueLob extends Value {
     }
 
     @Override
-    public int compareTypeSafe(Value v, CompareMode mode) {
+    public int compareTypeSafe(Value v, CompareMode mode, CastDataProvider provider) {
         return compare(this, v);
     }
 
@@ -611,7 +612,7 @@ public class ValueLob extends Value {
     public boolean equals(Object other) {
         if (other instanceof ValueLob) {
             ValueLob o = (ValueLob) other;
-            return valueType == o.valueType && compareTypeSafe(o, null) == 0;
+            return valueType == o.valueType && compareTypeSafe(o, null, null) == 0;
         }
         return false;
     }

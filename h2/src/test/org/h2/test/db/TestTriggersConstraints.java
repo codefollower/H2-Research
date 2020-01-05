@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,6 +12,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.concurrent.CountDownLatch;
 import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.engine.Session;
@@ -71,44 +72,50 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
     }
 
     private void testTriggerDeadlock() throws Exception {
-        final Connection conn, conn2;
-        final Statement stat, stat2;
-        conn = getConnection("trigger");
-        conn2 = getConnection("trigger");
-        stat = conn.createStatement();
-        stat2 = conn2.createStatement();
-        stat.execute("create table test(id int) as select 1");
-        stat.execute("create table test2(id int) as select 1");
-        stat.execute("create trigger test_u before update on test2 " +
-                "for each row call \"" + DeleteTrigger.class.getName() + "\"");
-        conn.setAutoCommit(false);
-        conn2.setAutoCommit(false);
-        stat2.execute("update test set id = 2");
-        Task task = new Task() {
-            @Override
-            public void call() throws Exception {
-                Thread.sleep(300);
-                stat2.execute("update test2 set id = 4");
-            }
-        };
-        task.execute();
-        Thread.sleep(100);
-        try {
-            stat.execute("update test2 set id = 3");
-            task.get();
-        } catch (SQLException e) {
-            int errorCode = e.getErrorCode();
-            assertTrue(String.valueOf(errorCode),
+        final CountDownLatch latch = new CountDownLatch(2);
+        try (Connection conn = getConnection("trigger")) {
+            Statement stat = conn.createStatement();
+            stat.execute("create table test(id int) as select 1");
+            stat.execute("create table test2(id int) as select 1");
+            stat.execute("create trigger test_u before update on test2 " +
+                    "for each row call \"" + DeleteTrigger.class.getName() + "\"");
+            conn.setAutoCommit(false);
+            stat.execute("update test set id = 2");
+            Task task = new Task() {
+                @Override
+                public void call() throws Exception {
+                    try (Connection conn2 = getConnection("trigger")) {
+                        conn2.setAutoCommit(false);
+                        try (Statement stat2 = conn2.createStatement()) {
+                            latch.countDown();
+                            latch.await();
+                            stat2.execute("update test2 set id = 4");
+                        }
+                        conn2.rollback();
+                    } catch (SQLException e) {
+                        int errorCode = e.getErrorCode();
+                        assertTrue(String.valueOf(errorCode),
+                                ErrorCode.LOCK_TIMEOUT_1 == errorCode ||
+                                ErrorCode.DEADLOCK_1 == errorCode);
+                    }
+                }
+            };
+            task.execute();
+            latch.countDown();
+            latch.await();
+            try {
+                stat.execute("update test2 set id = 3");
+            } catch (SQLException e) {
+                int errorCode = e.getErrorCode();
+                assertTrue(String.valueOf(errorCode),
                         ErrorCode.LOCK_TIMEOUT_1 == errorCode ||
-                        ErrorCode.DEADLOCK_1 == errorCode ||
-                        ErrorCode.COMMIT_ROLLBACK_NOT_ALLOWED == errorCode);
+                        ErrorCode.DEADLOCK_1 == errorCode);
+            }
+            task.get();
+            conn.rollback();
+            stat.execute("drop table test");
+            stat.execute("drop table test2");
         }
-        conn2.rollback();
-        conn.rollback();
-        stat.execute("drop table test");
-        stat.execute("drop table test2");
-        conn.close();
-        conn2.close();
     }
 
     private void testDeleteInTrigger() throws SQLException {
@@ -317,16 +324,6 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
             }
         }
 
-        @Override
-        public void close() {
-            // ignore
-        }
-
-        @Override
-        public void remove() {
-            // ignore
-        }
-
     }
 
     /**
@@ -356,16 +353,6 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
                     session.setLastTriggerIdentity(ValueLong.get(rs.getLong(1)));
                 }
             }
-        }
-
-        @Override
-        public void close() {
-            // ignore
-        }
-
-        @Override
-        public void remove() {
-            // ignore
         }
 
     }
@@ -428,16 +415,6 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
             prepMeta.execute();
         }
 
-        @Override
-        public void close() {
-            // ignore
-        }
-
-        @Override
-        public void remove() {
-            // ignore
-        }
-
     }
 
     /**
@@ -449,12 +426,6 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
         public void fire(Connection conn, Object[] oldRow, Object[] newRow)
                 throws SQLException {
             conn.createStatement().execute("call seq.nextval");
-        }
-
-        @Override
-        public void init(Connection conn, String schemaName,
-                String triggerName, String tableName, boolean before, int type) {
-            // nothing to do
         }
 
         @Override
@@ -544,19 +515,19 @@ public class TestTriggersConstraints extends TestDb implements Trigger {
                 + "company_id int not null, "
                 + "foreign key(company_id) references companies(id))");
         stat.execute("create table connections (id identity, company_id int not null, "
-                + "first int not null, second int not null, "
+                + "first int not null, `second` int not null, "
                 + "foreign key (company_id) references companies(id), "
                 + "foreign key (first) references departments(id), "
-                + "foreign key (second) references departments(id), "
+                + "foreign key (`second`) references departments(id), "
                 + "check (select departments.company_id from departments, companies where "
-                + "       departments.id in (first, second)) = company_id)");
+                + "       departments.id in (first, `second`)) = company_id)");
         stat.execute("insert into companies(id) values(1)");
         stat.execute("insert into departments(id, company_id) "
                 + "values(10, 1)");
         stat.execute("insert into departments(id, company_id) "
                 + "values(20, 1)");
         assertThrows(ErrorCode.CHECK_CONSTRAINT_INVALID, stat)
-            .execute("insert into connections(id, company_id, first, second) "
+            .execute("insert into connections(id, company_id, first, `second`) "
                 + "values(100, 1, 10, 20)");
 
         stat.execute("drop table connections");

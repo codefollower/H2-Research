@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 and the EPL 1.0 (https://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
@@ -100,8 +100,8 @@ Features
 <h3>Additional Features</h3>
 <ul>
 <li>Disk based or in-memory databases and tables, read-only database support, temporary tables
-</li><li>Transaction support (read committed), 2-phase-commit
-</li><li>Multiple connections, table level locking
+</li><li>Transaction support (read uncommitted, read committed, repeatable read, snapshot), 2-phase-commit
+</li><li>Multiple connections, row-level locking
 </li><li>Cost based optimizer, using a genetic algorithm for complex queries, zero-administration
 </li><li>Scrollable and updatable result set support, large result set, external result sorting,
     functions can return a result set
@@ -183,6 +183,15 @@ The disadvantage is that a database may only be open in one virtual machine (and
 As in all modes, both persistent and in-memory databases are supported.
 There is no limit on the number of database open concurrently,
 or on the number of open connections.
+</p>
+<p>
+In embedded mode I/O operations can be performed by application's threads that execute a SQL command.
+The application may not interrupt these threads, it can lead to database corruption,
+because JVM closes I/O handle during thread interruption.
+Consider other ways to control execution of your application.
+When interrupts are possible the <a href="advanced.html#file_system"><code>async:</code></a>
+file system can be used as a workaround, but full safety is not guaranteed.
+It's recommended to use the client-server model instead, the client side may interrupt own threads.
 </p>
 <img src="images/connection-mode-embedded-2.png"
     width="208" height="259"
@@ -278,7 +287,7 @@ This is achieved using different database URLs. Settings in the URLs are not cas
 <tr>
     <td><a href="#database_file_locking">File locking methods</a></td>
     <td class="notranslate">
-        jdbc:h2:&lt;url&gt;;FILE_LOCK={FILE|SOCKET|NO}<br />
+        jdbc:h2:&lt;url&gt;;FILE_LOCK={FILE|SOCKET|FS|NO}<br />
         jdbc:h2:file:~/private;CIPHER=AES;FILE_LOCK=SOCKET<br />
     </td>
 </tr>
@@ -644,10 +653,6 @@ An application can use multiple threads that access the same database at the sam
 With default MVStore engine threads that use different connections can use the database concurrently.
 With PageStore engine requests to the same database are synchronized,
 that means that if one thread executes a long running query, the other threads need to wait.
-Concurrent database usage may be enabled for PageStore or disabled for MVStore
-with <code>MULTI_THREADED</code> setting.
-Note that multi-threaded mode for PageStore engine is not tested well and has some issues;
-it should be used with caution.
 </p>
 
 <h3>Locking, Lock-Timeout, Deadlocks</h3>
@@ -726,7 +731,41 @@ but does not issue them with default MVStore engine.
 
 <h2 id="database_file_layout">Database File Layout</h2>
 <p>
-The following files are created for persistent databases:
+The following files are created for persistent databases when the default MVStore engine is used:
+</p>
+<table class="main">
+<tr><th>File Name</th><th>Description</th><th>Number of Files</th></tr>
+<tr><td class="notranslate">
+    test.mv.db
+</td><td>
+    Database file.<br />
+    Contains the transaction log, indexes, and data for all tables.<br />
+    Format: <code>&lt;database&gt;.mv.db</code>
+</td><td>
+    1 per database
+</td></tr>
+<tr><td class="notranslate">
+    test.newFile
+</td><td>
+    Temporary file for database compaction.<br />
+    Contains the new MVStore file.<br />
+    Format: <code>&lt;database&gt;.newFile</code>
+</td><td>
+    0 or 1 per database
+</td></tr>
+<tr><td class="notranslate">
+    test.tempFile
+</td><td>
+    Temporary file for database compaction.<br />
+    Contains the temporary MVStore file.<br />
+    Format: <code>&lt;database&gt;.tempFile</code>
+</td><td>
+    0 or 1 per database
+</td></tr>
+</table>
+
+<p>
+The following file is created for persistent databases when PageStore engine is used:
 </p>
 <table class="main">
 <tr><th>File Name</th><th>Description</th><th>Number of Files</th></tr>
@@ -739,6 +778,13 @@ The following files are created for persistent databases:
 </td><td>
     1 per database
 </td></tr>
+</table>
+
+<p>
+The following files are created for persistent databases by both MVStore and PageStore engines:
+</p>
+<table class="main">
+<tr><th>File Name</th><th>Description</th><th>Number of Files</th></tr>
 <tr><td class="notranslate">
     test.lock.db
 </td><td>
@@ -754,18 +800,9 @@ The following files are created for persistent databases:
     Trace file (if the trace option is enabled).<br />
     Contains trace information.<br />
     Format: <code>&lt;database&gt;.trace.db</code><br />
-    Renamed to <code>&lt;database&gt;.trace.db.old</code> is too big.
+    Renamed to <code>&lt;database&gt;.trace.db.old</code> if too big.
 </td><td>
     0 or 1 per database
-</td></tr>
-<tr><td class="notranslate">
-    test.lobs.db/*
-</td><td>
-    Directory containing one file for each<br />
-    BLOB or CLOB value larger than a certain size.<br />
-    Format: <code>&lt;id&gt;.t&lt;tableId&gt;.lob.db</code>
-</td><td>
-    1 per large object
 </td></tr>
 <tr><td class="notranslate">
     test.123.temp.db
@@ -775,6 +812,23 @@ The following files are created for persistent databases:
     Format: <code>&lt;database&gt;.&lt;id&gt;.temp.db</code>
 </td><td>
     1 per object
+</td></tr>
+</table>
+
+<p>
+Legacy PageStore databases from old versions of H2 can have the following additional files:
+</p>
+<table class="main">
+<tr><th>File Name</th><th>Description</th><th>Number of Files</th></tr>
+<tr><td class="notranslate">
+    test.lobs.db/*
+</td><td>
+    Directory containing one file for each<br />
+    BLOB or CLOB value larger than a certain size.
+    <br />
+    Format: <code>&lt;id&gt;.t&lt;tableId&gt;.lob.db</code>
+</td><td>
+    1 per large object
 </td></tr>
 </table>
 
@@ -888,6 +942,7 @@ or the SQL statement <code>SET MODE MSSQLServer</code>.
 </li><li>Table hints are discarded. Example: <code>SELECT * FROM table WITH (NOLOCK)</code>.
 </li><li>Datetime value functions return the same value within a command.
 </li><li>0x literals are parsed as binary string literals.
+</li><li>TRUNCATE TABLE restarts next values of generated columns.
 </li></ul>
 
 <h3>MySQL Compatibility Mode</h3>
@@ -913,6 +968,8 @@ Do not change value of DATABASE_TO_LOWER after creation of database.
 </li><li>Datetime value functions return the same value within a command.
 </li><li>0x literals are parsed as binary string literals.
 </li><li>Unrelated expressions in ORDER BY clause of DISTINCT queries are allowed.
+</li><li>Some MySQL-specific ALTER TABLE commands are partially supported.
+</li><li>TRUNCATE TABLE restarts next values of generated columns.
 </li></ul>
 <p>
 Text comparison in MySQL is case insensitive by default, while in H2 it is case sensitive (as in most other databases).
@@ -936,8 +993,12 @@ or the SQL statement <code>SET MODE Oracle</code>.
     results in the other value.
 </li><li>Empty strings are treated like <code>NULL</code> values.
 </li><li>REGEXP_REPLACE() uses \ for back-references.
+</li><li>RAWTOHEX() converts character strings to hexadecimal representation of their UTF-8 encoding.
+</li><li>HEXTORAW() decodes a hexadecimal character string to a binary string.
 </li><li>DATE data type is treated like TIMESTAMP(0) data type.
 </li><li>Datetime value functions return the same value within a command.
+</li><li>ALTER TABLE MODIFY COLUMN command is partially supported.
+</li><li>SEQUENCE.NEXTVAL and SEQUENCE.CURRVAL return values with DECIMAL/NUMERIC data type.
 </li></ul>
 
 <h3>PostgreSQL Compatibility Mode</h3>
@@ -965,18 +1026,6 @@ Do not change value of DATABASE_TO_LOWER after creation of database.
 </li><li>Datetime value functions return the same value within a transaction.
 </li><li>ARRAY_SLICE() out of bounds parameters are silently corrected.
 </li><li>EXTRACT function with DOW field returns (0-6), Sunday is 0.
-</li></ul>
-
-<h3>Ignite Compatibility Mode</h3>
-<p>
-To use the Ignite mode, use the database URL <code>jdbc:h2:~/test;MODE=Ignite</code>
-or the SQL statement <code>SET MODE Ignite</code>.
-</p>
-<ul><li>Creating indexes in the <code>CREATE TABLE</code> statement is allowed using
-    <code>INDEX(..)</code> or <code>KEY(..)</code>.
-    Example: <code>create table test(id int primary key, name varchar(255), key idx_name(name));</code>
-</li><li>AFFINITY KEY and SHARD KEY keywords may be used in index definition.
-</li><li>Datetime value functions return the same value within a transaction.
 </li></ul>
 
 <h2 id="auto_reconnect">Auto-Reconnect</h2>
@@ -1224,7 +1273,11 @@ The formula is evaluated when the row is inserted, and re-evaluated every time t
 One use case is to automatically update the last-modification time:
 </p>
 <pre>
-CREATE TABLE TEST(ID INT, NAME VARCHAR, LAST_MOD TIMESTAMP AS NOW());
+CREATE TABLE TEST(
+    ID INT,
+    NAME VARCHAR,
+    LAST_MOD TIMESTAMP WITH TIME ZONE AS CURRENT_TIMESTAMP
+);
 </pre>
 <p>
 Function indexes are not directly supported by this database, but they can be emulated

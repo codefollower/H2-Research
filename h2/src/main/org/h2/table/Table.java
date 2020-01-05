@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,21 +16,22 @@ import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
 import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.constraint.Constraint;
+import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
-import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
+import org.h2.result.DefaultRow;
 import org.h2.result.Row;
+import org.h2.result.RowFactory;
 import org.h2.result.RowList;
 import org.h2.result.SearchRow;
-import org.h2.result.SimpleRow;
 import org.h2.result.SimpleRowValue;
 import org.h2.result.SortOrder;
 import org.h2.schema.Schema;
@@ -97,6 +98,7 @@ public abstract class Table extends SchemaObjectBase {
     private boolean checkForeignKeyConstraints = true;
     private boolean onCommitDrop, onCommitTruncate;
     private volatile Row nullRow;
+    private RowFactory rowFactory = RowFactory.getRowFactory();
     private boolean tableExpression;
 
     protected Table(Schema schema, int id, String name, boolean persistIndexes, boolean persistData) {
@@ -455,6 +457,8 @@ public abstract class Table extends SchemaObjectBase {
             }
             columnMap.put(columnName, col);
         }
+        rowFactory = database.getRowFactory().createRowFactory(database, database.getCompareMode(),
+                database.getMode(), database, columns, null);
     }
 
     /**
@@ -517,8 +521,6 @@ public abstract class Table extends SchemaObjectBase {
                 if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1
                         || e.getErrorCode() == ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1) {
                     session.rollbackTo(rollback);
-                    session.startStatementWithinTransaction();
-                    rollback = session.setSavepoint();
                 }
                 throw e;
             }
@@ -538,8 +540,6 @@ public abstract class Table extends SchemaObjectBase {
             } catch (DbException e) {
                 if (e.getErrorCode() == ErrorCode.CONCURRENT_UPDATE_1) {
                     session.rollbackTo(rollback);
-                    session.startStatementWithinTransaction();
-                    rollback = session.setSavepoint();
                 }
                 throw e;
             }
@@ -636,7 +636,9 @@ public abstract class Table extends SchemaObjectBase {
             }
         }
         for (Constraint c : constraintsToDrop) {
-            session.getDatabase().removeSchemaObject(session, c);
+            if (c.isValid()) {
+                session.getDatabase().removeSchemaObject(session, c);
+            }
         }
         for (Index i : indexesToDrop) {
             // the index may already have been dropped when dropping the
@@ -647,19 +649,36 @@ public abstract class Table extends SchemaObjectBase {
         }
     }
 
+    public RowFactory getRowFactory() {
+        return rowFactory;
+    }
+
     /**
-     * Create a new row for a table.
+     * Create a new row for this table.
      *
-     * @param data the values.
-     * @param memory whether the row is in memory.
-     * @return the created row.
+     * @param data the values
+     * @param memory whether the row is in memory
+     * @return the created row
      */
     public Row createRow(Value[] data, int memory) {
-        return database.createRow(data, memory);
+        return rowFactory.createRow(data, memory);
+    }
+
+    /**
+     * Create a new row for this table.
+     *
+     * @param data the values
+     * @param memory whether the row is in memory
+     * @return the created row
+     */
+    public Row createRow(Value[] data, int memory, long key) {
+        Row row = rowFactory.createRow(data, memory);
+        row.setKey(key);
+        return row;
     }
 
     public Row getTemplateRow() {
-        return createRow(new Value[columns.length], Row.MEMORY_CALCULATE);
+        return createRow(new Value[getColumns().length], DefaultRow.MEMORY_CALCULATE);
     }
 
     /**
@@ -672,7 +691,7 @@ public abstract class Table extends SchemaObjectBase {
         if (singleColumn) {
             return new SimpleRowValue(columns.length);
         }
-        return new SimpleRow(new Value[columns.length]);
+        return new DefaultRow(new Value[columns.length]);
     }
 
     Row getNullRow() {
@@ -682,7 +701,7 @@ public abstract class Table extends SchemaObjectBase {
             // be ok.
             Value[] values = new Value[columns.length];
             Arrays.fill(values, ValueNull.INSTANCE);
-            nullRow = row = database.createRow(values, 1);
+            nullRow = row = createRow(values, 1);
         }
         return row;
     }
@@ -852,13 +871,11 @@ public abstract class Table extends SchemaObjectBase {
         for (int i = 0; i < columns.length; i++) {
             Value value = row.getValue(i);
             Column column = columns[i];
-            Value v2;
-            if (column.getComputed()) {
-                // force updating the value
-                value = null;
-                v2 = column.computeValue(session, row);
+            if (column.getGenerated() && value != null) {
+                throw DbException.get(ErrorCode.GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1,
+                        column.getSQLWithTable(new StringBuilder(), false).toString());
             }
-            v2 = column.validateConvertUpdateSequence(session, value);
+            Value v2 = column.validateConvertUpdateSequence(session, value, row);
             if (v2 != value) {
                 row.setValue(i, v2);
             }
@@ -1017,22 +1034,6 @@ public abstract class Table extends SchemaObjectBase {
         if (triggers != null) {
             for (TriggerObject trigger : triggers) {
                 if (trigger.isSelectTrigger()) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Check whether this table has a select trigger.
-     *
-     * @return true if it has
-     */
-    public boolean hasInsteadOfTrigger() {
-        if (triggers != null) {
-            for (TriggerObject trigger : triggers) {
-                if (trigger.isInsteadOf()) {
                     return true;
                 }
             }
@@ -1217,6 +1218,19 @@ public abstract class Table extends SchemaObjectBase {
     }
 
     /**
+     * Removes dependencies of column expressions, used for tables with circular
+     * dependencies.
+     *
+     * @param session the session
+     */
+    public void removeColumnExpressionsDependencies(Session session) {
+        for (Column column : columns) {
+            column.setDefaultExpression(session, null);
+            column.setOnUpdateExpression(session, null);
+        }
+    }
+
+    /**
      * Check if a deadlock occurred. This method is called recursively. There is
      * a circle if the session to be tested has already being visited. If this
      * session is part of the circle (if it is the clash session), the method
@@ -1248,13 +1262,14 @@ public abstract class Table extends SchemaObjectBase {
      * Compare two values with the current comparison mode. The values may be of
      * different type.
      *
+     * @param provider the cast information provider
      * @param a the first value
      * @param b the second value
      * @return 0 if both values are equal, -1 if the first value is smaller, and
      *         1 otherwise
      */
-    public int compareValues(Value a, Value b) {
-        return a.compareTo(b, database.getMode(), compareMode);
+    public int compareValues(CastDataProvider provider, Value a, Value b) {
+        return a.compareTo(b, provider, compareMode);
     }
 
     public CompareMode getCompareMode() {
@@ -1268,38 +1283,6 @@ public abstract class Table extends SchemaObjectBase {
      */
     public void checkWritingAllowed() {
         database.checkWritingAllowed();
-    }
-
-    private static Value getGeneratedValue(Session session, Column column, Expression expression) {
-        Value v;
-        if (expression == null) {
-            v = column.validateConvertUpdateSequence(session, null);
-        } else {
-            v = expression.getValue(session);
-        }
-        return column.convert(v);
-    }
-
-    /**
-     * Get or generate a default value for the given column.
-     *
-     * @param session the session
-     * @param column the column
-     * @return the value
-     */
-    public Value getDefaultValue(Session session, Column column) {
-        return getGeneratedValue(session, column, column.getDefaultExpression());
-    }
-
-    /**
-     * Generates on update value for the given column.
-     *
-     * @param session the session
-     * @param column the column
-     * @return the value
-     */
-    public Value getOnUpdateValue(Session session, Column column) {
-        return getGeneratedValue(session, column, column.getOnUpdateExpression());
     }
 
     @Override

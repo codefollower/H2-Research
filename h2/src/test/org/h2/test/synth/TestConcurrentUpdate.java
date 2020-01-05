@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -34,7 +34,6 @@ public class TestConcurrentUpdate extends TestDb {
     public static void main(String... a) throws Exception {
         org.h2.test.TestAll config = new org.h2.test.TestAll();
 //        config.memory = true;
-        config.multiThreaded = true;
 //        config.mvStore = false;
         System.out.println(config);
         TestBase test = createCaller().init(config);
@@ -52,7 +51,7 @@ public class TestConcurrentUpdate extends TestDb {
         testConcurrentShutdown();
     }
 
-    public void testConcurrent() throws Exception {
+    private void testConcurrent() throws Exception {
         deleteDb("concurrent");
         final String url = getURL("concurrent;LOCK_TIMEOUT=2000", true);
         try (Connection conn = getConnection(url)) {
@@ -130,7 +129,7 @@ public class TestConcurrentUpdate extends TestDb {
         deleteDb(getTestName());
         final String url = getURL(getTestName(), true);
         try (Connection connection = getConnection(url)) {
-            connection.createStatement().execute("create table test(id int primary key, value int)");
+            connection.createStatement().execute("create table test(id int primary key, v int)");
             connection.createStatement().execute("insert into test values(0, 0)");
         }
         int len = 2;

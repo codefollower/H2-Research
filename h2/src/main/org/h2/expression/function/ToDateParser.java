@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: Daniel Gredler
  */
@@ -8,10 +8,10 @@ package org.h2.expression.function;
 import static java.lang.String.format;
 
 import java.util.List;
-import java.util.TimeZone;
 
 import org.h2.engine.Session;
 import org.h2.util.DateTimeUtils;
+import org.h2.util.TimeZoneProvider;
 import org.h2.value.ValueTimestamp;
 import org.h2.value.ValueTimestampTimeZone;
 
@@ -46,7 +46,7 @@ public class ToDateParser {
 
     private boolean isAM = true;
 
-    private TimeZone timeZone;
+    private TimeZoneProvider timeZone;
 
     private int timeZoneHour, timeZoneMinute;
 
@@ -120,17 +120,13 @@ public class ToDateParser {
 
     private ValueTimestampTimeZone getResultingValueWithTimeZone() {
         ValueTimestamp ts = getResultingValue();
-        long dateValue = ts.getDateValue();
-        short offset;
+        long dateValue = ts.getDateValue(), timeNanos = ts.getTimeNanos();
+        int offset;
         if (timeZoneHMValid) {
-            offset = (short) (timeZoneHour * 60 + ((timeZoneHour >= 0) ? timeZoneMinute : -timeZoneMinute));
+            offset = (timeZoneHour * 60 + ((timeZoneHour >= 0) ? timeZoneMinute : -timeZoneMinute)) * 60;
         } else {
-            TimeZone timeZone = this.timeZone;
-            if (timeZone == null) {
-                timeZone = TimeZone.getDefault();
-            }
-            long millis = DateTimeUtils.convertDateTimeValueToMillis(timeZone, dateValue, nanos / 1_000_000);
-            offset = (short) (timeZone.getOffset(millis) / 60_000);
+            offset = (timeZone != null ? timeZone : session.currentTimeZone())
+                    .getTimeZoneOffsetLocal(dateValue, timeNanos);
         }
         return ValueTimestampTimeZone.fromDateValueAndNanos(dateValue, ts.getTimeNanos(), offset);
     }
@@ -148,8 +144,7 @@ public class ToDateParser {
     }
 
     private void queryCurrentYearAndMonth() {
-        long dateValue = (session.getDatabase().getMode().dateTimeValueWithinTransaction
-                ? session.getTransactionStart() : session.getCurrentCommandStart()).getDateValue();
+        long dateValue = session.currentTimestamp().getDateValue();
         currentYear = DateTimeUtils.yearFromDateValue(dateValue);
         currentMonth = DateTimeUtils.monthFromDateValue(dateValue);
     }
@@ -237,7 +232,7 @@ public class ToDateParser {
         this.hour12 = hour12;
     }
 
-    void setTimeZone(TimeZone timeZone) {
+    void setTimeZone(TimeZoneProvider timeZone) {
         timeZoneHMValid = false;
         this.timeZone = timeZone;
     }

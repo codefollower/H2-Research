@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,11 +18,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -31,9 +29,11 @@ import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.api.TableEngine;
 import org.h2.command.CommandInterface;
+import org.h2.command.Prepared;
 import org.h2.command.ddl.CreateTableData;
 import org.h2.command.dml.SetTypes;
 import org.h2.constraint.Constraint;
+import org.h2.constraint.Constraint.Type;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
@@ -47,7 +47,6 @@ import org.h2.mvstore.db.MVTableEngine;
 import org.h2.pagestore.PageStore;
 import org.h2.pagestore.WriterThread;
 import org.h2.pagestore.db.LobStorageBackend;
-import org.h2.result.LocalResultFactory;
 import org.h2.result.Row;
 import org.h2.result.RowFactory;
 import org.h2.result.SearchRow;
@@ -82,12 +81,14 @@ import org.h2.util.SmallLRUCache;
 import org.h2.util.SourceCompiler;
 import org.h2.util.StringUtils;
 import org.h2.util.TempFileDeleter;
+import org.h2.util.TimeZoneProvider;
 import org.h2.util.Utils;
+import org.h2.value.CaseInsensitiveConcurrentMap;
 import org.h2.value.CaseInsensitiveMap;
 import org.h2.value.CompareMode;
-import org.h2.value.CaseInsensitiveConcurrentMap;
 import org.h2.value.Value;
 import org.h2.value.ValueInt;
+import org.h2.value.ValueTimestampTimeZone;
 
 /**
  * There is one database object per open database.
@@ -97,7 +98,7 @@ import org.h2.value.ValueInt;
  *
  * @since 2004-04-15 22:49
  */
-public class Database implements DataHandler {
+public class Database implements DataHandler, CastDataProvider {
 
     private static int initialPowerOffCount;
 
@@ -143,7 +144,6 @@ public class Database implements DataHandler {
     private final ConcurrentHashMap<String, Setting> settings = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Schema> schemas = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Right> rights = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Domain> domains = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, UserAggregate> aggregates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Comment> comments = new ConcurrentHashMap<>();
 
@@ -196,8 +196,6 @@ public class Database implements DataHandler {
     private final String accessModeData;
     private boolean referentialIntegrity = true;
     private Mode mode = Mode.getRegular();
-    /** ie. the MULTI_THREADED setting */
-    private boolean multiThreaded;
     private int maxOperationMemory =
             Constants.DEFAULT_MAX_OPERATION_MEMORY;
     private SmallLRUCache<String, String[]> lobFileListCache;
@@ -207,12 +205,6 @@ public class Database implements DataHandler {
     private HashMap<TableLinkConnection, TableLinkConnection> linkConnections;
     private final TempFileDeleter tempFileDeleter = TempFileDeleter.getInstance();
     private PageStore pageStore;
-    private Properties reconnectLastLock;
-    private volatile long reconnectCheckNext;
-    private volatile boolean reconnectChangePending;
-    private volatile int checkpointAllowed;
-    private volatile boolean checkpointRunning;
-    private final Object reconnectSync = new Object();
     private int cacheSize;
     private int compactMode;
     private SourceCompiler compiler;
@@ -222,7 +214,6 @@ public class Database implements DataHandler {
     private final int pageSize;
     private int defaultTableType = Table.TYPE_CACHED;
     private final DbSettings dbSettings;
-    private final long reconnectCheckDelayNs;
     private int logMode;
     private MVTableEngine.Store store;
     private int retentionTime;
@@ -234,8 +225,8 @@ public class Database implements DataHandler {
     private boolean queryStatistics;
     private int queryStatisticsMaxEntries = Constants.QUERY_STATISTICS_MAX_ENTRIES;
     private QueryStatisticsData queryStatisticsData;
-    private RowFactory rowFactory = RowFactory.DEFAULT;
-    private LocalResultFactory resultFactory = LocalResultFactory.DEFAULT;
+    private RowFactory rowFactory = RowFactory.getRowFactory();
+    private boolean ignoreCatalogs;
 
     private Authenticator authenticator;
 
@@ -247,7 +238,6 @@ public class Database implements DataHandler {
         }
         String name = ci.getName();
         this.dbSettings = ci.getDbSettings();
-        this.reconnectCheckDelayNs = TimeUnit.MILLISECONDS.toNanos(dbSettings.reconnectCheckDelay);
         this.compareMode = CompareMode.getInstance(null, 0);
         this.persistent = ci.isPersistent();
         this.filePasswordHash = ci.getFilePasswordHash();
@@ -256,7 +246,6 @@ public class Database implements DataHandler {
         this.databaseShortName = parseDatabaseShortName();
         this.maxLengthInplaceLob = Constants.DEFAULT_MAX_LENGTH_INPLACE_LOB;
         this.cipher = cipher;
-        String lockMethodName = ci.getProperty("FILE_LOCK", null);
         this.accessModeData = StringUtils.toLowerEnglish(
                 ci.getProperty("ACCESS_MODE_DATA", "rw"));
         this.autoServerMode = ci.getProperty("AUTO_SERVER", false);
@@ -270,18 +259,11 @@ public class Database implements DataHandler {
         if ("r".equals(accessModeData)) {
             readOnly = true;
         }
+        String lockMethodName = ci.getProperty("FILE_LOCK", null);
         if (dbSettings.mvStore && lockMethodName == null) {
-            if (autoServerMode) {
-                fileLockMethod = FileLockMethod.FILE;
-            } else {
-                fileLockMethod = FileLockMethod.FS;
-            }
+            fileLockMethod = autoServerMode ? FileLockMethod.FILE : FileLockMethod.FS;
         } else {
             fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
-        }
-        if (dbSettings.mvStore && fileLockMethod == FileLockMethod.SERIALIZED) {
-            throw DbException.getUnsupportedException(
-                    "MV_STORE combined with FILE_LOCK=SERIALIZED");
         }
         this.databaseURL = ci.getURL();
         String listener = ci.removeProperty("DATABASE_EVENT_LISTENER", null);
@@ -300,8 +282,6 @@ public class Database implements DataHandler {
                 ci.getProperty("LOG", PageStore.LOG_MODE_SYNC);
         this.javaObjectSerializerName =
                 ci.getProperty("JAVA_OBJECT_SERIALIZER", null);
-        this.multiThreaded =
-                ci.getProperty("MULTI_THREADED", dbSettings.mvStore);
         this.allowBuiltinAliasOverride =
                 ci.getProperty("BUILTIN_ALIAS_OVERRIDE", false);
         boolean closeAtVmShutdown =
@@ -314,13 +294,16 @@ public class Database implements DataHandler {
                 TraceSystem.DEFAULT_TRACE_LEVEL_SYSTEM_OUT);
         this.cacheType = StringUtils.toUpperEnglish(
                 ci.removeProperty("CACHE_TYPE", Constants.CACHE_TYPE_DEFAULT));
-        openDatabase(traceLevelFile, traceLevelSystemOut, closeAtVmShutdown, ci);
+        this.ignoreCatalogs = ci.getProperty("IGNORE_CATALOGS",
+                dbSettings.ignoreCatalogs);
+        this.lockMode = ci.getProperty("LOCK_MODE", Constants.DEFAULT_LOCK_MODE);
+        this.writeDelay = ci.getProperty("WRITE_DELAY", Constants.DEFAULT_WRITE_DELAY);
+        openDatabase(traceLevelFile, traceLevelSystemOut, closeAtVmShutdown);
     }
 
-    private void openDatabase(int traceLevelFile, int traceLevelSystemOut,
-            boolean closeAtVmShutdown, ConnectionInfo ci) {
+    private void openDatabase(int traceLevelFile, int traceLevelSystemOut, boolean closeAtVmShutdown) {
         try {
-            open(traceLevelFile, traceLevelSystemOut, ci);
+            open(traceLevelFile, traceLevelSystemOut);
             if (closeAtVmShutdown) {
                 OnExitDatabaseCloser.register(this);
             }
@@ -356,31 +339,12 @@ public class Database implements DataHandler {
         return setting == null ? Constants.INITIAL_LOCK_TIMEOUT : setting.getIntValue();
     }
 
-    /**
-     * Create a new row for a table.
-     *
-     * @param data the values
-     * @param memory whether the row is in memory
-     * @return the created row
-     */
-    public Row createRow(Value[] data, int memory) {
-        return rowFactory.createRow(data, memory);
-    }
-
     public RowFactory getRowFactory() {
         return rowFactory;
     }
 
     public void setRowFactory(RowFactory rowFactory) {
         this.rowFactory = rowFactory;
-    }
-
-    public LocalResultFactory getResultFactory() {
-        return resultFactory;
-    }
-
-    public void setResultFactory(LocalResultFactory resultFactory) {
-        this.resultFactory = resultFactory;
     }
 
     public static void setInitialPowerOffCount(int count) {
@@ -403,134 +367,8 @@ public class Database implements DataHandler {
         this.retentionTime = store.getMvStore().getRetentionTime();
     }
 
-    /**
-     * Check if two values are equal with the current comparison mode.
-     *
-     * @param a the first value
-     * @param b the second value
-     * @return true if both objects are equal
-     */
-    public boolean areEqual(Value a, Value b) {
-        // can not use equals because ValueDecimal 0.0 is not equal to 0.00.
-        return a.compareTo(b, mode, compareMode) == 0;
-    }
-
-    /**
-     * Compare two values with the current comparison mode. The values may have
-     * different data types including NULL.
-     *
-     * @param a the first value
-     * @param b the second value
-     * @return 0 if both values are equal, -1 if the first value is smaller, and
-     *         1 otherwise
-     */
-    public int compare(Value a, Value b) {
-        return a.compareTo(b, mode, compareMode);
-    }
-
-    /**
-     * Compare two values with the current comparison mode. The values may have
-     * different data types including NULL.
-     *
-     * @param a the first value
-     * @param b the second value
-     * @param forEquality perform only check for equality (= or &lt;&gt;)
-     * @return 0 if both values are equal, -1 if the first value is smaller, 1
-     *         if the second value is larger, {@link Integer#MIN_VALUE} if order
-     *         is not defined due to NULL comparison
-     */
-    public int compareWithNull(Value a, Value b, boolean forEquality) {
-        return a.compareWithNull(b, forEquality, mode, compareMode);
-    }
-
-    /**
-     * Compare two values with the current comparison mode. The values must be
-     * of the same type.
-     *
-     * @param a the first value
-     * @param b the second value
-     * @return 0 if both values are equal, -1 if the first value is smaller, and
-     *         1 otherwise
-     */
-    public int compareTypeSafe(Value a, Value b) {
-        return a.compareTypeSafe(b, compareMode);
-    }
-
     public long getModificationDataId() {
         return modificationDataId.get();
-    }
-
-    /**
-     * Set or reset the pending change flag in the .lock.db file.
-     *
-     * @param pending the new value of the flag
-     * @return true if the call was successful,
-     *          false if another connection was faster
-     */
-    private synchronized boolean reconnectModified(boolean pending) {
-        if (readOnly || lock == null ||
-                fileLockMethod != FileLockMethod.SERIALIZED) {
-            return true;
-        }
-        try {
-            if (pending == reconnectChangePending) {
-                long now = System.nanoTime();
-                if (now > reconnectCheckNext) {
-                    if (pending) {
-                        String pos = pageStore == null ?
-                                null : Long.toString(pageStore.getWriteCountTotal());
-                        lock.setProperty("logPos", pos);
-                        lock.save();
-                    }
-                    reconnectCheckNext = now + reconnectCheckDelayNs;
-                }
-                return true;
-            }
-            Properties old = lock.load();
-            if (pending) {
-                if (old.getProperty("changePending") != null) {
-                    return false;
-                }
-                trace.debug("wait before writing");
-                Thread.sleep(TimeUnit.NANOSECONDS.toMillis((long) (reconnectCheckDelayNs * 1.1)));
-                Properties now = lock.load();
-                if (!now.equals(old)) {
-                    // somebody else was faster
-                    return false;
-                }
-            }
-            String pos = pageStore == null ?
-                    null : Long.toString(pageStore.getWriteCountTotal());
-            lock.setProperty("logPos", pos);
-            if (pending) {
-                lock.setProperty("changePending", "true-" + Math.random());
-            } else {
-                lock.setProperty("changePending", null);
-            }
-            // ensure that the writer thread will
-            // not reset the flag before we are done
-            reconnectCheckNext = System.nanoTime() +
-                    2 * reconnectCheckDelayNs;
-            old = lock.save();
-            if (pending) {
-                trace.debug("wait before writing again");
-                Thread.sleep(TimeUnit.NANOSECONDS.toMillis((long) (reconnectCheckDelayNs * 1.1)));
-                Properties now = lock.load();
-                if (!now.equals(old)) {
-                    // somebody else was faster
-                    return false;
-                }
-            } else {
-                Thread.sleep(1);
-            }
-            reconnectLastLock = old;
-            reconnectChangePending = pending;
-            reconnectCheckNext = System.nanoTime() + reconnectCheckDelayNs;
-            return true;
-        } catch (Exception e) {
-            trace.error(e, "pending {0}", pending);
-            return false;
-        }
     }
 
     public long getNextModificationDataId() {
@@ -580,10 +418,8 @@ public class Database implements DataHandler {
                 }
                 if (lock != null) {
                     stopServer();
-                    if (fileLockMethod != FileLockMethod.SERIALIZED) {
-                        // allow testing shutdown
-                        lock.unlock();
-                    }
+                    // allow testing shutdown
+                    lock.unlock();
                     lock = null;
                 }
                 if (traceSystem != null) {
@@ -608,6 +444,20 @@ public class Database implements DataHandler {
             return true;
         }
         return FileUtils.exists(name + Constants.SUFFIX_MV_FILE);
+    }
+
+    /**
+     * Check if a database with the given name exists.
+     *
+     * @param name
+     *            the name of the database (including path)
+     * @param mvStore
+     *            {@code true} to check MVStore file only, {@code false} to
+     *            check PageStore file only
+     * @return true if one exists
+     */
+    static boolean exists(String name, boolean mvStore) {
+        return FileUtils.exists(name + (mvStore ? Constants.SUFFIX_MV_FILE : Constants.SUFFIX_PAGE_FILE));
     }
 
     /**
@@ -668,7 +518,14 @@ public class Database implements DataHandler {
                 : dbSettings.databaseToLower ? StringUtils.toLowerEnglish(n) : n;
     }
 
-    private synchronized void open(int traceLevelFile, int traceLevelSystemOut, ConnectionInfo ci) {
+    private void initTraceSystem(int traceLevelFile, int traceLevelSystemOut)  {
+        traceSystem.setLevelFile(traceLevelFile);
+        traceSystem.setLevelSystemOut(traceLevelSystemOut);
+        trace = traceSystem.getTrace(Trace.DATABASE);
+        trace.info("opening {0} (build {1})", databaseName, Constants.BUILD_ID);
+    }
+
+    private synchronized void open(int traceLevelFile, int traceLevelSystemOut) {
         if (persistent) {
 			//databaseName = E:/H2/baseDir/mydb
 			//dataFileName = E:/H2/baseDir/mydb.data.db
@@ -694,9 +551,6 @@ public class Database implements DataHandler {
             }
             if (existsPage && !existsMv) {
                 dbSettings.setMvStore(false);
-                // Need to re-init this because the first time we do it we don't
-                // know if we have an mvstore or a pagestore.
-                multiThreaded = ci.getProperty("MULTI_THREADED", false);
             }
             if (readOnly) {
                 if (traceLevelFile >= TraceSystem.DEBUG) {
@@ -711,19 +565,14 @@ public class Database implements DataHandler {
 				//E:/H2/baseDir/mydb.trace.db
                 traceSystem = new TraceSystem(databaseName + Constants.SUFFIX_TRACE_FILE);
             }
-            traceSystem.setLevelFile(traceLevelFile);
-            traceSystem.setLevelSystemOut(traceLevelSystemOut);
-            trace = traceSystem.getTrace(Trace.DATABASE);
-            trace.info("opening {0} (build {1})", databaseName, Constants.BUILD_ID);
+            initTraceSystem(traceLevelFile, traceLevelSystemOut);
             if (autoServerMode) {
                 if (readOnly ||
                         fileLockMethod == FileLockMethod.NO ||
-                        fileLockMethod == FileLockMethod.SERIALIZED ||
                         fileLockMethod == FileLockMethod.FS) {
                     throw DbException.getUnsupportedException(
                             "autoServerMode && (readOnly || " +
                             "fileLockMethod == NO || " +
-                            "fileLockMethod == SERIALIZED || " +
                             "fileLockMethod == FS || " +
                             "inMemory)");
                 }
@@ -745,17 +594,6 @@ public class Database implements DataHandler {
                     }
                 }
             }
-            if (SysProperties.MODIFY_ON_WRITE) {
-                while (isReconnectNeeded()) {
-                    // wait until others stopped writing
-                }
-            } else {
-                while (isReconnectNeeded() && !beforeWriting()) {
-                    // wait until others stopped writing and
-                    // until we can write (the file is not yet open -
-                    // no need to re-connect)
-                }
-            }
             deleteOldTempFiles();
             starting = true;
             if (SysProperties.MODIFY_ON_WRITE) {
@@ -766,29 +604,19 @@ public class Database implements DataHandler {
                         throw e;
                     }
                     pageStore = null;
-                    while (!beforeWriting()) {
-                        // wait until others stopped writing and
-                        // until we can write (the file is not yet open -
-                        // no need to re-connect)
-                    }
                     getPageStore();
                 }
             } else {
                 getPageStore();
             }
             starting = false;
-            if (store == null) {
-                writer = WriterThread.create(this, writeDelay);
-            } else {
-                setWriteDelay(writeDelay);
-            }
         } else {
+            traceSystem = new TraceSystem(null);
+            initTraceSystem(traceLevelFile, traceLevelSystemOut);
             if (autoServerMode) {
                 throw DbException.getUnsupportedException(
                         "autoServerMode && inMemory");
             }
-            traceSystem = new TraceSystem(null);
-            trace = traceSystem.getTrace(Trace.DATABASE);
             if (dbSettings.mvStore) {
                 getPageStore();
             }
@@ -797,8 +625,16 @@ public class Database implements DataHandler {
 //        systemUser = new User(this, 0, SYSTEM_USER_NAME, true); //DBA
 //        mainSchema = new Schema(this, 0, Constants.SCHEMA_MAIN, systemUser, true); //PUBLIC 不明确指定Schema时，默认就是它
 //=======
-        if(store != null) {
+        if (store != null) {
             store.getTransactionStore().init();
+        }
+        Set<String> settingKeys = dbSettings.getSettings().keySet();
+        if (dbSettings.mvStore) {
+            // MVStore
+            settingKeys.removeIf(name -> name.startsWith("PAGE_STORE_"));
+        } else if (store == null) {
+            // PageStore without additional MVStore for spatial features
+            settingKeys.removeIf(name -> "COMPRESS".equals(name) || "REUSE_SPACE".equals(name));
         }
         systemUser = new User(this, 0, SYSTEM_USER_NAME, true);
         mainSchema = new Schema(this, Constants.MAIN_SCHEMA_ID, sysIdentifier(Constants.SCHEMA_MAIN), systemUser,
@@ -819,7 +655,7 @@ public class Database implements DataHandler {
         cols.add(columnId);
         cols.add(new Column("HEAD", Value.INT));
         cols.add(new Column("TYPE", Value.INT));
-        cols.add(new Column("SQL", Value.STRING));
+        cols.add(new Column("SQL", Value.VARCHAR));
         boolean create = true;
         if (pageStore != null) {
             create = pageStore.isNew();
@@ -842,23 +678,26 @@ public class Database implements DataHandler {
         systemSession.commit(true);
         objectIds.set(0);
 //<<<<<<< HEAD
-//        
-//        //读整个SYS表，取出所有的DDL语句，然后重新执行一遍
-//        starting = true;
+////<<<<<<< HEAD
+////        
+////        //读整个SYS表，取出所有的DDL语句，然后重新执行一遍
+////        starting = true;
+////=======
+//        Cursor cursor = metaIdIndex.find(systemSession, null, null);
+//        ArrayList<MetaRecord> records = new ArrayList<>((int) metaIdIndex.getRowCountApproximation());
+//        while (cursor.next()) {
+//            MetaRecord rec = new MetaRecord(cursor.get());
+//            objectIds.set(rec.getId());
+//            records.add(rec);
+//        }
+//        Collections.sort(records); //按升序排，算法见org.h2.engine.MetaRecord.compareTo(MetaRecord)
+//        synchronized (systemSession) {
+//            for (MetaRecord rec : records) {
+//                rec.execute(this, systemSession, eventListener);
+//            }
+//        }
 //=======
-        Cursor cursor = metaIdIndex.find(systemSession, null, null);
-        ArrayList<MetaRecord> records = new ArrayList<>((int) metaIdIndex.getRowCountApproximation());
-        while (cursor.next()) {
-            MetaRecord rec = new MetaRecord(cursor.get());
-            objectIds.set(rec.getId());
-            records.add(rec);
-        }
-        Collections.sort(records); //按升序排，算法见org.h2.engine.MetaRecord.compareTo(MetaRecord)
-        synchronized (systemSession) {
-            for (MetaRecord rec : records) {
-                rec.execute(this, systemSession, eventListener);
-            }
-        }
+        executeMeta();
         systemSession.commit(true);
         if (store != null) {
             store.getTransactionStore().endLeftoverTransactions();
@@ -894,8 +733,100 @@ public class Database implements DataHandler {
         systemSession.commit(true);
 
         trace.info("opened {0}", databaseName);
-        if (checkpointAllowed > 0) {
-            afterWriting();
+        if (persistent) {
+            if (store == null) {
+                writer = WriterThread.create(this, writeDelay);
+            } else {
+                setWriteDelay(writeDelay);
+            }
+        }
+    }
+
+    private void executeMeta() {
+        Cursor cursor = metaIdIndex.find(systemSession, null, null);
+        ArrayList<MetaRecord> firstRecords = new ArrayList<>(), domainRecords = new ArrayList<>(),
+                middleRecords = new ArrayList<>(), constraintRecords = new ArrayList<>(),
+                lastRecords = new ArrayList<>();
+        while (cursor.next()) {
+            MetaRecord rec = new MetaRecord(cursor.get());
+            objectIds.set(rec.getId());
+            switch (rec.getObjectType()) {
+            case DbObject.SETTING:
+            case DbObject.USER:
+            case DbObject.SCHEMA:
+            case DbObject.FUNCTION_ALIAS:
+                firstRecords.add(rec);
+                break;
+            case DbObject.DOMAIN:
+                domainRecords.add(rec);
+                break;
+            case DbObject.SEQUENCE:
+            case DbObject.CONSTANT:
+            case DbObject.TABLE_OR_VIEW:
+            case DbObject.INDEX:
+                middleRecords.add(rec);
+                break;
+            case DbObject.CONSTRAINT:
+                constraintRecords.add(rec);
+                break;
+            default:
+                lastRecords.add(rec);
+            }
+        }
+        synchronized (systemSession) {
+            executeMeta(firstRecords);
+            // Domains may depend on other domains
+            int count = domainRecords.size();
+            if (count > 0) {
+                for (int j = 0;; count = j) {
+                    DbException exception = null;
+                    for (int i = 0; i < count; i++) {
+                        MetaRecord rec = domainRecords.get(i);
+                        try {
+                            rec.prepareAndExecute(this, systemSession, eventListener);
+                        } catch (DbException ex) {
+                            if (exception == null) {
+                                exception = ex;
+                            }
+                            domainRecords.set(j++, rec);
+                        }
+                    }
+                    if (exception == null) {
+                        break;
+                    }
+                    if (count == j) {
+                        throw exception;
+                    }
+                }
+            }
+            executeMeta(middleRecords);
+            // Prepare, but don't create all constraints and sort them
+            count = constraintRecords.size();
+            if (count > 0) {
+                ArrayList<Prepared> constraints = new ArrayList<>(count);
+                for (int i = 0; i < count; i++) {
+                    Prepared prepared = constraintRecords.get(i).prepare(this, systemSession, eventListener);
+                    if (prepared != null) {
+                        constraints.add(prepared);
+                    }
+                }
+                constraints.sort(MetaRecord.CONSTRAINTS_COMPARATOR);
+                // Create constraints in order (unique and primary key before
+                // all others)
+                for (Prepared constraint : constraints) {
+                    MetaRecord.execute(this, constraint, eventListener, constraint.getSQL());
+                }
+            }
+            executeMeta(lastRecords);
+        }
+    }
+
+    private void executeMeta(ArrayList<MetaRecord> records) {
+        if (!records.isEmpty()) {
+            records.sort(null);
+            for (MetaRecord rec : records) {
+                rec.prepareAndExecute(this, systemSession, eventListener);
+            }
         }
     }
 
@@ -949,12 +880,7 @@ public class Database implements DataHandler {
                 }
                 if (needRepair) {
                     Row[] array = allMetaRows.toArray(new Row[0]);
-                    Arrays.sort(array, new Comparator<Row>() {
-                        @Override
-                        public int compare(Row o1, Row o2) {
-                            return Integer.compare(o1.getValue(0).getInt(), o2.getValue(0).getInt());
-                        }
-                    });
+                    Arrays.sort(array, Comparator.comparingInt(t -> t.getValue(0).getInt()));
                     meta.truncate(systemSession);
                     for (Row row : array) {
                         meta.addRow(systemSession, row);
@@ -1051,16 +977,40 @@ public class Database implements DataHandler {
     private void addMeta(Session session, DbObject obj) {
         assert Thread.holdsLock(this);
         int id = obj.getId();
-        if (id > 0 && !starting && !obj.isTemporary()) {
-            Row r = meta.getTemplateRow();
-            MetaRecord.populateRowFromDBObject(obj, r);
-            synchronized (objectIds) {
-                objectIds.set(id);
+        if (id > 0 && !obj.isTemporary()) {
+            if (isMVStore()) {
+                if (!isReadOnly()) {
+                    Row r = meta.getTemplateRow();
+                    MetaRecord.populateRowFromDBObject(obj, r);
+                    assert objectIds.get(id);
+                    if (SysProperties.CHECK) {
+                        verifyMetaLocked(session);
+                    }
+                    Cursor cursor = metaIdIndex.find(session, r, r);
+                    if (!cursor.next()) {
+                        meta.addRow(session, r);
+                    } else {
+                        assert starting;
+                        Row oldRow = cursor.get();
+                        MetaRecord rec = new MetaRecord(oldRow);
+                        assert rec.getId() == obj.getId();
+                        assert rec.getObjectType() == obj.getType();
+                        if (!rec.getSQL().equals(obj.getCreateSQL())) {
+                            meta.updateRow(session, oldRow, r);
+                        }
+                    }
+                }
+            } else if (!starting) {
+                Row r = meta.getTemplateRow();
+                MetaRecord.populateRowFromDBObject(obj, r);
+                synchronized (objectIds) {
+                    objectIds.set(id);
+                }
+                if (SysProperties.CHECK) {
+                    verifyMetaLocked(session);
+                }
+                meta.addRow(session, r);
             }
-            if (SysProperties.CHECK) {
-                verifyMetaLocked(session);
-            }
-            meta.addRow(session, r);
         }
     }
 
@@ -1156,7 +1106,7 @@ public class Database implements DataHandler {
 //=======
     public void removeMeta(Session session, int id) {
         if (id > 0 && !starting) {
-            SearchRow r = meta.getTemplateSimpleRow(false);
+            SearchRow r = meta.getRowFactory().createRow();
             r.setValue(0, ValueInt.get(id));
             //在调用removeMeta前必须调用过lockMeta了，如果wasLocked为false
             //说明当前meta表没有调用lockMeta或者被其他session锁住了
@@ -1224,9 +1174,6 @@ public class Database implements DataHandler {
             break;
         case DbObject.SCHEMA:
             result = schemas;
-            break;
-        case DbObject.DOMAIN:
-            result = domains;
             break;
         case DbObject.COMMENT:
             result = comments;
@@ -1358,16 +1305,6 @@ public class Database implements DataHandler {
     }
 
     /**
-     * Get the domain if it exists, or null if not.
-     *
-     * @param name the name of the domain
-     * @return the domain or null
-     */
-    public Domain findDomain(String name) {
-        return domains.get(name);
-    }
-
-    /**
      * Get user with the given name. This method throws an exception if the user
      * does not exist.
      *
@@ -1410,6 +1347,15 @@ public class Database implements DataHandler {
     }
 
     /**
+     * Creates a temporary system session.
+     *
+     * @return the session
+     */
+    public synchronized Session createTempSystemSession() {
+        return new Session(this, systemUser, ++nextSessionId);
+    }
+
+    /**
      * Remove a session. This method is called after the user has disconnected.
      *
      * @param session the session
@@ -1438,15 +1384,45 @@ public class Database implements DataHandler {
         }
     }
 
-    private synchronized void closeAllSessionsException(Session except) {
+    private synchronized void closeAllSessionsExcept(Session except) {
         Session[] all = userSessions.toArray(EMPTY_SESSION_ARRAY);
         for (Session s : all) {
             if (s != except) {
-                try {
-                    // this will rollback outstanding transaction
-                    s.close();
-                } catch (DbException e) {
-                    trace.error(e, "disconnecting session #{0}", s.getId());
+                // indicate that session need to be closed ASAP
+                s.suspend();
+            }
+        }
+
+        int timeout = 2 * getLockTimeout();
+        long start = System.currentTimeMillis();
+        boolean done = false;
+        while (!done) {
+            long sleep = timeout / 20;
+            try {
+                // although nobody going to notify us
+                // it is vital to give up lock on a database
+                wait(sleep);
+            } catch (InterruptedException e1) {
+                // ignore
+            }
+            if (System.currentTimeMillis() - start > timeout) {
+                for (Session s : all) {
+                    if (s != except && !s.isClosed()) {
+                        try {
+                            // this will rollback outstanding transaction
+                            s.close();
+                        } catch (Throwable e) {
+                            trace.error(e, "disconnecting session #{0}", s.getId());
+                        }
+                    }
+                }
+                break;
+            }
+            done = true;
+            for (Session s : all) {
+                if (s != except && !s.isClosed()) {
+                    done = false;
+                    break;
                 }
             }
         }
@@ -1480,17 +1456,6 @@ public class Database implements DataHandler {
                 if (closing) {
                     return;
                 }
-                if (fileLockMethod == FileLockMethod.SERIALIZED &&
-                        !reconnectChangePending) {
-                    // another connection may have written something - don't write
-                    try {
-                        closeOpenFilesAndUnlock(false);
-                    } catch (DbException e) {
-                        // ignore
-                    }
-                    traceSystem.close();
-                    return;
-                }
                 closing = true;
                 stopServer();
                 if (!userSessions.isEmpty()) {
@@ -1498,7 +1463,7 @@ public class Database implements DataHandler {
                         return;
                     }
                     trace.info("closing {0} from shutdown hook", databaseName);
-                    closeAllSessionsException(null);
+                    closeAllSessionsExcept(null);
                 }
                 trace.info("closing {0}", databaseName);
                 if (eventListener != null) {
@@ -1637,7 +1602,6 @@ public class Database implements DataHandler {
                     }
                 }
             }
-            reconnectModified(false);
             if (store != null) {
                 MVStore mvStore = store.getMvStore();
                 if (mvStore != null && !mvStore.isClosed()) {
@@ -1670,18 +1634,6 @@ public class Database implements DataHandler {
             }
         } finally {
             if (lock != null) {
-                if (fileLockMethod == FileLockMethod.SERIALIZED) {
-                    // wait before deleting the .lock file,
-                    // otherwise other connections can not detect that
-                    if (lock.load().containsKey("changePending")) {
-                        try {
-                            Thread.sleep(TimeUnit.NANOSECONDS
-                                    .toMillis((long) (reconnectCheckDelayNs * 1.1)));
-                        } catch (InterruptedException e) {
-                            trace.error(e, "close");
-                        }
-                    }
-                }
                 lock.unlock();
                 lock = null;
             }
@@ -1703,7 +1655,7 @@ public class Database implements DataHandler {
     }
 
     private void checkMetaFree(Session session, int id) {
-        SearchRow r = meta.getTemplateSimpleRow(false);
+        SearchRow r = meta.getRowFactory().createRow();
         r.setValue(0, ValueInt.get(id));
         Cursor cursor = metaIdIndex.find(session, r, r);
         if (cursor.next()) {
@@ -1851,10 +1803,6 @@ public class Database implements DataHandler {
 
     public Collection<Setting> getAllSettings() {
         return settings.values();
-    }
-
-    public Collection<Domain> getAllDomains() {
-        return domains.values();
     }
 
     public Collection<User> getAllUsers() {
@@ -2148,10 +2096,12 @@ public class Database implements DataHandler {
             }
         } else if (type == DbObject.CONSTRAINT) {
             Constraint constraint = (Constraint) obj;
-            Table table = constraint.getTable();
-            if (table.isTemporary() && !table.isGlobalTemporary()) {
-                session.removeLocalTempTableConstraint(constraint);
-                return;
+            if (constraint.getConstraintType() != Type.DOMAIN) {
+                Table table = constraint.getTable();
+                if (table.isTemporary() && !table.isGlobalTemporary()) {
+                    session.removeLocalTempTableConstraint(constraint);
+                    return;
+                }
             }
         }
         checkWritingAllowed();
@@ -2240,11 +2190,6 @@ public class Database implements DataHandler {
     public void checkWritingAllowed() {
         if (readOnly) {
             throw DbException.get(ErrorCode.DATABASE_IS_READ_ONLY);
-        }
-        if (fileLockMethod == FileLockMethod.SERIALIZED) {
-            if (!reconnectChangePending) {
-                throw DbException.get(ErrorCode.DATABASE_IS_READ_ONLY);
-            }
         }
     }
 
@@ -2341,6 +2286,10 @@ public class Database implements DataHandler {
         session.setAllCommitted();
     }
 
+    /**
+     * If there is a background store thread, and if there wasn an exception in
+     * that thread, throw it now.
+     */
     void throwLastBackgroundException() {
         if (store == null || !store.getMvStore().isBackgroundThread()) {
             DbException b = backgroundException.getAndSet(null);
@@ -2484,15 +2433,6 @@ public class Database implements DataHandler {
     public void setLockMode(int lockMode) {
         switch (lockMode) {
         case Constants.LOCK_MODE_OFF:
-            if (multiThreaded && !isMVStore()) {
-                // Currently the combination of MV_STORE=FALSE, LOCK_MODE=0 and
-                // MULTI_THREADED=TRUE is not supported. Also see code in
-                // JdbcDatabaseMetaData#supportsTransactionIsolationLevel(int)
-                throw DbException.get(
-                        ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
-                        "MV_STORE=FALSE & LOCK_MODE=0 & MULTI_THREADED=TRUE");
-            }
-            break;
         case Constants.LOCK_MODE_READ_COMMITTED:
         case Constants.LOCK_MODE_TABLE:
         case Constants.LOCK_MODE_TABLE_GC:
@@ -2544,6 +2484,15 @@ public class Database implements DataHandler {
         }
         return ignoreCase;
     }
+
+    public void setIgnoreCatalogs(boolean b) {
+        ignoreCatalogs = b;
+    }
+
+    public boolean getIgnoreCatalogs() {
+        return ignoreCatalogs;
+    }
+
 
     public synchronized void setDeleteFilesOnDisconnect(boolean b) {
         this.deleteFilesOnDisconnect = b;
@@ -2667,42 +2616,46 @@ public class Database implements DataHandler {
         this.mode = mode;
     }
 
+    @Override
     public Mode getMode() {
         return mode;
     }
 
-    public boolean isMultiThreaded() {
-        return multiThreaded;
-    }
-
-    public void setMultiThreaded(boolean multiThreaded) {
-        if (multiThreaded && this.multiThreaded != multiThreaded) {
 //<<<<<<< HEAD
-//        	//不允许类似这样同时设置MULTI_THREADED和MVCC为true
-//        	//prop.setProperty("MULTI_THREADED", "true");
-//    		//prop.setProperty("MVCC", "true");
-//            if (multiVersion && mvStore == null) {
-//                // currently the combination of MVCC and MULTI_THREADED is not
-//                // supported
+//    public boolean isMultiThreaded() {
+//        return multiThreaded;
+//    }
+//
+//    public void setMultiThreaded(boolean multiThreaded) {
+//        if (multiThreaded && this.multiThreaded != multiThreaded) {
+////<<<<<<< HEAD
+////        	//不允许类似这样同时设置MULTI_THREADED和MVCC为true
+////        	//prop.setProperty("MULTI_THREADED", "true");
+////    		//prop.setProperty("MVCC", "true");
+////            if (multiVersion && mvStore == null) {
+////                // currently the combination of MVCC and MULTI_THREADED is not
+////                // supported
+////                throw DbException.get(
+////                        ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
+////                        "MVCC & MULTI_THREADED");
+////            }
+////            if (lockMode == 0) {
+////                // currently the combination of LOCK_MODE=0 and MULTI_THREADED
+////                // is not supported
+////=======
+//            if (lockMode == Constants.LOCK_MODE_OFF && !isMVStore()) {
+//                // Currently the combination of MV_STORE=FALSE, LOCK_MODE=0 and
+//                // MULTI_THREADED=TRUE is not supported.
 //                throw DbException.get(
 //                        ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
-//                        "MVCC & MULTI_THREADED");
+//                        "MV_STORE=FALSE & LOCK_MODE=0 & MULTI_THREADED=TRUE");
 //            }
-//            if (lockMode == 0) {
-//                // currently the combination of LOCK_MODE=0 and MULTI_THREADED
-//                // is not supported
+//        }
+//        this.multiThreaded = multiThreaded;
+//    }
+//
 //=======
-            if (lockMode == Constants.LOCK_MODE_OFF && !isMVStore()) {
-                // Currently the combination of MV_STORE=FALSE, LOCK_MODE=0 and
-                // MULTI_THREADED=TRUE is not supported.
-                throw DbException.get(
-                        ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
-                        "MV_STORE=FALSE & LOCK_MODE=0 & MULTI_THREADED=TRUE");
-            }
-        }
-        this.multiThreaded = multiThreaded;
-    }
-
+//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
     public void setMaxOperationMemory(int maxOperationMemory) {
         this.maxOperationMemory  = maxOperationMemory;
     }
@@ -2720,14 +2673,16 @@ public class Database implements DataHandler {
      *
      * @param session the session
      * @param closeOthers whether other sessions are closed
-     * @return true if success, false otherwise
+     * @return true if success or if database is in exclusive mode
+     *         set by this session already, false otherwise
      */
     public boolean setExclusiveSession(Session session, boolean closeOthers) {
-        if (!exclusiveSession.compareAndSet(null, session)) {
+        if (exclusiveSession.get() != session &&
+                !exclusiveSession.compareAndSet(null, session)) {
             return false;
         }
         if (closeOthers) {
-            closeAllSessionsException(session);
+            closeAllSessionsExcept(session);
         }
         return true;
     }
@@ -2736,10 +2691,12 @@ public class Database implements DataHandler {
      * Stop exclusive access the database by provided session.
      *
      * @param session the session
-     * @return true if success, false otherwise
+     * @return true if success or if database is in non-exclusive mode already,
+     *         false otherwise
      */
     public boolean unsetExclusiveSession(Session session) {
-        return exclusiveSession.compareAndSet(session, null);
+        return exclusiveSession.get() == null
+            || exclusiveSession.compareAndSet(session, null);
     }
 
     @Override
@@ -2861,108 +2818,6 @@ public class Database implements DataHandler {
     }
 
     /**
-     * Check if the contents of the database was changed and therefore it is
-     * required to re-connect. This method waits until pending changes are
-     * completed. If a pending change takes too long (more than 2 seconds), the
-     * pending change is broken (removed from the properties file).
-     *
-     * @return true if reconnecting is required
-     */
-    public boolean isReconnectNeeded() {
-        if (fileLockMethod != FileLockMethod.SERIALIZED) {
-            return false;
-        }
-        if (reconnectChangePending) {
-            return false;
-        }
-        long now = System.nanoTime();
-        if (now < reconnectCheckNext) {
-            return false;
-        }
-        reconnectCheckNext = now + reconnectCheckDelayNs;
-        if (lock == null) {
-            lock = new FileLock(traceSystem, databaseName +
-                    Constants.SUFFIX_LOCK_FILE, Constants.LOCK_SLEEP);
-        }
-        try {
-            Properties prop = lock.load(), first = prop;
-            while (true) {
-                if (prop.equals(reconnectLastLock)) {
-                    return false;
-                }
-                if (prop.getProperty("changePending", null) == null) {
-                    break;
-                }
-                if (System.nanoTime() >
-                        now + reconnectCheckDelayNs * 10) {
-                    if (first.equals(prop)) {
-                        // the writing process didn't update the file -
-                        // it may have terminated
-                        lock.setProperty("changePending", null);
-                        lock.save();
-                        break;
-                    }
-                }
-                trace.debug("delay (change pending)");
-                Thread.sleep(TimeUnit.NANOSECONDS.toMillis(reconnectCheckDelayNs));
-                prop = lock.load();
-            }
-            reconnectLastLock = prop;
-        } catch (Exception e) {
-            // DbException, InterruptedException
-            trace.error(e, "readOnly {0}", readOnly);
-            // ignore
-        }
-        return true;
-    }
-
-    /**
-     * Flush all changes when using the serialized mode, and if there are
-     * pending changes, and some time has passed. This switches to a new
-     * transaction log and resets the change pending flag in
-     * the .lock.db file.
-     */
-    public void checkpointIfRequired() {
-        if (fileLockMethod != FileLockMethod.SERIALIZED ||
-                readOnly || !reconnectChangePending || closing) {
-            return;
-        }
-        long now = System.nanoTime();
-        if (now > reconnectCheckNext + reconnectCheckDelayNs) {
-            if (checkpointAllowed < 0) {
-                DbException.throwInternalError(Integer.toString(checkpointAllowed));
-            }
-            synchronized (reconnectSync) {
-                if (checkpointAllowed > 0) {
-                    return;
-                }
-                checkpointRunning = true;
-            }
-            synchronized (this) {
-                trace.debug("checkpoint start");
-                flushSequences();
-                checkpoint();
-                reconnectModified(false);
-                trace.debug("checkpoint end");
-            }
-            synchronized (reconnectSync) {
-                checkpointRunning = false;
-            }
-        }
-    }
-
-    public boolean isFileLockSerialized() {
-        return fileLockMethod == FileLockMethod.SERIALIZED;
-    }
-
-    private void flushSequences() {
-        for (SchemaObject obj : getAllSchemaObjects(DbObject.SEQUENCE)) {
-            Sequence sequence = (Sequence) obj;
-            sequence.flushWithoutMargin();
-        }
-    }
-
-    /**
      * Flush all changes and open a new transaction log.
      */
     public void checkpoint() {
@@ -2977,52 +2832,6 @@ public class Database implements DataHandler {
             }
         }
         getTempFileDeleter().deleteUnused();
-    }
-
-    /**
-     * This method is called before writing to the transaction log.
-     *
-     * @return true if the call was successful and writing is allowed,
-     *          false if another connection was faster
-     */
-    public boolean beforeWriting() {
-        if (fileLockMethod != FileLockMethod.SERIALIZED) {
-            return true;
-        }
-        while (checkpointRunning) {
-            try {
-                Thread.sleep(10 + (int) (Math.random() * 10));
-            } catch (Exception e) {
-                // ignore InterruptedException
-            }
-        }
-        synchronized (reconnectSync) {
-            if (reconnectModified(true)) {
-                if (++checkpointAllowed > 20) {
-                    throw DbException.throwInternalError(Integer.toString(checkpointAllowed));
-                }
-                return true;
-            }
-        }
-        // make sure the next call to isReconnectNeeded() returns true
-        reconnectCheckNext = System.nanoTime() - 1;
-        reconnectLastLock = null;
-        return false;
-    }
-
-    /**
-     * This method is called after updates are finished.
-     */
-    public void afterWriting() {
-        if (fileLockMethod != FileLockMethod.SERIALIZED) {
-            return;
-        }
-        synchronized (reconnectSync) {
-            checkpointAllowed--;
-        }
-        if (checkpointAllowed < 0) {
-            throw DbException.throwInternalError(Integer.toString(checkpointAllowed));
-        }
     }
 
     /**
@@ -3131,7 +2940,7 @@ public class Database implements DataHandler {
      * @return the hash map
      */
     public <V> HashMap<String, V> newStringMap() {
-        return dbSettings.caseInsensitiveIdentifiers ? new CaseInsensitiveMap<V>() : new HashMap<String, V>();
+        return dbSettings.caseInsensitiveIdentifiers ? new CaseInsensitiveMap<>() : new HashMap<>();
     }
 
     /**
@@ -3142,8 +2951,8 @@ public class Database implements DataHandler {
      * @return the hash map
      */
     public <V> ConcurrentHashMap<String, V> newConcurrentStringMap() {
-        return dbSettings.caseInsensitiveIdentifiers ? new CaseInsensitiveConcurrentMap<V>()
-                : new ConcurrentHashMap<String, V>();
+        return dbSettings.caseInsensitiveIdentifiers ? new CaseInsensitiveConcurrentMap<>()
+                : new ConcurrentHashMap<>();
     }
 
     /**
@@ -3276,4 +3085,17 @@ public class Database implements DataHandler {
         }
         this.authenticator=authenticator;
     }
+
+    @Override
+    public ValueTimestampTimeZone currentTimestamp() {
+        // This method should not be reachable
+        throw DbException.getUnsupportedException("Unsafe comparison or cast");
+    }
+
+    @Override
+    public TimeZoneProvider currentTimeZone() {
+        // This method should not be reachable
+        throw DbException.getUnsupportedException("Unsafe comparison or cast");
+    }
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,17 +7,20 @@ package org.h2.command.dml;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map.Entry;
 
 import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
+import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
+import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.expression.ValueExpression;
 import org.h2.expression.condition.Comparison;
@@ -118,7 +121,7 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         if (duplicateKeyAssignmentMap == null) {
             duplicateKeyAssignmentMap = new HashMap<>();
         }
-        if (duplicateKeyAssignmentMap.put(column, expression) != null) {
+        if (duplicateKeyAssignmentMap.putIfAbsent(column, expression) != null) {
             throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, column.getName());
         }
     }
@@ -178,8 +181,7 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                     Column c = columns[i];
                     int index = c.getColumnId(); //从0开始
                     Expression e = expr[i];
-                    if (e != null) {
-                        // e can be null (DEFAULT)
+                    if (e != ValueExpression.DEFAULT) {
                         e = e.optimize(session);
                         try {
                             Value v = e.getValue(session);
@@ -194,9 +196,12 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                 if (deltaChangeCollectionMode == ResultOption.NEW) {
                     deltaChangeCollector.addRow(newRow.getValueList().clone());
                 }
-                boolean done = table.fireBeforeRow(session, null, newRow); //INSTEAD OF触发器会返回true
-                if (!done) {
-                	//直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
+//<<<<<<< HEAD
+//                boolean done = table.fireBeforeRow(session, null, newRow); //INSTEAD OF触发器会返回true
+//                if (!done) {
+//                	//直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
+//=======
+                if (!table.fireBeforeRow(session, null, newRow)) {
                     table.lock(session, true, false);
                     try {
                         table.addRow(session, newRow);
@@ -225,6 +230,8 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                     }
                     session.log(table, UndoLogRecord.INSERT, newRow);
                     table.fireAfterRow(session, null, newRow, false);
+                } else if (deltaChangeCollectionMode == ResultOption.FINAL) {
+                    deltaChangeCollector.addRow(newRow.getValueList());
                 }
             }
         } else {
@@ -267,14 +274,15 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         if (deltaChangeCollectionMode == ResultOption.NEW) {
             deltaChangeCollector.addRow(newRow.getValueList().clone());
         }
-        boolean done = table.fireBeforeRow(session, null, newRow);
-        if (!done) {
+        if (!table.fireBeforeRow(session, null, newRow)) {
             table.addRow(session, newRow);
             if (deltaChangeCollectionMode == ResultOption.FINAL) {
                 deltaChangeCollector.addRow(newRow.getValueList());
             }
             session.log(table, UndoLogRecord.INSERT, newRow);
             table.fireAfterRow(session, null, newRow, false);
+        } else if (deltaChangeCollectionMode == ResultOption.FINAL) {
+            deltaChangeCollector.addRow(newRow.getValueList());
         }
     }
 
@@ -488,10 +496,10 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
             for (int i = 0; i < columns.length; i++) {
                 if (expr.getColumnName().equals(columns[i].getName())) {
                     if (condition == null) {
-                        condition = new Comparison(session, Comparison.EQUAL, expr, row[i]);
+                        condition = new Comparison(Comparison.EQUAL, expr, row[i]);
                     } else {
                         condition = new ConditionAndOr(ConditionAndOr.AND, condition,
-                                new Comparison(session, Comparison.EQUAL, expr, row[i]));
+                                new Comparison(Comparison.EQUAL, expr, row[i]));
                     }
                     break;
                 }
@@ -504,4 +512,17 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         this.sourceTableFilter = sourceTableFilter;
     }
 
+    @Override
+    public void collectDependencies(HashSet<DbObject> dependencies) {
+        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
+        if (query != null) {
+            query.isEverything(visitor);
+        }
+        if (sourceTableFilter != null) {
+            Select select = sourceTableFilter.getSelect();
+            if (select != null) {
+                select.isEverything(visitor);
+            }
+        }
+    }
 }

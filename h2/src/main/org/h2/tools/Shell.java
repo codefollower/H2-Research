@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -196,7 +196,7 @@ public class Shell extends Tool implements Runnable {
 
     private void promptLoop() {
         println("");
-        println("Welcome to H2 Shell " + Constants.getFullVersion());
+        println("Welcome to H2 Shell " + Constants.FULL_VERSION);
         println("Exit with Ctrl+C");
         if (conn != null) {
             showHelp();
@@ -370,7 +370,7 @@ public class Shell extends Tool implements Runnable {
                 conn = JdbcUtils.getConnection(driver, url + ";IFEXISTS=TRUE", user, password);
                 break;
             } catch (SQLException ex) {
-                if (ex.getErrorCode() == ErrorCode.DATABASE_NOT_FOUND_2) {
+                if (ex.getErrorCode() == ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1) {
                     println("Type the same password again to confirm database creation.");
                     String password2 = readPassword();
                     if (password.equals(password2)) {
@@ -554,7 +554,7 @@ public class Shell extends Tool implements Runnable {
                 max = Math.max(max, row[i].length());
             }
             if (len > 1) {
-                Math.min(maxColumnSize, max);
+                max = Math.min(maxColumnSize, max);
             }
             columnSizes[i] = max;
         }

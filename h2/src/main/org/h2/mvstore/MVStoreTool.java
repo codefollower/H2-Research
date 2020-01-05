@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -23,7 +23,7 @@ import org.h2.compress.Compressor;
 import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.mvstore.tx.TransactionStore;
-import org.h2.mvstore.type.DataType;
+import org.h2.mvstore.type.BasicDataType;
 import org.h2.mvstore.type.StringDataType;
 import org.h2.store.fs.FilePath;
 import org.h2.store.fs.FileUtils;
@@ -355,10 +355,9 @@ public class MVStoreTool {
             return "File not found: " + fileName;
         }
         long fileLength = FileUtils.size(fileName);
-        MVStore store = new MVStore.Builder().
-                fileName(fileName).
-                readOnly().open();
-        try {
+        try (MVStore store = new MVStore.Builder().
+                fileName(fileName).recoveryMode().
+                readOnly().open()) {
             MVMap<String, String> meta = store.getMetaMap();
             Map<String, Object> header = store.getStoreHeader();
             long fileCreated = DataUtils.readHexLong(header, "created", 0L);
@@ -369,7 +368,7 @@ public class MVStoreTool {
             long maxLengthNotEmpty = 0;
             for (Entry<String, String> e : meta.entrySet()) {
                 String k = e.getKey();
-                if (k.startsWith("chunk.")) {
+                if (k.startsWith(DataUtils.META_CHUNK)) {
                     Chunk c = Chunk.fromString(e.getValue());
                     chunks.put(c.id, c);
                     chunkLength += c.len * MVStore.BLOCK_SIZE;
@@ -412,8 +411,6 @@ public class MVStoreTool {
             pw.println("ERROR: " + e);
             e.printStackTrace(pw);
             return e.getMessage();
-        } finally {
-            store.close();
         }
         pw.flush();
         return null;
@@ -527,13 +524,13 @@ public class MVStoreTool {
             MVMap<String, String> targetMeta = target.getMetaMap();
             for (Entry<String, String> m : sourceMeta.entrySet()) {
                 String key = m.getKey();
-                if (key.startsWith("chunk.")) {
+                if (key.startsWith(DataUtils.META_CHUNK)) {
                     // ignore
-                } else if (key.startsWith("map.")) {
+                } else if (key.startsWith(DataUtils.META_MAP)) {
                     // ignore
-                } else if (key.startsWith("name.")) {
+                } else if (key.startsWith(DataUtils.META_NAME)) {
                     // ignore
-                } else if (key.startsWith("root.")) {
+                } else if (key.startsWith(DataUtils.META_ROOT)) {
                     // ignore
                 } else {
                     targetMeta.put(key, m.getValue());
@@ -546,15 +543,12 @@ public class MVStoreTool {
             // created in the process, especially if retention time
             // is set to a lower value, or even 0.
             for (String mapName : source.getMapNames()) {
-                MVMap.Builder<Object, Object> mp =
-                        new MVMap.Builder<>().
-                                keyType(new GenericDataType()).
-                                valueType(new GenericDataType());
+                MVMap.Builder<Object, Object> mp = getGenericMapBuilder();
                 // This is a hack to preserve chunks occupancy rate accounting.
-                // It exposes desin deficiency flaw in MVStore related to lack of
+                // It exposes design deficiency flaw in MVStore related to lack of
                 // map's type metadata.
                 // TODO: Introduce type metadata which will allow to open any store
-                // TODO: without prior knoledge of keys / values types and map implementation
+                // TODO: without prior knowledge of keys / values types and map implementation
                 // TODO: (MVMap vs MVRTreeMap, regular vs. singleWriter etc.)
                 if (mapName.startsWith(TransactionStore.UNDO_LOG_NAME_PREFIX)) {
                     mp.singleWriter();
@@ -706,11 +700,21 @@ public class MVStoreTool {
         return newestVersion;
     }
 
+    static MVMap.Builder<Object, Object> getGenericMapBuilder() {
+        return new MVMap.Builder<>().
+                keyType(GenericDataType.INSTANCE).
+                valueType(GenericDataType.INSTANCE);
+    }
+
     /**
      * A data type that can read any data that is persisted, and converts it to
      * a byte array.
      */
-    static class GenericDataType implements DataType {
+    private static class GenericDataType extends BasicDataType<Object>
+    {
+        static GenericDataType INSTANCE = new GenericDataType();
+
+        private GenericDataType() {}
 
         @Override
         public int compare(Object a, Object b) {
@@ -723,16 +727,14 @@ public class MVStoreTool {
         }
 
         @Override
-        public void write(WriteBuffer buff, Object obj) {
-            if (obj != null) {
-                buff.put((byte[]) obj);
-            }
+        public Object[] createStorage(int size) {
+            return new Object[size];
         }
 
         @Override
-        public void write(WriteBuffer buff, Object[] obj, int len, boolean key) {
-            for (int i = 0; i < len; i++) {
-                write(buff, obj[i]);
+        public void write(WriteBuffer buff, Object obj) {
+            if (obj != null) {
+                buff.put((byte[]) obj);
             }
         }
 
@@ -745,13 +747,6 @@ public class MVStoreTool {
             byte[] data = new byte[len];
             buff.get(data);
             return data;
-        }
-
-        @Override
-        public void read(ByteBuffer buff, Object[] obj, int len, boolean key) {
-            for (int i = 0; i < len; i++) {
-                obj[i] = read(buff);
-            }
         }
     }
 }

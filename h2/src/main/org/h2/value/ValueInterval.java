@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,11 +10,15 @@ import static org.h2.util.DateTimeUtils.NANOS_PER_HOUR;
 import static org.h2.util.DateTimeUtils.NANOS_PER_MINUTE;
 import static org.h2.util.DateTimeUtils.NANOS_PER_SECOND;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import org.h2.api.ErrorCode;
 import org.h2.api.Interval;
 import org.h2.api.IntervalQualifier;
+import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.IntervalUtils;
@@ -37,7 +41,7 @@ public class ValueInterval extends Value {
     /**
      * The default scale for intervals with seconds.
      */
-    static final int DEFAULT_SCALE = 6;
+    public static final int DEFAULT_SCALE = 6;
 
     /**
      * The maximum scale for intervals with seconds.
@@ -178,6 +182,18 @@ public class ValueInterval extends Value {
     }
 
     @Override
+    public boolean checkPrecision(long prec) {
+        if (prec < 18) {
+            for (long l = leading, p = 1, precision = 0; l >= p; p *= 10) {
+                if (++precision > prec) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    @Override
     public Value convertScale(boolean onlyToSmallerScale, int targetScale) {
         if (targetScale >= MAXIMUM_SCALE) {
             return this;
@@ -185,48 +201,103 @@ public class ValueInterval extends Value {
         if (targetScale < 0) {
             throw DbException.getInvalidValueException("scale", targetScale);
         }
-        IntervalQualifier qualifier = getQualifier();
-        if (!qualifier.hasSeconds()) {
-            return this;
-        }
-        long r = DateTimeUtils.convertScale(remaining, targetScale);
-        if (r == remaining) {
+        long range;
+        switch (valueType) {
+        case INTERVAL_SECOND:
+            range = NANOS_PER_SECOND;
+            break;
+        case INTERVAL_DAY_TO_SECOND:
+            range = NANOS_PER_DAY;
+            break;
+        case INTERVAL_HOUR_TO_SECOND:
+            range = NANOS_PER_HOUR;
+            break;
+        case INTERVAL_MINUTE_TO_SECOND:
+            range = NANOS_PER_MINUTE;
+            break;
+        default:
             return this;
         }
         long l = leading;
-        switch (valueType) {
-        case INTERVAL_SECOND:
-            if (r >= NANOS_PER_SECOND) {
-                l++;
-                r -= NANOS_PER_SECOND;
-            }
-            break;
-        case INTERVAL_DAY_TO_SECOND:
-            if (r >= NANOS_PER_DAY) {
-                l++;
-                r -= NANOS_PER_DAY;
-            }
-            break;
-        case INTERVAL_HOUR_TO_SECOND:
-            if (r >= NANOS_PER_HOUR) {
-                l++;
-                r -= NANOS_PER_HOUR;
-            }
-            break;
-        case INTERVAL_MINUTE_TO_SECOND:
-            if (r >= NANOS_PER_MINUTE) {
-                l++;
-                r -= NANOS_PER_MINUTE;
-            }
-            break;
+        long r = DateTimeUtils.convertScale(remaining, targetScale,
+                l == 999_999_999_999_999_999L ? range : Long.MAX_VALUE);
+        if (r == remaining) {
+            return this;
         }
-        return from(qualifier, negative, l, r);
+        if (r >= range) {
+            l++;
+            r -= range;
+        }
+        return from(getQualifier(), negative, l, r);
+    }
+
+    @Override
+    public Value convertPrecision(long precision) {
+        if (checkPrecision(precision)) {
+            return this;
+        }
+        throw DbException.get(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_1, getSQL());
     }
 
     @Override
     public String getString() {
         return IntervalUtils.appendInterval(new StringBuilder(), getQualifier(), negative, leading, remaining)
                 .toString();
+    }
+
+    @Override
+    public long getLong() {
+        if (valueType <= INTERVAL_MINUTE) {
+            return negative ? -leading : leading;
+        }
+        return getBigDecimal().setScale(0, RoundingMode.HALF_UP).longValue();
+    }
+
+    @Override
+    public BigDecimal getBigDecimal() {
+        long multiplier;
+        switch (valueType) {
+        case INTERVAL_YEAR:
+        case INTERVAL_MONTH:
+        case INTERVAL_DAY:
+        case INTERVAL_HOUR:
+        case INTERVAL_MINUTE:
+            return BigDecimal.valueOf(negative ? -leading : leading);
+        case INTERVAL_SECOND:
+            multiplier = DateTimeUtils.NANOS_PER_SECOND;
+            break;
+        case INTERVAL_YEAR_TO_MONTH: {
+            multiplier = 12;
+            break;
+        }
+        case INTERVAL_DAY_TO_HOUR:
+            multiplier = 24;
+            break;
+        case INTERVAL_DAY_TO_MINUTE:
+            multiplier = 24 * 60;
+            break;
+        case INTERVAL_DAY_TO_SECOND:
+            multiplier = DateTimeUtils.NANOS_PER_DAY;
+            break;
+        case INTERVAL_HOUR_TO_MINUTE:
+            multiplier = 60;
+            break;
+        case INTERVAL_HOUR_TO_SECOND:
+            multiplier = DateTimeUtils.NANOS_PER_HOUR;
+            break;
+        case INTERVAL_MINUTE_TO_SECOND:
+            multiplier = DateTimeUtils.NANOS_PER_MINUTE;
+            break;
+        default:
+            throw DbException.getUnsupportedException("valueType = " + valueType);
+        }
+        BigDecimal bd = BigDecimal.valueOf(leading);
+        if (remaining != 0L) {
+            BigDecimal m = BigDecimal.valueOf(multiplier);
+            bd = bd.add(BigDecimal.valueOf(remaining).divide(m, m.precision(), RoundingMode.HALF_DOWN))
+                    .stripTrailingZeros();
+        }
+        return negative ? bd.negate() : bd;
     }
 
     @Override
@@ -302,7 +373,7 @@ public class ValueInterval extends Value {
     }
 
     @Override
-    public int compareTypeSafe(Value v, CompareMode mode) {
+    public int compareTypeSafe(Value v, CompareMode mode, CastDataProvider provider) {
         ValueInterval other = (ValueInterval) v;
         if (negative != other.negative) {
             return negative ? -1 : 1;

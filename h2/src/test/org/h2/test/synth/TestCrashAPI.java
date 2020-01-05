@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Comparator;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,7 +46,6 @@ import org.h2.test.synth.sql.RandomGen;
 import org.h2.tools.Backup;
 import org.h2.tools.DeleteDbFiles;
 import org.h2.tools.Restore;
-import org.h2.util.DateTimeUtils;
 import org.h2.util.MathUtils;
 
 /**
@@ -115,12 +115,7 @@ public class TestCrashAPI extends TestDb implements Runnable {
     private static void recoverAll() {
         org.h2.Driver.load();
         File[] files = new File("temp/backup").listFiles();
-        Arrays.sort(files, new Comparator<File>() {
-            @Override
-            public int compare(File o1, File o2) {
-                return o1.getName().compareTo(o2.getName());
-            }
-        });
+        Arrays.sort(files, Comparator.comparing(File::getName));
         for (File f : files) {
             if (!f.getName().startsWith("db-")) {
                 continue;
@@ -503,7 +498,7 @@ public class TestCrashAPI extends TestDb implements Runnable {
             // TODO should use generated savepoints
             return null;
         } else if (type == Calendar.class) {
-            return DateTimeUtils.createGregorianCalendar();
+            return new GregorianCalendar();
         } else if (type == java.net.URL.class) {
             return null;
         } else if (type == java.math.BigDecimal.class) {

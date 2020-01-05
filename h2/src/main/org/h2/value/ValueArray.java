@@ -1,16 +1,15 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
 
-import java.lang.reflect.Array;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Arrays;
 
-import org.h2.engine.SysProperties;
+import org.h2.engine.CastDataProvider;
 import org.h2.util.MathUtils;
 
 /**
@@ -21,11 +20,13 @@ public class ValueArray extends ValueCollectionBase {
     /**
      * Empty array.
      */
-    private static final Object EMPTY = get(new Value[0]);
+    public static final ValueArray EMPTY = get(Value.EMPTY_VALUES);
 
-    private final Class<?> componentType;
+    private TypeInfo type;
 
-    private ValueArray(Class<?> componentType, Value[] list) {
+    private TypeInfo componentType;
+
+    private ValueArray(TypeInfo componentType, Value[] list) {
         super(list);
         this.componentType = componentType;
     }
@@ -38,28 +39,30 @@ public class ValueArray extends ValueCollectionBase {
      * @return the value
      */
     public static ValueArray get(Value[] list) {
-        return new ValueArray(Object.class, list);
+        return new ValueArray(null, list);
     }
 
     /**
      * Get or create a array value for the given value array.
      * Do not clone the data.
      *
-     * @param componentType the array class (null for Object[])
+     * @param componentType the type of elements, or {@code null}
      * @param list the value array
      * @return the value
      */
-    public static ValueArray get(Class<?> componentType, Value[] list) {
+    public static ValueArray get(TypeInfo componentType, Value[] list) {
         return new ValueArray(componentType, list);
     }
 
-    /**
-     * Returns empty array.
-     *
-     * @return empty array
-     */
-    public static ValueArray getEmpty() {
-        return (ValueArray) EMPTY;
+    @Override
+    public TypeInfo getType() {
+        TypeInfo type = this.type;
+        if (type == null) {
+            TypeInfo componentType = getComponentType();
+            this.type = type = TypeInfo.getTypeInfo(getValueType(), values.length, 0,
+                    componentType.getValueType() != NULL ? new ExtTypeInfoArray(componentType) : null);
+        }
+        return type;
     }
 
     @Override
@@ -67,8 +70,32 @@ public class ValueArray extends ValueCollectionBase {
         return ARRAY;
     }
 
-    public Class<?> getComponentType() {
-        return componentType;
+    public TypeInfo getComponentType() {
+        TypeInfo type = componentType;
+        if (type == null) {
+            int length = values.length;
+            if (length == 0) {
+                type = TypeInfo.TYPE_NULL;
+            } else {
+                int t = values[0].getValueType();
+                if (length > 1) {
+                    for (int i = 1; i < length; i++) {
+                        int t2 = values[i].getValueType();
+                        if (t2 != Value.NULL) {
+                            if (t == Value.NULL) {
+                                t = t2;
+                            } else if (t != t2) {
+                                t = Value.NULL;
+                                break;
+                            }
+                        }
+                    }
+                }
+                type = TypeInfo.getTypeInfo(t);
+            }
+            componentType = type;
+        }
+        return type;
     }
 
     @Override
@@ -84,7 +111,7 @@ public class ValueArray extends ValueCollectionBase {
     }
 
     @Override
-    public int compareTypeSafe(Value o, CompareMode mode) {
+    public int compareTypeSafe(Value o, CompareMode mode, CastDataProvider provider) {
         ValueArray v = (ValueArray) o;
         if (values == v.values) {
             return 0;
@@ -95,30 +122,12 @@ public class ValueArray extends ValueCollectionBase {
         for (int i = 0; i < len; i++) {
             Value v1 = values[i];
             Value v2 = v.values[i];
-            int comp = v1.compareTo(v2, /* TODO */ null, mode);
+            int comp = v1.compareTo(v2, provider, mode);
             if (comp != 0) {
                 return comp;
             }
         }
         return Integer.compare(l, ol);
-    }
-
-    @Override
-    public Object getObject() {
-        int len = values.length;
-        Object[] list = (Object[]) Array.newInstance(componentType, len);
-        for (int i = 0; i < len; i++) {
-            final Value value = values[i];
-            if (!SysProperties.OLD_RESULT_SET_GET_OBJECT) {
-                final int type = value.getValueType();
-                if (type == Value.BYTE || type == Value.SHORT) {
-                    list[i] = value.getInt();
-                    continue;
-                }
-            }
-            list[i] = value.getObject();
-        }
-        return list;
     }
 
     @Override
@@ -179,7 +188,7 @@ public class ValueArray extends ValueCollectionBase {
         if (values.length <= p) {
             return this;
         }
-        return get(componentType, Arrays.copyOf(values, p));
+        return get(getComponentType(), Arrays.copyOf(values, p));
     }
 
 }

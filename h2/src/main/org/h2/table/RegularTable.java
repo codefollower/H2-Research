@@ -1,13 +1,11 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.table;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -232,12 +230,7 @@ public abstract class RegularTable extends TableBase {
      *            the index to sort for
      */
     protected static void sortRows(ArrayList<? extends SearchRow> list, final Index index) {
-        Collections.sort(list, new Comparator<SearchRow>() {
-            @Override
-            public int compare(SearchRow r1, SearchRow r2) {
-                return index.compareRows(r1, r2);
-            }
-        });
+        list.sort(index::compareRows);
     }
 
     /**
@@ -843,13 +836,16 @@ public abstract class RegularTable extends TableBase {
 //
 //=======
 //>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
-    @Override
-    public void checkRename() { //允许重命名
-        // ok
-    }
-
-    @Override
-    public void checkSupportAlter() { //允许使用alter命令
+//    @Override
+//<<<<<<< HEAD
+//    public void checkRename() { //允许重命名
+//        // ok
+//    }
+//
+//    @Override
+//    public void checkSupportAlter() { //允许使用alter命令
+//=======
+    public void checkSupportAlter() {
         // ok
     }
 
@@ -885,7 +881,7 @@ public abstract class RegularTable extends TableBase {
 //=======
     public Column getRowIdColumn() {
         if (rowIdColumn == null) {
-            rowIdColumn = new Column(Column.ROWID, Value.LONG);
+            rowIdColumn = new Column(Column.ROWID, Value.BIGINT);
             rowIdColumn.setTable(this, SearchRow.ROWID_INDEX);
             rowIdColumn.setRowId(true);
         }

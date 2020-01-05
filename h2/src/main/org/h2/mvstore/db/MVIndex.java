@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,12 +8,14 @@ package org.h2.mvstore.db;
 import java.util.List;
 
 import org.h2.index.Index;
+import org.h2.mvstore.MVMap;
 import org.h2.result.Row;
+import org.h2.value.VersionedValue;
 
 /**
  * An index that stores the data in an MVStore.
  */
-public interface MVIndex extends Index {
+public interface MVIndex<K,V> extends Index {
 
     /**
      * Add the rows to a temporary storage (not to the index yet). The rows are
@@ -32,4 +34,5 @@ public interface MVIndex extends Index {
      */
     void addBufferedRows(List<String> bufferNames);
 
+    MVMap<K,VersionedValue<V>> getMVMap();
 }

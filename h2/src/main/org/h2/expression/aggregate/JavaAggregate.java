@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -174,17 +174,17 @@ public class JavaAggregate extends AbstractAggregate {
                 Value arg = null;
                 for (int i = 0, len = args.length; i < len; i++) {
                     arg = remembered == null ? args[i].getValue(session) : remembered[i];
-                    arg = arg.convertTo(argTypes[i]);
+                    arg = arg.convertTo(argTypes[i], session);
                     argValues[i] = arg;
                 }
-                data.add(session.getDatabase(), args.length == 1 ? arg : ValueRow.get(argValues));
+                data.add(session, args.length == 1 ? arg : ValueRow.get(argValues));
             } else {
                 Aggregate agg = (Aggregate) aggregateData;
                 Object[] argValues = new Object[args.length];
                 Object arg = null;
                 for (int i = 0, len = args.length; i < len; i++) {
                     Value v = remembered == null ? args[i].getValue(session) : remembered[i];
-                    v = v.convertTo(argTypes[i]);
+                    v = v.convertTo(argTypes[i], session);
                     arg = v.getObject();
                     argValues[i] = arg;
                 }
@@ -232,7 +232,7 @@ public class JavaAggregate extends AbstractAggregate {
 
     @Override
     protected Object createAggregateData() {
-        return distinct ? new AggregateDataCollecting(true) : getInstance();
+        return distinct ? new AggregateDataCollecting(true, false) : getInstance();
     }
 
 }

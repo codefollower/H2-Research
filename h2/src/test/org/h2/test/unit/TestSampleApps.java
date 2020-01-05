@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -90,9 +90,11 @@ public class TestSampleApps extends TestDb {
         // process)
         testApp("The sum is 20.00", org.h2.samples.TriggerSample.class);
         testApp("Hello: 1\nWorld: 2", org.h2.samples.TriggerPassData.class);
-        testApp("table test:\n" +
+        testApp("Key 1 was generated\n" +
+                "Key 2 was generated\n\n" +
+                "TEST_TABLE:\n" +
                 "1 Hallo\n\n" +
-                "test_view:\n" +
+                "TEST_VIEW:\n" +
                 "1 Hallo",
                 org.h2.samples.UpdatableView.class);
         testApp(

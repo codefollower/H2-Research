@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 and the EPL 1.0 (https://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
@@ -103,10 +103,12 @@ syntax-end -->
 </table>
 <!-- railroad-end -->
 
-<!-- railroad-start -->
 <h2>Details</h2>
-<p>Click on the header to switch between railroad diagram and BNF.</p>
+<!-- railroad-start -->
+<p>Click on the header of the command to switch between railroad diagram and BNF.</p>
 <!-- railroad-end -->
+<p>Non-standard syntax is marked in green. Compatibility-only non-standard syntax is marked in red,
+don't use it unless you need it for compatibility with other databases or old versions of H2.</p>
 
 <h2>Commands (Data Manipulation)</h2>
 <c:forEach var="item" items="commandsDML">

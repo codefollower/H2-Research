@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -66,7 +66,7 @@ public class PageBtreeLeaf extends PageBtree {
         PageBtreeLeaf p = new PageBtreeLeaf(index, pageId, index.getPageStore()
                 .createData());
         index.getPageStore().logUndo(p, null);
-        p.rows = SearchRow.EMPTY_ARRAY;
+        p.rows = PageStoreRow.EMPTY_SEARCH_ARRAY;
         p.parentPageId = parentPageId;
         p.writeHead();
         p.start = p.data.length(); //PageBtreeLeaf页头部结束的位置，即写完entryCount项后的位置

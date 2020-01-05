@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -51,6 +51,9 @@ EXPLAIN UPDATE TEST SET A = 3, (B) = 4;
 UPDATE TEST SET (A, B) = (1, 2), (B, A) = (2, 1);
 > exception DUPLICATE_COLUMN_NAME_1
 
+UPDATE TEST SET (A) = A * 3;
+> update count: 1
+
 DROP TABLE TEST;
 > ok
 
@@ -75,6 +78,39 @@ UPDATE TEST SET SCRIPT.PUBLIC.TEST._ROWID_ = 5 WHERE ID = 100;
 
 SELECT _ROWID_ FROM TEST;
 >> 1
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(A INT, B INT GENERATED ALWAYS AS (A + 1));
+> ok
+
+INSERT INTO TEST(A) VALUES 1;
+> update count: 1
+
+UPDATE TEST SET A = 2, B = DEFAULT;
+> update count: 1
+
+TABLE TEST;
+> A B
+> - -
+> 2 3
+> rows: 1
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(A INT, B INT GENERATED ALWAYS AS (A + 1));
+> ok
+
+INSERT INTO TEST(A) VALUES 1;
+> update count: 1
+
+UPDATE TEST SET B = 1;
+> exception GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1
+
+UPDATE TEST SET B = DEFAULT;
+> update count: 1
 
 DROP TABLE TEST;
 > ok

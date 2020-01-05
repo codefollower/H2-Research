@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -131,6 +131,7 @@ public class MVTable extends RegularTable {
             boolean forceLockEvenInMvcc) {
         int lockMode = database.getLockMode();
         if (lockMode == Constants.LOCK_MODE_OFF) {
+            session.registerTableAsUpdated(this);
             return false;
         }
         if (!forceLockEvenInMvcc) {
@@ -152,7 +153,7 @@ public class MVTable extends RegularTable {
         if (!exclusive && lockSharedSessions.containsKey(session)) {
             return true;
         }
-        synchronized (getLockSyncObject()) {
+        synchronized (this) {
             if (!exclusive && lockSharedSessions.containsKey(session)) {
                 return true;
             }
@@ -162,7 +163,7 @@ public class MVTable extends RegularTable {
             }
             waitingSessions.addLast(session);
             try {
-                doLock1(session, lockMode, exclusive);
+                doLock1(session, exclusive);
             } finally {
                 session.setWaitForLock(null, null);
                 if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
@@ -174,22 +175,7 @@ public class MVTable extends RegularTable {
         return false;
     }
 
-    /**
-     * The the object on which to synchronize and wait on. For the
-     * multi-threaded mode, this is this object, but for non-multi-threaded, it
-     * is the database, as in this case all operations are synchronized on the
-     * database object.
-     *
-     * @return the lock sync object
-     */
-    private Object getLockSyncObject() {
-        if (database.isMultiThreaded()) {
-            return this;
-        }
-        return database;
-    }
-
-    private void doLock1(Session session, int lockMode, boolean exclusive) {
+    private void doLock1(Session session, boolean exclusive) {
         traceLock(session, exclusive, TraceLockEvent.TRACE_LOCK_REQUESTING_FOR, NO_EXTRA_INFO);
         // don't get the current time unless necessary
         long max = 0;
@@ -197,7 +183,7 @@ public class MVTable extends RegularTable {
         while (true) {
             // if I'm the next one in the queue
             if (waitingSessions.getFirst() == session) {
-                if (doLock2(session, lockMode, exclusive)) {
+                if (doLock2(session, exclusive)) {
                     return;
                 }
             }
@@ -238,19 +224,19 @@ public class MVTable extends RegularTable {
                 if (sleep == 0) {
                     sleep = 1;
                 }
-                getLockSyncObject().wait(sleep);
+                wait(sleep);
             } catch (InterruptedException e) {
                 // ignore
             }
         }
     }
 
-    private boolean doLock2(Session session, int lockMode, boolean exclusive) {
+    private boolean doLock2(Session session, boolean exclusive) {
         if (lockExclusiveSession == null) {
             if (exclusive) {
                 if (lockSharedSessions.isEmpty()) {
                     traceLock(session, exclusive, TraceLockEvent.TRACE_LOCK_ADDED_FOR, NO_EXTRA_INFO);
-                    session.addLock(this);
+                    session.registerTableAsLocked(this);
                     lockExclusiveSession = session;
                     if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
                         if (EXCLUSIVE_LOCKS.get() == null) {
@@ -274,7 +260,7 @@ public class MVTable extends RegularTable {
             } else {
                 if (lockSharedSessions.putIfAbsent(session, session) == null) {
                     traceLock(session, exclusive, TraceLockEvent.TRACE_LOCK_OK, NO_EXTRA_INFO);
-                    session.addLock(this);
+                    session.registerTableAsLocked(this);
                     if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
                         ArrayList<String> list = SHARED_LOCKS.get();
                         if (list == null) {
@@ -320,9 +306,8 @@ public class MVTable extends RegularTable {
                 }
             }
             if (wasLocked && !waitingSessions.isEmpty()) {
-                Object lockSyncObject = getLockSyncObject();
-                synchronized (lockSyncObject) {
-                    lockSyncObject.notifyAll();
+                synchronized (this) {
+                    notifyAll();
                 }
             }
         }
@@ -357,7 +342,7 @@ public class MVTable extends RegularTable {
         if (!isSessionTemporary) {
             database.lockMeta(session);
         }
-        MVIndex index;
+        MVIndex<?,?> index;
         int mainIndexColumn = primaryIndex.getMainIndexColumn() != SearchRow.ROWID_INDEX
                 ? SearchRow.ROWID_INDEX : getMainIndexColumn(indexType, cols);
         if (database.isStarting()) {
@@ -403,7 +388,7 @@ public class MVTable extends RegularTable {
         return index;
     }
 
-    private void rebuildIndex(Session session, MVIndex index, String indexName) {
+    private void rebuildIndex(Session session, MVIndex<?,?> index, String indexName) {
         try {
             if (session.getDatabase().getStore() == null ||
                     index instanceof MVSpatialIndex) {
@@ -427,7 +412,7 @@ public class MVTable extends RegularTable {
         }
     }
 
-    private void rebuildIndexBlockMerge(Session session, MVIndex index) {
+    private void rebuildIndexBlockMerge(Session session, MVIndex<?,?> index) {
         if (index instanceof MVSpatialIndex) {
             // the spatial index doesn't support multi-way merge sort
             rebuildIndexBuffered(session, index);
@@ -476,7 +461,7 @@ public class MVTable extends RegularTable {
             addRowsToIndex(session, buffer, index);
         }
         if (remaining != 0) {
-            DbException.throwInternalError("rowcount remaining=" + remaining +
+            throw DbException.throwInternalError("rowcount remaining=" + remaining +
                     " " + getName());
         }
     }
@@ -503,7 +488,7 @@ public class MVTable extends RegularTable {
         }
         addRowsToIndex(session, buffer, index);
         if (remaining != 0) {
-            DbException.throwInternalError("rowcount remaining=" + remaining +
+            throw DbException.throwInternalError("rowcount remaining=" + remaining +
                     " " + getName());
         }
     }
@@ -584,7 +569,11 @@ public class MVTable extends RegularTable {
 
     @Override
     public Row lockRow(Session session, Row row) {
-        return primaryIndex.lockRow(session, row);
+        Row lockedRow = primaryIndex.lockRow(session, row);
+        if (lockedRow == null || !row.hasSharedData(lockedRow)) {
+            syncLastModificationIdWithDatabase();
+        }
+        return lockedRow;
     }
 
     private void analyzeIfRequired(Session session) {
@@ -646,7 +635,7 @@ public class MVTable extends RegularTable {
                     .getAllSchemaObjects(DbObject.INDEX)) {
                 Index index = (Index) obj;
                 if (index.getTable() == this) {
-                    DbException.throwInternalError("index not dropped: " +
+                    throw DbException.throwInternalError("index not dropped: " +
                             index.getName());
                 }
             }

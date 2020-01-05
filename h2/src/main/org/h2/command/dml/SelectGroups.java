@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -89,7 +89,7 @@ public abstract class SelectGroups {
 //                //然后取出name字段的值放到keyValues[1]中。
 //=======
             if (groupIndex == null) {
-                currentGroupsKey = ValueRow.getEmpty();
+                currentGroupsKey = ValueRow.EMPTY;
             } else {
                 Value[] keyValues = new Value[groupIndex.length];
                 // update group
@@ -125,7 +125,7 @@ public abstract class SelectGroups {
             //只有聚会函数，但是没有记录(可能是表本身没有记录，或没有满足条件的记录)
             //例如假设id最大为10,用此语句测试select count(id) from mytable where id>1000
             if (groupIndex == null && groupByData.size() == 0) {
-                groupByData.put(ValueRow.getEmpty(), createRow());
+                groupByData.put(ValueRow.EMPTY, createRow());
             }
             cursor = groupByData.entrySet().iterator();
         }
@@ -199,7 +199,7 @@ public abstract class SelectGroups {
             if (cursor.hasNext()) {
                 currentGroupByExprData = cursor.next();
                 currentGroupRowId++;
-                return ValueRow.getEmpty();
+                return ValueRow.EMPTY;
             }
             return null;
         }

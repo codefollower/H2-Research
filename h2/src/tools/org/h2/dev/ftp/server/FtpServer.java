@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -28,7 +28,7 @@ import org.h2.util.Tool;
 /**
  * Small FTP Server. Intended for ad-hoc networks in a secure environment.
  * Remote connections are possible.
- * See also http://cr.yp.to/ftp.html http://www.ftpguide.com/
+ * See also https://cr.yp.to/ftp.html http://www.ftpguide.com/
  */
 public class FtpServer extends Tool implements Service {
 

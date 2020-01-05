@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -173,26 +173,6 @@ public abstract class TriggerAdapter implements Trigger {
         source.setRow(row);
         rs.next();
         return rs;
-    }
-
-    /**
-     * This method is called when the database is closed.
-     * If the method throws an exception, it will be logged, but
-     * closing the database will continue.
-     * The default implementation does nothing.
-     */
-    @Override
-    public void remove() throws SQLException {
-        // do nothing by default
-    }
-
-    /**
-     * This method is called when the trigger is dropped.
-     * The default implementation does nothing.
-     */
-    @Override
-    public void close() throws SQLException {
-        // do nothing by default
     }
 
 }

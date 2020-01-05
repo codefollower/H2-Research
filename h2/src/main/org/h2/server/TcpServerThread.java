@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -22,6 +22,7 @@ import org.h2.engine.ConnectionInfo;
 import org.h2.engine.Constants;
 import org.h2.engine.Engine;
 import org.h2.engine.GeneratedKeysMode;
+import org.h2.engine.Mode;
 import org.h2.engine.Session;
 import org.h2.engine.SessionRemote;
 import org.h2.engine.SysProperties;
@@ -63,6 +64,7 @@ public class TcpServerThread implements Runnable {
     private final int threadId;
     private int clientVersion;
     private String sessionId;
+    private Mode lastDatabaseMode;
 
     TcpServerThread(Socket socket, TcpServer server, int id) {
         this.server = server;
@@ -156,8 +158,11 @@ public class TcpServerThread implements Runnable {
                     ci.setBaseDir(baseDir);
                 }
                 if (server.getIfExists()) {
-                	//启动TcpServer时加"-ifExists"，限制只有数据库存在时客户端才能连接，也就是不允许在客户端创建数据库
-                    ci.setProperty("IFEXISTS", "TRUE");
+//<<<<<<< HEAD
+//                	//启动TcpServer时加"-ifExists"，限制只有数据库存在时客户端才能连接，也就是不允许在客户端创建数据库
+//                    ci.setProperty("IFEXISTS", "TRUE");
+//=======
+                    ci.setProperty("FORBID_CREATION", "TRUE");
                 }
                 transfer.writeInt(SessionRemote.STATUS_OK);
                 transfer.writeInt(clientVersion);
@@ -188,6 +193,7 @@ public class TcpServerThread implements Runnable {
                 sendError(e);
                 stop = true;
             }
+            lastDatabaseMode = session.getMode();
             while (!stop) {
                 try {
                     process();
@@ -574,7 +580,11 @@ public class TcpServerThread implements Runnable {
             return SessionRemote.STATUS_CLOSED;
         }
         if (session.getModificationId() == oldModificationId) {
-            return SessionRemote.STATUS_OK;
+            Mode mode = session.getMode();
+            if (lastDatabaseMode == mode) {
+                return SessionRemote.STATUS_OK;
+            }
+            lastDatabaseMode = mode;
         }
         return SessionRemote.STATUS_OK_STATE_CHANGED;
     }

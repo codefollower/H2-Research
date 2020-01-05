@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -172,6 +172,14 @@ public class BnfRailroad implements BnfVisitor {
         buff.append(html);
         buff.append("</td><td class=\"le\"></td></tr></table>");
         html = buff.toString();
+    }
+
+    @Override
+    public void visitRuleExtension(Rule rule, boolean compatibility) {
+        StringBuilder buff = new StringBuilder("<div class=\"").append(compatibility ? "ruleCompat" : "ruleH2")
+                .append("\">");
+        rule.accept(this);
+        html = buff.append(html).append("</div>").toString();
     }
 
 }

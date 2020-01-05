@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -58,11 +58,15 @@ public class DropIndex extends SchemaCommand {
                 if (cons.usesIndex(index)) {
                     // can drop primary key index (for compatibility)
                     if (Constraint.Type.PRIMARY_KEY == cons.getConstraintType()) {
+                        for (Constraint c : constraints) {
+                            if (c.getReferencedConstraint() == cons) {
+                                throw DbException.get(ErrorCode.INDEX_BELONGS_TO_CONSTRAINT_2, indexName,
+                                        cons.getName());
+                            }
+                        }
                         pkConstraint = cons;
                     } else {
-                        throw DbException.get(
-                                ErrorCode.INDEX_BELONGS_TO_CONSTRAINT_2,
-                                indexName, cons.getName());
+                        throw DbException.get(ErrorCode.INDEX_BELONGS_TO_CONSTRAINT_2, indexName, cons.getName());
                     }
                 }
             }

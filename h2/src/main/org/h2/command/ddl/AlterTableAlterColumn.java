@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,6 @@ package org.h2.command.ddl;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.Parser;
@@ -64,6 +63,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
      */
     private Expression defaultExpression;
     private Expression newSelectivity;
+    private Expression usingExpression;
     private boolean addFirst;
     private String addBefore;
     private String addAfter;
@@ -132,7 +132,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         //其中增加列、删除列需要拷贝数据到新表，改变列类型到更小范围时也要拷贝数据到新表
         switch (type) {
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_NOT_NULL: {
-            if (!oldColumn.isNullable()) {
+            if (oldColumn == null || !oldColumn.isNullable()) {
                 // no change
                 break;
             }
@@ -142,7 +142,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_NOT_NULL: {
-            if (oldColumn.isNullable()) {
+            if (oldColumn == null || oldColumn.isNullable()) {
                 // no change
                 break;
             }
@@ -152,9 +152,15 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT: {
-            //这个oldColumn == null判断是多余的，如果为null了，下面的oldColumn.setSequence就没意义了，
-            //在Parser里也会设置oldColumn的
-            Sequence sequence = oldColumn == null ? null : oldColumn.getSequence();
+//<<<<<<< HEAD
+//            //这个oldColumn == null判断是多余的，如果为null了，下面的oldColumn.setSequence就没意义了，
+//            //在Parser里也会设置oldColumn的
+//            Sequence sequence = oldColumn == null ? null : oldColumn.getSequence();
+//=======
+            if (oldColumn == null) {
+                break;
+            }
+            Sequence sequence = oldColumn.getSequence();
             checkDefaultReferencesTable(table, defaultExpression);
             oldColumn.setSequence(null);
             oldColumn.setDefaultExpression(session, defaultExpression);
@@ -163,16 +169,22 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_ON_UPDATE: {
+            if (oldColumn == null) {
+                break;
+            }
             checkDefaultReferencesTable(table, defaultExpression);
             oldColumn.setOnUpdateExpression(session, defaultExpression);
             db.updateMeta(session, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE: {
+            if (oldColumn == null) {
+                break;
+            }
             // if the change is only increasing the precision, then we don't
             // need to copy the table because the length is only a constraint,
             // and does not affect the storage structure.
-            if (oldColumn.isWideningConversion(newColumn)) {
+            if (oldColumn.isWideningConversion(newColumn) && usingExpression == null) {
                 convertAutoIncrementColumn(table, newColumn);
                 oldColumn.copy(newColumn);
                 db.updateMeta(session, table);
@@ -216,12 +228,18 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_SELECTIVITY: {
+            if (oldColumn == null) {
+                break;
+            }
             int value = newSelectivity.optimize(session).getValue(session).getInt();
             oldColumn.setSelectivity(value);
             db.updateMeta(session, table);
             break;
         }
         case CommandInterface.ALTER_TABLE_ALTER_COLUMN_VISIBILITY: {
+            if (oldColumn == null) {
+                break;
+            }
             oldColumn.setVisible(newVisibility);
             table.setModified();
             db.updateMeta(session, table);
@@ -357,8 +375,12 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         for (Column col : columns) {
             newColumns.add(col.getClone());
         }
-        //调整位置
-        if (type == CommandInterface.ALTER_TABLE_DROP_COLUMN) {
+//<<<<<<< HEAD
+//        //调整位置
+//        if (type == CommandInterface.ALTER_TABLE_DROP_COLUMN) {
+//=======
+        switch (type) {
+        case CommandInterface.ALTER_TABLE_DROP_COLUMN:
             for (Column removeCol : columnsToRemove) {
                 Column foundCol = null;
                 for (Column newCol : newColumns) {
@@ -372,7 +394,8 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 }
                 newColumns.remove(foundCol);
             }
-        } else if (type == CommandInterface.ALTER_TABLE_ADD_COLUMN) {
+            break;
+        case CommandInterface.ALTER_TABLE_ADD_COLUMN: {
             int position;
             if (addFirst) {
                 position = 0;
@@ -388,9 +411,10 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                     newColumns.add(position++, column);
                 }
             }
-        } else if (type == CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE) {
-            int position = oldColumn.getColumnId();
-            newColumns.set(position, newColumn);
+            break;
+        }
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE:
+            newColumns.set(oldColumn.getColumnId(), newColumn);
         }
 
         // create a table object in order to get the SQL statement
@@ -417,18 +441,39 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (columnList.length() > 0) {
                 columnList.append(", ");
             }
-            if (type == CommandInterface.ALTER_TABLE_ADD_COLUMN &&
-                    columnsToAdd != null && columnsToAdd.contains(nc)) {
-                Expression def = nc.getDefaultExpression();
-                //SELECT F1, F2, NULL这样的SQL也是可以的，所以用NULL表示，这样新的列默认是NULL值
-                if (def == null) {
-                    columnList.append("NULL");
-                } else {
-                    def.getSQL(columnList, true);
+//<<<<<<< HEAD
+//            if (type == CommandInterface.ALTER_TABLE_ADD_COLUMN &&
+//                    columnsToAdd != null && columnsToAdd.contains(nc)) {
+//                Expression def = nc.getDefaultExpression();
+//                //SELECT F1, F2, NULL这样的SQL也是可以的，所以用NULL表示，这样新的列默认是NULL值
+//                if (def == null) {
+//                    columnList.append("NULL");
+//                } else {
+//                    def.getSQL(columnList, true);
+//=======
+            switch (type) {
+            case CommandInterface.ALTER_TABLE_ADD_COLUMN:
+                if (columnsToAdd != null && columnsToAdd.contains(nc)) {
+                    if (usingExpression != null) {
+                        usingExpression.getSQL(columnList, true);
+                    } else {
+                        Expression def = nc.getDefaultExpression();
+                        if (def == null) {
+                            columnList.append("NULL");
+                        } else {
+                            def.getSQL(columnList, true);
+                        }
+                    }
+                    continue;
                 }
-            } else {
-                nc.getSQL(columnList, true);
+                break;
+            case CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE:
+                if (nc.equals(newColumn) && usingExpression != null) {
+                    usingExpression.getSQL(columnList, true);
+                    continue;
+                }
             }
+            nc.getSQL(columnList, true);
         }
 //<<<<<<< HEAD
 //        buff.append(" AS SELECT ");
@@ -495,7 +540,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                         if (child instanceof ConstraintUnique) {
                             ConstraintUnique constraint = (ConstraintUnique) child;
                             if (constraint.getConstraintType() == Constraint.Type.PRIMARY_KEY) {
-                                index = constraint.getUniqueIndex();
+                                index = constraint.getIndex();
                             }
                         } else if (child instanceof Index) {
                             index = (Index) child;
@@ -650,6 +695,15 @@ public class AlterTableAlterColumn extends CommandWithColumns {
      */
     public void setDefaultExpression(Expression defaultExpression) {
         this.defaultExpression = defaultExpression;
+    }
+
+    /**
+     * Set using expression.
+     *
+     * @param usingExpression using expression
+     */
+    public void setUsingExpression(Expression usingExpression) {
+        this.usingExpression = usingExpression;
     }
 
     public void setNewColumn(Column newColumn) {

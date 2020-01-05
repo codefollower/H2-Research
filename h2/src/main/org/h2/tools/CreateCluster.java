@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -159,22 +159,19 @@ public class CreateCluster extends Tool {
         final PipedWriter pipeWriter = new PipedWriter(pipeReader);
         // Since exceptions cannot be thrown across thread boundaries, return
         // the task's future so we can check manually
-        Future<?> threadFuture = thread.submit(new Runnable() {
-            @Override
-            public void run() {
-                // If the creation of the piped writer fails, the reader will
-                // throw an IOException as soon as read() is called: IOException
-                // - if the pipe is broken, unconnected, closed, or an I/O error
-                // occurs. The reader's IOException will then trigger the
-                // finally{} that releases exclusive mode on the source DB.
-                try (PipedWriter writer = pipeWriter;
-                        final ResultSet rs = statSource.executeQuery("SCRIPT")) {
-                    while (rs.next()) {
-                        writer.write(rs.getString(1) + "\n");
-                    }
-                } catch (SQLException | IOException ex) {
-                    throw new IllegalStateException("Producing script from the source DB is failing.", ex);
+        Future<?> threadFuture = thread.submit(() -> {
+            // If the creation of the piped writer fails, the reader will
+            // throw an IOException as soon as read() is called: IOException
+            // - if the pipe is broken, unconnected, closed, or an I/O error
+            // occurs. The reader's IOException will then trigger the
+            // finally{} that releases exclusive mode on the source DB.
+            try (PipedWriter writer = pipeWriter;
+                    final ResultSet rs = statSource.executeQuery("SCRIPT")) {
+                while (rs.next()) {
+                    writer.write(rs.getString(1) + "\n");
                 }
+            } catch (SQLException | IOException ex) {
+                throw new IllegalStateException("Producing script from the source DB is failing.", ex);
             }
         });
 

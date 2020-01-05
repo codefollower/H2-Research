@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: Alessandro Ventura
  */
@@ -256,7 +256,7 @@ public class DefaultAuthenticator implements Authenticator {
     private void configureFrom(H2AuthConfig config) throws AuthenticationException {
         allowUserRegistration = config.isAllowUserRegistration();
         createMissingRoles = config.isCreateMissingRoles();
-        Map<String, CredentialsValidator> newRealms = new HashMap<>();
+        HashMap<String, CredentialsValidator> newRealms = new HashMap<>();
         for (RealmConfig currentRealmConfig : config.getRealms()) {
             String currentRealmName = currentRealmConfig.getName();
             if (currentRealmName == null) {
@@ -271,7 +271,7 @@ public class DefaultAuthenticator implements Authenticator {
                 throw new AuthenticationException("invalid validator class fo realm " + currentRealmName, e);
             }
             currentValidator.configure(new ConfigProperties(currentRealmConfig.getProperties()));
-            if (newRealms.put(currentRealmConfig.getName().toUpperCase(), currentValidator) != null) {
+            if (newRealms.putIfAbsent(currentRealmConfig.getName().toUpperCase(), currentValidator) != null) {
                 throw new AuthenticationException("Duplicate realm " + currentRealmConfig.getName());
             }
         }

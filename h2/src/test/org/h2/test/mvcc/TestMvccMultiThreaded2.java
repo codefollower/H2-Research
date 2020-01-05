@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -26,7 +26,7 @@ public class TestMvccMultiThreaded2 extends TestDb {
     private static final int TEST_TIME_SECONDS = 60;
     private static final boolean DISPLAY_STATS = false;
 
-    private static final String URL = ";LOCK_TIMEOUT=120000;MULTI_THREADED=TRUE";
+    private static final String URL = ";LOCK_TIMEOUT=120000";
 
     /**
      * Run just this test.
@@ -37,7 +37,6 @@ public class TestMvccMultiThreaded2 extends TestDb {
         TestBase test = TestBase.createCaller().init();
         test.config.lockTimeout = 120000;
         test.config.memory = true;
-        test.config.multiThreaded = true;
         test.test();
     }
 

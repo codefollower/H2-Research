@@ -26,6 +26,7 @@
 40001=检测到死锁.当前事务已回滚.详情: {0}
 42000=SQL语法错误 {0}
 42001=SQL语法错误 {0}; 预期： {1}
+42602=#Invalid name {0}
 42S01= {0}表已存在
 42S02=找不到表 {0}
 42S11=索引 {0} 已存在
@@ -42,7 +43,7 @@
 90006=#Sequence {0} has run out of numbers
 90007=对象已关闭
 90008=被发现非法的数值 {0} 在参数  {1}
-90009=#Unable to create or alter sequence {0} because of invalid attributes (start value {1}, min value {2}, max value {3}, increment {4})
+90009=#Unable to create or alter sequence {0} because of invalid attributes (value {1}, start value {2}, min value {3}, max value {4}, increment {5})
 90010=#Invalid TO_CHAR format {0}
 90011=#A file path that is implicitly relative to the current working directory is not allowed in the database URL {0}. Use an absolute path, ~/name, ./name, or the baseDir setting instead.
 90012=参数 {0} 的值还没有设置
@@ -84,7 +85,6 @@
 90048=不支持的数据库文件版本或无效的文件头 {0}
 90049=文件加密错误 {0}
 90050=错误的口令格式, 必须为: 文件 口令 <空格> 用户 口令
-90051=#Scale(${0}) must not be bigger than precision({1})
 90052=子查询非单一字段查询
 90053=标量子查询(Scalar subquery)包含多于一行结果
 90054=非法使用聚合函数 {0}
@@ -179,6 +179,14 @@
 90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
 90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
 90147=#Method {0} is not allowed when connection is in auto-commit mode
+90148=#Current value of sequence {0} is not yet defined in this session
+90149=#Database {0} not found, either pre-create it or allow remote database creation (not recommended in secure environments)
+90150=#Precision ({0}) must be between {1} and {2} inclusive
+90151=#Scale or fractional seconds precision ({0}) must be between {1} and {2} inclusive
+90152=#Constraint {0} is used by constraint {1}
+90153=#Column {0} references uncomparable column {1}
+90154=#Generated column {0} cannot be assigned
+90155=#Generated column {0} cannot be updatable by a referential constraint with {1} clause
 HY000=常规错误: {0}
 HY004=位置数据类型: {0}
 HYC00=不支持的特性: {0}

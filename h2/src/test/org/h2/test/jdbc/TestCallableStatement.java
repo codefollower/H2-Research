@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -22,6 +22,9 @@ import java.sql.SQLXML;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Collections;
 
 import org.h2.api.ErrorCode;
@@ -30,7 +33,6 @@ import org.h2.test.TestDb;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.IOUtils;
 import org.h2.util.JdbcUtils;
-import org.h2.util.LocalDateTimeUtils;
 import org.h2.util.Utils;
 
 /**
@@ -167,29 +169,20 @@ public class TestCallableStatement extends TestDb {
         call.registerOutParameter(1, Types.DATE);
         call.execute();
         assertEquals("2000-01-01", call.getDate(1).toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2000-01-01", call.getObject(1,
-                            LocalDateTimeUtils.LOCAL_DATE).toString());
-        }
+        assertEquals("2000-01-01", call.getObject(1, LocalDate.class).toString());
 
         call.setTime(2, java.sql.Time.valueOf("01:02:03"));
         call.registerOutParameter(1, Types.TIME);
         call.execute();
         assertEquals("01:02:03", call.getTime(1).toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("01:02:03", call.getObject(1,
-                            LocalDateTimeUtils.LOCAL_TIME).toString());
-        }
+        assertEquals("01:02:03", call.getObject(1, LocalTime.class).toString());
 
         call.setTimestamp(2, java.sql.Timestamp.valueOf(
                 "2001-02-03 04:05:06.789"));
         call.registerOutParameter(1, Types.TIMESTAMP);
         call.execute();
         assertEquals("2001-02-03 04:05:06.789", call.getTimestamp(1).toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2001-02-03T04:05:06.789", call.getObject(1,
-                            LocalDateTimeUtils.LOCAL_DATE_TIME).toString());
-        }
+        assertEquals("2001-02-03T04:05:06.789", call.getObject(1, LocalDateTime.class).toString());
 
         call.setBoolean(2, true);
         call.registerOutParameter(1, Types.BIT);
@@ -273,28 +266,16 @@ public class TestCallableStatement extends TestDb {
 
         assertEquals("2001-02-03 10:20:30.0", call.getTimestamp(4).toString());
         assertEquals("2001-02-03 10:20:30.0", call.getTimestamp("D").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2001-02-03T10:20:30", call.getObject(4,
-                            LocalDateTimeUtils.LOCAL_DATE_TIME).toString());
-            assertEquals("2001-02-03T10:20:30", call.getObject("D",
-                            LocalDateTimeUtils.LOCAL_DATE_TIME).toString());
-        }
+        assertEquals("2001-02-03T10:20:30", call.getObject(4, LocalDateTime.class).toString());
+        assertEquals("2001-02-03T10:20:30", call.getObject("D", LocalDateTime.class).toString());
         assertEquals("10:20:30", call.getTime(4).toString());
         assertEquals("10:20:30", call.getTime("D").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("10:20:30", call.getObject(4,
-                            LocalDateTimeUtils.LOCAL_TIME).toString());
-            assertEquals("10:20:30", call.getObject("D",
-                            LocalDateTimeUtils.LOCAL_TIME).toString());
-        }
+        assertEquals("10:20:30", call.getObject(4, LocalTime.class).toString());
+        assertEquals("10:20:30", call.getObject("D", LocalTime.class).toString());
         assertEquals("2001-02-03", call.getDate(4).toString());
         assertEquals("2001-02-03", call.getDate("D").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2001-02-03", call.getObject(4,
-                            LocalDateTimeUtils.LOCAL_DATE).toString());
-            assertEquals("2001-02-03", call.getObject("D",
-                            LocalDateTimeUtils.LOCAL_DATE).toString());
-        }
+        assertEquals("2001-02-03", call.getObject(4, LocalDate.class).toString());
+        assertEquals("2001-02-03", call.getObject("D", LocalDate.class).toString());
 
         assertEquals(100, call.getInt(1));
         assertEquals(100, call.getInt("A"));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,7 +16,7 @@ import org.h2.schema.Schema;
 /**
  * A data change delta table.
  */
-public class DataChangeDeltaTable extends VirtualTable {
+public class DataChangeDeltaTable extends VirtualConstructedTable {
 
     /**
      * Result option.
@@ -82,8 +82,7 @@ public class DataChangeDeltaTable extends VirtualTable {
     public ResultInterface getResult(Session session) {
         statement.prepare();
         int columnCount = expressions.length;
-        LocalResult result = session.getDatabase().getResultFactory().create(session, expressions, columnCount,
-                columnCount);
+        LocalResult result = new LocalResult(session, expressions, columnCount, columnCount);
         try {
             statement.setDeltaChangeCollector(result, resultOption);
             statement.update();

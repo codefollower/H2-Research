@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -85,7 +85,7 @@ public class TableFunction extends Function {
             ExpressionColumn col = new ExpressionColumn(db, c);
             header[i] = col;
         }
-        LocalResult result = db.getResultFactory().create(session, header, totalColumns, totalColumns);
+        LocalResult result = new LocalResult(session, header, totalColumns, totalColumns);
         if (!onlyColumnList && info.type == TABLE_DISTINCT) {
             result.setDistinct();
         }
@@ -103,7 +103,7 @@ public class TableFunction extends Function {
             for (int i = 0; i < len; i++) {
                 Value v = args[i].getValue(session);
                 if (v == ValueNull.INSTANCE) {
-                    list[i] = new Value[0];
+                    list[i] = Value.EMPTY_VALUES;
                 } else {
                     int type = v.getValueType();
                     if (type != Value.ARRAY && type != Value.ROW) {
@@ -125,7 +125,7 @@ public class TableFunction extends Function {
                         Column c = columns[j];
                         v = l[row];
                         if (!unnest) {
-                            v = c.getType().cast(v, db.getMode(), true, c);
+                            v = c.getType().cast(v, session, true, c);
                         }
                     }
                     r[j] = v;

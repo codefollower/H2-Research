@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -51,10 +51,10 @@ public abstract class TableBase extends Table {
             return SearchRow.ROWID_INDEX;
         }
         switch (first.column.getType().getValueType()) {
-        case Value.BYTE:
-        case Value.SHORT:
+        case Value.TINYINT:
+        case Value.SMALLINT:
         case Value.INT:
-        case Value.LONG:
+        case Value.BIGINT:
             return first.column.getColumnId();
         default:
             return SearchRow.ROWID_INDEX;

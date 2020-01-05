@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -34,9 +34,9 @@ import org.h2.util.Utils;
  */
 public class CompressTool {
 
-    private static final int MAX_BUFFER_SIZE =
-            3 * Constants.IO_BUFFER_SIZE_COMPRESS;
-    private byte[] cachedBuffer;
+    private static final int MAX_BUFFER_SIZE = 3 * Constants.IO_BUFFER_SIZE_COMPRESS;
+
+    private byte[] buffer;
 
     private CompressTool() {
         // don't allow construction
@@ -46,10 +46,10 @@ public class CompressTool {
         if (min > MAX_BUFFER_SIZE) {
             return Utils.newBytes(min);
         }
-        if (cachedBuffer == null || cachedBuffer.length < min) {
-            cachedBuffer = Utils.newBytes(min);
+        if (buffer == null || buffer.length < min) {
+            buffer = Utils.newBytes(min);
         }
-        return cachedBuffer;
+        return buffer;
     }
 
     /**

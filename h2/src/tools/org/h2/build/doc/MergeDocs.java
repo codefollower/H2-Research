@@ -1,14 +1,14 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.doc;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import org.h2.engine.Constants;
 import org.h2.util.StringUtils;
@@ -30,7 +30,7 @@ public class MergeDocs {
     public static void main(String... args) throws Exception {
         // the order of pages is important here
         String[] pages = { "quickstart.html", "installation.html",
-                "tutorial.html", "features.html", "performance.html",
+                "tutorial.html", "features.html", "security.html", "performance.html",
                 "advanced.html", "commands.html",
                 "functions.html", "functions-aggregate.html", "functions-window.html",
                 "datatypes.html", "grammar.html", "systemtables.html",
@@ -45,18 +45,18 @@ public class MergeDocs {
             text = removeHeaderFooter(fileName, text);
             text = fixLinks(text);
             text = fixTableBorders(text);
+            text = addLegacyFontTag(fileName, text);
             buff.append(text);
         }
         String finalText = buff.toString();
-        File output = new File(BASE_DIR, "onePage.html");
-        PrintWriter writer = new PrintWriter(new FileWriter(output));
+        PrintWriter writer = new PrintWriter(Files.newBufferedWriter(Paths.get(BASE_DIR, "onePage.html")));
         writer.println("<html><head><meta http-equiv=\"Content-Type\" " +
                 "content=\"text/html;charset=utf-8\" /><title>");
         writer.println("H2 Documentation");
         writer.println("</title><link rel=\"stylesheet\" type=\"text/css\" " +
                 "href=\"stylesheetPdf.css\" /></head><body>");
         writer.println("<p class=\"title\">H2 Database Engine</p>");
-        writer.println("<p>Version " + Constants.getFullVersion() + "</p>");
+        writer.println("<p>Version " + Constants.FULL_VERSION + "</p>");
         writer.println(finalText);
         writer.println("</body></html>");
         writer.close();
@@ -76,6 +76,32 @@ public class MergeDocs {
                 "syntax-end -->",
                 "<!-- syntax-end -->");
         return text;
+    }
+
+    private static String addLegacyFontTag(String fileName, String text) {
+        int idx1 = text.indexOf("<span class=\"rule");
+        if (idx1 < 0) {
+            return text;
+        }
+        int idx2 = 0, length = text.length();
+        StringBuilder builder = new StringBuilder(length + (length >> 4));
+        do {
+            builder.append(text, idx2, idx1);
+            boolean compat = text.regionMatches(idx1 + 17, "Compat\">", 0, 8);
+            boolean h2 = text.regionMatches(idx1 + 17, "H2\">", 0, 4);
+            if (compat == h2) {
+                throw new RuntimeException("Unknown BNF rule style in file " + fileName);
+            }
+            idx2 = text.indexOf("</span>", idx1 + (compat ? 8 : 4));
+            if (idx2 <= 0) {
+                throw new RuntimeException("</span> not found in file " + fileName);
+            }
+            idx2 += 7;
+            builder.append("<font color=\"").append(compat ? "darkred" : "green").append("\">")
+                    .append(text, idx1, idx2).append("</font>");
+            idx1 = text.indexOf("<span class=\"rule", idx2);
+        } while (idx1 >= 0);
+        return builder.append(text, idx2, length).toString();
     }
 
     private static String removeHeaderFooter(String fileName, String text) {
@@ -116,18 +142,6 @@ public class MergeDocs {
     }
 
     private static String getContent(String fileName) throws Exception {
-        File file = new File(BASE_DIR, fileName);
-        int length = (int) file.length();
-        char[] data = new char[length];
-        FileReader reader = new FileReader(file);
-        int off = 0;
-        while (length > 0) {
-            int len = reader.read(data, off, length);
-            off += len;
-            length -= len;
-        }
-        reader.close();
-        String s = new String(data);
-        return s;
+        return new String(Files.readAllBytes(Paths.get(BASE_DIR, fileName)), StandardCharsets.UTF_8);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -34,9 +34,9 @@ public class Call extends Prepared {
         if (isResultSet) {
             Expression[] expr = expression.getExpressionColumns(session);
             int count = expr.length;
-            result = session.getDatabase().getResultFactory().create(session, expr, count, count);
+            result = new LocalResult(session, expr, count, count);
         } else {
-            result = session.getDatabase().getResultFactory().create(session, expressions, 1, 1);
+            result = new LocalResult(session, expressions, 1, 1);
         }
         result.done();
         return result;
@@ -66,7 +66,7 @@ public class Call extends Prepared {
         if (isResultSet) { //例如 "CALL TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World'))"
             return v.getResult();
         }
-        LocalResult result = session.getDatabase().getResultFactory().create(session, expressions, 1, 1);
+        LocalResult result = new LocalResult(session, expressions, 1, 1);
         result.addRow(v);
         result.done();
         return result;

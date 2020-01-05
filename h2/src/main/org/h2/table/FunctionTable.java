@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -21,7 +21,7 @@ import org.h2.value.ValueResultSet;
  * A table backed by a system or user-defined function that returns a result
  * set.
  */
-public class FunctionTable extends VirtualTable {
+public class FunctionTable extends VirtualConstructedTable {
 
     private final FunctionCall function;
     private final long rowCount;

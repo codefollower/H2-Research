@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -20,9 +20,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Random;
 import java.util.zip.ZipEntry;
@@ -54,7 +54,7 @@ public class TestRecover {
     //         "jdbc:derby:/temp/derby/data/test;create=true");
     // private static final String DRIVER =
     //     System.getProperty("test.driver",
-    //         "org.apache.derby.jdbc.EmbeddedDriver");
+    //         "org.apache.derby.iapi.jdbc.AutoloadedDriver");
 
     /**
      * This method is called when executing this application from the command
@@ -103,8 +103,7 @@ public class TestRecover {
             }
             oldest.delete();
         }
-        SimpleDateFormat sd = new SimpleDateFormat("yyMMdd-HHmmss");
-        String date = sd.format(new Date());
+        String date = DateTimeFormatter.ofPattern("yyMMdd-HHmmss").format(LocalDateTime.now());
         File zipFile = new File(root, "backup-" + date + "-" + node + ".zip");
         ArrayList<File> list = new ArrayList<>();
         File base = new File(sourcePath);

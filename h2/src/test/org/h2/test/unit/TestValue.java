@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -36,6 +36,7 @@ import org.h2.test.TestDb;
 import org.h2.test.utils.AssertThrows;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.Bits;
+import org.h2.util.LegacyDateTimeUtils;
 import org.h2.value.DataType;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
@@ -228,7 +229,7 @@ public class TestValue extends TestDb {
 
         SimpleResult result = new SimpleResult();
         result.addColumn("ID", "ID", Value.INT, 0, 0);
-        result.addColumn("NAME", "NAME", Value.STRING, 255, 0);
+        result.addColumn("NAME", "NAME", Value.VARCHAR, 255, 0);
         result.addRow(ValueInt.get(1), ValueString.get("Hello"));
         result.addRow(ValueInt.get(2), ValueString.get("World"));
         result.addRow(ValueInt.get(3), ValueString.get("Peace"));
@@ -253,7 +254,7 @@ public class TestValue extends TestDb {
         assertEquals("NAME", res.getAlias(1));
         assertEquals("NAME", res.getColumnName(1));
         type = res.getColumnType(1);
-        assertEquals(Value.STRING, type.getValueType());
+        assertEquals(Value.VARCHAR, type.getValueType());
         assertEquals(255, type.getPrecision());
         assertEquals(0, type.getScale());
         assertEquals(255, type.getDisplaySize());
@@ -277,18 +278,18 @@ public class TestValue extends TestDb {
         testDataType(Value.NULL, Void.class);
         testDataType(Value.NULL, void.class);
         testDataType(Value.ARRAY, String[].class);
-        testDataType(Value.STRING, String.class);
+        testDataType(Value.VARCHAR, String.class);
         testDataType(Value.INT, Integer.class);
-        testDataType(Value.LONG, Long.class);
+        testDataType(Value.BIGINT, Long.class);
         testDataType(Value.BOOLEAN, Boolean.class);
         testDataType(Value.DOUBLE, Double.class);
-        testDataType(Value.BYTE, Byte.class);
-        testDataType(Value.SHORT, Short.class);
-        testDataType(Value.FLOAT, Float.class);
-        testDataType(Value.BYTES, byte[].class);
+        testDataType(Value.TINYINT, Byte.class);
+        testDataType(Value.SMALLINT, Short.class);
+        testDataType(Value.REAL, Float.class);
+        testDataType(Value.VARBINARY, byte[].class);
         testDataType(Value.UUID, UUID.class);
         testDataType(Value.NULL, Void.class);
-        testDataType(Value.DECIMAL, BigDecimal.class);
+        testDataType(Value.NUMERIC, BigDecimal.class);
         testDataType(Value.RESULT_SET, ResultSet.class);
         testDataType(Value.BLOB, ValueLobDb.class);
         // see FIXME in DataType.getTypeFromClass
@@ -323,55 +324,59 @@ public class TestValue extends TestDb {
             Value v = useFloat ? (Value) ValueFloat.get((float) d[i])
                     : (Value) ValueDouble.get(d[i]);
             values[i] = v;
-            assertTrue(values[i].compareTypeSafe(values[i], null) == 0);
+            assertTrue(values[i].compareTypeSafe(values[i], null, null) == 0);
             assertTrue(v.equals(v));
             assertEquals(Integer.compare(i, 2), v.getSignum());
         }
         for (int i = 0; i < d.length - 1; i++) {
-            assertTrue(values[i].compareTypeSafe(values[i+1], null) < 0);
-            assertTrue(values[i + 1].compareTypeSafe(values[i], null) > 0);
+            assertTrue(values[i].compareTypeSafe(values[i+1], null, null) < 0);
+            assertTrue(values[i + 1].compareTypeSafe(values[i], null, null) > 0);
             assertFalse(values[i].equals(values[i+1]));
         }
     }
 
     private void testTimestamp() {
-        ValueTimestamp valueTs = ValueTimestamp.parse("2000-01-15 10:20:30.333222111");
+        ValueTimestamp valueTs = ValueTimestamp.parse("2000-01-15 10:20:30.333222111", null);
         Timestamp ts = Timestamp.valueOf("2000-01-15 10:20:30.333222111");
         assertEquals(ts.toString(), valueTs.getString());
-        assertEquals(ts, valueTs.getTimestamp());
+        assertEquals(ts, LegacyDateTimeUtils.toTimestamp(null,  null, valueTs));
         Calendar c = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
         c.set(2018, 02, 25, 1, 59, 00);
         c.set(Calendar.MILLISECOND, 123);
         long expected = c.getTimeInMillis();
-        ts = ValueTimestamp.parse("2018-03-25 01:59:00.123123123 Europe/Berlin").getTimestamp();
+        ts = LegacyDateTimeUtils.toTimestamp(null,  null,
+                ValueTimestamp.parse("2018-03-25 01:59:00.123123123 Europe/Berlin", null));
         assertEquals(expected, ts.getTime());
         assertEquals(123123123, ts.getNanos());
-        ts = ValueTimestamp.parse("2018-03-25 01:59:00.123123123+01").getTimestamp();
+        ts = LegacyDateTimeUtils.toTimestamp(null, null,
+                ValueTimestamp.parse("2018-03-25 01:59:00.123123123+01", null));
         assertEquals(expected, ts.getTime());
         assertEquals(123123123, ts.getNanos());
         expected += 60000; // 1 minute
-        ts = ValueTimestamp.parse("2018-03-25 03:00:00.123123123 Europe/Berlin").getTimestamp();
+        ts = LegacyDateTimeUtils.toTimestamp(null, null,
+                ValueTimestamp.parse("2018-03-25 03:00:00.123123123 Europe/Berlin", null));
         assertEquals(expected, ts.getTime());
         assertEquals(123123123, ts.getNanos());
-        ts = ValueTimestamp.parse("2018-03-25 03:00:00.123123123+02").getTimestamp();
+        ts = LegacyDateTimeUtils.toTimestamp(null, null,
+                ValueTimestamp.parse("2018-03-25 03:00:00.123123123+02", null));
         assertEquals(expected, ts.getTime());
         assertEquals(123123123, ts.getNanos());
     }
 
     private void testArray() {
-        ValueArray src = ValueArray.get(String.class,
+        ValueArray src = ValueArray.get(
                 new Value[] {ValueString.get("1"), ValueString.get("22"), ValueString.get("333")});
         assertEquals(3, src.getType().getPrecision());
         assertSame(src, src.convertPrecision(3));
-        ValueArray exp = ValueArray.get(String.class,
+        ValueArray exp = ValueArray.get(
                 new Value[] {ValueString.get("1"), ValueString.get("22")});
         Value got = src.convertPrecision(2);
         assertEquals(exp, got);
-        assertEquals(String.class, ((ValueArray) got).getComponentType());
-        exp = ValueArray.get(String.class, new Value[0]);
+        assertEquals(Value.VARCHAR, ((ValueArray) got).getComponentType().getValueType());
+        exp = ValueArray.get(TypeInfo.TYPE_VARCHAR, new Value[0]);
         got = src.convertPrecision(0);
         assertEquals(exp, got);
-        assertEquals(String.class, ((ValueArray) got).getComponentType());
+        assertEquals(Value.VARCHAR, ((ValueArray) got).getComponentType().getValueType());
     }
 
     private void testUUID() {
@@ -473,7 +478,7 @@ public class TestValue extends TestDb {
         }
         Value lob1 = createLob(dh, type, bytes1);
         Value lob2 = createLob(dh, type, bytes2);
-        return lob1.compareTypeSafe(lob2, null);
+        return lob1.compareTypeSafe(lob2, null, null);
     }
 
     private static Value createLob(DataHandler dh, int type, byte[] bytes) {
@@ -501,16 +506,16 @@ public class TestValue extends TestDb {
 
         testTypeInfoCheck(Value.BOOLEAN, 1, 0, 5, TypeInfo.TYPE_BOOLEAN, TypeInfo.getTypeInfo(Value.BOOLEAN));
 
-        testTypeInfoCheck(Value.BYTE, 3, 0, 4, TypeInfo.TYPE_BYTE, TypeInfo.getTypeInfo(Value.BYTE));
-        testTypeInfoCheck(Value.SHORT, 5, 0, 6, TypeInfo.TYPE_SHORT, TypeInfo.getTypeInfo(Value.SHORT));
+        testTypeInfoCheck(Value.TINYINT, 3, 0, 4, TypeInfo.TYPE_TINYINT, TypeInfo.getTypeInfo(Value.TINYINT));
+        testTypeInfoCheck(Value.SMALLINT, 5, 0, 6, TypeInfo.TYPE_SMALLINT, TypeInfo.getTypeInfo(Value.SMALLINT));
         testTypeInfoCheck(Value.INT, 10, 0, 11, TypeInfo.TYPE_INT, TypeInfo.getTypeInfo(Value.INT));
-        testTypeInfoCheck(Value.LONG, 19, 0, 20, TypeInfo.TYPE_LONG, TypeInfo.getTypeInfo(Value.LONG));
+        testTypeInfoCheck(Value.BIGINT, 19, 0, 20, TypeInfo.TYPE_BIGINT, TypeInfo.getTypeInfo(Value.BIGINT));
 
-        testTypeInfoCheck(Value.FLOAT, 7, 0, 15, TypeInfo.TYPE_FLOAT, TypeInfo.getTypeInfo(Value.FLOAT));
+        testTypeInfoCheck(Value.REAL, 7, 0, 15, TypeInfo.TYPE_REAL, TypeInfo.getTypeInfo(Value.REAL));
         testTypeInfoCheck(Value.DOUBLE, 17, 0, 24, TypeInfo.TYPE_DOUBLE, TypeInfo.getTypeInfo(Value.DOUBLE));
-        testTypeInfoCheck(Value.DECIMAL, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
-                TypeInfo.TYPE_DECIMAL, TypeInfo.getTypeInfo(Value.DECIMAL));
-        testTypeInfoCheck(Value.DECIMAL, 65_535, 32_767, 65_537, TypeInfo.TYPE_DECIMAL_DEFAULT);
+        testTypeInfoCheck(Value.NUMERIC, Integer.MAX_VALUE, ValueDecimal.MAXIMUM_SCALE, Integer.MAX_VALUE,
+                TypeInfo.TYPE_NUMERIC, TypeInfo.getTypeInfo(Value.NUMERIC));
+        testTypeInfoCheck(Value.NUMERIC, 65_535, 32_767, 65_537, TypeInfo.TYPE_NUMERIC_FLOATING_POINT);
 
         testTypeInfoCheck(Value.TIME, 18, 9, 18, TypeInfo.TYPE_TIME, TypeInfo.getTypeInfo(Value.TIME));
         for (int s = 0; s <= 9; s++) {
@@ -530,16 +535,17 @@ public class TestValue extends TestDb {
             testTypeInfoCheck(Value.TIMESTAMP_TZ, d, s, d, TypeInfo.getTypeInfo(Value.TIMESTAMP_TZ, 0, s, null));
         }
 
-        testTypeInfoCheck(Value.BYTES, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.getTypeInfo(Value.BYTES));
+        testTypeInfoCheck(Value.VARBINARY, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
+                TypeInfo.getTypeInfo(Value.VARBINARY));
         testTypeInfoCheck(Value.BLOB, Long.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.getTypeInfo(Value.BLOB));
         testTypeInfoCheck(Value.CLOB, Long.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.getTypeInfo(Value.CLOB));
 
-        testTypeInfoCheck(Value.STRING, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_STRING,
-                TypeInfo.getTypeInfo(Value.STRING));
-        testTypeInfoCheck(Value.STRING_FIXED, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
-                TypeInfo.getTypeInfo(Value.STRING_FIXED));
-        testTypeInfoCheck(Value.STRING_IGNORECASE, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
-                TypeInfo.getTypeInfo(Value.STRING_IGNORECASE));
+        testTypeInfoCheck(Value.VARCHAR, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_VARCHAR,
+                TypeInfo.getTypeInfo(Value.VARCHAR));
+        testTypeInfoCheck(Value.CHAR, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
+                TypeInfo.getTypeInfo(Value.CHAR));
+        testTypeInfoCheck(Value.VARCHAR_IGNORECASE, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
+                TypeInfo.getTypeInfo(Value.VARCHAR_IGNORECASE));
 
         testTypeInfoCheck(Value.ARRAY, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_ARRAY,
                 TypeInfo.getTypeInfo(Value.ARRAY));

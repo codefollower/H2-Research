@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,7 +10,7 @@ package org.h2.index;
  */
 public class IndexType {
 
-    private boolean primaryKey, persistent, unique, hash, scan, spatial, affinity;
+    private boolean primaryKey, persistent, unique, hash, scan, spatial;
     private boolean belongsToConstraint;
 
     /**
@@ -68,17 +68,6 @@ public class IndexType {
         type.persistent = persistent;
         type.hash = hash;
         type.spatial = spatial;
-        return type;
-    }
-
-    /**
-     * Create an affinity index.
-     *
-     * @return the index type
-     */
-    public static IndexType createAffinity() {
-        IndexType type = new IndexType();
-        type.affinity = true;
         return type;
     }
 
@@ -157,15 +146,6 @@ public class IndexType {
      */
     public boolean isUnique() {
         return unique;
-    }
-
-    /**
-     * Does this index represent an affinity key?
-     *
-     * @return true if it does
-     */
-    public boolean isAffinity() {
-        return affinity;
     }
 
     /**

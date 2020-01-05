@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 and the EPL 1.0 (https://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
@@ -317,10 +317,13 @@ otherwise they are not parsed correctly. If in doubt, add <code>;</code> before 
     </tr>
     <tr>
         <td class="notranslate">
-            @generated&nbsp;insert&nbsp;into&nbsp;test()&nbsp;values();
+            @generated&nbsp;insert&nbsp;into&nbsp;test()&nbsp;values();<br />
+            @generated(1)&nbsp;insert&nbsp;into&nbsp;test()&nbsp;values();<br />
+            @generated(ID, "TIMESTAMP")&nbsp;insert&nbsp;into&nbsp;test()&nbsp;values();
         </td>
         <td>
             Show the result of <code>Statement.getGeneratedKeys()</code>.
+            Names or one-based indexes of required columns can be optionally specified.
         </td>
     </tr>
     <tr>
@@ -597,13 +600,13 @@ The TCP server can be stopped from another process.
 To stop the server from the command line, run:
 </p>
 <pre>
-java org.h2.tools.Server -tcpShutdown tcp://localhost:9092
+java org.h2.tools.Server -tcpShutdown tcp://localhost:9092 -tcpPassword password
 </pre>
 <p>
 To stop the server from a user application, use the following code:
 </p>
 <pre>
-org.h2.tools.Server.shutdownTcpServer("tcp://localhost:9094");
+org.h2.tools.Server.shutdownTcpServer("tcp://localhost:9092", "password", false, false);
 </pre>
 <p>
 This function will only stop the TCP server.
@@ -611,7 +614,7 @@ If other server were started in the same process, they will continue to run.
 To avoid recovery when the databases are opened the next time,
 all connections to the databases should be closed before calling this method.
 To stop a remote server, remote connections must be enabled on the server.
-Shutting down a TCP server can be protected using the option <code>-tcpPassword</code>
+Shutting down a TCP server is protected using the option <code>-tcpPassword</code>
 (the same password must be used to start and stop the TCP server).
 </p>
 
@@ -662,7 +665,7 @@ To use H2 within Glassfish, copy the h2*.jar to the directory <code>glassfish/gl
 <p>
 To use H2 in EclipseLink, use the platform class <code>org.eclipse.persistence.platform.database.H2Platform</code>.
 If this platform is not available in your version of EclipseLink, you can use the OraclePlatform instead in many case.
-See also <a href="http://wiki.eclipse.org/EclipseLink/Development/Incubator/Extensions/H2Platform">H2Platform</a>.
+See also <a href="https://wiki.eclipse.org/EclipseLink/Development/Incubator/Extensions/H2Platform">H2Platform</a>.
 </p>
 
 <h2 id="using_activemq">Using Apache ActiveMQ</h2>
@@ -682,7 +685,7 @@ Another (more dangerous) solution is to set <code>useDatabaseLock</code> to fals
 <p>
 There is a known issue when using the Netbeans SQL Execution Window:
 before executing a query, another query in the form <code>SELECT COUNT(*) FROM &lt;query&gt;</code> is run.
-This is a problem for queries that modify state, such as <code>SELECT SEQ.NEXTVAL</code>.
+This is a problem for queries that modify state, such as <code>SELECT NEXT VALUE FOR SEQ</code>.
 In this case, two sequence values are allocated instead of just one.
 </p>
 
@@ -1189,7 +1192,7 @@ Another solution to use H2 in NeoOffice is:
 </li></ul>
 <p>
 This can be done by create it using the NetBeans OpenOffice plugin.
-See also <a href="http://wiki.services.openoffice.org/wiki/Extensions_development_java">Extensions Development</a>.
+See also <a href="https://wiki.openoffice.org/wiki/Extensions_development_java">Extensions Development</a>.
 </p>
 
 <h2 id="web_start">Java Web Start / JNLP</h2>
@@ -1213,7 +1216,7 @@ Still, using a connection pool improves performance if you open and close connec
 A simple connection pool is included in H2. It is based on the
 <a href="http://www.source-code.biz/miniconnectionpoolmanager/">Mini Connection Pool Manager</a>
 from Christian d'Heureuse. There are other, more complex, open source connection pools available,
-for example the <a href="http://commons.apache.org/proper/commons-dbcp/">Apache Commons DBCP</a>.
+for example the <a href="https://commons.apache.org/proper/commons-dbcp/">Apache Commons DBCP</a>.
 For H2, it is about twice as faster to get a connection from the built-in connection pool than to get
 one using <code>DriverManager.getConnection()</code>.The build-in connection pool is used as follows:
 </p>
@@ -1299,8 +1302,7 @@ org.h2.fulltext.FullText.searchData(conn, text, limit, offset);
 <h3>Using the Apache Lucene Fulltext Search</h3>
 <p>
 To use the Apache Lucene full text search, you need the Lucene library in the classpath.
-Apache Lucene 5.5.5 or later version up to 8.0.* is required.
-Newer versions may also work, but were not tested.
+Apache Lucene 8.2.0 or binary compatible later version is required.
 How to do that depends on the application; if you use the H2 Console, you can add the Lucene
 jar file to the environment variables <code>H2DRIVERS</code> or
 <code>CLASSPATH</code>.

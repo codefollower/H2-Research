@@ -1,11 +1,12 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
 import java.util.HashMap;
+
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.util.Utils;
@@ -13,7 +14,7 @@ import org.h2.util.Utils;
 /**
  * This class contains various database-level settings. To override the
  * documented default value for a database, append the setting in the database
- * URL: "jdbc:h2:test;ALIAS_COLUMN_NAME=TRUE" when opening the first connection
+ * URL: "jdbc:h2:./test;ALIAS_COLUMN_NAME=TRUE" when opening the first connection
  * to the database. The settings can not be changed once the database is open.
  * <p>
  * Some settings are a last resort and temporary solution to work around a
@@ -24,7 +25,16 @@ import org.h2.util.Utils;
  */
 public class DbSettings extends SettingsBase {
 
-    private static DbSettings defaultSettings;
+    /**
+     * The initial size of the hash table.
+     */
+    static final int TABLE_SIZE = 64;
+
+    /**
+     * INTERNAL.
+     * The default settings. Those must not be modified.
+     */
+    public static final DbSettings DEFAULT = new DbSettings(new HashMap<>(TABLE_SIZE));
 
     /**
      * Database setting <code>ALIAS_COLUMN_NAME</code> (default: false).<br />
@@ -55,6 +65,19 @@ public class DbSettings extends SettingsBase {
      * The default sample size when analyzing a table.
      */
     public final int analyzeSample = get("ANALYZE_SAMPLE", 10_000);
+
+    /**
+     * Database setting <code>AUTO_COMPACT_FILL_RATE</code>
+     * (default: 90, which means 90%, 0 disables auto-compacting).<br />
+     * Set the auto-compact target fill rate. If the average fill rate (the
+     * percentage of the storage space that contains active data) of the
+     * chunks is lower, then the chunks with a low fill rate are re-written.
+     * Also, if the percentage of empty space between chunks is higher than
+     * this value, then chunks at the end of the file are moved. Compaction
+     * stops if the target fill rate is reached.<br />
+     * This setting only affects MVStore engine.
+     */
+    public final int autoCompactFillRate = get("AUTO_COMPACT_FILL_RATE", 90);
 
     /**
      * Database setting <code>DATABASE_TO_LOWER</code> (default: false).<br />
@@ -113,17 +136,10 @@ public class DbSettings extends SettingsBase {
 
     /**
      * Database setting <code>DROP_RESTRICT</code> (default: true).<br />
-     * Whether the default action for DROP TABLE, DROP VIEW, DROP SCHEMA, and
-     * DROP DOMAIN is RESTRICT.
+     * Whether the default action for DROP TABLE, DROP VIEW, DROP SCHEMA, DROP
+     * DOMAIN, and DROP CONSTRAINT is RESTRICT.
      */
     public final boolean dropRestrict = get("DROP_RESTRICT", true);
-
-    /**
-     * Database setting <code>EARLY_FILTER</code> (default: false).<br />
-     * This setting allows table implementations to apply filter conditions
-     * early on.
-     */
-    public final boolean earlyFilter = get("EARLY_FILTER", false);
 
     /**
      * Database setting <code>ESTIMATED_FUNCTION_TABLE_ROWS</code> (default:
@@ -156,7 +172,8 @@ public class DbSettings extends SettingsBase {
     /**
      * Database setting <code>MAX_COMPACT_COUNT</code>
      * (default: Integer.MAX_VALUE).<br />
-     * The maximum number of pages to move when closing a database.
+     * The maximum number of pages to move when closing a database.<br />
+     * This setting only affects PageStore engine.
      */
     public final int maxCompactCount = get("MAX_COMPACT_COUNT",
             Integer.MAX_VALUE);
@@ -291,15 +308,6 @@ public class DbSettings extends SettingsBase {
     public final boolean recompileAlways = get("RECOMPILE_ALWAYS", false);
 
     /**
-     * Database setting <code>RECONNECT_CHECK_DELAY</code> (default: 200).<br />
-     * Check the .lock.db file every this many milliseconds to detect that the
-     * database was changed. The process writing to the database must first
-     * notify a change in the .lock.db file, then wait twice this many
-     * milliseconds before updating the database.
-     */
-    public final int reconnectCheckDelay = get("RECONNECT_CHECK_DELAY", 200);
-
-    /**
      * Database setting <code>REUSE_SPACE</code> (default: true).<br />
      * If disabled, all changes are appended to the database file, and existing
      * content is never overwritten. This setting has no effect if the database
@@ -337,6 +345,14 @@ public class DbSettings extends SettingsBase {
      * Compress data when storing.
      */
     public final boolean compressData = get("COMPRESS", false);
+
+    /**
+     * Database setting <code>IGNORE_CATALOGS</code>
+     * (default: false).<br />
+     * If set, all catalog names in identifiers are silently accepted
+     * without comparing them with the short name of the database.
+     */
+    public final boolean ignoreCatalogs = get("IGNORE_CATALOGS", false);
 
     private DbSettings(HashMap<String, String> s) {
         super(s);
@@ -380,19 +396,6 @@ public class DbSettings extends SettingsBase {
      */
     public static DbSettings getInstance(HashMap<String, String> s) {
         return new DbSettings(s);
-    }
-
-    /**
-     * INTERNAL.
-     * Get the default settings. Those must not be modified.
-     *
-     * @return the settings
-     */
-    public static DbSettings getDefaultSettings() {
-        if (defaultSettings == null) {
-            defaultSettings = new DbSettings(new HashMap<String, String>());
-        }
-        return defaultSettings;
     }
 
 }

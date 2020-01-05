@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,7 +14,6 @@ import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.message.Trace;
-import org.h2.table.TableFilter.TableFilterVisitor;
 
 /**
  * A possible query execution plan. The time required to execute a query depends
@@ -44,13 +43,10 @@ public class Plan {
         }
         for (int i = 0; i < count; i++) {
             TableFilter f = filters[i];
-            f.visit(new TableFilterVisitor() {
-                @Override
-                public void accept(TableFilter f) {
-                    all.add(f);
-                    if (f.getJoinCondition() != null) {
-                        allCond.add(f.getJoinCondition());
-                    }
+            f.visit(f1 -> {
+                all.add(f1);
+                if (f1.getJoinCondition() != null) {
+                    allCond.add(f1.getJoinCondition());
                 }
             });
         }
@@ -84,8 +80,7 @@ public class Plan {
         for (int i = 0; i < allFilters.length; i++) {
             TableFilter f = allFilters[i];
             setEvaluatable(f, true);
-            if (i < allFilters.length - 1 ||
-                    f.getSession().getDatabase().getSettings().earlyFilter) {
+            if (i < allFilters.length - 1) {
                 // the last table doesn't need the optimization,
                 // otherwise the expression is calculated twice unnecessarily
                 // (not that bad but not optimal)

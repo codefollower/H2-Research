@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,15 +19,9 @@ import java.util.Map.Entry;
 public class QueryStatisticsData {
 
     private static final Comparator<QueryEntry> QUERY_ENTRY_COMPARATOR =
-            new Comparator<QueryEntry>() {
-        @Override
-        public int compare(QueryEntry o1, QueryEntry o2) {
-            return Long.signum(o1.lastUpdateTime - o2.lastUpdateTime);
-        }
-    };
+            Comparator.comparingLong(q -> q.lastUpdateTime);
 
-    private final HashMap<String, QueryEntry> map =
-            new HashMap<>();
+    private final HashMap<String, QueryEntry> map = new HashMap<>();
 
     private int maxQueryEntries;
 
@@ -45,7 +38,7 @@ public class QueryStatisticsData {
         // worry about external synchronization
         ArrayList<QueryEntry> list = new ArrayList<>(map.values());
         // only return the newest 100 entries
-        Collections.sort(list, QUERY_ENTRY_COMPARATOR);
+        list.sort(QUERY_ENTRY_COMPARATOR);
         return list.subList(0, Math.min(list.size(), maxQueryEntries));
     }
 
@@ -71,7 +64,7 @@ public class QueryStatisticsData {
         if (map.size() > maxQueryEntries * 1.5f) {
             // Sort the entries by age
             ArrayList<QueryEntry> list = new ArrayList<>(map.values());
-            Collections.sort(list, QUERY_ENTRY_COMPARATOR);
+            list.sort(QUERY_ENTRY_COMPARATOR);
             // Create a set of the oldest 1/3 of the entries
             HashSet<QueryEntry> oldestSet =
                     new HashSet<>(list.subList(0, list.size() / 3));
@@ -149,8 +142,8 @@ public class QueryStatisticsData {
         public double rowCountMean;
 
         // Using Welford's method, see also
-        // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-        // http://www.johndcook.com/standard_deviation.html
+        // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+        // https://www.johndcook.com/blog/standard_deviation/
 
         private double executionTimeM2Nanos;
         private double rowCountM2;

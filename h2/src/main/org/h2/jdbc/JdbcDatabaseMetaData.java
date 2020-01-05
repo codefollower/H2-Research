@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -72,7 +72,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     public String getDatabaseProductName() {
         debugCodeCall("getDatabaseProductName");
         // This value must stay like that, see
-        // http://opensource.atlassian.com/projects/hibernate/browse/HHH-2682
+        // https://hibernate.atlassian.net/browse/HHH-2682
         return "H2";
     }
 
@@ -84,7 +84,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public String getDatabaseProductVersion() {
         debugCodeCall("getDatabaseProductVersion");
-        return Constants.getFullVersion();
+        return Constants.FULL_VERSION;
     }
 
     /**
@@ -107,7 +107,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public String getDriverVersion() {
         debugCodeCall("getDriverVersion");
-        return Constants.getFullVersion();
+        return Constants.FULL_VERSION;
     }
 
     private boolean hasSynonyms() {
@@ -1541,14 +1541,14 @@ public class JdbcDatabaseMetaData extends TraceObject implements
      * table/column/index name, in addition to the SQL:2003 keywords. The list
      * returned is:
      * <pre>
-     * CURRENT_SCHEMA,
+     * CURRENT_CATALOG,CURRENT_SCHEMA,
      * GROUPS,
      * IF,ILIKE,INTERSECTS,
      * LIMIT,
      * MINUS,
      * OFFSET,
      * QUALIFY,
-     * REGEXP,_ROWID_,ROWNUM,
+     * REGEXP,ROWNUM,
      * SYSDATE,SYSTIME,SYSTIMESTAMP,
      * TODAY,TOP
      * </pre>
@@ -1556,27 +1556,30 @@ public class JdbcDatabaseMetaData extends TraceObject implements
      * <pre>
      * ALL, AND, ARRAY, AS,
      * BETWEEN, BOTH
-     * CASE, CHECK, CONSTRAINT, CROSS, CURRENT_DATE, CURRENT_SCHEMA,
+     * CASE, CHECK, CONSTRAINT, CROSS, CURRENT_CATALOG, CURRENT_DATE, CURRENT_SCHEMA,
      * CURRENT_TIME, CURRENT_TIMESTAMP, CURRENT_USER,
-     * DISTINCT,
+     * DAY, DISTINCT,
      * EXCEPT, EXISTS,
      * FALSE, FETCH, FILTER, FOR, FOREIGN, FROM, FULL,
      * GROUP, GROUPS
-     * HAVING,
+     * HAVING, HOUR,
      * IF, ILIKE, IN, INNER, INTERSECT, INTERSECTS, INTERVAL, IS,
      * JOIN,
+     * KEY,
      * LEADING, LEFT, LIKE, LIMIT, LOCALTIME, LOCALTIMESTAMP,
-     * MINUS,
+     * MINUS, MINUTE, MONTH,
      * NATURAL, NOT, NULL,
      * OFFSET, ON, OR, ORDER, OVER,
      * PARTITION, PRIMARY,
      * QUALIFY,
      * RANGE, REGEXP, RIGHT, ROW, _ROWID_, ROWNUM, ROWS,
-     * SELECT, SYSDATE, SYSTIME, SYSTIMESTAMP,
+     * SECOND, SELECT, SET, SYSDATE, SYSTIME, SYSTIMESTAMP,
      * TABLE, TODAY, TOP, TRAILING, TRUE,
      * UNION, UNIQUE, UNKNOWN, USING
-     * VALUES,
-     * WHERE, WINDOW, WITH
+     * VALUE, VALUES,
+     * WHERE, WINDOW, WITH,
+     * YEAR,
+     * _ROWID_
      * </pre>
      *
      * @return a list of additional the keywords
@@ -1584,16 +1587,18 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public String getSQLKeywords() {
         debugCodeCall("getSQLKeywords");
-        return "CURRENT_SCHEMA," //
+        return "CURRENT_CATALOG," //
+                + "CURRENT_SCHEMA," //
                 + "GROUPS," //
                 + "IF,ILIKE,INTERSECTS," //
                 + "LIMIT," //
                 + "MINUS," //
                 + "OFFSET," //
                 + "QUALIFY," //
-                + "REGEXP,_ROWID_,ROWNUM," //
+                + "REGEXP,ROWNUM," //
                 + "SYSDATE,SYSTIME,SYSTIMESTAMP," //
-                + "TODAY,TOP";
+                + "TODAY,TOP,"//
+                + "_ROWID_";
     }
 
     /**
@@ -2355,25 +2360,10 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     public boolean supportsTransactionIsolationLevel(int level) throws SQLException {
         debugCodeCall("supportsTransactionIsolationLevel");
         switch (level) {
-        case Connection.TRANSACTION_READ_UNCOMMITTED: {
-            // Currently the combination of MV_STORE=FALSE, LOCK_MODE=0 and
-            // MULTI_THREADED=TRUE is not supported. Also see code in
-            // Database#setLockMode(int)
-            try (PreparedStatement prep = conn.prepareStatement(
-                    "SELECT VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME=?")) {
-                // TODO skip MV_STORE check for H2 <= 1.4.197
-                prep.setString(1, "MV_STORE");
-                ResultSet rs = prep.executeQuery();
-                if (rs.next() && Boolean.parseBoolean(rs.getString(1))) {
-                    return true;
-                }
-                prep.setString(1, "MULTI_THREADED");
-                rs = prep.executeQuery();
-                return !rs.next() || !rs.getString(1).equals("1");
-            }
-        }
+        case Connection.TRANSACTION_READ_UNCOMMITTED:
         case Connection.TRANSACTION_READ_COMMITTED:
         case Connection.TRANSACTION_REPEATABLE_READ:
+        case Constants.TRANSACTION_SNAPSHOT:
         case Connection.TRANSACTION_SERIALIZABLE:
             return true;
         default:
@@ -2605,7 +2595,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public boolean supportsMixedCaseIdentifiers() throws SQLException{
         debugCodeCall("supportsMixedCaseIdentifiers");
-        JdbcConnection.Settings settings = conn.getSettings();
+        SessionInterface.StaticSettings settings = conn.getStaticSettings();
         return !settings.databaseToUpper && !settings.databaseToLower && !settings.caseInsensitiveIdentifiers;
     }
 
@@ -2618,7 +2608,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public boolean storesUpperCaseIdentifiers() throws SQLException {
         debugCodeCall("storesUpperCaseIdentifiers");
-        return conn.getSettings().databaseToUpper;
+        return conn.getStaticSettings().databaseToUpper;
     }
 
     /**
@@ -2630,7 +2620,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public boolean storesLowerCaseIdentifiers() throws SQLException {
         debugCodeCall("storesLowerCaseIdentifiers");
-        return conn.getSettings().databaseToLower;
+        return conn.getStaticSettings().databaseToLower;
     }
 
     /**
@@ -2642,7 +2632,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public boolean storesMixedCaseIdentifiers() throws SQLException {
         debugCodeCall("storesMixedCaseIdentifiers");
-        JdbcConnection.Settings settings = conn.getSettings();
+        SessionInterface.StaticSettings settings = conn.getStaticSettings();
         return !settings.databaseToUpper && !settings.databaseToLower && settings.caseInsensitiveIdentifiers;
     }
 
@@ -2655,7 +2645,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public boolean supportsMixedCaseQuotedIdentifiers() throws SQLException {
         debugCodeCall("supportsMixedCaseQuotedIdentifiers");
-        return !conn.getSettings().caseInsensitiveIdentifiers;
+        return !conn.getStaticSettings().caseInsensitiveIdentifiers;
     }
 
     /**
@@ -2691,7 +2681,7 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     @Override
     public boolean storesMixedCaseQuotedIdentifiers() throws SQLException {
         debugCodeCall("storesMixedCaseQuotedIdentifiers");
-        return conn.getSettings().caseInsensitiveIdentifiers;
+        return conn.getStaticSettings().caseInsensitiveIdentifiers;
     }
 
     /**
@@ -3078,12 +3068,12 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     /**
      * Gets the minor version of the supported JDBC API.
      *
-     * @return the minor version (1)
+     * @return the minor version (2)
      */
     @Override
     public int getJDBCMinorVersion() {
         debugCodeCall("getJDBCMinorVersion");
-        return 1;
+        return 2;
     }
 
     /**
@@ -3221,12 +3211,12 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     public ResultSet getClientInfoProperties() throws SQLException {
         Properties clientInfo = conn.getClientInfo();
         SimpleResult result = new SimpleResult();
-        result.addColumn("NAME", "NAME", TypeInfo.TYPE_STRING);
+        result.addColumn("NAME", "NAME", TypeInfo.TYPE_VARCHAR);
         result.addColumn("MAX_LEN", "MAX_LEN", TypeInfo.TYPE_INT);
-        result.addColumn("DEFAULT_VALUE", "DEFAULT_VALUE", TypeInfo.TYPE_STRING);
-        result.addColumn("DESCRIPTION", "DESCRIPTION", TypeInfo.TYPE_STRING);
+        result.addColumn("DEFAULT_VALUE", "DEFAULT_VALUE", TypeInfo.TYPE_VARCHAR);
+        result.addColumn("DESCRIPTION", "DESCRIPTION", TypeInfo.TYPE_VARCHAR);
         // Non-standard column
-        result.addColumn("VALUE", "VALUE", TypeInfo.TYPE_STRING);
+        result.addColumn("VALUE", "VALUE", TypeInfo.TYPE_VARCHAR);
         for (Entry<Object, Object> entry : clientInfo.entrySet()) {
             result.addRow(ValueString.get((String) entry.getKey()), ValueInt.get(Integer.MAX_VALUE),
                     ValueString.EMPTY, ValueString.EMPTY, ValueString.get((String) entry.getValue()));
@@ -3288,7 +3278,10 @@ public class JdbcDatabaseMetaData extends TraceObject implements
     }
 
     /**
-     * [Not supported]
+     * Returns whether database always returns generated keys if valid names or
+     * indexes of columns were specified and command was completed successfully.
+     *
+     * @return true
      */
     @Override
     public boolean generatedKeyAlwaysReturned() {

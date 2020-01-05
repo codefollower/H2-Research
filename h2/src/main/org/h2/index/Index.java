@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,9 @@ package org.h2.index;
 
 import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.engine.Session;
+import org.h2.message.DbException;
 import org.h2.result.Row;
+import org.h2.result.RowFactory;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
 import org.h2.schema.SchemaObject;
@@ -28,7 +30,10 @@ public interface Index extends SchemaObject {
      *
      * @return the plan
      */
-    String getPlanSQL(); //用于EXPLAIN语句，是"模式名.索引名"，跟getCreateSQL()不一样，getCreateSQL()是完整的"CREATE INDEX"
+    //用于EXPLAIN语句，是"模式名.索引名"，跟getCreateSQL()不一样，getCreateSQL()是完整的"CREATE INDEX"
+    default String getPlanSQL() {
+        return getSQL(false);
+    }
 
     /**
      * Close this index.
@@ -60,7 +65,10 @@ public interface Index extends SchemaObject {
      * @param oldRow row before the update
      * @param newRow row after the update
      */
-    void update(Session session, Row oldRow, Row newRow);
+    default void update(Session session, Row oldRow, Row newRow) {
+        remove(session, oldRow);
+        add(session, newRow);
+    }
 
     /**
      * Returns {@code true} if {@code find()} implementation performs scan over all
@@ -69,7 +77,9 @@ public interface Index extends SchemaObject {
      * @return {@code true} if {@code find()} implementation performs scan over all
      *         index, {@code false} if {@code find()} performs the fast lookup
      */
-    boolean isFindUsingFullTableScan();
+    default boolean isFindUsingFullTableScan() {
+        return false;
+    }
 
     /**
      * Find a row or a list of rows and create a cursor to iterate over the
@@ -81,18 +91,6 @@ public interface Index extends SchemaObject {
      * @return the cursor to iterate over the results
      */
     Cursor find(Session session, SearchRow first, SearchRow last);
-
-    /**
-     * Find a row or a list of rows and create a cursor to iterate over the
-     * result.
-     *
-     * @param filter the table filter (which possibly knows about additional
-     *            conditions)
-     * @param first the first row, or null for no limit
-     * @param last the last row, or null for no limit
-     * @return the cursor to iterate over the results
-     */
-    Cursor find(TableFilter filter, SearchRow first, SearchRow last); //默认是调用前一个find(filter.getSession(), first, last);
 
     /**
      * Estimate the cost to search for rows given the search mask.
@@ -131,14 +129,18 @@ public interface Index extends SchemaObject {
      *
      * @return true if it can
      */
-    boolean canGetFirstOrLast();
+    default boolean canGetFirstOrLast() {
+        return false;
+    }
 
     /**
      * Check if the index can get the next higher value.
      *
      * @return true if it can
      */
-    boolean canFindNext(); //只有PageBtreeIndex返回true
+    default boolean canFindNext() { //只有PageBtreeIndex返回true
+        return false;
+    }
 
     /**
      * Find a row or a list of rows that is larger and create a cursor to
@@ -149,10 +151,15 @@ public interface Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor
      */
-    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化(2015-05-06更新: MVSecondaryIndex已支持)
-    //比如这样的SQL: select distinct name from test
-    //就算为name字段建立了索引也不行
-    Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //只有org.h2.index.PageBtreeIndex实现了
+//<<<<<<< HEAD
+//    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化(2015-05-06更新: MVSecondaryIndex已支持)
+//    //比如这样的SQL: select distinct name from test
+//    //就算为name字段建立了索引也不行
+//    Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //只有org.h2.index.PageBtreeIndex实现了
+//=======
+    default Cursor findNext(Session session, SearchRow higherThan, SearchRow last) {
+        throw DbException.throwInternalError(toString());
+    }
 
     /**
      * Find the first (or last) value of this index. The cursor returned is
@@ -163,7 +170,9 @@ public interface Index extends SchemaObject {
      *            value should be returned
      * @return a cursor (never null)
      */
-    Cursor findFirstOrLast(Session session, boolean first); //用于快束min、max聚合查询
+    default Cursor findFirstOrLast(Session session, boolean first) { //用于快束min、max聚合查询
+        throw DbException.throwInternalError(toString());
+    }
 
     /**
      * Check if the index needs to be rebuilt.
@@ -269,7 +278,10 @@ public interface Index extends SchemaObject {
      * @return the row
      */
     //MVSecondaryIndex类没实现，而是在org.h2.mvstore.db.MVSecondaryIndex.MVStoreCursor.get()中调用MVPrimaryIndex的
-    Row getRow(Session session, long key); //按key获取主表的完整记录，PageDataIndex、MVPrimaryIndex才有效
+    //按key获取主表的完整记录，PageDataIndex、MVPrimaryIndex才有效
+    default Row getRow(Session session, long key) {
+        throw DbException.getUnsupportedException(toString());
+    }
 
     /**
      * Does this index support lookup by row id?
@@ -277,7 +289,10 @@ public interface Index extends SchemaObject {
      * @return true if it does
      */
     //按_ROWID_排序时，直接使用MVPrimaryIndex、PageDataIndex
-    boolean isRowIdIndex(); //只有org.h2.mvstore.db.MVPrimaryIndex和org.h2.index.PageDataIndex返回true
+    //只有org.h2.mvstore.db.MVPrimaryIndex和org.h2.index.PageDataIndex返回true
+    default boolean isRowIdIndex() {
+        return false;
+    }
 
     /**
      * Can this index iterate over all rows?
@@ -285,7 +300,10 @@ public interface Index extends SchemaObject {
      * @return true if it can
      */
     //只看到org.h2.store.PageStore.compact(int)在用
-    boolean canScan(); //HashIndex、NonUniqueHashIndex、FunctionIndex返回false
+    //HashIndex、NonUniqueHashIndex、FunctionIndex返回false
+    default boolean canScan() {
+        return true;
+    }
 
     /**
      * Enable or disable the 'sorted insert' optimizations (rows are inserted in
@@ -297,16 +315,9 @@ public interface Index extends SchemaObject {
     //只在org.h2.index.PageDataLeaf中用到，
     //如insert into IndexTestTable(id, name, address) SORTED values(...)
     //见org.h2.index.PageDataLeaf.addRowTry(Row)，insert加了SORTED后，获取切换点的方式不一样。
-    void setSortedInsertMode(boolean sortedInsertMode); //PageIndex有覆盖此方法
+    default void setSortedInsertMode(boolean sortedInsertMode) { //PageIndex有覆盖此方法
+        // ignore
+    }
 
-    /**
-     * Creates new lookup batch. Note that returned {@link IndexLookupBatch}
-     * instance can be used multiple times.
-     *
-     * @param filters the table filters
-     * @param filter the filter index (0, 1,...)
-     * @return created batch or {@code null} if batched lookup is not supported
-     *         by this index.
-     */
-    IndexLookupBatch createLookupBatch(TableFilter[] filters, int filter);
+    RowFactory getRowFactory();
 }

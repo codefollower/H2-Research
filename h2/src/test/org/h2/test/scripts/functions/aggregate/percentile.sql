@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -609,20 +609,20 @@ select median(v) from test;
 delete from test;
 > update count: 5
 
-insert into test values ('2000-01-20 20:00:00+10:15'), ('2000-01-21 20:00:00-09');
+insert into test values ('2000-01-20 20:00:00+10:15:15'), ('2000-01-21 20:00:00-09');
 > update count: 2
 
 select median(v) from test;
->> 2000-01-21 08:00:30+00:37
+>> 2000-01-21 08:00:00.5+00:37:37
 
 delete from test;
 > update count: 2
 
-insert into test values ('-2000-01-20 20:00:00+10:15'), ('-2000-01-21 20:00:00-09');
+insert into test values ('-2000-01-20 20:00:00+10:15:15'), ('-2000-01-21 20:00:00-09');
 > update count: 2
 
 select median(v) from test;
->> -2000-01-21 08:00:30+00:37
+>> -2000-01-21 08:00:00.5+00:37:37
 
 drop table test;
 > ok
@@ -640,16 +640,16 @@ drop table test;
 > ok
 
 -- with group by
-create table test(name varchar, value int);
+create table test(name varchar, "VALUE" int);
 > ok
 
 insert into test values ('Group 2A', 10), ('Group 2A', 10), ('Group 2A', 20),
     ('Group 1X', 40), ('Group 1X', 50), ('Group 3B', null);
 > update count: 6
 
-select name, median(value) from test group by name order by name;
-> NAME     MEDIAN(VALUE)
-> -------- -------------
+select name, median("VALUE") from test group by name order by name;
+> NAME     MEDIAN("VALUE")
+> -------- ---------------
 > Group 1X 45.0
 > Group 2A 10
 > Group 3B null
@@ -898,3 +898,19 @@ SELECT percentile_disc(v) within group (order by v) from test;
 
 drop table test;
 > ok
+
+SELECT PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY V) FROM (VALUES TIME WITH TIME ZONE '10:30:00Z', TIME WITH TIME ZONE '15:30:00+10') T(V);
+>> 15:00:00+09
+
+SELECT PERCENTILE_CONT(0.7) WITHIN GROUP (ORDER BY V) FROM (VALUES TIME WITH TIME ZONE '10:00:00Z', TIME WITH TIME ZONE '12:00:00+00:00:01') T(V);
+>> 11:24:00.7+00
+
+SELECT PERCENTILE_CONT(0.7) WITHIN GROUP (ORDER BY V) FROM (VALUES TIME WITH TIME ZONE '23:59:59.999999999Z', TIME WITH TIME ZONE '23:59:59.999999999+00:00:01') T(V);
+>> 23:59:59.299999999-00:00:01
+
+SELECT PERCENTILE_CONT(0.7) WITHIN GROUP (ORDER BY V) FROM (VALUES TIME WITH TIME ZONE '00:00:00Z', TIME WITH TIME ZONE '00:00:00-00:00:01') T(V);
+>> 00:00:00.3+00:00:01
+
+-- null ordering has no effect, but must be allowed
+SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY V NULLS LAST) FROM (VALUES NULL, 1, 3) T(V);
+>> 2.0

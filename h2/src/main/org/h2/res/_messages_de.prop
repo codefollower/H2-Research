@@ -26,6 +26,7 @@
 40001=Eine Verklemmung (Deadlock) ist aufgetreten. Die aktuelle Transaktion wurde rückgängig gemacht. Details: {0}
 42000=Syntax Fehler in SQL Befehl {0}
 42001=Syntax Fehler in SQL Befehl {0}; erwartet {1}
+42602=#Invalid name {0}
 42S01=Tabelle {0} besteht bereits
 42S02=Tabelle {0} nicht gefunden
 42S11=Index {0} besteht bereits
@@ -42,7 +43,7 @@
 90006=Die Sequenz {0} hat keine freien Nummern mehr
 90007=Das Objekt wurde bereits geschlossen
 90008=Unerlaubter Wert {0} für Parameter {1}
-90009=Kann die Sequenz {0} nicht ändern aufgrund falscher Attribute (Start-Wert {1}, Minimal-Wert {2}, Maximal-Wert {3}, Inkrement {4})
+90009=Kann die Sequenz {0} nicht ändern aufgrund falscher Attribute (Wert {1}, Start-Wert {2}, Minimal-Wert {3}, Maximal-Wert {4}, Inkrement {5})
 90010=Ungültiges TO_CHAR Format {0}
 90011=Ein implizit relativer Pfad zum Arbeitsverzeichnis ist nicht erlaubt in der Datenbank URL {0}. Bitte absolute Pfade, ~/name, ./name, oder baseDir verwenden.
 90012=Parameter {0} wurde nicht gesetzt
@@ -84,7 +85,6 @@
 90048=Datenbank Datei Version wird nicht unterstützt oder ungültiger Dateikopf in Datei {0}
 90049=Verschlüsselungsfehler in Datei {0}
 90050=Falsches Passwort Format, benötigt wird: Datei-Passwort <Leerschlag> Benutzer-Passwort
-90051=Skalierung(${0}) darf nicht grösser als Präzision sein({1})
 90052=Unterabfrage gibt mehr als eine Feld zurück
 90053=Skalar-Unterabfrage enthält mehr als eine Zeile
 90054=Ungültige Verwendung der Aggregat Funktion {0}
@@ -179,6 +179,14 @@
 90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
 90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
 90147=#Method {0} is not allowed when connection is in auto-commit mode
+90148=#Current value of sequence {0} is not yet defined in this session
+90149=#Database {0} not found, either pre-create it or allow remote database creation (not recommended in secure environments)
+90150=#Precision ({0}) must be between {1} and {2} inclusive
+90151=#Scale or fractional seconds precision ({0}) must be between {1} and {2} inclusive
+90152=#Constraint {0} is used by constraint {1}
+90153=#Column {0} references uncomparable column {1}
+90154=#Generated column {0} cannot be assigned
+90155=#Generated column {0} cannot be updatable by a referential constraint with {1} clause
 HY000=Allgemeiner Fehler: {0}
 HY004=Unbekannter Datentyp: {0}
 HYC00=Dieses Feature wird nicht unterstützt: {0}

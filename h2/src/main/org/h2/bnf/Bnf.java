@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -120,7 +120,7 @@ public class Bnf {
         addFixedRule("anything_except_single_quote", RuleFixed.ANY_EXCEPT_SINGLE_QUOTE);
         addFixedRule("anything_except_double_quote", RuleFixed.ANY_EXCEPT_DOUBLE_QUOTE);
         addFixedRule("anything_until_end_of_line", RuleFixed.ANY_UNTIL_EOL);
-        addFixedRule("anything_until_end_comment", RuleFixed.ANY_UNTIL_END);
+        addFixedRule("anything_until_comment_start_or_end", RuleFixed.ANY_UNTIL_END);
         addFixedRule("anything_except_two_dollar_signs", RuleFixed.ANY_EXCEPT_2_DOLLAR);
         addFixedRule("anything", RuleFixed.ANY_WORD);
         addFixedRule("@hex_start@", RuleFixed.HEX_START);
@@ -211,6 +211,28 @@ public class Bnf {
         return r;
     }
 
+    private RuleExtension parseExtension(boolean compatibility) {
+        read();
+        Rule r;
+        if (firstChar == '[') {
+            read();
+            r = parseOr();
+            r = new RuleOptional(r);
+            if (firstChar != ']') {
+                throw new AssertionError("expected ], got " + currentToken + " syntax:" + syntax);
+            }
+        } else if (firstChar == '{') {
+            read();
+            r = parseOr();
+            if (firstChar != '}') {
+                throw new AssertionError("expected }, got " + currentToken + " syntax:" + syntax);
+            }
+        } else {
+            r = parseOr();
+        }
+        return new RuleExtension(r, compatibility);
+    }
+
     private Rule parseToken() {
         Rule r;
         if ((firstChar >= 'A' && firstChar <= 'Z')
@@ -219,24 +241,30 @@ public class Bnf {
             r = new RuleElement(currentToken, currentTopic);
         } else if (firstChar == '[') {
             read();
-            Rule r2 = parseOr();
-            r = new RuleOptional(r2);
+            r = parseOr();
+            r = new RuleOptional(r);
             if (firstChar != ']') {
-                throw new AssertionError("expected ], got " + currentToken
-                        + " syntax:" + syntax);
+                throw new AssertionError("expected ], got " + currentToken + " syntax:" + syntax);
             }
         } else if (firstChar == '{') {
             read();
             r = parseOr();
             if (firstChar != '}') {
-                throw new AssertionError("expected }, got " + currentToken
-                        + " syntax:" + syntax);
+                throw new AssertionError("expected }, got " + currentToken + " syntax:" + syntax);
             }
-        } else if ("@commaDots@".equals(currentToken)) {
-            r = new RuleList(new RuleElement(",", currentTopic), lastRepeat, false);
-            r = new RuleRepeat(r, true);
-        } else if ("@dots@".equals(currentToken)) {
-            r = new RuleRepeat(lastRepeat, false);
+        } else if (firstChar == '@') {
+            if ("@commaDots@".equals(currentToken)) {
+                r = new RuleList(new RuleElement(",", currentTopic), lastRepeat, false);
+                r = new RuleRepeat(r, true);
+            } else if ("@dots@".equals(currentToken)) {
+                r = new RuleRepeat(lastRepeat, false);
+            } else if ("@c@".equals(currentToken)) {
+                r = parseExtension(true);
+            } else if ("@h2@".equals(currentToken)) {
+                r = parseExtension(false);
+            } else {
+                r = new RuleElement(currentToken, currentTopic);
+            }
         } else {
             r = new RuleElement(currentToken, currentTopic);
         }
@@ -253,6 +281,19 @@ public class Bnf {
             currentToken = "";
             firstChar = 0;
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < index; i++) {
+            builder.append(tokens[i]).append(' ');
+        }
+        builder.append("[*]");
+        for (int i = index; i < tokens.length; i++) {
+            builder.append(' ').append(tokens[i]);
+        }
+        return builder.toString();
     }
 
     private String[] tokenize() {

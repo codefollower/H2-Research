@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 and the EPL 1.0 (https://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
@@ -21,6 +21,300 @@ Change Log
 
 <h2>Next Version (unreleased)</h2>
 <ul>
+<li>Issue #2371: REPEATABLE READ isolation level does not work in MVStore
+</li>
+<li>Issue #2363: Soft links in -baseDir and database path cause error 90028
+</li>
+<li>Issue #2364: TestScript datatypes/timestamp-with-time-zone.sql fails if TZ=Europe/Berlin
+</li>
+<li>Issue #2359: Complete implementation of generated columns
+</li>
+<li>PR #2361: Fix unused result
+</li>
+<li>PR #2353: Push binary search operation from Page to DataType
+</li>
+<li>Issue #2348: Add USING clause to ALTER COLUMN CHANGE DATA TYPE
+</li>
+<li>Issue #2350: License Problem in POM
+</li>
+<li>Issue #2345: Add standard SET TIME ZONE command to set current time zone of the session
+</li>
+<li>PR #2341: Cleanup file backend sync
+</li>
+<li>Issue #2343: Domain-based domains: Domain not found after reconnection
+</li>
+<li>Issue #2338: Domains should not support NULL constraints
+</li>
+<li>Issue #2334: build target mavenInstallLocal broken since commit 7cbbd55e
+</li>
+<li>#2335: TestDateTimeUtils fails if system timezone has DST in the future
+</li>
+<li>Issue #2330: Syntax error with parenthesized expression in GROUP BY clause
+</li>
+<li>Issue #2256: &lt;interval value expression&gt; with datetime subtraction
+</li>
+<li>Issue #2325: H2 does not parse nested bracketed comments correctly
+</li>
+<li>Issue #466: Confusion about INFORMATION_SCHEMA content related to UNIQUE constraints
+</li>
+<li>PR #2323: Assorted changes
+</li>
+<li>Issue #2320: Remove SAMPLE_SIZE clause from SELECT
+</li>
+<li>Issue #2301: Add compatibility setting to accept some keywords as identifiers
+</li>
+<li>PR #2317: Replace CHECK_COLUMN_USAGE with CONSTRAINT_COLUMN_USAGE and other changes
+</li>
+<li>Issue #2315: Sequence must remember its original START WITH value
+</li>
+<li>Issue #2313: DISTINCT does not work in ordered aggregate functions
+</li>
+<li>PR #2306: Add support for RESTART of sequence without initial value
+</li>
+<li>Issue #2304: NPE in multiple define commands in one statement after upgrade from H2 4.1.197
+</li>
+<li>PR #2303: Assorted minor changes
+</li>
+<li>Issue #2286: Inline check constraints not in INFORMATION_SCHEMA
+</li>
+<li>PR #2300: Continue generification of MVStore codebase
+</li>
+<li>PR #2298: add some minimal security documentation
+</li>
+<li>PR #2292: synchronize fileBase subclasses use of position
+</li>
+<li>PR #2238: Some MVStore refactoring
+</li>
+<li>Issue #2288: ConcurrentModificationException during commit
+</li>
+<li>Issue #2293: Remove TestClearReferences and workarounds for old versions of Apache Tomcat
+</li>
+<li>Issue #2288: ConcurrentModificationException during commit
+</li>
+<li>PR #2284: Remove unrelated information from README and add some information about H2
+</li>
+<li>PR #2282: add PostgreSQL compatible variable STATEMENT_TIMEOUT
+</li>
+<li>PR #2280: little comment
+</li>
+<li>Issue #2205: H2 1.4.200 split FS issue
+</li>
+<li>Issue #2272: UpdatableView and obtaining the Generated Keys
+</li>
+<li>PR #2276: Split up filesystem classes
+</li>
+<li>PR #2275: improve detection of JAVA_HOME on Mac OS
+</li>
+<li>Issue #2268: Numeric division needs better algorithm for scale selection
+</li>
+<li>Issue #2270: IGNORE_UNKNOWN_SETTINGS is ignored
+</li>
+<li>PR #2269: Fix existence check of non-persistent databases
+</li>
+<li>Issue #1910: BinaryOperation should evaluate precision and scale properly
+</li>
+<li>PR #2264: Clean up redundant parts of file system abstraction
+</li>
+<li>PR #2262: add setting AUTO_COMPACT_FILL_RATE
+</li>
+<li>Issue #2255 / PR #2259: Use NIO2 in main sources and build
+</li>
+<li>PR #2257: Catch java.lang.NoClassDefFoundError
+</li>
+<li>Issue #2241: Mark H2-specific and compatibility only clauses in documentation
+</li>
+<li>PR #2246: Update third-party drivers
+</li>
+<li>Issue #2239 / PR #2236: Add NETWORK_TIMEOUT setting for SO_TIMEOUT
+</li>
+<li>PR #2235: Don't use RandomAccessFile in FilePathNio
+</li>
+<li>Issue #2233: "Prepared.getObjectId() was called before" when granting on multiple tables
+</li>
+<li>PR #2230: Add factory methods for Row
+</li>
+<li>Issue #2226, PR #2227: Remove support of Apache Ignite
+</li>
+<li>PR #2224: Update some hyperlinks and use https in them where possible
+</li>
+<li>PR #2223: Fix data change delta tables in views
+</li>
+<li>Issue #1943: Deadlock in TestTriggersConstraints
+</li>
+<li>PR #2219: do not retry failed DDL commands
+</li>
+<li>PR #2214: Fix TRACE_LEVEL_FILE=4 for in-memory databases
+</li>
+<li>PR #2216: Add FileChannel.lock in the connection URL summary
+</li>
+<li>PR #2215: Add white-space: pre to tables with query results
+</li>
+<li>Issue #2213: NUMERIC scale can be larger than a precision
+</li>
+<li>PR #2212: Get rid of multi-version CurrentTimestamp and fix negative scale of NUMERIC
+</li>
+<li>PR #2210: Meta table extras
+</li>
+<li>PR #2209: Add standard expressions with interval qualifier
+</li>
+<li>PR #2195: Feature abort_session function
+</li>
+<li>PR #2201: Add padding to negative years and other changes
+</li>
+<li>PR #2197: Add some additional methods from JDBC 4.2 and return 4.2 as supported version
+</li>
+<li>PR #2193: Require Java 8 and remove Java 7 support
+</li>
+<li>Issue #2191: NPE with H2 v1.4.200 repeatable read select queries
+</li>
+<li>Issue #1390: Add standard-compliant ARRAY data type syntax
+</li>
+<li>PR #2186: Refactor Parser.parseColumnWithType() and fix some minor issues with CAST
+</li>
+<li>Issue #2181: SET EXCLUSIVE quirks
+</li>
+<li>PR #2173: Move snapshots from Transaction to TransactionMap
+</li>
+<li>Issue #2175: Regression: NPE in ResultSet#getTime(int)
+</li>
+<li>Issue #2171: Wrong PostgreSQL compatibility syntax for the creation of indexes
+</li>
+<li>PR #2169: Clean up some find methods of indexes and fix minor issues with them
+</li>
+</ul>
+
+<h2>Version 1.4.200 (2019-10-14)</h2>
+<ul>
+<li>PR #2168: Add non-standard SNAPSHOT isolation level to MVStore databases
+</li>
+<li>Issue #2165: Problem with secondary index on SERIALIZABLE isolation level
+</li>
+<li>Issue #2161: Remove undocumented PageStore-only FILE_LOCK=SERIALIZED
+</li>
+<li>PR #2155: Reduce code duplication
+</li>
+<li>Issue #1894: Confusing error message when database creation is disallowed
+</li>
+<li>Issue #2123: Random failures in TestTransactionStore
+</li>
+<li>Issue #2153: Different behavior in SET LOCK_TIMEOUT after 1.4.197
+</li>
+<li>Issue #2150: Remove MULTI_THREADED setting and use multi-threaded MVStore and single-threaded PageStore backends
+</li>
+<li>Issue #216: Support READ UNCOMMITTED isolation level in MVStore mode
+</li>
+<li>Issue #678: Support REPEATABLE READ isolation level in MVStore mode
+</li>
+<li>Issue #174: Support SERIALIZABLE isolation level in MVStore mode
+</li>
+<li>Issue #2144: MVStore: read uncommitted doesn't see committed rows
+</li>
+<li>Issue #2142: CURRVAL / CURRENT VALUE FOR should return the value for the current session
+</li>
+<li>Issue #2136: ConstraintCheck concurrency regression
+</li>
+<li>PR #2137: Don't use SYSTEM_RANGE for SELECT without a FROM
+</li>
+<li>PR #2134: Assorted fixes and other changes in DateTimeUtils
+</li>
+<li>PR #2133: Optimize COUNT([ALL] constant) and other changes
+</li>
+<li>PR #2132: Typo and another bug in MVStore.readStoreHeader()
+</li>
+<li>Issue #2130: Group-sorted query returns invalid results with duplicate grouped columns in select list
+</li>
+<li>Issue #2120: Add IF EXISTS clause to column name in ALTER TABLE ALTER COLUMN statement
+</li>
+<li>Issue #521: Add support for the TIME WITH TIME ZONE data type
+</li>
+<li>PR #2127: Fix race condition / performance issue during snapshotting
+</li>
+<li>Issue #2124: MVStore build is broken
+</li>
+<li>PR #2122: Add support for LMT in time zones and fix large years in datetime values
+</li>
+<li>Issue #2067: Incorrect chunk space allocation during chunks movement
+</li>
+<li>PR #2066: Not so happy path - "four alternatives" implementation
+</li>
+<li>PR #2121: Reduce code duplication for datetime API with custom Calendar instances
+</li>
+<li>PR #2119: SQL: statement read consistency
+</li>
+<li>Issue #2116: Empty IN() operator should result in error (MSSQL)
+</li>
+<li>Issue #2036: CAST from TIME to TIMESTAMP returns incorrect result
+</li>
+<li>PR #2114: Assorted changes
+</li>
+<li>PR #2113: Add feature F411: Time zone specification
+</li>
+<li>PR #2111: CURRENT_CATALOG, SET CATALOG and other changes
+</li>
+<li>Issue #2109: IW date formatting does not produce proper output
+</li>
+<li>PR #2104: Fix ordinary grouping set with parentheses and empty grouping set in GROUP BY
+</li>
+<li>Issue #2103: Add QUOTE_IDENT() function to enquote an identifier in SQL
+</li>
+<li>Issue #2075: Add EXECUTE IMMEDIATE implementation
+</li>
+<li>PR #2101: Fix infinite loop in Schema.removeChildrenAndResources()
+</li>
+<li>Issue #2096: Convert LEFT and RIGHT to keywords and disallow comma before closing parenthesis
+</li>
+<li>PR #2098: Fix typos
+</li>
+<li>Issue #1305 / PR #2097: Remove unused and outdated website translation infrastructure
+</li>
+<li>PR #2093: CURRENT VALUE FOR and other sequence-related changes
+</li>
+<li>PR #2092: Allow to simulate usage of multiple catalogs by one connection
+</li>
+<li>PR #2091: Oracle mode now uses DECIMAL with NEXTVAL
+</li>
+<li>Issue #2088: Division by zero caused by evaluation of global conditions before local conditions
+</li>
+<li>Issue #2086: TCP_QUICKACK on server socket
+</li>
+<li>Issue #2073: TableLink should not pass queries to DatabaseMetaData.getColumns()
+</li>
+<li>Issue #2074: MySQL and MSSQLServer Mode: TRUNCATE TABLE should always RESTART IDENTITY
+</li>
+<li>Issue #2063: MySQL mode: "drop foreign key if exists" support
+</li>
+<li>PR #2061: Use VirtualTable as a base class for RangeTable
+</li>
+<li>PR #2059: Parse IN predicate with multiple subqueries correctly
+</li>
+<li>PR #2057: Fix TestCrashAPI failure with Statement.enquoteIdentifier()
+</li>
+<li>PR #2056: Happy path: speed up database opening
+</li>
+<li>Issue #2051: The website shows outdated information about the storage engine
+</li>
+<li>PR #2049: bugfix - mvstore data lost issue when partial write occurs
+</li>
+<li>PR #2047: File maintenance
+</li>
+<li>PR #2046: Recovery mode
+</li>
+<li>Issue #2044: setTransactionIsolation always call commit() even if transaction is auto-commit
+</li>
+<li>Issue #2042: Add possibility to specify generated columns for query in web console
+</li>
+<li>Issue #2040: INFORMATION_SCHEMA.SETTINGS contains irrelevant settings
+</li>
+<li>PR #2038: MVMap: lock reduction on updates
+</li>
+<li>PR #2037: Fix SYS_GUID, RAWTOHEX, and HEXTORAW in Oracle mode
+</li>
+<li>Issue #2016: ExpressionColumn.mapColumns() performance complexity is quadratic
+</li>
+<li>Issue #2028: Sporadic inconsistent state after concurrent UPDATE in 1.4.199
+</li>
+<li>PR #2033: Assorted changes
+</li>
 <li>Issue #2025: Incorrect query result when (OFFSET + FETCH) &gt; Integer.MAX_VALUE
 </li>
 <li>PR #2023: traverseDown() code deduplication
@@ -43,7 +337,7 @@ Change Log
 </li>
 <li>PR #1998: Reduce TxCounter memory footprint
 </li>
-<li>PR #1999: Make RootReference lock re-enterant
+<li>PR #1999: Make RootReference lock re-entrant
 </li>
 <li>PR #2001: Test improvements, OOME elimination
 </li>
@@ -1645,42 +1939,6 @@ temporary storages
 <li>Add padding for CHAR(N) values in PostgreSQL mode
 </li>
 <li>Issue #89: Add DB2 timestamp format compatibility
-</li>
-</ul>
-
-<h2>Version 1.4.196 (2017-06-10)</h2>
-<ul>
-<li>Issue#479 Allow non-recursive CTEs (WITH statements), patch from stumc
-</li>
-<li>Fix startup issue when using "CHECK" as a column name.
-</li>
-<li>Issue #423: ANALYZE performed multiple times on one table during execution of the same statement.
-</li>
-<li>Issue #426: Support ANALYZE TABLE statement
-</li>
-<li>Issue #438: Fix slow logging via SLF4J (TRACE_LEVEL_FILE=4).
-</li>
-<li>Issue #472: Support CREATE SEQUENCE ... ORDER as a NOOP for Oracle compatibility
-</li>
-<li>Issue #479: Allow non-recursive Common Table Expressions (CTE)
-</li>
-<li>On Mac OS X, with IPv6 and no network connection, the Console tool was not working as expected.
-</li>
-</ul>
-
-<h2>Version 1.4.195 (2017-04-23)</h2>
-<ul>
-<li>Lazy query execution support.
-</li>
-<li>Added API for handling custom data types (System property "h2.customDataTypesHandler", API org.h2.api.CustomDataTypesHandler).
-</li>
-<li>Added support for invisible columns.
-</li>
-<li>Added an ENUM data type, with syntax similar to that of MySQL.
-</li>
-<li>MVStore: for object data types, the cache size memory estimation
-    was sometimes far off in a read-only scenario.
-    This could result in inefficient cache usage.
 </li>
 </ul>
 

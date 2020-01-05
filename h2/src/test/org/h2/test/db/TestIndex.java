@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -218,8 +218,8 @@ public class TestIndex extends TestDb {
                 AtomicInteger concurrentUpdateValue) throws SQLException {
             this.concurrentUpdateId = concurrentUpdateId;
             this.concurrentUpdateValue = concurrentUpdateValue;
-            psInsert = c.prepareStatement("insert into test(id, value) values (?, ?)");
-            psDelete = c.prepareStatement("delete from test where value = ?");
+            psInsert = c.prepareStatement("insert into test(id, v) values (?, ?)");
+            psDelete = c.prepareStatement("delete from test where v = ?");
         }
 
         @Override
@@ -255,9 +255,9 @@ public class TestIndex extends TestDb {
     private void testConcurrentUpdate() throws SQLException {
         Connection c = getConnection("index");
         Statement stat = c.createStatement();
-        stat.execute("create table test(id int primary key, value int)");
-        stat.execute("create unique index idx_value_name on test(value)");
-        PreparedStatement check = c.prepareStatement("select value from test");
+        stat.execute("create table test(id int primary key, v int)");
+        stat.execute("create unique index idx_value_name on test(v)");
+        PreparedStatement check = c.prepareStatement("select v from test");
         ConcurrentUpdateThread[] threads = new ConcurrentUpdateThread[4];
         AtomicInteger concurrentUpdateId = new AtomicInteger(), concurrentUpdateValue = new AtomicInteger();
 

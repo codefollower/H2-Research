@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -21,17 +21,14 @@ public class TestSort extends TestBase {
     /**
      * The number of times the compare method was called.
      */
-    AtomicInteger compareCount = new AtomicInteger();
+    private AtomicInteger compareCount = new AtomicInteger();
 
     /**
      * The comparison object used in this test.
      */
-    Comparator<Long> comp = new Comparator<Long>() {
-        @Override
-        public int compare(Long o1, Long o2) {
-            compareCount.incrementAndGet();
-            return Long.compare(o1 >> 32, o2 >> 32);
-        }
+    Comparator<Long> comp = (o1, o2) -> {
+        compareCount.incrementAndGet();
+        return Long.compare(o1 >> 32, o2 >> 32);
     };
 
     private final Long[] array = new Long[100000];

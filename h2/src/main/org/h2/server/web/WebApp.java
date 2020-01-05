@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -40,6 +40,7 @@ import org.h2.bnf.context.DbColumn;
 import org.h2.bnf.context.DbContents;
 import org.h2.bnf.context.DbSchema;
 import org.h2.bnf.context.DbTableOrView;
+import org.h2.command.Parser;
 import org.h2.engine.Constants;
 import org.h2.engine.SysProperties;
 import org.h2.jdbc.JdbcException;
@@ -1077,10 +1078,6 @@ public class WebApp {
                         query(conn, s, i - 1, list.size() - 2, b);
                         return b.toString();
                     }
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
-                    }
                 });
                 return "result.jsp";
             }
@@ -1274,12 +1271,7 @@ public class WebApp {
     private static void addDatabaseMetaData(SimpleResultSet rs,
             DatabaseMetaData meta) {
         Method[] methods = DatabaseMetaData.class.getDeclaredMethods();
-        Arrays.sort(methods, new Comparator<Method>() {
-            @Override
-            public int compare(Method o1, Method o2) {
-                return o1.toString().compareTo(o2.toString());
-            }
-        });
+        Arrays.sort(methods, Comparator.comparing(Method::toString));
         for (Method m : methods) {
             if (m.getParameterTypes().length == 0) {
                 try {
@@ -1337,7 +1329,7 @@ public class WebApp {
             ResultSet rs;
             long time = System.currentTimeMillis();
             boolean metadata = false;
-            int generatedKeys = Statement.NO_GENERATED_KEYS;
+            Object generatedKeys = null;
             boolean edit = false;
             boolean list = false;
             if (isBuiltIn(sql, "@autocommit_true")) {
@@ -1369,8 +1361,22 @@ public class WebApp {
                 sql = StringUtils.trimSubstring(sql, "@meta".length());
             }
             if (isBuiltIn(sql, "@generated")) {
-                generatedKeys = Statement.RETURN_GENERATED_KEYS;
-                sql = StringUtils.trimSubstring(sql, "@generated".length());
+                generatedKeys = true;
+                int offset = "@generated".length();
+                int length = sql.length();
+                for (; offset < length; offset++) {
+                    char c = sql.charAt(offset);
+                    if (c == '(') {
+                        Parser p = new Parser();
+                        generatedKeys = p.parseColumnList(sql, offset);
+                        offset = p.getLastParseIndex();
+                        break;
+                    }
+                    if (!Character.isWhitespace(c)) {
+                        break;
+                    }
+                }
+                sql = StringUtils.trimSubstring(sql, offset);
             } else if (isBuiltIn(sql, "@history")) {
                 buff.append(getCommandHistoryString());
                 return buff.toString();
@@ -1424,6 +1430,8 @@ public class WebApp {
                         .append(": read_committed<br />");
                 buff.append(Connection.TRANSACTION_REPEATABLE_READ)
                         .append(": repeatable_read<br />");
+                buff.append(Constants.TRANSACTION_SNAPSHOT)
+                        .append(": snapshot<br />");
                 buff.append(Connection.TRANSACTION_SERIALIZABLE)
                         .append(": serializable");
             }
@@ -1437,9 +1445,19 @@ public class WebApp {
                 int maxrows = getMaxrows();
                 stat.setMaxRows(maxrows);
                 session.executingStatement = stat;
-                boolean isResultSet = stat.execute(sql, generatedKeys);
+                boolean isResultSet;
+                if (generatedKeys == null) {
+                    isResultSet = stat.execute(sql);
+                } else if (generatedKeys instanceof Boolean) {
+                    isResultSet = stat.execute(sql,
+                            ((Boolean) generatedKeys) ? Statement.RETURN_GENERATED_KEYS : Statement.NO_GENERATED_KEYS);
+                } else if (generatedKeys instanceof String[]) {
+                    isResultSet = stat.execute(sql, (String[]) generatedKeys);
+                } else {
+                    isResultSet = stat.execute(sql, (int[]) generatedKeys);
+                }
                 session.addCommand(sql);
-                if (generatedKeys == Statement.RETURN_GENERATED_KEYS) {
+                if (generatedKeys != null) {
                     rs = null;
                     rs = stat.getGeneratedKeys();
                 } else {
@@ -1474,8 +1492,7 @@ public class WebApp {
     }
 
     private static boolean isBuiltIn(String sql, String builtIn) {
-        int len = builtIn.length();
-        return sql.length() >= len && sql.regionMatches(true, 0, builtIn, 0, len);
+        return sql.regionMatches(true, 0, builtIn, 0, builtIn.length());
     }
 
     private String executeLoop(Connection conn, int count, String sql)
@@ -1621,9 +1638,9 @@ public class WebApp {
                     "id=\"mainForm\" target=\"h2result\">" +
                     "<input type=\"hidden\" name=\"op\" value=\"1\" />" +
                     "<input type=\"hidden\" name=\"row\" value=\"\" />" +
-                    "<table cellspacing=0 cellpadding=0 id=\"editTable\">");
+                    "<table class=\"resultSet\" cellspacing=\"0\" cellpadding=\"0\" id=\"editTable\">");
         } else {
-            buff.append("<table cellspacing=0 cellpadding=0>");
+            buff.append("<table class=\"resultSet\" cellspacing=\"0\" cellpadding=\"0\">");
         }
         if (metadata) {
             SimpleResultSet r = new SimpleResultSet();

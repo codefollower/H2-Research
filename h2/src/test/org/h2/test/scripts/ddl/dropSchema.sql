@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -110,4 +110,40 @@ CREATE TABLE TEST_SCHEMA.B (B INT AS SELECT A FROM TEST_SCHEMA.A);
 > ok
 
 DROP SCHEMA TEST_SCHEMA CASCADE;
+> ok
+
+CREATE SCHEMA A;
+> ok
+
+CREATE TABLE A.A1(ID INT);
+> ok
+
+CREATE SCHEMA B;
+> ok
+
+CREATE TABLE B.B1(ID INT, X INT DEFAULT (SELECT MAX(ID) FROM A.A1));
+> ok
+
+DROP SCHEMA A CASCADE;
+> exception CANNOT_DROP_2
+
+DROP SCHEMA B CASCADE;
+> ok
+
+DROP SCHEMA A CASCADE;
+> ok
+
+CREATE SCHEMA A;
+> ok
+
+CREATE TABLE A.A1(ID INT, X INT);
+> ok
+
+CREATE TABLE A.A2(ID INT, X INT DEFAULT (SELECT MAX(ID) FROM A.A1));
+> ok
+
+ALTER TABLE A.A1 ALTER COLUMN X SET DEFAULT (SELECT MAX(ID) FROM A.A2);
+> ok
+
+DROP SCHEMA A CASCADE;
 > ok

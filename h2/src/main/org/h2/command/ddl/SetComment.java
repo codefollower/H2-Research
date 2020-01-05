@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -81,8 +81,7 @@ public class SetComment extends DefineCommand {
             object = db.getUser(objectName);
             break;
         case DbObject.DOMAIN:
-            schemaName = null;
-            object = db.findDomain(objectName);
+            object = db.getSchema(schemaName).findDomain(objectName);
             errorCode = ErrorCode.DOMAIN_ALREADY_EXISTS_1;
             break;
         default:

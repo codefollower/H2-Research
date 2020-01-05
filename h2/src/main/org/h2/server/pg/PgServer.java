@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,13 +25,14 @@ import org.h2.engine.Constants;
 import org.h2.message.DbException;
 import org.h2.server.Service;
 import org.h2.util.NetUtils;
+import org.h2.util.NetUtils2;
 import org.h2.util.Tool;
 
 /**
  * This class implements a subset of the PostgreSQL protocol as described here:
- * http://developer.postgresql.org/pgdocs/postgres/protocol.html
+ * https://www.postgresql.org/docs/devel/protocol.html
  * The PostgreSQL catalog is described here:
- * http://www.postgresql.org/docs/7.4/static/catalogs.html
+ * https://www.postgresql.org/docs/7.4/catalogs.html
  *
  * @author Thomas Mueller
  * @author Sergi Vladykin 2009-07-03 (convertType)
@@ -194,6 +195,7 @@ public class PgServer implements Service {
                     trace("Connection not allowed");
                     s.close();
                 } else {
+                    NetUtils2.setTcpQuickack(s, true);
                     PgServerThread c = new PgServerThread(s, this);
                     running.add(c);
                     int id = pid.incrementAndGet();
@@ -382,7 +384,7 @@ public class PgServer implements Service {
      */
     public static String getVersion() {
         return "PostgreSQL " + Constants.PG_VERSION + " server protocol using H2 " +
-                Constants.getFullVersion();
+                Constants.FULL_VERSION;
     }
 
     /**

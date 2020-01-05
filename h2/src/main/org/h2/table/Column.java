@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,17 +11,16 @@ import java.util.Objects;
 import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
 import org.h2.command.ddl.SequenceOptions;
+import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
-import org.h2.engine.Domain;
-import org.h2.engine.Mode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.SequenceValue;
 import org.h2.expression.ValueExpression;
-import org.h2.expression.condition.ConditionAndOr;
 import org.h2.message.DbException;
 import org.h2.result.Row;
+import org.h2.schema.Domain;
 import org.h2.schema.Schema;
 import org.h2.schema.Sequence;
 import org.h2.util.MathUtils;
@@ -62,23 +61,20 @@ public class Column {
     public static final int NULLABLE_UNKNOWN =
             ResultSetMetaData.columnNullableUnknown;
 
-    private final TypeInfo type;
+    private TypeInfo type;
     private Table table;
     private String name;
     private int columnId;
     private boolean nullable = true;
     private Expression defaultExpression;
     private Expression onUpdateExpression;
-    private Expression checkConstraint;
-    private String checkConstraintSQL;
     private String originalSQL;
     private SequenceOptions autoIncrementOptions;
     private boolean convertNullToDefault;
     private Sequence sequence;
-    private boolean isComputed;
-    private TableFilter computeTableFilter;
+    private boolean isGenerated;
+    private GeneratedColumnResolver generatedTableFilter;
     private int selectivity;
-    private SingleColumnResolver resolver;
     private String comment;
     private boolean primaryKey;
     private boolean visible = true;
@@ -141,6 +137,12 @@ public class Column {
         this.type = type;
     }
 
+    public Column(String name, TypeInfo type, String originalSQL) {
+        this.name = name;
+        this.type = type;
+        this.originalSQL = originalSQL;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == this) {
@@ -176,12 +178,13 @@ public class Column {
     /**
      * Convert a value to this column's type without precision and scale checks.
      *
+     * @provider the cast information provider
      * @param v the value
      * @return the value
      */
-    public Value convert(Value v) {
+    public Value convert(CastDataProvider provider, Value v) {
         try {
-            return v.convertTo(type, null, this);
+            return v.convertTo(type, provider, this);
         } catch (DbException e) {
             if (e.getErrorCode() == ErrorCode.DATA_CONVERSION_ERROR_1) {
                 e = getDataConversionError(v, e);
@@ -190,31 +193,23 @@ public class Column {
         }
     }
 
-    boolean getComputed() {
-        return isComputed;
-    }
-
     /**
-     * Compute the value of this computed column.
+     * Returns whether this column is a generated column.
      *
-     * @param session the session
-     * @param row the row
-     * @return the value
+     * @return whether this column is a generated column
      */
-    synchronized Value computeValue(Session session, Row row) {
-        computeTableFilter.setSession(session);
-        computeTableFilter.set(row);
-        return defaultExpression.getValue(session);
+    public boolean getGenerated() {
+        return isGenerated;
     }
 
     /**
-     * Set the default value in the form of a computed expression of other
+     * Set the default value in the form of a generated expression of other
      * columns.
      *
      * @param expression the computed expression
      */
-    public void setComputedExpression(Expression expression) {
-        this.isComputed = true;
+    public void setGeneratedExpression(Expression expression) {
+        this.isGenerated = true;
         this.defaultExpression = expression;
     }
 
@@ -239,8 +234,7 @@ public class Column {
      * @param session the session
      * @param defaultExpression the default expression
      */
-    public void setDefaultExpression(Session session,
-            Expression defaultExpression) {
+    public void setDefaultExpression(Session session, Expression defaultExpression) {
         // also to test that no column names are used
         if (defaultExpression != null) {
             defaultExpression = defaultExpression.optimize(session);
@@ -295,6 +289,17 @@ public class Column {
         return rowId ? builder.append(name) : Parser.quoteIdentifier(builder, name, alwaysQuote);
     }
 
+    /**
+     * Appends the table name and column name to the specified builder.
+     *
+     * @param builder the string builder
+     * @param alwaysQuote quote all identifiers
+     * @return the specified string builder
+     */
+    public StringBuilder getSQLWithTable(StringBuilder builder, boolean alwaysQuote) {
+        return getSQL(table.getSQL(builder, alwaysQuote).append('.'), alwaysQuote);
+    }
+
     public String getName() {
         return name;
     }
@@ -344,35 +349,50 @@ public class Column {
     /**
      * Validate the value, convert it if required, and update the sequence value
      * if required. If the value is null, the default value (NULL if no default
-     * is set) is returned. Check constraints are validated as well.
+     * is set) is returned. Domain constraints are validated as well.
      *
      * @param session the session
      * @param value the value or null
+     * @param row the row
      * @return the new or converted value
      */
-    public Value validateConvertUpdateSequence(Session session, Value value) {
-        // take a local copy of defaultExpression to avoid holding the lock
-        // while calling getValue
-        final Expression localDefaultExpression;
-        synchronized (this) {
-            localDefaultExpression = defaultExpression;
-        }
-        Mode mode = session.getDatabase().getMode();
+    public Value validateConvertUpdateSequence(Session session, Value value, Row row) {
+        Expression localDefaultExpression = defaultExpression;
         boolean addKey = false;
         if (value == null) {
             if (localDefaultExpression == null) {
+                if (!nullable) {
+                    throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, name);
+                }
                 value = ValueNull.INSTANCE;
             } else {
-                value = localDefaultExpression.getValue(session);
+                if (isGenerated) {
+                    synchronized (this) {
+                        generatedTableFilter.set(row);
+                        try {
+                            value = localDefaultExpression.getValue(session);
+                        } finally {
+                            generatedTableFilter.set(null);
+                        }
+                    }
+                } else {
+                    value = localDefaultExpression.getValue(session);
+                }
+                if (value == ValueNull.INSTANCE && !nullable) {
+                    throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, name);
+                }
                 addKey = true;
             }
-        }
-        if (value == ValueNull.INSTANCE) {
 //<<<<<<< HEAD
-//            // if (convertNullToDefault) { //有bug，见my.test.bugs.ColumnBugTest
-//            if (convertNullToDefault && localDefaultExpression != null) {
-//                value = localDefaultExpression.getValue(session).convertTo(type);
+//        }
+//        if (value == ValueNull.INSTANCE) {
+////<<<<<<< HEAD
+////            // if (convertNullToDefault) { //有bug，见my.test.bugs.ColumnBugTest
+////            if (convertNullToDefault && localDefaultExpression != null) {
+////                value = localDefaultExpression.getValue(session).convertTo(type);
+////=======
 //=======
+        } else if (value == ValueNull.INSTANCE) {
             if (convertNullToDefault) {
                 value = localDefaultExpression.getValue(session);
                 addKey = true;
@@ -382,23 +402,15 @@ public class Column {
             }
         }
         try {
-            value = type.cast(value, mode, false, name);
+            value = type.cast(value, session, false, name);
         } catch (DbException e) {
             if (e.getErrorCode() == ErrorCode.DATA_CONVERSION_ERROR_1) {
                 e = getDataConversionError(value, e);
             }
             throw e;
         }
-        if (checkConstraint != null) {
-            Value v;
-            synchronized (this) {
-                resolver.setValue(value);
-                v = checkConstraint.getValue(session);
-            }
-            // Both TRUE and NULL are ok
-            if (v != ValueNull.INSTANCE && !v.getBoolean()) {
-                throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, checkConstraint.getSQL(false));
-            }
+        if (domain != null) {
+            domain.checkConstraints(session, value);
         }
         if (addKey && !localDefaultExpression.isConstant() && primaryKey) {
             session.setLastIdentity(value);
@@ -428,7 +440,7 @@ public class Column {
                 update = true;
             }
             if (update) {
-                sequence.modify(now + inc, null, null, null);
+                sequence.modify(null, now + inc, null, null, null);
                 session.setLastIdentity(ValueLong.get(now));
                 sequence.flush(session);
             }
@@ -476,7 +488,7 @@ public class Column {
         seq.setTemporary(temporary);
         session.getDatabase().addSchemaObject(session, seq);
         setAutoIncrementOptions(null);
-        SequenceValue seqValue = new SequenceValue(seq);
+        SequenceValue seqValue = new SequenceValue(seq, false);
         setDefaultExpression(session, seqValue);
         setSequence(seq);
     }
@@ -495,16 +507,15 @@ public class Column {
 //            defaultExpression = defaultExpression.optimize(session);
 //=======
     public void prepareExpression(Session session) {
-        if (defaultExpression != null || onUpdateExpression != null) {
-            computeTableFilter = new TableFilter(session, table, null, false, null, 0, null);
-            if (defaultExpression != null) {
-                defaultExpression.mapColumns(computeTableFilter, 0, Expression.MAP_INITIAL);
-                defaultExpression = defaultExpression.optimize(session);
+        if (defaultExpression != null) {
+            if (isGenerated) {
+                generatedTableFilter = new GeneratedColumnResolver(table);
+                defaultExpression.mapColumns(generatedTableFilter, 0, Expression.MAP_INITIAL);
             }
-            if (onUpdateExpression != null) {
-                onUpdateExpression.mapColumns(computeTableFilter, 0, Expression.MAP_INITIAL);
-                onUpdateExpression = onUpdateExpression.optimize(session);
-            }
+            defaultExpression = defaultExpression.optimize(session);
+        }
+        if (onUpdateExpression != null) {
+            onUpdateExpression = onUpdateExpression.optimize(session);
         }
     }
 
@@ -532,10 +543,10 @@ public class Column {
         }
 
         if (defaultExpression != null) {
-            if (isComputed) {
-                buff.append(" AS ");
-                defaultExpression.getSQL(buff, true);
-            } else if (defaultExpression != null) {
+            if (isGenerated) {
+                buff.append(" GENERATED ALWAYS AS ");
+                defaultExpression.getEnclosedSQL(buff, true);
+            } else {
                 buff.append(" DEFAULT ");
                 defaultExpression.getSQL(buff, true);
             }
@@ -543,11 +554,6 @@ public class Column {
         if (onUpdateExpression != null) {
             buff.append(" ON UPDATE ");
             onUpdateExpression.getSQL(buff, true);
-        }
-        if (!nullable) {
-            buff.append(" NOT NULL");
-        } else if (domain != null && !domain.getColumn().isNullable()) {
-            buff.append(" NULL");
         }
         if (convertNullToDefault) {
             buff.append(" NULL_TO_DEFAULT");
@@ -563,8 +569,8 @@ public class Column {
             buff.append(" COMMENT ");
             StringUtils.quoteStringSQL(buff, comment);
         }
-        if (checkConstraint != null) {
-            buff.append(" CHECK ").append(checkConstraintSQL);
+        if (!nullable) {
+            buff.append(" NOT NULL");
         }
         return buff.toString();
     }
@@ -658,72 +664,6 @@ public class Column {
         this.selectivity = selectivity;
     }
 
-    /**
-     * Add a check constraint expression to this column. An existing check
-     * constraint is added using AND.
-     *
-     * @param session the session
-     * @param expr the (additional) constraint
-     */
-    public void addCheckConstraint(Session session, Expression expr) {
-        if (expr == null) {
-            return;
-        }
-        if (resolver == null) {
-            resolver = new SingleColumnResolver(this);
-        }
-        synchronized (this) {
-            String oldName = name;
-            if (name == null) {
-                name = "VALUE";
-            }
-            expr.mapColumns(resolver, 0, Expression.MAP_INITIAL);
-            name = oldName;
-        }
-        expr = expr.optimize(session);
-        resolver.setValue(ValueNull.INSTANCE);
-        // check if the column is mapped
-        synchronized (this) {
-            expr.getValue(session);
-        }
-        if (checkConstraint == null) {
-            checkConstraint = expr;
-        } else if (!expr.getSQL(true).equals(checkConstraintSQL)) {
-            checkConstraint = new ConditionAndOr(ConditionAndOr.AND, checkConstraint, expr);
-        }
-        checkConstraintSQL = getCheckConstraintSQL(session, name);
-    }
-
-    /**
-     * Remove the check constraint if there is one.
-     */
-    public void removeCheckConstraint() {
-        checkConstraint = null;
-        checkConstraintSQL = null;
-    }
-
-    /**
-     * Get the check constraint expression for this column if set.
-     *
-     * @param session the session
-     * @param asColumnName the column name to use
-     * @return the constraint expression
-     */
-    public Expression getCheckConstraint(Session session, String asColumnName) {
-        if (checkConstraint == null) {
-            return null;
-        }
-        Parser parser = new Parser(session);
-        String sql;
-        synchronized (this) {
-            String oldName = name;
-            name = asColumnName;
-            sql = checkConstraint.getSQL(true);
-            name = oldName;
-        }
-        return parser.parseExpression(sql);
-    }
-
     String getDefaultSQL() {
         return defaultExpression == null ? null : defaultExpression.getSQL(true);
     }
@@ -738,18 +678,6 @@ public class Column {
 
     DataType getDataType() {
         return DataType.getDataType(type.getValueType());
-    }
-
-    /**
-     * Get the check constraint SQL snippet.
-     *
-     * @param session the session
-     * @param asColumnName the column name to use
-     * @return the SQL snippet
-     */
-    String getCheckConstraintSQL(Session session, String asColumnName) {
-        Expression constraint = getCheckConstraint(session, asColumnName);
-        return constraint == null ? "" : constraint.getSQL(true);
     }
 
     public void setComment(String comment) {
@@ -781,7 +709,7 @@ public class Column {
         if (defaultExpression != null && !defaultExpression.isEverything(visitor)) {
             return false;
         }
-        if (checkConstraint != null && !checkConstraint.isEverything(visitor)) {
+        if (onUpdateExpression != null && !onUpdateExpression.isEverything(visitor)) {
             return false;
         }
         return true;
@@ -804,13 +732,16 @@ public class Column {
      * @return true if the new column is compatible
      */
     public boolean isWideningConversion(Column newColumn) {
-        if (type != newColumn.type) {
+        if (type.getValueType() != newColumn.type.getValueType()) {
             return false;
         }
         if (type.getPrecision() > newColumn.type.getPrecision()) {
             return false;
         }
         if (type.getScale() != newColumn.type.getScale()) {
+            return false;
+        }
+        if (!Objects.equals(type.getExtTypeInfo(), newColumn.type.getExtTypeInfo())) {
             return false;
         }
         if (nullable && !newColumn.nullable) {
@@ -825,7 +756,7 @@ public class Column {
         if (autoIncrementOptions != null || newColumn.autoIncrementOptions != null) {
             return false;
         }
-        if (checkConstraint != null || newColumn.checkConstraint != null) {
+        if (domain != newColumn.domain) {
             return false;
         }
         if (convertNullToDefault || newColumn.convertNullToDefault) {
@@ -834,7 +765,7 @@ public class Column {
         if (defaultExpression != null || newColumn.defaultExpression != null) {
             return false;
         }
-        if (isComputed || newColumn.isComputed) {
+        if (isGenerated || newColumn.isGenerated) {
             return false;
         }
         if (onUpdateExpression != null || newColumn.onUpdateExpression != null) {
@@ -852,10 +783,14 @@ public class Column {
      * @param source the source column
      */
     public void copy(Column source) {
-    	//16个字段，还有7个字段未copy，分别是: type、table、columnId、autoIncrement、start、increment、resolver
-        checkConstraint = source.checkConstraint;
-        checkConstraintSQL = source.checkConstraintSQL;
+//<<<<<<< HEAD
+//    	//16个字段，还有7个字段未copy，分别是: type、table、columnId、autoIncrement、start、increment、resolver
+//        checkConstraint = source.checkConstraint;
+//        checkConstraintSQL = source.checkConstraintSQL;
+//=======
+//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
         name = source.name;
+        type = source.type;
         // table is not set
         // columnId is not set
         nullable = source.nullable;
@@ -866,8 +801,8 @@ public class Column {
         convertNullToDefault = source.convertNullToDefault;
         sequence = source.sequence;
         comment = source.comment;
-        computeTableFilter = source.computeTableFilter;
-        isComputed = source.isComputed;
+        generatedTableFilter = source.generatedTableFilter;
+        isGenerated = source.isGenerated;
         selectivity = source.selectivity;
         primaryKey = source.primaryKey;
         visible = source.visible;

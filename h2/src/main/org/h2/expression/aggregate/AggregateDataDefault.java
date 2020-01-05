@@ -1,11 +1,11 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression.aggregate;
 
-import org.h2.engine.Database;
+import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.value.DataType;
 import org.h2.value.Value;
@@ -35,7 +35,7 @@ class AggregateDataDefault extends AggregateData {
     }
 
     @Override
-    void add(Database database, Value v) {
+    void add(Session session, Value v) {
         if (v == ValueNull.INSTANCE) {
             return;
         }
@@ -58,12 +58,12 @@ class AggregateDataDefault extends AggregateData {
             }
             break;
         case MIN:
-            if (value == null || database.compare(v, value) < 0) {
+            if (value == null || session.compare(v, value) < 0) {
                 value = v;
             }
             break;
         case MAX:
-            if (value == null || database.compare(v, value) > 0) {
+            if (value == null || session.compare(v, value) > 0) {
                 value = v;
             }
             break;
@@ -72,8 +72,8 @@ class AggregateDataDefault extends AggregateData {
         case VAR_POP:
         case VAR_SAMP: {
             // Using Welford's method, see also
-            // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-            // http://www.johndcook.com/standard_deviation.html
+            // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+            // https://www.johndcook.com/standard_deviation.html
             double x = v.getDouble();
             if (count == 1) {
                 mean = x;
@@ -121,7 +121,7 @@ class AggregateDataDefault extends AggregateData {
     }
 
     @Override
-    Value getValue(Database database, int dataType) {
+    Value getValue(Session session, int dataType) {
         Value v = null;
         switch (aggregateType) {
         case SUM:
@@ -176,9 +176,9 @@ class AggregateDataDefault extends AggregateData {
         if (by == 0) {
             return ValueNull.INSTANCE;
         }
-        int type = Value.getHigherOrder(a.getValueType(), Value.LONG);
+        int type = Value.getHigherOrder(a.getValueType(), Value.BIGINT);
         Value b = ValueLong.get(by).convertTo(type);
-        a = a.convertTo(type).divide(b);
+        a = a.convertTo(type).divide(b, ValueLong.PRECISION);
         return a;
     }
 

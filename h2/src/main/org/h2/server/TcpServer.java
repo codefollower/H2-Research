@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -28,6 +28,7 @@ import org.h2.message.DbException;
 import org.h2.util.JdbcUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.NetUtils;
+import org.h2.util.NetUtils2;
 import org.h2.util.StringUtils;
 import org.h2.util.Tool;
 
@@ -110,9 +111,9 @@ public class TcpServer implements Service {
                     TcpServer.class.getName() + ".stopServer\"");
             stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS" +
                     "(ID INT PRIMARY KEY, URL VARCHAR, USER VARCHAR, " +
-                    "CONNECTED TIMESTAMP)");
+                    "CONNECTED TIMESTAMP(9) WITH TIME ZONE)");
             managementDbAdd = conn.prepareStatement(
-                    "INSERT INTO SESSIONS VALUES(?, ?, ?, NOW())");
+                    "INSERT INTO SESSIONS VALUES(?, ?, ?, CURRENT_TIMESTAMP(9))");
             managementDbRemove = conn.prepareStatement(
                     "DELETE FROM SESSIONS WHERE ID=?");
         }
@@ -277,6 +278,7 @@ public class TcpServer implements Service {
             while (!stop) {
                 Socket s = serverSocket.accept();
                 //s.setSoTimeout(2000); //我加上的
+                NetUtils2.setTcpQuickack(s, true);
                 int id = nextThreadId++;
                 TcpServerThread c = new TcpServerThread(s, this, id);
                 running.add(c);

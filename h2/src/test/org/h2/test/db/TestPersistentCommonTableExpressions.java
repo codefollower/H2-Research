@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -56,8 +56,8 @@ public class TestPersistentCommonTableExpressions extends AbstractBaseForCommonT
                 "    INNER JOIN PUBLIC.C\n" +
                 "        /++ PUBLIC.C.tableScan ++/\n" +
                 "        ON 1=1\n" +
-                "    WHERE (A IS NOT DISTINCT FROM ?1)\n" +
-                "        AND (B.VAL = C.B)\n" +
+                "    WHERE (B.VAL = C.B)\n" +
+                "        _LOCAL_AND_GLOBAL_ (A IS NOT DISTINCT FROM ?1)\n" +
                 "    GROUP BY A: A IS NOT DISTINCT FROM A.VAL\n" +
                 "     */\n" +
                 "    /* scanCount: 1 */\n" +

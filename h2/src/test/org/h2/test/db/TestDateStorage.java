@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -21,7 +21,6 @@ import java.util.TimeZone;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.test.unit.TestDate;
-import org.h2.util.DateTimeUtils;
 import org.h2.value.ValueTimestamp;
 
 /**
@@ -53,15 +52,17 @@ public class TestDateStorage extends TestDb {
         stat.execute("create table t(x time primary key)");
         stat.execute("create table d(x date)");
         Calendar utcCalendar = new GregorianCalendar(new SimpleTimeZone(0, "Z"));
+        stat.execute("SET TIME ZONE 'PST'");
         TimeZone old = TimeZone.getDefault();
-        DateTimeUtils.resetCalendar();
         TimeZone.setDefault(TimeZone.getTimeZone("PST"));
         try {
+            // 2010-03-14T02:15:00Z
             Timestamp ts1 = Timestamp.valueOf("2010-03-13 18:15:00");
             Time t1 = new Time(ts1.getTime());
             Date d1 = new Date(ts1.getTime());
             // when converted to UTC, this is 03:15, which doesn't actually
             // exist because of summer time change at that day
+            // 2010-03-14T03:15:00Z
             Timestamp ts2 = Timestamp.valueOf("2010-03-13 19:15:00");
             Time t2 = new Time(ts2.getTime());
             Date d2 = new Date(ts2.getTime());
@@ -140,8 +141,8 @@ public class TestDateStorage extends TestDb {
             assertEquals("2010-03-13", rs.getDate("x", utcCalendar).toString());
             assertEquals("2010-03-14", rs.getDate("x").toString());
         } finally {
+            stat.execute("SET TIME ZONE LOCAL");
             TimeZone.setDefault(old);
-            DateTimeUtils.resetCalendar();
         }
         stat.execute("drop table ts");
         stat.execute("drop table t");
@@ -162,12 +163,13 @@ public class TestDateStorage extends TestDb {
     }
 
     private static void test(int year, int month, int day, int hour) {
-        ValueTimestamp.parse(year + "-" + month + "-" + day + " " + hour + ":00:00");
+        ValueTimestamp.parse(year + "-" + month + "-" + day + " " + hour + ":00:00", null);
     }
 
     private void testAllTimeZones() throws SQLException {
         Connection conn = getConnection(getTestName());
         TimeZone defaultTimeZone = TimeZone.getDefault();
+        PreparedStatement prepTimeZone = conn.prepareStatement("SET TIME ZONE ?");
         PreparedStatement prep = conn.prepareStatement("CALL CAST(? AS DATE)");
         try {
             ArrayList<TimeZone> distinct = TestDate.getDistinctTimeZones();
@@ -182,15 +184,15 @@ public class TestDateStorage extends TestDb {
                     }
                 }
                 // println(tz.getID());
+                prepTimeZone.setString(1, tz.getID());
+                prepTimeZone.executeUpdate();
                 TimeZone.setDefault(tz);
-                DateTimeUtils.resetCalendar();
                 for (int d = 101; d < 129; d++) {
                     test(prep, d);
                 }
             }
         } finally {
             TimeZone.setDefault(defaultTimeZone);
-            DateTimeUtils.resetCalendar();
         }
         conn.close();
         deleteDb(getTestName());

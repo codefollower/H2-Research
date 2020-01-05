@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -149,7 +149,7 @@ public class IndexCondition {
         TreeSet<Value> valueSet = new TreeSet<>(session.getDatabase().getCompareMode());
         for (Expression e : expressionList) {
             Value v = e.getValue(session);
-            v = column.convert(v);
+            v = column.convert(session, v);
             valueSet.add(v);
         }
         Value[] array = valueSet.toArray(new Value[valueSet.size()]);

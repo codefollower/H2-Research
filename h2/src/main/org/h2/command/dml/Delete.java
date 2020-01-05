@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,10 +10,12 @@ import java.util.HashSet;
 import org.h2.api.Trigger;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
+import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
+import org.h2.expression.ExpressionVisitor;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultTarget;
 import org.h2.result.Row;
@@ -101,7 +103,7 @@ public class Delete extends Prepared implements DataChangeStatement {
                 limitRows = v.getInt();
             }
         }
-        try (RowList rows = new RowList(session)) {
+        try (RowList rows = new RowList(session, table)) {
             setCurrentRowNumber(0);
             int count = 0;
             //比如delete from DeleteTest limit 0，
@@ -111,7 +113,9 @@ public class Delete extends Prepared implements DataChangeStatement {
                 //condition.getBooleanValue(session)内部会取当前行与之比较，
                 //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
                 //然后在从当前行中按列id取当前行value数组中对应元素
-                if (condition == null || condition.getBooleanValue(session)) {
+                if (condition == null || condition.getBooleanValue(session)
+                        // the following is to support Oracle-style MERGE
+                        || (keysFilter != null && table.isMVStore())) {
                     Row row = targetTableFilter.get();
                     if (keysFilter == null || keysFilter.contains(row.getKey())) {
                         if (table.isMVStore()) {
@@ -252,4 +256,17 @@ public class Delete extends Prepared implements DataChangeStatement {
         return sourceTableFilter;
     }
 
+    @Override
+    public void collectDependencies(HashSet<DbObject> dependencies) {
+        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
+        if (condition != null) {
+            condition.isEverything(visitor);
+        }
+        if (sourceTableFilter != null) {
+            Select select = sourceTableFilter.getSelect();
+            if (select != null) {
+                select.isEverything(visitor);
+            }
+        }
+    }
 }

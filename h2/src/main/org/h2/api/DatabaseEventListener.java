@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,7 +12,7 @@ import java.util.EventListener;
  * A class that implements this interface can get notified about exceptions
  * and other events. A database event listener can be registered when
  * connecting to a database. Example database URL:
- * jdbc:h2:test;DATABASE_EVENT_LISTENER='com.acme.DbListener'
+ * jdbc:h2:./test;DATABASE_EVENT_LISTENER='com.acme.DbListener'
  */
 public interface DatabaseEventListener extends EventListener {
 

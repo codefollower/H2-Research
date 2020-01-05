@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,22 +15,22 @@ public class Constants {
     /**
      * The build date is updated for each public release.
      */
-    public static final String BUILD_DATE = "2019-03-13";
+    public static final String BUILD_DATE = "2019-10-14";
 
     /**
      * The build date of the last stable release.
      */
-    public static final String BUILD_DATE_STABLE = "2018-03-18";
+    public static final String BUILD_DATE_STABLE = "2019-03-13";
 
     /**
      * The build id is incremented for each public release.
      */
-    public static final int BUILD_ID = 199;
+    public static final int BUILD_ID = 200;
 
     /**
      * The build id of the last stable release.
      */
-    public static final int BUILD_ID_STABLE = 197;
+    public static final int BUILD_ID_STABLE = 199;
 
     /**
      * Whether this is a snapshot version.
@@ -106,6 +106,12 @@ public class Constants {
     public static final int TCP_PROTOCOL_VERSION_18 = 18;
 
     /**
+     * The TCP protocol version number 19.
+     * @since 1.4.200 (2019-10-14)
+     */
+    public static final int TCP_PROTOCOL_VERSION_19 = 19;
+
+    /**
      * Minimum supported version of TCP protocol.
      */
     public static final int TCP_PROTOCOL_VERSION_MIN_SUPPORTED = TCP_PROTOCOL_VERSION_9;
@@ -113,7 +119,7 @@ public class Constants {
     /**
      * Maximum supported version of TCP protocol.
      */
-    public static final int TCP_PROTOCOL_VERSION_MAX_SUPPORTED = TCP_PROTOCOL_VERSION_18;
+    public static final int TCP_PROTOCOL_VERSION_MAX_SUPPORTED = TCP_PROTOCOL_VERSION_19;
 
     /**
      * The major version of this database.
@@ -164,6 +170,11 @@ public class Constants {
      * texts).
      */
     public static final int ALLOW_LITERALS_NUMBERS = 1;
+
+    /**
+     * SNAPSHOT isolation level of transaction.
+     */
+    public static final int TRANSACTION_SNAPSHOT = 6;
 
     /**
      * Whether searching in Blob values should be supported.
@@ -550,44 +561,37 @@ public class Constants {
      */
     public static final String PG_VERSION = "8.2.23";
 
-    private Constants() {
-        // utility class
-    }
+    /**
+     * The version of this product, consisting of major version, minor
+     * version, and build id.
+     */
+    public static final String VERSION;
 
     /**
-     * Get the version of this product, consisting of major version, minor
-     * version, and build id.
-     *
-     * @return the version number
+     * The last stable version name.
      */
-    public static String getVersion() {
-        String version = VERSION_MAJOR + "." + VERSION_MINOR + "." + BUILD_ID;
+    public static final String VERSION_STABLE = "1.4." + BUILD_ID_STABLE;
+
+    /**
+     * The complete version number of this database, consisting of
+     * the major version, the minor version, the build id, and the build date.
+     */
+    public static final String FULL_VERSION;
+
+    static {
+        String version = VERSION_MAJOR + "." + VERSION_MINOR + '.' + BUILD_ID;
         if (BUILD_VENDOR_AND_VERSION != null) {
-            version += "_" + BUILD_VENDOR_AND_VERSION;
+            version += '_' + BUILD_VENDOR_AND_VERSION;
         }
         if (BUILD_SNAPSHOT) {
             version += "-SNAPSHOT";
         }
-        return version;
+        VERSION = version;
+        FULL_VERSION = version + (" (" + BUILD_DATE + ')');
     }
 
-    /**
-     * Get the last stable version name.
-     *
-     * @return the version number
-     */
-    public static Object getVersionStable() {
-        return "1.4." + BUILD_ID_STABLE;
-    }
-
-    /**
-     * Get the complete version number of this database, consisting of
-     * the major version, the minor version, the build id, and the build date.
-     *
-     * @return the complete version
-     */
-    public static String getFullVersion() {
-        return getVersion() + " (" + BUILD_DATE + ")";
+    private Constants() {
+        // utility class
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -225,7 +225,7 @@ public class PgServerThread implements Runnable {
                     ci.setBaseDir(baseDir);
                 }
                 if (server.getIfExists()) {
-                    ci.setProperty("IFEXISTS", "TRUE");
+                    ci.setProperty("FORBID_CREATION", "TRUE");
                 }
                 ci.setNetworkConnectionInfo(new NetworkConnectionInfo( //
                         NetUtils.ipToShortForm(new StringBuilder("pg://"), //
@@ -384,7 +384,7 @@ public class PgServerThread implements Runnable {
                 boolean result = prep.execute();
                 if (result) {
                     try {
-                        ResultSet rs = prep.getResultSet();
+                        JdbcResultSet rs = (JdbcResultSet) prep.getResultSet();
                         // the meta-data is sent in the prior 'Describe'
                         while (rs.next()) {
                             sendDataRow(rs, p.resultColumnFormat);
@@ -428,7 +428,7 @@ public class PgServerThread implements Runnable {
                     setActiveRequest(stat);
                     boolean result = stat.execute(s);
                     if (result) {
-                        ResultSet rs = stat.getResultSet();
+                        JdbcResultSet rs = (JdbcResultSet) stat.getResultSet();
                         ResultSetMetaData meta = rs.getMetaData();
                         try {
                             sendRowDescription(meta);
@@ -514,7 +514,7 @@ public class PgServerThread implements Runnable {
         sendMessage();
     }
 
-    private void sendDataRow(ResultSet rs, int[] formatCodes) throws IOException, SQLException {
+    private void sendDataRow(JdbcResultSet rs, int[] formatCodes) throws IOException, SQLException {
         ResultSetMetaData metaData = rs.getMetaData();
         int columns = metaData.getColumnCount();
         startMessage('D');
@@ -540,9 +540,9 @@ public class PgServerThread implements Runnable {
         return DateTimeUtils.absoluteDayFromDateValue(dateValue) - 10_957;
     }
 
-    private void writeDataColumn(ResultSet rs, int column, int pgType, boolean text)
-            throws IOException {
-        Value v = ((JdbcResultSet) rs).get(column);
+    private void writeDataColumn(JdbcResultSet rs, int column, int pgType, boolean text)
+            throws IOException, SQLException {
+        Value v = rs.get(column);
         if (v == ValueNull.INSTANCE) {
             writeInt(-1);
             return;
@@ -589,13 +589,13 @@ public class PgServerThread implements Runnable {
                 break;
             }
             case PgServer.PG_TYPE_DATE: {
-                ValueDate d = (ValueDate) v.convertTo(Value.DATE);
+                ValueDate d = (ValueDate) v.convertTo(Value.DATE, (JdbcConnection) rs.getStatement().getConnection());
                 writeInt(4);
                 writeInt((int) (toPostgreDays(d.getDateValue())));
                 break;
             }
             case PgServer.PG_TYPE_TIME: {
-                ValueTime t = (ValueTime) v.convertTo(Value.TIME);
+                ValueTime t = (ValueTime) v.convertTo(Value.TIME, (JdbcConnection) rs.getStatement().getConnection());
                 writeInt(8);
                 long m = t.getNanos();
                 if (INTEGER_DATE_TYPES) {
@@ -609,7 +609,8 @@ public class PgServerThread implements Runnable {
                 break;
             }
             case PgServer.PG_TYPE_TIMESTAMP_NO_TMZONE: {
-                ValueTimestamp t = (ValueTimestamp) v.convertTo(Value.TIMESTAMP);
+                ValueTimestamp t = (ValueTimestamp) v.convertTo(Value.TIMESTAMP,
+                        (JdbcConnection) rs.getStatement().getConnection());
                 writeInt(8);
                 long m = toPostgreDays(t.getDateValue()) * 86_400;
                 long nanos = t.getTimeNanos();

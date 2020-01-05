@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -156,12 +156,9 @@ public class TestStringCache extends TestBase {
         int threadCount = getSize(3, 100);
         Thread[] threads = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++) {
-            Thread t = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (!stop) {
-                        testString();
-                    }
+            Thread t = new Thread(() -> {
+                while (!stop) {
+                    testString();
                 }
             });
             threads[i] = t;

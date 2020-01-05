@@ -1,11 +1,12 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.upgrade;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -120,9 +121,8 @@ public class DbUpgrade {
         String script = null;
         try {
             if (scriptInTempDir) {
-                new File(Utils.getProperty("java.io.tmpdir", ".")).mkdirs();
-                script = File.createTempFile(
-                        "h2dbmigration", "backup.sql").getAbsolutePath();
+                Files.createDirectories(Paths.get(Utils.getProperty("java.io.tmpdir", ".")));
+                script = Files.createTempFile("h2dbmigration", "backup.sql").toAbsolutePath().toString();
             } else {
                 script = name + ".script.sql";
             }

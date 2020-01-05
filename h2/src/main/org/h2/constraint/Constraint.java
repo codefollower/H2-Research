@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,6 +8,7 @@ package org.h2.constraint;
 import java.util.HashSet;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
+import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.index.Index;
 import org.h2.message.Trace;
@@ -39,7 +40,11 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
         /**
          * The constraint type for referential constraints.
          */
-        REFERENTIAL;
+        REFERENTIAL,
+        /**
+         * The constraint type for domain constraints.
+         */
+        DOMAIN;
 
         /**
          * Get standard SQL type name.
@@ -66,7 +71,9 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
     Constraint(Schema schema, int id, String name, Table table) {
         super(schema, id, name, Trace.CONSTRAINT);
         this.table = table;
-        this.setTemporary(table.isTemporary());
+        if (table != null) {
+            this.setTemporary(table.isTemporary());
+        }
     }
 
     /**
@@ -111,6 +118,15 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
     public abstract HashSet<Column> getReferencedColumns(Table table);
 
     /**
+     * Returns the CHECK expression or null.
+     *
+     * @return the CHECK expression or null.
+     */
+    public Expression getExpression() {
+        return null;
+    }
+
+    /**
      * Get the SQL statement to create this constraint.
      *
      * @return the SQL statement
@@ -139,16 +155,22 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
     public abstract void rebuild();
 
     /**
-     * Get the unique index used to enforce this constraint, or null if no index
+     * Get the index of this constraint in the source table, or null if no index
      * is used.
      *
      * @return the index
      */
-    public abstract Index getUniqueIndex();
+    public Index getIndex() {
+        return null;
+    }
 
-    @Override
-    public void checkRename() {
-        // ok
+    /**
+     * Returns the referenced unique constraint, or null.
+     *
+     * @return the referenced unique constraint, or null
+     */
+    public ConstraintUnique getReferencedConstraint() {
+        return null;
     }
 
     @Override
@@ -165,11 +187,6 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
     }
 
     @Override
-    public String getDropSQL() {
-        return null;
-    }
-
-    @Override
     public int compareTo(Constraint other) {
         if (this == other) {
             return 0;
@@ -179,7 +196,7 @@ public abstract class Constraint extends SchemaObjectBase implements Comparable<
 
     @Override
     public boolean isHidden() {
-        return table.isHidden();
+        return table != null && table.isHidden();
     }
 
     /**

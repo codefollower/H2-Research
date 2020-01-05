@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -120,7 +120,10 @@ public class GrantRevoke extends DefineCommand {
         Database db = session.getDatabase();
         Right right = grantee.getRightForObject(object);
         if (right == null) {
-            int id = getObjectId();
+            int id = getPersistedObjectId();
+            if (id == 0) {
+                id = session.getDatabase().allocateObjectId();
+            }
             right = new Right(db, id, grantee, rightMask, object);
             grantee.grantRight(object, right);
             db.addDatabaseObject(session, right);
@@ -219,17 +222,4 @@ public class GrantRevoke extends DefineCommand {
         return operationType;
     }
 
-    /**
-     * @return true if this command is using Roles
-     */
-    public boolean isRoleMode() {
-        return roleNames != null;
-    }
-
-    /**
-     * @return true if this command is using Rights
-     */
-    public boolean isRightMode() {
-        return rightMask != 0;
-    }
 }

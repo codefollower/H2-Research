@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -282,7 +282,7 @@ public class SysProperties {
      * If enabled, use the reflection hack to un-map the mapped file if
      * possible. If disabled, System.gc() is called in a loop until the object
      * is garbage collected. See also
-     * http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4724038
+     * https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4724038
      */
     public static final boolean NIO_CLEANER_HACK =
             Utils.getProperty("h2.nioCleanerHack", false);
@@ -347,27 +347,6 @@ public class SysProperties {
     public static final boolean BIG_DECIMAL_IS_DECIMAL = Utils.getProperty("h2.bigDecimalIsDecimal", !PREVIEW);
 
     /**
-     * System property {@code h2.returnOffsetDateTime}, {@code false} by default
-     * unless {@code h2.preview} is enabled.
-     * <p>
-     * If {@code true} {@link java.sql.ResultSet#getObject(int)} and
-     * {@link java.sql.ResultSet#getObject(String)} return
-     * {@code TIMESTAMP WITH TIME ZONE} values as
-     * {@code java.time.OffsetDateTime}.
-     * </p>
-     * <p>
-     * If {@code false} return them as {@code org.h2.api.TimestampWithTimeZone}
-     * instead.
-     * </p>
-     * <p>
-     * This property has effect only on Java 8 / Android API 26 and later
-     * versions. Without JSR-310 {@code org.h2.api.TimestampWithTimeZone} is
-     * used unconditionally.
-     * </p>
-     */
-    public static final boolean RETURN_OFFSET_DATE_TIME = Utils.getProperty("h2.returnOffsetDateTime", PREVIEW);
-
-    /**
      * System property <code>h2.pgClientEncoding</code> (default: UTF-8).<br />
      * Default client encoding for PG server. It is used if the client does not
      * sends his encoding.
@@ -408,7 +387,7 @@ public class SysProperties {
      * System property <code>h2.socketConnectRetry</code> (default: 16).<br />
      * The number of times to retry opening a socket. Windows sometimes fails
      * to open a socket, see bug
-     * http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6213296
+     * https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6213296
      */
     public static final int SOCKET_CONNECT_RETRY =
             Utils.getProperty("h2.socketConnectRetry", 16);
@@ -455,19 +434,6 @@ public class SysProperties {
      */
     public static final long SPLIT_FILE_SIZE_SHIFT =
             Utils.getProperty("h2.splitFileSizeShift", 30);
-
-    /**
-     * System property <code>h2.syncMethod</code> (default: sync).<br />
-     * What method to call when closing the database, on checkpoint, and on
-     * CHECKPOINT SYNC. The following options are supported:
-     * "sync" (default): RandomAccessFile.getFD().sync();
-     * "force": RandomAccessFile.getChannel().force(true);
-     * "forceFalse": RandomAccessFile.getChannel().force(false);
-     * "": do not call a method (fast but there is a risk of data loss
-     * on power failure).
-     */
-    public static final String SYNC_METHOD =
-            Utils.getProperty("h2.syncMethod", "sync");
 
     /**
      * System property <code>h2.traceIO</code> (default: false).<br />
@@ -553,16 +519,6 @@ public class SysProperties {
      */
     public static final String JAVA_OBJECT_SERIALIZER =
             Utils.getProperty("h2.javaObjectSerializer", null);
-
-    /**
-     * System property <code>h2.customDataTypesHandler</code>
-     * (default: null).<br />
-     * The CustomDataTypesHandler class name that is used
-     * to provide support for user defined custom data types.
-     * It must be the same on client and server to work correctly.
-     */
-    public static final String CUSTOM_DATA_TYPES_HANDLER =
-            Utils.getProperty("h2.customDataTypesHandler", null);
 
     /**
      * System property <code>h2.authConfigFile</code>

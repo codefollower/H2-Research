@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -50,7 +50,7 @@ public class MixedMode {
         try {
             while (true) {
                 // runs forever, except if you drop the table remotely
-                stat.execute("MERGE INTO TIMER VALUES(1, NOW())");
+                stat.execute("MERGE INTO TIMER VALUES(1, LOCALTIME)");
                 Thread.sleep(1000);
             }
         } catch (SQLException e) {

@@ -1,30 +1,27 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 select 1000L / 10;
 >> 100
 
-select * from (select x as y from dual order by y);
->> 1
-
-select a.x from dual a, dual b order by x;
+select * from (select 1 as y from dual order by y);
 >> 1
 
 select 1 from(select 2 from(select 1) a right join dual b) c;
 >> 1
 
 select 1.00 / 3 * 0.00;
->> 0E-29
+>> 0E-24
 
 select 1.00000 / 3 * 0.0000;
->> 0E-34
+>> 0E-29
 
 select 1.0000000 / 3 * 0.00000;
->> 0E-37
+>> 0E-32
 
 select 1.0000000 / 3 * 0.000000;
->> 0E-38
+>> 0E-33
 
 create table test(id null);
 > ok
@@ -77,44 +74,8 @@ delete from a;
 drop table a, b;
 > ok
 
-create table test(a int, b int) as select 2, 0;
-> ok
-
-create index idx on test(b, a);
-> ok
-
-select count(*) from test where a in(2, 10) and b in(0, null);
->> 1
-
-drop table test;
-> ok
-
-create table test(a int, b int) as select 1, 0;
-> ok
-
-create index idx on test(b, a);
-> ok
-
-select count(*) from test where b in(null, 0) and a in(1, null);
->> 1
-
-drop table test;
-> ok
-
 create cached temp table test(id identity) not persistent;
 > ok
-
-drop table test;
-> ok
-
-create table test(a int, b int, unique(a, b));
-> ok
-
-insert into test values(1,1), (1,2);
-> update count: 2
-
-select count(*) from test where a in(1,2) and b in(1,2);
->> 2
 
 drop table test;
 > ok
@@ -358,25 +319,10 @@ delete from test2;
 drop table test2;
 > ok
 
-SELECT X FROM dual GROUP BY X HAVING X=AVG(X);
->> 1
-
-create view test_view(id,) as select * from dual;
+create view test_view(id) as select * from dual;
 > ok
 
 drop view test_view;
-> ok
-
-create table test(id int,);
-> ok
-
-insert into test(id,) values(1,);
-> update count: 1
-
-merge into test(id,) key(id,) values(1,);
-> update count: 1
-
-drop table test;
 > ok
 
 SET MODE DB2;
@@ -559,9 +505,6 @@ ALTER TABLE TEST DROP B;
 DROP TABLE TEST;
 > ok
 
-select count(d.*) from dual d group by d.x;
->> 1
-
 create table test(id int);
 > ok
 
@@ -584,12 +527,6 @@ drop table test;
 
 select replace(lpad('string', 10), ' ', '*');
 >> ****string
-
-select count(*) from (select * from dual union select * from dual) where x = 0;
->> 0
-
-select count(*) from (select * from (select * from dual union select * from dual)) where x = 0;
->> 0
 
 select instr('abcisj','s', -1) from dual;
 >> 5
@@ -626,35 +563,6 @@ SELECT NAME FROM TEST WHERE NAME REGEXP 'WorldW';
 
 drop table test;
 > ok
-
-select * from (select x from (select x from dual)) where 1=x;
->> 1
-
-CREATE VIEW TEST_VIEW AS SELECT X FROM (SELECT X FROM DUAL);
-> ok
-
-SELECT * FROM TEST_VIEW;
->> 1
-
-SELECT * FROM TEST_VIEW;
->> 1
-
-DROP VIEW TEST_VIEW;
-> ok
-
-SELECT X FROM (SELECT X, X AS "XY" FROM DUAL) WHERE X=1;
->> 1
-
-SELECT X FROM (SELECT X, X AS "X Y" FROM DUAL) WHERE X=1;
->> 1
-
-SELECT X FROM (SELECT X, X AS "X Y" FROM DUAL AS "D Z") WHERE X=1;
->> 1
-
-select * from (select x from dual union select convert(x, int) from dual) where x=0;
-> X
-> -
-> rows: 0
 
 create table test(id int);
 > ok
@@ -735,7 +643,10 @@ drop table test;
 > ok
 
 select * from dual where 'a_z' like '%=_%' escape '=';
->> 1
+>
+>
+>
+> rows: 1
 
 create table test as select 1 from dual union all select 2 from dual;
 > ok
@@ -924,7 +835,7 @@ select date '+0011-01-01';
 >> 0011-01-01
 
 select date'-0010-01-01';
->> -10-01-01
+>> -0010-01-01
 
 create schema TEST_SCHEMA;
 > ok
@@ -936,9 +847,12 @@ create sequence TEST_SCHEMA.TEST_SEQ;
 > ok
 
 select TEST_SCHEMA.TEST_SEQ.CURRVAL;
->> 0
+> exception CURRENT_SEQUENCE_VALUE_IS_NOT_DEFINED_IN_SESSION_1
 
 select TEST_SCHEMA.TEST_SEQ.nextval;
+>> 1
+
+select TEST_SCHEMA.TEST_SEQ.CURRVAL;
 >> 1
 
 drop schema TEST_SCHEMA cascade;
@@ -1103,7 +1017,7 @@ comment on constraint const1 is 'unique id';
 comment on index IDX_ID is 'id_index';
 > ok
 
-select remarks from information_schema.constraints where constraint_name = 'CONST1';
+select remarks from information_schema.table_constraints where constraint_name = 'CONST1';
 >> unique id
 
 select remarks from information_schema.indexes where index_name = 'IDX_ID';
@@ -1111,7 +1025,7 @@ select remarks from information_schema.indexes where index_name = 'IDX_ID';
 
 @reconnect
 
-select remarks from information_schema.constraints where constraint_name = 'CONST1';
+select remarks from information_schema.table_constraints where constraint_name = 'CONST1';
 >> unique id
 
 select remarks from information_schema.indexes where index_name = 'IDX_ID';

@@ -1,22 +1,23 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.indexer;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.StringTokenizer;
-import org.h2.util.IOUtils;
 import org.h2.util.StringUtils;
 
 /**
@@ -70,7 +71,7 @@ public class Indexer {
                 destDir = args[++i];
             }
         }
-        File file = new File(dir);
+        Path directory = Paths.get(dir);
         setNoIndex("index.html", "html/header.html", "html/search.html",
                 "html/frame.html", "html/fragments.html",
                 "html/sourceError.html", "html/source.html",
@@ -79,8 +80,14 @@ public class Indexer {
                 "javadoc/allclasses-noframe.html",
                 "javadoc/constant-values.html", "javadoc/overview-frame.html",
                 "javadoc/overview-summary.html", "javadoc/serialized-form.html");
-        output = new PrintWriter(new FileWriter(destDir + "/index.js"));
-        readPages("", file, 0);
+        output = new PrintWriter(Files.newBufferedWriter(Paths.get(destDir + "/index.js")));
+        Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                readPages(directory.relativize(file).toString().replace('\\', '/'), file);
+                return FileVisitResult.CONTINUE;
+            }
+        });
         output.println("var pages=new Array();");
         output.println("var ref=new Array();");
         output.println("var ignored='';");
@@ -135,12 +142,7 @@ public class Indexer {
         ignored = ignoredBuff.toString();
         // TODO support A, B, C,... class links in the index file and use them
         // for combined AND searches
-        Collections.sort(wordList, new Comparator<Word>() {
-            @Override
-            public int compare(Word w0, Word w1) {
-                return w0.name.compareToIgnoreCase(w1.name);
-            }
-        });
+        wordList.sort((w0, w1) -> w0.name.compareToIgnoreCase(w1.name));
     }
 
     private void removeOverflowRelations() {
@@ -165,12 +167,7 @@ public class Indexer {
     }
 
     private void sortPages() {
-        Collections.sort(pages, new Comparator<Page>() {
-            @Override
-            public int compare(Page p0, Page p1) {
-                return Integer.compare(p1.relations, p0.relations);
-            }
-        });
+        pages.sort((p0, p1) -> Integer.compare(p1.relations, p0.relations));
         for (int i = 0; i < pages.size(); i++) {
             pages.get(i).id = i;
         }
@@ -183,20 +180,9 @@ public class Indexer {
         }
     }
 
-    private void readPages(String dir, File file, int level) throws Exception {
-        String name = file.getName();
-        String fileName = dir.length() > 0 ? dir + "/" + name : level > 0 ? name : "";
-        if (file.isDirectory()) {
-            for (File f : file.listFiles()) {
-                readPages(fileName, f, level + 1);
-            }
-            return;
-        }
-        String lower = StringUtils.toLowerEnglish(name);
+    void readPages(String fileName, Path file) throws IOException {
+        String lower = StringUtils.toLowerEnglish(fileName);
         if (!lower.endsWith(".html") && !lower.endsWith(".htm")) {
-            return;
-        }
-        if (lower.contains("_ja.")) {
             return;
         }
         if (!noIndex.contains(fileName)) {
@@ -255,9 +241,8 @@ public class Indexer {
         output.println("ignored='" + ignored.toLowerCase() + "';");
     }
 
-    private void readPage(File file) throws Exception {
-        byte[] data = IOUtils.readBytesAndClose(new FileInputStream(file), 0);
-        String text = new String(data, StandardCharsets.UTF_8);
+    private void readPage(Path file) throws IOException {
+        String text = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
         StringTokenizer t = new StringTokenizer(text, "<> \r\n", true);
         boolean inTag = false;
         title = false;
@@ -312,8 +297,9 @@ public class Indexer {
         }
 
         if (page.title == null || page.title.trim().length() == 0) {
-            System.out.println("Error: not title found in " + file.getName());
-            page.title = file.getName();
+            String title = file.getFileName().toString();
+            System.out.println("Error: not title found in " + title);
+            page.title = title;
         }
         page.title = page.title.trim();
     }

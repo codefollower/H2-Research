@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
-import org.h2.command.Prepared;
 import org.h2.command.dml.AllColumnsForPlan;
 import org.h2.command.dml.Query;
 import org.h2.command.dml.SelectUnion;
@@ -26,7 +25,6 @@ import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
 import org.h2.table.Column;
 import org.h2.table.IndexColumn;
-import org.h2.table.JoinBatch;
 import org.h2.table.TableFilter;
 import org.h2.table.TableView;
 import org.h2.util.IntArray;
@@ -107,15 +105,6 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
         // because the whole ViewIndex cache is getting dropped in
         // Session.prepareLocal
         evaluatedAt = recursive || view.getTopQuery() != null ? Long.MAX_VALUE : System.nanoTime();
-    }
-
-    @Override
-    public IndexLookupBatch createLookupBatch(TableFilter[] filters, int filter) {
-        if (recursive) {
-            // we do not support batching for recursive queries
-            return null;
-        }
-        return JoinBatch.createViewIndexLookupBatch(this);
     }
 
     public Session getSession() {
@@ -252,21 +241,8 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     }
 
     @Override
-    public Cursor findByGeometry(TableFilter filter, SearchRow first,
-            SearchRow last, SearchRow intersection) {
-        return find(filter.getSession(), first, last, intersection);
-    }
-
-    private static Query prepareSubQuery(String sql, Session session, int[] masks,
-            TableFilter[] filters, int filter, SortOrder sortOrder) {
-        Prepared p;
-        session.pushSubQueryInfo(masks, filters, filter, sortOrder);
-        try {
-            p = session.prepare(sql, true, true);
-        } finally {
-            session.popSubQueryInfo();
-        }
-        return (Query) p;
+    public Cursor findByGeometry(Session session, SearchRow first, SearchRow last, SearchRow intersection) {
+        return find(session, first, last, intersection);
     }
 
     private Cursor findRecursive(SearchRow first, SearchRow last) {
@@ -426,7 +402,7 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     // 比如在org.h2.command.dml.Select.prepare()中就有应用(cost = preparePlan那行代码之后)
     private Query getQuery(Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder) {
-        Query q = prepareSubQuery(querySQL, session, masks, filters, filter, sortOrder);
+        Query q = (Query) session.prepare(querySQL, true, true);
         if (masks == null) {
             return q;
         }
@@ -522,16 +498,15 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
                         continue;
                     }
                 }
-                IndexColumn c = new IndexColumn();
-                c.column = table.getColumn(i);
-                indexColumns[indexColumnId] = c;
-                columnIds[indexColumnId] = c.column.getColumnId();
+                Column column = table.getColumn(i);
+                indexColumns[indexColumnId] = new IndexColumn(column);
+                columnIds[indexColumnId] = column.getColumnId();
                 indexColumnId++;
             }
         }
 
         String sql = q.getPlanSQL(true);
-        q = prepareSubQuery(sql, session, masks, filters, filter, sortOrder);
+        q = (Query) session.prepare(sql, true, true);
         return q;
     }
 
@@ -553,16 +528,6 @@ public class ViewIndex extends BaseIndex implements SpatialIndex {
     @Override
     public boolean needRebuild() {
         return false;
-    }
-
-    @Override
-    public boolean canGetFirstOrLast() {
-        return false;
-    }
-
-    @Override
-    public Cursor findFirstOrLast(Session session, boolean first) {
-        throw DbException.getUnsupportedException("VIEW");
     }
 
     public void setRecursive(boolean value) {

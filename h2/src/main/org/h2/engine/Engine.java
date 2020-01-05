@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,8 +16,6 @@ import org.h2.message.Trace;
 import org.h2.security.auth.AuthenticationException;
 import org.h2.security.auth.AuthenticationInfo;
 import org.h2.security.auth.Authenticator;
-import org.h2.store.FileLock;
-import org.h2.store.FileLockMethod;
 import org.h2.util.MathUtils;
 import org.h2.util.ParserUtil;
 import org.h2.util.ThreadDeadlockDetector;
@@ -49,12 +47,12 @@ public class Engine implements SessionFactory {
     public static Engine getInstance() {
         return INSTANCE;
     }
-    
+
     //调用顺序: 5
     //验证用户名和密码，如果是第一个用户则设为admin
-    private Session openSession(ConnectionInfo ci, boolean ifExists, String cipher) {
     	//如果设置了h2.baseDir，如:System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
     	//那么name就包含了h2.baseDir，否则就是当前工作目录
+    private Session openSession(ConnectionInfo ci, boolean ifExists, boolean forbidCreation, String cipher) {
         String name = ci.getName();
         Database database;
         ci.removeProperty("NO_UPGRADE", false);
@@ -68,8 +66,15 @@ public class Engine implements SessionFactory {
                 database = DATABASES.get(name);
             }
             if (database == null) {
-                if (ifExists && !Database.exists(name)) {
-                    throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_2, name);
+                String p;
+                if (!ci.isPersistent() || !((p = ci.getProperty("MV_STORE")) == null ? Database.exists(name)
+                        : Database.exists(name, Utils.parseBoolean(p, true, false)))) {
+                    if (ifExists) {
+                        throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1, name);
+                    }
+                    if (forbidCreation) {
+                        throw DbException.get(ErrorCode.REMOTE_DATABASE_NOT_FOUND_1, name);
+                    }
                 }
                 database = new Database(ci, cipher);
                 opened = true;
@@ -172,24 +177,28 @@ public class Engine implements SessionFactory {
     //调用顺序: 3
     private Session createSessionAndValidate(ConnectionInfo ci) {
         try {
-            ConnectionInfo backup = null;
-            String lockMethodName = ci.getProperty("FILE_LOCK", null);
-            //默认是FileLock.LOCK_FILE
-            FileLockMethod fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
-            if (fileLockMethod == FileLockMethod.SERIALIZED) {
-                // In serialized mode, database instance sharing is not possible
-                ci.setProperty("OPEN_NEW", "TRUE");
-                try {
-                    backup = ci.clone();
-                } catch (CloneNotSupportedException e) {
-                    throw DbException.convert(e);
-                }
-            }
-            Session session = openSession(ci); //ci的内部会变化
+//<<<<<<< HEAD
+//            ConnectionInfo backup = null;
+//            String lockMethodName = ci.getProperty("FILE_LOCK", null);
+//            //默认是FileLock.LOCK_FILE
+//            FileLockMethod fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
+//            if (fileLockMethod == FileLockMethod.SERIALIZED) {
+//                // In serialized mode, database instance sharing is not possible
+//                ci.setProperty("OPEN_NEW", "TRUE");
+//                try {
+//                    backup = ci.clone();
+//                } catch (CloneNotSupportedException e) {
+//                    throw DbException.convert(e);
+//                }
+//            }
+//            Session session = openSession(ci); //ci的内部会变化
+//            validateUserAndPassword(true);
+//            if (backup != null) {
+//                session.setConnectionInfo(backup); //使用最初的ci
+//            }
+//=======
+            Session session = openSession(ci);
             validateUserAndPassword(true);
-            if (backup != null) {
-                session.setConnectionInfo(backup); //使用最初的ci
-            }
             return session;
         } catch (DbException e) {
             if (e.getErrorCode() == ErrorCode.WRONG_USER_OR_PASSWORD) {
@@ -203,6 +212,7 @@ public class Engine implements SessionFactory {
     //执行SET和INIT参数中指定的SQL
     private synchronized Session openSession(ConnectionInfo ci) {
         boolean ifExists = ci.removeProperty("IFEXISTS", false);
+        boolean forbidCreation = ci.removeProperty("FORBID_CREATION", false);
         boolean ignoreUnknownSetting = ci.removeProperty(
                 "IGNORE_UNKNOWN_SETTINGS", false);
         String cipher = ci.removeProperty("CIPHER", null);
@@ -210,7 +220,7 @@ public class Engine implements SessionFactory {
         Session session;
         long start = System.nanoTime();
         for (;;) {
-            session = openSession(ci, ifExists, cipher);
+            session = openSession(ci, ifExists, forbidCreation, cipher);
             if (session != null) {
                 break;
             }
@@ -229,7 +239,7 @@ public class Engine implements SessionFactory {
         }
         synchronized (session) {
             session.setAllowLiterals(true);
-            DbSettings defaultSettings = DbSettings.getDefaultSettings();
+            DbSettings defaultSettings = DbSettings.DEFAULT;
             for (String setting : ci.getKeys()) {
                 if (defaultSettings.containsKey(setting)) {
                     // database setting are only used when opening the database
@@ -237,7 +247,7 @@ public class Engine implements SessionFactory {
                 }
                 //connection相关的参数在org.h2.command.Parser.parseSet()中被转成NoOperation
                 String value = ci.getProperty(setting);
-                if (!ParserUtil.isSimpleIdentifier(setting, false, false)) {
+                if (!ParserUtil.isSimpleIdentifier(setting, false, false) && !setting.equalsIgnoreCase("TIME ZONE")) {
                     throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, setting);
                 }
                 try {

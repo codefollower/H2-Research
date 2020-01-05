@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,7 +30,7 @@ public class ResultWithPaddedStrings implements ResultInterface {
     public static ResultInterface get(ResultInterface source) {
         int count = source.getVisibleColumnCount();
         for (int i = 0; i < count; i++) {
-            if (source.getColumnType(i).getValueType() == Value.STRING_FIXED) {
+            if (source.getColumnType(i).getValueType() == Value.CHAR) {
                 return new ResultWithPaddedStrings(source);
             }
         }
@@ -58,7 +58,7 @@ public class ResultWithPaddedStrings implements ResultInterface {
         Value[] row = Arrays.copyOf(source.currentRow(), count);
         for (int i = 0; i < count; i++) {
             TypeInfo type = source.getColumnType(i);
-            if (type.getValueType() == Value.STRING_FIXED) {
+            if (type.getValueType() == Value.CHAR) {
                 long precision = type.getPrecision();
                 if (precision == Integer.MAX_VALUE) {
                     // CHAR is CHAR(1)

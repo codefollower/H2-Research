@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -127,6 +127,12 @@ public class TestKeywords extends TestBase {
                         try (ResultSet rs = stat.executeQuery("SELECT TRIM(" + s + " FROM '--a--') FROM TEST")) {
                             assertTrue(rs.next());
                             str = rs.getString(1);
+                        }
+                        stat.execute("DROP TABLE TEST");
+                        stat.execute("CREATE TABLE TEST(" + s + " INT) AS (VALUES 10)");
+                        try (ResultSet rs = stat.executeQuery("SELECT " + s + " V FROM TEST")) {
+                            assertTrue(rs.next());
+                            assertEquals(10, rs.getInt(1));
                         }
                         stat.execute("DROP TABLE TEST");
                         try (ResultSet rs = stat

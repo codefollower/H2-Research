@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -65,7 +65,7 @@ public class Wildcard extends Expression {
             if (column == null) {
                 throw ec.getColumnException(ErrorCode.COLUMN_NOT_FOUND_1);
             }
-            if (exceptTableColumns.put(column, ec) != null) {
+            if (exceptTableColumns.putIfAbsent(column, ec) != null) {
                 throw ec.getColumnException(ErrorCode.DUPLICATE_COLUMN_NAME_1);
             }
         }

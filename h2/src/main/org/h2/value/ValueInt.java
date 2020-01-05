@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,6 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 import org.h2.api.ErrorCode;
+import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 
 /**
@@ -101,7 +102,7 @@ public class ValueInt extends Value {
     }
 
     @Override
-    public Value divide(Value v) {
+    public Value divide(Value v, long divisorPrecision) {
         int y = ((ValueInt) v).value;
         if (y == 0) {
             throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getSQL());
@@ -148,7 +149,7 @@ public class ValueInt extends Value {
     }
 
     @Override
-    public int compareTypeSafe(Value o, CompareMode mode) {
+    public int compareTypeSafe(Value o, CompareMode mode, CastDataProvider provider) {
         return Integer.compare(value, ((ValueInt) o).value);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,42 +14,33 @@ import java.util.NoSuchElementException;
  * @param <K> the key type
  * @param <V> the value type
  */
-//<<<<<<< HEAD
-//public class Cursor<K, V> implements Iterator<K> { //深度优先，然后到右边的同节点中的记录，接着过渡到父节点，父节点的右节点...
-//
-//    private final MVMap<K, ?> map;
-//    private final K from;
-//    private CursorPos pos;
-//    private K current, last;
-//    private V currentValue, lastValue;
-//=======
-public class Cursor<K, V> implements Iterator<K> {
+//深度优先，然后到右边的同节点中的记录，接着过渡到父节点，父节点的右节点...
+public final class Cursor<K,V> implements Iterator<K> {
     private final K to;
-    private CursorPos cursorPos;
-    private CursorPos keeper;
+    private CursorPos<K,V> cursorPos;
+    private CursorPos<K,V> keeper;
     private K current;
     private K last;
     private V lastValue;
-    private Page lastPage;
+    private Page<K,V> lastPage;
 
-    public Cursor(Page root, K from) {
+    public Cursor(Page<K,V> root, K from) {
         this(root, from, null);
     }
 
-    public Cursor(Page root, K from, K to) {
+    public Cursor(Page<K,V> root, K from, K to) {
         this.cursorPos = traverseDown(root, from);
         this.to = to;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public boolean hasNext() {
         if (cursorPos != null) {
             while (current == null) {
-                Page page = cursorPos.page;
+                Page<K,V> page = cursorPos.page;
                 int index = cursorPos.index;
                 if (index >= (page.isLeaf() ? page.getKeyCount() : page.map.getChildPageCount(page))) {
-                    CursorPos tmp = cursorPos;
+                    CursorPos<K,V> tmp = cursorPos;
                     cursorPos = cursorPos.parent;
                     tmp.parent = keeper;
                     keeper = tmp;
@@ -61,9 +52,9 @@ public class Cursor<K, V> implements Iterator<K> {
                     while (!page.isLeaf()) {
                         page = page.getChildPage(index);
                         if (keeper == null) {
-                            cursorPos = new CursorPos(page, 0, cursorPos);
+                            cursorPos = new CursorPos<>(page, 0, cursorPos);
                         } else {
-                            CursorPos tmp = keeper;
+                            CursorPos<K,V> tmp = keeper;
                             keeper = keeper.parent;
                             tmp.parent = cursorPos;
                             tmp.page = page;
@@ -72,13 +63,15 @@ public class Cursor<K, V> implements Iterator<K> {
                         }
                         index = 0;
                     }
-                    K key = (K) page.getKey(index);
-                    if (to != null && page.map.getKeyType().compare(key, to) > 0) {
-                        return false;
+                    if (index < page.getKeyCount()) {
+                        K key = page.getKey(index);
+                        if (to != null && page.map.getKeyType().compare(key, to) > 0) {
+                            return false;
+                        }
+                        current = last = key;
+                        lastValue = page.getValue(index);
+                        lastPage = page;
                     }
-                    current = last = key;
-                    lastValue = (V) page.getValue(index);
-                    lastPage = page;
                 }
                 ++cursorPos.index;
             }
@@ -118,7 +111,8 @@ public class Cursor<K, V> implements Iterator<K> {
      *
      * @return the page
      */
-    Page getPage() {
+    @SuppressWarnings("unused")
+    Page<K,V> getPage() {
         return lastPage;
     }
 
@@ -135,22 +129,15 @@ public class Cursor<K, V> implements Iterator<K> {
             }
         } else if(hasNext()) {
             assert cursorPos != null;
-            CursorPos cp = cursorPos;
-            CursorPos parent;
+            CursorPos<K,V> cp = cursorPos;
+            CursorPos<K,V> parent;
             while ((parent = cp.parent) != null) cp = parent;
-            Page root = cp.page;
-            @SuppressWarnings("unchecked")
-            MVMap<K, ?> map = (MVMap<K, ?>) root.map;
+            Page<K,V> root = cp.page;
+            MVMap<K,V> map = root.map;
             long index = map.getKeyIndex(next());
             last = map.getKey(index + n);
             this.cursorPos = traverseDown(root, last);
         }
-    }
-
-    @Override
-    public void remove() {
-        throw DataUtils.newUnsupportedOperationException(
-                "Removal is not supported");
     }
 
     /**
@@ -160,35 +147,39 @@ public class Cursor<K, V> implements Iterator<K> {
      * @param p the page to start from
      * @param key the key to search, null means search for the first key
      */
-    private static CursorPos traverseDown(Page p, Object key) {
 //<<<<<<< HEAD
-//        CursorPos cursorPos = null;
-//        while (!p.isLeaf()) {
-//            assert p.getKeyCount() > 0;
-//            int index = 0;
-//            if(key != null) {
-//                index = p.binarySearch(key) + 1;
-//                if (index < 0) {
-//                    index = -index;
-//                }
-//            }
+//    private static CursorPos traverseDown(Page p, Object key) {
 ////<<<<<<< HEAD
-////            //遍历完当前leaf page后，就转到parent page，然后就到右边的第一个兄弟page，
-////            //所以要x+1
-////            pos = new CursorPos(p, x + 1, pos); 
-////            p = p.getChildPage(x);
+////        CursorPos cursorPos = null;
+////        while (!p.isLeaf()) {
+////            assert p.getKeyCount() > 0;
+////            int index = 0;
+////            if(key != null) {
+////                index = p.binarySearch(key) + 1;
+////                if (index < 0) {
+////                    index = -index;
+////                }
+////            }
+//////<<<<<<< HEAD
+//////            //遍历完当前leaf page后，就转到parent page，然后就到右边的第一个兄弟page，
+//////            //所以要x+1
+//////            pos = new CursorPos(p, x + 1, pos); 
+//////            p = p.getChildPage(x);
+//////=======
+////            cursorPos = new CursorPos(p, index, cursorPos);
+////            p = p.getChildPage(index);
+////        }
+////        int index = 0;
+////        if(key != null) {
+////            index = p.binarySearch(key);
+////            if (index < 0) {
+////                index = -index - 1;
+////            }
 ////=======
-//            cursorPos = new CursorPos(p, index, cursorPos);
-//            p = p.getChildPage(index);
-//        }
-//        int index = 0;
-//        if(key != null) {
-//            index = p.binarySearch(key);
-//            if (index < 0) {
-//                index = -index - 1;
-//            }
+//        CursorPos cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
 //=======
-        CursorPos cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
+    private static <K,V> CursorPos<K,V> traverseDown(Page<K,V> p, K key) {
+        CursorPos<K,V> cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
         if (cursorPos.index < 0) {
             cursorPos.index = -cursorPos.index - 1; 
         }

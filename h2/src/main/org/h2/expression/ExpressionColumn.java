@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -79,7 +79,7 @@ public class ExpressionColumn extends Expression {
         }
         if (column != null) {
             if (columnResolver != null && columnResolver.hasDerivedColumnList()) {
-                Parser.quoteIdentifier(builder, columnName, alwaysQuote);
+                Parser.quoteIdentifier(builder, columnResolver.getColumnName(column), alwaysQuote);
             } else {
                 column.getSQL(builder, alwaysQuote);
             }
@@ -118,19 +118,14 @@ public class ExpressionColumn extends Expression {
             }
             return;
         }
-        for (Column col : resolver.getColumns()) {
-            String n = resolver.getColumnName(col);
-            if (database.equalsIdentifiers(columnName, n)) {
-                mapColumn(resolver, col, level);
-                if (resolver.hasDerivedColumnList()) {
-                    columnName = n;
-                }
-                return;
-            }
+        Column col = resolver.findColumn(columnName);
+        if (col != null) {
+            mapColumn(resolver, col, level);
+            return;
         }
         Column[] columns = resolver.getSystemColumns();
         for (int i = 0; columns != null && i < columns.length; i++) {
-            Column col = columns[i];
+            col = columns[i];
             if (database.equalsIdentifiers(columnName, col.getName())) {
                 mapColumn(resolver, col, level);
                 return;
@@ -232,7 +227,7 @@ public class ExpressionColumn extends Expression {
 //=======
             groupData.setCurrentGroupExprData(this, columnResolver.getValue(column));
         } else if (!select.isGroupWindowStage2()) {
-            if (!database.areEqual(columnResolver.getValue(column), v)) {
+            if (!session.areEqual(columnResolver.getValue(column), v)) {
                 throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
             }
         }
@@ -267,7 +262,7 @@ public class ExpressionColumn extends Expression {
         if (value != ValueNull.INSTANCE) {
             ExtTypeInfo extTypeInfo = column.getType().getExtTypeInfo();
             if (extTypeInfo != null) {
-                return extTypeInfo.cast(value);
+                return extTypeInfo.cast(value, session);
             }
         }
         return value;
@@ -296,7 +291,13 @@ public class ExpressionColumn extends Expression {
 
     @Override
     public String getColumnName() {
-        return columnName != null ? columnName : column.getName();
+        if (column != null) {
+            if (columnResolver != null) {
+                return columnResolver.getColumnName(column);
+            }
+            return column.getName();
+        }
+        return columnName;
     }
 
     @Override
@@ -320,7 +321,7 @@ public class ExpressionColumn extends Expression {
             return column.getName();
         }
         if (tableAlias != null) {
-            return tableAlias + "." + columnName;
+            return tableAlias + '.' + columnName;
         }
         return columnName;
     }
@@ -406,7 +407,7 @@ public class ExpressionColumn extends Expression {
 
     @Override
     public Expression getNotIfPossible(Session session) {
-        return new Comparison(session, Comparison.EQUAL, this, ValueExpression.getBoolean(false));
+        return new Comparison(Comparison.EQUAL, this, ValueExpression.FALSE);
     }
 
 }

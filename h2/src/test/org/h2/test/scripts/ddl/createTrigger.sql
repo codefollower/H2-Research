@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -38,6 +38,37 @@ CREATE TRIGGER T1 BEFORE INSERT, UPDATE ON TEST FOR EACH ROW CALL "org.h2.test.s
 
 INSERT INTO TEST VALUES ('a', 'b', 'c');
 > exception ERROR_EXECUTING_TRIGGER_3
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(A VARCHAR, B VARCHAR, C INT);
+> ok
+
+CREATE TRIGGER T1 BEFORE INSERT ON TEST FOR EACH ROW CALL "org.h2.test.scripts.Trigger1";
+> ok
+
+INSERT INTO TEST VALUES ('1', 'a', 1);
+> update count: 1
+
+DROP TRIGGER T1;
+> ok
+
+CREATE TRIGGER T1 BEFORE INSERT ON TEST FOR EACH STATEMENT CALL "org.h2.test.scripts.Trigger1";
+> ok
+
+INSERT INTO TEST VALUES ('2', 'b', 2);
+> update count: 1
+
+DROP TRIGGER T1;
+> ok
+
+TABLE TEST;
+> A B C
+> - - --
+> 1 a 10
+> 2 b 2
+> rows: 2
 
 DROP TABLE TEST;
 > ok

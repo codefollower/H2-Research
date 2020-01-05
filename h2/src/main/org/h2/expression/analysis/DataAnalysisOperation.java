@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression.analysis;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
@@ -83,7 +82,7 @@ public abstract class DataAnalysisOperation extends Expression {
             index[i] = i + offset;
             sortType[i] = o.sortType;
         }
-        return new SortOrder(session.getDatabase(), index, sortType, null);
+        return new SortOrder(session, index, sortType, null);
     }
 
     protected DataAnalysisOperation(Select select) {
@@ -157,7 +156,7 @@ public abstract class DataAnalysisOperation extends Expression {
             if (orderBy != null) {
                 overOrderBySort = createOrder(session, orderBy, getNumExpressions());
             } else if (!isAggregate()) {
-                overOrderBySort = new SortOrder(session.getDatabase(), new int[getNumExpressions()], new int[0], null);
+                overOrderBySort = new SortOrder(session, new int[getNumExpressions()], new int[0], null);
             }
             WindowFrame frame = over.getWindowFrame();
             if (frame != null) {
@@ -494,7 +493,7 @@ public abstract class DataAnalysisOperation extends Expression {
             ArrayList<SelectOrderBy> orderBy = over.getOrderBy();
             if (orderBy != null) {
                 rowIdColumn += orderBy.size();
-                Collections.sort(orderedData, overOrderBySort);
+                orderedData.sort(overOrderBySort);
             }
             rowIdColumn += getNumFrameExpressions();
             getOrderedResultLoop(session, result, orderedData, rowIdColumn);

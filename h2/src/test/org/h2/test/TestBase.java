@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -29,6 +29,8 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Objects;
@@ -42,6 +44,7 @@ import org.h2.store.fs.FilePath;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.utils.ProxyCodeGenerator;
 import org.h2.test.utils.ResultVerifier;
+import org.h2.util.StringUtils;
 import org.h2.util.Utils;
 
 /**
@@ -81,7 +84,7 @@ public abstract class TestBase {
 
     private final LinkedList<byte[]> memory = new LinkedList<>();
 
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+    private static final DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     /**
      * Get the test directory for this test.
@@ -130,9 +133,7 @@ public abstract class TestBase {
         try {
             init(conf);
             if (!isEnabled()) {
-                if (!conf.executedTests.containsKey(getClass())) {
-                    conf.executedTests.put(getClass(), false);
-                }
+                conf.executedTests.putIfAbsent(getClass(), false);
                 return;
             }
             conf.executedTests.put(getClass(), true);
@@ -398,7 +399,7 @@ public abstract class TestBase {
     public void println(String s) {
         long now = System.nanoTime();
         long time = TimeUnit.NANOSECONDS.toMillis(now - start);
-        printlnWithTime(time, getClass().getName() + " " + s);
+        printlnWithTime(time, getClass().getName() + ' ' + s);
     }
 
     /**
@@ -408,9 +409,9 @@ public abstract class TestBase {
      * @param s the message
      */
     static synchronized void printlnWithTime(long millis, String s) {
-        s = dateFormat.format(new java.util.Date()) + " " +
-                formatTime(millis) + " " + s;
-        System.out.println(s);
+        StringBuilder builder = new StringBuilder(s.length() + 19);
+        timeFormat.formatTo(LocalTime.now(), builder);
+        System.out.println(formatTime(builder.append(' '), millis).append(' ').append(s).toString());
     }
 
     /**
@@ -419,24 +420,32 @@ public abstract class TestBase {
      * @param s the message
      */
     protected void printTime(String s) {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
-        println(dateFormat.format(new java.util.Date()) + " " + s);
+        StringBuilder builder = new StringBuilder(s.length() + 9);
+        timeFormat.formatTo(LocalTime.now(), builder);
+        println(builder.append(' ').append(s).toString());
     }
 
     /**
-     * Format the time in the format hh:mm:ss.1234 where 1234 is milliseconds.
+     * Format the time in the format mm:ss.123 or hh:mm:ss.123 where 123 is
+     * milliseconds.
      *
-     * @param millis the time in milliseconds
-     * @return the formatted time
+     * @param builder the string builder to append to
+     * @param millis the time in milliseconds, non-negative
+     * @return the specified string builder
      */
-    static String formatTime(long millis) {
-        String s = new java.sql.Time(
-                java.sql.Time.valueOf("0:0:0").getTime() + millis).toString() +
-                "." + ("" + (1000 + (millis % 1000))).substring(1);
-        if (s.startsWith("00:")) {
-            s = s.substring(3);
+    static StringBuilder formatTime(StringBuilder builder, long millis) {
+        int s = (int) (millis / 1_000);
+        int m = s / 60;
+        s %= 60;
+        int h = m / 60;
+        if (h != 0) {
+            builder.append(h).append(':');
+            m %= 60;
         }
-        return s;
+        StringUtils.appendTwoDigits(builder, m).append(':');
+        StringUtils.appendTwoDigits(builder, s).append('.');
+        StringUtils.appendZeroPadded(builder, 3, millis % 1_000);
+        return builder;
     }
 
     /**
@@ -1261,7 +1270,7 @@ public abstract class TestBase {
     protected void assertEqualDatabases(Statement stat1, Statement stat2)
             throws SQLException {
         ResultSet rs = stat1.executeQuery(
-                "select value from information_schema.settings " +
+                "select `value` from information_schema.settings " +
                 "where name='ANALYZE_AUTO'");
         int analyzeAuto = rs.next() ? rs.getInt(1) : 0;
         if (analyzeAuto > 0) {
@@ -1381,33 +1390,25 @@ public abstract class TestBase {
      */
     protected <T> T assertThrows(final Class<?> expectedExceptionClass,
             final T obj) {
-        return assertThrows(new ResultVerifier() {
-            @Override
-            public boolean verify(Object returnValue, Throwable t, Method m,
-                    Object... args) {
-                if (t == null) {
-                    throw new AssertionError("Expected an exception of type " +
-                            expectedExceptionClass.getSimpleName() +
-                            " to be thrown, but the method returned " +
-                            returnValue +
-                            " for " + ProxyCodeGenerator.formatMethodCall(m, args));
-                }
-                if (!expectedExceptionClass.isAssignableFrom(t.getClass())) {
-                    AssertionError ae = new AssertionError(
-                            "Expected an exception of type\n" +
-                                    expectedExceptionClass.getSimpleName() +
-                                    " to be thrown, but the method under test " +
-                                    "threw an exception of type\n" +
-                                    t.getClass().getSimpleName() +
-                                    " (see in the 'Caused by' for the exception " +
-                                    "that was thrown) " +
-                                    " for " + ProxyCodeGenerator.
-                                    formatMethodCall(m, args));
-                    ae.initCause(t);
-                    throw ae;
-                }
-                return false;
+        return assertThrows((returnValue, t, m, args) -> {
+            if (t == null) {
+                throw new AssertionError("Expected an exception of type " +
+                        expectedExceptionClass.getSimpleName() +
+                        " to be thrown, but the method returned " +
+                        returnValue +
+                        " for " + ProxyCodeGenerator.formatMethodCall(m, args));
             }
+            if (!expectedExceptionClass.isAssignableFrom(t.getClass())) {
+                AssertionError ae = new AssertionError("Expected an exception of type\n" +
+                        expectedExceptionClass.getSimpleName() +
+                        " to be thrown, but the method under test threw an exception of type\n" +
+                        t.getClass().getSimpleName() +
+                        " (see in the 'Caused by' for the exception that was thrown) for " +
+                        ProxyCodeGenerator.formatMethodCall(m, args));
+                ae.initCause(t);
+                throw ae;
+            }
+            return false;
         }, obj);
     }
 
@@ -1419,31 +1420,24 @@ public abstract class TestBase {
      * @param obj the object to wrap
      * @return a proxy for the object
      */
-    protected <T> T assertThrows(final int expectedErrorCode, final T obj) {
-        return assertThrows(new ResultVerifier() {
-            @Override
-            public boolean verify(Object returnValue, Throwable t, Method m,
-                    Object... args) {
-                int errorCode;
-                if (t instanceof DbException) {
-                    errorCode = ((DbException) t).getErrorCode();
-                } else if (t instanceof SQLException) {
-                    errorCode = ((SQLException) t).getErrorCode();
-                } else {
-                    errorCode = 0;
-                }
-                if (errorCode != expectedErrorCode) {
-                    AssertionError ae = new AssertionError(
-                            "Expected an SQLException or DbException with error code "
-                                    + expectedErrorCode
-                                    + ", but got a " + (t == null ? "null" :
-                                            t.getClass().getName() + " exception "
-                                    + " with error code " + errorCode));
-                    ae.initCause(t);
-                    throw ae;
-                }
-                return false;
+    protected <T> T assertThrows(int expectedErrorCode, T obj) {
+        return assertThrows((returnValue, t, m, args) -> {
+            int errorCode;
+            if (t instanceof DbException) {
+                errorCode = ((DbException) t).getErrorCode();
+            } else if (t instanceof SQLException) {
+                errorCode = ((SQLException) t).getErrorCode();
+            } else {
+                errorCode = 0;
             }
+            if (errorCode != expectedErrorCode) {
+                AssertionError ae = new AssertionError("Expected an SQLException or DbException with error code "
+                        + expectedErrorCode + ", but got a " + (t == null ? "null"
+                                : t.getClass().getName() + " exception " + " with error code " + errorCode));
+                ae.initCause(t);
+                throw ae;
+            }
+            return false;
         }, obj);
     }
 

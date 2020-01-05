@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -96,14 +96,14 @@ public class ConstraintCheck extends Constraint {
         if (newRow == null) {
             return;
         }
-//<<<<<<< HEAD
-//        filter.set(newRow); //为了在expr.getValue能取到当前newRow
-//        Boolean b;
-//=======
-        filter.set(newRow);
+        filter.set(newRow); //为了在expr.getValue能取到当前newRow
         boolean b;
         try {
-            Value v = expr.getValue(session);
+            Value v;
+            synchronized (this) {
+                filter.set(newRow);
+                v = expr.getValue(session);
+            }
             // Both TRUE and NULL are ok
             b = v == ValueNull.INSTANCE || v.getBoolean();
         } catch (DbException ex) {
@@ -133,6 +133,7 @@ public class ConstraintCheck extends Constraint {
         return columns;
     }
 
+    @Override
     public Expression getExpression() {
         return expr;
     }
@@ -160,11 +161,6 @@ public class ConstraintCheck extends Constraint {
         if (r.next()) {
             throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, getName());
         }
-    }
-
-    @Override
-    public Index getUniqueIndex() {
-        return null;
     }
 
     @Override

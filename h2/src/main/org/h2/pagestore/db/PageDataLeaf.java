@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,6 +15,7 @@ import org.h2.message.DbException;
 import org.h2.pagestore.Page;
 import org.h2.pagestore.PageStore;
 import org.h2.result.Row;
+import org.h2.result.SearchRow;
 import org.h2.store.Data;
 import org.h2.value.Value;
 
@@ -89,7 +90,7 @@ public class PageDataLeaf extends PageData {
         PageDataLeaf p = new PageDataLeaf(index, pageId, index.getPageStore().createData());
         //从org.h2.store.PageStore.openNew()转到这时，因为recoveryRunning是true，所以logUndo什么都没做
         index.getPageStore().logUndo(p, null);
-        p.rows = Row.EMPTY_ARRAY;
+        p.rows = PageStoreRow.EMPTY_ARRAY;
         p.parentPageId = parentPageId;
         p.columnCount = index.getTable().getColumns().length;
         p.writeHead();
@@ -627,7 +628,7 @@ public class PageDataLeaf extends PageData {
      * @param columnCount the number of columns
      * @return the row
      */
-    private Row readRow(Data data, int pos, int columnCount) {
+    private static Row readRow(Data data, int pos, int columnCount) {
         Value[] values = new Value[columnCount];
         synchronized (data) {
             data.setPos(pos);
@@ -635,7 +636,7 @@ public class PageDataLeaf extends PageData {
                 values[i] = data.readValue();
             }
         }
-        return index.getDatabase().createRow(values, Row.MEMORY_CALCULATE);
+        return Row.get(values, SearchRow.MEMORY_CALCULATE);
     }
 
 }

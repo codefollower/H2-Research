@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -36,13 +36,13 @@ explain with recursive r(n) as (
     (select 1) union all (select n+1 from r where n < 3)
 )
 select n from r;
->> WITH RECURSIVE "PUBLIC"."R"("N") AS ( (SELECT 1 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */) UNION ALL (SELECT ("N" + 1) FROM "PUBLIC"."R" /* PUBLIC.R.tableScan */ WHERE "N" < 3) ) SELECT "N" FROM "PUBLIC"."R" "R" /* null */
+>> WITH RECURSIVE "PUBLIC"."R"("N") AS ( (SELECT 1) UNION ALL (SELECT ("N" + 1) FROM "PUBLIC"."R" /* PUBLIC.R.tableScan */ WHERE "N" < 3) ) SELECT "N" FROM "PUBLIC"."R" "R" /* null */
 
 explain with recursive "r"(n) as (
     (select 1) union all (select n+1 from "r" where n < 3)
 )
 select n from "r";
->> WITH RECURSIVE "PUBLIC"."r"("N") AS ( (SELECT 1 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */) UNION ALL (SELECT ("N" + 1) FROM "PUBLIC"."r" /* PUBLIC.r.tableScan */ WHERE "N" < 3) ) SELECT "N" FROM "PUBLIC"."r" "r" /* null */
+>> WITH RECURSIVE "PUBLIC"."r"("N") AS ( (SELECT 1) UNION ALL (SELECT ("N" + 1) FROM "PUBLIC"."r" /* PUBLIC.r.tableScan */ WHERE "N" < 3) ) SELECT "N" FROM "PUBLIC"."r" "r" /* null */
 
 select sum(n) from (
     with recursive r(n) as (
@@ -157,6 +157,69 @@ WITH CTE_TEST AS (TABLE TEST) ((SELECT A, B FROM CTE_TEST2));
 
 WITH CTE_TEST AS (TABLE TEST) ((SELECT A, B, C FROM CTE_TEST));
 > exception COLUMN_NOT_FOUND_1
+
+DROP TABLE TEST;
+> ok
+
+WITH RECURSIVE V(V1, V2) AS (
+    SELECT 0 V1, 1 V2
+    UNION ALL
+    SELECT V1 + 1, V2 + 1 FROM V WHERE V2 < 4
+)
+SELECT V1, V2, COUNT(*) FROM V
+LEFT JOIN (SELECT T1 / T2 R FROM (VALUES (10, 0)) T(T1, T2) WHERE T2*T2*T2*T2*T2*T2 <> 0) X ON X.R > V.V1 AND X.R < V.V2
+GROUP BY V1, V2;
+> V1 V2 COUNT(*)
+> -- -- --------
+> 0  1  1
+> 1  2  1
+> 2  3  1
+> 3  4  1
+> rows: 4
+
+EXPLAIN WITH RECURSIVE V(V1, V2) AS (
+    SELECT 0 V1, 1 V2
+    UNION ALL
+    SELECT V1 + 1, V2 + 1 FROM V WHERE V2 < 10
+)
+SELECT V1, V2, COUNT(*) FROM V
+LEFT JOIN (SELECT T1 / T2 R FROM (VALUES (10, 0)) T(T1, T2) WHERE T2*T2*T2*T2*T2*T2 <> 0) X ON X.R > V.V1 AND X.R < V.V2
+GROUP BY V1, V2;
+>> WITH RECURSIVE "PUBLIC"."V"("V1", "V2") AS ( (SELECT 0 AS "V1", 1 AS "V2") UNION ALL (SELECT ("V1" + 1), ("V2" + 1) FROM "PUBLIC"."V" /* PUBLIC.V.tableScan */ WHERE "V2" < 10) ) SELECT "V1", "V2", COUNT(*) FROM "PUBLIC"."V" "V" /* null */ LEFT OUTER JOIN ( SELECT ("T1" / "T2") AS "R" FROM (VALUES (10, 0)) "T"("T1", "T2") WHERE ((((("T2" * "T2") * "T2") * "T2") * "T2") * "T2") <> 0 ) "X" /* SELECT (T1 / T2) AS R FROM (VALUES (10, 0)) T(T1, T2) /++ table scan ++/ WHERE ((((((T2 * T2) * T2) * T2) * T2) * T2) <> 0) _LOCAL_AND_GLOBAL_ (((T1 / T2) >= ?1) AND ((T1 / T2) <= ?2)): R > V.V1 AND R < V.V2 */ ON ("X"."R" > "V"."V1") AND ("X"."R" < "V"."V2") GROUP BY "V1", "V2"
+
+-- Workaround for a leftover view after EXPLAIN WITH
+DROP VIEW V;
+> ok
+
+-- Data change delta tables in WITH
+CREATE TABLE TEST("VALUE" INT NOT NULL PRIMARY KEY);
+> ok
+
+WITH W AS (SELECT NULL FROM FINAL TABLE (INSERT INTO TEST VALUES 1, 2))
+SELECT COUNT (*) FROM W;
+>> 2
+
+WITH W AS (SELECT NULL FROM FINAL TABLE (UPDATE TEST SET "VALUE" = 3 WHERE "VALUE" = 2))
+SELECT COUNT (*) FROM W;
+>> 1
+
+WITH W AS (SELECT NULL FROM FINAL TABLE (MERGE INTO TEST VALUES 4, 5))
+SELECT COUNT (*) FROM W;
+>> 2
+
+WITH W AS (SELECT NULL FROM OLD TABLE (DELETE FROM TEST WHERE "VALUE" = 4))
+SELECT COUNT (*) FROM W;
+>> 1
+
+SET MODE MySQL;
+> ok
+
+WITH W AS (SELECT NULL FROM FINAL TABLE (REPLACE INTO TEST VALUES 4, 5))
+SELECT COUNT (*) FROM W;
+>> 2
+
+SET MODE Regular;
+> ok
 
 DROP TABLE TEST;
 > ok

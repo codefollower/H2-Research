@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,6 @@ package org.h2.expression.condition;
 
 import org.h2.api.ErrorCode;
 import org.h2.command.dml.Query;
-import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
@@ -18,6 +17,7 @@ import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
+import org.h2.value.DataType;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
@@ -29,14 +29,12 @@ import org.h2.value.ValueRow;
  */
 public class ConditionInQuery extends PredicateWithSubquery {
 
-    private final Database database;
     private Expression left;
     private final boolean all;
     private final int compareType;
 
-    public ConditionInQuery(Database database, Expression left, Query query, boolean all, int compareType) {
+    public ConditionInQuery(Expression left, Query query, boolean all, int compareType) {
         super(query);
-        this.database = database;
         this.left = left;
         /*
          * Need to do it now because other methods may be invoked in different
@@ -66,11 +64,11 @@ public class ConditionInQuery extends PredicateWithSubquery {
         } else if (l.containsNull()) { //如果left是null，那么返回null
             return ValueNull.INSTANCE;
         }
-        if (!database.getSettings().optimizeInSelect) {
-            return getValueSlow(rows, l);
+        if (!session.getDatabase().getSettings().optimizeInSelect) {
+            return getValueSlow(session, rows, l);
         }
         if (all || compareType != Comparison.EQUAL) {
-            return getValueSlow(rows, l);
+            return getValueSlow(session, rows, l);
         }
         // 下面代码是处理非all，且是EQUAL或EQUAL_NULL_SAFE的情况
 
@@ -95,8 +93,8 @@ public class ConditionInQuery extends PredicateWithSubquery {
                 l = leftList[0];
             }
             //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
-            l = l.convertTo(colType, database.getMode(), null);
-            if (rows.containsDistinct(new Value[] { l })) { 
+            l = l.convertTo(colType, session, null);
+            if (rows.containsDistinct(new Value[] { l })) {
                 return ValueBoolean.TRUE;
             }
         }
@@ -107,13 +105,13 @@ public class ConditionInQuery extends PredicateWithSubquery {
         return ValueBoolean.FALSE;
     }
 
-    private Value getValueSlow(ResultInterface rows, Value l) {
+    private Value getValueSlow(Session session, ResultInterface rows, Value l) {
         // this only returns the correct result if the result has at least one
         // row, and if l is not null
         boolean hasNull = false;
         if (all) {
             while (rows.next()) {
-                Value cmp = compare(l, rows);
+                Value cmp = compare(session, l, rows);
                 if (cmp == ValueNull.INSTANCE) {
                     hasNull = true;
                 } else if (cmp == ValueBoolean.FALSE) {
@@ -122,7 +120,7 @@ public class ConditionInQuery extends PredicateWithSubquery {
             }
         } else {
             while (rows.next()) {
-                Value cmp = compare(l, rows);
+                Value cmp = compare(session, l, rows);
                 if (cmp == ValueNull.INSTANCE) {
                     hasNull = true;
                 } else if (cmp == ValueBoolean.TRUE) {
@@ -136,11 +134,11 @@ public class ConditionInQuery extends PredicateWithSubquery {
         return ValueBoolean.get(all);
     }
 
-    private Value compare(Value l, ResultInterface rows) {
+    private Value compare(Session session, Value l, ResultInterface rows) {
         Value[] currentRow = rows.currentRow();
         Value r = l.getValueType() != Value.ROW && query.getColumnCount() == 1 ? currentRow[0]
                 : ValueRow.get(currentRow);
-        return Comparison.compare(database, l, r, compareType);
+        return Comparison.compare(session, l, r, compareType);
     }
 
     @Override
@@ -213,6 +211,11 @@ public class ConditionInQuery extends PredicateWithSubquery {
             return;
         }
         if (query.getColumnCount() != 1) {
+            return;
+        }
+        int leftType = left.getType().getValueType();
+        if (!DataType.hasTotalOrdering(leftType)
+                && leftType != query.getExpressions().get(0).getType().getValueType()) {
             return;
         }
         if (!(left instanceof ExpressionColumn)) {

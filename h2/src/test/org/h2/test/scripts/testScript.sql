@@ -1,33 +1,8 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 --- special grammar and test cases ---------------------------------------------------------------------------------------------
-create table test(id int) as select 1;
-> ok
-
-select * from test where id in (select id from test order by 'x');
-> ID
-> --
-> 1
-> rows: 1
-
-drop table test;
-> ok
-
-select x, x in(2, 3) i from system_range(1, 2) group by x;
-> X I
-> - -----
-> 1 FALSE
-> 2 TRUE
-> rows: 2
-
-select * from dual join(select x from dual) on 1=1;
-> X X
-> - -
-> 1 1
-> rows: 1
-
 select 0 as x from system_range(1, 2) d group by d.x;
 > X
 > -
@@ -114,21 +89,10 @@ select case seq.nextval when 2 then 'two' when 3 then 'three' when 1 then 'one' 
 drop sequence seq;
 > ok
 
-select * from dual where x = x + 1 or x in(2, 0);
-> X
-> -
-> rows: 0
-
 select * from system_range(1,1) order by x limit 3 offset 3;
 > X
 > -
 > rows (ordered): 0
-
-select * from dual where cast('a' || x as varchar_ignorecase) in ('A1', 'B1');
-> X
-> -
-> 1
-> rows: 1
 
 create sequence seq start with 65 increment by 1;
 > ok
@@ -308,46 +272,17 @@ update test set (id)=(id);
 drop table test;
 > ok
 
-create table test(x int) as select x from system_range(1, 2);
-> ok
-
-select * from (select rownum r from test) where r in (1, 2);
-> R
-> -
-> 1
-> 2
-> rows: 2
-
-select * from (select rownum r from test) where r = 1 or r = 2;
-> R
-> -
-> 1
-> 2
-> rows: 2
-
-drop table test;
-> ok
-
 select 2^2;
 > exception SYNTAX_ERROR_1
 
-select * from dual where x in (select x from dual group by x order by max(x));
-> X
-> -
-> 1
-> rows: 1
-
-create table test(d decimal(1, 2));
-> exception INVALID_VALUE_SCALE_PRECISION
-
 select * from dual where cast('xx' as varchar_ignorecase(1)) = 'X' and cast('x x ' as char(2)) = 'x';
-> X
-> -
-> 1
+>
+>
+>
 > rows: 1
 
 explain select -cast(0 as real), -cast(0 as double);
->> SELECT 0.0, 0.0 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */
+>> SELECT 0.0, 0.0
 
 select (1) one;
 > ONE
@@ -395,31 +330,6 @@ select * from test order by id limit null;
 > 4
 > rows (ordered): 3
 
-select a.id, a.id in(select 4) x  from test a, test b where a.id in (b.id, b.id - 1);
-> ID X
-> -- -----
-> 1  FALSE
-> 1  FALSE
-> 2  FALSE
-> 4  TRUE
-> rows: 4
-
-select a.id, a.id in(select 4) x  from test a, test b where a.id in (b.id, b.id - 1) group by a.id;
-> ID X
-> -- -----
-> 1  FALSE
-> 2  FALSE
-> 4  TRUE
-> rows: 3
-
-select a.id, 4 in(select a.id) x  from test a, test b where a.id in (b.id, b.id - 1) group by a.id;
-> ID X
-> -- -----
-> 1  FALSE
-> 2  FALSE
-> 4  TRUE
-> rows: 3
-
 delete from test limit 0;
 > ok
 
@@ -432,21 +342,6 @@ delete from test limit -1;
 drop table test;
 > ok
 
-create domain x as int not null;
-> ok
-
-create table test(id x);
-> ok
-
-insert into test values(null);
-> exception NULL_NOT_ALLOWED
-
-drop table test;
-> ok
-
-drop domain x;
-> ok
-
 create table test(id int primary key);
 > ok
 
@@ -454,11 +349,11 @@ insert into test(id) direct sorted select x from system_range(1, 100);
 > update count: 100
 
 explain insert into test(id) direct sorted select x from system_range(1, 100);
->> INSERT INTO "PUBLIC"."TEST"("ID") DIRECT SORTED SELECT "X" FROM SYSTEM_RANGE(1, 100) /* PUBLIC.RANGE_INDEX */
+>> INSERT INTO "PUBLIC"."TEST"("ID") DIRECT SORTED SELECT "X" FROM SYSTEM_RANGE(1, 100) /* range index */
 
-explain select * from test limit 10 sample_size 10;
-#+mvStore#>> SELECT "PUBLIC"."TEST"."ID" FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ FETCH FIRST 10 ROWS ONLY SAMPLE_SIZE 10
-#-mvStore#>> SELECT "PUBLIC"."TEST"."ID" FROM "PUBLIC"."TEST" /* PUBLIC.PRIMARY_KEY_2 */ FETCH FIRST 10 ROWS ONLY SAMPLE_SIZE 10
+explain select * from test limit 10;
+#+mvStore#>> SELECT "PUBLIC"."TEST"."ID" FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ FETCH FIRST 10 ROWS ONLY
+#-mvStore#>> SELECT "PUBLIC"."TEST"."ID" FROM "PUBLIC"."TEST" /* PUBLIC.PRIMARY_KEY_2 */ FETCH FIRST 10 ROWS ONLY
 
 drop table test;
 > ok
@@ -476,7 +371,7 @@ drop table test;
 > ok
 
 explain analyze select 1;
->> SELECT 1 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */ /* scanCount: 2 */
+>> SELECT 1
 
 create table test(id int);
 > ok
@@ -542,22 +437,6 @@ select * from (select null as x) where x=1;
 > -
 > rows: 0
 
-create table test(id int primary key, d int);
-> ok
-
-insert into test values(1,1), (2, 1);
-> update count: 2
-
-select id from test where id in (1, 2) and d = 1;
-> ID
-> --
-> 1
-> 2
-> rows: 2
-
-drop table test;
-> ok
-
 create table test(id decimal(10, 2) primary key) as select 0;
 > ok
 
@@ -585,7 +464,7 @@ select count(*) from (select 1 union (select 2 intersect select 2)) x;
 create table test(id varchar(1) primary key) as select 'X';
 > ok
 
-select count(*) from (select 1 from dual where x in ((select 1 union select 1))) a;
+select count(*) from (select 1 from dual where 1 in ((select 1 union select 1))) a;
 > COUNT(*)
 > --------
 > 1
@@ -635,45 +514,6 @@ create table test(id int, name varchar(max));
 
 alter table test alter column id identity;
 > ok
-
-drop table test;
-> ok
-
-create table test(id int primary key, name varchar);
-> ok
-
-alter table test alter column id int auto_increment;
-> ok
-
-create table otherTest(id int primary key, name varchar);
-> ok
-
-alter table otherTest add constraint fk foreign key(id) references test(id);
-> ok
-
-alter table otherTest drop foreign key fk;
-> ok
-
-create unique index idx on otherTest(name);
-> ok
-
-alter table otherTest drop index idx;
-> ok
-
-drop table otherTest;
-> ok
-
-insert into test(id) values(1);
-> update count: 1
-
-alter table test change column id id2 int;
-> ok
-
-select id2 from test;
-> ID2
-> ---
-> 1
-> rows: 1
 
 drop table test;
 > ok
@@ -740,10 +580,10 @@ create memory table test(id int);
 
 script nodata nopasswords nosettings;
 > SCRIPT
-> --------------------------------------------------
+> -----------------------------------------------------------
 > -- 0 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
-> CREATE DOMAIN "INT" AS VARCHAR;
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "ID" "INT" );
+> CREATE DOMAIN "PUBLIC"."INT" AS VARCHAR;
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "ID" "PUBLIC"."INT" );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
 > rows: 4
 
@@ -861,43 +701,6 @@ select column_name, numeric_scale from information_schema.columns c where c.tabl
 > T1          1
 > T4          4
 > rows (ordered): 3
-
-drop table test;
-> ok
-
-create table test(id int);
-> ok
-
-insert into test values(null), (1);
-> update count: 2
-
-select * from test where id not in (select id from test where 1=0);
-> ID
-> ----
-> 1
-> null
-> rows: 2
-
-select * from test where null not in (select id from test where 1=0);
-> ID
-> ----
-> 1
-> null
-> rows: 2
-
-select * from test where not (id in (select id from test where 1=0));
-> ID
-> ----
-> 1
-> null
-> rows: 2
-
-select * from test where not (null in (select id from test where 1=0));
-> ID
-> ----
-> 1
-> null
-> rows: 2
 
 drop table test;
 > ok
@@ -1036,25 +839,20 @@ create table test(id int primary key, lastname varchar, firstname varchar, paren
 alter table test add constraint name unique (lastname, firstname);
 > ok
 
-SELECT CONSTRAINT_NAME, UNIQUE_INDEX_NAME, COLUMN_LIST FROM INFORMATION_SCHEMA.CONSTRAINTS ;
-> CONSTRAINT_NAME UNIQUE_INDEX_NAME COLUMN_LIST
-> --------------- ----------------- ------------------
-> CONSTRAINT_2    PRIMARY_KEY_2     ID
-> CONSTRAINT_27   PRIMARY_KEY_2     PARENT
-> NAME            NAME_INDEX_2      LASTNAME,FIRSTNAME
-> rows: 3
+SELECT CONSTRAINT_NAME, COLUMN_NAME, INDEX_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
+> CONSTRAINT_NAME COLUMN_NAME INDEX_NAME
+> --------------- ----------- ------------------
+> CONSTRAINT_2    ID          PRIMARY_KEY_2
+> CONSTRAINT_27   PARENT      CONSTRAINT_INDEX_2
+> NAME            FIRSTNAME   NAME_INDEX_2
+> NAME            LASTNAME    NAME_INDEX_2
+> rows: 4
 
 drop table test;
 > ok
 
 alter table information_schema.help rename to information_schema.help2;
 > exception FEATURE_NOT_SUPPORTED_1
-
-CREATE TABLE test (id int(25) NOT NULL auto_increment, name varchar NOT NULL, PRIMARY KEY  (id,name));
-> ok
-
-drop table test;
-> ok
 
 CREATE TABLE test (id bigserial NOT NULL primary key);
 > ok
@@ -1117,31 +915,6 @@ drop schema a cascade;
 drop schema b cascade;
 > ok
 
-create table t1 (id int primary key);
-> ok
-
-create table t2 (id int primary key);
-> ok
-
-insert into t1 select x from system_range(1, 1000);
-> update count: 1000
-
-insert into t2 select x from system_range(1, 1000);
-> update count: 1000
-
-explain select count(*) from t1 where t1.id in ( select t2.id from t2 );
-#+mvStore#>> SELECT COUNT(*) FROM "PUBLIC"."T1" /* PUBLIC.PRIMARY_KEY_A: ID IN(SELECT T2.ID FROM PUBLIC.T2 /++ PUBLIC.T2.tableScan ++/) */ WHERE "T1"."ID" IN( SELECT "T2"."ID" FROM "PUBLIC"."T2" /* PUBLIC.T2.tableScan */)
-#-mvStore#>> SELECT COUNT(*) FROM "PUBLIC"."T1" /* PUBLIC.PRIMARY_KEY_A: ID IN(SELECT T2.ID FROM PUBLIC.T2 /++ PUBLIC.PRIMARY_KEY_A5 ++/) */ WHERE "T1"."ID" IN( SELECT "T2"."ID" FROM "PUBLIC"."T2" /* PUBLIC.PRIMARY_KEY_A5 */)
-
-select count(*) from t1 where t1.id in ( select t2.id from t2 );
-> COUNT(*)
-> --------
-> 1000
-> rows: 1
-
-drop table t1, t2;
-> ok
-
 CREATE TABLE p(d date);
 > ok
 
@@ -1149,21 +922,15 @@ INSERT INTO p VALUES('-1-01-01'), ('0-01-01'), ('0001-01-01');
 > update count: 3
 
 select d, year(d), extract(year from d), cast(d as timestamp) from p;
-> D          YEAR(D) EXTRACT(YEAR FROM D) CAST(D AS TIMESTAMP)
-> ---------- ------- -------------------- --------------------
-> -1-01-01   -1      -1                   -1-01-01 00:00:00
-> 0-01-01    0       0                    0-01-01 00:00:00
-> 0001-01-01 1       1                    0001-01-01 00:00:00
+> D           YEAR(D) EXTRACT(YEAR FROM D) CAST(D AS TIMESTAMP)
+> ----------- ------- -------------------- --------------------
+> -0001-01-01 -1      -1                   -0001-01-01 00:00:00
+> 0000-01-01  0       0                    0000-01-01 00:00:00
+> 0001-01-01  1       1                    0001-01-01 00:00:00
 > rows: 3
 
 drop table p;
 > ok
-
-(SELECT X FROM DUAL ORDER BY X+2) UNION SELECT X FROM DUAL;
-> X
-> -
-> 1
-> rows: 1
 
 create table test(a int, b int default 1);
 > ok
@@ -1289,12 +1056,6 @@ select * from ((test d1 inner join test d2 on d1.id = d2.id) inner join test d3 
 
 drop table test;
 > ok
-
-select count(*) from system_range(1, 2) where x in(1, 1, 1);
-> COUNT(*)
-> --------
-> 1
-> rows: 1
 
 create table person(id bigint auto_increment, name varchar(100));
 > ok
@@ -1435,14 +1196,6 @@ having count(*) < 1000 order by dir_num asc;
 drop table multi_pages, b_holding;
 > ok
 
-select * from dual where x = 1000000000000000000000;
-> X
-> -
-> rows: 0
-
-select * from dual where x = 'Hello';
-> exception DATA_CONVERSION_ERROR_1
-
 create table test(id smallint primary key);
 > ok
 
@@ -1470,18 +1223,6 @@ explain select * from test where id = 3;
 
 explain select * from test where id = 255;
 >> SELECT "PUBLIC"."TEST"."ID" FROM "PUBLIC"."TEST" /* PUBLIC.PRIMARY_KEY_2: ID = 255 */ WHERE "ID" = 255
-
-drop table test;
-> ok
-
-create table test(id int primary key);
-> ok
-
-insert into test values(1), (2), (3);
-> update count: 3
-
-explain select * from test where id in(1, 2, null);
->> SELECT "PUBLIC"."TEST"."ID" FROM "PUBLIC"."TEST" /* PUBLIC.PRIMARY_KEY_2: ID IN(1, 2, NULL) */ WHERE "ID" IN(1, 2, NULL)
 
 drop table test;
 > ok
@@ -2175,11 +1916,11 @@ create sequence "TestSchema"."TestSeq";
 create sequence "TestSchema"."ABC";
 > ok
 
-select currval('main_seq'), currval('TestSchema', 'TestSeq'), nextval('TestSchema', 'ABC');
-> CURRVAL('main_seq') CURRVAL('TestSchema', 'TestSeq') NEXTVAL('TestSchema', 'ABC')
-> ------------------- -------------------------------- ----------------------------
-> 0                   0                                1
-> rows: 1
+select currval('main_seq'), currval('TestSchema', 'TestSeq');
+> exception CURRENT_SEQUENCE_VALUE_IS_NOT_DEFINED_IN_SESSION_1
+
+select nextval('TestSchema', 'ABC');
+>> 1
 
 set autocommit off;
 > ok
@@ -2224,18 +1965,18 @@ CREATE TABLE child(parentid int REFERENCES parent);
 > ok
 
 select * from INFORMATION_SCHEMA.CROSS_REFERENCES;
-> PKTABLE_CATALOG PKTABLE_SCHEMA PKTABLE_NAME PKCOLUMN_NAME FKTABLE_CATALOG FKTABLE_SCHEMA FKTABLE_NAME FKCOLUMN_NAME ORDINAL_POSITION UPDATE_RULE DELETE_RULE FK_NAME      PK_NAME       DEFERRABILITY
-> --------------- -------------- ------------ ------------- --------------- -------------- ------------ ------------- ---------------- ----------- ----------- ------------ ------------- -------------
-> SCRIPT          PUBLIC         PARENT       ID            SCRIPT          PUBLIC         CHILD        PARENTID      1                1           1           CONSTRAINT_3 PRIMARY_KEY_8 7
+> PKTABLE_CATALOG PKTABLE_SCHEMA PKTABLE_NAME PKCOLUMN_NAME FKTABLE_CATALOG FKTABLE_SCHEMA FKTABLE_NAME FKCOLUMN_NAME ORDINAL_POSITION UPDATE_RULE DELETE_RULE FK_NAME      PK_NAME      DEFERRABILITY
+> --------------- -------------- ------------ ------------- --------------- -------------- ------------ ------------- ---------------- ----------- ----------- ------------ ------------ -------------
+> SCRIPT          PUBLIC         PARENT       ID            SCRIPT          PUBLIC         CHILD        PARENTID      1                1           1           CONSTRAINT_3 CONSTRAINT_8 7
 > rows: 1
 
 ALTER TABLE parent ADD COLUMN name varchar;
 > ok
 
 select * from INFORMATION_SCHEMA.CROSS_REFERENCES;
-> PKTABLE_CATALOG PKTABLE_SCHEMA PKTABLE_NAME PKCOLUMN_NAME FKTABLE_CATALOG FKTABLE_SCHEMA FKTABLE_NAME FKCOLUMN_NAME ORDINAL_POSITION UPDATE_RULE DELETE_RULE FK_NAME      PK_NAME        DEFERRABILITY
-> --------------- -------------- ------------ ------------- --------------- -------------- ------------ ------------- ---------------- ----------- ----------- ------------ -------------- -------------
-> SCRIPT          PUBLIC         PARENT       ID            SCRIPT          PUBLIC         CHILD        PARENTID      1                1           1           CONSTRAINT_3 PRIMARY_KEY_82 7
+> PKTABLE_CATALOG PKTABLE_SCHEMA PKTABLE_NAME PKCOLUMN_NAME FKTABLE_CATALOG FKTABLE_SCHEMA FKTABLE_NAME FKCOLUMN_NAME ORDINAL_POSITION UPDATE_RULE DELETE_RULE FK_NAME      PK_NAME      DEFERRABILITY
+> --------------- -------------- ------------ ------------- --------------- -------------- ------------ ------------- ---------------- ----------- ----------- ------------ ------------ -------------
+> SCRIPT          PUBLIC         PARENT       ID            SCRIPT          PUBLIC         CHILD        PARENTID      1                1           1           CONSTRAINT_3 CONSTRAINT_8 7
 > rows: 1
 
 drop table parent, child;
@@ -2327,36 +2068,6 @@ select timestamp '2001-02-03T10:30:33';
 > -------------------------------
 > 2001-02-03 10:30:33
 > rows: 1
-
-CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255));
-> ok
-
-INSERT INTO TEST VALUES(1, 'Hello'), (2, 'World');
-> update count: 2
-
-select * from test where id in (select id from test);
-> ID NAME
-> -- -----
-> 1  Hello
-> 2  World
-> rows: 2
-
-select * from test where id in ((select id from test));
-> ID NAME
-> -- -----
-> 1  Hello
-> 2  World
-> rows: 2
-
-select * from test where id in (((select id from test)));
-> ID NAME
-> -- -----
-> 1  Hello
-> 2  World
-> rows: 2
-
-DROP TABLE TEST;
-> ok
 
 create table test(id int);
 > ok
@@ -2468,11 +2179,12 @@ insert into test values('AA');
 
 script nodata nopasswords nosettings;
 > SCRIPT
-> -------------------------------------------------------------------------------------
+> ---------------------------------------------------------------------------------------------------------
 > -- 2 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "NAME" VARCHAR CHECK ("NAME" = UPPER("NAME")) );
+> ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_2" CHECK("NAME" = UPPER("NAME")) NOCHECK;
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "NAME" VARCHAR );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
-> rows: 3
+> rows: 4
 
 drop table test;
 > ok
@@ -2500,65 +2212,62 @@ insert into address(id, name, name2) values(3, 'test_abc', 'test@gmail');
 insert into address2(name) values('test@abc');
 > exception TABLE_OR_VIEW_NOT_FOUND_1
 
-CREATE DOMAIN STRING AS VARCHAR(255) DEFAULT '' NOT NULL;
+CREATE DOMAIN STRING AS VARCHAR(255) DEFAULT '';
 > ok
 
-CREATE DOMAIN IF NOT EXISTS STRING AS VARCHAR(255) DEFAULT '' NOT NULL;
+CREATE DOMAIN IF NOT EXISTS STRING AS VARCHAR(255) DEFAULT '';
 > ok
 
-CREATE DOMAIN STRING1 AS VARCHAR NULL;
+CREATE DOMAIN STRING1 AS VARCHAR;
 > ok
 
-CREATE DOMAIN STRING2 AS VARCHAR NOT NULL;
+CREATE DOMAIN STRING2 AS VARCHAR DEFAULT '<empty>';
 > ok
 
-CREATE DOMAIN STRING3 AS VARCHAR DEFAULT '<empty>';
+create domain string_x as string2;
 > ok
 
-create domain string_x as string3;
+create memory table test(a string, b string1, c string2);
 > ok
 
-create memory table test(a string, b string1, c string2, d string3);
-> ok
-
-insert into test(c) values('x');
+insert into test(b) values('x');
 > update count: 1
 
 select * from test;
-> A B    C D
-> - ---- - -------
->   null x <empty>
+> A B C
+> - - -------
+>   x <empty>
 > rows: 1
 
-select DOMAIN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, PRECISION, SCALE, TYPE_NAME, SELECTIVITY, CHECK_CONSTRAINT, REMARKS, SQL from information_schema.domains;
-> DOMAIN_NAME COLUMN_DEFAULT IS_NULLABLE DATA_TYPE PRECISION  SCALE TYPE_NAME SELECTIVITY CHECK_CONSTRAINT                                                    REMARKS SQL
-> ----------- -------------- ----------- --------- ---------- ----- --------- ----------- ------------------------------------------------------------------- ------- ------------------------------------------------------------------------------------------------------------------------------------
-> EMAIL       null           YES         12        200        0     VARCHAR   50          (POSITION('@', "VALUE") > 1)                                                CREATE DOMAIN "EMAIL" AS VARCHAR(200) CHECK (POSITION('@', "VALUE") > 1)
-> GMAIL       '@gmail.com'   YES         12        200        0     VARCHAR   50          ((POSITION('@', "VALUE") > 1) AND (POSITION('gmail', "VALUE") > 1))         CREATE DOMAIN "GMAIL" AS VARCHAR(200) DEFAULT '@gmail.com' CHECK ((POSITION('@', "VALUE") > 1) AND (POSITION('gmail', "VALUE") > 1))
-> STRING      ''             NO          12        255        0     VARCHAR   50                                                                                      CREATE DOMAIN "STRING" AS VARCHAR(255) DEFAULT '' NOT NULL
-> STRING1     null           YES         12        2147483647 0     VARCHAR   50                                                                                      CREATE DOMAIN "STRING1" AS VARCHAR
-> STRING2     null           NO          12        2147483647 0     VARCHAR   50                                                                                      CREATE DOMAIN "STRING2" AS VARCHAR NOT NULL
-> STRING3     '<empty>'      YES         12        2147483647 0     VARCHAR   50                                                                                      CREATE DOMAIN "STRING3" AS VARCHAR DEFAULT '<empty>'
-> STRING_X    '<empty>'      YES         12        2147483647 0     VARCHAR   50                                                                                      CREATE DOMAIN "STRING_X" AS VARCHAR DEFAULT '<empty>'
-> rows: 7
+select DOMAIN_NAME, DOMAIN_DEFAULT, DATA_TYPE, PRECISION, SCALE, TYPE_NAME, SELECTIVITY, REMARKS, SQL from information_schema.domains;
+> DOMAIN_NAME DOMAIN_DEFAULT DATA_TYPE PRECISION  SCALE TYPE_NAME SELECTIVITY REMARKS SQL
+> ----------- -------------- --------- ---------- ----- --------- ----------- ------- -------------------------------------------------------------------------
+> EMAIL       null           12        200        0     VARCHAR   50                  CREATE DOMAIN "PUBLIC"."EMAIL" AS VARCHAR(200)
+> GMAIL       '@gmail.com'   12        200        0     VARCHAR   50                  CREATE DOMAIN "PUBLIC"."GMAIL" AS "PUBLIC"."EMAIL" DEFAULT '@gmail.com'
+> STRING      ''             12        255        0     VARCHAR   50                  CREATE DOMAIN "PUBLIC"."STRING" AS VARCHAR(255) DEFAULT ''
+> STRING1     null           12        2147483647 0     VARCHAR   50                  CREATE DOMAIN "PUBLIC"."STRING1" AS VARCHAR
+> STRING2     '<empty>'      12        2147483647 0     VARCHAR   50                  CREATE DOMAIN "PUBLIC"."STRING2" AS VARCHAR DEFAULT '<empty>'
+> STRING_X    '<empty>'      12        2147483647 0     VARCHAR   50                  CREATE DOMAIN "PUBLIC"."STRING_X" AS "PUBLIC"."STRING2" DEFAULT '<empty>'
+> rows: 6
 
 script nodata nopasswords nosettings;
 > SCRIPT
-> ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+> ------------------------------------------------------------------------------------------------------------------------------------------
 > -- 1 +/- SELECT COUNT(*) FROM PUBLIC.ADDRESS;
 > -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
+> ALTER DOMAIN "PUBLIC"."EMAIL" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_3" CHECK(POSITION('@', VALUE) > 1) NOCHECK;
+> ALTER DOMAIN "PUBLIC"."GMAIL" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_4" CHECK(POSITION('gmail', VALUE) > 1) NOCHECK;
 > ALTER TABLE "PUBLIC"."ADDRESS" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_E" PRIMARY KEY("ID");
-> CREATE DOMAIN "EMAIL" AS VARCHAR(200) CHECK (POSITION('@', "VALUE") > 1);
-> CREATE DOMAIN "GMAIL" AS VARCHAR(200) DEFAULT '@gmail.com' CHECK ((POSITION('@', "VALUE") > 1) AND (POSITION('gmail', "VALUE") > 1));
-> CREATE DOMAIN "STRING" AS VARCHAR(255) DEFAULT '' NOT NULL;
-> CREATE DOMAIN "STRING1" AS VARCHAR;
-> CREATE DOMAIN "STRING2" AS VARCHAR NOT NULL;
-> CREATE DOMAIN "STRING3" AS VARCHAR DEFAULT '<empty>';
-> CREATE DOMAIN "STRING_X" AS VARCHAR DEFAULT '<empty>';
-> CREATE MEMORY TABLE "PUBLIC"."ADDRESS"( "ID" INT NOT NULL, "NAME" "EMAIL" CHECK (POSITION('@', "NAME") > 1), "NAME2" "GMAIL" DEFAULT '@gmail.com' CHECK ((POSITION('@', "NAME2") > 1) AND (POSITION('gmail', "NAME2") > 1)) );
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "A" "STRING" DEFAULT '' NOT NULL, "B" "STRING1", "C" "STRING2" NOT NULL, "D" "STRING3" DEFAULT '<empty>' );
+> CREATE DOMAIN "PUBLIC"."EMAIL" AS VARCHAR(200);
+> CREATE DOMAIN "PUBLIC"."GMAIL" AS "PUBLIC"."EMAIL" DEFAULT '@gmail.com';
+> CREATE DOMAIN "PUBLIC"."STRING" AS VARCHAR(255) DEFAULT '';
+> CREATE DOMAIN "PUBLIC"."STRING1" AS VARCHAR;
+> CREATE DOMAIN "PUBLIC"."STRING2" AS VARCHAR DEFAULT '<empty>';
+> CREATE DOMAIN "PUBLIC"."STRING_X" AS "PUBLIC"."STRING2" DEFAULT '<empty>';
+> CREATE MEMORY TABLE "PUBLIC"."ADDRESS"( "ID" INT NOT NULL, "NAME" "PUBLIC"."EMAIL", "NAME2" "PUBLIC"."GMAIL" DEFAULT '@gmail.com' );
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "A" "PUBLIC"."STRING" DEFAULT '', "B" "PUBLIC"."STRING1", "C" "PUBLIC"."STRING2" DEFAULT '<empty>' );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
-> rows: 13
+> rows: 14
 
 drop table test;
 > ok
@@ -2569,10 +2278,7 @@ drop domain string;
 drop domain string1;
 > ok
 
-drop domain string2;
-> ok
-
-drop domain string3;
+drop domain string2 cascade;
 > ok
 
 drop domain string_x;
@@ -2581,7 +2287,7 @@ drop domain string_x;
 drop table address;
 > ok
 
-drop domain email;
+drop domain email cascade;
 > ok
 
 drop domain gmail;
@@ -2591,7 +2297,7 @@ create force view address_view as select * from address;
 > ok
 
 create table address(id identity, name varchar check instr(value, '@') > 1);
-> exception COLUMN_NOT_FOUND_1
+> exception SYNTAX_ERROR_2
 
 create table address(id identity, name varchar check instr(name, '@') > 1);
 > ok
@@ -3082,55 +2788,6 @@ SELECT * FROM TEST WHERE foo = 123456789014567;
 DROP TABLE IF EXISTS TEST;
 > ok
 
-create table test(v boolean);
-> ok
-
-insert into test values(null), (true), (false);
-> update count: 3
-
-SELECT CASE WHEN NOT (false IN (null)) THEN false END;
-> NULL
-> ----
-> null
-> rows: 1
-
-select a.v as av, b.v as bv, a.v IN (b.v), not a.v IN (b.v) from test a, test b;
-> AV    BV    A.V = B.V NOT (A.V = B.V)
-> ----- ----- --------- ---------------
-> FALSE FALSE TRUE      FALSE
-> FALSE TRUE  FALSE     TRUE
-> FALSE null  null      null
-> TRUE  FALSE FALSE     TRUE
-> TRUE  TRUE  TRUE      FALSE
-> TRUE  null  null      null
-> null  FALSE null      null
-> null  TRUE  null      null
-> null  null  null      null
-> rows: 9
-
-select a.v as av, b.v as bv, a.v IN (b.v, null), not a.v IN (b.v, null) from test a, test b;
-> AV    BV    A.V IN(B.V, NULL) NOT (A.V IN(B.V, NULL))
-> ----- ----- ----------------- -----------------------
-> FALSE FALSE TRUE              FALSE
-> FALSE TRUE  null              null
-> FALSE null  null              null
-> TRUE  FALSE null              null
-> TRUE  TRUE  TRUE              FALSE
-> TRUE  null  null              null
-> null  FALSE null              null
-> null  TRUE  null              null
-> null  null  null              null
-> rows: 9
-
-drop table test;
-> ok
-
-SELECT CASE WHEN NOT (false IN (null)) THEN false END;
-> NULL
-> ----
-> null
-> rows: 1
-
 create table test(id int);
 > ok
 
@@ -3146,15 +2803,9 @@ drop table test;
 > ok
 
 call select 1.0/3.0*3.0, 100.0/2.0, -25.0/100.0, 0.0/3.0, 6.9/2.0, 0.72179425150347250912311550800000 / 5314251955.21;
-> SELECT 0.999999999999999999999999990, 5E+1, -0.25, 0, 3.45, 1.35822361752313607260107721120531135706133161972E-10 FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */ /* scanCount: 2 */
-> -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-> ROW (0.999999999999999999999999990, 5E+1, -0.25, 0, 3.45, 1.35822361752313607260107721120531135706133161972E-10)
-> rows: 1
-
-call (select x from dual where x is null);
-> SELECT X FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX: X IS NULL */ /* scanCount: 1 */ WHERE X IS NULL
-> -------------------------------------------------------------------------------------------------------
-> null
+> SELECT 0.99990, 50.0000, -0.25000000, 0.0000, 3.4500, 1.35822361752313607260107721120531135706133162E-10
+> --------------------------------------------------------------------------------------------------------
+> ROW (0.99990, 50.0000, -0.25000000, 0.0000, 3.4500, 1.35822361752313607260107721120531135706133162E-10)
 > rows: 1
 
 create sequence test_seq;
@@ -3346,7 +2997,7 @@ drop table s;
 drop table p;
 > ok
 
-create table test (id identity, value int not null);
+create table test (id identity, "VALUE" int not null);
 > ok
 
 create primary key on test(id);
@@ -3624,15 +3275,16 @@ script NOPASSWORDS NOSETTINGS drop;
 > SCRIPT
 > -----------------------------------------------------------------------------------------------------------------------------
 > -- 0 +/- SELECT COUNT(*) FROM S.TEST;
+> ALTER SEQUENCE "S"."SEQ" RESTART WITH 10;
 > CREATE FORCE TRIGGER "S"."TEST_TRIGGER" BEFORE INSERT ON "S"."TEST" QUEUE 1024 CALL "org.h2.test.db.TestTriggersConstraints";
 > CREATE INDEX "S"."INDEX_ID" ON "S"."TEST"("ID");
 > CREATE MEMORY TABLE "S"."TEST"( "ID" INT );
 > CREATE SCHEMA IF NOT EXISTS "S" AUTHORIZATION "SA";
-> CREATE SEQUENCE "S"."SEQ" START WITH 10 CACHE 1;
+> CREATE SEQUENCE "S"."SEQ" START WITH 1 NO CACHE;
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
 > DROP SEQUENCE IF EXISTS "S"."SEQ";
 > DROP TABLE IF EXISTS "S"."TEST" CASCADE;
-> rows: 9
+> rows: 10
 
 drop trigger s.test_trigger;
 > ok
@@ -3657,12 +3309,12 @@ alter table test rename column id to i;
 
 script NOPASSWORDS NOSETTINGS drop;
 > SCRIPT
-> -------------------------------------------------------------------------------------------------------------------
+> --------------------------------------------------------------------------------------------------------------------
 > -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
 > ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."ABC" FOREIGN KEY("I") REFERENCES "PUBLIC"."TEST"("I") NOCHECK;
 > ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_2" PRIMARY KEY("I");
 > CREATE INDEX "PUBLIC"."IDX_N_ID" ON "PUBLIC"."TEST"("NAME", "I");
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "I" INT NOT NULL, "NAME" VARCHAR(255), "Y" INT AS ("I" + 1) );
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "I" INT NOT NULL, "NAME" VARCHAR(255), "Y" INT GENERATED ALWAYS AS ("I" + 1) );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
 > DROP TABLE IF EXISTS "PUBLIC"."TEST" CASCADE;
 > INSERT INTO "PUBLIC"."TEST" VALUES (1, 'Hello', 2);
@@ -3837,13 +3489,6 @@ DROP TABLE IF EXISTS CHILD;
 
 DROP TABLE IF EXISTS PARENT;
 > ok
-
-(SELECT * FROM DUAL) UNION ALL (SELECT * FROM DUAL);
-> X
-> -
-> 1
-> 1
-> rows: 2
 
 DECLARE GLOBAL TEMPORARY TABLE TEST(ID INT PRIMARY KEY);
 > ok
@@ -4363,14 +4008,6 @@ insert into test values
 
 EXPLAIN SELECT * FROM TEST WHERE ID = 3;
 >> SELECT "PUBLIC"."TEST"."ID", "PUBLIC"."TEST"."FIRST_NAME", "PUBLIC"."TEST"."NAME", "PUBLIC"."TEST"."STATE" FROM "PUBLIC"."TEST" /* PUBLIC.PRIMARY_KEY_2: ID = 3 */ WHERE "ID" = 3
-
-SELECT SELECTIVITY(ID), SELECTIVITY(FIRST_NAME),
-SELECTIVITY(NAME), SELECTIVITY(STATE)
-FROM TEST WHERE ROWNUM()<100000;
-> SELECTIVITY(ID) SELECTIVITY(FIRST_NAME) SELECTIVITY(NAME) SELECTIVITY(STATE)
-> --------------- ----------------------- ----------------- ------------------
-> 100             60                      80                10
-> rows: 1
 
 explain select * from test where name='Smith' and first_name='Tom' and state=0;
 >> SELECT "PUBLIC"."TEST"."ID", "PUBLIC"."TEST"."FIRST_NAME", "PUBLIC"."TEST"."NAME", "PUBLIC"."TEST"."STATE" FROM "PUBLIC"."TEST" /* PUBLIC.IDX_FIRST_NAME: FIRST_NAME = 'Tom' */ WHERE ("STATE" = 0) AND (("NAME" = 'Smith') AND ("FIRST_NAME" = 'Tom'))
@@ -5255,7 +4892,7 @@ SELECT * FROM SYSTEM_RANGE(1,2) UNION ALL SELECT * FROM SYSTEM_RANGE(1,2) ORDER 
 > rows (ordered): 4
 
 EXPLAIN (SELECT * FROM SYSTEM_RANGE(1,2) UNION ALL SELECT * FROM SYSTEM_RANGE(1,2) ORDER BY 1);
->> (SELECT "PUBLIC"."SYSTEM_RANGE"."X" FROM SYSTEM_RANGE(1, 2) /* PUBLIC.RANGE_INDEX */) UNION ALL (SELECT "PUBLIC"."SYSTEM_RANGE"."X" FROM SYSTEM_RANGE(1, 2) /* PUBLIC.RANGE_INDEX */) ORDER BY 1
+>> (SELECT "SYSTEM_RANGE"."X" FROM SYSTEM_RANGE(1, 2) /* range index */) UNION ALL (SELECT "SYSTEM_RANGE"."X" FROM SYSTEM_RANGE(1, 2) /* range index */) ORDER BY 1
 
 CREATE TABLE CHILDREN(ID INT PRIMARY KEY, NAME VARCHAR(255), CLASS INT);
 > ok
@@ -5948,7 +5585,7 @@ DROP TABLE TEST;
 > ok
 
 --- group by ----------------------------------------------------------------------------------------------
-CREATE TABLE TEST(A INT, B INT, VALUE INT, UNIQUE(A, B));
+CREATE TABLE TEST(A INT, B INT, "VALUE" INT, UNIQUE(A, B));
 > ok
 
 INSERT INTO TEST VALUES(?, ?, ?);
@@ -5963,7 +5600,7 @@ NULL, 1, 10
 };
 > update count: 7
 
-SELECT A, B, COUNT(*) CAL, COUNT(A) CA, COUNT(B) CB, MIN(VALUE) MI, MAX(VALUE) MA, SUM(VALUE) S FROM TEST GROUP BY A, B;
+SELECT A, B, COUNT(*) CAL, COUNT(A) CA, COUNT(B) CB, MIN("VALUE") MI, MAX("VALUE") MA, SUM("VALUE") S FROM TEST GROUP BY A, B;
 > A    B    CAL CA CB MI   MA   S
 > ---- ---- --- -- -- ---- ---- ----
 > 0    0    1   1  1  -1   -1   -1
@@ -6088,15 +5725,15 @@ SELECT XD+1, XD-1, XD-XD FROM TEST;
 > null                  null                   null
 > rows: 4
 
-SELECT ID, CAST(XT AS DATE) T2D, CAST(XTS AS DATE) TS2D,
-CAST(XD AS TIME) D2T, CAST(XTS AS TIME(9)) TS2T,
-CAST(XT AS TIMESTAMP) D2TS, CAST(XD AS TIMESTAMP) D2TS FROM TEST;
-> ID   T2D        TS2D       D2T      TS2T               D2TS                D2TS
-> ---- ---------- ---------- -------- ------------------ ------------------- -------------------
-> 0    1970-01-01 0002-03-04 00:00:00 00:00:00           1970-01-01 00:00:00 0001-02-03 00:00:00
-> 1    1970-01-01 0007-08-09 00:00:00 00:01:02           1970-01-01 01:02:03 0004-05-06 00:00:00
-> 2    1970-01-01 1999-12-31 00:00:00 23:59:59.123456789 1970-01-01 23:59:59 1999-12-31 00:00:00
-> null null       null       null     null               null                null
+SELECT ID, CAST(XTS AS DATE) TS2D,
+CAST(XTS AS TIME(9)) TS2T,
+CAST(XD AS TIMESTAMP) D2TS FROM TEST;
+> ID   TS2D       TS2T               D2TS
+> ---- ---------- ------------------ -------------------
+> 0    0002-03-04 00:00:00           0001-02-03 00:00:00
+> 1    0007-08-09 00:01:02           0004-05-06 00:00:00
+> 2    1999-12-31 23:59:59.123456789 1999-12-31 00:00:00
+> null null       null               null
 > rows: 4
 
 SCRIPT SIMPLE NOPASSWORDS NOSETTINGS;
@@ -6381,7 +6018,7 @@ DROP TABLE TEST;
 CREATE TABLE CUSTOMER(ID INT PRIMARY KEY, NAME VARCHAR(255));
 > ok
 
-CREATE TABLE INVOICE(ID INT, CUSTOMER_ID INT, PRIMARY KEY(CUSTOMER_ID, ID), VALUE DECIMAL(10,2));
+CREATE TABLE INVOICE(ID INT, CUSTOMER_ID INT, PRIMARY KEY(CUSTOMER_ID, ID), "VALUE" DECIMAL(10,2));
 > ok
 
 INSERT INTO CUSTOMER VALUES(?, ?);
@@ -6592,7 +6229,7 @@ drop view s;
 drop table t;
 > ok
 
-CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255), VALUE DECIMAL(10,2));
+CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255), "VALUE" DECIMAL(10,2));
 > ok
 
 INSERT INTO TEST VALUES(?, ?, ?);
@@ -6609,9 +6246,9 @@ INSERT INTO TEST VALUES(?, ?, ?);
 };
 > update count: 9
 
-SELECT IFNULL(NAME, '') || ': ' || GROUP_CONCAT(VALUE ORDER BY NAME, VALUE DESC SEPARATOR ', ') FROM TEST GROUP BY NAME ORDER BY 1;
-> (IFNULL(NAME, '') || ': ') || LISTAGG(VALUE, ', ') WITHIN GROUP (ORDER BY NAME, VALUE DESC)
-> -------------------------------------------------------------------------------------------
+SELECT IFNULL(NAME, '') || ': ' || GROUP_CONCAT("VALUE" ORDER BY NAME, "VALUE" DESC SEPARATOR ', ') FROM TEST GROUP BY NAME ORDER BY 1;
+> (IFNULL(NAME, '') || ': ') || LISTAGG("VALUE", ', ') WITHIN GROUP (ORDER BY NAME, "VALUE" DESC)
+> -----------------------------------------------------------------------------------------------
 > : 3.10, -10.00
 > Apples: 1.50, 1.20, 1.10
 > Bananas: 2.50
@@ -6658,24 +6295,24 @@ SELECT DISTINCT NAME FROM TEST ORDER BY NAME DESC NULLS LAST LIMIT 2 OFFSET 1;
 > Bananas
 > rows (ordered): 2
 
-SELECT NAME, COUNT(*), SUM(VALUE), MAX(VALUE), MIN(VALUE), AVG(VALUE), COUNT(DISTINCT VALUE) FROM TEST GROUP BY NAME;
-> NAME     COUNT(*) SUM(VALUE) MAX(VALUE) MIN(VALUE) AVG(VALUE)                    COUNT(DISTINCT VALUE)
-> -------- -------- ---------- ---------- ---------- ----------------------------- ---------------------
-> Apples   3        3.80       1.50       1.10       1.266666666666666666666666667 3
-> Bananas  1        2.50       2.50       2.50       2.5                           1
-> Cherries 1        5.10       5.10       5.10       5.1                           1
-> Oranges  2        3.85       2.05       1.80       1.925                         2
-> null     2        -6.90      3.10       -10.00     -3.45                         2
+SELECT NAME, COUNT(*), SUM("VALUE"), MAX("VALUE"), MIN("VALUE"), AVG("VALUE"), COUNT(DISTINCT "VALUE") FROM TEST GROUP BY NAME;
+> NAME     COUNT(*) SUM("VALUE") MAX("VALUE") MIN("VALUE") AVG("VALUE")                                COUNT(DISTINCT "VALUE")
+> -------- -------- ------------ ------------ ------------ ------------------------------------------- -----------------------
+> Apples   3        3.80         1.50         1.10         1.2666666666666666666666666666666666666667  3
+> Bananas  1        2.50         2.50         2.50         2.5000000000000000000000000000000000000000  1
+> Cherries 1        5.10         5.10         5.10         5.1000000000000000000000000000000000000000  1
+> Oranges  2        3.85         2.05         1.80         1.9250000000000000000000000000000000000000  2
+> null     2        -6.90        3.10         -10.00       -3.4500000000000000000000000000000000000000 2
 > rows: 5
 
-SELECT NAME, MAX(VALUE), MIN(VALUE), MAX(VALUE+1)*MIN(VALUE+1) FROM TEST GROUP BY NAME;
-> NAME     MAX(VALUE) MIN(VALUE) MAX(VALUE + 1) * MIN(VALUE + 1)
-> -------- ---------- ---------- -------------------------------
-> Apples   1.50       1.10       5.2500
-> Bananas  2.50       2.50       12.2500
-> Cherries 5.10       5.10       37.2100
-> Oranges  2.05       1.80       8.5400
-> null     3.10       -10.00     -36.9000
+SELECT NAME, MAX("VALUE"), MIN("VALUE"), MAX("VALUE"+1)*MIN("VALUE"+1) FROM TEST GROUP BY NAME;
+> NAME     MAX("VALUE") MIN("VALUE") MAX("VALUE" + 1) * MIN("VALUE" + 1)
+> -------- ------------ ------------ -----------------------------------
+> Apples   1.50         1.10         5.2500
+> Bananas  2.50         2.50         12.2500
+> Cherries 5.10         5.10         37.2100
+> Oranges  2.05         1.80         8.5400
+> null     3.10         -10.00       -36.9000
 > rows: 5
 
 DROP TABLE TEST;
@@ -6929,10 +6566,10 @@ CREATE TABLE CHILD(ID INT PRIMARY KEY, PA INT, PB INT, CONSTRAINT AB FOREIGN KEY
 > ok
 
 SELECT * FROM INFORMATION_SCHEMA.CROSS_REFERENCES;
-> PKTABLE_CATALOG PKTABLE_SCHEMA PKTABLE_NAME PKCOLUMN_NAME FKTABLE_CATALOG FKTABLE_SCHEMA FKTABLE_NAME FKCOLUMN_NAME ORDINAL_POSITION UPDATE_RULE DELETE_RULE FK_NAME PK_NAME       DEFERRABILITY
-> --------------- -------------- ------------ ------------- --------------- -------------- ------------ ------------- ---------------- ----------- ----------- ------- ------------- -------------
-> SCRIPT          PUBLIC         PARENT       A             SCRIPT          PUBLIC         CHILD        PA            1                1           1           AB      PRIMARY_KEY_8 7
-> SCRIPT          PUBLIC         PARENT       B             SCRIPT          PUBLIC         CHILD        PB            2                1           1           AB      PRIMARY_KEY_8 7
+> PKTABLE_CATALOG PKTABLE_SCHEMA PKTABLE_NAME PKCOLUMN_NAME FKTABLE_CATALOG FKTABLE_SCHEMA FKTABLE_NAME FKCOLUMN_NAME ORDINAL_POSITION UPDATE_RULE DELETE_RULE FK_NAME PK_NAME      DEFERRABILITY
+> --------------- -------------- ------------ ------------- --------------- -------------- ------------ ------------- ---------------- ----------- ----------- ------- ------------ -------------
+> SCRIPT          PUBLIC         PARENT       A             SCRIPT          PUBLIC         CHILD        PA            1                1           1           AB      CONSTRAINT_8 7
+> SCRIPT          PUBLIC         PARENT       B             SCRIPT          PUBLIC         CHILD        PB            2                1           1           AB      CONSTRAINT_8 7
 > rows: 2
 
 DROP TABLE PARENT, CHILD;
@@ -7008,7 +6645,7 @@ ALTER TABLE TEST DROP PRIMARY KEY;
 > exception INDEX_BELONGS_TO_CONSTRAINT_2
 
 ALTER TABLE TEST DROP CONSTRAINT PK;
-> ok
+> exception CONSTRAINT_IS_USED_BY_CONSTRAINT_2
 
 INSERT INTO TEST VALUES(1, 'Frank', 1);
 > update count: 1
@@ -7051,9 +6688,10 @@ SCRIPT NOPASSWORDS NOSETTINGS;
 > --------------------------------------------------------------------------------------------------------------------------
 > -- 0 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
 > ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."C1" FOREIGN KEY("A_INT") REFERENCES "PUBLIC"."TEST"("B_INT") NOCHECK;
+> ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_2" UNIQUE("B_INT");
 > CREATE MEMORY TABLE "PUBLIC"."TEST"( "A_INT" INT NOT NULL, "B_INT" INT NOT NULL );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
-> rows: 4
+> rows: 5
 
 ALTER TABLE TEST DROP CONSTRAINT C1;
 > ok
@@ -7296,6 +6934,8 @@ SCRIPT SIMPLE NOPASSWORDS NOSETTINGS;
 > -- 4 +/- SELECT COUNT(*) FROM PUBLIC.CHILD;
 > ALTER TABLE "PUBLIC"."CHILD" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_3" UNIQUE("ID", "PARENTID");
 > ALTER TABLE "PUBLIC"."CHILD" ADD CONSTRAINT "PUBLIC"."PARENT_CHILD" FOREIGN KEY("PARENTID", "FAMILY_ID") REFERENCES "PUBLIC"."PARENT"("ID", "FAMILY_ID") ON DELETE SET NULL ON UPDATE CASCADE NOCHECK;
+> ALTER TABLE "PUBLIC"."FAMILY" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_7" UNIQUE("ID");
+> ALTER TABLE "PUBLIC"."PARENT" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_8" UNIQUE("ID", "FAMILY_ID");
 > ALTER TABLE "PUBLIC"."PARENT" ADD CONSTRAINT "PUBLIC"."PARENT_FAMILY" FOREIGN KEY("FAMILY_ID") REFERENCES "PUBLIC"."FAMILY"("ID") NOCHECK;
 > CREATE INDEX "PUBLIC"."FAMILY_ID_NAME" ON "PUBLIC"."FAMILY"("ID", "NAME");
 > CREATE MEMORY TABLE "PUBLIC"."CHILD"( "ID" INT, "PARENTID" INT, "FAMILY_ID" INT, "NAME" VARCHAR(20) );
@@ -7308,7 +6948,7 @@ SCRIPT SIMPLE NOPASSWORDS NOSETTINGS;
 > INSERT INTO "PUBLIC"."CHILD" VALUES(201, NULL, NULL, 'Johann');
 > INSERT INTO "PUBLIC"."FAMILY" VALUES(1, 'Capone');
 > INSERT INTO "PUBLIC"."PARENT" VALUES(3, 1, 'Sue');
-> rows: 17
+> rows: 19
 
 ALTER TABLE CHILD DROP CONSTRAINT PARENT_CHILD;
 > ok
@@ -7320,6 +6960,8 @@ SCRIPT SIMPLE NOPASSWORDS NOSETTINGS;
 > -- 1 +/- SELECT COUNT(*) FROM PUBLIC.PARENT;
 > -- 4 +/- SELECT COUNT(*) FROM PUBLIC.CHILD;
 > ALTER TABLE "PUBLIC"."CHILD" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_3" UNIQUE("ID", "PARENTID");
+> ALTER TABLE "PUBLIC"."FAMILY" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_7" UNIQUE("ID");
+> ALTER TABLE "PUBLIC"."PARENT" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_8" UNIQUE("ID", "FAMILY_ID");
 > ALTER TABLE "PUBLIC"."PARENT" ADD CONSTRAINT "PUBLIC"."PARENT_FAMILY" FOREIGN KEY("FAMILY_ID") REFERENCES "PUBLIC"."FAMILY"("ID") NOCHECK;
 > CREATE INDEX "PUBLIC"."FAMILY_ID_NAME" ON "PUBLIC"."FAMILY"("ID", "NAME");
 > CREATE MEMORY TABLE "PUBLIC"."CHILD"( "ID" INT, "PARENTID" INT, "FAMILY_ID" INT, "NAME" VARCHAR(20) );
@@ -7332,7 +6974,7 @@ SCRIPT SIMPLE NOPASSWORDS NOSETTINGS;
 > INSERT INTO "PUBLIC"."CHILD" VALUES(201, NULL, NULL, 'Johann');
 > INSERT INTO "PUBLIC"."FAMILY" VALUES(1, 'Capone');
 > INSERT INTO "PUBLIC"."PARENT" VALUES(3, 1, 'Sue');
-> rows: 16
+> rows: 18
 
 DELETE FROM PARENT;
 > update count: 1
@@ -7397,9 +7039,10 @@ SCRIPT NOPASSWORDS NOSETTINGS;
 > ----------------------------------------------------------------------------------------------------------------------------
 > -- 0 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
 > ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_2" FOREIGN KEY("B") REFERENCES "PUBLIC"."TEST"("A") NOCHECK;
+> ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_27" UNIQUE("A");
 > CREATE MEMORY TABLE "PUBLIC"."TEST"( "A" INT, "B" INT );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
-> rows: 4
+> rows: 5
 
 DROP TABLE TEST;
 > ok
@@ -7600,31 +7243,6 @@ drop table test;
 > ok
 
 --- test cases ---------------------------------------------------------------------------------------------
-create memory table word(word_id integer, name varchar);
-> ok
-
-alter table word alter column word_id integer(10) auto_increment;
-> ok
-
-insert into word(name) values('Hello');
-> update count: 1
-
-alter table word alter column word_id restart with 30872;
-> ok
-
-insert into word(name) values('World');
-> update count: 1
-
-select * from word;
-> WORD_ID NAME
-> ------- -----
-> 1       Hello
-> 30872   World
-> rows: 2
-
-drop table word;
-> ok
-
 create table test(id int, name varchar);
 > ok
 
@@ -7828,6 +7446,9 @@ alter table if exists z add constraint z_fk foreign key (id) references x (id);
 insert into z (id) values (1);
 > exception REFERENTIAL_INTEGRITY_VIOLATED_PARENT_MISSING_1
 
+SET MODE MySQL;
+> ok
+
 alter table if exists y drop foreign key z_fk;
 > ok
 
@@ -7836,6 +7457,9 @@ alter table if exists z drop foreign key z_fk;
 
 alter table if exists z drop foreign key z_fk;
 > exception CONSTRAINT_NOT_FOUND_1
+
+SET MODE Regular;
+> ok
 
 insert into z (id) values (1);
 > update count: 1
@@ -7868,7 +7492,7 @@ drop schema z cascade;
 > ok
 
 ----- Issue#493 -----
-create table test (year int, action varchar(10));
+create table test ("YEAR" int, action varchar(10));
 > ok
 
 insert into test values (2015, 'order'), (2016, 'order'), (2014, 'order');
@@ -7877,7 +7501,7 @@ insert into test values (2015, 'order'), (2016, 'order'), (2014, 'order');
 insert into test values (2014, 'execution'), (2015, 'execution'), (2016, 'execution');
 > update count: 3
 
-select * from test where year in (select distinct year from test order by year desc limit 1 offset 0);
+select * from test where "YEAR" in (select distinct "YEAR" from test order by "YEAR" desc limit 1 offset 0);
 > YEAR ACTION
 > ---- ---------
 > 2016 execution

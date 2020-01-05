@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -21,7 +21,7 @@ public class MathUtils {
     /**
      * The secure random object.
      */
-    static SecureRandom cachedSecureRandom;
+    static SecureRandom secureRandom;
 
     /**
      * True if the secure random object is seeded.
@@ -62,32 +62,29 @@ public class MathUtils {
     }
 
     private static synchronized SecureRandom getSecureRandom() {
-        if (cachedSecureRandom != null) {
-            return cachedSecureRandom;
+        if (secureRandom != null) {
+            return secureRandom;
         }
         // Workaround for SecureRandom problem as described in
-        // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6202721
+        // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6202721
         // Can not do that in a static initializer block, because
         // threads are not started until after the initializer block exits
         try {
-            cachedSecureRandom = SecureRandom.getInstance("SHA1PRNG");
+            secureRandom = SecureRandom.getInstance("SHA1PRNG");
             // On some systems, secureRandom.generateSeed() is very slow.
             // In this case it is initialized using our own seed implementation
             // and afterwards (in the thread) using the regular algorithm.
-            Runnable runnable = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
-                        byte[] seed = sr.generateSeed(20);
-                        synchronized (cachedSecureRandom) {
-                            cachedSecureRandom.setSeed(seed);
-                            seeded = true;
-                        }
-                    } catch (Exception e) {
-                        // NoSuchAlgorithmException
-                        warn("SecureRandom", e);
+            Runnable runnable = () -> {
+                try {
+                    SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
+                    byte[] seed = sr.generateSeed(20);
+                    synchronized (secureRandom) {
+                        secureRandom.setSeed(seed);
+                        seeded = true;
                     }
+                } catch (Exception e) {
+                    // NoSuchAlgorithmException
+                    warn("SecureRandom", e);
                 }
             };
 
@@ -107,8 +104,8 @@ public class MathUtils {
                 if (!seeded) {
                     byte[] seed = generateAlternativeSeed();
                     // this never reduces randomness
-                    synchronized (cachedSecureRandom) {
-                        cachedSecureRandom.setSeed(seed);
+                    synchronized (secureRandom) {
+                        secureRandom.setSeed(seed);
                     }
                 }
             } catch (SecurityException e) {
@@ -120,9 +117,9 @@ public class MathUtils {
         } catch (Exception e) {
             // NoSuchAlgorithmException
             warn("SecureRandom", e);
-            cachedSecureRandom = new SecureRandom();
+            secureRandom = new SecureRandom();
         }
-        return cachedSecureRandom;
+        return secureRandom;
     }
 
     /**
@@ -239,7 +236,7 @@ public class MathUtils {
 
     /**
      * Convert a long value to an int value. Values larger than the biggest int
-     * value is converted to the biggest int value, and values smaller than the
+     * value are converted to the biggest int value, and values smaller than the
      * smallest int value are converted to the smallest int value.
      *
      * @param l the value to convert
@@ -252,6 +249,24 @@ public class MathUtils {
             return Integer.MAX_VALUE;
         } else {
             return (int) l;
+        }
+    }
+
+    /**
+     * Convert an int value to a short value. Values larger than the biggest
+     * short value are converted to the biggest short value, and values smaller
+     * than the smallest short value are converted to the smallest short value.
+     *
+     * @param i the value to convert
+     * @return the converted short value
+     */
+    public static short convertIntToShort(int i) {
+        if (i <= Short.MIN_VALUE) {
+            return Short.MIN_VALUE;
+        } else if (i >= Short.MAX_VALUE) {
+            return Short.MAX_VALUE;
+        } else {
+            return (short) i;
         }
     }
 

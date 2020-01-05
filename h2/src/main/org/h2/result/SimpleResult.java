@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,15 +30,6 @@ public class SimpleResult implements ResultInterface, ResultTarget {
 
         /** Column type. */
         final TypeInfo columnType;
-
-        Column(String alias, String columnName, int columnType, long columnPrecision, int columnScale) {
-            if (alias == null || columnName == null) {
-                throw new NullPointerException();
-            }
-            this.alias = alias;
-            this.columnName = columnName;
-            this.columnType = TypeInfo.getTypeInfo(columnType, columnPrecision, columnScale, null);
-        }
 
         Column(String alias, String columnName, TypeInfo columnType) {
             if (alias == null || columnName == null) {
@@ -109,7 +100,7 @@ public class SimpleResult implements ResultInterface, ResultTarget {
      * @param columnScale Column's scale.
      */
     public void addColumn(String alias, String columnName, int columnType, long columnPrecision, int columnScale) {
-        addColumn(new Column(alias, columnName, columnType, columnPrecision, columnScale));
+        addColumn(alias, columnName, TypeInfo.getTypeInfo(columnType, columnPrecision, columnScale, null));
     }
 
     /**

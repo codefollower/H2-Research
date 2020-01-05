@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -46,23 +46,14 @@ public class PageStoreInDoubtTransaction implements InDoubtTransaction {
             store.setInDoubtTransactionState(sessionId, pos, false);
             break;
         default:
-            DbException.throwInternalError("state="+state);
+            throw DbException.throwInternalError("state="+state);
         }
         this.state = state;
     }
 
     @Override
-    public String getState() {
-        switch (state) {
-        case IN_DOUBT:
-            return "IN_DOUBT";
-        case COMMIT:
-            return "COMMIT";
-        case ROLLBACK:
-            return "ROLLBACK";
-        default:
-            throw DbException.throwInternalError("state="+state);
-        }
+    public int getState() {
+        return state;
     }
 
     @Override

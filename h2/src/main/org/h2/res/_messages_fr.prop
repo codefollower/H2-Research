@@ -26,6 +26,7 @@
 40001=Deadlock détecté. La transaction courante a été annulée. Détails: {0}
 42000=Erreur de syntaxe dans l''instruction SQL {0}
 42001=Erreur de syntaxe dans l''instruction SQL {0}; attendu {1}
+42602=#Invalid name {0}
 42S01=La table {0} existe déjà
 42S02=Table {0} non trouvée
 42S11=L''index {0} existe déjà
@@ -42,7 +43,7 @@
 90006=La séquence {0} a épuisé ses éléments
 90007=L''objet est déjà fermé
 90008=Valeur invalide {0} pour le paramètre {1}
-90009=Impossible de créer ou modifier la séquence {0} car les attributs sont invalides (start value {1}, min value {2}, max value {3}, increment {4})
+90009=Impossible de créer ou modifier la séquence {0} car les attributs sont invalides (value {1}, start value {2}, min value {3}, max value {4}, increment {5})
 90010=Format invalide TO_CHAR {0}
 90011=Un chemin de fichier implicitement relatif au répertoire de travail actuel n''est pas autorisé dans l''URL de la base de données {0}. Utilisez un chemin absolu, ~ /nom, ./nom ou le paramètre baseDir à la place.
 90012=La paramètre {0} n''est pas initialisé
@@ -84,7 +85,6 @@
 90048=Version de fichier de base de données non supportée ou entête de ficher invalide dans le fichier {0}
 90049=Erreur de cryptage dans le fichier {0}
 90050=Mauvais format de mot de passe, doit être: mot de passe du fichier <espace> mot de passe de l''utilisateur
-90051=L''échelle(${0}) ne doit pas être plus grande que la précision({1})
 90052=La sous requête n''est pas une requête sur une seule colonne
 90053=La sous-requête scalaire contient plus d''une rangée
 90054=Utilisation invalide de la fonction agrégée {0}
@@ -179,6 +179,14 @@
 90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
 90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
 90147=#Method {0} is not allowed when connection is in auto-commit mode
+90148=#Current value of sequence {0} is not yet defined in this session
+90149=#Database {0} not found, either pre-create it or allow remote database creation (not recommended in secure environments)
+90150=#Precision ({0}) must be between {1} and {2} inclusive
+90151=#Scale or fractional seconds precision ({0}) must be between {1} and {2} inclusive
+90152=#Constraint {0} is used by constraint {1}
+90153=#Column {0} references uncomparable column {1}
+90154=#Generated column {0} cannot be assigned
+90155=#Generated column {0} cannot be updatable by a referential constraint with {1} clause
 HY000=Erreur générale: {0}
 HY004=Type de données inconnu: {0}
 HYC00=Fonctionnalité non supportée: {0}

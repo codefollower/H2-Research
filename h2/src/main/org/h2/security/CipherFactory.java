@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -277,7 +277,7 @@ public class CipherFactory {
             // if you have a keystore file.
             // This code is (hopefully) more Java version independent
             // than using keystores directly. See also:
-            // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4887561
+            // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4887561
             // (1.4.2 cannot read keystore written with 1.4.1)
             // --- generated code start ---
 

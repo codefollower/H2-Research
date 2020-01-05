@@ -1,11 +1,10 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.expression;
 
-import org.h2.table.Column;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
@@ -18,7 +17,8 @@ public class TypedValueExpression extends ValueExpression {
     /**
      * The expression represents the SQL UNKNOWN value.
      */
-    private static final Object UNKNOWN = new TypedValueExpression(ValueNull.INSTANCE, TypeInfo.TYPE_BOOLEAN);
+    public static final TypedValueExpression UNKNOWN = new TypedValueExpression(ValueNull.INSTANCE,
+            TypeInfo.TYPE_BOOLEAN);
 
     /**
      * Create a new expression with the given value and type.
@@ -31,18 +31,9 @@ public class TypedValueExpression extends ValueExpression {
      */
     public static TypedValueExpression get(Value value, TypeInfo type) {
         if (value == ValueNull.INSTANCE && type.getValueType() == Value.BOOLEAN) {
-            return getUnknown();
+            return UNKNOWN;
         }
         return new TypedValueExpression(value, type);
-    }
-
-    /**
-     * Get the UNKNOWN expression.
-     *
-     * @return the UNKNOWN expression
-     */
-    public static TypedValueExpression getUnknown() {
-        return (TypedValueExpression) UNKNOWN;
     }
 
     private final TypeInfo type;
@@ -62,8 +53,8 @@ public class TypedValueExpression extends ValueExpression {
         if (this == UNKNOWN) {
             builder.append("UNKNOWN");
         } else {
-            value.getSQL(builder.append("CAST(")).append(" AS ").append(new Column(null, type).getCreateSQL())
-                    .append(')');
+            value.getSQL(builder.append("CAST(")).append(" AS ");
+            type.getSQL(builder).append(')');
         }
         return builder;
     }

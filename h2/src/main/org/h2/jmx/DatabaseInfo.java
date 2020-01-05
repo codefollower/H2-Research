@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,11 +7,10 @@ package org.h2.jmx;
 
 import java.lang.management.ManagementFactory;
 
-import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Map.Entry;
 import javax.management.JMException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -111,9 +110,10 @@ public class DatabaseInfo implements DatabaseInfoMBean {
         return database.getMode().getName();
     }
 
+    @Deprecated
     @Override
     public boolean isMultiThreaded() {
-        return database.isMultiThreaded();
+        return database.isMVStore();
     }
 
     @Deprecated
@@ -225,18 +225,16 @@ public class DatabaseInfo implements DatabaseInfoMBean {
 
     @Override
     public String getVersion() {
-        return Constants.getFullVersion();
+        return Constants.FULL_VERSION;
     }
 
     @Override
     public String listSettings() {
-        StringBuilder buff = new StringBuilder();
-        for (Map.Entry<String, String> e :
-                new TreeMap<>(
-                database.getSettings().getSettings()).entrySet()) {
-            buff.append(e.getKey()).append(" = ").append(e.getValue()).append('\n');
+        StringBuilder builder = new StringBuilder();
+        for (Entry<String, String> e : database.getSettings().getSortedSettings()) {
+            builder.append(e.getKey()).append(" = ").append(e.getValue()).append('\n');
         }
-        return buff.toString();
+        return builder.toString();
     }
 
     @Override
@@ -257,7 +255,7 @@ public class DatabaseInfo implements DatabaseInfoMBean {
                 }
             }
             buff.append("connected: ").
-                    append(new Timestamp(session.getSessionStart())).
+                    append(session.getSessionStart().getString()).
                     append('\n');
             Command command = session.getCurrentCommand();
             if (command != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -142,21 +142,21 @@ public class Test {
     private static void testDatabases(DataOutputStream out) throws Exception {
         Test[] dbs = {
                 new Test("org.h2.Driver",
-                        "jdbc:h2:test1", "sa", "", true),
+                        "jdbc:h2:./test1", "sa", "", true),
                 new Test("org.h2.Driver",
-                        "jdbc:h2:test2", "sa", "", false),
+                        "jdbc:h2:./test2", "sa", "", false),
                 new Test("org.hsqldb.jdbcDriver",
                         "jdbc:hsqldb:test4", "sa", "", false),
-                // new Test("com.mysql.jdbc.Driver",
+                // new Test("com.mysql.cj.jdbc.Driver",
                 // "jdbc:mysql://localhost/test", "sa", ""),
                 new Test("org.postgresql.Driver",
                         "jdbc:postgresql:test", "sa", "sa", false),
-                new Test("org.apache.derby.jdbc.EmbeddedDriver",
+                new Test("org.apache.derby.iapi.jdbc.AutoloadedDriver",
                         "jdbc:derby:test;create=true", "sa", "", false),
                 new Test("org.h2.Driver",
-                        "jdbc:h2:test5", "sa", "", true),
+                        "jdbc:h2:./test5", "sa", "", true),
                 new Test("org.h2.Driver",
-                        "jdbc:h2:test6", "sa", "", false), };
+                        "jdbc:h2:./test6", "sa", "", false), };
         for (int i = 0;; i++) {
             for (Test t : dbs) {
                 t.insert(i);

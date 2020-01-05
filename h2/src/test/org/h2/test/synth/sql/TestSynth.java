@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -296,11 +296,11 @@ public class TestSynth extends TestDb {
         addDatabase("org.h2.Driver", "jdbc:h2:" +
                 getBaseDir() + "/synth/synth", "sa", "", false);
 
-        // addDatabase("com.mysql.jdbc.Driver", "jdbc:mysql://localhost/test",
+        // addDatabase("com.mysql.cj.jdbc.Driver", "jdbc:mysql://localhost/test",
         // "sa", "");
         // addDatabase("org.h2.Driver", "jdbc:h2:synth;mode=mysql", "sa", "");
 
-        // addDatabase("com.mysql.jdbc.Driver", "jdbc:mysql://localhost/test",
+        // addDatabase("com.mysql.cj.jdbc.Driver", "jdbc:mysql://localhost/test",
         // "sa", "");
         // addDatabase("org.ldbc.jdbc.jdbcDriver",
         // "jdbc:ldbc:mysql://localhost/test", "sa", "");

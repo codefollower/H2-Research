@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -109,8 +109,7 @@ public class Right extends DbObjectBase {
             comma = appendRight(buff, grantedRight, SELECT, "SELECT", comma);
             comma = appendRight(buff, grantedRight, DELETE, "DELETE", comma);
             comma = appendRight(buff, grantedRight, INSERT, "INSERT", comma);
-            comma = appendRight(buff, grantedRight, ALTER_ANY_SCHEMA,
-                    "ALTER ANY SCHEMA", comma);
+            comma = appendRight(buff, grantedRight, ALTER_ANY_SCHEMA, "ALTER ANY SCHEMA", comma);
             appendRight(buff, grantedRight, UPDATE, "UPDATE", comma);
         }
         return buff.toString();
@@ -126,11 +125,6 @@ public class Right extends DbObjectBase {
 
     public DbObject getGrantee() {
         return grantee;
-    }
-
-    @Override
-    public String getDropSQL() {
-        return null;
     }
 
     @Override

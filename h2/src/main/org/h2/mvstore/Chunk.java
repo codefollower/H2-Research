@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,6 +7,7 @@ package org.h2.mvstore;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 import java.util.HashMap;
 
 /**
@@ -16,7 +17,8 @@ import java.util.HashMap;
  * There are at most 67 million (2^26) chunks,
  * each chunk is at most 2 GB large.
  */
-public class Chunk {
+public class Chunk
+{
 
     /**
      * The maximum chunk id.
@@ -34,6 +36,23 @@ public class Chunk {
      * version:ffffffffffffffff,fletcher:ffffffff
      */
     static final int FOOTER_LENGTH = 128;
+
+    private static final String ATTR_CHUNK = "chunk";
+    private static final String ATTR_BLOCK = "block";
+    private static final String ATTR_LEN = "len";
+    private static final String ATTR_MAP = "map";
+    private static final String ATTR_MAX = "max";
+    private static final String ATTR_NEXT = "next";
+    private static final String ATTR_PAGES = "pages";
+    private static final String ATTR_ROOT = "root";
+    private static final String ATTR_TIME = "time";
+    private static final String ATTR_VERSION = "version";
+    private static final String ATTR_LIVE_MAX = "liveMax";
+    private static final String ATTR_LIVE_PAGES = "livePages";
+    private static final String ATTR_UNUSED = "unused";
+    private static final String ATTR_UNUSED_AT_VERSION = "unusedAtVersion";
+    private static final String ATTR_PIN_COUNT = "pinCount";
+    private static final String ATTR_FLETCHER = "fletcher";
 
     /**
      * The chunk id.
@@ -182,7 +201,7 @@ public class Chunk {
      * @return the metadata key
      */
     static String getMetaKey(int chunkId) {
-        return "chunk." + Integer.toHexString(chunkId);
+        return ATTR_CHUNK + "." + Integer.toHexString(chunkId);
     }
 
     /**
@@ -193,22 +212,22 @@ public class Chunk {
      */
     public static Chunk fromString(String s) {
         HashMap<String, String> map = DataUtils.parseMap(s);
-        int id = DataUtils.readHexInt(map, "chunk", 0);
+        int id = DataUtils.readHexInt(map, ATTR_CHUNK, 0);
         Chunk c = new Chunk(id);
-        c.block = DataUtils.readHexLong(map, "block", 0);
-        c.len = DataUtils.readHexInt(map, "len", 0);
-        c.pageCount = DataUtils.readHexInt(map, "pages", 0);
-        c.pageCountLive = DataUtils.readHexInt(map, "livePages", c.pageCount);
-        c.mapId = DataUtils.readHexInt(map, "map", 0);
-        c.maxLen = DataUtils.readHexLong(map, "max", 0);
-        c.maxLenLive = DataUtils.readHexLong(map, "liveMax", c.maxLen);
-        c.metaRootPos = DataUtils.readHexLong(map, "root", 0);
-        c.time = DataUtils.readHexLong(map, "time", 0);
-        c.unused = DataUtils.readHexLong(map, "unused", 0);
-        c.unusedAtVersion = DataUtils.readHexLong(map, "unusedAtVersion", 0);
-        c.version = DataUtils.readHexLong(map, "version", id);
-        c.next = DataUtils.readHexLong(map, "next", 0);
-        c.pinCount = DataUtils.readHexInt(map, "pinCount", 0);
+        c.block = DataUtils.readHexLong(map, ATTR_BLOCK, 0);
+        c.len = DataUtils.readHexInt(map, ATTR_LEN, 0);
+        c.pageCount = DataUtils.readHexInt(map, ATTR_PAGES, 0);
+        c.pageCountLive = DataUtils.readHexInt(map, ATTR_LIVE_PAGES, c.pageCount);
+        c.mapId = DataUtils.readHexInt(map, ATTR_MAP, 0);
+        c.maxLen = DataUtils.readHexLong(map, ATTR_MAX, 0);
+        c.maxLenLive = DataUtils.readHexLong(map, ATTR_LIVE_MAX, c.maxLen);
+        c.metaRootPos = DataUtils.readHexLong(map, ATTR_ROOT, 0);
+        c.time = DataUtils.readHexLong(map, ATTR_TIME, 0);
+        c.unused = DataUtils.readHexLong(map, ATTR_UNUSED, 0);
+        c.unusedAtVersion = DataUtils.readHexLong(map, ATTR_UNUSED_AT_VERSION, 0);
+        c.version = DataUtils.readHexLong(map, ATTR_VERSION, id);
+        c.next = DataUtils.readHexLong(map, ATTR_NEXT, 0);
+        c.pinCount = DataUtils.readHexInt(map, ATTR_PIN_COUNT, 0);
         return c;
     }
 
@@ -244,42 +263,42 @@ public class Chunk {
      */
     public String asString() {
         StringBuilder buff = new StringBuilder(240);
-        DataUtils.appendMap(buff, "chunk", id);
-        DataUtils.appendMap(buff, "block", block);
-        DataUtils.appendMap(buff, "len", len);
+        DataUtils.appendMap(buff, ATTR_CHUNK, id);
+        DataUtils.appendMap(buff, ATTR_BLOCK, block);
+        DataUtils.appendMap(buff, ATTR_LEN, len);
         if (maxLen != maxLenLive) {
-            DataUtils.appendMap(buff, "liveMax", maxLenLive);
+            DataUtils.appendMap(buff, ATTR_LIVE_MAX, maxLenLive);
         }
         if (pageCount != pageCountLive) {
-            DataUtils.appendMap(buff, "livePages", pageCountLive);
+            DataUtils.appendMap(buff, ATTR_LIVE_PAGES, pageCountLive);
         }
-        DataUtils.appendMap(buff, "map", mapId);
-        DataUtils.appendMap(buff, "max", maxLen);
+        DataUtils.appendMap(buff, ATTR_MAP, mapId);
+        DataUtils.appendMap(buff, ATTR_MAX, maxLen);
         if (next != 0) {
-            DataUtils.appendMap(buff, "next", next);
+            DataUtils.appendMap(buff, ATTR_NEXT, next);
         }
-        DataUtils.appendMap(buff, "pages", pageCount);
-        DataUtils.appendMap(buff, "root", metaRootPos);
-        DataUtils.appendMap(buff, "time", time);
+        DataUtils.appendMap(buff, ATTR_PAGES, pageCount);
+        DataUtils.appendMap(buff, ATTR_ROOT, metaRootPos);
+        DataUtils.appendMap(buff, ATTR_TIME, time);
         if (unused != 0) {
-            DataUtils.appendMap(buff, "unused", unused);
+            DataUtils.appendMap(buff, ATTR_UNUSED, unused);
         }
         if (unusedAtVersion != 0) {
-            DataUtils.appendMap(buff, "unusedAtVersion", unusedAtVersion);
+            DataUtils.appendMap(buff, ATTR_UNUSED_AT_VERSION, unusedAtVersion);
         }
-        DataUtils.appendMap(buff, "version", version);
-        DataUtils.appendMap(buff, "pinCount", pinCount);
+        DataUtils.appendMap(buff, ATTR_VERSION, version);
+        DataUtils.appendMap(buff, ATTR_PIN_COUNT, pinCount);
         return buff.toString();
     }
 
     byte[] getFooterBytes() {
         StringBuilder buff = new StringBuilder(FOOTER_LENGTH);
-        DataUtils.appendMap(buff, "chunk", id);
-        DataUtils.appendMap(buff, "block", block);
-        DataUtils.appendMap(buff, "version", version);
+        DataUtils.appendMap(buff, ATTR_CHUNK, id);
+        DataUtils.appendMap(buff, ATTR_BLOCK, block);
+        DataUtils.appendMap(buff, ATTR_VERSION, version);
         byte[] bytes = buff.toString().getBytes(StandardCharsets.ISO_8859_1);
         int checksum = DataUtils.getFletcher32(bytes, 0, bytes.length);
-        DataUtils.appendMap(buff, "fletcher", checksum);
+        DataUtils.appendMap(buff, ATTR_FLETCHER, checksum);
         while (buff.length() < FOOTER_LENGTH - 1) {
             buff.append(' ');
         }
@@ -330,7 +349,7 @@ public class Chunk {
 
                 int length = DataUtils.getPageMaxLength(pos);
                 if (length == DataUtils.PAGE_LARGE) {
-                    // read the first bytes to figure out actual lenght
+                    // read the first bytes to figure out actual length
                     length = fileStore.readFully(filePos, 128).getInt();
                 }
                 length = (int) Math.min(maxPos - filePos, length);
@@ -379,11 +398,16 @@ public class Chunk {
     }
 
     /**
-     * Modifies internal state to reflect the fact that one more page is stored within this chunk.
-     * @param pageLengthOnDisk size of the page
-     * @param singleWriter indicates whether page belongs to append mode capable map (single writer map).
-     *                     Such pages are "pinned" to the chunk, they can't be evacuated (moved to a different chunk)
-     *                     while on-line, but they assumed to be short-lived anyway.
+     * Modifies internal state to reflect the fact that one more page is stored
+     * within this chunk.
+     *
+     * @param pageLengthOnDisk
+     *            size of the page
+     * @param singleWriter
+     *            indicates whether page belongs to append mode capable map
+     *            (single writer map). Such pages are "pinned" to the chunk,
+     *            they can't be evacuated (moved to a different chunk) while
+     *            on-line, but they assumed to be short-lived anyway.
      */
     void accountForWrittenPage(int pageLengthOnDisk, boolean singleWriter) {
         maxLen += pageLengthOnDisk;
@@ -396,13 +420,20 @@ public class Chunk {
     }
 
     /**
-     * Modifies internal state to reflect the fact that one the pages within this chunk was removed from the map.
-     * @param pageLength on disk of the removed page
-     * @param pinned whether removed page was pinned
-     * @param now is a moment in time (since creation of the store), when removal is recorded,
-     *            and retention period starts
-     * @param version at which page was removed
-     * @return true if all of the pages, this chunk contains, were already removed, and false otherwise
+     * Modifies internal state to reflect the fact that one the pages within
+     * this chunk was removed from the map.
+     *
+     * @param pageLength
+     *            on disk of the removed page
+     * @param pinned
+     *            whether removed page was pinned
+     * @param now
+     *            is a moment in time (since creation of the store), when
+     *            removal is recorded, and retention period starts
+     * @param version
+     *            at which page was removed
+     * @return true if all of the pages, this chunk contains, were already
+     *         removed, and false otherwise
      */
     boolean accountForRemovedPage(int pageLength, boolean pinned, long now, long version) {
         assert isSaved() : this;
@@ -496,6 +527,18 @@ public class Chunk {
                 buff.append(c);
             }
             buff.append('\"');
+        }
+    }
+
+
+    public static final class PositionComparator implements Comparator<Chunk> {
+        public static final Comparator<Chunk> INSTANCE = new PositionComparator();
+
+        private PositionComparator() {}
+
+        @Override
+        public int compare(Chunk one, Chunk two) {
+            return Long.compare(one.block, two.block);
         }
     }
 }

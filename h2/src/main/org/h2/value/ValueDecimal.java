@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 import org.h2.api.ErrorCode;
+import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.MathUtils;
 
@@ -24,12 +25,12 @@ public class ValueDecimal extends Value {
     /**
      * The value 'zero'.
      */
-    public static final Object ZERO = new ValueDecimal(BigDecimal.ZERO);
+    public static final ValueDecimal ZERO = new ValueDecimal(BigDecimal.ZERO);
 
     /**
      * The value 'one'.
      */
-    public static final Object ONE = new ValueDecimal(BigDecimal.ONE);
+    public static final ValueDecimal ONE = new ValueDecimal(BigDecimal.ONE);
 
     /**
      * The default precision for a decimal value.
@@ -39,19 +40,22 @@ public class ValueDecimal extends Value {
     /**
      * The default scale for a decimal value.
      */
-    static final int DEFAULT_SCALE = 32767;
+    static final int DEFAULT_SCALE = 0;
 
     /**
      * The default display size for a decimal value.
      */
     static final int DEFAULT_DISPLAY_SIZE = 65535;
 
-    private static final int DIVIDE_SCALE_ADD = 25;
+    /**
+     * The maximum scale.
+     */
+    public static final int MAXIMUM_SCALE = 100_000;
 
     /**
-     * The maximum scale of a BigDecimal value.
+     * The minimum scale.
      */
-    private static final int BIG_DECIMAL_SCALE_MAX = 100_000;
+    public static final int MINIMUM_SCALE = -100_000;
 
     private final BigDecimal value;
     private TypeInfo type;
@@ -90,22 +94,29 @@ public class ValueDecimal extends Value {
     }
 
     @Override
-    public Value divide(Value v) {
-        ValueDecimal dec = (ValueDecimal) v;
-        if (dec.value.signum() == 0) {
+    public Value divide(Value v, long divisorPrecision) {
+        BigDecimal divisor = ((ValueDecimal) v).value;
+        if (divisor.signum() == 0) {
             throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getSQL());
         }
-        BigDecimal bd = value.divide(dec.value,
-                value.scale() + DIVIDE_SCALE_ADD,
-                RoundingMode.HALF_DOWN);
-        if (bd.signum() == 0) {
-            bd = BigDecimal.ZERO;
-        } else if (bd.scale() > 0) {
-            if (!bd.unscaledValue().testBit(0)) {
-                bd = bd.stripTrailingZeros();
-            }
-        }
-        return ValueDecimal.get(bd);
+        return ValueDecimal.get(value.divide(divisor,
+                getQuotientScale(value.scale(), divisorPrecision, divisor.scale()), RoundingMode.HALF_DOWN));
+    }
+
+    /**
+     * Evaluates the scale of the quotient.
+     *
+     * @param dividerScale
+     *            the scale of the divider
+     * @param divisorPrecision
+     *            the precision of the divisor
+     * @param divisorScale
+     *            the scale of the divisor
+     * @return the scale of the quotient
+     */
+    public static int getQuotientScale(int dividerScale, long divisorPrecision, int divisorScale) {
+        long scale = dividerScale - divisorScale + divisorPrecision * 2;
+        return scale >= MAXIMUM_SCALE ? MAXIMUM_SCALE : (int) scale;
     }
 
     @Override
@@ -128,7 +139,7 @@ public class ValueDecimal extends Value {
         TypeInfo type = this.type;
         if (type == null) {
             long precision = value.precision();
-            this.type = type = new TypeInfo(DECIMAL, precision, value.scale(),
+            this.type = type = new TypeInfo(NUMERIC, precision, value.scale(),
                     // add 2 characters for '-' and '.'
                     MathUtils.convertLongToInt(precision + 2), null);
         }
@@ -137,11 +148,11 @@ public class ValueDecimal extends Value {
 
     @Override
     public int getValueType() {
-        return DECIMAL;
+        return NUMERIC;
     }
 
     @Override
-    public int compareTypeSafe(Value o, CompareMode mode) {
+    public int compareTypeSafe(Value o, CompareMode mode, CastDataProvider provider) {
         return value.compareTo(((ValueDecimal) o).value);
     }
 
@@ -162,9 +173,6 @@ public class ValueDecimal extends Value {
 
     @Override
     public boolean checkPrecision(long prec) {
-        if (prec == DEFAULT_PRECISION) {
-            return true;
-        }
         return value.precision() <= prec;
     }
 
@@ -186,16 +194,10 @@ public class ValueDecimal extends Value {
 
     @Override
     public Value convertScale(boolean onlyToSmallerScale, int targetScale) {
-        if (value.scale() == targetScale) {
+        if (value.scale() == targetScale || onlyToSmallerScale && value.scale() < targetScale) {
             return this;
         }
-        if (onlyToSmallerScale || targetScale >= DEFAULT_SCALE) {
-            if (value.scale() < targetScale) {
-                return this;
-            }
-        }
-        BigDecimal bd = ValueDecimal.setScale(value, targetScale);
-        return ValueDecimal.get(bd);
+        return ValueDecimal.get(ValueDecimal.setScale(value, targetScale));
     }
 
     @Override
@@ -218,9 +220,9 @@ public class ValueDecimal extends Value {
      */
     public static ValueDecimal get(BigDecimal dec) {
         if (BigDecimal.ZERO.equals(dec)) {
-            return (ValueDecimal) ZERO;
+            return ZERO;
         } else if (BigDecimal.ONE.equals(dec)) {
-            return (ValueDecimal) ONE;
+            return ONE;
         }
         return (ValueDecimal) Value.cache(new ValueDecimal(dec));
     }
@@ -233,9 +235,9 @@ public class ValueDecimal extends Value {
      */
     public static ValueDecimal get(BigInteger bigInteger) {
         if (bigInteger.signum() == 0) {
-            return (ValueDecimal) ZERO;
+            return ZERO;
         } else if (BigInteger.ONE.equals(bigInteger)) {
-            return (ValueDecimal) ONE;
+            return ONE;
         }
         return (ValueDecimal) Value.cache(new ValueDecimal(new BigDecimal(bigInteger)));
     }
@@ -263,7 +265,7 @@ public class ValueDecimal extends Value {
      * @return the scaled value
      */
     public static BigDecimal setScale(BigDecimal bd, int scale) {
-        if (scale > BIG_DECIMAL_SCALE_MAX || scale < -BIG_DECIMAL_SCALE_MAX) {
+        if (scale > MAXIMUM_SCALE || scale < MINIMUM_SCALE) {
             throw DbException.getInvalidValueException("scale", scale);
         }
         return bd.setScale(scale, RoundingMode.HALF_UP);

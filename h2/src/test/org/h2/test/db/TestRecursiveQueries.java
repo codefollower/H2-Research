@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -142,7 +142,7 @@ public class TestRecursiveQueries extends TestDb {
         assertResultSetOrdered(rs, new String[][]{{"100"}, {"103"}});
 
         rs = stat.executeQuery("with recursive t(i, s, d) as "
-                + "(select 1, '.', now() union all"
+                + "(select 1, '.', localtimestamp union all"
                 + " select i+1, s||'.', d from t where i<3)"
                 + " select * from t");
         assertResultSetMeta(rs, 3, new String[]{ "I", "S", "D" },

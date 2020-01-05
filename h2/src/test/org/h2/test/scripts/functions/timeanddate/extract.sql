@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -91,6 +91,15 @@ SELECT EXTRACT(TIMEZONE_MINUTE FROM TIMESTAMP WITH TIME ZONE '2010-01-02 5:00:00
 
 SELECT EXTRACT(TIMEZONE_MINUTE FROM TIMESTAMP WITH TIME ZONE '2010-01-02 5:00:00-08:30');
 >> -30
+
+SELECT EXTRACT(TIMEZONE_SECOND FROM TIMESTAMP WITH TIME ZONE '1880-01-01 10:00:00-07:52:58');
+>> -58
+
+SELECT EXTRACT(TIMEZONE_HOUR FROM TIME WITH TIME ZONE '5:00:00+07:15');
+>> 7
+
+SELECT EXTRACT(TIMEZONE_MINUTE FROM TIME WITH TIME ZONE '5:00:00+07:15');
+>> 15
 
 select extract(hour from timestamp '2001-02-03 14:15:16');
 >> 14

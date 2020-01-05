@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -210,8 +210,8 @@ DROP TABLE TEST;
 > ok
 
 SELECT
-    ARRAY_AGG(T) OVER (ORDER BY T RANGE BETWEEN INTERVAL 1 DAY PRECEDING AND CURRENT ROW) C,
-    ARRAY_AGG(T) OVER (ORDER BY T RANGE BETWEEN INTERVAL 2 HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING) P,
+    ARRAY_AGG(T) OVER (ORDER BY T RANGE BETWEEN INTERVAL '1' DAY PRECEDING AND CURRENT ROW) C,
+    ARRAY_AGG(T) OVER (ORDER BY T RANGE BETWEEN INTERVAL '2' HOUR PRECEDING AND INTERVAL '1' HOUR PRECEDING) P,
     T FROM VALUES (TIME '00:00:00'), (TIME '01:30:00') TEST(T) ORDER BY T;
 > C                    P          T
 > -------------------- ---------- --------

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,6 +13,7 @@ import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.schema.Schema;
 import org.h2.security.SHA256;
+import org.h2.table.DualTable;
 import org.h2.table.MetaTable;
 import org.h2.table.RangeTable;
 import org.h2.table.Table;
@@ -86,11 +87,6 @@ public class User extends RightOwner {
         return getCreateSQL(true);
     }
 
-    @Override
-    public String getDropSQL() {
-        return null;
-    }
-
     /**
      * Checks that this user has the given rights for this database object.
      *
@@ -124,7 +120,7 @@ public class User extends RightOwner {
         }
         
         //MetaTable和RangeTable都有权限
-        if (table instanceof MetaTable || table instanceof RangeTable) {
+        if (table instanceof MetaTable || table instanceof DualTable || table instanceof RangeTable) {
             // everybody has access to the metadata information
             return true;
         }
@@ -268,11 +264,6 @@ public class User extends RightOwner {
         Arrays.fill(passwordHash, (byte) 0);
         passwordHash = null;
         invalidate();
-    }
-
-    @Override
-    public void checkRename() {
-        // ok
     }
 
     /**

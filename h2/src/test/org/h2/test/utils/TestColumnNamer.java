@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  */
 package org.h2.test.utils;
@@ -45,7 +45,7 @@ public class TestColumnNamer extends TestBase {
 
         int index = 0;
         for (String id : ids) {
-            Expression columnExp = ValueExpression.getDefault();
+            Expression columnExp = ValueExpression.DEFAULT;
             String newColumnName = columnNamer.getColumnName(columnExp, index + 1, id);
             assertNotNull(newColumnName);
             assertTrue(newColumnName.length() <= 30);

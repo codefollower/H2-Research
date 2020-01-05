@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -351,7 +351,7 @@ public class TestInterval extends TestBase {
             b.append('-');
         }
         b.append(Math.abs(days)).append(' ');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(hours));
+        StringUtils.appendTwoDigits(b, Math.abs(hours));
         b.append("' DAY TO HOUR");
         assertEquals(b.toString(), i.toString());
     }
@@ -397,9 +397,9 @@ public class TestInterval extends TestBase {
             b.append('-');
         }
         b.append(Math.abs(days)).append(' ');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(hours));
+        StringUtils.appendTwoDigits(b, Math.abs(hours));
         b.append(':');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(minutes));
+        StringUtils.appendTwoDigits(b, Math.abs(minutes));
         b.append("' DAY TO MINUTE");
         assertEquals(b.toString(), i.toString());
     }
@@ -453,11 +453,11 @@ public class TestInterval extends TestBase {
             b.append('-');
         }
         b.append(Math.abs(days)).append(' ');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(hours));
+        StringUtils.appendTwoDigits(b, Math.abs(hours));
         b.append(':');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(minutes));
+        StringUtils.appendTwoDigits(b, Math.abs(minutes));
         b.append(':');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(seconds));
+        StringUtils.appendTwoDigits(b, Math.abs(seconds));
         b.append("' DAY TO SECOND");
         assertEquals(b.toString(), i.toString());
     }
@@ -497,7 +497,7 @@ public class TestInterval extends TestBase {
             b.append('-');
         }
         b.append(Math.abs(hours)).append(':');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(minutes));
+        StringUtils.appendTwoDigits(b, Math.abs(minutes));
         b.append("' HOUR TO MINUTE");
         assertEquals(b.toString(), i.toString());
     }
@@ -545,9 +545,9 @@ public class TestInterval extends TestBase {
             b.append('-');
         }
         b.append(Math.abs(hours)).append(':');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(minutes));
+        StringUtils.appendTwoDigits(b, Math.abs(minutes));
         b.append(':');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(seconds));
+        StringUtils.appendTwoDigits(b, Math.abs(seconds));
         b.append("' HOUR TO SECOND");
         assertEquals(b.toString(), i.toString());
     }
@@ -589,7 +589,7 @@ public class TestInterval extends TestBase {
             b.append('-');
         }
         b.append(Math.abs(minutes)).append(':');
-        StringUtils.appendZeroPadded(b, 2, Math.abs(seconds));
+        StringUtils.appendTwoDigits(b, Math.abs(seconds));
         b.append("' MINUTE TO SECOND");
         assertEquals(b.toString(), i.toString());
     }

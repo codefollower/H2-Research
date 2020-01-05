@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -114,8 +114,9 @@ public class DropDatabase extends DefineCommand {
         list.addAll(db.getAllSchemaObjects(DbObject.TRIGGER));
         list.addAll(db.getAllSchemaObjects(DbObject.CONSTANT));
         list.addAll(db.getAllSchemaObjects(DbObject.FUNCTION_ALIAS));
+        list.addAll(db.getAllSchemaObjects(DbObject.DOMAIN));
         for (SchemaObject obj : list) {
-            if (obj.isHidden()) {
+            if (!obj.getSchema().isValid() || obj.isHidden()) {
                 continue;
             }
             db.removeSchemaObject(session, obj);
@@ -135,7 +136,6 @@ public class DropDatabase extends DefineCommand {
         ArrayList<DbObject> dbObjects = new ArrayList<>();
         dbObjects.addAll(db.getAllRights());
         dbObjects.addAll(db.getAllAggregates());
-        dbObjects.addAll(db.getAllDomains());
         for (DbObject obj : dbObjects) {
             String sql = obj.getCreateSQL();
             // the role PUBLIC must not be dropped

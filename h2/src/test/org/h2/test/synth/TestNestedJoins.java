@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -62,16 +62,16 @@ public class TestNestedJoins extends TestDb {
         }
 
         // Derby doesn't work currently
-        // deleteDerby();
-        // try {
-        //     Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
-        //     Connection c2 = DriverManager.getConnection(
-        //         "jdbc:derby:" + getBaseDir() +
-        //         "/derby/test;create=true", "sa", "sa");
-        //     dbs.add(c2.createStatement());
-        // } catch (Exception e) {
-        //     // database not installed - ok
-        // }
+        deleteDerby();
+        try {
+            Class.forName("org.apache.derby.iapi.jdbc.AutoloadedDriver");
+            Connection c2 = DriverManager.getConnection(
+                "jdbc:derby:" + getBaseDir() +
+                "/derby/test;create=true", "sa", "sa");
+            dbs.add(c2.createStatement());
+        } catch (Throwable e) {
+            // database not installed - ok
+        }
         String shortest = null;
         Throwable shortestEx = null;
         for (int i = 0; i < 10; i++) {

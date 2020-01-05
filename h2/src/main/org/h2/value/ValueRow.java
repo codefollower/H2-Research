@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,7 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 import org.h2.api.ErrorCode;
-import org.h2.engine.SysProperties;
+import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 
 /**
@@ -20,7 +20,9 @@ public class ValueRow extends ValueCollectionBase {
     /**
      * Empty row.
      */
-    private static final Object EMPTY = get(new Value[0]);
+    public static final ValueRow EMPTY = get(Value.EMPTY_VALUES);
+
+    private TypeInfo type;
 
     private ValueRow(Value[] list) {
         super(list);
@@ -37,13 +39,13 @@ public class ValueRow extends ValueCollectionBase {
         return new ValueRow(list);
     }
 
-    /**
-     * Returns empty row.
-     *
-     * @return empty row
-     */
-    public static ValueRow getEmpty() {
-        return (ValueRow) EMPTY;
+    @Override
+    public TypeInfo getType() {
+        TypeInfo type = this.type;
+        if (type == null) {
+            this.type = type = TypeInfo.getTypeInfo(getValueType(), values.length, 0, null);
+        }
+        return type;
     }
 
     @Override
@@ -64,7 +66,7 @@ public class ValueRow extends ValueCollectionBase {
     }
 
     @Override
-    public int compareTypeSafe(Value o, CompareMode mode) {
+    public int compareTypeSafe(Value o, CompareMode mode, CastDataProvider provider) {
         ValueRow v = (ValueRow) o;
         if (values == v.values) {
             return 0;
@@ -76,30 +78,12 @@ public class ValueRow extends ValueCollectionBase {
         for (int i = 0; i < len; i++) {
             Value v1 = values[i];
             Value v2 = v.values[i];
-            int comp = v1.compareTo(v2, /* TODO */ null, mode);
+            int comp = v1.compareTo(v2, provider, mode);
             if (comp != 0) {
                 return comp;
             }
         }
         return 0;
-    }
-
-    @Override
-    public Object getObject() {
-        int len = values.length;
-        Object[] list = new Object[len];
-        for (int i = 0; i < len; i++) {
-            final Value value = values[i];
-            if (!SysProperties.OLD_RESULT_SET_GET_OBJECT) {
-                final int type = value.getValueType();
-                if (type == Value.BYTE || type == Value.SHORT) {
-                    list[i] = value.getInt();
-                    continue;
-                }
-            }
-            list[i] = value.getObject();
-        }
-        return list;
     }
 
     @Override

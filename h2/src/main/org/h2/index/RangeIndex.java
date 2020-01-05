@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,34 +14,20 @@ import org.h2.result.SortOrder;
 import org.h2.table.IndexColumn;
 import org.h2.table.RangeTable;
 import org.h2.table.TableFilter;
+import org.h2.value.Value;
+import org.h2.value.ValueLong;
 
 /**
  * An index for the SYSTEM_RANGE table.
  * This index can only scan through all rows, search is not supported.
  */
-public class RangeIndex extends BaseIndex {
+public class RangeIndex extends VirtualTableIndex {
 
     private final RangeTable rangeTable;
 
     public RangeIndex(RangeTable table, IndexColumn[] columns) {
-        super(table, 0, "RANGE_INDEX", columns,
-                IndexType.createNonUnique(true));
+        super(table, "RANGE_INDEX", columns);
         this.rangeTable = table;
-    }
-
-    @Override
-    public void close(Session session) {
-        // nothing to do
-    }
-
-    @Override
-    public void add(Session session, Row row) {
-        throw DbException.getUnsupportedException("SYSTEM_RANGE");
-    }
-
-    @Override
-    public void remove(Session session, Row row) {
-        throw DbException.getUnsupportedException("SYSTEM_RANGE");
     }
 
     @Override
@@ -77,39 +63,19 @@ public class RangeIndex extends BaseIndex {
                 // error when converting the value - ignore
             }
         }
-        return new RangeCursor(session, min, max, step);
+        return new RangeCursor(min, max, step);
     }
 
     @Override
     public double getCost(Session session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
             AllColumnsForPlan allColumnsSet) {
-        return 1;
+        return 1d;
     }
 
     @Override
     public String getCreateSQL() {
         return null;
-    }
-
-    @Override
-    public void remove(Session session) {
-        throw DbException.getUnsupportedException("SYSTEM_RANGE");
-    }
-
-    @Override
-    public void truncate(Session session) {
-        throw DbException.getUnsupportedException("SYSTEM_RANGE");
-    }
-
-    @Override
-    public boolean needRebuild() {
-        return false;
-    }
-
-    @Override
-    public void checkRename() {
-        throw DbException.getUnsupportedException("SYSTEM_RANGE");
     }
 
     @Override
@@ -119,22 +85,16 @@ public class RangeIndex extends BaseIndex {
 
     @Override
     public Cursor findFirstOrLast(Session session, boolean first) {
-        long pos = first ? rangeTable.getMin(session) : rangeTable.getMax(session);
-        return new RangeCursor(session, pos, pos);
+        long min = rangeTable.getMin(session);
+        long max = rangeTable.getMax(session);
+        long step = rangeTable.getStep(session);
+        return new SingleRowCursor((step > 0 ? min <= max : min >= max)
+                ? Row.get(new Value[]{ ValueLong.get(first ^ min >= max ? min : max) }, 1) : null);
     }
 
     @Override
-    public long getRowCount(Session session) {
-        return rangeTable.getRowCount(session);
+    public String getPlanSQL() {
+        return "range index";
     }
 
-    @Override
-    public long getRowCountApproximation() {
-        return rangeTable.getRowCountApproximation();
-    }
-
-    @Override
-    public long getDiskSpaceUsed() {
-        return 0;
-    }
 }

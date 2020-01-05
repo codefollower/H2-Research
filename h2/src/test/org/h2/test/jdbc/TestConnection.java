@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,6 +16,7 @@ import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import org.h2.engine.Constants;
 import org.h2.engine.SysProperties;
 
 /**
@@ -41,9 +42,13 @@ public class TestConnection extends TestDb {
         testSetUnsupportedClientInfoProperties();
         testSetInternalProperty();
         testSetInternalPropertyToInitialValue();
+        testTransactionIsolationSetAndGet();
         testSetGetSchema();
         testCommitOnAutoCommitSetRunner();
         testRollbackOnAutoCommitSetRunner();
+        testChangeTransactionLevelCommitRunner();
+        testLockTimeout();
+        testIgnoreUnknownSettings();
     }
 
     private void testSetInternalProperty() throws SQLException {
@@ -116,6 +121,25 @@ public class TestConnection extends TestDb {
         conn.close();
     }
 
+    private void testTransactionIsolationSetAndGet() throws Exception {
+        deleteDb("transactionIsolation");
+        try (Connection conn = getConnection("transactionIsolation")) {
+            assertEquals(Connection.TRANSACTION_READ_COMMITTED, conn.getTransactionIsolation());
+            conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+            assertEquals(Connection.TRANSACTION_READ_UNCOMMITTED, conn.getTransactionIsolation());
+            conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+            assertEquals(config.mvStore ? Connection.TRANSACTION_REPEATABLE_READ : Connection.TRANSACTION_SERIALIZABLE,
+                    conn.getTransactionIsolation());
+            conn.setTransactionIsolation(Constants.TRANSACTION_SNAPSHOT);
+            assertEquals(config.mvStore ? Constants.TRANSACTION_SNAPSHOT : Connection.TRANSACTION_SERIALIZABLE,
+                    conn.getTransactionIsolation());
+            conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            assertEquals(Connection.TRANSACTION_SERIALIZABLE, conn.getTransactionIsolation());
+        } finally {
+            deleteDb("transactionIsolation");
+        }
+    }
+
     private void testCommitOnAutoCommitSetRunner() throws Exception {
         assertFalse("Default value must be false", SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT);
         testCommitOnAutoCommitSet(false);
@@ -169,6 +193,40 @@ public class TestConnection extends TestDb {
             assertTrue(rs.getInt(1) == 2);
             rs.close();
         }
+
+        conn.close();
+        prep.close();
+    }
+
+    private void testChangeTransactionLevelCommitRunner() throws Exception {
+        assertFalse("Default value must be false", SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT);
+        testChangeTransactionLevelCommit(false);
+        testChangeTransactionLevelCommit(true);
+        try {
+            SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT = true;
+            testChangeTransactionLevelCommit(true);
+            testChangeTransactionLevelCommit(false);
+        } finally {
+            SysProperties.FORCE_AUTOCOMMIT_OFF_ON_COMMIT = false;
+        }
+    }
+
+    private void testChangeTransactionLevelCommit(boolean setAutoCommit) throws Exception {
+        Connection conn = getConnection("clientInfo");
+        conn.setAutoCommit(setAutoCommit);
+        Statement stat = conn.createStatement();
+        stat.execute("DROP TABLE IF EXISTS TEST");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
+        PreparedStatement prep = conn.prepareStatement(
+                "INSERT INTO TEST VALUES(?, ?)");
+        int index = 1;
+        prep.setInt(index++, 1);
+        prep.setString(index++, "test1");
+        prep.execute();
+        conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+
+        conn.createStatement().executeQuery("SELECT COUNT(*) FROM TEST");
+        // throws exception if TransactionIsolation did not commit
 
         conn.close();
         prep.close();
@@ -270,4 +328,45 @@ public class TestConnection extends TestDb {
         conn.close();
         deleteDb("schemaSetGet");
     }
+
+    private void testLockTimeout() throws SQLException {
+        if (!config.mvStore) {
+            return;
+        }
+        deleteDb("lockTimeout");
+        try (Connection conn1 = getConnection("lockTimeout");
+                Connection conn2 = getConnection("lockTimeout;LOCK_TIMEOUT=6000")) {
+            conn1.setAutoCommit(false);
+            conn2.setAutoCommit(false);
+            Statement s1 = conn1.createStatement();
+            Statement s2 = conn2.createStatement();
+            s1.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, V INT) AS VALUES (1, 2)");
+            conn1.commit();
+            s2.execute("INSERT INTO TEST VALUES (2, 4)");
+            s1.execute("UPDATE TEST SET V = 3 WHERE ID = 1");
+            s2.execute("SET LOCK_TIMEOUT 50");
+            long n = System.nanoTime();
+            assertThrows(ErrorCode.LOCK_TIMEOUT_1, s2).execute("UPDATE TEST SET V = 4 WHERE ID = 1");
+            if (System.nanoTime() - n > 5_000_000_000L) {
+                fail("LOCK_TIMEOUT wasn't set");
+            }
+        } finally {
+            deleteDb("lockTimeout");
+        }
+    }
+
+    private void testIgnoreUnknownSettings() throws SQLException {
+        deleteDb("ignoreUnknownSettings");
+        try {
+            getConnection("ignoreUnknownSettings;A=1");
+            fail("UNSUPPORTED_SETTING_1 expected");
+        } catch (SQLException e) {
+            assertEquals(ErrorCode.UNSUPPORTED_SETTING_1, e.getErrorCode());
+        }
+        try (Connection c = getConnection("ignoreUnknownSettings;IGNORE_UNKNOWN_SETTINGS=TRUE;A=1")){
+        } finally {
+            deleteDb("ignoreUnknownSettings");
+        }
+    }
+
 }

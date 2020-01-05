@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -49,11 +49,8 @@ public class TruncateTable extends DefineCommand {
             for (Column column : table.getColumns()) {
                 Sequence sequence = column.getSequence();
                 if (sequence != null) {
-                    long min = sequence.getMinValue();
-                    if (min != sequence.getCurrentValue()) {
-                        sequence.modify(min, null, null, null);
-                        session.getDatabase().updateMeta(session, sequence);
-                    }
+                    sequence.modify(null, sequence.getStartValue(), null, null, null);
+                    session.getDatabase().updateMeta(session, sequence);
                 }
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,18 +12,20 @@ import org.h2.index.BaseIndex;
 import org.h2.index.Cursor;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
+import org.h2.mvstore.MVMap;
 import org.h2.result.Row;
+import org.h2.result.RowFactory;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
 import org.h2.table.Column;
 import org.h2.table.IndexColumn;
 import org.h2.table.TableFilter;
-import org.h2.value.ValueLong;
+import org.h2.value.VersionedValue;
 
 /**
  * An index that delegates indexing to another index.
  */
-public class MVDelegateIndex extends BaseIndex implements MVIndex {
+public class MVDelegateIndex extends BaseIndex implements MVIndex<Long,SearchRow> {
 
     private final MVPrimaryIndex mainIndex;
 
@@ -40,6 +42,11 @@ public class MVDelegateIndex extends BaseIndex implements MVIndex {
     }
 
     @Override
+    public RowFactory getRowFactory() {
+        return mainIndex.getRowFactory();
+    }
+
+    @Override
     public void addRowsToBuffer(List<Row> rows, String bufferName) {
         throw DbException.throwInternalError();
     }
@@ -47,6 +54,11 @@ public class MVDelegateIndex extends BaseIndex implements MVIndex {
     @Override
     public void addBufferedRows(List<String> bufferNames) {
         throw DbException.throwInternalError();
+    }
+
+    @Override
+    public MVMap<Long,VersionedValue<SearchRow>> getMVMap() {
+        return mainIndex.getMVMap();
     }
 
     @Override
@@ -76,11 +88,7 @@ public class MVDelegateIndex extends BaseIndex implements MVIndex {
 
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
-        ValueLong min = mainIndex.getKey(first, ValueLong.MIN, ValueLong.MIN);
-        // ifNull is MIN as well, because the column is never NULL
-        // so avoid returning all rows (returning one row is OK)
-        ValueLong max = mainIndex.getKey(last, ValueLong.MAX, ValueLong.MIN);
-        return mainIndex.find(session, min, max);
+        return mainIndex.find(session, first, last);
     }
 
     @Override
@@ -132,11 +140,6 @@ public class MVDelegateIndex extends BaseIndex implements MVIndex {
     @Override
     public void truncate(Session session) {
         // nothing to do
-    }
-
-    @Override
-    public void checkRename() {
-        // ok
     }
 
     @Override

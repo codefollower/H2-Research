@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -59,13 +59,13 @@ public class BooleanTest extends SimplePredicate {
                 if (not) {
                     if (right == null && c.getColumn().isNullable()) {
                         ArrayList<Expression> list = new ArrayList<>(2);
-                        list.add(ValueExpression.getBoolean(false));
-                        list.add(ValueExpression.getBoolean(true));
+                        list.add(ValueExpression.FALSE);
+                        list.add(ValueExpression.TRUE);
                         filter.addIndexCondition(IndexCondition.getInList(c, list));
                     }
                 } else {
                     filter.addIndexCondition(IndexCondition.get(Comparison.EQUAL_NULL_SAFE, c,
-                            right == null ? TypedValueExpression.getUnknown() : ValueExpression.getBoolean(right)));
+                            right == null ? TypedValueExpression.UNKNOWN : ValueExpression.getBoolean(right)));
                 }
             }
         }

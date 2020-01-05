@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.Date;
+import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -20,6 +21,10 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.SysProperties;
@@ -48,6 +53,7 @@ public class TestUpdatableResultSet extends TestDb {
         testUpdateDeleteInsert();
         testUpdateDataType();
         testUpdateResetRead();
+        testUpdateObject();
         deleteDb("updatableResultSet");
     }
 
@@ -298,28 +304,31 @@ public class TestUpdatableResultSet extends TestDb {
                 ResultSet.CONCUR_UPDATABLE);
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255), "
                 + "DEC DECIMAL(10,2), BOO BIT, BYE TINYINT, BIN BINARY(100), "
-                + "D DATE, T TIME, TS TIMESTAMP(9), DB DOUBLE, R REAL, L BIGINT, "
+                + "D DATE, T TIME, TS TIMESTAMP(9), TSTZ TIMESTAMP(9) WITH TIME ZONE, DB DOUBLE, R REAL, L BIGINT, "
                 + "O_I INT, SH SMALLINT, CL CLOB, BL BLOB)");
+        final int clobIndex = 16, blobIndex = 17;
         ResultSet rs = stat.executeQuery("SELECT * FROM TEST");
         ResultSetMetaData meta = rs.getMetaData();
-        assertEquals("java.lang.Integer", meta.getColumnClassName(1));
-        assertEquals("java.lang.String", meta.getColumnClassName(2));
-        assertEquals("java.math.BigDecimal", meta.getColumnClassName(3));
-        assertEquals("java.lang.Boolean", meta.getColumnClassName(4));
+        int c = 0;
+        assertEquals("java.lang.Integer", meta.getColumnClassName(++c));
+        assertEquals("java.lang.String", meta.getColumnClassName(++c));
+        assertEquals("java.math.BigDecimal", meta.getColumnClassName(++c));
+        assertEquals("java.lang.Boolean", meta.getColumnClassName(++c));
         assertEquals(SysProperties.OLD_RESULT_SET_GET_OBJECT ? "java.lang.Byte" : "java.lang.Integer",
-                meta.getColumnClassName(5));
-        assertEquals("[B", meta.getColumnClassName(6));
-        assertEquals("java.sql.Date", meta.getColumnClassName(7));
-        assertEquals("java.sql.Time", meta.getColumnClassName(8));
-        assertEquals("java.sql.Timestamp", meta.getColumnClassName(9));
-        assertEquals("java.lang.Double", meta.getColumnClassName(10));
-        assertEquals("java.lang.Float", meta.getColumnClassName(11));
-        assertEquals("java.lang.Long", meta.getColumnClassName(12));
-        assertEquals("java.lang.Integer", meta.getColumnClassName(13));
+                meta.getColumnClassName(++c));
+        assertEquals("[B", meta.getColumnClassName(++c));
+        assertEquals("java.sql.Date", meta.getColumnClassName(++c));
+        assertEquals("java.sql.Time", meta.getColumnClassName(++c));
+        assertEquals("java.sql.Timestamp", meta.getColumnClassName(++c));
+        assertEquals("java.time.OffsetDateTime", meta.getColumnClassName(++c));
+        assertEquals("java.lang.Double", meta.getColumnClassName(++c));
+        assertEquals("java.lang.Float", meta.getColumnClassName(++c));
+        assertEquals("java.lang.Long", meta.getColumnClassName(++c));
+        assertEquals("java.lang.Integer", meta.getColumnClassName(++c));
         assertEquals(SysProperties.OLD_RESULT_SET_GET_OBJECT ? "java.lang.Short" : "java.lang.Integer",
-                meta.getColumnClassName(14));
-        assertEquals("java.sql.Clob", meta.getColumnClassName(15));
-        assertEquals("java.sql.Blob", meta.getColumnClassName(16));
+                meta.getColumnClassName(++c));
+        assertEquals("java.sql.Clob", meta.getColumnClassName(++c));
+        assertEquals("java.sql.Blob", meta.getColumnClassName(++c));
         rs.moveToInsertRow();
         rs.updateInt(1, 0);
         rs.updateNull(2);
@@ -329,22 +338,24 @@ public class TestUpdatableResultSet extends TestDb {
         rs.insertRow();
 
         rs.moveToInsertRow();
-        rs.updateInt(1, 1);
-        rs.updateString(2, null);
-        rs.updateBigDecimal(3, null);
-        rs.updateBoolean(4, false);
-        rs.updateByte(5, (byte) 0);
-        rs.updateBytes(6, null);
-        rs.updateDate(7, null);
-        rs.updateTime(8, null);
-        rs.updateTimestamp(9, null);
-        rs.updateDouble(10, 0.0);
-        rs.updateFloat(11, (float) 0.0);
-        rs.updateLong(12, 0L);
-        rs.updateObject(13, null);
-        rs.updateShort(14, (short) 0);
-        rs.updateCharacterStream(15, new StringReader("test"), 0);
-        rs.updateBinaryStream(16,
+        c = 0;
+        rs.updateInt(++c, 1);
+        rs.updateString(++c, null);
+        rs.updateBigDecimal(++c, null);
+        rs.updateBoolean(++c, false);
+        rs.updateByte(++c, (byte) 0);
+        rs.updateBytes(++c, null);
+        rs.updateDate(++c, null);
+        rs.updateTime(++c, null);
+        rs.updateTimestamp(++c, null);
+        rs.updateObject(++c, null);
+        rs.updateDouble(++c, 0.0);
+        rs.updateFloat(++c, 0.0f);
+        rs.updateLong(++c, 0L);
+        rs.updateObject(++c, null);
+        rs.updateShort(++c, (short) 0);
+        rs.updateCharacterStream(++c, new StringReader("test"), 0);
+        rs.updateBinaryStream(++c,
                 new ByteArrayInputStream(new byte[] { (byte) 0xff, 0x00 }), 0);
         rs.insertRow();
 
@@ -359,8 +370,10 @@ public class TestUpdatableResultSet extends TestDb {
         rs.updateTime("T", Time.valueOf("21:46:28"));
         rs.updateTimestamp("TS",
                 Timestamp.valueOf("2005-09-21 21:47:09.567890123"));
+        rs.updateObject("TSTZ", OffsetDateTime.of(LocalDate.of(2005, 9, 21),
+                LocalTime.ofNanoOfDay(81_189_123_456_789L), ZoneOffset.ofHours(1)));
         rs.updateDouble("DB", 1.725);
-        rs.updateFloat("R", (float) 2.5);
+        rs.updateFloat("R", 2.5f);
         rs.updateLong("L", Long.MAX_VALUE);
         rs.updateObject("O_I", 10);
         rs.updateShort("SH", Short.MIN_VALUE);
@@ -379,8 +392,8 @@ public class TestUpdatableResultSet extends TestDb {
 
         rs.moveToInsertRow();
         rs.updateInt("ID", 4);
-        rs.updateCharacterStream(15, new StringReader("\u00ef\u00f6\u00fc"));
-        rs.updateBinaryStream(16,
+        rs.updateCharacterStream(clobIndex, new StringReader("\u00ef\u00f6\u00fc"));
+        rs.updateBinaryStream(blobIndex,
                 new ByteArrayInputStream(new byte[] { (byte) 0xab, 0x12 }));
         rs.insertRow();
 
@@ -393,8 +406,8 @@ public class TestUpdatableResultSet extends TestDb {
 
         rs.moveToInsertRow();
         rs.updateInt("ID", 6);
-        rs.updateClob(15, new StringReader("\u00ef\u00f6\u00fc"));
-        rs.updateBlob(16,
+        rs.updateClob(clobIndex, new StringReader("\u00ef\u00f6\u00fc"));
+        rs.updateBlob(blobIndex,
                 new ByteArrayInputStream(new byte[] { (byte) 0xab, 0x12 }));
         rs.insertRow();
 
@@ -410,8 +423,8 @@ public class TestUpdatableResultSet extends TestDb {
 
         rs.moveToInsertRow();
         rs.updateInt("ID", 8);
-        rs.updateNClob(15, new StringReader("\u00ef\u00f6\u00fc"));
-        rs.updateBlob(16, b);
+        rs.updateNClob(clobIndex, new StringReader("\u00ef\u00f6\u00fc"));
+        rs.updateBlob(blobIndex, b);
         rs.insertRow();
 
         rs.moveToInsertRow();
@@ -422,8 +435,8 @@ public class TestUpdatableResultSet extends TestDb {
 
         rs.moveToInsertRow();
         rs.updateInt("ID", 10);
-        rs.updateNClob(15, new StringReader("\u00ef\u00f6\u00fc"), -1);
-        rs.updateBlob(16, b);
+        rs.updateNClob(clobIndex, new StringReader("\u00ef\u00f6\u00fc"), -1);
+        rs.updateBlob(blobIndex, b);
         rs.insertRow();
 
         rs.moveToInsertRow();
@@ -435,9 +448,9 @@ public class TestUpdatableResultSet extends TestDb {
 
         rs.moveToInsertRow();
         rs.updateInt("ID", 12);
-        rs.updateNCharacterStream(15,
+        rs.updateNCharacterStream(clobIndex,
                 new StringReader("\u00ef\u00f6\u00fc"), -1);
-        rs.updateBlob(16, b);
+        rs.updateBlob(blobIndex, b);
         rs.insertRow();
 
         rs.moveToInsertRow();
@@ -449,73 +462,119 @@ public class TestUpdatableResultSet extends TestDb {
 
         rs.moveToInsertRow();
         rs.updateInt("ID", 14);
-        rs.updateNCharacterStream(15,
+        rs.updateNCharacterStream(clobIndex,
                 new StringReader("\u00ef\u00f6\u00fc"));
-        rs.updateBlob(16, b);
+        rs.updateBlob(blobIndex, b);
         rs.insertRow();
 
         rs = stat.executeQuery("SELECT * FROM TEST ORDER BY ID NULLS FIRST");
         rs.next();
-        assertTrue(rs.getInt(1) == 0);
-        assertTrue(rs.getString(2) == null && rs.wasNull());
-        assertTrue(rs.getBigDecimal(3) == null && rs.wasNull());
-        assertTrue(!rs.getBoolean(4) && rs.wasNull());
-        assertTrue(rs.getByte(5) == 0 && rs.wasNull());
-        assertTrue(rs.getBytes(6) == null && rs.wasNull());
-        assertTrue(rs.getDate(7) == null && rs.wasNull());
-        assertTrue(rs.getTime(8) == null && rs.wasNull());
-        assertTrue(rs.getTimestamp(9) == null && rs.wasNull());
-        assertTrue(rs.getDouble(10) == 0.0 && rs.wasNull());
-        assertTrue(rs.getFloat(11) == 0.0 && rs.wasNull());
-        assertTrue(rs.getLong(12) == 0 && rs.wasNull());
-        assertTrue(rs.getObject(13) == null && rs.wasNull());
-        assertTrue(rs.getShort(14) == 0 && rs.wasNull());
-        assertTrue(rs.getCharacterStream(15) == null && rs.wasNull());
-        assertTrue(rs.getBinaryStream(16) == null && rs.wasNull());
+        c = 0;
+        assertTrue(rs.getInt(++c) == 0);
+        assertTrue(rs.getString(++c) == null && rs.wasNull());
+        assertTrue(rs.getBigDecimal(++c) == null && rs.wasNull());
+        assertTrue(!rs.getBoolean(++c) && rs.wasNull());
+        assertTrue(rs.getByte(++c) == 0 && rs.wasNull());
+        assertTrue(rs.getBytes(++c) == null && rs.wasNull());
+        assertTrue(rs.getDate(++c) == null && rs.wasNull());
+        assertTrue(rs.getTime(++c) == null && rs.wasNull());
+        assertTrue(rs.getTimestamp(++c) == null && rs.wasNull());
+        assertTrue(rs.getDouble(++c) == 0.0 && rs.wasNull());
+        assertTrue(rs.getFloat(++c) == 0.0 && rs.wasNull());
+        assertTrue(rs.getLong(++c) == 0 && rs.wasNull());
+        assertTrue(rs.getObject(++c) == null && rs.wasNull());
+        assertTrue(rs.getShort(++c) == 0 && rs.wasNull());
+        assertTrue(rs.getCharacterStream(++c) == null && rs.wasNull());
+        assertTrue(rs.getBinaryStream(++c) == null && rs.wasNull());
 
         rs.next();
-        assertTrue(rs.getInt(1) == 1);
-        assertTrue(rs.getString(2) == null && rs.wasNull());
-        assertTrue(rs.getBigDecimal(3) == null && rs.wasNull());
-        assertTrue(!rs.getBoolean(4) && !rs.wasNull());
-        assertTrue(rs.getByte(5) == 0 && !rs.wasNull());
-        assertTrue(rs.getBytes(6) == null && rs.wasNull());
-        assertTrue(rs.getDate(7) == null && rs.wasNull());
-        assertTrue(rs.getTime(8) == null && rs.wasNull());
-        assertTrue(rs.getTimestamp(9) == null && rs.wasNull());
-        assertTrue(rs.getDouble(10) == 0.0 && !rs.wasNull());
-        assertTrue(rs.getFloat(11) == 0.0 && !rs.wasNull());
-        assertTrue(rs.getLong(12) == 0 && !rs.wasNull());
-        assertTrue(rs.getObject(13) == null && rs.wasNull());
-        assertTrue(rs.getShort(14) == 0 && !rs.wasNull());
-        assertEquals("test", rs.getString(15));
-        assertEquals(new byte[] { (byte) 0xff, 0x00 }, rs.getBytes(16));
+        c = 0;
+        assertTrue(rs.getInt(++c) == 1);
+        assertTrue(rs.getString(++c) == null && rs.wasNull());
+        assertTrue(rs.getBigDecimal(++c) == null && rs.wasNull());
+        assertTrue(!rs.getBoolean(++c) && !rs.wasNull());
+        assertTrue(rs.getByte(++c) == 0 && !rs.wasNull());
+        assertTrue(rs.getBytes(++c) == null && rs.wasNull());
+        assertTrue(rs.getDate(++c) == null && rs.wasNull());
+        assertTrue(rs.getTime(++c) == null && rs.wasNull());
+        assertTrue(rs.getTimestamp(++c) == null && rs.wasNull());
+        assertTrue(rs.getObject(++c) == null && rs.wasNull());
+        assertTrue(rs.getDouble(++c) == 0.0 && !rs.wasNull());
+        assertTrue(rs.getFloat(++c) == 0.0 && !rs.wasNull());
+        assertTrue(rs.getLong(++c) == 0 && !rs.wasNull());
+        assertTrue(rs.getObject(++c) == null && rs.wasNull());
+        assertTrue(rs.getShort(++c) == 0 && !rs.wasNull());
+        assertEquals("test", rs.getString(++c));
+        assertEquals(new byte[] { (byte) 0xff, 0x00 }, rs.getBytes(++c));
 
         rs.next();
-        assertTrue(rs.getInt(1) == 2);
-        assertEquals("+", rs.getString(2));
-        assertEquals("1.20", rs.getBigDecimal(3).toString());
-        assertTrue(rs.getBoolean(4));
-        assertTrue((rs.getByte(5) & 0xff) == 0xff);
-        assertEquals(new byte[] { 0x00, (byte) 0xff }, rs.getBytes(6));
-        assertEquals("2005-09-21", rs.getDate(7).toString());
-        assertEquals("21:46:28", rs.getTime(8).toString());
-        assertEquals("2005-09-21 21:47:09.567890123", rs.getTimestamp(9).toString());
-        assertTrue(rs.getDouble(10) == 1.725);
-        assertTrue(rs.getFloat(11) == (float) 2.5);
-        assertTrue(rs.getLong(12) == Long.MAX_VALUE);
-        assertEquals(10, ((Integer) rs.getObject(13)).intValue());
-        assertTrue(rs.getShort(14) == Short.MIN_VALUE);
+        c = 0;
+        assertTrue(rs.getInt(++c) == 2);
+        assertEquals("+", rs.getString(++c));
+        assertEquals("1.20", rs.getBigDecimal(++c).toString());
+        assertTrue(rs.getBoolean(++c));
+        assertTrue((rs.getByte(++c) & 0xff) == 0xff);
+        assertEquals(new byte[] { 0x00, (byte) 0xff }, rs.getBytes(++c));
+        assertEquals("2005-09-21", rs.getDate(++c).toString());
+        assertEquals("21:46:28", rs.getTime(++c).toString());
+        assertEquals("2005-09-21 21:47:09.567890123", rs.getTimestamp(++c).toString());
+        assertEquals("2005-09-21T22:33:09.123456789+01:00", rs.getObject(++c).toString());
+        assertTrue(rs.getDouble(++c) == 1.725);
+        assertTrue(rs.getFloat(++c) == 2.5f);
+        assertTrue(rs.getLong(++c) == Long.MAX_VALUE);
+        assertEquals(10, ((Integer) rs.getObject(++c)).intValue());
+        assertTrue(rs.getShort(++c) == Short.MIN_VALUE);
         // auml ouml uuml
-        assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
-        assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
+        assertEquals("\u00ef\u00f6\u00fc", rs.getString(++c));
+        assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(++c));
+        c = 1;
+        rs.updateString(++c, "-");
+        rs.updateBigDecimal(++c, new BigDecimal("1.30"));
+        rs.updateBoolean(++c, false);
+        rs.updateByte(++c, (byte) 0x55);
+        rs.updateBytes(++c, new byte[] { 0x01, (byte) 0xfe });
+        rs.updateDate(++c, Date.valueOf("2005-09-22"));
+        rs.updateTime(++c, Time.valueOf("21:46:29"));
+        rs.updateTimestamp(++c, Timestamp.valueOf("2005-09-21 21:47:10.111222333"));
+        rs.updateObject(++c, OffsetDateTime.of(LocalDate.of(2005, 9, 22), LocalTime.ofNanoOfDay(10_111_222_333L),
+                ZoneOffset.ofHours(2)));
+        rs.updateDouble(++c, 2.25);
+        rs.updateFloat(++c, 3.5f);
+        rs.updateLong(++c, Long.MAX_VALUE - 1);
+        rs.updateInt(++c, 11);
+        rs.updateShort(++c, (short) -1_000);
+        rs.updateString(++c, "ABCD");
+        rs.updateBytes(++c, new byte[] { 1, 2 });
+        rs.updateRow();
 
         for (int i = 3; i <= 14; i++) {
             rs.next();
             assertEquals(i, rs.getInt(1));
-            assertEquals("\u00ef\u00f6\u00fc", rs.getString(15));
-            assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(16));
+            assertEquals("\u00ef\u00f6\u00fc", rs.getString(clobIndex));
+            assertEquals(new byte[] { (byte) 0xab, 0x12 }, rs.getBytes(blobIndex));
         }
+        assertFalse(rs.next());
+
+        rs = stat.executeQuery("SELECT * FROM TEST WHERE ID = 2");
+        rs.next();
+        c = 0;
+        assertTrue(rs.getInt(++c) == 2);
+        assertEquals("-", rs.getString(++c));
+        assertEquals("1.30", rs.getBigDecimal(++c).toString());
+        assertFalse(rs.getBoolean(++c));
+        assertTrue((rs.getByte(++c) & 0xff) == 0x55);
+        assertEquals(new byte[] { 0x01, (byte) 0xfe }, rs.getBytes(++c));
+        assertEquals("2005-09-22", rs.getDate(++c).toString());
+        assertEquals("21:46:29", rs.getTime(++c).toString());
+        assertEquals("2005-09-21 21:47:10.111222333", rs.getTimestamp(++c).toString());
+        assertEquals("2005-09-22T00:00:10.111222333+02:00", rs.getObject(++c).toString());
+        assertTrue(rs.getDouble(++c) == 2.25);
+        assertTrue(rs.getFloat(++c) == 3.5f);
+        assertTrue(rs.getLong(++c) == Long.MAX_VALUE - 1);
+        assertEquals(11, ((Integer) rs.getObject(++c)).intValue());
+        assertTrue(rs.getShort(++c) == -1_000);
+        assertEquals("ABCD", rs.getString(++c));
+        assertEquals(new byte[] { 1, 2 }, rs.getBytes(++c));
         assertFalse(rs.next());
 
         stat.execute("DROP TABLE TEST");
@@ -672,6 +731,77 @@ public class TestUpdatableResultSet extends TestDb {
             if (!error) {
                 throw e;
             }
+        }
+    }
+
+    private void testUpdateObject() throws SQLException {
+        deleteDb("updatableResultSet");
+        Connection conn = getConnection("updatableResultSet");
+        Statement stat = conn.createStatement();
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, V INT)");
+        PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES (?1, ?1)");
+        for (int i = 1; i <= 8; i++) {
+            prep.setInt(1, i);
+            prep.executeUpdate();
+        }
+        prep = conn.prepareStatement("TABLE TEST ORDER BY ID", ResultSet.TYPE_FORWARD_ONLY,
+                ResultSet.CONCUR_UPDATABLE);
+        try (ResultSet rs = prep.executeQuery()) {
+            for (int i = 1; i <= 8; i++) {
+            rs.next();
+                assertEquals(i, rs.getInt(1));
+                assertEquals(i, rs.getInt(2));
+                testUpdateObjectUpdateRow(rs, i, i * 10);
+                rs.updateRow();
+            }
+            assertFalse(rs.next());
+        }
+        try (ResultSet rs = prep.executeQuery()) {
+            for (int i = 1; i <= 8; i++) {
+                assertTrue(rs.next());
+                assertEquals(i, rs.getInt(1));
+                assertEquals(i * 10, rs.getInt(2));
+                testUpdateObjectUpdateRow(rs, i, null);
+                rs.updateRow();
+            }
+            assertFalse(rs.next());
+        }
+        try (ResultSet rs = prep.executeQuery()) {
+            for (int i = 1; i <= 8; i++) {
+                assertTrue(rs.next());
+                assertEquals(i, rs.getInt(1));
+                assertNull(rs.getObject(2));
+            }
+            assertFalse(rs.next());
+        }
+        conn.close();
+    }
+
+    private static void testUpdateObjectUpdateRow(ResultSet rs, int method, Object value) throws SQLException {
+        switch (method) {
+        case 1:
+            rs.updateObject(2, value);
+            break;
+        case 2:
+            rs.updateObject("V", value);
+            break;
+        case 3:
+            rs.updateObject(2, value, 0);
+            break;
+        case 4:
+            rs.updateObject(2, value, JDBCType.INTEGER);
+            break;
+        case 5:
+            rs.updateObject("V", value, 0);
+            break;
+        case 6:
+            rs.updateObject("V", value, JDBCType.INTEGER);
+            break;
+        case 7:
+            rs.updateObject(2, value, JDBCType.INTEGER, 0);
+            break;
+        case 8:
+            rs.updateObject("V", value, JDBCType.INTEGER, 0);
         }
     }
 

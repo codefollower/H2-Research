@@ -1,12 +1,12 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
 
 import org.h2.command.dml.SelectOrderBy;
-import org.h2.engine.Database;
+import org.h2.engine.Session;
 import org.h2.engine.SysProperties;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
@@ -75,7 +75,7 @@ public class SortOrder implements Comparator<Value[]> {
         }
     }
 
-    private final Database database;
+    private final Session session;
 
     /**
      * The column indexes of the order by expressions within the query.
@@ -95,14 +95,13 @@ public class SortOrder implements Comparator<Value[]> {
     /**
      * Construct a new sort order object.
      *
-     * @param database the database
+     * @param session the session
      * @param queryColumnIndexes the column index list
      * @param sortType the sort order bit masks
      * @param orderList the original query order list (if this is a query)
      */
-    public SortOrder(Database database, int[] queryColumnIndexes,
-            int[] sortType, ArrayList<SelectOrderBy> orderList) {
-        this.database = database;
+    public SortOrder(Session session, int[] queryColumnIndexes, int[] sortType, ArrayList<SelectOrderBy> orderList) {
+        this.session = session;
         this.queryColumnIndexes = queryColumnIndexes;
         this.sortTypes = sortType;
         this.orderList = orderList;
@@ -192,7 +191,7 @@ public class SortOrder implements Comparator<Value[]> {
                 }
                 return compareNull(aNull, type);
             }
-            int comp = database.compare(ao, bo);
+            int comp = session.compare(ao, bo);
             if (comp != 0) {
                 return (type & DESCENDING) == 0 ? comp : -comp;
             }
@@ -206,7 +205,7 @@ public class SortOrder implements Comparator<Value[]> {
      * @param rows the list of rows
      */
     public void sort(ArrayList<Value[]> rows) {
-        Collections.sort(rows, this);
+        rows.sort(this);
     }
 
     /**
@@ -311,12 +310,7 @@ public class SortOrder implements Comparator<Value[]> {
      * @return comparator for row values.
      */
     public Comparator<Value> getRowValueComparator() {
-        return new Comparator<Value>() {
-            @Override
-            public int compare(Value o1, Value o2) {
-                return SortOrder.this.compare(((ValueRow) o1).getList(), ((ValueRow) o2).getList());
-            }
-        };
+        return (o1, o2) -> compare(((ValueRow) o1).getList(), ((ValueRow) o2).getList());
     }
 
     /**

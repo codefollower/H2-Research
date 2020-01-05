@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.h2.api.ErrorCode;
 import org.h2.mvstore.MVStore;
 import org.h2.store.fs.FilePath;
-import org.h2.store.fs.FilePathMem;
 import org.h2.store.fs.FileUtils;
+import org.h2.store.fs.mem.FilePathMem;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.util.Utils;
@@ -70,15 +70,10 @@ public class TestOutOfMemory extends TestDb {
     private void testMVStoreUsingInMemoryFileSystem() {
         FilePath.register(new FilePathMem());
         String fileName = "memFS:" + getTestName();
-        final AtomicReference<Throwable> exRef = new AtomicReference<>();
+        AtomicReference<Throwable> exRef = new AtomicReference<>();
         MVStore store = new MVStore.Builder()
                 .fileName(fileName)
-                .backgroundExceptionHandler(new Thread.UncaughtExceptionHandler() {
-                    @Override
-                    public void uncaughtException(Thread t, Throwable e) {
-                        exRef.compareAndSet(null, e);
-                    }
-                })
+                .backgroundExceptionHandler((t, e) -> exRef.compareAndSet(null, e))
                 .open();
         try {
             Map<Integer, byte[]> map = store.openMap("test");

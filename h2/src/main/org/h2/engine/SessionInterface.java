@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,12 +11,81 @@ import org.h2.command.CommandInterface;
 import org.h2.message.Trace;
 import org.h2.store.DataHandler;
 import org.h2.util.NetworkConnectionInfo;
+import org.h2.util.TimeZoneProvider;
 import org.h2.value.Value;
 
 /**
  * A local or remote session. A session represents a database connection.
  */
-public interface SessionInterface extends Closeable {
+public interface SessionInterface extends CastDataProvider, Closeable {
+
+    /**
+     * Static settings.
+     */
+    final class StaticSettings {
+
+        /**
+         * Whether unquoted identifiers are converted to upper case.
+         */
+        public final boolean databaseToUpper;
+
+        /**
+         * Whether unquoted identifiers are converted to lower case.
+         */
+        public final boolean databaseToLower;
+
+        /**
+         * Whether all identifiers are case insensitive.
+         */
+        public final boolean caseInsensitiveIdentifiers;
+
+        /**
+         * Creates new instance of static settings.
+         *
+         * @param databaseToUpper
+         *            whether unquoted identifiers are converted to upper case
+         * @param databaseToLower
+         *            whether unquoted identifiers are converted to lower case
+         * @param caseInsensitiveIdentifiers
+         *            whether all identifiers are case insensitive
+         */
+        public StaticSettings(boolean databaseToUpper, boolean databaseToLower, boolean caseInsensitiveIdentifiers) {
+            this.databaseToUpper = databaseToUpper;
+            this.databaseToLower = databaseToLower;
+            this.caseInsensitiveIdentifiers = caseInsensitiveIdentifiers;
+        }
+
+    }
+
+    /**
+     * Dynamic settings.
+     */
+    final class DynamicSettings {
+
+        /**
+         * The database mode.
+         */
+        public final Mode mode;
+
+        /**
+         * The current time zone.
+         */
+        public final TimeZoneProvider timeZone;
+
+        /**
+         * Creates new instance of dynamic settings.
+         *
+         * @param mode
+         *            the database mode
+         * @param timeZone
+         *            the current time zone
+         */
+        public DynamicSettings(Mode mode, TimeZoneProvider timeZone) {
+            this.mode = mode;
+            this.timeZone = timeZone;
+        }
+
+    }
 
     /**
      * Get the list of the cluster servers for this session.
@@ -91,28 +160,6 @@ public interface SessionInterface extends Closeable {
     void cancel();
 
     /**
-     * Check if the database changed and therefore reconnecting is required.
-     *
-     * @param write if the next operation may be writing
-     * @return true if reconnecting is required
-     */
-    boolean isReconnectNeeded(boolean write);
-
-    /**
-     * Close the connection and open a new connection.
-     *
-     * @param write if the next operation may be writing
-     * @return the new connection
-     */
-    SessionInterface reconnect(boolean write);
-
-    /**
-     * Called after writing has ended. It needs to be called after
-     * isReconnectNeeded(true) returned false.
-     */
-    void afterWriting();
-
-    /**
      * Check if this session is in auto-commit mode.
      *
      * @return true if the session is in auto-commit mode
@@ -169,5 +216,35 @@ public interface SessionInterface extends Closeable {
      * @param networkConnectionInfo the network connection information
      */
     void setNetworkConnectionInfo(NetworkConnectionInfo networkConnectionInfo);
+
+    /**
+     * Returns the isolation level.
+     *
+     * @return the isolation level
+     */
+    IsolationLevel getIsolationLevel();
+
+    /**
+     * Sets the isolation level.
+     *
+     * @param isolationLevel the isolation level to set
+     */
+    void setIsolationLevel(IsolationLevel isolationLevel);
+
+    /**
+     * Returns static settings. These settings cannot be changed during
+     * lifecycle of session.
+     *
+     * @return static settings
+     */
+    StaticSettings getStaticSettings();
+
+    /**
+     * Returns dynamic settings. These settings can be changed during lifecycle
+     * of session.
+     *
+     * @return dynamic settings
+     */
+    DynamicSettings getDynamicSettings();
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -20,9 +20,7 @@ import org.h2.engine.Database;
 import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.engine.User;
-import org.h2.expression.Alias;
 import org.h2.expression.Expression;
-import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.index.Index;
@@ -270,23 +268,6 @@ public class TableView extends Table {
                 }
                 Column col = new Column(name, type);
                 col.setTable(this, i);
-                // Fetch check constraint from view column source
-                ExpressionColumn fromColumn = null;
-                if (expr instanceof ExpressionColumn) {
-                    fromColumn = (ExpressionColumn) expr;
-                } else if (expr instanceof Alias) {
-                    Expression aliasExpr = expr.getNonAliasExpression();
-                    if (aliasExpr instanceof ExpressionColumn) {
-                        fromColumn = (ExpressionColumn) aliasExpr;
-                    }
-                }
-                if (fromColumn != null) {
-                    Expression checkExpression = fromColumn.getColumn()
-                            .getCheckConstraint(session, name);
-                    if (checkExpression != null) {
-                        col.addCheckConstraint(session, checkExpression);
-                    }
-                }
                 list.add(col);
             }
             cols = list.toArray(new Column[0]);
@@ -426,11 +407,6 @@ public class TableView extends Table {
             builder.append(')');
         }
         return builder.append(" AS\n").append(querySQL).toString();
-    }
-
-    @Override
-    public void checkRename() {
-        // ok
     }
 
     @Override

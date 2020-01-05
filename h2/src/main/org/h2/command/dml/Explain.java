@@ -1,16 +1,18 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.Database;
+import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
@@ -68,11 +70,11 @@ public class Explain extends Prepared {
 
     @Override
     public ResultInterface query(int maxrows) {
-        Column column = new Column("PLAN", Value.STRING);
+        Column column = new Column("PLAN", Value.VARCHAR);
         Database db = session.getDatabase();
         ExpressionColumn expr = new ExpressionColumn(db, column);
         Expression[] expressions = { expr };
-        result = db.getResultFactory().create(session, expressions, 1, 1);
+        result = new LocalResult(session, expressions, 1, 1);
         boolean alwaysQuote = true;
         if (maxrows >= 0) {
             String plan;
@@ -162,4 +164,10 @@ public class Explain extends Prepared {
     public int getType() {
         return executeCommand ? CommandInterface.EXPLAIN_ANALYZE : CommandInterface.EXPLAIN;
     }
+
+    @Override
+    public void collectDependencies(HashSet<DbObject> dependencies) {
+        command.collectDependencies(dependencies);
+    }
+
 }

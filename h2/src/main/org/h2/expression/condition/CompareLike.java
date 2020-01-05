@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -101,14 +101,14 @@ public class CompareLike extends Condition {
     public Expression optimize(Session session) {
         left = left.optimize(session);
         right = right.optimize(session);
-        if (left.getType().getValueType() == Value.STRING_IGNORECASE) {
+        if (left.getType().getValueType() == Value.VARCHAR_IGNORECASE) {
             ignoreCase = true;
         }
         if (left.isValueSet()) {
             Value l = left.getValue(session);
             if (l == ValueNull.INSTANCE) {
                 // NULL LIKE something > NULL
-                return TypedValueExpression.getUnknown();
+                return TypedValueExpression.UNKNOWN;
             }
         }
         if (escape != null) {
@@ -121,16 +121,16 @@ public class CompareLike extends Condition {
             Value r = right.getValue(session);
             if (r == ValueNull.INSTANCE) {
                 // something LIKE NULL > NULL
-                return TypedValueExpression.getUnknown();
+                return TypedValueExpression.UNKNOWN;
             }
             Value e = escape == null ? null : escape.getValue(session);
             if (e == ValueNull.INSTANCE) {
-                return TypedValueExpression.getUnknown();
+                return TypedValueExpression.UNKNOWN;
             }
             String p = r.getString();
             initPattern(p, getEscapeChar(e));
             if (invalidPattern) {
-                return TypedValueExpression.getUnknown();
+                return TypedValueExpression.UNKNOWN;
             }
             if ("%".equals(p)) {
                 // optimization for X LIKE '%': convert to X IS NOT NULL
@@ -140,8 +140,7 @@ public class CompareLike extends Condition {
                 // optimization for X LIKE 'Hello': convert to X = 'Hello'
                 Value value = ValueString.get(patternString);
                 Expression expr = ValueExpression.get(value);
-                return new Comparison(session,
-                        Comparison.EQUAL, left, expr).optimize(session);
+                return new Comparison(Comparison.EQUAL, left, expr).optimize(session);
             }
             isInit = true;
         }
@@ -251,12 +250,12 @@ public class CompareLike extends Condition {
     public Value getValue(Session session) {
         Value l = left.getValue(session);
         if (l == ValueNull.INSTANCE) {
-            return l;
+            return ValueNull.INSTANCE;
         }
         if (!isInit) {
             Value r = right.getValue(session);
             if (r == ValueNull.INSTANCE) {
-                return r;
+                return ValueNull.INSTANCE;
             }
             String p = r.getString();
             Value e = escape == null ? null : escape.getValue(session);

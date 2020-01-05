@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -83,6 +83,19 @@ SELECT (1, ARRAY[1]) IN (SELECT 1, ARRAY[2]);
 
 SELECT (1, ARRAY[NULL]) IN (SELECT 1, ARRAY[NULL]);
 >> null
+
+@reconnect off
+
+CREATE LOCAL TEMPORARY TABLE TEST AS (SELECT ROW(1, 2) R);
+> ok
+
+CREATE INDEX IDX ON TEST(R);
+> exception FEATURE_NOT_SUPPORTED_1
+
+DROP TABLE TEST;
+> ok
+
+@reconnect on
 
 -- The next tests should be at the of this file
 

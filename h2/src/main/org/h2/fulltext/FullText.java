@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -75,7 +75,7 @@ public class FullText {
     private static final String SELECT_MAP_BY_WORD_ID =
             "SELECT ROWID FROM " + SCHEMA + ".MAP WHERE WORDID=?";
     private static final String SELECT_ROW_BY_ID =
-            "SELECT KEY, INDEXID FROM " + SCHEMA + ".ROWS WHERE ID=?";
+            "SELECT `KEY`, INDEXID FROM " + SCHEMA + ".ROWS WHERE ID=?";
 
     /**
      * The column name of the result set returned by the search method.
@@ -116,13 +116,13 @@ public class FullText {
                 "NAME VARCHAR, UNIQUE(NAME))");
         stat.execute("CREATE TABLE IF NOT EXISTS " + SCHEMA +
                 ".ROWS(ID IDENTITY, HASH INT, INDEXID INT, " +
-                "KEY VARCHAR, UNIQUE(HASH, INDEXID, KEY))");
+                "`KEY` VARCHAR, UNIQUE(HASH, INDEXID, `KEY`))");
         stat.execute("CREATE TABLE IF NOT EXISTS " + SCHEMA +
                 ".MAP(ROWID INT, WORDID INT, PRIMARY KEY(WORDID, ROWID))");
         stat.execute("CREATE TABLE IF NOT EXISTS " + SCHEMA +
                 ".IGNORELIST(LIST VARCHAR)");
         stat.execute("CREATE TABLE IF NOT EXISTS " + SCHEMA +
-                ".SETTINGS(KEY VARCHAR PRIMARY KEY, VALUE VARCHAR)");
+                ".SETTINGS(`KEY` VARCHAR PRIMARY KEY, `VALUE` VARCHAR)");
         stat.execute("CREATE ALIAS IF NOT EXISTS FT_CREATE_INDEX FOR \"" +
                 FullText.class.getName() + ".createIndex\"");
         stat.execute("CREATE ALIAS IF NOT EXISTS FT_DROP_INDEX FOR \"" +
@@ -875,11 +875,11 @@ public class FullText {
 
         private static final String SQL[] = {
             "MERGE INTO " + SCHEMA + ".WORDS(NAME) KEY(NAME) VALUES(?)",
-            "INSERT INTO " + SCHEMA + ".ROWS(HASH, INDEXID, KEY) VALUES(?, ?, ?)",
+            "INSERT INTO " + SCHEMA + ".ROWS(HASH, INDEXID, `KEY`) VALUES(?, ?, ?)",
             "INSERT INTO " + SCHEMA + ".MAP(ROWID, WORDID) VALUES(?, ?)",
-            "DELETE FROM " + SCHEMA + ".ROWS WHERE HASH=? AND INDEXID=? AND KEY=?",
+            "DELETE FROM " + SCHEMA + ".ROWS WHERE HASH=? AND INDEXID=? AND `KEY`=?",
             "DELETE FROM " + SCHEMA + ".MAP WHERE ROWID=? AND WORDID=?",
-            "SELECT ID FROM " + SCHEMA + ".ROWS WHERE HASH=? AND INDEXID=? AND KEY=?"
+            "SELECT ID FROM " + SCHEMA + ".ROWS WHERE HASH=? AND INDEXID=? AND `KEY`=?"
         };
 
         /**
@@ -967,9 +967,9 @@ public class FullText {
                 throws SQLException {
             try (Statement stat = conn.createStatement()) {
                 ResultSet rs = stat.executeQuery(
-                                "SELECT value FROM information_schema.settings" +
-                                " WHERE name = 'MULTI_THREADED'");
-                return rs.next() && !"0".equals(rs.getString(1));
+                                "SELECT `VALUE` FROM INFORMATION_SCHEMA.SETTINGS" +
+                                " WHERE NAME = 'MV_STORE'");
+                return rs.next() && "true".equals(rs.getString(1));
             }
         }
 

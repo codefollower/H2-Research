@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -29,47 +29,47 @@ public interface CommandInterface extends AutoCloseable {
     int ALTER_INDEX_RENAME = 1;
 
     /**
-     * The type of a ALTER SCHEMA RENAME statement.
+     * The type of an ALTER SCHEMA RENAME statement.
      */
     int ALTER_SCHEMA_RENAME = 2;
 
     /**
-     * The type of a ALTER TABLE ADD CHECK statement.
+     * The type of an ALTER TABLE ADD CHECK statement.
      */
     int ALTER_TABLE_ADD_CONSTRAINT_CHECK = 3;
 
     /**
-     * The type of a ALTER TABLE ADD UNIQUE statement.
+     * The type of an ALTER TABLE ADD UNIQUE statement.
      */
     int ALTER_TABLE_ADD_CONSTRAINT_UNIQUE = 4;
 
     /**
-     * The type of a ALTER TABLE ADD FOREIGN KEY statement.
+     * The type of an ALTER TABLE ADD FOREIGN KEY statement.
      */
     int ALTER_TABLE_ADD_CONSTRAINT_REFERENTIAL = 5;
 
     /**
-     * The type of a ALTER TABLE ADD PRIMARY KEY statement.
+     * The type of an ALTER TABLE ADD PRIMARY KEY statement.
      */
     int ALTER_TABLE_ADD_CONSTRAINT_PRIMARY_KEY = 6;
 
     /**
-     * The type of a ALTER TABLE ADD statement.
+     * The type of an ALTER TABLE ADD statement.
      */
     int ALTER_TABLE_ADD_COLUMN = 7;
 
     /**
-     * The type of a ALTER TABLE ALTER COLUMN SET NOT NULL statement.
+     * The type of an ALTER TABLE ALTER COLUMN SET NOT NULL statement.
      */
     int ALTER_TABLE_ALTER_COLUMN_NOT_NULL = 8;
 
     /**
-     * The type of a ALTER TABLE ALTER COLUMN DROP NOT NULL statement.
+     * The type of an ALTER TABLE ALTER COLUMN DROP NOT NULL statement.
      */
     int ALTER_TABLE_ALTER_COLUMN_DROP_NOT_NULL = 9;
 
     /**
-     * The type of a ALTER TABLE ALTER COLUMN SET DEFAULT and ALTER TABLE ALTER
+     * The type of an ALTER TABLE ALTER COLUMN SET DEFAULT and ALTER TABLE ALTER
      * COLUMN DROP DEFAULT statements.
      */
     int ALTER_TABLE_ALTER_COLUMN_DEFAULT = 10;
@@ -81,52 +81,52 @@ public interface CommandInterface extends AutoCloseable {
     int ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE = 11;
 
     /**
-     * The type of a ALTER TABLE DROP COLUMN statement.
+     * The type of an ALTER TABLE DROP COLUMN statement.
      */
     int ALTER_TABLE_DROP_COLUMN = 12;
 
     /**
-     * The type of a ALTER TABLE ALTER COLUMN SELECTIVITY statement.
+     * The type of an ALTER TABLE ALTER COLUMN SELECTIVITY statement.
      */
     int ALTER_TABLE_ALTER_COLUMN_SELECTIVITY = 13;
 
     /**
-     * The type of a ALTER TABLE DROP CONSTRAINT statement.
+     * The type of an ALTER TABLE DROP CONSTRAINT statement.
      */
     int ALTER_TABLE_DROP_CONSTRAINT = 14;
 
     /**
-     * The type of a ALTER TABLE RENAME statement.
+     * The type of an ALTER TABLE RENAME statement.
      */
     int ALTER_TABLE_RENAME = 15;
 
     /**
-     * The type of a ALTER TABLE ALTER COLUMN RENAME statement.
+     * The type of an ALTER TABLE ALTER COLUMN RENAME statement.
      */
     int ALTER_TABLE_ALTER_COLUMN_RENAME = 16;
 
     /**
-     * The type of a ALTER USER ADMIN statement.
+     * The type of an ALTER USER ADMIN statement.
      */
     int ALTER_USER_ADMIN = 17;
 
     /**
-     * The type of a ALTER USER RENAME statement.
+     * The type of an ALTER USER RENAME statement.
      */
     int ALTER_USER_RENAME = 18;
 
     /**
-     * The type of a ALTER USER SET PASSWORD statement.
+     * The type of an ALTER USER SET PASSWORD statement.
      */
     int ALTER_USER_SET_PASSWORD = 19;
 
     /**
-     * The type of a ALTER VIEW statement.
+     * The type of an ALTER VIEW statement.
      */
     int ALTER_VIEW = 20;
 
     /**
-     * The type of a ANALYZE statement.
+     * The type of an ANALYZE statement.
      */
     int ANALYZE = 21;
 
@@ -293,12 +293,12 @@ public interface CommandInterface extends AutoCloseable {
     // dml operations
 
     /**
-     * The type of a ALTER SEQUENCE statement.
+     * The type of an ALTER SEQUENCE statement.
      */
     int ALTER_SEQUENCE = 54;
 
     /**
-     * The type of a ALTER TABLE SET REFERENTIAL_INTEGRITY statement.
+     * The type of an ALTER TABLE SET REFERENTIAL_INTEGRITY statement.
      */
     int ALTER_TABLE_SET_REFERENTIAL_INTEGRITY = 55;
 
@@ -318,17 +318,17 @@ public interface CommandInterface extends AutoCloseable {
     int DELETE = 58;
 
     /**
-     * The type of a EXECUTE statement.
+     * The type of an EXECUTE statement.
      */
     int EXECUTE = 59;
 
     /**
-     * The type of a EXPLAIN statement.
+     * The type of an EXPLAIN statement.
      */
     int EXPLAIN = 60;
 
     /**
-     * The type of a INSERT statement.
+     * The type of an INSERT statement.
      */
     int INSERT = 61;
 
@@ -368,7 +368,7 @@ public interface CommandInterface extends AutoCloseable {
     int SET = 67;
 
     /**
-     * The type of a UPDATE statement.
+     * The type of an UPDATE statement.
      */
     int UPDATE = 68;
 
@@ -457,18 +457,18 @@ public interface CommandInterface extends AutoCloseable {
     //有8个基本方法，最主要是executeQuery、executeUpdate
 
     /**
-     * The type of a ALTER TABLE RENAME CONSTRAINT statement.
+     * The type of an ALTER TABLE RENAME CONSTRAINT statement.
      */
     int ALTER_TABLE_RENAME_CONSTRAINT = 85;
 
 
     /**
-     * The type of a EXPLAIN ANALYZE statement.
+     * The type of an EXPLAIN ANALYZE statement.
      */
     int EXPLAIN_ANALYZE = 86;
 
     /**
-     * The type of a ALTER TABLE ALTER COLUMN SET INVISIBLE statement.
+     * The type of an ALTER TABLE ALTER COLUMN SET INVISIBLE statement.
      */
     int ALTER_TABLE_ALTER_COLUMN_VISIBILITY = 87;
 
@@ -483,9 +483,24 @@ public interface CommandInterface extends AutoCloseable {
     int DROP_SYNONYM = 89;
 
     /**
-     * The type of a ALTER TABLE ALTER COLUMN SET ON UPDATE statement.
+     * The type of an ALTER TABLE ALTER COLUMN SET ON UPDATE statement.
      */
     int ALTER_TABLE_ALTER_COLUMN_ON_UPDATE = 90;
+
+    /**
+     * The type of an EXECUTE IMMEDIATELY statement.
+     */
+    int EXECUTE_IMMEDIATELY = 91;
+
+    /**
+     * The type of ALTER DOMAIN ADD CONSTRAINT statement.
+     */
+    int ALTER_DOMAIN_ADD_CONSTRAINT = 92;
+
+    /**
+     * The type of ALTER DOMAIN DROP CONSTRAINT statement.
+     */
+    int ALTER_DOMAIN_DROP_CONSTRAINT = 93;
 
     /**
      * Get command type.

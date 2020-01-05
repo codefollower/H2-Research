@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -31,9 +31,19 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.Period;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
 import org.h2.api.ErrorCode;
@@ -42,9 +52,7 @@ import org.h2.api.IntervalQualifier;
 import org.h2.engine.SysProperties;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
-import org.h2.util.DateTimeUtils;
 import org.h2.util.IOUtils;
-import org.h2.util.LocalDateTimeUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
 
@@ -369,13 +377,13 @@ public class TestResultSet extends TestDb {
     }
 
     private void testSubstringDataType() throws SQLException {
-        ResultSet rs = stat.executeQuery("select substr(x, 1, 1) from dual");
+        ResultSet rs = stat.executeQuery("select substr(x, 1, 1) from system_range(1, 1)");
         rs.next();
         assertEquals(Types.VARCHAR, rs.getMetaData().getColumnType(1));
     }
 
     private void testColumnLabelColumnName() throws SQLException {
-        ResultSet rs = stat.executeQuery("select x as y from dual");
+        ResultSet rs = stat.executeQuery("select x as y from system_range(1, 1)");
         rs.next();
         rs.getString("x");
         rs.getString("y");
@@ -575,7 +583,7 @@ public class TestResultSet extends TestDb {
         assertEquals(10, meta.getPrecision(1));
         assertEquals(1, meta.getPrecision(2));
         assertEquals(30, meta.getPrecision(3));
-        assertEquals(3, meta.getPrecision(4));
+        assertEquals(2, meta.getPrecision(4));
         assertEquals(40, meta.getPrecision(5));
         stat.execute("DROP TABLE one");
     }
@@ -617,7 +625,7 @@ public class TestResultSet extends TestDb {
         ResultSet rs;
         Object o;
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE INT)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" INT)");
         stat.execute("INSERT INTO TEST VALUES(1,-1)");
         stat.execute("INSERT INTO TEST VALUES(2,0)");
         stat.execute("INSERT INTO TEST VALUES(3,1)");
@@ -770,7 +778,7 @@ public class TestResultSet extends TestDb {
         ResultSet rs;
         Object o;
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE SMALLINT)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" SMALLINT)");
         stat.execute("INSERT INTO TEST VALUES(1,-1)");
         stat.execute("INSERT INTO TEST VALUES(2,0)");
         stat.execute("INSERT INTO TEST VALUES(3,1)");
@@ -893,7 +901,7 @@ public class TestResultSet extends TestDb {
         ResultSet rs;
         Object o;
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE BIGINT)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" BIGINT)");
         stat.execute("INSERT INTO TEST VALUES(1,-1)");
         stat.execute("INSERT INTO TEST VALUES(2,0)");
         stat.execute("INSERT INTO TEST VALUES(3,1)");
@@ -1024,7 +1032,7 @@ public class TestResultSet extends TestDb {
         ResultSet rs;
         Object o;
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE VARCHAR(255))");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" VARCHAR(255))");
         stat.execute("INSERT INTO TEST VALUES(1,'')");
         stat.execute("INSERT INTO TEST VALUES(2,' ')");
         stat.execute("INSERT INTO TEST VALUES(3,'  ')");
@@ -1119,7 +1127,7 @@ public class TestResultSet extends TestDb {
         ResultSet rs;
         Object o;
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE DECIMAL(10,2))");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" DECIMAL(10,2))");
         stat.execute("INSERT INTO TEST VALUES(1,-1)");
         stat.execute("INSERT INTO TEST VALUES(2,.0)");
         stat.execute("INSERT INTO TEST VALUES(3,1.)");
@@ -1177,7 +1185,7 @@ public class TestResultSet extends TestDb {
         assertFalse(rs.next());
         stat.execute("DROP TABLE TEST");
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE DECIMAL(22,2))");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" DECIMAL(22,2))");
         stat.execute("INSERT INTO TEST VALUES(1,-12345678909876543210)");
         stat.execute("INSERT INTO TEST VALUES(2,12345678901234567890.12345)");
         rs = stat.executeQuery("SELECT * FROM TEST ORDER BY ID");
@@ -1283,14 +1291,14 @@ public class TestResultSet extends TestDb {
         rs.next();
         assertEquals("-99999-12-23 01:02:03", rs.getString(1));
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE DATETIME)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" DATETIME)");
         stat.execute("INSERT INTO TEST VALUES(1,DATE '2011-11-11')");
         stat.execute("INSERT INTO TEST VALUES(2,TIMESTAMP '2002-02-02 02:02:02')");
         stat.execute("INSERT INTO TEST VALUES(3,TIMESTAMP '1800-1-1 0:0:0')");
         stat.execute("INSERT INTO TEST VALUES(4,TIMESTAMP '9999-12-31 23:59:59')");
         stat.execute("INSERT INTO TEST VALUES(5,NULL)");
         rs = stat.executeQuery("SELECT 0 ID, " +
-                "TIMESTAMP '9999-12-31 23:59:59' VALUE FROM TEST ORDER BY ID");
+                "TIMESTAMP '9999-12-31 23:59:59' \"VALUE\" FROM TEST ORDER BY ID");
         assertResultSetMeta(rs, 2, new String[] { "ID", "VALUE" },
                 new int[] { Types.INTEGER, Types.TIMESTAMP },
                 new int[] { 10, 29 }, new int[] { 0, 9 });
@@ -1362,47 +1370,24 @@ public class TestResultSet extends TestDb {
         assertEquals("2002-02-02 02:02:02.0", ts.toString());
         rs.next();
 
-        assertEquals("1800-01-01", rs.getDate("value").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("1800-01-01", rs.getObject("value",
-                            LocalDateTimeUtils.LOCAL_DATE).toString());
-        }
+        assertEquals("1800-01-01", rs.getObject("value", LocalDate.class).toString());
         assertEquals("00:00:00", rs.getTime("value").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("00:00", rs.getObject("value",
-                            LocalDateTimeUtils.LOCAL_TIME).toString());
-        }
-        assertEquals("1800-01-01 00:00:00.0", rs.getTimestamp("value").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("1800-01-01T00:00", rs.getObject("value",
-                            LocalDateTimeUtils.LOCAL_DATE_TIME).toString());
-        }
+        assertEquals("00:00", rs.getObject("value", LocalTime.class).toString());
+        assertEquals("1800-01-01T00:00", rs.getObject("value", LocalDateTime.class).toString());
         rs.next();
 
         assertEquals("9999-12-31", rs.getDate("Value").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("9999-12-31", rs.getObject("Value",
-                            LocalDateTimeUtils.LOCAL_DATE).toString());
-        }
+        assertEquals("9999-12-31", rs.getObject("Value", LocalDate.class).toString());
         assertEquals("23:59:59", rs.getTime("Value").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("23:59:59", rs.getObject("Value",
-                            LocalDateTimeUtils.LOCAL_TIME).toString());
-        }
+        assertEquals("23:59:59", rs.getObject("Value", LocalTime.class).toString());
         assertEquals("9999-12-31 23:59:59.0", rs.getTimestamp("Value").toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("9999-12-31T23:59:59", rs.getObject("Value",
-                            LocalDateTimeUtils.LOCAL_DATE_TIME).toString());
-        }
+        assertEquals("9999-12-31T23:59:59", rs.getObject("Value", LocalDateTime.class).toString());
         rs.next();
 
         assertTrue(rs.getDate("Value") == null && rs.wasNull());
         assertTrue(rs.getTime("vALUe") == null && rs.wasNull());
         assertTrue(rs.getTimestamp(2) == null && rs.wasNull());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertTrue(rs.getObject(2,
-                            LocalDateTimeUtils.LOCAL_DATE_TIME) == null && rs.wasNull());
-        }
+        assertTrue(rs.getObject(2, LocalDateTime.class) == null && rs.wasNull());
         assertFalse(rs.next());
 
         rs = stat.executeQuery("SELECT DATE '2001-02-03' D, " +
@@ -1422,21 +1407,56 @@ public class TestResultSet extends TestDb {
         assertEquals("2001-02-03", date.toString());
         assertEquals("14:15:16", time.toString());
         assertEquals("2007-08-09 10:11:12.141516171", ts.toString());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2001-02-03", rs.getObject(1,
-                            LocalDateTimeUtils.LOCAL_DATE).toString());
-        }
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("14:15:16", rs.getObject(2,
-                            LocalDateTimeUtils.LOCAL_TIME).toString());
-        }
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2007-08-09T10:11:12.141516171",
-                    rs.getObject(3, LocalDateTimeUtils.LOCAL_DATE_TIME)
-                            .toString());
-        }
+        assertEquals("2001-02-03", rs.getObject(1, LocalDate.class).toString());
+        assertEquals("14:15:16", rs.getObject(2, LocalTime.class).toString());
+        assertEquals("2007-08-09T10:11:12.141516171", rs.getObject(3, LocalDateTime.class).toString());
 
         stat.execute("DROP TABLE TEST");
+
+        rs = stat.executeQuery("SELECT LOCALTIME, CURRENT_TIME");
+        rs.next();
+        assertEquals(rs.getTime(1), rs.getTime(2));
+        rs = stat.executeQuery("SELECT LOCALTIMESTAMP, CURRENT_TIMESTAMP");
+        rs.next();
+        assertEquals(rs.getTimestamp(1), rs.getTimestamp(2));
+
+        rs = stat.executeQuery("SELECT DATE '-1000000000-01-01', " + "DATE '1000000000-12-31'");
+        rs.next();
+        assertEquals("-999999999-01-01", rs.getObject(1, LocalDate.class).toString());
+        assertEquals("+999999999-12-31", rs.getObject(2, LocalDate.class).toString());
+
+        rs = stat.executeQuery("SELECT TIMESTAMP '-1000000000-01-01 00:00:00', "
+                + "TIMESTAMP '1000000000-12-31 23:59:59.999999999'");
+        rs.next();
+        assertEquals("-999999999-01-01T00:00", rs.getObject(1, LocalDateTime.class).toString());
+        assertEquals("+999999999-12-31T23:59:59.999999999", rs.getObject(2, LocalDateTime.class).toString());
+
+        rs = stat.executeQuery("SELECT TIMESTAMP WITH TIME ZONE '-1000000000-01-01 00:00:00Z', "
+                + "TIMESTAMP WITH TIME ZONE '1000000000-12-31 23:59:59.999999999Z', "
+                + "TIMESTAMP WITH TIME ZONE '-1000000000-01-01 00:00:00+18', "
+                + "TIMESTAMP WITH TIME ZONE '1000000000-12-31 23:59:59.999999999-18'");
+        rs.next();
+        assertEquals("-999999999-01-01T00:00Z", rs.getObject(1, OffsetDateTime.class).toString());
+        assertEquals("+999999999-12-31T23:59:59.999999999Z", rs.getObject(2, OffsetDateTime.class).toString());
+        assertEquals("-999999999-01-01T00:00+18:00", rs.getObject(3, OffsetDateTime.class).toString());
+        assertEquals("+999999999-12-31T23:59:59.999999999-18:00", rs.getObject(4, OffsetDateTime.class).toString());
+        assertEquals("-999999999-01-01T00:00Z", rs.getObject(1, ZonedDateTime.class).toString());
+        assertEquals("+999999999-12-31T23:59:59.999999999Z", rs.getObject(2, ZonedDateTime.class).toString());
+        assertEquals("-999999999-01-01T00:00+18:00", rs.getObject(3, ZonedDateTime.class).toString());
+        assertEquals("+999999999-12-31T23:59:59.999999999-18:00", rs.getObject(4, ZonedDateTime.class).toString());
+        assertEquals("-1000000000-01-01T00:00:00Z", rs.getObject(1, Instant.class).toString());
+        assertEquals("+1000000000-12-31T23:59:59.999999999Z", rs.getObject(2, Instant.class).toString());
+        assertEquals("-1000000000-01-01T00:00:00Z", rs.getObject(3, Instant.class).toString());
+        assertEquals("+1000000000-12-31T23:59:59.999999999Z", rs.getObject(4, Instant.class).toString());
+
+        rs = stat.executeQuery("SELECT LOCALTIME, CURRENT_TIME");
+        rs.next();
+        assertEquals(rs.getObject(1, LocalTime.class), rs.getObject(2, LocalTime.class));
+        assertEquals(rs.getObject(1, OffsetTime.class), rs.getObject(2, OffsetTime.class));
+        rs = stat.executeQuery("SELECT LOCALTIMESTAMP, CURRENT_TIMESTAMP");
+        rs.next();
+        assertEquals(rs.getObject(1, LocalDateTime.class), rs.getObject(2, LocalDateTime.class));
+        assertEquals(rs.getObject(1, OffsetDateTime.class), rs.getObject(2, OffsetDateTime.class));
     }
 
     private void testDatetimeWithCalendar() throws SQLException {
@@ -1447,8 +1467,8 @@ public class TestResultSet extends TestDb {
                 "D DATE, T TIME, TS TIMESTAMP(9))");
         PreparedStatement prep = conn.prepareStatement(
                 "INSERT INTO TEST VALUES(?, ?, ?, ?)");
-        Calendar regular = DateTimeUtils.createGregorianCalendar();
-        Calendar other = null;
+        GregorianCalendar regular = new GregorianCalendar();
+        GregorianCalendar other = null;
         // search a locale that has a _different_ raw offset
         long testTime = java.sql.Date.valueOf("2001-02-03").getTime();
         for (String s : TimeZone.getAvailableIDs()) {
@@ -1460,7 +1480,7 @@ public class TestResultSet extends TestDb {
             if (rawOffsetDiff != 0 && rawOffsetDiff != 1000 * 60 * 60 * 24) {
                 if (regular.getTimeZone().getOffset(testTime) !=
                         zone.getOffset(testTime)) {
-                    other = DateTimeUtils.createGregorianCalendar(zone);
+                    other = new GregorianCalendar(zone);
                     break;
                 }
             }
@@ -1585,43 +1605,27 @@ public class TestResultSet extends TestDb {
     }
 
     private void testInterval8() throws SQLException {
-        if (!LocalDateTimeUtils.isJava8DateApiPresent()) {
-            return;
-        }
         trace("Test INTERVAL 8");
         ResultSet rs;
-        Object expected;
 
         rs = stat.executeQuery("CALL INTERVAL '1-2' YEAR TO MONTH");
         rs.next();
         assertEquals("INTERVAL '1-2' YEAR TO MONTH", rs.getString(1));
-        try {
-            expected = LocalDateTimeUtils.PERIOD.getMethod("of", int.class, int.class, int.class)
-                    .invoke(null, 1, 2, 0);
-        } catch (ReflectiveOperationException ex) {
-            throw new RuntimeException(ex);
-        }
-        assertEquals(expected, rs.getObject(1, LocalDateTimeUtils.PERIOD));
-        assertThrows(ErrorCode.DATA_CONVERSION_ERROR_1, rs).getObject(1, LocalDateTimeUtils.DURATION);
+        assertEquals(Period.of(1, 2, 0), rs.getObject(1, Period.class));
+        assertThrows(ErrorCode.DATA_CONVERSION_ERROR_1, rs).getObject(1, Duration.class);
 
         rs = stat.executeQuery("CALL INTERVAL '-3.1' SECOND");
         rs.next();
         assertEquals("INTERVAL '-3.1' SECOND", rs.getString(1));
-        try {
-            expected = LocalDateTimeUtils.DURATION.getMethod("ofSeconds", long.class, long.class)
-                    .invoke(null, -4, 900_000_000);
-        } catch (ReflectiveOperationException ex) {
-            throw new RuntimeException(ex);
-        }
-        assertEquals(expected, rs.getObject(1, LocalDateTimeUtils.DURATION));
-        assertThrows(ErrorCode.DATA_CONVERSION_ERROR_1, rs).getObject(1, LocalDateTimeUtils.PERIOD);
+        assertEquals(Duration.ofSeconds(-4, 900_000_000), rs.getObject(1, Duration.class));
+        assertThrows(ErrorCode.DATA_CONVERSION_ERROR_1, rs).getObject(1, Period.class);
     }
 
     private void testBlob() throws SQLException {
         trace("Test BLOB");
         ResultSet rs;
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE BLOB)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" BLOB)");
         stat.execute("INSERT INTO TEST VALUES(1,X'01010101')");
         stat.execute("INSERT INTO TEST VALUES(2,X'02020202')");
         stat.execute("INSERT INTO TEST VALUES(3,X'00')");
@@ -1727,7 +1731,7 @@ public class TestResultSet extends TestDb {
         String string;
         stat = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY,
                 ResultSet.CONCUR_UPDATABLE);
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE CLOB)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,\"VALUE\" CLOB)");
         stat.execute("INSERT INTO TEST VALUES(1,'Test')");
         stat.execute("INSERT INTO TEST VALUES(2,'Hello')");
         stat.execute("INSERT INTO TEST VALUES(3,'World!')");
@@ -1820,7 +1824,7 @@ public class TestResultSet extends TestDb {
     private void testArray() throws SQLException {
         trace("Test ARRAY");
         ResultSet rs;
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, VALUE ARRAY)");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, \"VALUE\" ARRAY)");
         PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, ?)");
         prep.setInt(1, 1);
         prep.setObject(2, new Object[] { 1, 2 });
@@ -1858,8 +1862,8 @@ public class TestResultSet extends TestDb {
         list2 = (Object[]) array.getArray(Collections.<String, Class<?>>emptyMap());
         assertEquals(11, ((Integer) list2[0]).intValue());
 
-        assertEquals(Types.NULL, array.getBaseType());
-        assertEquals("NULL", array.getBaseTypeName());
+        assertEquals(Types.INTEGER, array.getBaseType());
+        assertEquals("INTEGER", array.getBaseTypeName());
 
         assertTrue(array.toString().endsWith(": [11, 12]"));
 
@@ -1930,7 +1934,7 @@ public class TestResultSet extends TestDb {
     private void testEnum() throws SQLException {
         trace("Test ENUM");
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, VALUE ENUM('A', 'B', 'C', 'D', 'E', 'F', 'G'))");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, \"VALUE\" ENUM('A', 'B', 'C', 'D', 'E', 'F', 'G'))");
         PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES(?, ?)");
         prep.setInt(1, 1);
         prep.setString(2, "A");

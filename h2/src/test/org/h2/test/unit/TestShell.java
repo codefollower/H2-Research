@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -195,7 +195,7 @@ public class TestShell extends TestBase {
         testOut.println("list");
         read("sql> Result list mode is now on");
 
-        testOut.println("select 1 first, 2 second;");
+        testOut.println("select 1 first, 2 `second`;");
         read("sql> FIRST : 1");
         read("SECOND: 2");
         read("(1 row, ");

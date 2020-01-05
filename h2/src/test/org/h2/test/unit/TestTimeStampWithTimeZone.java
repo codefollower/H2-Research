@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,14 +11,16 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
+import java.time.OffsetDateTime;
 import java.util.TimeZone;
 
-import org.h2.api.TimestampWithTimeZone;
-import org.h2.engine.SysProperties;
+import org.h2.engine.CastDataProvider;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.util.DateTimeUtils;
-import org.h2.util.LocalDateTimeUtils;
+import org.h2.util.LegacyDateTimeUtils;
+import org.h2.util.TimeZoneProvider;
 import org.h2.value.Value;
 import org.h2.value.ValueDate;
 import org.h2.value.ValueTime;
@@ -65,95 +67,61 @@ public class TestTimeStampWithTimeZone extends TestDb {
         ResultSet rs = stat.executeQuery("select t1 from test");
         rs.next();
         assertEquals("1970-01-01 12:00:00+00:15", rs.getString(1));
-        TimestampWithTimeZone ts = test1_getTimestamp(rs);
+        OffsetDateTime ts = (OffsetDateTime) rs.getObject(1);
         assertEquals(1970, ts.getYear());
-        assertEquals(1, ts.getMonth());
-        assertEquals(1, ts.getDay());
-        assertEquals(15, ts.getTimeZoneOffsetMins());
-        TimestampWithTimeZone firstExpected = new TimestampWithTimeZone(1008673L, 43200000000000L, (short) 15);
-        assertEquals(firstExpected, ts);
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("1970-01-01T12:00+00:15", rs.getObject(1,
-                            LocalDateTimeUtils.OFFSET_DATE_TIME).toString());
-        }
+        assertEquals(1, ts.getMonthValue());
+        assertEquals(1, ts.getDayOfMonth());
+        assertEquals(15 * 60, ts.getOffset().getTotalSeconds());
+        OffsetDateTime expected = OffsetDateTime.parse("1970-01-01T12:00+00:15");
+        assertEquals(expected, ts);
+        assertEquals("1970-01-01T12:00+00:15", rs.getObject(1, OffsetDateTime.class).toString());
         rs.next();
-        ts = test1_getTimestamp(rs);
+        ts = (OffsetDateTime) rs.getObject(1);
         assertEquals(2016, ts.getYear());
-        assertEquals(9, ts.getMonth());
-        assertEquals(24, ts.getDay());
-        assertEquals(1, ts.getTimeZoneOffsetMins());
-        assertEquals(1L, ts.getNanosSinceMidnight());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2016-09-24T00:00:00.000000001+00:01", rs.getObject(1,
-                            LocalDateTimeUtils.OFFSET_DATE_TIME).toString());
-        }
+        assertEquals(9, ts.getMonthValue());
+        assertEquals(24, ts.getDayOfMonth());
+        assertEquals(1L, ts.toLocalTime().toNanoOfDay());
+        assertEquals(60, ts.getOffset().getTotalSeconds());
+        assertEquals("2016-09-24T00:00:00.000000001+00:01", rs.getObject(1, OffsetDateTime.class).toString());
         rs.next();
-        ts = test1_getTimestamp(rs);
+        ts = (OffsetDateTime) rs.getObject(1);
         assertEquals(2016, ts.getYear());
-        assertEquals(9, ts.getMonth());
-        assertEquals(24, ts.getDay());
-        assertEquals(-1, ts.getTimeZoneOffsetMins());
-        assertEquals(1L, ts.getNanosSinceMidnight());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2016-09-24T00:00:00.000000001-00:01", rs.getObject(1,
-                            LocalDateTimeUtils.OFFSET_DATE_TIME).toString());
-        }
+        assertEquals(9, ts.getMonthValue());
+        assertEquals(24, ts.getDayOfMonth());
+        assertEquals(1L, ts.toLocalTime().toNanoOfDay());
+        assertEquals(-60, ts.getOffset().getTotalSeconds());
+        assertEquals("2016-09-24T00:00:00.000000001-00:01", rs.getObject(1, OffsetDateTime.class).toString());
         rs.next();
-        ts = test1_getTimestamp(rs);
+        ts = (OffsetDateTime) rs.getObject(1);
         assertEquals(2016, ts.getYear());
-        assertEquals(1, ts.getMonth());
-        assertEquals(1, ts.getDay());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2016-01-01T05:00+10:00", rs.getObject(1,
-                            LocalDateTimeUtils.OFFSET_DATE_TIME).toString());
-        }
+        assertEquals(1, ts.getMonthValue());
+        assertEquals(1, ts.getDayOfMonth());
+        assertEquals("2016-01-01T05:00+10:00", rs.getObject(1, OffsetDateTime.class).toString());
         rs.next();
-        ts = test1_getTimestamp(rs);
+        ts = (OffsetDateTime) rs.getObject(1);
         assertEquals(2015, ts.getYear());
-        assertEquals(12, ts.getMonth());
-        assertEquals(31, ts.getDay());
-        if (LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("2015-12-31T19:00-10:00", rs.getObject(1,
-                            LocalDateTimeUtils.OFFSET_DATE_TIME).toString());
-        }
+        assertEquals(12, ts.getMonthValue());
+        assertEquals(31, ts.getDayOfMonth());
+        assertEquals("2015-12-31T19:00-10:00", rs.getObject(1, OffsetDateTime.class).toString());
 
         ResultSetMetaData metaData = rs.getMetaData();
         int columnType = metaData.getColumnType(1);
-        // 2014 is the value of Types.TIMESTAMP_WITH_TIMEZONE
-        // use the value instead of the reference because the code has to
-        // compile (on Java 1.7). Can be replaced with
-        // Types.TIMESTAMP_WITH_TIMEZONE
-        // once Java 1.8 is required.
-        assertEquals(2014, columnType);
-        if (SysProperties.RETURN_OFFSET_DATE_TIME && LocalDateTimeUtils.isJava8DateApiPresent()) {
-            assertEquals("java.time.OffsetDateTime", metaData.getColumnClassName(1));
-        } else {
-            assertEquals("org.h2.api.TimestampWithTimeZone", metaData.getColumnClassName(1));
-        }
+        assertEquals(Types.TIMESTAMP_WITH_TIMEZONE, columnType);
+        assertEquals("java.time.OffsetDateTime", metaData.getColumnClassName(1));
 
         rs.close();
 
         rs = stat.executeQuery("select cast(t1 as varchar) from test");
         assertTrue(rs.next());
-        assertEquals(firstExpected, rs.getObject(1, TimestampWithTimeZone.class));
+        assertEquals(expected, rs.getObject(1, OffsetDateTime.class));
 
         stat.close();
         conn.close();
     }
 
-    private static TimestampWithTimeZone test1_getTimestamp(ResultSet rs) throws SQLException {
-        Object o = rs.getObject(1);
-        if (SysProperties.RETURN_OFFSET_DATE_TIME && LocalDateTimeUtils.isJava8DateApiPresent()) {
-            ValueTimestampTimeZone value = LocalDateTimeUtils.offsetDateTimeToValue(o);
-            return new TimestampWithTimeZone(value.getDateValue(), value.getTimeNanos(),
-                    value.getTimeZoneOffsetMins());
-        }
-        return (TimestampWithTimeZone) o;
-    }
-
     private void test2() {
-        ValueTimestampTimeZone a = ValueTimestampTimeZone.parse("1970-01-01 12:00:00.00+00:15");
-        ValueTimestampTimeZone b = ValueTimestampTimeZone.parse("1970-01-01 12:00:01.00+01:15");
+        ValueTimestampTimeZone a = ValueTimestampTimeZone.parse("1970-01-01 12:00:00.00+00:15", null);
+        ValueTimestampTimeZone b = ValueTimestampTimeZone.parse("1970-01-01 12:00:01.00+01:15", null);
         int c = a.compareTo(b, null, null);
         assertEquals(1, c);
         c = b.compareTo(a, null, null);
@@ -161,8 +129,8 @@ public class TestTimeStampWithTimeZone extends TestDb {
     }
 
     private void test3() {
-        ValueTimestampTimeZone a = ValueTimestampTimeZone.parse("1970-01-02 00:00:02.00+01:15");
-        ValueTimestampTimeZone b = ValueTimestampTimeZone.parse("1970-01-01 23:00:01.00+00:15");
+        ValueTimestampTimeZone a = ValueTimestampTimeZone.parse("1970-01-02 00:00:02.00+01:15", null);
+        ValueTimestampTimeZone b = ValueTimestampTimeZone.parse("1970-01-01 23:00:01.00+00:15", null);
         int c = a.compareTo(b, null, null);
         assertEquals(1, c);
         c = b.compareTo(a, null, null);
@@ -170,8 +138,8 @@ public class TestTimeStampWithTimeZone extends TestDb {
     }
 
     private void test4() {
-        ValueTimestampTimeZone a = ValueTimestampTimeZone.parse("1970-01-02 00:00:01.00+01:15");
-        ValueTimestampTimeZone b = ValueTimestampTimeZone.parse("1970-01-01 23:00:01.00+00:15");
+        ValueTimestampTimeZone a = ValueTimestampTimeZone.parse("1970-01-02 00:00:01.00+01:15", null);
+        ValueTimestampTimeZone b = ValueTimestampTimeZone.parse("1970-01-01 23:00:01.00+00:15", null);
         int c = a.compareTo(b, null, null);
         assertEquals(0, c);
         c = b.compareTo(a, null, null);
@@ -188,7 +156,7 @@ public class TestTimeStampWithTimeZone extends TestDb {
         PreparedStatement preparedStatement = conn.prepareStatement("select id"
                         + " from test5"
                         + " where (t1 < ?)");
-        Value value = ValueTimestampTimeZone.parse("2016-12-24 00:00:00.000000001+00:01");
+        Value value = ValueTimestampTimeZone.parse("2016-12-24 00:00:00.000000001+00:01", null);
         preparedStatement.setObject(1, value.getObject());
 
         ResultSet rs = preparedStatement.executeQuery();
@@ -215,34 +183,40 @@ public class TestTimeStampWithTimeZone extends TestDb {
         conn.close();
     }
 
-    private void testConversionsImpl(String timeStr, boolean testReverse) {
-        ValueTimestamp ts = ValueTimestamp.parse(timeStr);
-        ValueDate d = (ValueDate) ts.convertTo(Value.DATE);
-        ValueTime t = (ValueTime) ts.convertTo(Value.TIME);
-        ValueTimestampTimeZone tstz = ValueTimestampTimeZone.parse(timeStr);
-        assertEquals(ts, tstz.convertTo(Value.TIMESTAMP));
-        assertEquals(d, tstz.convertTo(Value.DATE));
-        assertEquals(t, tstz.convertTo(Value.TIME));
-        assertEquals(ts.getTimestamp(), tstz.getTimestamp());
+    private void testConversionsImpl(String timeStr, boolean testReverse, CastDataProvider provider) {
+        ValueTimestamp ts = ValueTimestamp.parse(timeStr, null);
+        ValueDate d = (ValueDate) ts.convertTo(Value.DATE, provider);
+        ValueTime t = (ValueTime) ts.convertTo(Value.TIME, provider);
+        ValueTimestampTimeZone tstz = ValueTimestampTimeZone.parse(timeStr, null);
+        assertEquals(ts, tstz.convertTo(Value.TIMESTAMP, provider));
+        assertEquals(d, tstz.convertTo(Value.DATE, provider));
+        assertEquals(t, tstz.convertTo(Value.TIME, provider));
+        assertEquals(LegacyDateTimeUtils.toTimestamp(provider, null, ts),
+                LegacyDateTimeUtils.toTimestamp(provider, null, tstz));
         if (testReverse) {
-            assertEquals(0, tstz.compareTo(ts.convertTo(Value.TIMESTAMP_TZ), null, null));
-            assertEquals(d.convertTo(Value.TIMESTAMP).convertTo(Value.TIMESTAMP_TZ),
-                    d.convertTo(Value.TIMESTAMP_TZ));
-            assertEquals(t.convertTo(Value.TIMESTAMP).convertTo(Value.TIMESTAMP_TZ),
-                    t.convertTo(Value.TIMESTAMP_TZ));
+            assertEquals(0, tstz.compareTo(ts.convertTo(Value.TIMESTAMP_TZ, provider), null, null));
+            assertEquals(d.convertTo(Value.TIMESTAMP, provider).convertTo(Value.TIMESTAMP_TZ, provider),
+                    d.convertTo(Value.TIMESTAMP_TZ, provider));
+            assertEquals(t.convertTo(Value.TIMESTAMP, provider).convertTo(Value.TIMESTAMP_TZ, provider),
+                    t.convertTo(Value.TIMESTAMP_TZ, provider));
         }
     }
 
     private void testConversions() {
+        TestDate.SimpleCastDataProvider provider = new TestDate.SimpleCastDataProvider();
         TimeZone current = TimeZone.getDefault();
         try {
             for (String id : TimeZone.getAvailableIDs()) {
+                if (id.equals("GMT0")) {
+                    continue;
+                }
                 TimeZone.setDefault(TimeZone.getTimeZone(id));
+                provider.currentTimeZone = TimeZoneProvider.ofId(id);
                 DateTimeUtils.resetCalendar();
-                testConversionsImpl("2017-12-05 23:59:30.987654321-12:00", true);
-                testConversionsImpl("2000-01-02 10:20:30.123456789+07:30", true);
+                testConversionsImpl("2017-12-05 23:59:30.987654321-12:00", true, provider);
+                testConversionsImpl("2000-01-02 10:20:30.123456789+07:30", true, provider);
                 boolean testReverse = !"Africa/Monrovia".equals(id);
-                testConversionsImpl("1960-04-06 12:13:14.777666555+12:00", testReverse);
+                testConversionsImpl("1960-04-06 12:13:14.777666555+12:00", testReverse, provider);
             }
         } finally {
             TimeZone.setDefault(current);

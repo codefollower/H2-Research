@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,9 +16,7 @@ import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.SysProperties;
-import org.h2.jdbc.JdbcPreparedStatementBackwardsCompat;
 import org.h2.jdbc.JdbcStatement;
-import org.h2.jdbc.JdbcStatementBackwardsCompat;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
@@ -206,9 +204,9 @@ public class TestStatement extends TestDb {
         assertEquals(ResultSet.CONCUR_READ_ONLY,
                 stat2.getResultSetConcurrency());
         assertEquals(0, stat.getMaxFieldSize());
-        assertFalse(((JdbcStatement) stat2).isClosed());
+        assertFalse(stat2.isClosed());
         stat2.close();
-        assertTrue(((JdbcStatement) stat2).isClosed());
+        assertTrue(stat2.isClosed());
 
 
         ResultSet rs;
@@ -239,38 +237,37 @@ public class TestStatement extends TestDb {
         assertTrue(stat.getQueryTimeout() == 0);
         trace("executeUpdate");
         count = stat.executeUpdate(
-                "CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE VARCHAR(255))");
+                "CREATE TABLE TEST(ID INT PRIMARY KEY,V VARCHAR(255))");
         assertEquals(0, count);
         count = stat.executeUpdate(
                 "INSERT INTO TEST VALUES(1,'Hello')");
         assertEquals(1, count);
         count = stat.executeUpdate(
-                "INSERT INTO TEST(VALUE,ID) VALUES('JDBC',2)");
+                "INSERT INTO TEST(V,ID) VALUES('JDBC',2)");
         assertEquals(1, count);
         count = stat.executeUpdate(
-                "UPDATE TEST SET VALUE='LDBC' WHERE ID=2 OR ID=1");
+                "UPDATE TEST SET V='LDBC' WHERE ID=2 OR ID=1");
         assertEquals(2, count);
         count = stat.executeUpdate(
-                "UPDATE TEST SET VALUE='\\LDBC\\' WHERE VALUE LIKE 'LDBC' ");
+                "UPDATE TEST SET V='\\LDBC\\' WHERE V LIKE 'LDBC' ");
         assertEquals(2, count);
         count = stat.executeUpdate(
-                "UPDATE TEST SET VALUE='LDBC' WHERE VALUE LIKE '\\\\LDBC\\\\'");
+                "UPDATE TEST SET V='LDBC' WHERE V LIKE '\\\\LDBC\\\\'");
         trace("count:" + count);
         assertEquals(2, count);
         count = stat.executeUpdate("DELETE FROM TEST WHERE ID=-1");
         assertEquals(0, count);
         count = stat.executeUpdate("DELETE FROM TEST WHERE ID=2");
         assertEquals(1, count);
-        JdbcStatementBackwardsCompat statBC = (JdbcStatementBackwardsCompat) stat;
-        largeCount = statBC.executeLargeUpdate("DELETE FROM TEST WHERE ID=-1");
+        largeCount = stat.executeLargeUpdate("DELETE FROM TEST WHERE ID=-1");
         assertEquals(0, largeCount);
-        assertEquals(0, statBC.getLargeUpdateCount());
-        largeCount = statBC.executeLargeUpdate("INSERT INTO TEST(VALUE,ID) VALUES('JDBC',2)");
+        assertEquals(0, stat.getLargeUpdateCount());
+        largeCount = stat.executeLargeUpdate("INSERT INTO TEST(V,ID) VALUES('JDBC',2)");
         assertEquals(1, largeCount);
-        assertEquals(1, statBC.getLargeUpdateCount());
-        largeCount = statBC.executeLargeUpdate("DELETE FROM TEST WHERE ID=2");
+        assertEquals(1, stat.getLargeUpdateCount());
+        largeCount = stat.executeLargeUpdate("DELETE FROM TEST WHERE ID=2");
         assertEquals(1, largeCount);
-        assertEquals(1, statBC.getLargeUpdateCount());
+        assertEquals(1, stat.getLargeUpdateCount());
 
         assertThrows(ErrorCode.METHOD_NOT_ALLOWED_FOR_QUERY, stat).
                 executeUpdate("SELECT * FROM TEST");
@@ -280,13 +277,13 @@ public class TestStatement extends TestDb {
 
         trace("execute");
         result = stat.execute(
-                "CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE VARCHAR(255))");
+                "CREATE TABLE TEST(ID INT PRIMARY KEY,V VARCHAR(255))");
         assertFalse(result);
         result = stat.execute("INSERT INTO TEST VALUES(1,'Hello')");
         assertFalse(result);
-        result = stat.execute("INSERT INTO TEST(VALUE,ID) VALUES('JDBC',2)");
+        result = stat.execute("INSERT INTO TEST(V,ID) VALUES('JDBC',2)");
         assertFalse(result);
-        result = stat.execute("UPDATE TEST SET VALUE='LDBC' WHERE ID=2");
+        result = stat.execute("UPDATE TEST SET V='LDBC' WHERE ID=2");
         assertFalse(result);
         result = stat.execute("DELETE FROM TEST WHERE ID=3");
         assertFalse(result);
@@ -296,15 +293,15 @@ public class TestStatement extends TestDb {
         assertFalse(result);
 
         assertThrows(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY, stat).
-                executeQuery("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE VARCHAR(255))");
+                executeQuery("CREATE TABLE TEST(ID INT PRIMARY KEY,V VARCHAR(255))");
 
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,VALUE VARCHAR(255))");
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY,V VARCHAR(255))");
 
         assertThrows(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY, stat).
                 executeQuery("INSERT INTO TEST VALUES(1,'Hello')");
 
         assertThrows(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY, stat).
-                executeQuery("UPDATE TEST SET VALUE='LDBC' WHERE ID=2");
+                executeQuery("UPDATE TEST SET V='LDBC' WHERE ID=2");
 
         assertThrows(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY, stat).
                 executeQuery("DELETE FROM TEST WHERE ID=3");
@@ -405,15 +402,15 @@ public class TestStatement extends TestDb {
         ps.setInt(1, 6);
         ps.setString(2, "v6");
         ps.addBatch();
-        assertTrue(Arrays.equals(new long[] {1, 1}, ((JdbcStatementBackwardsCompat) ps).executeLargeBatch()));
+        assertTrue(Arrays.equals(new long[] {1, 1}, ps.executeLargeBatch()));
         ps.setInt(1, 7);
         ps.setString(2, "v7");
         assertEquals(1, ps.executeUpdate());
         assertEquals(1, ps.getUpdateCount());
         ps.setInt(1, 8);
         ps.setString(2, "v8");
-        assertEquals(1, ((JdbcPreparedStatementBackwardsCompat) ps).executeLargeUpdate());
-        assertEquals(1, ((JdbcStatementBackwardsCompat) ps).getLargeUpdateCount());
+        assertEquals(1, ps.executeLargeUpdate());
+        assertEquals(1, ps.getLargeUpdateCount());
         stat.execute("drop table test");
     }
 
@@ -431,11 +428,25 @@ public class TestStatement extends TestDb {
         assertEquals("\"Test\"", stat.enquoteIdentifier("\"Test\"", false));
         assertEquals("\"Test\"", stat.enquoteIdentifier("\"Test\"", true));
         assertEquals("\"\"\"Test\"", stat.enquoteIdentifier("\"\"\"Test\"", true));
+        assertEquals("\"\"", stat.enquoteIdentifier("", false));
+        assertEquals("\"\"", stat.enquoteIdentifier("", true));
+        try {
+            stat.enquoteIdentifier(null, false);
+            fail();
+        } catch (NullPointerException ex) {
+            // OK
+        }
         try {
             stat.enquoteIdentifier("\"Test", true);
             fail();
         } catch (SQLException ex) {
-            // OK
+            assertEquals(ErrorCode.INVALID_NAME_1, ex.getErrorCode());
+        }
+        try {
+            stat.enquoteIdentifier("\"a\"a\"", true);
+            fail();
+        } catch (SQLException ex) {
+            assertEquals(ErrorCode.INVALID_NAME_1, ex.getErrorCode());
         }
         // Other lower case characters don't have upper case mappings
         assertEquals("\u02B0", stat.enquoteIdentifier("\u02B0", false));
@@ -495,6 +506,12 @@ public class TestStatement extends TestDb {
         assertTrue(stat.isSimpleIdentifier("Test"));
         assertFalse(stat.isSimpleIdentifier("TODAY"));
         assertFalse(stat.isSimpleIdentifier("today"));
+        try {
+            stat.isSimpleIdentifier(null);
+            fail();
+        } catch (NullPointerException ex) {
+            // OK
+        }
 
         conn.close();
     }

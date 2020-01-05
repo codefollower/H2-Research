@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -103,7 +103,7 @@ class Database {
      */
     void startServer() throws Exception {
         if (url.startsWith("jdbc:h2:tcp:")) {
-            serverH2 = Server.createTcpServer().start();
+            serverH2 = Server.createTcpServer("-ifNotExists").start();
             Thread.sleep(100);
         } else if (url.startsWith("jdbc:derby://")) {
             serverDerby = Class.forName(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import org.h2.engine.SessionInterface;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.util.ParserUtil;
 import org.h2.util.StringUtils;
@@ -133,7 +134,7 @@ public class DbContents {
         isFirebird = url.startsWith("jdbc:firebirdsql:");
         isMSSQLServer = url.startsWith("jdbc:sqlserver:");
         if (isH2) {
-            JdbcConnection.Settings settings = ((JdbcConnection) conn).getSettings();
+            SessionInterface.StaticSettings settings = ((JdbcConnection) conn).getStaticSettings();
             databaseToUpper = settings.databaseToUpper;
             databaseToLower = settings.databaseToLower;
         }else if (isMySQL || isPostgreSQL) {

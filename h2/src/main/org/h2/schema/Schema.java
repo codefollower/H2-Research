@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -46,6 +46,7 @@ public class Schema extends DbObjectBase {
     private ArrayList<String> tableEngineParams;
 
     private final ConcurrentHashMap<String, Table> tablesAndViews;
+    private final ConcurrentHashMap<String, Domain> domains;
     private final ConcurrentHashMap<String, TableSynonym> synonyms;
     private final ConcurrentHashMap<String, Index> indexes;
     private final ConcurrentHashMap<String, Sequence> sequences;
@@ -75,6 +76,7 @@ public class Schema extends DbObjectBase {
             boolean system) {
         super(database, id, schemaName, Trace.SCHEMA);
         tablesAndViews = database.newConcurrentStringMap();
+        domains = database.newConcurrentStringMap();
         synonyms = database.newConcurrentStringMap();
         indexes = database.newConcurrentStringMap();
         sequences = database.newConcurrentStringMap();
@@ -101,11 +103,6 @@ public class Schema extends DbObjectBase {
     }
 
     @Override
-    public String getDropSQL() {
-        return null;
-    }
-
-    @Override
     public String getCreateSQL() {
         if (system) {
             return null;
@@ -127,8 +124,9 @@ public class Schema extends DbObjectBase {
      * @return {@code true} if this schema is empty, {@code false} otherwise
      */
     public boolean isEmpty() {
-        return tablesAndViews.isEmpty() && synonyms.isEmpty() && indexes.isEmpty() && sequences.isEmpty()
-                && triggers.isEmpty() && constraints.isEmpty() && constants.isEmpty() && functions.isEmpty();
+        return tablesAndViews.isEmpty() && domains.isEmpty() && synonyms.isEmpty() && indexes.isEmpty()
+                && sequences.isEmpty() && triggers.isEmpty() && constraints.isEmpty() && constants.isEmpty()
+                && functions.isEmpty();
     }
 
     @Override
@@ -145,52 +143,50 @@ public class Schema extends DbObjectBase {
 
     @Override
     public void removeChildrenAndResources(Session session) {
-        //删除每个SchemaObject的子类时会触发Schema.remove(SchemaObject)，此方法会在对应的map中清除SchemaObject的子类实例引用，
-        //所以XXX.values().toArray()[0]是正确的，总是取map的values中的第一个
-        while (triggers != null && triggers.size() > 0) {
-            TriggerObject obj = (TriggerObject) triggers.values().toArray()[0];
-            database.removeSchemaObject(session, obj);
-        }
-        while (constraints != null && constraints.size() > 0) {
-            Constraint obj = (Constraint) constraints.values().toArray()[0];
-            database.removeSchemaObject(session, obj);
-        }
+//<<<<<<< HEAD
+//        //删除每个SchemaObject的子类时会触发Schema.remove(SchemaObject)，此方法会在对应的map中清除SchemaObject的子类实例引用，
+//        //所以XXX.values().toArray()[0]是正确的，总是取map的values中的第一个
+//        while (triggers != null && triggers.size() > 0) {
+//            TriggerObject obj = (TriggerObject) triggers.values().toArray()[0];
+//            database.removeSchemaObject(session, obj);
+//        }
+//        while (constraints != null && constraints.size() > 0) {
+//            Constraint obj = (Constraint) constraints.values().toArray()[0];
+//            database.removeSchemaObject(session, obj);
+//        }
+//=======
+        removeChildrenFromMap(session, triggers);
+        removeChildrenFromMap(session, constraints);
         // There can be dependencies between tables e.g. using computed columns,
         // so we might need to loop over them multiple times.
-        boolean runLoopAgain = false;
-        do {
-            runLoopAgain = false;
-            if (tablesAndViews != null) {
-                // Loop over a copy because the map is modified underneath us.
-                for (Table obj : new ArrayList<>(tablesAndViews.values())) {
-                    // Check for null because multiple tables might be deleted
-                    // in one go underneath us.
-                    if (obj.getName() != null) {
-                        if (database.getDependentTable(obj, obj) == null) {
-                            database.removeSchemaObject(session, obj);
-                        } else {
-                            runLoopAgain = true;
-                        }
+        boolean modified = true;
+        while (!tablesAndViews.isEmpty()) {
+            boolean newModified = false;
+            for (Table obj : tablesAndViews.values()) {
+                if (obj.getName() != null) {
+                    // Database.removeSchemaObject() removes the object from
+                    // the map too, but it is safe for ConcurrentHashMap.
+                    Table dependentTable = database.getDependentTable(obj, obj);
+                    if (dependentTable == null) {
+                        database.removeSchemaObject(session, obj);
+                        newModified = true;
+                    } else if (dependentTable.getSchema() != this) {
+                        throw DbException.get(ErrorCode.CANNOT_DROP_2, //
+                                obj.getSQL(false), dependentTable.getSQL(false));
+                    } else if (!modified) {
+                        dependentTable.removeColumnExpressionsDependencies(session);
+                        dependentTable.setModified();
+                        database.updateMeta(session, dependentTable);
                     }
                 }
             }
-        } while (runLoopAgain);
-        while (indexes != null && indexes.size() > 0) {
-            Index obj = (Index) indexes.values().toArray()[0];
-            database.removeSchemaObject(session, obj);
+            modified = newModified;
         }
-        while (sequences != null && sequences.size() > 0) {
-            Sequence obj = (Sequence) sequences.values().toArray()[0];
-            database.removeSchemaObject(session, obj);
-        }
-        while (constants != null && constants.size() > 0) {
-            Constant obj = (Constant) constants.values().toArray()[0];
-            database.removeSchemaObject(session, obj);
-        }
-        while (functions != null && functions.size() > 0) {
-            FunctionAlias obj = (FunctionAlias) functions.values().toArray()[0];
-            database.removeSchemaObject(session, obj);
-        }
+        removeChildrenFromMap(session, domains);
+        removeChildrenFromMap(session, indexes);
+        removeChildrenFromMap(session, sequences);
+        removeChildrenFromMap(session, constants);
+        removeChildrenFromMap(session, functions);
         for (Right right : database.getAllRights()) {
             if (right.getGrantedObject() == this) {
                 database.removeDatabaseObject(session, right);
@@ -201,9 +197,14 @@ public class Schema extends DbObjectBase {
         invalidate();
     }
 
-    @Override
-    public void checkRename() {
-        // ok
+    private void removeChildrenFromMap(Session session, ConcurrentHashMap<String, ? extends SchemaObject> map) {
+        if (!map.isEmpty()) {
+            for (SchemaObject obj : map.values()) {
+                // Database.removeSchemaObject() removes the object from
+                // the map too, but it is safe for ConcurrentHashMap.
+                database.removeSchemaObject(session, obj);
+            }
+        }
     }
 
     /**
@@ -238,6 +239,9 @@ public class Schema extends DbObjectBase {
         switch (type) {
         case DbObject.TABLE_OR_VIEW:
             result = tablesAndViews;
+            break;
+        case DbObject.DOMAIN:
+            result = domains;
             break;
         case DbObject.SYNONYM:
             result = synonyms;
@@ -359,6 +363,16 @@ public class Schema extends DbObjectBase {
      */
     public TableSynonym getSynonym(String name) {
         return synonyms.get(name);
+    }
+
+    /**
+     * Get the domain if it exists, or null if not.
+     *
+     * @param name the name of the domain
+     * @return the domain or null
+     */
+    public Domain findDomain(String name) {
+        return domains.get(name);
     }
 
     /**
@@ -494,6 +508,17 @@ public class Schema extends DbObjectBase {
     }
 
     /**
+     * Create a unique constraint name.
+     *
+     * @param session the session
+     * @param domain the constraint domain
+     * @return the unique name
+     */
+    public String getUniqueDomainConstraintName(Session session, Domain domain) {
+        return getUniqueName(domain, constraints, "CONSTRAINT_");
+    }
+
+    /**
      * Create a unique index name.
      *
      * @param session the session
@@ -532,6 +557,21 @@ public class Schema extends DbObjectBase {
             }
         }
         return table;
+    }
+
+    /**
+     * Get the domain with the given name.
+     *
+     * @param name the domain name
+     * @return the domain
+     * @throws DbException if no such object exists
+     */
+    public Domain getDomain(String name) {
+        Domain domain = domains.get(name);
+        if (domain == null) {
+            throw DbException.get(ErrorCode.DOMAIN_NOT_FOUND_1, name);
+        }
+        return domain;
     }
 
     /**
@@ -608,6 +648,7 @@ public class Schema extends DbObjectBase {
             addTo = Utils.newSmallArrayList();
         }
         addTo.addAll(tablesAndViews.values());
+        addTo.addAll(domains.values());
         addTo.addAll(synonyms.values());
         addTo.addAll(sequences.values());
         addTo.addAll(indexes.values());

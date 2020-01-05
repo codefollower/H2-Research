@@ -26,6 +26,7 @@
 40001=Wykryto zakleszczenie. Bieżąca transakcja została wycofana. Szczegóły : {0}
 42000=Błąd składniowy w wyrażeniu SQL {0}
 42001=Błąd składniowy w wyrażeniu SQL {0}; oczekiwano {1}
+42602=#Invalid name {0}
 42S01=Tabela {0} już istnieje
 42S02=Tabela {0} nie istnieje
 42S11=Indeks {0} już istnieje
@@ -42,7 +43,7 @@
 90006=Sekwencja {0} została wyczerpana
 90007=Obiekt jest zamknięty
 90008=Nieprawidłowa wartość {0} parametru {1}
-90009=Nie można utworzyć/zmienić sekwencji {0} ponieważ podane atrybuty są nieprawidłowe (wartość początkowa {1}, wartość minimalna {2}, wartość maksymalna {3}, przyrost {4})
+90009=Nie można utworzyć/zmienić sekwencji {0} ponieważ podane atrybuty są nieprawidłowe (wartość {1}, wartość początkowa {2}, wartość minimalna {3}, wartość maksymalna {4}, przyrost {5})
 90010=Nieprawidłowy format TO_CHAR {0}
 90011=#A file path that is implicitly relative to the current working directory is not allowed in the database URL {0}. Use an absolute path, ~/name, ./name, or the baseDir setting instead.
 90012=Parametr o numerze {0} nie jest ustalony
@@ -84,7 +85,6 @@
 90048=Nieprawidłowa wersja pliku bazy danych lub nieprawidłowy nagłówek pliku {0}
 90049=Błąd szyfrowania pliku {0}
 90050=Zły format hasła, powinno być: plik hasło <spacja> użytkownik hasło
-90051=#Scale(${0}) must not be bigger than precision({1})
 90052=Podzapytanie nie jest zapytaniem opartym o jedna kolumnę
 90053=Skalarna pod-kwerenda zawiera więcej niż jeden wiersz
 90054=Nieprawidłowe użycie funkcji agregującej {0}
@@ -179,6 +179,14 @@
 90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
 90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
 90147=#Method {0} is not allowed when connection is in auto-commit mode
+90148=#Current value of sequence {0} is not yet defined in this session
+90149=#Database {0} not found, either pre-create it or allow remote database creation (not recommended in secure environments)
+90150=#Precision ({0}) must be between {1} and {2} inclusive
+90151=#Scale or fractional seconds precision ({0}) must be between {1} and {2} inclusive
+90152=#Constraint {0} is used by constraint {1}
+90153=#Column {0} references uncomparable column {1}
+90154=#Generated column {0} cannot be assigned
+90155=#Generated column {0} cannot be updatable by a referential constraint with {1} clause
 HY000=Błąd ogólny: {0}
 HY004=Nieznany typ danych: {0}
 HYC00=Cecha nie jest wspierana: {0}

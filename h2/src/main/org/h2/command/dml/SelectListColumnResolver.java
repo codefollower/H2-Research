@@ -1,16 +1,17 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command.dml;
 
 import java.util.ArrayList;
+
+import org.h2.engine.Database;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
-import org.h2.table.TableFilter;
 import org.h2.util.ColumnNamer;
 import org.h2.value.Value;
 
@@ -53,43 +54,19 @@ public class SelectListColumnResolver implements ColumnResolver {
     }
 
     @Override
-    public String getColumnName(Column column) {
-        return column.getName();
-    }
-
-    @Override
-    public boolean hasDerivedColumnList() {
-        return false;
-    }
-
-    @Override
-    public String getSchemaName() {
+    public Column findColumn(String name) {
+        Database db = select.getSession().getDatabase();
+        for (Column column : columns) {
+            if (db.equalsIdentifiers(column.getName(), name)) {
+                return column;
+            }
+        }
         return null;
     }
 
     @Override
     public Select getSelect() {
         return select;
-    }
-
-    @Override
-    public Column[] getSystemColumns() {
-        return null;
-    }
-
-    @Override
-    public Column getRowIdColumn() {
-        return null;
-    }
-
-    @Override
-    public String getTableAlias() {
-        return null;
-    }
-
-    @Override
-    public TableFilter getTableFilter() {
-        return null;
     }
 
     @Override

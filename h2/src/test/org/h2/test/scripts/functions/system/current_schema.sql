@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -15,11 +15,26 @@ CREATE SCHEMA S1;
 SET SCHEMA S1;
 > ok
 
-SELECT CURRENT_SCHEMA;
+CALL CURRENT_SCHEMA;
+>> S1
+
+SET SCHEMA 'PUBLIC';
+> ok
+
+CALL CURRENT_SCHEMA;
+>> PUBLIC
+
+SET SCHEMA 'S' || 1;
+> ok
+
+CALL CURRENT_SCHEMA;
 >> S1
 
 SET SCHEMA PUBLIC;
 > ok
+
+SET SCHEMA NULL;
+> exception SCHEMA_NOT_FOUND_1
 
 DROP SCHEMA S1;
 > ok

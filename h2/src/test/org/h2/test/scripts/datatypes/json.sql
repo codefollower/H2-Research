@@ -1,13 +1,13 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
 
 SELECT TYPE_NAME, PRECISION, PREFIX, SUFFIX, PARAMS, MINIMUM_SCALE, MAXIMUM_SCALE FROM INFORMATION_SCHEMA.TYPE_INFO
     WHERE TYPE_NAME = 'JSON';
-> TYPE_NAME PRECISION  PREFIX SUFFIX        PARAMS MINIMUM_SCALE MAXIMUM_SCALE
-> --------- ---------- ------ ------------- ------ ------------- -------------
-> JSON      2147483647 '      ' FORMAT JSON LENGTH 0             0
+> TYPE_NAME PRECISION  PREFIX SUFFIX PARAMS MINIMUM_SCALE MAXIMUM_SCALE
+> --------- ---------- ------ ------ ------ ------------- -------------
+> JSON      2147483647 JSON ' '      LENGTH 0             0
 > rows: 1
 
 SELECT '{"tag1":"simple string"}' FORMAT JSON;
@@ -55,7 +55,7 @@ SELECT CAST(1e100::FLOAT AS JSON);
 SELECT CAST(1e100::DOUBLE AS JSON);
 >> 1.0E100
 
-SELECT CAST(1e100::NUMERIC AS JSON);
+SELECT CAST(1e100::NUMERIC(1, -100) AS JSON);
 >> 1E100
 
 SELECT CAST(TRUE AS JSON);

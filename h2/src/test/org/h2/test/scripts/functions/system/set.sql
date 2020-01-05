@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -63,7 +63,7 @@ SET COLUMN_NAME_RULES=DEFAULT;
 > ok
 
 -- Test all MODES of database:
--- DB2, Derby, MSSQLServer, HSQLDB, MySQL, Oracle, PostgreSQL, Ignite
+-- DB2, Derby, MSSQLServer, HSQLDB, MySQL, Oracle, PostgreSQL
 SET COLUMN_NAME_RULES=EMULATE='DB2';
 > ok
 
@@ -80,9 +80,6 @@ SET COLUMN_NAME_RULES=EMULATE='Oracle';
 > ok
 
 SET COLUMN_NAME_RULES=EMULATE='PostgreSQL';
-> ok
-
-SET COLUMN_NAME_RULES=EMULATE='Ignite';
 > ok
 
 SET COLUMN_NAME_RULES=EMULATE='REGULAR';

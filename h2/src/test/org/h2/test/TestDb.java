@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -127,7 +127,6 @@ public abstract class TestDb extends TestBase {
             // force operations to disk
             url = addOption(url, "MAX_OPERATION_MEMORY", "1");
         }
-        url = addOption(url, "MULTI_THREADED", config.multiThreaded ? "TRUE" : "FALSE");
         if (config.lazy) {
             url = addOption(url, "LAZY_QUERY_EXECUTION", "1");
         }

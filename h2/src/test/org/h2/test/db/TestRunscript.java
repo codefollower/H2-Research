@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -31,6 +31,13 @@ public class TestRunscript extends TestDb implements Trigger {
      */
     public static void main(String... a) throws Exception {
         TestBase.createCaller().init().test();
+        org.h2.test.TestAll config = new org.h2.test.TestAll();
+        config.traceLevelFile = 1;
+        config.defrag = true;
+        System.out.println(config);
+        TestBase test = createCaller();
+        test.runTest(config);
+//        TestBase.createCaller().init().test();
     }
 
     @Override
@@ -461,7 +468,7 @@ public class TestRunscript extends TestDb implements Trigger {
         stat1.execute("grant all on testSchema.child to testUser");
         stat1.execute("grant select, insert on testSchema.parent to testRole");
         stat1.execute("grant testRole to testUser");
-        stat1.execute("create table blob (value blob)");
+        stat1.execute("create table blob (v blob)");
         PreparedStatement prep = conn1.prepareStatement(
                 "insert into blob values (?)");
         prep.setBytes(1, new byte[65536]);

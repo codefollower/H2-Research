@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -26,7 +26,7 @@ import java.util.Set;
  * <p>
  * This class implements an approximation of the LIRS replacement algorithm
  * invented by Xiaodong Zhang and Song Jiang as described in
- * http://www.cse.ohio-state.edu/~zhang/lirs-sigmetrics-02.html with a few
+ * https://web.cse.ohio-state.edu/~zhang.574/lirs-sigmetrics-02.html with a few
  * smaller changes: An additional queue for non-resident entries is used, to
  * prevent unbound memory usage. The maximum size of this queue is at most the
  * size of the rest of the stack. About 6.25% of the mapped entries are cold.

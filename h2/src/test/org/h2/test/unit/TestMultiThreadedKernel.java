@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -47,7 +47,7 @@ public class TestMultiThreadedKernel extends TestDb implements Runnable {
         Thread[] list = new Thread[count];
         for (int i = 0; i < count; i++) {
             TestMultiThreadedKernel r = new TestMultiThreadedKernel();
-            r.url = getURL("multiThreadedKernel;MULTI_THREADED=1", true);
+            r.url = getURL("multiThreadedKernel", true);
             r.user = getUser();
             r.password = getPassword();
             r.master = this;
@@ -70,7 +70,7 @@ public class TestMultiThreadedKernel extends TestDb implements Runnable {
         try {
             org.h2.Driver.load();
             Connection conn = DriverManager.getConnection(url +
-                    ";MULTI_THREADED=1;LOCK_MODE=3;WRITE_DELAY=0",
+                    ";LOCK_MODE=3;WRITE_DELAY=0",
                     user, password);
             conn.createStatement().execute(
                     "CREATE TABLE TEST" + id +

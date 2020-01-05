@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,9 +15,9 @@ import org.h2.api.ErrorCode;
 import org.h2.command.dml.SetTypes;
 import org.h2.message.DbException;
 import org.h2.security.SHA256;
-import org.h2.store.fs.FilePathEncrypt;
-import org.h2.store.fs.FilePathRec;
 import org.h2.store.fs.FileUtils;
+import org.h2.store.fs.encrypt.FilePathEncrypt;
+import org.h2.store.fs.rec.FilePathRec;
 import org.h2.util.NetworkConnectionInfo;
 import org.h2.util.SortedProperties;
 import org.h2.util.StringUtils;
@@ -101,10 +101,10 @@ public class ConnectionInfo implements Cloneable {
     static {
         String[] connectionTime = { "ACCESS_MODE_DATA", "AUTOCOMMIT", "CIPHER",
                 "CREATE", "CACHE_TYPE", "FILE_LOCK", "IGNORE_UNKNOWN_SETTINGS",
-                "IFEXISTS", "INIT", "MVCC", "PASSWORD", "RECOVER", "RECOVER_TEST",
+                "IFEXISTS", "INIT", "FORBID_CREATION", "PASSWORD", "RECOVER", "RECOVER_TEST",
                 "USER", "AUTO_SERVER", "AUTO_SERVER_PORT", "NO_UPGRADE",
                 "AUTO_RECONNECT", "OPEN_NEW", "PAGE_SIZE", "PASSWORD_HASH", "JMX",
-                "SCOPE_GENERATED_KEYS", "AUTHREALM", "AUTHZPWD" };
+                "SCOPE_GENERATED_KEYS", "AUTHREALM", "AUTHZPWD", "NETWORK_TIMEOUT"};
         HashSet<String> set = new HashSet<>(128);
         set.addAll(SetTypes.getTypes());
         for (String key : connectionTime) {
@@ -261,8 +261,7 @@ public class ConnectionInfo implements Cloneable {
     }
 
     private void readSettingsFromURL() {
-		//如url=jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false
-        DbSettings defaultSettings = DbSettings.getDefaultSettings();
+        DbSettings defaultSettings = DbSettings.DEFAULT;
         int idx = url.indexOf(';');//用";"号来分隔参数，第一个";"号表明url和参数的分界，之后的";"号用来分隔多个参数
         if (idx >= 0) {
 			//optimize_distinct=true;early_filter=true;nested_joins=false
@@ -270,6 +269,7 @@ public class ConnectionInfo implements Cloneable {
 			//jdbc:h2:tcp://localhost:9092/test9
             url = url.substring(0, idx);
 			//[optimize_distinct=true, early_filter=true, nested_joins=false]
+            String unknownSetting = null;
             String[] list = StringUtils.arraySplit(settings, ';', false);
             for (String setting : list) {
                 if (setting.isEmpty()) {
@@ -282,19 +282,32 @@ public class ConnectionInfo implements Cloneable {
                 String value = setting.substring(equal + 1);
                 String key = setting.substring(0, equal);
                 key = StringUtils.toUpperEnglish(key);
-				//info中除了可以配三种参数外(相关文档见:E:\H2\my-h2\my-h2-docs\999 可配置的参数汇总.java中的1、2、3项)
-				//还可以配其他参数，但是被忽略
-				//但是url中只能配三种参数
-                if (!isKnownSetting(key) && !defaultSettings.containsKey(key)) {
-                    throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, key);
+//<<<<<<< HEAD
+//				//info中除了可以配三种参数外(相关文档见:E:\H2\my-h2\my-h2-docs\999 可配置的参数汇总.java中的1、2、3项)
+//				//还可以配其他参数，但是被忽略
+//				//但是url中只能配三种参数
+//                if (!isKnownSetting(key) && !defaultSettings.containsKey(key)) {
+//                    throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, key);
+//                }
+//				//不能与info中的参数重复(如果值相同就不会报错)
+//				//例子见my.test.ConnectionInfoTest
+//                String old = prop.getProperty(key);
+//                if (old != null && !old.equals(value)) {
+//                    throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
+//=======
+                if (isKnownSetting(key) || defaultSettings.containsKey(key)) {
+                    String old = prop.getProperty(key);
+                    if (old != null && !old.equals(value)) {
+                        throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
+                    }
+                    prop.setProperty(key, value);
+                } else {
+                    unknownSetting = key;
                 }
-				//不能与info中的参数重复(如果值相同就不会报错)
-				//例子见my.test.ConnectionInfoTest
-                String old = prop.getProperty(key);
-                if (old != null && !old.equals(value)) {
-                    throw DbException.get(ErrorCode.DUPLICATE_PROPERTY_1, key);
-                }
-                prop.setProperty(key, value);
+            }
+            if (unknownSetting != null //
+                    && !Utils.parseBoolean(prop.getProperty("IGNORE_UNKNOWN_SETTINGS"), false, false)) {
+                throw DbException.get(ErrorCode.UNSUPPORTED_SETTING_1, unknownSetting);
             }
         }
     }
@@ -423,7 +436,7 @@ public class ConnectionInfo implements Cloneable {
                             !name.contains(":/") &&
                             !name.contains(":\\")) {
                         // the name could start with "./", or
-                        // it could start with a prefix such as "nio:./"
+                        // it could start with a prefix such as "nioMapped:./"
                         // for Windows, the path "\test" is not considered
                         // absolute as the drive letter is missing,
                         // but we consider it absolute
@@ -646,7 +659,7 @@ public class ConnectionInfo implements Cloneable {
     }
 
     /**
-     * Generate an URL format exception.
+     * Generate a URL format exception.
      *
      * @return the exception
      */
@@ -685,8 +698,8 @@ public class ConnectionInfo implements Cloneable {
     }
 
     public DbSettings getDbSettings() {
-        DbSettings defaultSettings = DbSettings.getDefaultSettings();
-        HashMap<String, String> s = new HashMap<>();
+        DbSettings defaultSettings = DbSettings.DEFAULT;
+        HashMap<String, String> s = new HashMap<>(DbSettings.TABLE_SIZE);
         for (Object k : prop.keySet()) {
             String key = k.toString();
             if (!isKnownSetting(key) && defaultSettings.containsKey(key)) {

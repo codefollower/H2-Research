@@ -26,6 +26,7 @@
 40001=デッドロックが検出されました。現在のトランザクションはロールバックされました。詳細: {0}
 42000=SQLステートメントに文法エラーがあります {0}
 42001=SQLステートメントに文法エラーがあります {0}; 期待されるステートメント {1}
+42602=#Invalid name {0}
 42S01=テーブル {0} はすでに存在します
 42S02=テーブル {0} が見つかりません
 42S11=インデックス {0} はすでに存在します
@@ -42,7 +43,7 @@
 90006=シーケンス {0} を使い果たしました
 90007=オブジェクトはすでに閉じられています
 90008=パラメータ {1} に対する値 {0} が不正です
-90009=無効な属性により、シーケンス {0} の作成または変更ができません。(開始値 {1}, 最小値 {2}, 最大値 {3}, 増分 {4})
+90009=無効な属性により、シーケンス {0} の作成または変更ができません。(値 {1}, 開始値 {2}, 最小値 {3}, 最大値 {4}, 増分 {5})
 90010=無効な TO_CHAR フォーマット {0}
 90011=暗黙的なカレントディレクトリからの相対ファイルパスをデータベースURL({0})に指定することは許可されていません。代わりに絶対パスか相対パス( ~/name, ./name)あるいは baseDir を指定して下さい.
 90012=パラメータ {0} がセットされていません
@@ -84,7 +85,6 @@
 90048=ファイル {0} は、未サポートのバージョンか、不正なファイルヘッダを持つデータベースファイルです
 90049=ファイル {0} の暗号化エラーです
 90050=不正なパスワードフォーマットです。正しくは: ファイルパスワード <空白> ユーザパスワード
-90051=スケール(${0}) より大きい精度({1})は指定できません
 90052=サブクエリが単一列のクエリではありません
 90053=数値サブクエリが複数の行を含んでいます
 90054=集約関数 {0} の不正な使用
@@ -179,6 +179,14 @@
 90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
 90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
 90147=#Method {0} is not allowed when connection is in auto-commit mode
+90148=#Current value of sequence {0} is not yet defined in this session
+90149=#Database {0} not found, either pre-create it or allow remote database creation (not recommended in secure environments)
+90150=#Precision ({0}) must be between {1} and {2} inclusive
+90151=#Scale or fractional seconds precision ({0}) must be between {1} and {2} inclusive
+90152=#Constraint {0} is used by constraint {1}
+90153=#Column {0} references uncomparable column {1}
+90154=#Generated column {0} cannot be assigned
+90155=#Generated column {0} cannot be updatable by a referential constraint with {1} clause
 HY000=一般エラー: {0}
 HY004=不明なデータ型: {0}
 HYC00=機能はサポートされていません: {0}

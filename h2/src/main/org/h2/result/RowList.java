@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,6 +12,7 @@ import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.store.Data;
 import org.h2.store.FileStore;
+import org.h2.table.Table;
 import org.h2.util.Utils;
 import org.h2.value.DataType;
 import org.h2.value.Value;
@@ -26,6 +27,7 @@ import org.h2.value.Value;
 public class RowList implements AutoCloseable {
 
     private final Session session;
+    private final Table table;
     private final ArrayList<Row> list = Utils.newSmallArrayList();
     private int size;
     private int index, listIndex;
@@ -41,8 +43,9 @@ public class RowList implements AutoCloseable {
      *
      * @param session the session
      */
-    public RowList(Session session) {
+    public RowList(Session session, Table table) {
         this.session = session;
+        this.table = table;
         if (session.getDatabase().isPersistent()) {
             maxMemory = session.getDatabase().getMaxOperationMemory();
         } else {
@@ -51,13 +54,12 @@ public class RowList implements AutoCloseable {
     }
 
     private void writeRow(Data buff, Row r) {
-        buff.checkCapacity(2 + Data.LENGTH_INT * 3 + Data.LENGTH_LONG);
+        buff.checkCapacity(1 + Data.LENGTH_INT * 2 + Data.LENGTH_LONG);
         buff.writeByte((byte) 1);
         buff.writeInt(r.getMemory());
         int columnCount = r.getColumnCount();
         buff.writeInt(columnCount);
         buff.writeLong(r.getKey());
-        buff.writeByte(r.isDeleted() ? (byte) 1 : (byte) 0);
         for (int i = 0; i < columnCount; i++) {
             Value v = r.getValue(i);
             buff.checkCapacity(1);
@@ -169,7 +171,6 @@ public class RowList implements AutoCloseable {
         int mem = buff.readInt();
         int columnCount = buff.readInt();
         long key = buff.readLong();
-        boolean deleted = buff.readByte() != 0;
         Value[] values = new Value[columnCount];
         for (int i = 0; i < columnCount; i++) {
             Value v;
@@ -187,9 +188,7 @@ public class RowList implements AutoCloseable {
             }
             values[i] = v;
         }
-        Row row = session.createRow(values, mem);
-        row.setKey(key);
-        row.setDeleted(deleted);
+        Row row = table.createRow(values, mem, key);
         return row;
     }
 

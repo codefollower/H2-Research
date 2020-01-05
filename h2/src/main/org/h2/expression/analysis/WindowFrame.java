@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -35,11 +35,6 @@ public final class WindowFrame {
 
         Itr(ArrayList<Value[]> orderedRows) {
             this.orderedRows = orderedRows;
-        }
-
-        @Override
-        public final void remove() {
-            throw new UnsupportedOperationException();
         }
 
     }
@@ -329,14 +324,15 @@ public final class WindowFrame {
         case Value.NULL:
             newValue = ValueNull.INSTANCE;
             break;
-        case Value.BYTE:
-        case Value.SHORT:
+        case Value.TINYINT:
+        case Value.SMALLINT:
         case Value.INT:
-        case Value.LONG:
-        case Value.DECIMAL:
+        case Value.BIGINT:
+        case Value.NUMERIC:
         case Value.DOUBLE:
-        case Value.FLOAT:
+        case Value.REAL:
         case Value.TIME:
+        case Value.TIME_TZ:
         case Value.DATE:
         case Value.TIMESTAMP:
         case Value.TIMESTAMP_TZ:

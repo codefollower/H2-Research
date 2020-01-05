@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -541,7 +541,7 @@ public class TestLob extends TestDb {
     }
 
     Connection getDeadlock2Connection() throws SQLException {
-        return getConnection("lob;MULTI_THREADED=TRUE;LOCK_TIMEOUT=60000");
+        return getConnection("lob;LOCK_TIMEOUT=60000");
     }
 
     private void testCopyManyLobs() throws Exception {
@@ -1127,7 +1127,7 @@ public class TestLob extends TestDb {
         conn = reconnect(conn);
         stat = conn.createStatement();
         ResultSet rs;
-        rs = stat.executeQuery("select value from information_schema.settings " +
+        rs = stat.executeQuery("select `value` from information_schema.settings " +
                 "where NAME='COMPRESS_LOB'");
         rs.next();
         assertEquals(compress ? "LZF" : "NO", rs.getString(1));
@@ -1422,7 +1422,7 @@ public class TestLob extends TestDb {
         PreparedStatement prep;
         ResultSet rs;
         long time;
-        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, VALUE " +
+        stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, V " +
                 (clob ? "CLOB" : "BLOB") + ")");
 
         int len = getSize(1, 1000);
@@ -1447,7 +1447,7 @@ public class TestLob extends TestDb {
         conn = reconnect(conn);
 
         time = System.nanoTime();
-        prep = conn.prepareStatement("SELECT ID, VALUE FROM TEST");
+        prep = conn.prepareStatement("SELECT ID, V FROM TEST");
         rs = prep.executeQuery();
         while (rs.next()) {
             int id = rs.getInt("ID");
@@ -1528,13 +1528,13 @@ public class TestLob extends TestDb {
         assertFalse(rs.next());
 
         conn.createStatement().execute("drop table test");
-        stat.execute("create table test(value other)");
+        stat.execute("create table test(v other)");
         prep = conn.prepareStatement("insert into test values(?)");
         prep.setObject(1, JdbcUtils.serialize("", conn.getSession().getDataHandler()));
         prep.execute();
-        rs = stat.executeQuery("select value from test");
+        rs = stat.executeQuery("select v from test");
         while (rs.next()) {
-            assertEquals("", (String) rs.getObject("value"));
+            assertEquals("", (String) rs.getObject("v"));
         }
         conn.close();
     }

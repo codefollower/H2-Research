@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -86,7 +86,7 @@ public class IsJsonPredicate extends Condition {
         }
         boolean result;
         switch (l.getValueType()) {
-        case Value.BYTES:
+        case Value.VARBINARY:
         case Value.BLOB: {
             byte[] bytes = l.getBytesNoCopy();
             JSONValidationTarget target = withUniqueKeys ? new JSONValidationTargetWithUniqueKeys()
@@ -109,9 +109,9 @@ public class IsJsonPredicate extends Condition {
             }
         }
         //$FALL-THROUGH$
-        case Value.STRING:
-        case Value.STRING_IGNORECASE:
-        case Value.STRING_FIXED:
+        case Value.VARCHAR:
+        case Value.VARCHAR_IGNORECASE:
+        case Value.CHAR:
         case Value.CLOB: {
             String string = l.getString();
             JSONValidationTarget target = withUniqueKeys ? new JSONValidationTargetWithUniqueKeys()

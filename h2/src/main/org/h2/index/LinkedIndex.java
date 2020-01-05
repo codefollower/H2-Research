@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -136,7 +136,7 @@ public class LinkedIndex extends BaseIndex {
 
     private void addParameter(StringBuilder builder, Column col) {
         TypeInfo type = col.getType();
-        if (type.getValueType() == Value.STRING_FIXED && link.isOracle()) {
+        if (type.getValueType() == Value.CHAR && link.isOracle()) {
             // workaround for Oracle
             // create table test(id int primary key, name char(15));
             // insert into test values(1, 'Hello')
@@ -173,18 +173,6 @@ public class LinkedIndex extends BaseIndex {
     @Override
     public boolean needRebuild() {
         return false;
-    }
-
-    @Override
-    public boolean canGetFirstOrLast() {
-        return false;
-    }
-
-    @Override
-    public Cursor findFirstOrLast(Session session, boolean first) {
-        // TODO optimization: could get the first or last value (in any case;
-        // maybe not optimized)
-        throw DbException.getUnsupportedException("LINKED");
     }
 
     @Override

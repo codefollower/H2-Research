@@ -1,13 +1,13 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
 
 import org.h2.api.ErrorCode;
+import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
-import org.h2.engine.Mode;
 import org.h2.message.DbException;
 
 /**
@@ -19,8 +19,6 @@ public abstract class ValueCollectionBase extends Value {
      * Values.
      */
     final Value[] values;
-
-    private TypeInfo type;
 
     private int hash;
 
@@ -46,16 +44,7 @@ public abstract class ValueCollectionBase extends Value {
     }
 
     @Override
-    public TypeInfo getType() {
-        TypeInfo type = this.type;
-        if (type == null) {
-            this.type = type = TypeInfo.getTypeInfo(getValueType(), values.length, 0, null);
-        }
-        return type;
-    }
-
-    @Override
-    public int compareWithNull(Value v, boolean forEquality, Mode databaseMode, CompareMode compareMode) {
+    public int compareWithNull(Value v, boolean forEquality, CastDataProvider provider, CompareMode compareMode) {
         if (v == ValueNull.INSTANCE) {
             return Integer.MIN_VALUE;
         }
@@ -81,7 +70,7 @@ public abstract class ValueCollectionBase extends Value {
             for (int i = 0; i < leftLength; i++) {
                 Value v1 = leftArray[i];
                 Value v2 = rightArray[i];
-                int comp = v1.compareWithNull(v2, forEquality, databaseMode, compareMode);
+                int comp = v1.compareWithNull(v2, forEquality, provider, compareMode);
                 if (comp != 0) {
                     if (comp != Integer.MIN_VALUE) {
                         return comp;
@@ -95,7 +84,7 @@ public abstract class ValueCollectionBase extends Value {
         for (int i = 0; i < len; i++) {
             Value v1 = leftArray[i];
             Value v2 = rightArray[i];
-            int comp = v1.compareWithNull(v2, forEquality, databaseMode, compareMode);
+            int comp = v1.compareWithNull(v2, forEquality, provider, compareMode);
             if (comp != 0) {
                 return comp;
             }
@@ -120,6 +109,16 @@ public abstract class ValueCollectionBase extends Value {
             memory += v.getMemory() + Constants.MEMORY_POINTER;
         }
         return memory;
+    }
+
+    @Override
+    public Object getObject() {
+        int len = values.length;
+        Object[] list = new Object[len];
+        for (int i = 0; i < len; i++) {
+            list[i] = values[i].getObject();
+        }
+        return list;
     }
 
 }

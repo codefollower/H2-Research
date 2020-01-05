@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,7 +8,7 @@ CREATE TABLE CHANNEL(TITLE VARCHAR, LINK VARCHAR, DESC VARCHAR,
     LANGUAGE VARCHAR, PUB TIMESTAMP, LAST TIMESTAMP, AUTHOR VARCHAR);
 
 INSERT INTO CHANNEL VALUES('H2 Database Automated Build' ,
-    'https://h2database.com/html/build.html#automated', 'H2 Database Automated Build', 'en-us', NOW(), NOW(), 'Thomas Mueller');
+    'https://h2database.com/html/build.html#automated', 'H2 Database Automated Build', 'en-us', LOCALTIMESTAMP, LOCALTIMESTAMP, 'Thomas Mueller');
 
 SELECT XMLSTARTDOC() ||
     XMLNODE('feed', XMLATTR('xmlns', 'http://www.w3.org/2005/Atom') || XMLATTR('xml:lang', C.LANGUAGE),

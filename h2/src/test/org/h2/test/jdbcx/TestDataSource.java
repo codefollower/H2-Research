@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -53,7 +53,7 @@ public class TestDataSource extends TestDb {
 //     System.setProperty(Context.PROVIDER_URL, "rmi://localhost:1099");
 //
 //     JdbcDataSource ds = new JdbcDataSource();
-//     ds.setURL("jdbc:h2:test");
+//     ds.setURL("jdbc:h2:./test");
 //     ds.setUser("test");
 //     ds.setPassword("");
 //

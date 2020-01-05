@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -38,7 +38,7 @@ import org.h2.util.geometry.GeometryUtils.Target;
  * extensions. This class can read dimension system marks in both OGC WKB and
  * EWKB formats, but always writes them in EWKB format. SRID support from EWKB
  * is implemented. As an addition POINT EMPTY is stored with NaN values as
- * specified in <a href="http://www.geopackage.org/spec/">OGC 12-128r15</a>.
+ * specified in <a href="https://www.geopackage.org/spec/">OGC 12-128r15</a>.
  * </p>
  */
 public final class EWKBUtils {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -29,7 +29,7 @@ import org.h2.value.Value;
 import org.h2.value.ValueNull;
 
 /**
- * An unique index based on an in-memory hash map.
+ * A unique index based on an in-memory hash map.
  */
 public class HashIndex extends BaseIndex {
 
@@ -52,7 +52,7 @@ public class HashIndex extends BaseIndex {
     }
 
     private void reset() {
-        rows = totalOrdering ? new HashMap<Value, Long>() : new TreeMap<Value, Long>(database.getCompareMode());
+        rows = totalOrdering ? new HashMap<>() : new TreeMap<>(database.getCompareMode());
     }
 
     @Override
@@ -104,7 +104,7 @@ public class HashIndex extends BaseIndex {
          * case we need to convert, otherwise the HashMap will not find the
          * result.
          */
-        v = v.convertTo(tableData.getColumn(indexColumn).getType(), database.getMode(), null);
+        v = v.convertTo(tableData.getColumn(indexColumn).getType(), session, null);
         Row result;
         Long pos = rows.get(v);
         if (pos == null) {
@@ -155,23 +155,8 @@ public class HashIndex extends BaseIndex {
     }
 
     @Override
-    public void checkRename() {
-        // ok
-    }
-
-    @Override
     public boolean needRebuild() {
         return true;
-    }
-
-    @Override
-    public boolean canGetFirstOrLast() {
-        return false;
-    }
-
-    @Override
-    public Cursor findFirstOrLast(Session session, boolean first) {
-        throw DbException.getUnsupportedException("HASH");
     }
 
     @Override

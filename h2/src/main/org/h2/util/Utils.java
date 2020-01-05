@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -40,10 +40,6 @@ public class Utils {
      * An 0-size long array.
      */
     private static final long[] EMPTY_LONG_ARRAY = {};
-
-//    private static final int GC_DELAY = 50;
-//    private static final int MAX_GC = 8;
-//    private static long lastGC;
 
     private static final HashMap<String, byte[]> RESOURCES = new HashMap<>();
 
@@ -290,6 +286,9 @@ public class Utils {
         return (totalGCCount + (poolCount >> 1)) / poolCount;
     }
 
+    /**
+     * Run Java memory garbage collection.
+     */
     public static synchronized void collectGarbage() {
         Runtime runtime = Runtime.getRuntime();
         long garbageCollectionCount = getGarbageCollectionCount();
@@ -787,6 +786,8 @@ public class Utils {
             long physicalMemorySize = ((Number) method.invoke(mxBean)).longValue();
             return (int) (value * physicalMemorySize / (1024 * 1024 * 1024));
         } catch (Exception e) {
+            // ignore
+        } catch (Error error) {
             // ignore
         }
         return value;

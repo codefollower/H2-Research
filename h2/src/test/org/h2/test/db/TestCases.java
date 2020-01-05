@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -52,7 +52,6 @@ public class TestCases extends TestDb {
         testLargeKeys();
         testExtraSemicolonInDatabaseURL();
         testGroupSubquery();
-        testSelfReferentialColumn();
         testCountDistinctNotNull();
         testDependencies();
         testConvertType();
@@ -177,9 +176,9 @@ public class TestCases extends TestDb {
         Connection conn = getConnection("cases");
         Statement stat = conn.createStatement();
         stat.execute(
-                "create view test as select 0 value, 'x' name from dual");
+                "create view test as select 0 v, 'x' name from dual");
         PreparedStatement prep = conn.prepareStatement(
-                "select 1 from test where name=? and value=? and value<=?");
+                "select 1 from test where name=? and v=? and v<=?");
         prep.setString(1, "x");
         prep.setInt(2, 0);
         prep.setInt(3, 1);
@@ -227,16 +226,6 @@ public class TestCases extends TestDb {
                 " from test where a = t.a and b = 0) from test t group by a");
         rs.next();
         assertEquals(0, rs.getInt(1));
-        conn.close();
-    }
-
-    private void testSelfReferentialColumn() throws SQLException {
-        deleteDb("selfreferential");
-        Connection conn = getConnection("selfreferential");
-        Statement stat = conn.createStatement();
-        stat.execute("create table sr(id integer, usecount integer as usecount + 1)");
-        assertThrows(ErrorCode.NULL_NOT_ALLOWED, stat).execute("insert into sr(id) values (1)");
-        assertThrows(ErrorCode.MUST_GROUP_BY_COLUMN_1, stat).execute("select max(id), usecount from sr");
         conn.close();
     }
 
@@ -314,9 +303,9 @@ public class TestCases extends TestDb {
         Statement stat = conn.createStatement();
         stat.execute("create table test(id int primary key)");
         stat.execute("insert into test values(1), (2)");
-        stat.execute("select * from dual where x not in " +
+        stat.execute("select * from system_range(1, 1) where x not in " +
                 "(select id from test order by id)");
-        stat.execute("select * from dual where x not in " +
+        stat.execute("select * from system_range(1, 1) where x not in " +
                 "(select id from test union select id from test)");
         stat.execute("(select id from test order by id) " +
                 "intersect (select id from test order by id)");
@@ -833,28 +822,25 @@ public class TestCases extends TestDb {
         }
         deleteDb("cases");
         Connection conn = getConnection("cases");
-        final Statement stat = conn.createStatement();
+        Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(ID IDENTITY)");
         for (int i = 0; i < 1000; i++) {
             stat.execute("INSERT INTO TEST() VALUES()");
         }
-        final SQLException[] stopped = { null };
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    long time = System.nanoTime();
-                    ResultSet rs = stat.executeQuery("SELECT MAX(T.ID) " +
-                            "FROM TEST T, TEST, TEST, TEST, TEST, " +
-                            "TEST, TEST, TEST, TEST, TEST, TEST");
-                    rs.next();
-                    time = System.nanoTime() - time;
-                    TestBase.logError("query was too quick; result: " +
-                            rs.getInt(1) + " time:" + TimeUnit.NANOSECONDS.toMillis(time), null);
-                } catch (SQLException e) {
-                    stopped[0] = e;
-                    // ok
-                }
+        SQLException[] stopped = { null };
+        Thread t = new Thread(() -> {
+            try {
+                long time = System.nanoTime();
+                ResultSet rs = stat.executeQuery("SELECT MAX(T.ID) " +
+                        "FROM TEST T, TEST, TEST, TEST, TEST, " +
+                        "TEST, TEST, TEST, TEST, TEST, TEST");
+                rs.next();
+                time = System.nanoTime() - time;
+                TestBase.logError("query was too quick; result: " +
+                        rs.getInt(1) + " time:" + TimeUnit.NANOSECONDS.toMillis(time), null);
+            } catch (SQLException e) {
+                stopped[0] = e;
+                // ok
             }
         });
         t.start();

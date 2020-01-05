@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -19,14 +19,11 @@ import org.h2.engine.Database;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
-import org.h2.expression.ExpressionColumn;
 import org.h2.expression.condition.Comparison;
 import org.h2.expression.condition.ConditionAndOr;
 import org.h2.index.Index;
 import org.h2.index.IndexCondition;
 import org.h2.index.IndexCursor;
-import org.h2.index.IndexLookupBatch;
-import org.h2.index.ViewIndex;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -49,12 +46,13 @@ public class TableFilter implements ColumnResolver {
     /**
      * Comparator that uses order in FROM clause as a sort key.
      */
-    public static final Comparator<TableFilter> ORDER_IN_FROM_COMPARATOR = new Comparator<TableFilter>() {
-        @Override
-        public int compare(TableFilter o1, TableFilter o2) {
-            return Integer.compare(o1.getOrderInFrom(), o2.getOrderInFrom());
-        }
-    };
+    public static final Comparator<TableFilter> ORDER_IN_FROM_COMPARATOR =
+            Comparator.comparing(TableFilter::getOrderInFrom);
+
+    /**
+     * A visitor that sets joinOuterIndirect to true.
+     */
+    private static final TableFilterVisitor JOI_VISITOR = f -> f.joinOuterIndirect = true;
 
     /**
      * Whether this is a direct or indirect (nested) outer join
@@ -71,12 +69,6 @@ public class TableFilter implements ColumnResolver {
     private int[] masks;
     private int scanCount;
     private boolean evaluatable;
-
-    /**
-     * Batched join support.
-     */
-    private JoinBatch joinBatch;
-    private int joinFilterId = -1;
 
     /**
      * Indicates that this filter is used in the plan.
@@ -182,7 +174,7 @@ public class TableFilter implements ColumnResolver {
         this.table = table;
         this.alias = alias;
         this.select = select;
-        this.cursor = new IndexCursor(this);
+        this.cursor = new IndexCursor();
         if (!rightsChecked) {
             session.getUser().checkRight(table, Right.SELECT);
         }
@@ -460,11 +452,6 @@ public class TableFilter implements ColumnResolver {
      * Reset to the current position.
      */
     public void reset() {
-        if (joinBatch != null && joinFilterId == 0) {
-            // reset join batch only on top table filter
-            joinBatch.reset(true);
-            return;
-        }
         if (nestedJoin != null) {
             nestedJoin.reset();
         }
@@ -473,90 +460,6 @@ public class TableFilter implements ColumnResolver {
         }
         state = BEFORE_FIRST;
         foundOne = false;
-    }
-
-    private boolean isAlwaysTopTableFilter(int filter) {
-        if (filter != 0) {
-            return false;
-        }
-        // check if we are at the top table filters all the way up
-        SubQueryInfo info = session.getSubQueryInfo();
-        while (true) {
-            if (info == null) {
-                return true;
-            }
-            if (info.getFilter() != 0) {
-                return false;
-            }
-            info = info.getUpper();
-        }
-    }
-
-    /**
-     * Attempt to initialize batched join.
-     *
-     * @param jb join batch if it is already created
-     * @param filters the table filters
-     * @param filter the filter index (0, 1,...)
-     * @return join batch if query runs over index which supports batched
-     *         lookups, {@code null} otherwise
-     */
-    public JoinBatch prepareJoinBatch(JoinBatch jb, TableFilter[] filters, int filter) {
-        assert filters[filter] == this;
-        joinBatch = null;
-        joinFilterId = -1;
-        if (getTable().isView()) {
-            session.pushSubQueryInfo(masks, filters, filter, select.getSortOrder());
-            try {
-                ((ViewIndex) index).getQuery().prepareJoinBatch();
-            } finally {
-                session.popSubQueryInfo();
-            }
-        }
-        // For globally top table filter we don't need to create lookup batch,
-        // because currently it will not be used (this will be shown in
-        // ViewIndex.getPlanSQL()). Probably later on it will make sense to
-        // create it to better support X IN (...) conditions, but this needs to
-        // be implemented separately. If isAlwaysTopTableFilter is false then we
-        // either not a top table filter or top table filter in a sub-query,
-        // which in turn is not top in outer query, thus we need to enable
-        // batching here to allow outer query run batched join against this
-        // sub-query.
-        IndexLookupBatch lookupBatch = null;
-        if (jb == null && select != null && !isAlwaysTopTableFilter(filter)) {
-            lookupBatch = index.createLookupBatch(filters, filter);
-            if (lookupBatch != null) {
-                jb = new JoinBatch(filter + 1, join);
-            }
-        }
-        if (jb != null) {
-            if (nestedJoin != null) {
-                throw DbException.throwInternalError();
-            }
-            joinBatch = jb;
-            joinFilterId = filter;
-            if (lookupBatch == null && !isAlwaysTopTableFilter(filter)) {
-                // createLookupBatch will be called at most once because jb can
-                // be created only if lookupBatch is already not null from the
-                // call above.
-                lookupBatch = index.createLookupBatch(filters, filter);
-                if (lookupBatch == null) {
-                    // the index does not support lookup batching, need to fake
-                    // it because we are not top
-                    lookupBatch = JoinBatch.createFakeIndexLookupBatch(this);
-                }
-            }
-            jb.register(this, lookupBatch);
-        }
-        return jb;
-    }
-
-    public int getJoinFilterId() {
-        return joinFilterId;
-    }
-
-    public JoinBatch getJoinBatch() {
-        return joinBatch;
     }
 
     /**
@@ -584,11 +487,6 @@ public class TableFilter implements ColumnResolver {
     //TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest1)
     //TableFilter(SYSTEM_JOIN_xxx).join => TableFilter(JoinTest2)
     public boolean next() {
-        if (joinBatch != null) {
-            // will happen only on topTableFilter since joinBatch.next() does
-            // not call join.next()
-            return joinBatch.next();
-        }
         if (state == AFTER_LAST) {
             return false;
         } else if (state == BEFORE_FIRST) {
@@ -705,12 +603,7 @@ public class TableFilter implements ColumnResolver {
         current = table.getNullRow();
         currentSearchRow = current;
         if (nestedJoin != null) {
-            nestedJoin.visit(new TableFilterVisitor() {
-                @Override
-                public void accept(TableFilter f) {
-                    f.setNullRow();
-                }
-            });
+            nestedJoin.visit(TableFilter::setNullRow);
         }
     }
 
@@ -844,7 +737,7 @@ public class TableFilter implements ColumnResolver {
             join = filter;
             filter.joinOuter = outer;
             if (outer) {
-                filter.visit(new JOIVisitor());
+                filter.visit(JOI_VISITOR);
             }
             if (on != null) {
                 filter.mapAndAddFilter(on);
@@ -1040,16 +933,6 @@ public class TableFilter implements ColumnResolver {
         if (index != null) {
             builder.append('\n');
             StringBuilder planBuilder = new StringBuilder();
-            if (joinBatch != null) {
-                IndexLookupBatch lookupBatch = joinBatch.getLookupBatch(joinFilterId);
-                if (lookupBatch == null) {
-                    if (joinFilterId != 0) {
-                        throw DbException.throwInternalError(Integer.toString(joinFilterId));
-                    }
-                } else {
-                    planBuilder.append("batched:").append(lookupBatch.getPlanSQL()).append(' ');
-                }
-            }
             planBuilder.append(index.getPlanSQL());
             if (!indexConditions.isEmpty()) {
                 planBuilder.append(": ");
@@ -1235,6 +1118,21 @@ public class TableFilter implements ColumnResolver {
     }
 
     @Override
+    public Column findColumn(String name) {
+        HashMap<Column, String> map = derivedColumnMap;
+        if (map != null) {
+            Database db = session.getDatabase();
+            for (Entry<Column, String> entry : derivedColumnMap.entrySet()) {
+                if (db.equalsIdentifiers(entry.getValue(), name)) {
+                    return entry.getKey();
+                }
+            }
+            return null;
+        }
+        return table.findColumn(name);
+    }
+
+    @Override
     public String getColumnName(Column column) {
         HashMap<Column, String> map = derivedColumnMap;
         return map != null ? map.get(column) : column.getName();
@@ -1290,9 +1188,9 @@ public class TableFilter implements ColumnResolver {
         Column[] sys = new Column[3];
         sys[0] = new Column("oid", Value.INT);
         sys[0].setTable(table, 0);
-        sys[1] = new Column("ctid", Value.STRING);
+        sys[1] = new Column("ctid", Value.VARCHAR);
         sys[1].setTable(table, 0);
-        sys[2] = new Column("CTID", Value.STRING);
+        sys[2] = new Column("CTID", Value.VARCHAR);
         sys[2].setTable(table, 0);
         return sys;
     }
@@ -1304,9 +1202,6 @@ public class TableFilter implements ColumnResolver {
 
     @Override
     public Value getValue(Column column) {
-        if (joinBatch != null) {
-            return joinBatch.getValue(joinFilterId, column);
-        }
         if (currentSearchRow == null) {
             return null;
         }
@@ -1358,11 +1253,6 @@ public class TableFilter implements ColumnResolver {
             map.put(columns[i], alias);
         }
         this.derivedColumnMap = map;
-    }
-
-    @Override
-    public Expression optimize(ExpressionColumn expressionColumn, Column column) {
-        return expressionColumn;
     }
 
     @Override
@@ -1514,6 +1404,17 @@ public class TableFilter implements ColumnResolver {
     }
 
     /**
+     * Returns whether this is a table filter with implicit DUAL table for a
+     * SELECT without a FROM clause.
+     *
+     * @return whether this is a table filter with implicit DUAL table
+     */
+    public boolean isNoFromClauseFilter() {
+        return table instanceof DualTable && join == null && nestedJoin == null
+                && joinCondition == null && filterCondition == null;
+    }
+
+    /**
      * A visitor for table filters.
      */
     public interface TableFilterVisitor {
@@ -1539,19 +1440,6 @@ public class TableFilter implements ColumnResolver {
         @Override
         public void accept(TableFilter f) {
             on.mapColumns(f, 0, Expression.MAP_INITIAL);
-        }
-    }
-
-    /**
-     * A visitor that sets joinOuterIndirect to true.
-     */
-    private static final class JOIVisitor implements TableFilterVisitor {
-        JOIVisitor() {
-        }
-
-        @Override
-        public void accept(TableFilter f) {
-            f.joinOuterIndirect = true;
         }
     }
 

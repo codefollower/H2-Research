@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,6 +17,8 @@ public class ParserUtil {
      */
     public static final int IDENTIFIER = 2;
 
+    // Constants below must be sorted
+
     /**
      * The token "ALL".
      */
@@ -28,9 +30,14 @@ public class ParserUtil {
     public static final int ARRAY = ALL + 1;
 
     /**
+     * The token "AS".
+     */
+    public static final int AS = ARRAY + 1;
+
+    /**
      * The token "CASE".
      */
-    public static final int CASE = ARRAY + 1;
+    public static final int CASE = AS + 1;
 
     /**
      * The token "CHECK".
@@ -48,9 +55,14 @@ public class ParserUtil {
     public static final int CROSS = CONSTRAINT + 1;
 
     /**
+     * The token "CURRENT_CATALOG".
+     */
+    public static final int CURRENT_CATALOG = CROSS + 1;
+
+    /**
      * The token "CURRENT_DATE".
      */
-    public static final int CURRENT_DATE = CROSS + 1;
+    public static final int CURRENT_DATE = CURRENT_CATALOG + 1;
 
     /**
      * The token "CURRENT_SCHEMA".
@@ -73,9 +85,14 @@ public class ParserUtil {
     public static final int CURRENT_USER = CURRENT_TIMESTAMP + 1;
 
     /**
+     * The token "DAY".
+     */
+    public static final int DAY = CURRENT_USER + 1;
+
+    /**
      * The token "DISTINCT".
      */
-    public static final int DISTINCT = CURRENT_USER + 1;
+    public static final int DISTINCT = DAY + 1;
 
     /**
      * The token "EXCEPT".
@@ -128,9 +145,14 @@ public class ParserUtil {
     public static final int HAVING = GROUP + 1;
 
     /**
+     * The token "HOUR".
+     */
+    public static final int HOUR = HAVING + 1;
+
+    /**
      * The token "IF".
      */
-    public static final int IF = HAVING + 1;
+    public static final int IF = HOUR + 1;
 
     /**
      * The token "INNER".
@@ -163,9 +185,19 @@ public class ParserUtil {
     public static final int JOIN = IS + 1;
 
     /**
+     * The token "KEY".
+     */
+    public static final int KEY = JOIN + 1;
+
+    /**
+     * The token "LEFT".
+     */
+    public static final int LEFT = KEY + 1;
+
+    /**
      * The token "LIKE".
      */
-    public static final int LIKE = JOIN + 1;
+    public static final int LIKE = LEFT + 1;
 
     /**
      * The token "LIMIT".
@@ -188,9 +220,19 @@ public class ParserUtil {
     public static final int MINUS = LOCALTIMESTAMP + 1;
 
     /**
+     * The token "MINUTE".
+     */
+    public static final int MINUTE = MINUS + 1;
+
+    /**
+     * The token "MONTH".
+     */
+    public static final int MONTH = MINUTE + 1;
+
+    /**
      * The token "NATURAL".
      */
-    public static final int NATURAL = MINUS + 1;
+    public static final int NATURAL = MONTH + 1;
 
     /**
      * The token "NOT".
@@ -228,29 +270,39 @@ public class ParserUtil {
     public static final int QUALIFY = PRIMARY + 1;
 
     /**
-     * The token "ROW".
+     * The token "RIGHT".
      */
-    public static final int ROW = QUALIFY + 1;
+    public static final int RIGHT = QUALIFY + 1;
 
     /**
-     * The token "_ROWID_".
+     * The token "ROW".
      */
-    public static final int _ROWID_ = ROW + 1;
+    public static final int ROW = RIGHT + 1;
 
     /**
      * The token "ROWNUM".
      */
-    public static final int ROWNUM = _ROWID_ + 1;
+    public static final int ROWNUM = ROW + 1;
+
+    /**
+     * The token "SECOND".
+     */
+    public static final int SECOND = ROWNUM + 1;
 
     /**
      * The token "SELECT".
      */
-    public static final int SELECT = ROWNUM + 1;
+    public static final int SELECT = SECOND + 1;
+
+    /**
+     * The token "SET".
+     */
+    public static final int SET = SELECT + 1;
 
     /**
      * The token "TABLE".
      */
-    public static final int TABLE = SELECT + 1;
+    public static final int TABLE = SET + 1;
 
     /**
      * The token "TRUE".
@@ -278,9 +330,14 @@ public class ParserUtil {
     public static final int USING = UNKNOWN + 1;
 
     /**
+     * The token "VALUE".
+     */
+    public static final int VALUE = USING + 1;
+
+    /**
      * The token "VALUES".
      */
-    public static final int VALUES = USING + 1;
+    public static final int VALUES = VALUE + 1;
 
     /**
      * The token "WHERE".
@@ -296,6 +353,28 @@ public class ParserUtil {
      * The token "WITH".
      */
     public static final int WITH = WINDOW + 1;
+
+    /**
+     * The token "YEAR".
+     */
+    public static final int YEAR = WITH + 1;
+
+    /**
+     * The token "_ROWID_".
+     */
+    public static final int _ROWID_ = YEAR + 1;
+
+    // Constants above must be sorted
+
+    /**
+     * The ordinal number of the first keyword.
+     */
+    public static final int FIRST_KEYWORD = IDENTIFIER + 1;
+
+    /**
+     * The ordinal number of the last keyword.
+     */
+    public static final int LAST_KEYWORD = _ROWID_;
 
     private static final int UPPER_OR_OTHER_LETTER =
             1 << Character.UPPERCASE_LETTER
@@ -418,9 +497,11 @@ public class ParserUtil {
                 return ALL;
             } else if (eq("ARRAY", s, ignoreCase, start, end)) {
                 return ARRAY;
+            } else if (eq("AS", s, ignoreCase, start, end)) {
+                return AS;
             }
             if (additionalKeywords) {
-                if (eq("AND", s, ignoreCase, start, end) || eq("AS", s, ignoreCase, start, end)) {
+                if (eq("AND", s, ignoreCase, start, end)) {
                     return KEYWORD;
                 }
             }
@@ -441,6 +522,8 @@ public class ParserUtil {
                 return CONSTRAINT;
             } else if (eq("CROSS", s, ignoreCase, start, end)) {
                 return CROSS;
+            } else if (eq("CURRENT_CATALOG", s, ignoreCase, start, end)) {
+                return CURRENT_CATALOG;
             } else if (eq("CURRENT_DATE", s, ignoreCase, start, end)) {
                 return CURRENT_DATE;
             } else if (eq("CURRENT_SCHEMA", s, ignoreCase, start, end)) {
@@ -454,7 +537,9 @@ public class ParserUtil {
             }
             return IDENTIFIER;
         case 'D':
-            if (eq("DISTINCT", s, ignoreCase, start, end)) {
+            if (eq("DAY", s, ignoreCase, start, end)) {
+                return DAY;
+            } else if (eq("DISTINCT", s, ignoreCase, start, end)) {
                 return DISTINCT;
             }
             return IDENTIFIER;
@@ -498,6 +583,8 @@ public class ParserUtil {
         case 'H':
             if (eq("HAVING", s, ignoreCase, start, end)) {
                 return HAVING;
+            } else if (eq("HOUR", s, ignoreCase, start, end)) {
+                return HOUR;
             }
             return IDENTIFIER;
         case 'I':
@@ -525,8 +612,15 @@ public class ParserUtil {
                 return JOIN;
             }
             return IDENTIFIER;
+        case 'K':
+            if (eq("KEY", s, ignoreCase, start, end)) {
+                return KEY;
+            }
+            return IDENTIFIER;
         case 'L':
-            if (eq("LIMIT", s, ignoreCase, start, end)) {
+            if (eq("LEFT", s, ignoreCase, start, end)) {
+                return LEFT;
+            } else if (eq("LIMIT", s, ignoreCase, start, end)) {
                 return LIMIT;
             } else if (eq("LIKE", s, ignoreCase, start, end)) {
                 return LIKE;
@@ -536,7 +630,7 @@ public class ParserUtil {
                 return LOCALTIMESTAMP;
             }
             if (additionalKeywords) {
-                if (eq("LEADING", s, ignoreCase, start, end) || eq("LEFT", s, ignoreCase, start, end)) {
+                if (eq("LEADING", s, ignoreCase, start, end)) {
                     return KEYWORD;
                 }
             }
@@ -544,6 +638,10 @@ public class ParserUtil {
         case 'M':
             if (eq("MINUS", s, ignoreCase, start, end)) {
                 return MINUS;
+            } else if (eq("MINUTE", s, ignoreCase, start, end)) {
+                return MINUTE;
+            } else if (eq("MONTH", s, ignoreCase, start, end)) {
+                return MONTH;
             }
             return IDENTIFIER;
         case 'N':
@@ -585,21 +683,27 @@ public class ParserUtil {
             }
             return IDENTIFIER;
         case 'R':
-            if (eq("ROW", s, ignoreCase, start, end)) {
+            if (eq("RIGHT", s, ignoreCase, start, end)) {
+                return RIGHT;
+            } else if (eq("ROW", s, ignoreCase, start, end)) {
                 return ROW;
             } else if (eq("ROWNUM", s, ignoreCase, start, end)) {
                 return ROWNUM;
             }
             if (additionalKeywords) {
                 if (eq("RANGE", s, ignoreCase, start, end) || eq("REGEXP", s, ignoreCase, start, end)
-                        || eq("ROWS", s, ignoreCase, start, end) || eq("RIGHT", s, ignoreCase, start, end)) {
+                        || eq("ROWS", s, ignoreCase, start, end)) {
                     return KEYWORD;
                 }
             }
             return IDENTIFIER;
         case 'S':
-            if (eq("SELECT", s, ignoreCase, start, end)) {
+            if (eq("SECOND", s, ignoreCase, start, end)) {
+                return SECOND;
+            } else if (eq("SELECT", s, ignoreCase, start, end)) {
                 return SELECT;
+            } else if (eq("SET", s, ignoreCase, start, end)) {
+                return SET;
             }
             if (additionalKeywords) {
                 if (eq("SYSDATE", s, ignoreCase, start, end) || eq("SYSTIME", s, ignoreCase, start, end)
@@ -633,7 +737,9 @@ public class ParserUtil {
             }
             return IDENTIFIER;
         case 'V':
-            if (eq("VALUES", s, ignoreCase, start, end)) {
+            if (eq("VALUE", s, ignoreCase, start, end)) {
+                return VALUE;
+            } else if (eq("VALUES", s, ignoreCase, start, end)) {
                 return VALUES;
             }
             return IDENTIFIER;
@@ -644,6 +750,11 @@ public class ParserUtil {
                 return WINDOW;
             } else if (eq("WITH", s, ignoreCase, start, end)) {
                 return WITH;
+            }
+            return IDENTIFIER;
+        case 'Y':
+            if (eq("YEAR", s, ignoreCase, start, end)) {
+                return YEAR;
             }
             return IDENTIFIER;
         case '_':

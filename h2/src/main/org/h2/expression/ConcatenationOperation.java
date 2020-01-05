@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,6 @@ package org.h2.expression;
 
 import java.util.Arrays;
 
-import org.h2.engine.Mode;
 import org.h2.engine.Session;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
@@ -43,9 +42,8 @@ public class ConcatenationOperation extends Expression {
 
     @Override
     public Value getValue(Session session) {
-        Mode mode = session.getDatabase().getMode();
-        Value l = left.getValue(session).convertTo(type, mode, null);
-        Value r = right.getValue(session).convertTo(type, mode, null);
+        Value l = left.getValue(session).convertTo(type, session, null);
+        Value r = right.getValue(session).convertTo(type, session, null);
         switch (type.getValueType()) {
         case Value.ARRAY: {
             if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {
@@ -57,7 +55,7 @@ public class ConcatenationOperation extends Expression {
             System.arraycopy(rightValues, 0, values, leftLength, rightLength);
             return ValueArray.get(values);
         }
-        case Value.BYTES: {
+        case Value.VARBINARY: {
             if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {
                 return ValueNull.INSTANCE;
             }
@@ -69,12 +67,12 @@ public class ConcatenationOperation extends Expression {
         }
         default: {
             if (l == ValueNull.INSTANCE) {
-                if (mode.nullConcatIsNull) {
+                if (session.getDatabase().getMode().nullConcatIsNull) {
                     return ValueNull.INSTANCE;
                 }
                 return r;
             } else if (r == ValueNull.INSTANCE) {
-                if (mode.nullConcatIsNull) {
+                if (session.getDatabase().getMode().nullConcatIsNull) {
                     return ValueNull.INSTANCE;
                 }
                 return l;
@@ -102,13 +100,13 @@ public class ConcatenationOperation extends Expression {
         if (lValueType == Value.ARRAY || rValueType == Value.ARRAY) {
             type = TypeInfo.TYPE_ARRAY;
         } else if (DataType.isBinaryStringType(lValueType) && DataType.isBinaryStringType(rValueType)) {
-            type = TypeInfo.getTypeInfo(Value.BYTES, DataType.addPrecision(l.getPrecision(), r.getPrecision()), 0,
+            type = TypeInfo.getTypeInfo(Value.VARBINARY, DataType.addPrecision(l.getPrecision(), r.getPrecision()), 0,
                     null);
         } else if (DataType.isCharacterStringType(lValueType) && DataType.isCharacterStringType(rValueType)) {
-            type = TypeInfo.getTypeInfo(Value.STRING, DataType.addPrecision(l.getPrecision(), r.getPrecision()), 0,
+            type = TypeInfo.getTypeInfo(Value.VARCHAR, DataType.addPrecision(l.getPrecision(), r.getPrecision()), 0,
                     null);
         } else {
-            type = TypeInfo.TYPE_STRING;
+            type = TypeInfo.TYPE_VARCHAR;
         }
         if (left.isConstant() && right.isConstant()) {
             return ValueExpression.get(getValue(session));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,7 +13,7 @@ import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
-import org.h2.result.Row;
+import org.h2.result.RowFactory;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
 import org.h2.schema.SchemaObjectBase;
@@ -36,6 +36,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
     protected int[] columnIds;
     protected final Table table;
     protected final IndexType indexType;
+    private final RowFactory rowFactory;
 
     /**
      * Initialize the base index.
@@ -63,6 +64,15 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
                 columnIds[i] = col.getColumnId();
             }
         }
+        rowFactory = database.getRowFactory().createRowFactory(
+                database, database.getCompareMode(), database.getMode(),
+                database, table.getColumns(),
+                newIndexType.isScan() ? null : newIndexColumns);
+    }
+
+    @Override
+    public RowFactory getRowFactory() {
+        return rowFactory;
     }
 
     /**
@@ -72,16 +82,11 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
      */
     protected static void checkIndexColumnTypes(IndexColumn[] columns) {
         for (IndexColumn c : columns) {
-            if (DataType.isLargeObject(c.column.getType().getValueType())) {
+            if (!DataType.isIndexable(c.column.getType())) {
                 throw DbException.getUnsupportedException(
-                        "Index on BLOB or CLOB column: " + c.column.getCreateSQL());
+                        "Index on column: " + c.column.getCreateSQL());
             }
         }
-    }
-
-    @Override
-    public String getDropSQL() {
-        return null;
     }
 
     /**
@@ -105,6 +110,12 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         return e;
     }
 
+    /**
+     * Get "PRIMARY KEY ON <table> [(column)]".
+     *
+     * @param mainIndexColumn the column index
+     * @return the message
+     */
     protected StringBuilder getDuplicatePrimaryKeyMessage(int mainIndexColumn) {
         StringBuilder builder = new StringBuilder("PRIMARY KEY ON ");
         table.getSQL(builder, false);
@@ -116,46 +127,10 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
     }
 
     @Override
-    public String getPlanSQL() {
-        return getSQL(false);
-    }
-
-    @Override
     public void removeChildrenAndResources(Session session) {
         table.removeIndex(this);
         remove(session);
         database.removeMeta(session, getId());
-    }
-
-    @Override
-    public boolean canFindNext() {
-        return false;
-    }
-
-    @Override
-    public boolean isFindUsingFullTableScan() {
-        return false;
-    }
-
-    @Override
-    public Cursor find(TableFilter filter, SearchRow first, SearchRow last) {
-        return find(filter.getSession(), first, last);
-    }
-
-    /**
-     * Find a row or a list of rows that is larger and create a cursor to
-     * iterate over the result. The base implementation doesn't support this
-     * feature.
-     *
-     * @param session the session
-     * @param higherThan the lower limit (excluding)
-     * @param last the last row, or null for no limit
-     * @return the cursor
-     * @throws DbException always
-     */
-    @Override
-    public Cursor findNext(Session session, SearchRow higherThan, SearchRow last) {
-        throw DbException.throwInternalError(toString());
     }
 
     /**
@@ -497,7 +472,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
         if (aNull || bNull) {
             return SortOrder.compareNull(aNull, sortType);
         }
-        int comp = table.compareValues(a, b);
+        int comp = table.compareValues(database, a, b);
         if ((sortType & SortOrder.DESCENDING) != 0) { //降序时，把比较结果反过来
             comp = -comp;
         }
@@ -579,39 +554,7 @@ public abstract class BaseIndex extends SchemaObjectBase implements Index {
     }
 
     @Override
-    public Row getRow(Session session, long key) {
-        throw DbException.getUnsupportedException(toString());
-    }
-
-    @Override
     public boolean isHidden() {
         return table.isHidden();
-    }
-
-    @Override
-    public boolean isRowIdIndex() { //只有org.h2.mvstore.db.MVPrimaryIndex和org.h2.index.PageDataIndex返回true
-        return false;
-    }
-
-    @Override
-    public boolean canScan() {
-        return true;
-    }
-
-    @Override
-    public void setSortedInsertMode(boolean sortedInsertMode) { //只有org.h2.index.PageIndex覆盖
-        // ignore
-    }
-
-    @Override
-    public IndexLookupBatch createLookupBatch(TableFilter[] filters, int filter) {
-        // Lookup batching is not supported.
-        return null;
-    }
-
-    @Override
-    public void update(Session session, Row oldRow, Row newRow) {
-        remove(session, oldRow);
-        add(session, newRow);
     }
 }

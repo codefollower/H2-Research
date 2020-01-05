@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -49,7 +49,10 @@ public abstract class HashBase {
 
     private int maxSize, minSize, maxDeleted;
 
-    public HashBase() {
+    protected final boolean autoShrink;
+
+    protected HashBase(boolean autoShrink) {
+        this.autoShrink = autoShrink;
         reset(2);
     }
 
@@ -70,6 +73,11 @@ public abstract class HashBase {
     }
 
     /**
+     * Clears the collection.
+     */
+    public abstract void clear();
+
+    /**
      * Check the size before adding an entry. This method resizes the map if
      * required.
      */
@@ -87,7 +95,7 @@ public abstract class HashBase {
      * required.
      */
     protected void checkSizeRemove() {
-        if (size < minSize && level > 0) {
+        if (autoShrink && size < minSize && level > 2) {
             rehash(level - 1);
         } else if (deletedCount > maxDeleted) {
             rehash(level);

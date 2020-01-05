@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,17 +18,16 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Set;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.constraint.Constraint;
+import org.h2.constraint.Constraint.Type;
 import org.h2.engine.Comment;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
-import org.h2.engine.Domain;
 import org.h2.engine.Right;
 import org.h2.engine.Role;
 import org.h2.engine.Session;
@@ -45,6 +44,7 @@ import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.schema.Constant;
+import org.h2.schema.Domain;
 import org.h2.schema.Schema;
 import org.h2.schema.SchemaObject;
 import org.h2.schema.Sequence;
@@ -134,9 +134,8 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
     }
 
     private LocalResult createResult() {
-        Database db = session.getDatabase();
-        return db.getResultFactory().create(session,
-                new Expression[] { new ExpressionColumn(db, new Column("SCRIPT", Value.STRING)) }, 1, 1);
+        return new LocalResult(session, new Expression[] {
+                new ExpressionColumn(session.getDatabase(), new Column("SCRIPT", Value.VARCHAR)) }, 1, 1);
     }
 
     @Override
@@ -186,11 +185,12 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 }
                 add(schema.getCreateSQL(), false);
             }
-            for (Domain datatype : db.getAllDomains()) {
+            for (SchemaObject obj : db.getAllSchemaObjects(DbObject.DOMAIN)) {
+                Domain domain = (Domain) obj;
                 if (drop) {
-                    add(datatype.getDropSQL(), false);
+                    add(domain.getDropSQL(), false);
                 }
-                add(datatype.getCreateSQL(), false);
+                add(domain.getCreateSQL(), false);
             }
             for (SchemaObject obj : db.getAllSchemaObjects(
                     DbObject.CONSTANT)) {
@@ -204,12 +204,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
             final ArrayList<Table> tables = db.getAllTablesAndViews(false);
             // sort by id, so that views are after tables and views on views
             // after the base views
-            Collections.sort(tables, new Comparator<Table>() {
-                @Override
-                public int compare(Table t1, Table t2) {
-                    return t1.getId() - t2.getId();
-                }
-            });
+            tables.sort(Comparator.comparingInt(Table::getId));
 
             // Generate the DROP XXX  ... IF EXISTS
             for (Table table : tables) {
@@ -257,7 +252,15 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 if (drop) {
                     add(sequence.getDropSQL(), false);
                 }
-                add(sequence.getCreateSQL(), false);
+                String createSQL, alterSQL;
+                synchronized (sequence) {
+                    createSQL = sequence.getCreateSQL(true, false);
+                    alterSQL = sequence.getCreateSQL(true, true);
+                }
+                add(createSQL, false);
+                if (alterSQL != null) {
+                    add(alterSQL, false);
+                }
             }
 
             // Generate CREATE TABLE and INSERT...VALUES
@@ -315,9 +318,8 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 tempLobTableCreated = false;
             }
             // Generate CREATE CONSTRAINT ...
-            final ArrayList<SchemaObject> constraints = db.getAllSchemaObjects(
-                    DbObject.CONSTRAINT);
-            Collections.sort(constraints, null);
+            final ArrayList<SchemaObject> constraints = db.getAllSchemaObjects(DbObject.CONSTRAINT);
+            constraints.sort(null);
             for (SchemaObject obj : constraints) {
                 if (excludeSchema(obj.getSchema())) {
                     continue;
@@ -326,10 +328,11 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 if (excludeTable(constraint.getTable())) {
                     continue;
                 }
-                if (constraint.getTable().isHidden()) {
+                Type constraintType = constraint.getConstraintType();
+                if (constraintType != Type.DOMAIN && constraint.getTable().isHidden()) {
                     continue;
                 }
-                if (Constraint.Type.PRIMARY_KEY != constraint.getConstraintType()) {
+                if (constraintType != Constraint.Type.PRIMARY_KEY) {
                     add(constraint.getCreateSQLWithoutIndexes(), false);
                 }
             }

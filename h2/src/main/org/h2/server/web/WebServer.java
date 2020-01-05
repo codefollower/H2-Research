@@ -1,20 +1,24 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.server.web;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,7 +37,6 @@ import org.h2.security.SHA256;
 import org.h2.server.Service;
 import org.h2.server.ShutdownHandler;
 import org.h2.store.fs.FileUtils;
-import org.h2.util.DateTimeUtils;
 import org.h2.util.JdbcUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.NetUtils;
@@ -108,13 +111,15 @@ public class WebServer implements Service {
                 "jdbc:sqlserver://localhost;DatabaseName=test|sa",
         "Generic PostgreSQL|org.postgresql.Driver|" +
                 "jdbc:postgresql:test|" ,
-        "Generic MySQL|com.mysql.jdbc.Driver|" +
+        "Generic MySQL|com.mysql.cj.jdbc.Driver|" +
                 "jdbc:mysql://localhost:3306/test|" ,
+        "Generic MariaDB|org.mariadb.jdbc.Driver|" +
+                "jdbc:mariadb://localhost:3306/test|" ,
         "Generic HSQLDB|org.hsqldb.jdbcDriver|" +
                 "jdbc:hsqldb:test;hsqldb.default_table_type=cached|sa" ,
-        "Generic Derby (Server)|org.apache.derby.jdbc.ClientDriver|" +
+        "Generic Derby (Server)|org.apache.derby.client.ClientAutoloadedDriver|" +
                 "jdbc:derby://localhost:1527/test;create=true|sa",
-        "Generic Derby (Embedded)|org.apache.derby.jdbc.EmbeddedDriver|" +
+        "Generic Derby (Embedded)|org.apache.derby.iapi.jdbc.AutoloadedDriver|" +
                 "jdbc:derby:test;create=true|sa",
         "Generic H2 (Server)|org.h2.Driver|" +
                 "jdbc:h2:tcp://localhost/~/test|sa",
@@ -262,10 +267,8 @@ public class WebServer implements Service {
 
     String getStartDateTime() {
         if (startDateTime == null) {
-            SimpleDateFormat format = new SimpleDateFormat(
-                    "EEE, d MMM yyyy HH:mm:ss z", new Locale("en", ""));
-            format.setTimeZone(DateTimeUtils.UTC);
-            startDateTime = format.format(System.currentTimeMillis());
+            startDateTime = DateTimeFormatter.ofPattern("EEE, d MMM yyyy HH:mm:ss z", Locale.ENGLISH)
+                .format(ZonedDateTime.now(ZoneId.of("UTC")));
         }
         return startDateTime;
     }
@@ -778,7 +781,7 @@ public class WebServer implements Service {
         if (databaseUrl.startsWith("jdbc:h2:")) {
             if (!allowSecureCreation || key == null || !key.equals(userKey)) {
                 if (ifExists) {
-                    databaseUrl += ";IFEXISTS=TRUE";
+                    databaseUrl += ";FORBID_CREATION=TRUE";
                 }
             }
         }
@@ -819,7 +822,7 @@ public class WebServer implements Service {
      */
     private class TranslateThread extends Thread {
 
-        private final File file = new File("translation.properties");
+        private final Path file = Paths.get("translation.properties");
         private final Map<Object, Object> translation;
         private volatile boolean stopNow;
 
@@ -828,7 +831,7 @@ public class WebServer implements Service {
         }
 
         public String getFileName() {
-            return file.getAbsolutePath();
+            return file.toAbsolutePath().toString();
         }
 
         public void stopNow() {
@@ -845,12 +848,12 @@ public class WebServer implements Service {
             while (!stopNow) {
                 try {
                     SortedProperties sp = new SortedProperties();
-                    if (file.exists()) {
-                        InputStream in = FileUtils.newInputStream(file.getName());
+                    if (Files.exists(file)) {
+                        InputStream in = Files.newInputStream(file);
                         sp.load(in);
                         translation.putAll(sp);
                     } else {
-                        OutputStream out = FileUtils.newOutputStream(file.getName(), false);
+                        OutputStream out = Files.newOutputStream(file);
                         sp.putAll(translation);
                         sp.store(out, "Translation");
                     }
@@ -917,7 +920,7 @@ public class WebServer implements Service {
     /**
      * Check the admin password.
      *
-     * @param the password to test
+     * @param password the password to test
      * @return true if admin password not configure, or admin password correct
      */
     boolean checkAdminPassword(String password) {

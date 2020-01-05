@@ -26,6 +26,7 @@
 40001=Detekován deadlock. Probíhající transakce byla vrácena zpět. Podrobnosti: {0}
 42000=Chyba syntaxe v SQL příkazu {0}
 42001=Chyba syntaxe v SQL příkazu {0}; očekáváno {1}
+42602=#Invalid name {0}
 42S01=Tabulka {0} již existuje
 42S02=Tabulka {0} nenalezena
 42S11=Index {0} již existuje
@@ -42,7 +43,7 @@
 90006=#Sequence {0} has run out of numbers
 90007=Tento objekt byl již uzavřen
 90008=Neplatná hodnota {0} pro parametr {1}
-90009=#Unable to create or alter sequence {0} because of invalid attributes (start value {1}, min value {2}, max value {3}, increment {4})
+90009=#Unable to create or alter sequence {0} because of invalid attributes (value {1}, start value {2}, min value {3}, max value {4}, increment {5})
 90010=#Invalid TO_CHAR format {0}
 90011=#A file path that is implicitly relative to the current working directory is not allowed in the database URL {0}. Use an absolute path, ~/name, ./name, or the baseDir setting instead.
 90012=Parametr {0} není nastaven
@@ -84,7 +85,6 @@
 90048=Nepodporovaná verze souboru databáze nebo neplatná hlavička souboru {0}
 90049=Chyba šifrování v souboru {0}
 90050=Nesprávný formát hesla, musí být: heslo k souboru <mezera> uživatelské heslo
-90051=#Scale(${0}) must not be bigger than precision({1})
 90052=Vnořený dotaz není pouze jediný sloupec dotazu
 90053=Skalární vnořený dotaz obsahuje více než jeden řádek
 90054=Neplatné použití agregátní funkce {0}
@@ -179,6 +179,14 @@
 90145=#FOR UPDATE is not allowed in DISTINCT or grouped select
 90146=#Database {0} not found, and IFEXISTS=true, so we can't auto-create it
 90147=#Method {0} is not allowed when connection is in auto-commit mode
+90148=#Current value of sequence {0} is not yet defined in this session
+90149=#Database {0} not found, either pre-create it or allow remote database creation (not recommended in secure environments)
+90150=#Precision ({0}) must be between {1} and {2} inclusive
+90151=#Scale or fractional seconds precision ({0}) must be between {1} and {2} inclusive
+90152=#Constraint {0} is used by constraint {1}
+90153=#Column {0} references uncomparable column {1}
+90154=#Generated column {0} cannot be assigned
+90155=#Generated column {0} cannot be updatable by a referential constraint with {1} clause
 HY000=Obecná chyba: {0}
 HY004=Neznámý datový typ: {0}
 HYC00=Vlastnost není podporována: {0}

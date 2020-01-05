@@ -1,9 +1,11 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.util;
+
+import java.util.Arrays;
 
 import org.h2.message.DbException;
 
@@ -24,6 +26,22 @@ public class IntIntHashMap extends HashBase {
     private int[] keys;
     private int[] values;
     private int zeroValue;
+
+    /**
+     * Creates a new instance of a hash map.
+     */
+    public IntIntHashMap() {
+        this(true);
+    }
+
+    /**
+     * Creates a new instance of a hash map.
+     *
+     * @param autoShrink enable auto-shrink
+     */
+    public IntIntHashMap(boolean autoShrink) {
+        super(autoShrink);
+    }
 
     @Override
     protected void reset(int newLevel) {
@@ -152,6 +170,19 @@ public class IntIntHashMap extends HashBase {
             index = (index + plus++) & mask;
         } while (plus <= len);
         return NOT_FOUND;
+    }
+
+    @Override
+    public void clear() {
+        if (autoShrink && level > 2) {
+            reset(2);
+        } else {
+            Arrays.fill(keys, 0);
+            Arrays.fill(values, 0);
+            deletedCount = 0;
+            size = 0;
+        }
+        zeroKey = false;
     }
 
 }

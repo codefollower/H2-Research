@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -20,15 +20,18 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Properties;
-import java.util.concurrent.Callable;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
 import org.h2.api.ErrorCode;
+import org.h2.store.Data;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.tools.Server;
+import org.h2.util.DateTimeUtils;
 
 /**
  * Tests the PostgreSQL server protocol compliant implementation.
@@ -154,7 +157,7 @@ public class TestPgServer extends TestDb {
         try {
             Connection conn = DriverManager.getConnection(
                     "jdbc:postgresql://localhost:5535/pgserver", "sa", "sa");
-            final Statement stat = conn.createStatement();
+            Statement stat = conn.createStatement();
             stat.execute("create alias sleep for \"java.lang.Thread.sleep\"");
 
             // create a table with 200 rows (cancel interval is 127)
@@ -163,12 +166,7 @@ public class TestPgServer extends TestDb {
                 stat.execute("insert into test (id) values (rand())");
             }
 
-            Future<Boolean> future = executor.submit(new Callable<Boolean>() {
-                @Override
-                public Boolean call() throws SQLException {
-                    return stat.execute("select id, sleep(5) from test");
-                }
-            });
+            Future<Boolean> future = executor.submit(() -> stat.execute("select id, sleep(5) from test"));
 
             // give it a little time to start and then cancel it
             Thread.sleep(100);
@@ -417,7 +415,7 @@ public class TestPgServer extends TestDb {
                     "create table test(x1 varchar, x2 int, " +
                     "x3 smallint, x4 bigint, x5 double, x6 float, " +
                     "x7 real, x8 boolean, x9 char, x10 bytea, " +
-                    "x11 date, x12 time, x13 timestamp, x14 numeric)");
+                    "x11 date, x12 time, x13 timestamp, x14 numeric(25, 5))");
 
             PreparedStatement ps = conn.prepareStatement(
                     "insert into test values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
@@ -474,58 +472,71 @@ public class TestPgServer extends TestDb {
         if (!getPgJdbcDriver()) {
             return;
         }
-
-        Server server = createPgServer(
-                "-ifNotExists", "-pgPort", "5535", "-pgDaemon", "-key", "pgserver", "mem:pgserver");
+        TimeZone old = TimeZone.getDefault();
+        /*
+         * java.util.TimeZone doesn't support LMT, so perform this test with
+         * fixed time zone offset
+         */
+        TimeZone.setDefault(TimeZone.getTimeZone("GMT+01"));
+        DateTimeUtils.resetCalendar();
+        Data.resetCalendar();
         try {
-            Properties props = new Properties();
-            props.setProperty("user", "sa");
-            props.setProperty("password", "sa");
-            // force binary
-            props.setProperty("prepareThreshold", "-1");
+            Server server = createPgServer(
+                    "-ifNotExists", "-pgPort", "5535", "-pgDaemon", "-key", "pgserver", "mem:pgserver");
+            try {
+                Properties props = new Properties();
+                props.setProperty("user", "sa");
+                props.setProperty("password", "sa");
+                // force binary
+                props.setProperty("prepareThreshold", "-1");
 
-            Connection conn = DriverManager.getConnection(
-                    "jdbc:postgresql://localhost:5535/pgserver", props);
-            Statement stat = conn.createStatement();
+                Connection conn = DriverManager.getConnection(
+                        "jdbc:postgresql://localhost:5535/pgserver", props);
+                Statement stat = conn.createStatement();
 
-            stat.execute(
-                    "create table test(x1 date, x2 time, x3 timestamp)");
+                stat.execute(
+                        "create table test(x1 date, x2 time, x3 timestamp)");
 
-            Date[] dates = { null, Date.valueOf("2017-02-20"),
-                    Date.valueOf("1970-01-01"), Date.valueOf("1969-12-31"),
-                    Date.valueOf("1940-01-10"), Date.valueOf("1950-11-10"),
-                    Date.valueOf("1500-01-01")};
-            Time[] times = { null, Time.valueOf("14:15:16"),
-                    Time.valueOf("00:00:00"), Time.valueOf("23:59:59"),
-                    Time.valueOf("00:10:59"), Time.valueOf("08:30:42"),
-                    Time.valueOf("10:00:00")};
-            Timestamp[] timestamps = { null, Timestamp.valueOf("2017-02-20 14:15:16.763"),
-                    Timestamp.valueOf("1970-01-01 00:00:00"), Timestamp.valueOf("1969-12-31 23:59:59"),
-                    Timestamp.valueOf("1940-01-10 00:10:59"), Timestamp.valueOf("1950-11-10 08:30:42.12"),
-                    Timestamp.valueOf("1500-01-01 10:00:10")};
-            int count = dates.length;
+                Date[] dates = { null, Date.valueOf("2017-02-20"),
+                        Date.valueOf("1970-01-01"), Date.valueOf("1969-12-31"),
+                        Date.valueOf("1940-01-10"), Date.valueOf("1950-11-10"),
+                        Date.valueOf("1500-01-01")};
+                Time[] times = { null, Time.valueOf("14:15:16"),
+                        Time.valueOf("00:00:00"), Time.valueOf("23:59:59"),
+                        Time.valueOf("00:10:59"), Time.valueOf("08:30:42"),
+                        Time.valueOf("10:00:00")};
+                Timestamp[] timestamps = { null, Timestamp.valueOf("2017-02-20 14:15:16.763"),
+                        Timestamp.valueOf("1970-01-01 00:00:00"), Timestamp.valueOf("1969-12-31 23:59:59"),
+                        Timestamp.valueOf("1940-01-10 00:10:59"), Timestamp.valueOf("1950-11-10 08:30:42.12"),
+                        Timestamp.valueOf("1500-01-01 10:00:10")};
+                int count = dates.length;
 
-            PreparedStatement ps = conn.prepareStatement(
-                    "insert into test values (?,?,?)");
+                PreparedStatement ps = conn.prepareStatement(
+                        "insert into test values (?,?,?)");
+                    for (int i = 0; i < count; i++) {
+                    ps.setDate(1, dates[i]);
+                    ps.setTime(2, times[i]);
+                    ps.setTimestamp(3, timestamps[i]);
+                    ps.execute();
+                }
+
+                ResultSet rs = stat.executeQuery("select * from test");
                 for (int i = 0; i < count; i++) {
-                ps.setDate(1, dates[i]);
-                ps.setTime(2, times[i]);
-                ps.setTimestamp(3, timestamps[i]);
-                ps.execute();
-            }
+                    assertTrue(rs.next());
+                    assertEquals(dates[i], rs.getDate(1));
+                    assertEquals(times[i], rs.getTime(2));
+                    assertEquals(timestamps[i], rs.getTimestamp(3));
+                }
+                assertFalse(rs.next());
 
-            ResultSet rs = stat.executeQuery("select * from test");
-            for (int i = 0; i < count; i++) {
-                assertTrue(rs.next());
-                assertEquals(dates[i], rs.getDate(1));
-                assertEquals(times[i], rs.getTime(2));
-                assertEquals(timestamps[i], rs.getTimestamp(3));
+                conn.close();
+            } finally {
+                server.stop();
             }
-            assertFalse(rs.next());
-
-            conn.close();
         } finally {
-            server.stop();
+            TimeZone.setDefault(old);
+            DateTimeUtils.resetCalendar();
+            Data.resetCalendar();
         }
     }
 
@@ -548,7 +559,7 @@ public class TestPgServer extends TestDb {
                     "jdbc:postgresql://localhost:5535/pgserver", props);
 
             Statement stmt = conn.createStatement();
-            stmt.executeUpdate("create table t1 (id integer, value timestamp)");
+            stmt.executeUpdate("create table t1 (id integer, v timestamp)");
             stmt.close();
 
             PreparedStatement pstmt = conn.prepareStatement("insert into t1 values(100500, ?)");
@@ -560,7 +571,7 @@ public class TestPgServer extends TestDb {
             assertEquals(1, pstmt.executeUpdate());
             pstmt.close();
 
-            pstmt = conn.prepareStatement("SELECT * FROM t1 WHERE value = ?");
+            pstmt = conn.prepareStatement("SELECT * FROM t1 WHERE v = ?");
             assertEquals(Types.TIMESTAMP, pstmt.getParameterMetaData().getParameterType(1));
 
             pstmt.setObject(1, t);

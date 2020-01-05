@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,6 @@ package org.h2.expression.condition;
 
 import java.util.AbstractList;
 
-import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
@@ -60,8 +59,6 @@ public class ConditionInParameter extends Condition {
         }
     }
 
-    private final Database database;
-
     private Expression left;
 
     private final Parameter parameter;
@@ -69,19 +66,19 @@ public class ConditionInParameter extends Condition {
     /**
      * Gets evaluated condition value.
      *
-     * @param database database instance.
+     * @param session the session
      * @param l left value.
      * @param value parameter value.
      * @return Evaluated condition value.
      */
-    static Value getValue(Database database, Value l, Value value) {
+    static Value getValue(Session session, Value l, Value value) {
         boolean hasNull = false;
         if (value.containsNull()) {
             hasNull = true;
         } else if (value.getValueType() == Value.RESULT_SET) {
             for (ResultInterface ri = value.getResult(); ri.next();) {
                 Value r = ri.currentRow()[0];
-                Value cmp = Comparison.compare(database, l, r, Comparison.EQUAL);
+                Value cmp = Comparison.compare(session, l, r, Comparison.EQUAL);
                 if (cmp == ValueNull.INSTANCE) {
                     hasNull = true;
                 } else if (cmp == ValueBoolean.TRUE) {
@@ -90,7 +87,7 @@ public class ConditionInParameter extends Condition {
             }
         } else {
             for (Value r : ((ValueArray) value.convertTo(Value.ARRAY)).getList()) {
-                Value cmp = Comparison.compare(database, l, r, Comparison.EQUAL);
+                Value cmp = Comparison.compare(session, l, r, Comparison.EQUAL);
                 if (cmp == ValueNull.INSTANCE) {
                     hasNull = true;
                 } else if (cmp == ValueBoolean.TRUE) {
@@ -107,15 +104,12 @@ public class ConditionInParameter extends Condition {
     /**
      * Create a new {@code = ANY(?)} condition.
      *
-     * @param database
-     *            the database
      * @param left
      *            the expression before {@code = ANY(?)}
      * @param parameter
      *            parameter
      */
-    public ConditionInParameter(Database database, Expression left, Parameter parameter) {
-        this.database = database;
+    public ConditionInParameter(Expression left, Parameter parameter) {
         this.left = left;
         this.parameter = parameter;
     }
@@ -124,9 +118,9 @@ public class ConditionInParameter extends Condition {
     public Value getValue(Session session) {
         Value l = left.getValue(session);
         if (l == ValueNull.INSTANCE) {
-            return l;
+            return ValueNull.INSTANCE;
         }
-        return getValue(database, l, parameter.getValue(session));
+        return getValue(session, l, parameter.getValue(session));
     }
 
     @Override
@@ -138,7 +132,7 @@ public class ConditionInParameter extends Condition {
     public Expression optimize(Session session) {
         left = left.optimize(session);
         if (left.isNullConstant()) {
-            return TypedValueExpression.getUnknown();
+            return TypedValueExpression.UNKNOWN;
         }
         return this;
     }

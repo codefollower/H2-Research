@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,7 +16,7 @@ public class IndexColumn {
     /**
      * The column name.
      */
-    public String columnName;
+    public final String columnName;
 
     /**
      * The column, or null if not set.
@@ -75,6 +75,27 @@ public class IndexColumn {
     }
 
     /**
+     * Creates a new instance with the specified name.
+     *
+     * @param columnName
+     *            the column name
+     */
+    public IndexColumn(String columnName) {
+        this.columnName = columnName;
+    }
+
+    /**
+     * Creates a new instance with the specified column.
+     *
+     * @param column
+     *            the column
+     */
+    public IndexColumn(Column column) {
+        columnName = null;
+        this.column = column;
+    }
+
+    /**
      * Appends the SQL snippet for this index column to the specified string builder.
      *
      * @param builder
@@ -98,8 +119,7 @@ public class IndexColumn {
     public static IndexColumn[] wrap(Column[] columns) {
         IndexColumn[] list = new IndexColumn[columns.length];
         for (int i = 0; i < list.length; i++) {
-            list[i] = new IndexColumn();
-            list[i].column = columns[i];
+            list[i] = new IndexColumn(columns[i]);
         }
         return list;
     }

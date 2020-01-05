@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -294,16 +294,7 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public Cursor find(TableFilter filter, SearchRow first, SearchRow last) {
-        return find(first, last);
-    }
-
-    @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
-        return find(first, last);
-    }
-
-    private Cursor find(SearchRow first, SearchRow last) {
         if (first == null) {
             TreeNode x = root, n;
             while (x != null) {
@@ -335,11 +326,6 @@ public class TreeIndex extends BaseIndex {
     public void truncate(Session session) {
         root = null;
         rowCount = 0;
-    }
-
-    @Override
-    public void checkRename() {
-        // nothing to do
     }
 
     @Override

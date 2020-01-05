@@ -1,56 +1,48 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.result;
 
-import org.h2.store.Data;
 import org.h2.value.Value;
 
 /**
  * Represents a row in a table.
  */
-public interface Row extends SearchRow {
-
-    int MEMORY_CALCULATE = -1;
-    Row[] EMPTY_ARRAY = {};
+public abstract class Row extends SearchRow
+{
+    /**
+     * Creates a new row.
+     *
+     * @param data values of columns, or null
+     * @param memory used memory
+     * @return the allocated row
+     */
+    public static Row get(Value[] data, int memory) {
+        return new DefaultRow(data, memory);
+    }
 
     /**
-     * Get the number of bytes required for the data.
+     * Creates a new row with the specified key.
      *
-     * @param dummy the template buffer
-     * @return the number of bytes
+     * @param data values of columns, or null
+     * @param memory used memory
+     * @param key the key
+     * @return the allocated row
      */
-    int getByteCount(Data dummy);
-
-    /**
-     * Check if this is an empty row.
-     *
-     * @return {@code true} if the row is empty
-     */
-    boolean isEmpty();
-
-    /**
-     * Mark the row as deleted.
-     *
-     * @param deleted deleted flag
-     */
-    void setDeleted(boolean deleted);
-
-    /**
-     * Check if the row is deleted.
-     *
-     * @return {@code true} if the row is deleted
-     */
-    boolean isDeleted();
+    public static Row get(Value[] data, int memory, long key) {
+        Row r = new DefaultRow(data, memory);
+        r.setKey(key);
+        return r;
+    }
 
     /**
      * Get values.
      *
      * @return values
      */
-    Value[] getValueList();
+    public abstract Value[] getValueList();
 
     /**
      * Check whether this row and the specified row share the same underlying
@@ -64,6 +56,8 @@ public interface Row extends SearchRow {
      * @return {@code true} if rows share the same underlying data,
      *         {@code false} otherwise or when unknown
      */
-    boolean hasSharedData(Row other);
+    public boolean hasSharedData(Row other) {
+        return false;
+    }
 
 }

@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -102,6 +102,51 @@ CREATE TABLE TEST(ID INT PRIMARY KEY, VALUE1 INT, VALUE2 INT, UNIQUE(VALUE1, VAL
 
 MERGE INTO TEST KEY (ID) VALUES (1, 2, 3), (2, 2, 3);
 > exception DUPLICATE_KEY_1
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(A INT, B INT DEFAULT 5);
+> ok
+
+MERGE INTO TEST KEY(A) VALUES (1, DEFAULT);
+> update count: 1
+
+TABLE TEST;
+> A B
+> - -
+> 1 5
+> rows: 1
+
+UPDATE TEST SET B = 1 WHERE A = 1;
+> update count: 1
+
+SELECT B FROM TEST WHERE A = 1;
+>> 1
+
+MERGE INTO TEST KEY(A) VALUES (1, DEFAULT);
+> update count: 1
+
+SELECT B FROM TEST WHERE A = 1;
+>> 5
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(A INT, B INT GENERATED ALWAYS AS (A + 1));
+> ok
+
+MERGE INTO TEST KEY(A) VALUES (1, 1);
+> exception GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1
+
+MERGE INTO TEST KEY(A) VALUES (1, DEFAULT);
+> update count: 1
+
+MERGE INTO TEST KEY(A) VALUES (1, 1);
+> exception GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1
+
+MERGE INTO TEST KEY(A) VALUES (1, DEFAULT);
+> update count: 1
 
 DROP TABLE TEST;
 > ok

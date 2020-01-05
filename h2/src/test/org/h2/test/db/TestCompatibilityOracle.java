@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,6 +15,8 @@ import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Locale;
+
+import org.h2.engine.SysProperties;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.tools.SimpleResultSet;
@@ -41,9 +43,9 @@ public class TestCompatibilityOracle extends TestDb {
         testDecimalScale();
         testPoundSymbolInColumnName();
         testToDate();
-        testForbidEmptyInClause();
         testSpecialTypes();
         testDate();
+        testSequenceNextval();
     }
 
     private void testNotNullSyntax() throws SQLException {
@@ -236,22 +238,6 @@ public class TestCompatibilityOracle extends TestDb {
         conn.close();
     }
 
-    private void testForbidEmptyInClause() throws SQLException {
-        deleteDb("oracle");
-        Connection conn = getConnection("oracle;MODE=Oracle");
-        Statement stat = conn.createStatement();
-
-        stat.execute("CREATE TABLE A (ID NUMBER, X VARCHAR2(1))");
-        try {
-            stat.executeQuery("SELECT * FROM A WHERE ID IN ()");
-            fail();
-        } catch (SQLException e) {
-            // expected
-        } finally {
-            conn.close();
-        }
-    }
-
     private void testDate() throws SQLException {
         deleteDb("oracle");
         Connection conn = getConnection("oracle;MODE=Oracle");
@@ -281,6 +267,25 @@ public class TestCompatibilityOracle extends TestDb {
         assertEquals(t4, rs.getTimestamp(1));
         assertFalse(rs.next());
 
+        conn.close();
+    }
+
+    private void testSequenceNextval() throws SQLException {
+        // Test NEXTVAL without Oracle MODE should return BIGINT
+        checkSequenceTypeWithMode("REGULAR", Types.BIGINT);
+        // Test NEXTVAL with Oracle MODE should return DECIMAL
+        checkSequenceTypeWithMode("Oracle", SysProperties.BIG_DECIMAL_IS_DECIMAL ? Types.DECIMAL : Types.NUMERIC);
+    }
+
+    private void checkSequenceTypeWithMode(final String mode, final int expectedType) throws SQLException {
+        deleteDb("oracle");
+        Connection conn = getConnection("oracle;MODE=" + mode);
+        Statement stat = conn.createStatement();
+
+        stat.execute("CREATE SEQUENCE seq");
+        ResultSet rs = stat.executeQuery("SELECT seq.NEXTVAL FROM DUAL");
+        // Check type:
+        assertEquals(rs.getMetaData().getColumnType(1), expectedType);
         conn.close();
     }
 

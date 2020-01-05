@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -35,16 +35,14 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.store.RAMDirectory;
-import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.Parser;
 import org.h2.engine.Session;
 import org.h2.expression.ExpressionColumn;
 import org.h2.jdbc.JdbcConnection;
-import org.h2.message.DbException;
 import org.h2.store.fs.FileUtils;
 import org.h2.tools.SimpleResultSet;
 import org.h2.util.StringUtils;
@@ -76,27 +74,6 @@ public class FullTextLucene extends FullText {
      * within this class and not related to the database URL.
      */
     private static final String IN_MEMORY_PREFIX = "mem:";
-
-    /**
-     * TopDocs.totalHits field. May have int, long, or TotalHits type.
-     */
-    private static final java.lang.reflect.Field TOP_DOCS_TOTAL_HITS;
-
-    /**
-     * TotalHits.value field of type long (Lucene 8.0.0+), or null.
-     */
-    private static final java.lang.reflect.Field TOTAL_HITS_VALUE;
-
-    static {
-        try {
-            TOP_DOCS_TOTAL_HITS = TopDocs.class.getField("totalHits");
-            Class<?> type = TOP_DOCS_TOTAL_HITS.getType();
-            TOTAL_HITS_VALUE = type.isPrimitive() ? null : type.getField("value");
-        } catch (ReflectiveOperationException e) {
-            throw DbException.get(ErrorCode.GENERAL_ERROR_1, e,
-                    "Field org.apache.lucene.search.TopDocs.totalHits is not found");
-        }
-    }
 
     /**
      * Initializes full text search functionality for this database. This adds
@@ -321,12 +298,12 @@ public class FullTextLucene extends FullText {
             while (access == null) {
                 try {
                     Directory indexDir = path.startsWith(IN_MEMORY_PREFIX) ?
-                            new RAMDirectory() : FSDirectory.open(Paths.get(path));
+                            new ByteBuffersDirectory() : FSDirectory.open(Paths.get(path));
                     Analyzer analyzer = new StandardAnalyzer();
                     IndexWriterConfig conf = new IndexWriterConfig(analyzer);
                     conf.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
                     IndexWriter writer = new IndexWriter(indexDir, conf);
-                    //see http://wiki.apache.org/lucene-java/NearRealtimeSearch
+                    //see https://cwiki.apache.org/confluence/display/lucene/NearRealtimeSearch
                     access = new IndexAccess(writer);
                 } catch (IndexFormatTooOldException e) {
                     reindex(conn);
@@ -453,8 +430,7 @@ public class FullTextLucene extends FullText {
                 // will trigger writing results to disk.
                 int maxResults = (limit == 0 ? 100 : limit) + offset;
                 TopDocs docs = searcher.search(query, maxResults);
-                long totalHits = TOTAL_HITS_VALUE != null ? TOTAL_HITS_VALUE.getLong(TOP_DOCS_TOTAL_HITS.get(docs))
-                        : TOP_DOCS_TOTAL_HITS.getLong(docs);
+                long totalHits = docs.totalHits.value;
                 if (limit == 0) {
                     // in this context it's safe to cast
                     limit = (int) totalHits;
@@ -607,14 +583,6 @@ public class FullTextLucene extends FullText {
         @Override
         public void close() throws SQLException {
             removeIndexAccess(indexPath);
-        }
-
-        /**
-         * INTERNAL
-         */
-        @Override
-        public void remove() {
-            // ignore
         }
 
         /**

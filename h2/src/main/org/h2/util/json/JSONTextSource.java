@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,6 +10,9 @@ package org.h2.util.json;
  */
 public abstract class JSONTextSource {
 
+    /**
+     * The output.
+     */
     final JSONTarget<?> target;
 
     private final StringBuilder builder;
@@ -19,6 +22,9 @@ public abstract class JSONTextSource {
         builder = new StringBuilder();
     }
 
+    /**
+     * Parse the text and write it to the output.
+     */
     final void parse() {
         boolean comma = false;
         for (int ch; (ch = nextCharAfterWhitespace()) >= 0;) {
@@ -96,11 +102,41 @@ public abstract class JSONTextSource {
         }
     }
 
+    /**
+     * Skip all whitespace characters, and get the next character.
+     *
+     * @return the character code
+     */
     abstract int nextCharAfterWhitespace();
 
+    /**
+     * Read the specified keyword, or (it there is no match), throw an
+     * IllegalArgumentException.
+     *
+     * @param keyword the expected keyword
+     */
     abstract void readKeyword1(String keyword);
 
+    /**
+     * Parse a number.
+     *
+     * @param positive whether it needs to be positive
+     */
     abstract void parseNumber(boolean positive);
+
+    /**
+     * Read the next character.
+     *
+     * @return the character code
+     */
+    abstract int nextChar();
+
+    /**
+     * Read 4 hex characters (0-9, a-f, A-F), and return the Unicode character.
+     *
+     * @return the character
+     */
+    abstract char readHex();
 
     private String readString() {
         builder.setLength(0);
@@ -156,10 +192,6 @@ public abstract class JSONTextSource {
             }
         }
     }
-
-    abstract int nextChar();
-
-    abstract char readHex();
 
     private void appendNonSurrogate(char ch, boolean inSurrogate) {
         if (inSurrogate) {

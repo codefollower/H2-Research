@@ -1,4 +1,4 @@
--- Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -21,13 +21,13 @@ DROP TABLE TEST;
 > ok
 
 SELECT TRUE = (ANY((SELECT TRUE)));
-> TRUE = (ANY((SELECT TRUE FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */ /* scanCount: 2 */)))
-> -----------------------------------------------------------------------------------------------
+> TRUE = (ANY((SELECT TRUE)))
+> ---------------------------
 > TRUE
 > rows: 1
 
 SELECT TRUE = (ANY((SELECT FALSE)));
-> TRUE = (ANY((SELECT FALSE FROM SYSTEM_RANGE(1, 1) /* PUBLIC.RANGE_INDEX */ /* scanCount: 2 */)))
-> ------------------------------------------------------------------------------------------------
+> TRUE = (ANY((SELECT FALSE)))
+> ----------------------------
 > FALSE
 > rows: 1

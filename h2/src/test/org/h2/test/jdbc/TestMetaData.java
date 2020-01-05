@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -352,13 +352,13 @@ public class TestMetaData extends TestDb {
                         Constants.SCHEMA_MAIN, "CHILD", "PA", "1",
                         "" + DatabaseMetaData.importedKeyRestrict,
                         "" + DatabaseMetaData.importedKeyRestrict, "AB",
-                        "PRIMARY_KEY_8",
+                        "CONSTRAINT_8",
                         "" + DatabaseMetaData.importedKeyNotDeferrable },
                 { CATALOG, Constants.SCHEMA_MAIN, "PARENT", "B", CATALOG,
                         Constants.SCHEMA_MAIN, "CHILD", "PB", "2",
                         "" + DatabaseMetaData.importedKeyRestrict,
                         "" + DatabaseMetaData.importedKeyRestrict, "AB",
-                        "PRIMARY_KEY_8",
+                        "CONSTRAINT_8",
                         "" + DatabaseMetaData.importedKeyNotDeferrable } });
     }
 
@@ -421,7 +421,7 @@ public class TestMetaData extends TestDb {
                 meta.getDriverMinorVersion());
         int majorVersion = 4;
         assertEquals(majorVersion, meta.getJDBCMajorVersion());
-        assertEquals(1, meta.getJDBCMinorVersion());
+        assertEquals(2, meta.getJDBCMinorVersion());
         assertEquals("H2", meta.getDatabaseProductName());
         assertEquals(Connection.TRANSACTION_READ_COMMITTED,
                 meta.getDefaultTransactionIsolation());
@@ -461,16 +461,18 @@ public class TestMetaData extends TestDb {
 
         assertEquals("schema", meta.getSchemaTerm());
         assertEquals("\\", meta.getSearchStringEscape());
-        assertEquals("CURRENT_SCHEMA," //
+        assertEquals("CURRENT_CATALOG," //
+                + "CURRENT_SCHEMA," //
                 + "GROUPS," //
                 + "IF,ILIKE,INTERSECTS," //
                 + "LIMIT," //
                 + "MINUS," //
                 + "OFFSET," //
                 + "QUALIFY," //
-                + "REGEXP,_ROWID_,ROWNUM," //
+                + "REGEXP,ROWNUM," //
                 + "SYSDATE,SYSTIME,SYSTIMESTAMP," //
-                + "TODAY,TOP", //
+                + "TODAY,TOP,"//
+                + "_ROWID_", //
                 meta.getSQLKeywords());
 
         assertTrue(meta.getURL().startsWith("jdbc:h2:"));
@@ -616,17 +618,12 @@ public class TestMetaData extends TestDb {
         assertTrue(meta.supportsSubqueriesInQuantifieds());
         assertTrue(meta.supportsTableCorrelationNames());
         assertTrue(meta.supportsTransactions());
-        assertFalse(meta.supportsTransactionIsolationLevel(
-                Connection.TRANSACTION_NONE));
-        assertTrue(meta.supportsTransactionIsolationLevel(
-                Connection.TRANSACTION_READ_COMMITTED));
-        assertEquals(config.mvStore || !config.multiThreaded,
-                meta.supportsTransactionIsolationLevel(
-                        Connection.TRANSACTION_READ_UNCOMMITTED));
-        assertTrue(meta.supportsTransactionIsolationLevel(
-                Connection.TRANSACTION_REPEATABLE_READ));
-        assertTrue(meta.supportsTransactionIsolationLevel(
-                Connection.TRANSACTION_SERIALIZABLE));
+        assertFalse(meta.supportsTransactionIsolationLevel(Connection.TRANSACTION_NONE));
+        assertTrue(meta.supportsTransactionIsolationLevel(Connection.TRANSACTION_READ_COMMITTED));
+        assertTrue(meta.supportsTransactionIsolationLevel(Connection.TRANSACTION_READ_UNCOMMITTED));
+        assertTrue(meta.supportsTransactionIsolationLevel(Connection.TRANSACTION_REPEATABLE_READ));
+        assertTrue(meta.supportsTransactionIsolationLevel(Constants.TRANSACTION_SNAPSHOT));
+        assertTrue(meta.supportsTransactionIsolationLevel(Connection.TRANSACTION_SERIALIZABLE));
         assertTrue(meta.supportsUnion());
         assertTrue(meta.supportsUnionAll());
         assertFalse(meta.updatesAreDetected(ResultSet.TYPE_FORWARD_ONLY));
@@ -1094,6 +1091,8 @@ public class TestMetaData extends TestDb {
         rs.next();
         assertEquals("CATALOGS", rs.getString("TABLE_NAME"));
         rs.next();
+        assertEquals("CHECK_CONSTRAINTS", rs.getString("TABLE_NAME"));
+        rs.next();
         assertEquals("COLLATIONS", rs.getString("TABLE_NAME"));
         rs.next();
         assertEquals("COLUMNS", rs.getString("TABLE_NAME"));
@@ -1102,11 +1101,13 @@ public class TestMetaData extends TestDb {
         rs.next();
         assertEquals("CONSTANTS", rs.getString("TABLE_NAME"));
         rs.next();
-        assertEquals("CONSTRAINTS", rs.getString("TABLE_NAME"));
+        assertEquals("CONSTRAINT_COLUMN_USAGE", rs.getString("TABLE_NAME"));
         rs.next();
         assertEquals("CROSS_REFERENCES", rs.getString("TABLE_NAME"));
         rs.next();
         assertEquals("DOMAINS", rs.getString("TABLE_NAME"));
+        rs.next();
+        assertEquals("DOMAIN_CONSTRAINTS", rs.getString("TABLE_NAME"));
         rs.next();
         assertEquals("FUNCTION_ALIASES", rs.getString("TABLE_NAME"));
         rs.next();
@@ -1200,11 +1201,18 @@ public class TestMetaData extends TestDb {
         stat.execute("DROP TABLE TEST");
 
         rs = stat.executeQuery("SELECT * FROM INFORMATION_SCHEMA.SETTINGS");
+        int mvStoreSettingsCount = 0, pageStoreSettingsCount = 0;
         while (rs.next()) {
             String name = rs.getString("NAME");
-            String value = rs.getString("VALUE");
-            trace(name + "=" + value);
+            trace(name + '=' + rs.getString("VALUE"));
+            if ("COMPRESS".equals(name) || "REUSE_SPACE".equals(name)) {
+                mvStoreSettingsCount++;
+            } else if (name.startsWith("PAGE_STORE_")) {
+                pageStoreSettingsCount++;
+            }
         }
+        assertEquals(config.mvStore ? 2 : 0, mvStoreSettingsCount);
+        assertEquals(config.mvStore ? 0 : 3, pageStoreSettingsCount);
 
         testMore();
 

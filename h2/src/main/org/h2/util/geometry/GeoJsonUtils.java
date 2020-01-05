@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -204,9 +204,7 @@ public final class GeoJsonUtils {
         }
 
         private void writeDouble(double v) {
-            BigDecimal d = BigDecimal.valueOf(GeometryUtils.checkFinite(v));
-            // stripTrailingZeros() does not work with 0.0 on Java 7
-            output.valueNumber(d.signum() != 0 ? d.stripTrailingZeros() : BigDecimal.ZERO);
+            output.valueNumber(BigDecimal.valueOf(GeometryUtils.checkFinite(v)).stripTrailingZeros());
         }
 
     }

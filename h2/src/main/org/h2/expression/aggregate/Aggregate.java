@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,13 +18,13 @@ import org.h2.api.ErrorCode;
 import org.h2.command.dml.Select;
 import org.h2.command.dml.SelectOrderBy;
 import org.h2.engine.Database;
-import org.h2.engine.Mode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.ExpressionWithFlags;
 import org.h2.expression.Subquery;
+import org.h2.expression.ValueExpression;
 import org.h2.expression.analysis.Window;
 import org.h2.expression.function.Function;
 import org.h2.index.Cursor;
@@ -129,7 +129,6 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         addAggregate("EVERY", AggregateType.EVERY);
         // PostgreSQL compatibility
         addAggregate("BOOL_AND", AggregateType.EVERY);
-        addAggregate("SELECTIVITY", AggregateType.SELECTIVITY);
         addAggregate("HISTOGRAM", AggregateType.HISTOGRAM);
         addAggregate("BIT_OR", AggregateType.BIT_OR);
         addAggregate("BIT_AND", AggregateType.BIT_AND);
@@ -201,16 +200,10 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
 
     private void sortWithOrderBy(Value[] array) {
         final SortOrder sortOrder = orderBySort;
-        if (sortOrder != null) {
-            Arrays.sort(array, new Comparator<Value>() {
-                @Override
-                public int compare(Value v1, Value v2) {
-                    return sortOrder.compare(((ValueArray) v1).getList(), ((ValueArray) v2).getList());
-                }
-            });
-        } else {
-            Arrays.sort(array, select.getSession().getDatabase().getCompareMode());
-        }
+        Arrays.sort(array,
+                sortOrder != null
+                        ? (v1, v2) -> sortOrder.compare(((ValueRow) v1).getList(), ((ValueRow) v2).getList())
+                        : select.getSession().getDatabase().getCompareMode());
     }
 
     @Override
@@ -224,7 +217,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         switch (aggregateType) {
         case LISTAGG:
             if (v != ValueNull.INSTANCE) {
-                v = updateCollecting(session, v.convertTo(Value.STRING), remembered);
+                v = updateCollecting(session, v.convertTo(Value.VARCHAR), remembered);
             }
             if (args.length >= 2) {
                 ((AggregateDataCollecting) data).setSharedArgument(
@@ -275,9 +268,9 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 throw DbException.getInvalidValueException("JSON_OBJECTAGG key", "NULL");
             }
             if (value != ValueNull.INSTANCE) {
-                v = ValueArray.get(new Value[] { key, value });
+                v = ValueRow.get(new Value[] { key, value });
             } else if ((flags & Function.JSON_ABSENT_ON_NULL) == 0) {
-                v = ValueArray.get(new Value[] { key, ValueJson.NULL });
+                v = ValueRow.get(new Value[] { key, ValueJson.NULL });
             } else {
                 return;
             }
@@ -286,7 +279,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         default:
             // Use argument as is
         }
-        data.add(session.getDatabase(), v);
+        data.add(session, v);
     }
 
     @Override
@@ -305,17 +298,17 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     private Value updateCollecting(Session session, Value v, Value[] remembered) {
         if (orderByList != null) {
             int size = orderByList.size();
-            Value[] array = new Value[1 + size];
-            array[0] = v;
+            Value[] row = new Value[1 + size];
+            row[0] = v;
             if (remembered == null) {
                 for (int i = 0; i < size; i++) {
                     SelectOrderBy o = orderByList.get(i);
-                    array[i + 1] = o.expression.getValue(session);
+                    row[i + 1] = o.expression.getValue(session);
                 }
             } else {
-                System.arraycopy(remembered, 1, array, 1, size);
+                System.arraycopy(remembered, 1, row, 1, size);
             }
-            v = ValueArray.get(array);
+            v = ValueRow.get(row);
         }
         return v;
     }
@@ -359,7 +352,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
 
     @Override
     protected Object createAggregateData() {
-        return AggregateData.create(aggregateType, distinct, type.getValueType());
+        return AggregateData.create(aggregateType, distinct, type.getValueType(), orderByList != null);
     }
 
     @Override
@@ -441,12 +434,11 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                     return ValueNull.INSTANCE;
                 }
                 AggregateDataDefault d = new AggregateDataDefault(aggregateType, type.getValueType());
-                Database db = session.getDatabase();
                 int dataType = type.getValueType();
                 for (Value v : c) {
-                    d.add(db, v);
+                    d.add(session, v);
                 }
-                return d.getValue(db, dataType);
+                return d.getValue(session, dataType);
             }
             break;
         case HISTOGRAM:
@@ -463,7 +455,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             }
             if (orderByList != null) {
                 for (int i = 0; i < array.length; i++) {
-                    array[i] = ((ValueArray) array[i]).getList()[0];
+                    array[i] = ((ValueRow) array[i]).getList()[0];
                 }
             }
             return ValueArray.get(array);
@@ -486,7 +478,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             }
             BigDecimal arg = v.getBigDecimal();
             if (arg.signum() >= 0 && arg.compareTo(BigDecimal.ONE) <= 0) {
-                return Percentile.getValue(session.getDatabase(), array, type.getValueType(), orderByList, arg,
+                return Percentile.getValue(session, array, type.getValueType(), orderByList, arg,
                         aggregateType == AggregateType.PERCENTILE_CONT);
             } else {
                 throw DbException.getInvalidValueException(aggregateType == AggregateType.PERCENTILE_CONT ?
@@ -498,8 +490,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             if (array == null) {
                 return ValueNull.INSTANCE;
             }
-            return Percentile.getValue(session.getDatabase(), array, type.getValueType(), orderByList, Percentile.HALF,
-                    true);
+            return Percentile.getValue(session, array, type.getValueType(), orderByList, Percentile.HALF, true);
         }
         case MODE:
             return getMode(session, data);
@@ -515,7 +506,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             baos.write('[');
             for (Value v : array) {
                 if (orderByList != null) {
-                    v = ((ValueArray) v).getList()[0];
+                    v = ((ValueRow) v).getList()[0];
                 }
                 Function.jsonArrayAppend(baos, v, flags);
             }
@@ -530,7 +521,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             baos.write('{');
             for (Value v : array) {
-                Value[] row = ((ValueArray) v).getList();
+                Value[] row = ((ValueRow) v).getList();
                 String key = row[0].getString();
                 if (key == null) {
                     throw DbException.getInvalidValueException("JSON_OBJECTAGG key", "NULL");
@@ -542,7 +533,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         default:
             // Avoid compiler warning
         }
-        return data.getValue(session.getDatabase(), type.getValueType());
+        return data.getValue(session, type.getValueType());
     }
 
     private Value getHypotheticalSet(Session session, AggregateData data) {
@@ -561,7 +552,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 throw DbException.getUnsupportedException("aggregateType=" + aggregateType);
             }
         }
-        collectingData.add(session.getDatabase(), arg);
+        collectingData.add(session, arg);
         Value[] array = collectingData.getArray();
         Comparator<Value> sort = orderBySort.getRowValueComparator();
         Arrays.sort(array, sort);
@@ -630,7 +621,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             Value val = array[i];
             String s;
             if (orderByList != null) {
-                s = ((ValueArray) val).getList()[0].getString();
+                s = ((ValueRow) val).getList()[0].getString();
             } else {
                 s = val.getString();
             }
@@ -642,29 +633,21 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         return ValueString.get(builder.toString());
     }
 
-    private Value getHistogram(Session session, AggregateData data) {
+    private static Value getHistogram(Session session, AggregateData data) {
         TreeMap<Value, LongDataCounter> distinctValues = ((AggregateDataDistinctWithCounts) data).getValues();
         if (distinctValues == null) {
-            return ValueArray.getEmpty();
+            return ValueArray.EMPTY;
         }
-        ValueArray[] values = new ValueArray[distinctValues.size()];
+        ValueRow[] values = new ValueRow[distinctValues.size()];
         int i = 0;
         for (Entry<Value, LongDataCounter> entry : distinctValues.entrySet()) {
             LongDataCounter d = entry.getValue();
-            values[i] = ValueArray.get(new Value[] { entry.getKey(), ValueLong.get(distinct ? 1L : d.count) });
+            values[i] = ValueRow.get(new Value[] { entry.getKey(), ValueLong.get(d.count) });
             i++;
         }
         Database db = session.getDatabase();
-        final Mode mode = db.getMode();
-        final CompareMode compareMode = db.getCompareMode();
-        Arrays.sort(values, new Comparator<ValueArray>() {
-            @Override
-            public int compare(ValueArray v1, ValueArray v2) {
-                Value a1 = v1.getList()[0];
-                Value a2 = v2.getList()[0];
-                return a1.compareTo(a2, mode, compareMode);
-            }
-        });
+        CompareMode compareMode = db.getCompareMode();
+        Arrays.sort(values, (v1, v2) -> v1.getList()[0].compareTo(v2.getList()[0], session, compareMode));
         return ValueArray.get(values);
     }
 
@@ -684,7 +667,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                     count = c;
                 } else if (c == count) {
                     Value v2 = entry.getKey();
-                    int cmp = session.getDatabase().compareTypeSafe(v, v2);
+                    int cmp = session.compareTypeSafe(v, v2);
                     if (desc) {
                         if (cmp >= 0) {
                             continue;
@@ -741,14 +724,24 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         }
         switch (aggregateType) {
         case LISTAGG:
-            type = TypeInfo.TYPE_STRING;
+            type = TypeInfo.TYPE_VARCHAR;
             break;
         case COUNT_ALL:
-        case COUNT:
-            type = TypeInfo.TYPE_LONG;
+            type = TypeInfo.TYPE_BIGINT;
             break;
-        case SELECTIVITY:
-            type = TypeInfo.TYPE_INT;
+        case COUNT:
+            if (args[0].isConstant()) {
+                if (args[0].getValue(session) == ValueNull.INSTANCE) {
+                    return ValueExpression.get(ValueLong.get(0L));
+                }
+                if (!distinct) {
+                    Aggregate aggregate = new Aggregate(AggregateType.COUNT_ALL, new Expression[0], select, false);
+                    aggregate.setFilterCondition(filterCondition);
+                    aggregate.setOverCondition(over);
+                    return aggregate.optimize(session);
+                }
+            }
+            type = TypeInfo.TYPE_BIGINT;
             break;
         case HISTOGRAM:
             type = TypeInfo.TYPE_ARRAY;
@@ -757,7 +750,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             int dataType = type.getValueType();
             if (dataType == Value.BOOLEAN) {
                 // example: sum(id > 3) (count the rows)
-                type = TypeInfo.TYPE_LONG;
+                type = TypeInfo.TYPE_BIGINT;
             } else if (!DataType.supportsAdd(dataType)) {
                 throw DbException.get(ErrorCode.SUM_OR_AVG_ON_WRONG_DATATYPE_1, getSQL(false));
             } else {
@@ -775,7 +768,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             break;
         case RANK:
         case DENSE_RANK:
-            type = TypeInfo.TYPE_LONG;
+            type = TypeInfo.TYPE_BIGINT;
             break;
         case PERCENT_RANK:
         case CUME_DIST:
@@ -786,14 +779,14 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             //$FALL-THROUGH$
         case MEDIAN:
             switch (type.getValueType()) {
-            case Value.BYTE:
-            case Value.SHORT:
+            case Value.TINYINT:
+            case Value.SMALLINT:
             case Value.INT:
-            case Value.LONG:
-            case Value.DECIMAL:
+            case Value.BIGINT:
+            case Value.NUMERIC:
             case Value.DOUBLE:
-            case Value.FLOAT:
-                type = TypeInfo.TYPE_DECIMAL_DEFAULT;
+            case Value.REAL:
+                type = TypeInfo.TYPE_NUMERIC_FLOATING_POINT;
                 break;
             }
             break;
@@ -851,9 +844,6 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             return appendTailConditions(builder.append("COUNT(*)"), alwaysQuote);
         case COUNT:
             text = "COUNT";
-            break;
-        case SELECTIVITY:
-            text = "SELECTIVITY";
             break;
         case HISTOGRAM:
             text = "HISTOGRAM";

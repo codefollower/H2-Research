@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,13 +18,12 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.h2.mvstore.DataUtils;
-import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.tx.Transaction;
 import org.h2.mvstore.tx.TransactionMap;
 import org.h2.mvstore.tx.TransactionStore;
 import org.h2.mvstore.tx.TransactionStore.Change;
-import org.h2.mvstore.type.ObjectDataType;
+import org.h2.mvstore.type.LongDataType;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.util.Task;
@@ -53,7 +52,6 @@ public class TestTransactionStore extends TestBase {
         testConcurrentUpdate();
         testRepeatedChange();
         testTransactionAge();
-        testStopWhileCommitting();
         testGetModifiedMaps();
         testKeyIterator();
         testTwoPhaseCommit();
@@ -69,7 +67,7 @@ public class TestTransactionStore extends TestBase {
         final TransactionStore ts = new TransactionStore(s);
         ts.init();
         Transaction t = ts.begin();
-        ObjectDataType keyType = new ObjectDataType();
+        LongDataType keyType = LongDataType.INSTANCE;
         TransactionMap<Long, Long> map = t.openMap("test", keyType, keyType);
         // firstKey()
         assertNull(map.firstKey());
@@ -349,87 +347,6 @@ public class TestTransactionStore extends TestBase {
             open++;
         }
         s.close();
-    }
-
-    private void testStopWhileCommitting() throws Exception {
-        String fileName = getBaseDir() + "/testStopWhileCommitting.h3";
-        FileUtils.delete(fileName);
-        Random r = new Random(0);
-
-        for (int i = 0; i < 10;) {
-            MVStore s;
-            TransactionStore ts;
-            Transaction tx;
-            TransactionMap<Integer, String> m;
-
-            s = MVStore.open(fileName);
-            ts = new TransactionStore(s);
-            ts.init();
-            tx = ts.begin();
-            s.setReuseSpace(false);
-            m = tx.openMap("test");
-            final String value = "x" + i;
-            for (int j = 0; j < 1000; j++) {
-                m.put(j, value);
-            }
-            final AtomicInteger state = new AtomicInteger();
-            final MVStore store = s;
-            final MVMap<Integer, String> other = s.openMap("other");
-            Task task = new Task() {
-
-                @Override
-                public void call() throws Exception {
-                    for (int i = 0; !stop; i++) {
-                        state.set(i);
-                        other.put(i, value);
-                        store.commit();
-                    }
-                }
-            };
-            task.execute();
-            // wait for the task to start
-            while (state.get() < 1) {
-                Thread.yield();
-            }
-            // commit while writing in the task
-            tx.commit();
-            // wait for the task to stop
-            task.get();
-            store.close();
-            s = MVStore.open(fileName);
-            // roll back a bit, until we have some undo log entries
-            for (int back = 0; back < 100; back++) {
-                int minus = r.nextInt(10);
-                s.rollbackTo(Math.max(0, s.getCurrentVersion() - minus));
-                if (hasDataUndoLog(s)) {
-                    break;
-                }
-            }
-            // re-open TransactionStore, because we rolled back
-            // underlying MVStore without rolling back TransactionStore
-            s.close();
-            s = MVStore.open(fileName);
-            ts = new TransactionStore(s);
-            List<Transaction> list = ts.getOpenTransactions();
-            if (list.size() != 0) {
-                tx = list.get(0);
-                if (tx.getStatus() == Transaction.STATUS_COMMITTED) {
-                    i++;
-                }
-            }
-            s.close();
-            FileUtils.delete(fileName);
-            assertFalse(FileUtils.exists(fileName));
-        }
-    }
-
-    private static boolean hasDataUndoLog(MVStore s) {
-        for (int i = 0; i < 255; i++) {
-            if (s.hasData(TransactionStore.getUndoLogName(i))) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void testGetModifiedMaps() {

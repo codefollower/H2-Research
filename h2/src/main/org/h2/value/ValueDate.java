@@ -1,17 +1,20 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.value;
 
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Types;
 
 import org.h2.api.ErrorCode;
+import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
+import org.h2.util.JSR310Utils;
+import org.h2.util.LegacyDateTimeUtils;
 
 /**
  * Implementation of the DATE data type.
@@ -27,6 +30,9 @@ public class ValueDate extends Value {
     private final long dateValue;
 
     private ValueDate(long dateValue) {
+        if (dateValue < DateTimeUtils.MIN_DATE_VALUE || dateValue > DateTimeUtils.MAX_DATE_VALUE) {
+            throw new IllegalArgumentException("dateValue out of range " + dateValue);
+        }
         this.dateValue = dateValue;
     }
 
@@ -38,28 +44,6 @@ public class ValueDate extends Value {
      */
     public static ValueDate fromDateValue(long dateValue) {
         return (ValueDate) Value.cache(new ValueDate(dateValue));
-    }
-
-    /**
-     * Get or create a date value for the given date.
-     *
-     * @param date the date
-     * @return the value
-     */
-    public static ValueDate get(Date date) {
-        long ms = date.getTime();
-        return fromDateValue(DateTimeUtils.dateValueFromLocalMillis(ms + DateTimeUtils.getTimeZoneOffset(ms)));
-    }
-
-    /**
-     * Calculate the date value (in the default timezone) from a given time in
-     * milliseconds in UTC.
-     *
-     * @param ms the milliseconds
-     * @return the value
-     */
-    public static ValueDate fromMillis(long ms) {
-        return fromDateValue(DateTimeUtils.dateValueFromLocalMillis(ms + DateTimeUtils.getTimeZoneOffset(ms)));
     }
 
     /**
@@ -82,11 +66,6 @@ public class ValueDate extends Value {
     }
 
     @Override
-    public Date getDate() {
-        return DateTimeUtils.convertDateValueToDate(dateValue);
-    }
-
-    @Override
     public TypeInfo getType() {
         return TypeInfo.TYPE_DATE;
     }
@@ -98,20 +77,19 @@ public class ValueDate extends Value {
 
     @Override
     public String getString() {
-        StringBuilder buff = new StringBuilder(PRECISION);
-        DateTimeUtils.appendDate(buff, dateValue);
-        return buff.toString();
+        StringBuilder builder = new StringBuilder(PRECISION);
+        DateTimeUtils.appendDate(builder, dateValue);
+        return builder.toString();
     }
 
     @Override
     public StringBuilder getSQL(StringBuilder builder) {
-        builder.append("DATE '");
-        DateTimeUtils.appendDate(builder, dateValue);
+        DateTimeUtils.appendDate(builder.append("DATE '"), dateValue);
         return builder.append('\'');
     }
 
     @Override
-    public int compareTypeSafe(Value o, CompareMode mode) {
+    public int compareTypeSafe(Value o, CompareMode mode, CastDataProvider provider) {
         return Long.compare(dateValue, ((ValueDate) o).dateValue);
     }
 
@@ -131,13 +109,18 @@ public class ValueDate extends Value {
 
     @Override
     public Object getObject() {
-        return getDate();
+        return JSR310Utils.valueToLocalDate(this, null);
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex)
-            throws SQLException {
-        prep.setDate(parameterIndex, getDate());
+    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
+        try {
+            prep.setObject(parameterIndex, JSR310Utils.valueToLocalDate(this, null), Types.DATE);
+            return;
+        } catch (SQLException ignore) {
+            // Nothing to do
+        }
+        prep.setDate(parameterIndex, LegacyDateTimeUtils.toDate(null, null, this));
     }
 
 }

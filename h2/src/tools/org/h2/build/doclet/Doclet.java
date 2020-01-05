@@ -1,15 +1,14 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.build.doclet;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -80,11 +79,10 @@ public class Doclet {
     private void processClass(ClassDoc clazz) throws IOException {
         String packageName = clazz.containingPackage().name();
         String dir = destDir + "/" + packageName.replace('.', '/');
-        (new File(dir)).mkdirs();
+        Files.createDirectories(Paths.get(dir));
         String fileName = dir + "/" + clazz.name() + ".html";
         String className = getClass(clazz);
-        FileWriter out = new FileWriter(fileName);
-        PrintWriter writer = new PrintWriter(new BufferedWriter(out));
+        PrintWriter writer = new PrintWriter(Files.newBufferedWriter(Paths.get(fileName)));
         writer.println("<!DOCTYPE html PUBLIC \"-//W3C//DTD " +
                 "XHTML 1.0 Strict//EN\" " +
                 "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">");
@@ -118,27 +116,13 @@ public class Doclet {
                 constructors.length);
         System.arraycopy(methods, 0, constructorsMethods, constructors.length,
                 methods.length);
-        Arrays.sort(constructorsMethods, new Comparator<ExecutableMemberDoc>() {
-            @Override
-            public int compare(ExecutableMemberDoc a, ExecutableMemberDoc b) {
-                // sort static method before non-static methods
-                if (a.isStatic() != b.isStatic()) {
-                    return a.isStatic() ? -1 : 1;
-                }
-                return a.name().compareTo(b.name());
+        Arrays.sort(constructorsMethods, (a, b) -> {
+            // sort static method before non-static methods
+            if (a.isStatic() != b.isStatic()) {
+                return a.isStatic() ? -1 : 1;
             }
+            return a.name().compareTo(b.name());
         });
-//
-//
-//        Arrays.sort(methods, new Comparator<MethodDoc>() {
-//            public int compare(MethodDoc a, MethodDoc b) {
-//                // sort static method before non-static methods
-//                if (a.isStatic() != b.isStatic()) {
-//                    return a.isStatic() ? -1 : 1;
-//                }
-//                return a.name().compareTo(b.name());
-//            }
-//        });
         ArrayList<String> signatures = new ArrayList<>();
         boolean hasMethods = false;
         int id = 0;
@@ -212,12 +196,7 @@ public class Doclet {
         if (clazz.interfaces().length > 0) {
             fields = clazz.interfaces()[0].fields();
         }
-        Arrays.sort(fields, new Comparator<FieldDoc>() {
-            @Override
-            public int compare(FieldDoc a, FieldDoc b) {
-                return a.name().compareTo(b.name());
-            }
-        });
+        Arrays.sort(fields, Comparator.comparing(FieldDoc::name));
         int fieldId = 0;
         for (FieldDoc field : fields) {
             if (skipField(clazz, field)) {
@@ -256,19 +235,16 @@ public class Doclet {
         }
 
         // field details
-        Arrays.sort(fields, new Comparator<FieldDoc>() {
-            @Override
-            public int compare(FieldDoc a, FieldDoc b) {
-                String ca = a.constantValueExpression();
-                if (ca == null) {
-                    ca = a.name();
-                }
-                String cb = b.constantValueExpression();
-                if (cb == null) {
-                    cb = b.name();
-                }
-                return ca.compareTo(cb);
+        Arrays.sort(fields, (a, b) -> {
+            String ca = a.constantValueExpression();
+            if (ca == null) {
+                ca = a.name();
             }
+            String cb = b.constantValueExpression();
+            if (cb == null) {
+                cb = b.name();
+            }
+            return ca.compareTo(cb);
         });
         for (FieldDoc field : fields) {
             writeFieldDetails(writer, clazz, field);
@@ -276,7 +252,6 @@ public class Doclet {
 
         writer.println("</div></td></tr></table></body></html>");
         writer.close();
-        out.close();
     }
 
     private void writeFieldDetails(PrintWriter writer, ClassDoc clazz,

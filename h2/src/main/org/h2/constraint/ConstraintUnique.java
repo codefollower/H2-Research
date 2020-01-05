@@ -1,10 +1,11 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.constraint;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import org.h2.engine.Session;
 import org.h2.index.Index;
@@ -99,6 +100,15 @@ public class ConstraintUnique extends Constraint {
 
     @Override
     public void removeChildrenAndResources(Session session) {
+        ArrayList<Constraint> constraints = table.getConstraints();
+        if (constraints != null) {
+            constraints = new ArrayList<>(table.getConstraints());
+            for (Constraint c : constraints) {
+                if (c.getReferencedConstraint() == this) {
+                    database.removeSchemaObject(session, c);
+                }
+            }
+        }
         table.removeConstraint(this);
         if (indexOwner) {
             table.removeIndexOrTransferOwnership(session, index); //如果此index没在其他地方使用就删除，否则改变Owner
@@ -147,7 +157,7 @@ public class ConstraintUnique extends Constraint {
     }
 
     @Override
-    public Index getUniqueIndex() {
+    public Index getIndex() {
         return index;
     }
 

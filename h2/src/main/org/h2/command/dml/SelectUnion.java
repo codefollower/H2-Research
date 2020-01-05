@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,7 +10,6 @@ import java.util.HashSet;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
-import org.h2.engine.Mode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
@@ -83,12 +82,6 @@ public class SelectUnion extends Query {
         return true;
     }
 
-    @Override
-    public void prepareJoinBatch() {
-        left.prepareJoinBatch();
-        right.prepareJoinBatch();
-    }
-
     public UnionType getUnionType() {
         return unionType;
     }
@@ -111,12 +104,11 @@ public class SelectUnion extends Query {
             // for the value hash set
             newValues = new Value[columnCount];
         }
-        Mode mode = session.getDatabase().getMode();
         for (int i = 0; i < columnCount; i++) {
             Expression e = expressions.get(i);
             //如果两表的列类型不一样，在这里会转换错误:
             //如: select id from SelectUnionTest1 UNION select name from SelectUnionTest2
-            newValues[i] = values[i].convertTo(e.getType(), mode, null);
+            newValues[i] = values[i].convertTo(e.getType(), session, null);
         }
         return newValues;
     }
@@ -230,7 +222,7 @@ public class SelectUnion extends Query {
     }
 
     private LocalResult createLocalResult(int columnCount) {
-        return session.getDatabase().getResultFactory().create(session, expressionArray, columnCount, columnCount);
+        return new LocalResult(session, expressionArray, columnCount, columnCount);
     }
 
     @Override
@@ -374,10 +366,6 @@ public class SelectUnion extends Query {
         }
         buff.append('(').append(right.getPlanSQL(alwaysQuote)).append(')');
         appendEndOfQueryToSQL(buff, alwaysQuote, expressions.toArray(new Expression[0]));
-        if (sampleSizeExpr != null) {
-            buff.append("\nSAMPLE_SIZE ");
-            sampleSizeExpr.getUnenclosedSQL(buff, alwaysQuote);
-        }
         if (isForUpdate) {
             buff.append("\nFOR UPDATE");
         }

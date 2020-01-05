@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.zip.CRC32;
+
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.compress.CompressLZF;
@@ -42,18 +43,20 @@ import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.MVStoreTool;
 import org.h2.mvstore.StreamStore;
+import org.h2.mvstore.type.MetaType;
 import org.h2.mvstore.db.LobStorageMap;
 import org.h2.mvstore.db.ValueDataType;
 import org.h2.mvstore.tx.TransactionMap;
 import org.h2.mvstore.tx.TransactionStore;
+import org.h2.mvstore.type.DataType;
+import org.h2.mvstore.type.StringDataType;
 import org.h2.pagestore.Page;
 import org.h2.pagestore.PageFreeList;
 import org.h2.pagestore.PageLog;
 import org.h2.pagestore.PageStore;
 import org.h2.pagestore.db.LobStorageBackend;
+import org.h2.result.DefaultRow;
 import org.h2.result.Row;
-import org.h2.result.RowFactory;
-import org.h2.result.SimpleRow;
 import org.h2.security.SHA256;
 import org.h2.store.Data;
 import org.h2.store.DataHandler;
@@ -73,7 +76,7 @@ import org.h2.util.Tool;
 import org.h2.util.Utils;
 import org.h2.value.CompareMode;
 import org.h2.value.Value;
-import org.h2.value.ValueArray;
+import org.h2.value.ValueCollectionBase;
 import org.h2.value.ValueLob;
 import org.h2.value.ValueLobDb;
 import org.h2.value.ValueLong;
@@ -602,19 +605,21 @@ public class Recover extends Tool implements DataHandler {
         resetSchema();
         setDatabaseName(fileName.substring(0, fileName.length() -
                 Constants.SUFFIX_MV_FILE.length()));
-        MVStore mv = new MVStore.Builder().
-                fileName(fileName).readOnly().open();
-        dumpLobMaps(writer, mv);
-        writer.println("-- Meta");
-        dumpMeta(writer, mv);
-        writer.println("-- Tables");
-        TransactionStore store = new TransactionStore(mv);
-        try {
-            store.init();
-        } catch (Throwable e) {
-            writeError(writer, e);
-        }
-        try {
+        try (MVStore mv = new MVStore.Builder().
+                fileName(fileName).recoveryMode().readOnly().open()) {
+            dumpLobMaps(writer, mv);
+            writer.println("-- Meta");
+            dumpMeta(writer, mv);
+            writer.println("-- Types");
+            dumpTypes(writer, mv);
+            writer.println("-- Tables");
+            TransactionStore store = new TransactionStore(mv, new ValueDataType());
+            try {
+                store.init();
+            } catch (Throwable e) {
+                writeError(writer, e);
+            }
+
             // extract the metadata so we can dump the settings
             ValueDataType type = new ValueDataType();
             for (String mapName : mv.getMapNames()) {
@@ -627,14 +632,13 @@ public class Recover extends Tool implements DataHandler {
                     Iterator<Value> dataIt = dataMap.keyIterator(null);
                     while (dataIt.hasNext()) {
                         Value rowId = dataIt.next();
-                        Value[] values = ((ValueArray) dataMap.get(rowId))
-                                .getList();
+                        Value[] values = ((ValueCollectionBase) dataMap.get(rowId)).getList();
                         try {
-                            SimpleRow r = new SimpleRow(values);
+                            DefaultRow r = new DefaultRow(values);
                             MetaRecord meta = new MetaRecord(r);
                             schema.add(meta);
                             if (meta.getObjectType() == DbObject.TABLE_OR_VIEW) {
-                                String sql = values[3].getString();
+                                String sql = r.getValue(3).getString();
                                 String name = extractTableOrViewName(sql);
                                 tableMap.put(meta.getId(), name);
                             }
@@ -656,13 +660,20 @@ public class Recover extends Tool implements DataHandler {
                 if (Integer.parseInt(tableId) == 0) {
                     continue;
                 }
-                TransactionMap<Value, Value> dataMap = store.begin().openMap(mapName, type, type);
-                Iterator<Value> dataIt = dataMap.keyIterator(null);
+                TransactionMap<?,?> dataMap = store.begin().openMap(mapName);
+                Iterator<?> dataIt = dataMap.keyIterator(null);
                 boolean init = false;
                 while (dataIt.hasNext()) {
-                    Value rowId = dataIt.next();
-                    Value[] values = ((ValueArray) dataMap.get(rowId)).getList();
-                    recordLength = values.length;
+                    Object rowId = dataIt.next();
+                    Object value = dataMap.get(rowId);
+                    Value[] values;
+                    if (value instanceof Row) {
+                        values = ((Row) value).getValueList();
+                        recordLength = values.length;
+                    } else {
+                        values = ((ValueCollectionBase) value).getList();
+                        recordLength = values.length - 1;
+                    }
                     if (!init) {
                         setStorage(Integer.parseInt(tableId));
                         // init the column types
@@ -695,14 +706,22 @@ public class Recover extends Tool implements DataHandler {
             writer.println("DROP TABLE IF EXISTS INFORMATION_SCHEMA.LOB_BLOCKS;");
         } catch (Throwable e) {
             writeError(writer, e);
-        } finally {
-            mv.close();
         }
     }
 
     private static void dumpMeta(PrintWriter writer, MVStore mv) {
         MVMap<String, String> meta = mv.getMetaMap();
         for (Entry<String, String> e : meta.entrySet()) {
+            writer.println("-- " + e.getKey() + " = " + e.getValue());
+        }
+    }
+
+    private static void dumpTypes(PrintWriter writer, MVStore mv) {
+        MVMap.Builder<String, DataType<?>> builder = new MVMap.Builder<String, DataType<?>>()
+                                                .keyType(StringDataType.INSTANCE)
+                                                .valueType(new MetaType<>(null, null));
+        MVMap<String,DataType<?>> map = mv.openMap("_", builder);
+        for (Entry<String,?> e : map.entrySet()) {
             writer.println("-- " + e.getKey() + " = " + e.getValue());
         }
     }
@@ -973,7 +992,7 @@ public class Recover extends Tool implements DataHandler {
             } else if (x == PageLog.ADD) {
                 int sessionId = in.readVarInt();
                 setStorage(in.readVarInt());
-                Row row = PageLog.readRow(RowFactory.DEFAULT, in, s);
+                Row row = PageLog.readRow(in, s);
                 writer.println("-- session " + sessionId +
                         " table " + storageId +
                         " + " + row.toString());
@@ -1513,7 +1532,7 @@ public class Recover extends Tool implements DataHandler {
         writer.println(sb.toString());
         if (storageId == 0) {
             try {
-                SimpleRow r = new SimpleRow(data);
+                DefaultRow r = new DefaultRow(data);
                 MetaRecord meta = new MetaRecord(r);
                 schema.add(meta);
                 if (meta.getObjectType() == DbObject.TABLE_OR_VIEW) {
@@ -1600,11 +1619,21 @@ public class Recover extends Tool implements DataHandler {
             writer.println("DELETE FROM INFORMATION_SCHEMA.LOBS WHERE `TABLE` = " +
                     LobStorageFrontend.TABLE_TEMP + ";");
         }
+        ArrayList<String> referentialConstraints = new ArrayList<>();
         for (MetaRecord m : schema) {
             if (isSchemaObjectTypeDelayed(m)) {
                 String sql = m.getSQL();
-                writer.println(sql + ";");
+                // TODO parse SQL properly
+                if (m.getObjectType() == DbObject.CONSTRAINT && sql.endsWith("NOCHECK")
+                        && sql.contains(" FOREIGN KEY") && sql.contains("REFERENCES ")) {
+                    referentialConstraints.add(sql);
+                } else {
+                    writer.println(sql + ';');
+                }
             }
+        }
+        for (String sql : referentialConstraints) {
+            writer.println(sql + ';');
         }
     }
 

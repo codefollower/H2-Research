@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -291,7 +291,7 @@ class WebThread extends WebApp implements Runnable {
                 boolean isWebKit = lower.contains("webkit/");
                 if (isWebKit && session != null) {
                     // workaround for what seems to be a WebKit bug:
-                    // http://code.google.com/p/chromium/issues/detail?id=6402
+                    // https://bugs.chromium.org/p/chromium/issues/detail?id=6402
                     session.put("frame-border", "1");
                     session.put("frameset-border", "2");
                 }

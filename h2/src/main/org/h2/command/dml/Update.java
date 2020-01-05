@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,9 +14,11 @@ import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
+import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
+import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.expression.ValueExpression;
 import org.h2.message.DbException;
@@ -86,7 +88,7 @@ public class Update extends Prepared implements DataChangeStatement {
      * @param expression the expression
      */
     public void setAssignment(Column column, Expression expression) {
-        if (setClauseMap.put(column, expression) != null) {
+        if (setClauseMap.putIfAbsent(column, expression) != null) {
             throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, column.getName());
         }
         if (expression instanceof Parameter) {
@@ -114,8 +116,8 @@ public class Update extends Prepared implements DataChangeStatement {
     public int update() {
         targetTableFilter.startQuery(session);
         targetTableFilter.reset();
-        try (RowList rows = new RowList(session)) {
-            Table table = targetTableFilter.getTable();
+        Table table = targetTableFilter.getTable();
+        try (RowList rows = new RowList(session, table)) {
             session.getUser().checkRight(table, Right.UPDATE);
             //调用针对整个update动作的触发器
             table.fire(session, Trigger.UPDATE, true);
@@ -165,10 +167,16 @@ public class Update extends Prepared implements DataChangeStatement {
                             if (column.getOnUpdateExpression() != null) {
                                 setOnUpdate = true;
                             }
-                            newValue = oldRow.getValue(i);
-                        } else if (newExpr == ValueExpression.getDefault()) { //是更新字段，但是取默认值
-                            newValue = table.getDefaultValue(session, column);
-                        } else { //是更新字段，并且取更新值
+//<<<<<<< HEAD
+//                            newValue = oldRow.getValue(i);
+//                        } else if (newExpr == ValueExpression.getDefault()) { //是更新字段，但是取默认值
+//                            newValue = table.getDefaultValue(session, column);
+//                        } else { //是更新字段，并且取更新值
+//=======
+                            newValue = column.getGenerated() ? null : oldRow.getValue(i);
+                        } else if (newExpr == ValueExpression.DEFAULT) {
+                            newValue = null;
+                        } else {
                             newValue = newExpr.getValue(session);
                         }
                         newRow.setValue(i, newValue);
@@ -189,11 +197,15 @@ public class Update extends Prepared implements DataChangeStatement {
                             for (int i = 0; i < columnCount; i++) {
                                 Column column = columns[i];
                                 if (setClauseMap.get(column) == null) {
-                                    if (column.getOnUpdateExpression() != null) {
-                                        newRow.setValue(i, table.getOnUpdateValue(session, column));
+                                    Expression onUpdate = column.getOnUpdateExpression();
+                                    if (onUpdate != null) {
+                                        newRow.setValue(i, onUpdate.getValue(session));
                                     }
                                 }
                             }
+                            // Convert on update expressions and reevaluate
+                            // generated columns
+                            table.validateConvertUpdateSequence(session, newRow);
                         } else if (updateToCurrentValuesReturnsZero) {
                             count--;
                         }
@@ -209,9 +221,9 @@ public class Update extends Prepared implements DataChangeStatement {
                         if (updatedKeysCollector != null) {
                             updatedKeysCollector.add(key);
                         }
-                        if (deltaChangeCollectionMode == ResultOption.FINAL) {
-                            deltaChangeCollector.addRow(newRow.getValueList());
-                        }
+                    }
+                    if (deltaChangeCollectionMode == ResultOption.FINAL) {
+                        deltaChangeCollector.addRow(newRow.getValueList());
                     }
                     count++;
                 }
@@ -338,5 +350,19 @@ public class Update extends Prepared implements DataChangeStatement {
      */
     public void setUpdateToCurrentValuesReturnsZero(boolean updateToCurrentValuesReturnsZero) {
         this.updateToCurrentValuesReturnsZero = updateToCurrentValuesReturnsZero;
+    }
+
+    @Override
+    public void collectDependencies(HashSet<DbObject> dependencies) {
+        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
+        if (condition != null) {
+            condition.isEverything(visitor);
+        }
+        if (sourceTableFilter != null) {
+            Select select = sourceTableFilter.getSelect();
+            if (select != null) {
+                select.isEverything(visitor);
+            }
+        }
     }
 }

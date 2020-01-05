@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 import org.h2.api.ErrorCode;
+import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 
 /**
@@ -110,16 +111,16 @@ public final class ExtTypeInfoEnum extends ExtTypeInfo {
     }
 
     @Override
-    public Value cast(Value value) {
+    public Value cast(Value value, CastDataProvider provider) {
         switch (value.getValueType()) {
         case Value.ENUM:
             if (value instanceof ValueEnum && ((ValueEnum) value).getEnumerators().equals(this)) {
                 return value;
             }
             //$FALL-THROUGH$
-        case Value.STRING:
-        case Value.STRING_FIXED:
-        case Value.STRING_IGNORECASE:
+        case Value.VARCHAR:
+        case Value.CHAR:
+        case Value.VARCHAR_IGNORECASE:
             ValueEnum v = getValueOrNull(value.getString());
             if (v != null) {
                 return v;

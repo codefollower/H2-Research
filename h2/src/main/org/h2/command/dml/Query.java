@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,6 +13,7 @@ import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.Database;
+import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.expression.Alias;
 import org.h2.expression.Expression;
@@ -113,11 +114,6 @@ public abstract class Query extends Prepared {
     Expression offsetExpr;
 
     /**
-     * The sample size expression as specified in the SAMPLE_SIZE clause.
-     */
-    Expression sampleSizeExpr;
-
-    /**
      * Whether the result must only contain distinct rows.
      */
     boolean distinct;
@@ -166,15 +162,9 @@ public abstract class Query extends Prepared {
      */
     public abstract boolean isUnion();
 
-    /**
-     * Prepare join batching.
-     */
-    public abstract void prepareJoinBatch();
-
     @Override
     public ResultInterface queryMeta() {
-        LocalResult result = session.getDatabase().getResultFactory().create(session, expressionArray,
-                visibleColumnCount, resultColumnCount);
+        LocalResult result = new LocalResult(session, expressionArray, visibleColumnCount, resultColumnCount);
         result.done();
         return result;
     }
@@ -408,8 +398,7 @@ public abstract class Query extends Prepared {
         this.noCache = true;
     }
 
-    private boolean sameResultAsLast(Session s, Value[] params,
-            Value[] lastParams, long lastEval) {
+    private boolean sameResultAsLast(Value[] params, Value[] lastParams, long lastEval) {
         if (!cacheableChecked) {
             long max = getMaxDataModificationId();
             noCache = max == Long.MAX_VALUE;
@@ -422,10 +411,9 @@ public abstract class Query extends Prepared {
         if (noCache) {
             return false;
         }
-        Database db = s.getDatabase();
         for (int i = 0; i < params.length; i++) { //检查当前参数与上一次的参数是否相等
             Value a = lastParams[i], b = params[i];
-            if (a.getValueType() != b.getValueType() || !db.areEqual(a, b)) {
+            if (a.getValueType() != b.getValueType() || !session.areEqual(a, b)) {
                 return false;
             }
         }
@@ -446,7 +434,7 @@ public abstract class Query extends Prepared {
     private  Value[] getParameterValues() {
         ArrayList<Parameter> list = getParameters();
         if (list == null) {
-            return new Value[0];
+            return Value.EMPTY_VALUES;
         }
         int size = list.size();
         Value[] params = new Value[size];
@@ -485,8 +473,7 @@ public abstract class Query extends Prepared {
         if (isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR)) {
             if (lastResult != null && !lastResult.isClosed() &&
                     limit == lastLimit) {
-                if (sameResultAsLast(session, params, lastParameters,
-                        lastEvaluated)) {
+                if (sameResultAsLast(params, lastParameters, lastEvaluated)) {
                     lastResult = lastResult.createShallowCopy(session);
                     if (lastResult != null) {
                         lastResult.reset();
@@ -715,7 +702,7 @@ public abstract class Query extends Prepared {
             sortType[i] = type;
         }
 
-        return new SortOrder(session.getDatabase(), index, sortType, orderList);
+        return new SortOrder(session, index, sortType, orderList);
     }
 
     @Override
@@ -767,33 +754,11 @@ public abstract class Query extends Prepared {
         parameters.add(param);
     }
 
-    public void setSampleSize(Expression sampleSize) {
-        this.sampleSizeExpr = sampleSize;
-    }
-
-    /**
-     * Get the sample size, if set.
-     *
-     * @param session the session
-     * @return the sample size
-     */
-    int getSampleSizeValue(Session session) {
-        if (sampleSizeExpr == null) {
-            return 0;
-        }
-        //在Parser中已经调用过一次optimize
-        Value v = sampleSizeExpr.optimize(session).getValue(session);
-        if (v == ValueNull.INSTANCE) {
-            return 0;
-        }
-        return v.getInt();
-    }
-
     public final long getMaxDataModificationId() {
         //获得SQL语句(包括表达式中)涉及到的表或Sequence的ModificationId的最大值
         ExpressionVisitor visitor = ExpressionVisitor.getMaxModificationIdVisitor();
         isEverything(visitor);
-        return visitor.getMaxDataModificationId();
+        return Math.max(visitor.getMaxDataModificationId(), session.getSnapshotDataModificationId());
     }
 
     /**
@@ -919,9 +884,14 @@ public abstract class Query extends Prepared {
         return result;
     }
 
+    /**
+     * Convert a result into a distinct result, using the current columns.
+     *
+     * @param result the source
+     * @return the distinct result
+     */
     LocalResult convertToDistinct(ResultInterface result) {
-        LocalResult distinctResult = session.getDatabase().getResultFactory().create(session,
-            expressionArray, visibleColumnCount, resultColumnCount);
+        LocalResult distinctResult = new LocalResult(session, expressionArray, visibleColumnCount, resultColumnCount);
         distinctResult.setDistinct();
         result.reset();
         while (result.next()) {
@@ -948,4 +918,9 @@ public abstract class Query extends Prepared {
                 session.getUser(), alias, this, topQuery);
     }
 
+    @Override
+    public void collectDependencies(HashSet<DbObject> dependencies) {
+        ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
+        isEverything(visitor);
+    }
 }

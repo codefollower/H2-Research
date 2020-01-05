@@ -1,15 +1,17 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.command;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
+import org.h2.engine.DbObject;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.Parameter;
@@ -181,7 +183,7 @@ public abstract class Prepared {
         if (persistedObjectId < 0) {
             // restore original persistedObjectId on Command re-run
             // i.e. due to concurrent update
-            persistedObjectId = -persistedObjectId - 1;
+            persistedObjectId = ~persistedObjectId;
         }
         if (parameters != null) {
             for (Parameter param : parameters) {
@@ -261,7 +263,7 @@ public abstract class Prepared {
      *
      * @return the object id or 0 if not set
      */
-    protected int getPersistedObjectId() {
+    public int getPersistedObjectId() {
         int id = persistedObjectId;
         return id >= 0 ? id : 0;
     }
@@ -280,7 +282,7 @@ public abstract class Prepared {
         } else if (id < 0) {
             throw DbException.throwInternalError("Prepared.getObjectId() was called before");
         }
-        persistedObjectId = -persistedObjectId - 1;  // while negative, it can be restored later
+        persistedObjectId = ~persistedObjectId;  // while negative, it can be restored later
         return id;
     }
 
@@ -493,4 +495,11 @@ public abstract class Prepared {
     public Session getSession() {
         return session;
     }
+
+    /**
+     * Find and collect all DbObjects, this Prepared depends on.
+     *
+     * @param dependencies collection of dependencies to populate
+     */
+    public void collectDependencies(HashSet<DbObject> dependencies) {}
 }

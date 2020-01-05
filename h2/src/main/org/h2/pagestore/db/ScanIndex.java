@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -104,20 +104,23 @@ public class ScanIndex extends BaseIndex {
             row.setKey(key);
             rows.set((int) key, row);
         }
-        row.setDeleted(false);
 //<<<<<<< HEAD
-//        if (database.isMultiVersion()) {
-//            if (delta == null) {
-//                delta = New.hashSet();
-//            }
-//            boolean wasDeleted = delta.remove(row); //Row类没有实现hashCode方法，默认采用Objetc.hashCode方法
-//            if (!wasDeleted) {
-//                delta.add(row);
-//            }
-//            incrementRowCount(session.getId(), 1);
-//        }
+//        row.setDeleted(false);
+////<<<<<<< HEAD
+////        if (database.isMultiVersion()) {
+////            if (delta == null) {
+////                delta = New.hashSet();
+////            }
+////            boolean wasDeleted = delta.remove(row); //Row类没有实现hashCode方法，默认采用Objetc.hashCode方法
+////            if (!wasDeleted) {
+////                delta.add(row);
+////            }
+////            incrementRowCount(session.getId(), 1);
+////        }
+////=======
+////>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
 //=======
-//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
+//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
         rowCount++;
     }
     
@@ -130,8 +133,7 @@ public class ScanIndex extends BaseIndex {
             rows = Utils.newSmallArrayList();
             firstFree = -1;
         } else {
-            Row free = session.createRow(null, 1);
-            free.setKey(firstFree);
+            Row free = new PageStoreRow.RemovedRow(firstFree);
             long key = row.getKey();
             if (rows.size() <= key) {
                 throw DbException.get(ErrorCode.ROW_NOT_FOUND_WHEN_DELETING_1,
@@ -179,7 +181,7 @@ public class ScanIndex extends BaseIndex {
                 return null;
             }
             row = rows.get((int) key);
-            if (!row.isEmpty()) {
+            if (row.getValueList() != null) {
                 return row;
             }
         }
@@ -204,16 +206,6 @@ public class ScanIndex extends BaseIndex {
     @Override
     public boolean needRebuild() {
         return false;
-    }
-
-    @Override
-    public boolean canGetFirstOrLast() {
-        return false;
-    }
-
-    @Override
-    public Cursor findFirstOrLast(Session session, boolean first) {
-        throw DbException.getUnsupportedException("SCAN");
     }
 
     @Override

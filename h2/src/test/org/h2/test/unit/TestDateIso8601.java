@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: Robert Rathsack (firstName dot lastName at gmx dot de)
  */
@@ -42,13 +42,13 @@ public class TestDateIso8601 extends TestBase {
         case DATE:
             return ValueDate.parse(s).getDateValue();
         case TIMESTAMP:
-            return ValueTimestamp.parse(s).getDateValue();
+            return ValueTimestamp.parse(s, null).getDateValue();
         case TIMESTAMP_TIMEZONE_0:
-            return ValueTimestampTimeZone.parse(s + " 00:00:00.0Z").getDateValue();
+            return ValueTimestampTimeZone.parse(s + " 00:00:00.0Z", null).getDateValue();
         case TIMESTAMP_TIMEZONE_PLUS_18:
-            return ValueTimestampTimeZone.parse(s + " 00:00:00+18:00").getDateValue();
+            return ValueTimestampTimeZone.parse(s + " 00:00:00+18:00", null).getDateValue();
         case TIMESTAMP_TIMEZONE_MINUS_18:
-            return ValueTimestampTimeZone.parse(s + " 00:00:00-18:00").getDateValue();
+            return ValueTimestampTimeZone.parse(s + " 00:00:00-18:00", null).getDateValue();
         default:
             throw new IllegalStateException();
         }

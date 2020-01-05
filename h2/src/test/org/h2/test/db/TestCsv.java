@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -78,12 +78,12 @@ public class TestCsv extends TestDb {
         Connection conn = getConnection("csv");
         Statement stat = conn.createStatement();
         stat.execute("call csvwrite('" + getBaseDir() +
-                "/test.tsv', 'select x from dual', 'writeColumnHeader=false')");
+                "/test.tsv', 'select x from system_range(1, 1)', 'writeColumnHeader=false')");
         String x = IOUtils.readStringAndClose(IOUtils.getReader(
                 FileUtils.newInputStream(getBaseDir() + "/test.tsv")), -1);
         assertEquals("\"1\"", x.trim());
         stat.execute("call csvwrite('" + getBaseDir() +
-                "/test.tsv', 'select x from dual', 'writeColumnHeader=true')");
+                "/test.tsv', 'select x from system_range(1, 1)', 'writeColumnHeader=true')");
         x = IOUtils.readStringAndClose(IOUtils.getReader(
                 FileUtils.newInputStream(getBaseDir() + "/test.tsv")), -1);
         x = x.trim();
@@ -107,7 +107,7 @@ public class TestCsv extends TestDb {
         csv.setLineSeparator(";");
         csv.write(writer, rs);
         conn.close();
-        assertEquals("TS,N;-100-01-01 12:00:00,;", writer.toString());
+        assertEquals("TS,N;-0100-01-01 12:00:00,;", writer.toString());
     }
 
     private void testCaseSensitiveColumnNames() throws Exception {

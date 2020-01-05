@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,7 +10,6 @@ import java.util.HashSet;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
-import org.h2.engine.Mode;
 import org.h2.engine.Session;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
@@ -32,121 +31,11 @@ import org.h2.value.Value;
  */
 public class TableValueConstructor extends Query {
 
-    private final class TableValueColumnResolver implements ColumnResolver {
-
-        Value[] currentRow;
-
-        TableValueColumnResolver() {
-        }
-
-        @Override
-        public String getTableAlias() {
-            return null;
-        }
-
-        @Override
-        public Column[] getColumns() {
-            return table.getColumns();
-        }
-
-        @Override
-        public String getColumnName(Column column) {
-            return column.getName();
-        }
-
-        @Override
-        public boolean hasDerivedColumnList() {
-            return false;
-        }
-
-        @Override
-        public Column[] getSystemColumns() {
-            return null;
-        }
-
-        @Override
-        public Column getRowIdColumn() {
-            return null;
-        }
-
-        @Override
-        public String getSchemaName() {
-            return null;
-        }
-
-        @Override
-        public Value getValue(Column column) {
-            return currentRow[column.getColumnId()];
-        }
-
-        @Override
-        public TableFilter getTableFilter() {
-            return null;
-        }
-
-        @Override
-        public Select getSelect() {
-            return null;
-        }
-
-        @Override
-        public Expression optimize(ExpressionColumn expressionColumn, Column column) {
-            return expressions.get(column.getColumnId());
-        }
-
-    }
-
-    /**
-     * Appends visible columns of all rows to the specified result.
-     *
-     * @param session
-     *            the session
-     * @param result
-     *            the result
-     * @param columns
-     *            the columns
-     * @param rows
-     *            the rows with data
-     */
-    public static void getVisibleResult(Session session, ResultTarget result, Column[] columns,
-            ArrayList<ArrayList<Expression>> rows) {
-        int count = columns.length;
-        Mode mode = session.getDatabase().getMode();
-        for (ArrayList<Expression> row : rows) {
-            Value[] values = new Value[count];
-            for (int i = 0; i < count; i++) {
-                values[i] = row.get(i).getValue(session).convertTo(columns[i].getType(), mode, null);
-            }
-            result.addRow(values);
-        }
-    }
-
-    /**
-     * Appends the SQL of the values to the specified string builder..
-     *
-     * @param builder
-     *            string builder
-     * @param alwaysQuote
-     *            quote all identifiers
-     * @param rows
-     *            the values
-     */
-    public static void getValuesSQL(StringBuilder builder, boolean alwaysQuote, //
-            ArrayList<ArrayList<Expression>> rows) {
-        builder.append("VALUES ");
-        int rowCount = rows.size();
-        for (int i = 0; i < rowCount; i++) {
-            if (i > 0) {
-                builder.append(", ");
-            }
-            builder.append('(');
-            Expression.writeExpressions(builder, rows.get(i), alwaysQuote);
-            builder.append(')');
-        }
-    }
-
     private final ArrayList<ArrayList<Expression>> rows;
 
+    /**
+     * The table.
+     */
     final TableValueConstructorTable table;
 
     private final TableValueColumnResolver columnResolver;
@@ -179,13 +68,57 @@ public class TableValueConstructor extends Query {
         columnResolver = new TableValueColumnResolver();
     }
 
-    @Override
-    public boolean isUnion() {
-        return false;
+    /**
+     * Appends visible columns of all rows to the specified result.
+     *
+     * @param session
+     *            the session
+     * @param result
+     *            the result
+     * @param columns
+     *            the columns
+     * @param rows
+     *            the rows with data
+     */
+    public static void getVisibleResult(Session session, ResultTarget result, Column[] columns,
+            ArrayList<ArrayList<Expression>> rows) {
+        int count = columns.length;
+        for (ArrayList<Expression> row : rows) {
+            Value[] values = new Value[count];
+            for (int i = 0; i < count; i++) {
+                values[i] = row.get(i).getValue(session).convertTo(columns[i].getType(), session, null);
+            }
+            result.addRow(values);
+        }
+    }
+
+    /**
+     * Appends the SQL of the values to the specified string builder..
+     *
+     * @param builder
+     *            string builder
+     * @param alwaysQuote
+     *            quote all identifiers
+     * @param rows
+     *            the values
+     */
+    public static void getValuesSQL(StringBuilder builder, boolean alwaysQuote, //
+            ArrayList<ArrayList<Expression>> rows) {
+        builder.append("VALUES ");
+        int rowCount = rows.size();
+        for (int i = 0; i < rowCount; i++) {
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append('(');
+            Expression.writeExpressions(builder, rows.get(i), alwaysQuote);
+            builder.append(')');
+        }
     }
 
     @Override
-    public void prepareJoinBatch() {
+    public boolean isUnion() {
+        return false;
     }
 
     @Override
@@ -195,8 +128,7 @@ public class TableValueConstructor extends Query {
         int fetch = offsetFetch.fetch;
         boolean fetchPercent = offsetFetch.fetchPercent;
         int visibleColumnCount = this.visibleColumnCount, resultColumnCount = this.resultColumnCount;
-        LocalResult result = session.getDatabase().getResultFactory().create(session, expressionArray,
-                visibleColumnCount, resultColumnCount);
+        LocalResult result = new LocalResult(session, expressionArray, visibleColumnCount, resultColumnCount);
         if (sort != null) {
             result.setSortOrder(sort);
         }
@@ -207,11 +139,10 @@ public class TableValueConstructor extends Query {
         if (visibleColumnCount == resultColumnCount) {
             getVisibleResult(session, result, columns, rows);
         } else {
-            Mode mode = session.getDatabase().getMode();
             for (ArrayList<Expression> row : rows) {
                 Value[] values = new Value[resultColumnCount];
                 for (int i = 0; i < visibleColumnCount; i++) {
-                    values[i] = row.get(i).getValue(session).convertTo(columns[i].getType(), mode, null);
+                    values[i] = row.get(i).getValue(session).convertTo(columns[i].getType(), session, null);
                 }
                 columnResolver.currentRow = values;
                 for (int i = visibleColumnCount; i < resultColumnCount; i++) {
@@ -229,6 +160,7 @@ public class TableValueConstructor extends Query {
         if (checkInit) {
             DbException.throwInternalError();
         }
+        visibleColumnCount = expressions.size();
         checkInit = true;
         if (withTies && !hasOrder()) {
             throw DbException.get(ErrorCode.WITH_TIES_WITHOUT_ORDER_BY);
@@ -245,7 +177,6 @@ public class TableValueConstructor extends Query {
             DbException.throwInternalError("not initialized");
         }
         isPrepared = true;
-        visibleColumnCount = expressions.size();
         if (orderList != null) {
             ArrayList<String> expressionsSQL = new ArrayList<>();
             for (Expression e : expressions) {
@@ -360,6 +291,35 @@ public class TableValueConstructor extends Query {
             return table;
         }
         return super.toTable(alias, parameters, forCreateView, topQuery);
+    }
+
+    private final class TableValueColumnResolver implements ColumnResolver {
+
+        Value[] currentRow;
+
+        TableValueColumnResolver() {
+        }
+
+        @Override
+        public Column[] getColumns() {
+            return table.getColumns();
+        }
+
+        @Override
+        public Column findColumn(String name) {
+            return table.findColumn(name);
+        }
+
+        @Override
+        public Value getValue(Column column) {
+            return currentRow[column.getColumnId()];
+        }
+
+        @Override
+        public Expression optimize(ExpressionColumn expressionColumn, Column column) {
+            return expressions.get(column.getColumnId());
+        }
+
     }
 
 }

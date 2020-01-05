@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -56,7 +56,7 @@ class MVSortedTempResult extends MVTempResult {
      * {@link #contains(Value[])} method is invoked. Only the root result should
      * have an index if required.
      */
-    private MVMap<ValueRow, Object> index;
+    private MVMap<ValueRow, ValueRow> index;
 
     /**
      * Used for DISTINCT ON in presence of ORDER BY.
@@ -179,7 +179,7 @@ class MVSortedTempResult extends MVTempResult {
         if (distinct && resultColumnCount != visibleColumnCount || distinctIndexes != null) {
             int count = distinctIndexes != null ? distinctIndexes.length : visibleColumnCount;
             ValueDataType distinctType = new ValueDataType(database, new int[count]);
-            Builder<ValueRow, Object> indexBuilder = new MVMap.Builder<ValueRow, Object>().keyType(distinctType);
+            Builder<ValueRow, ValueRow> indexBuilder = new MVMap.Builder<ValueRow, ValueRow>().keyType(distinctType);
             if (distinctIndexes != null && sort != null) {
                 indexBuilder.valueType(keyType);
                 orderedDistinctOnType = keyType;
@@ -201,11 +201,11 @@ class MVSortedTempResult extends MVTempResult {
                 }
                 ValueRow distinctRow = ValueRow.get(newValues);
                 if (orderedDistinctOnType == null) {
-                    if (index.putIfAbsent(distinctRow, true) != null) {
+                    if (index.putIfAbsent(distinctRow, ValueRow.EMPTY) != null) {
                         return rowCount;
                     }
                 } else {
-                    ValueRow previous = (ValueRow) index.get(distinctRow);
+                    ValueRow previous = index.get(distinctRow);
                     if (previous == null) {
                         index.put(distinctRow, key);
                     } else if (orderedDistinctOnType.compare(previous, key) > 0) {
@@ -218,7 +218,7 @@ class MVSortedTempResult extends MVTempResult {
                 }
             } else if (visibleColumnCount != resultColumnCount) {
                 ValueRow distinctRow = ValueRow.get(Arrays.copyOf(values, visibleColumnCount));
-                if (index.putIfAbsent(distinctRow, true) != null) {
+                if (index.putIfAbsent(distinctRow, ValueRow.EMPTY) != null) {
                     return rowCount;
                 }
             }

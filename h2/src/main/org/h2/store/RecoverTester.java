@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,9 +18,9 @@ import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Session;
 import org.h2.message.DbException;
-import org.h2.store.fs.FilePathRec;
 import org.h2.store.fs.FileUtils;
 import org.h2.store.fs.Recorder;
+import org.h2.store.fs.rec.FilePathRec;
 import org.h2.tools.Recover;
 import org.h2.util.IOUtils;
 import org.h2.util.StringUtils;
@@ -32,7 +32,7 @@ import org.h2.util.Utils;
  */
 public class RecoverTester implements Recorder {
 
-    private static RecoverTester instance;
+    private static final RecoverTester instance = new RecoverTester();
 
     private String testDatabase = "memFS:reopen";
     private int writeCount = Utils.getProperty("h2.recoverTestOffset", 0);
@@ -49,18 +49,10 @@ public class RecoverTester implements Recorder {
      * @param recoverTest the value of the recover test parameter
      */
     public static synchronized void init(String recoverTest) {
-        RecoverTester tester = RecoverTester.getInstance();
         if (StringUtils.isNumber(recoverTest)) {
-            tester.setTestEvery(Integer.parseInt(recoverTest));
+            instance.setTestEvery(Integer.parseInt(recoverTest));
         }
-        FilePathRec.setRecorder(tester);
-    }
-
-    public static synchronized RecoverTester getInstance() {
-        if (instance == null) {
-            instance = new RecoverTester();
-        }
-        return instance;
+        FilePathRec.setRecorder(instance);
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -40,7 +40,6 @@ public class TestCompatibility extends TestDb {
         deleteDb("compatibility");
 
         testCaseSensitiveIdentifiers();
-        testKeyAsColumnInMySQLMode();
 
         conn = getConnection("compatibility");
         testDomain();
@@ -53,23 +52,15 @@ public class TestCompatibility extends TestDb {
         testDB2();
         testDerby();
         testSybaseAndMSSQLServer();
-        testIgnite();
 
         testUnknownSet();
 
         conn.close();
         testIdentifiers();
+        testIdentifiersCaseInResultSet();
         deleteDb("compatibility");
 
         testUnknownURL();
-    }
-
-    private void testKeyAsColumnInMySQLMode() throws SQLException {
-        Connection c = getConnection("compatibility;MODE=MYSQL");
-        Statement stat = c.createStatement();
-        stat.execute("create table test(id int primary key, key varchar)");
-        stat.execute("drop table test");
-        c.close();
     }
 
     private void testCaseSensitiveIdentifiers() throws SQLException {
@@ -228,11 +219,6 @@ public class TestCompatibility extends TestDb {
         prep.setInt(1, 2);
         prep.executeQuery();
         stat.execute("DROP TABLE TEST IF EXISTS");
-
-        stat.execute("DROP TABLE TEST IF EXISTS");
-        stat.execute("CREATE TABLE TEST(ID INT)");
-        stat.executeQuery("SELECT * FROM TEST WHERE ID IN ()");
-        stat.execute("DROP TABLE TEST IF EXISTS");
     }
 
     private void testLog(double expected, Statement stat) throws SQLException {
@@ -312,6 +298,18 @@ public class TestCompatibility extends TestDb {
         assertTrue(rs.next());
         assertEquals(new BigDecimal("92233720368547758.07"), rs.getBigDecimal(1));
         assertFalse(rs.next());
+
+        /* Test SET STATEMENT_TIMEOUT */
+        assertEquals(0, stat.getQueryTimeout());
+        conn.close();
+        deleteDb("compatibility");
+        // `stat.getQueryTimeout()` caches the result, so create another connection
+        conn = getConnection("compatibility");
+        stat = conn.createStatement();
+        // `STATEMENT_TIMEOUT` uses milliseconds
+        stat.execute("SET STATEMENT_TIMEOUT TO 30000");
+        // `stat.getQueryTimeout()` returns seconds
+        assertEquals(30, stat.getQueryTimeout());
     }
 
     private void testMySQL() throws SQLException {
@@ -673,28 +671,6 @@ public class TestCompatibility extends TestDb {
         conn = getConnection("compatibility");
     }
 
-    private void testIgnite() throws SQLException {
-        Statement stat = conn.createStatement();
-        stat.execute("SET MODE Ignite");
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int affinity key)");
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int affinity primary key)");
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int, v1 varchar, v2 long affinity key, primary key(v1, id))");
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int, v1 varchar, v2 long, primary key(v1, id), affinity key (id))");
-
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int shard key)");
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int shard primary key)");
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int, v1 varchar, v2 long shard key, primary key(v1, id))");
-        stat.execute("DROP TABLE IF EXISTS TEST");
-        stat.execute("create table test(id int, v1 varchar, v2 long, primary key(v1, id), shard key (id))");
-    }
-
     private void testUnknownSet() throws SQLException {
         Statement stat = conn.createStatement();
         assertThrows(ErrorCode.UNKNOWN_MODE_1, stat).execute("SET MODE UnknownMode");
@@ -765,7 +741,7 @@ public class TestCompatibility extends TestDb {
         }
     }
 
-    private void testUnknownURL() throws SQLException {
+    private void testUnknownURL() {
         try {
             getConnection("compatibility;MODE=Unknown").close();
             deleteDb("compatibility");
@@ -774,6 +750,22 @@ public class TestCompatibility extends TestDb {
             return;
         }
         fail();
+    }
+
+    private void testIdentifiersCaseInResultSet() throws SQLException {
+        try (Connection conn = getConnection(
+                "compatibility;DATABASE_TO_UPPER=FALSE;CASE_INSENSITIVE_IDENTIFIERS=TRUE")) {
+            Statement stat = conn.createStatement();
+            stat.execute("CREATE TABLE TEST(A INT)");
+            ResultSet rs = stat.executeQuery("SELECT a from test");
+            ResultSetMetaData md = rs.getMetaData();
+            assertEquals("A", md.getColumnName(1));
+            rs = stat.executeQuery("SELECT a FROM (SELECT 1) t(A)");
+            md = rs.getMetaData();
+            assertEquals("A", md.getColumnName(1));
+        } finally {
+            deleteDb("compatibility");
+        }
     }
 
 }

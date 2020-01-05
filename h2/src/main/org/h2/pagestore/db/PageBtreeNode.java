@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -86,7 +86,7 @@ public class PageBtreeNode extends PageBtree {
         p.writeHead();
         // 4 bytes for the rightmost child page id
         p.start = p.data.length() + 4;
-        p.rows = SearchRow.EMPTY_ARRAY;
+        p.rows = PageStoreRow.EMPTY_SEARCH_ARRAY;
         if (p.pageStoreInternalCount) {
             p.rowCount = 0;
         }
@@ -109,7 +109,7 @@ public class PageBtreeNode extends PageBtree {
         entryCount = data.readShortInt();
         childPageIds = new int[entryCount + 1];
         childPageIds[entryCount] = data.readInt();
-        rows = entryCount == 0 ? SearchRow.EMPTY_ARRAY : new SearchRow[entryCount];
+        rows = entryCount == 0 ? PageStoreRow.EMPTY_SEARCH_ARRAY : new SearchRow[entryCount];
         offsets = Utils.newIntArray(entryCount);
         for (int i = 0; i < entryCount; i++) {
             childPageIds[i] = data.readInt();
@@ -318,7 +318,7 @@ public class PageBtreeNode extends PageBtree {
     void init(PageBtree page1, SearchRow pivot, PageBtree page2) {
         entryCount = 0;
         childPageIds = new int[] { page1.getPos() };
-        rows = SearchRow.EMPTY_ARRAY;
+        rows = PageStoreRow.EMPTY_SEARCH_ARRAY;
         offsets = Utils.EMPTY_INT_ARRAY;
         addChild(0, page2.getPos(), pivot);
         if (pageStoreInternalCount) {

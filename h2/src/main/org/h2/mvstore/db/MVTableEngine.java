@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2019 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
 
 import java.io.InputStream;
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -28,6 +27,7 @@ import org.h2.mvstore.MVStore;
 import org.h2.mvstore.MVStoreTool;
 import org.h2.mvstore.tx.Transaction;
 import org.h2.mvstore.tx.TransactionStore;
+import org.h2.mvstore.type.MetaType;
 import org.h2.store.InDoubtTransaction;
 import org.h2.store.fs.FileChannelInputStream;
 import org.h2.store.fs.FileUtils;
@@ -72,7 +72,7 @@ public class MVTableEngine implements TableEngine {
                     String dir = FileUtils.getParent(fileName);
                     FileUtils.createDirectories(dir);
                 }
-                int autoCompactFillRate = db.getSettings().maxCompactCount;
+                int autoCompactFillRate = db.getSettings().autoCompactFillRate;
                 if (autoCompactFillRate <= 100) {
                     builder.autoCompactFillRate(autoCompactFillRate);
                 }
@@ -86,14 +86,12 @@ public class MVTableEngine implements TableEngine {
                 // use a larger page split size to improve the compression ratio
                 builder.pageSplitSize(64 * 1024);
             }
-            builder.backgroundExceptionHandler(new UncaughtExceptionHandler() {
-
-                @Override
-                public void uncaughtException(Thread t, Throwable e) {
-                    db.setBackgroundException(DbException.convert(e));
-                }
-
-            });
+            builder.backgroundExceptionHandler((t, e) -> db.setBackgroundException(DbException.convert(e)));
+            // always start without background thread first, and if necessary,
+            // it will be set up later, after db has been fully started,
+            // otherwise background thread would compete for store lock
+            // with maps opening procedure
+            builder.autoCommitDisabled();
         }
         store.open(db, builder, encrypted);
         db.setStore(store);
@@ -172,6 +170,7 @@ public class MVTableEngine implements TableEngine {
                 }
                 mvStore.setVersionsToKeep(0);
                 this.transactionStore = new TransactionStore(mvStore,
+                        new MetaType<>(db, mvStore.backgroundExceptionHandler),
                         new ValueDataType(db, null), db.getLockTimeout());
             } catch (IllegalStateException e) {
                 throw convertIllegalStateException(e);
@@ -187,7 +186,11 @@ public class MVTableEngine implements TableEngine {
          */
         DbException convertIllegalStateException(IllegalStateException e) {
             int errorCode = DataUtils.getErrorCode(e.getMessage());
-            if (errorCode == DataUtils.ERROR_FILE_CORRUPT) {
+            if (errorCode == DataUtils.ERROR_CLOSED) {
+                throw DbException.get(
+                        ErrorCode.DATABASE_IS_CLOSED,
+                        e, fileName);
+            } else if (errorCode == DataUtils.ERROR_FILE_CORRUPT) {
                 if (encrypted) {
                     throw DbException.get(
                             ErrorCode.FILE_ENCRYPTION_ERROR_1,
@@ -201,6 +204,10 @@ public class MVTableEngine implements TableEngine {
                 throw DbException.get(
                         ErrorCode.IO_EXCEPTION_1,
                         e, fileName);
+            } else if (errorCode == DataUtils.ERROR_TRANSACTION_ILLEGAL_STATE) {
+                throw DbException.get(
+                        ErrorCode.GENERAL_ERROR_1,
+                        e, e.getMessage());
             } else if (errorCode == DataUtils.ERROR_INTERNAL) {
                 throw DbException.get(
                         ErrorCode.GENERAL_ERROR_1,
@@ -362,6 +369,7 @@ public class MVTableEngine implements TableEngine {
          *
          * @param maxCompactTime the maximum time in milliseconds to compact
          */
+        @SuppressWarnings("unused")
         public void compactFile(long maxCompactTime) {
             mvStore.compactFile(maxCompactTime);
         }
@@ -462,17 +470,8 @@ public class MVTableEngine implements TableEngine {
         }
 
         @Override
-        public String getState() {
-            switch (state) {
-            case IN_DOUBT:
-                return "IN_DOUBT";
-            case COMMIT:
-                return "COMMIT";
-            case ROLLBACK:
-                return "ROLLBACK";
-            default:
-                throw DbException.throwInternalError("state="+state);
-            }
+        public int getState() {
+            return state;
         }
 
         @Override
