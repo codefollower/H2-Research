@@ -1711,5 +1711,4 @@ public class JdbcCallableStatement extends JdbcPreparedStatement implements
             throw logAndConvert(e);
         }
     }
-
 }

@@ -1426,6 +1426,5 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     public String toString() {
         return getTraceObjectName();
     }
-
 }
 

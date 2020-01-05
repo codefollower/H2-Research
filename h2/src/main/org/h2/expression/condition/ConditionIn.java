@@ -32,10 +32,6 @@ public class ConditionIn extends Condition {
     private final Database database;
     private Expression left;
     private final ArrayList<Expression> valueList;
-//<<<<<<< HEAD:h2/src/main/org/h2/expression/ConditionIn.java
-//    private int queryLevel; //没看到用处
-//=======
-//>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a:h2/src/main/org/h2/expression/condition/ConditionIn.java
 
     /**
      * Create a new IN(..) condition.

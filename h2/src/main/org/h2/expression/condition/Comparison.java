@@ -188,31 +188,6 @@ public class Comparison extends Condition {
     @Override
     public Expression optimize(Session session) {
         left = left.optimize(session);
-//<<<<<<< HEAD:h2/src/main/org/h2/expression/Comparison.java
-//        if (right != null) {
-//            right = right.optimize(session);
-//            if (right.getType() == Value.ARRAY && left.getType() != Value.ARRAY) {
-//                throw DbException.get(ErrorCode.COMPARING_ARRAY_TO_SCALAR);
-//            }
-//            if (right instanceof ExpressionColumn) {
-//            	//例如delete top 3 from DeleteTest where 'a1'> name
-//            	//转成delete top 3 from DeleteTest where name < 'a1'
-//                if (left.isConstant() || left instanceof Parameter) {
-//                    Expression temp = left;
-//                    left = right;
-//                    right = temp;
-//                    compareType = getReversedCompareType(compareType);
-//                }
-//            }
-//            if (left instanceof ExpressionColumn) {
-//                if (right.isConstant()) {
-//                    Value r = right.getValue(session);
-//                    if (r == ValueNull.INSTANCE) {
-//                    	//例如: "delete top 3 from DeleteTest where name = null
-//                        if ((compareType & NULL_SAFE) == 0) {
-//                            return ValueExpression.getNull();
-//                        }
-//=======
         right = right.optimize(session);
         // TODO check row values too
         if (right.getType().getValueType() == Value.ARRAY && left.getType().getValueType() != Value.ARRAY) {
@@ -220,6 +195,8 @@ public class Comparison extends Condition {
         }
         if (right instanceof ExpressionColumn) {
             if (left.isConstant() || left instanceof Parameter) {
+                // 例如delete top 3 from DeleteTest where 'a1'> name
+                // 转成delete top 3 from DeleteTest where name < 'a1'
                 Expression temp = left;
                 left = right;
                 right = temp;
@@ -230,6 +207,7 @@ public class Comparison extends Condition {
             if (right.isConstant()) {
                 Value r = right.getValue(session);
                 if (r == ValueNull.INSTANCE) {
+                    //例如: "delete top 3 from DeleteTest where name = null
                     if ((compareType & NULL_SAFE) == 0) {
                         return TypedValueExpression.getUnknown();
                     }

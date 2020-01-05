@@ -1743,22 +1743,4 @@ public abstract class Value extends VersionedValue {
     protected DataHandler getDataHandler() {
         return null;
     }
-//
-//<<<<<<< HEAD
-//    /**
-//     * A "binary large object".
-//     */
-//    public interface ValueClob { //只对ValueLobDb有用
-//        // this is a marker interface
-//    }
-//
-//    /**
-//     * A "character large object".
-//     */
-//    public interface ValueBlob { //只对ValueLobDb有用
-//        // this is a marker interface
-//    }
-//
-//=======
-//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
 }

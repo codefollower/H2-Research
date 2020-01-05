@@ -155,43 +155,27 @@ public class Update extends Prepared implements DataChangeStatement {
                         }
                     }
                     Row newRow = table.getTemplateRow();
-//<<<<<<< HEAD
-//                    //以原表中的所有字段来遍历，而不是以update中的字段
-//=======
+                    //以原表中的所有字段来遍历，而不是以update中的字段
                     boolean setOnUpdate = false;
                     for (int i = 0; i < columnCount; i++) {
                         Column column = columns[i];
                         Expression newExpr = setClauseMap.get(column);
                         Value newValue;
-//<<<<<<< HEAD
-//                        if (newExpr == null) { //说明不是更新字段，直接用原来的值
-//                            newValue = oldRow.getValue(i);
-//                        } else if (newExpr == ValueExpression.getDefault()) { //是更新字段，但是取默认值
-//                            Column column = table.getColumn(i);
-//                            newValue = table.getDefaultValue(session, column);
-//                        } else { //是更新字段，并且取更新值
-//                            Column column = table.getColumn(i);
-//                            newValue = column.convert(newExpr.getValue(session));
-//                        }
-//                        newRow.setValue(i, newValue);
-//                    }
-//                    //验证新记录(包括字段约束检查)
-//=======
-                        if (newExpr == null) {
+                        if (newExpr == null) { //说明不是更新字段，直接用原来的值
                             if (column.getOnUpdateExpression() != null) {
                                 setOnUpdate = true;
                             }
                             newValue = oldRow.getValue(i);
-                        } else if (newExpr == ValueExpression.getDefault()) {
+                        } else if (newExpr == ValueExpression.getDefault()) { //是更新字段，但是取默认值
                             newValue = table.getDefaultValue(session, column);
-                        } else {
+                        } else { //是更新字段，并且取更新值
                             newValue = newExpr.getValue(session);
                         }
                         newRow.setValue(i, newValue);
                     }
                     long key = oldRow.getKey();
                     newRow.setKey(key);
-                    table.validateConvertUpdateSequence(session, newRow);
+                    table.validateConvertUpdateSequence(session, newRow); //验证新记录(包括字段约束检查)
                     if (setOnUpdate || updateToCurrentValuesReturnsZero) {
                         setOnUpdate = false;
                         for (int i = 0; i < columnCount; i++) {

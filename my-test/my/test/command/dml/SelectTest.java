@@ -21,7 +21,7 @@ public class SelectTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-        // createTable();
+        createTable();
 
         // parseSelectSimpleSelectPart();
         // readTableFilter();
@@ -30,7 +30,7 @@ public class SelectTest extends TestBase {
         // parseSelectSimpleFromPart();
         //
 
-        // queryFlat();
+        queryFlat();
         // select_init();
         queryGroup();
         // queryGroupSorted();
