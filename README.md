@@ -1,39 +1,29 @@
-# Welcome to H2, the Java SQL database. [![Build Status](https://travis-ci.org/h2database/h2database.svg?branch=master)](https://travis-ci.org/h2database/h2database)
+### 项目用途
 
-## The main features of H2 are:
+* [H2数据库](http://www.h2database.com/html/main.html) 源代码学习研究(包括代码注释、文档、用于代码分析的测试用例)
 
-* Very fast, open source, JDBC API
-* Embedded and server modes; disk-based or in-memory databases
-* Transaction support, multi-version concurrency
-* Browser based Console application
-* Encrypted databases
-* Fulltext search
-* Pure Java with small footprint: around 2 MB jar file size
-* ODBC driver
 
-More information: https://h2database.com
+### 目录结构
 
-## Downloads
+* my-docs: 综合文档
 
-[Download latest version](https://h2database.com/html/download.html) or add to `pom.xml`:
+* my-test: 用于代码分析的测试用例
 
-```XML
-<dependency>
-    <groupId>com.h2database</groupId>
-    <artifactId>h2</artifactId>
-    <version>1.4.200</version>
-</dependency>
-```
+* h2: H2数据库的最新源代码，在源代码中附加了便于分析理解代码的注释
 
-## Documentation
 
-* [Tutorial](https://h2database.com/html/tutorial.html)
-* [SQL commands](https://h2database.com/html/commands.html)
-* [Functions](https://h2database.com/html/functions.html), [aggregate functions](https://h2database.com/html/functions-aggregate.html), [window functions](https://h2database.com/html/functions-window.html)
-* [Data types](https://h2database.com/html/datatypes.html)
+### 把代码导入Eclipse
 
-## Support
+* 运行 mvn eclipse:eclipse 生成Eclipse项目，打开Eclipse，选择File -> Import -> Existing Projects into Workspace
 
-* [Issue tracker](https://github.com/h2database/h2database/issues) for bug reports and feature requests
-* [Mailing list / forum](https://groups.google.com/forum/#!forum/h2-database) for questions about H2
-* ['h2' tag on Stack Overflow](https://stackoverflow.com/questions/tagged/h2) for other questions (Hibernate with H2 etc.)
+
+### 运行或调试H2
+
+* 右击 /h2-research/my-test/my/test/MyServer.java 文件，点Run As或Debug As -> Java Application
+
+* 如果出现"TCP server running ..."这样的提示就ok啦
+
+
+### 测试
+
+* my.test 包中的类几乎都可直接运行
