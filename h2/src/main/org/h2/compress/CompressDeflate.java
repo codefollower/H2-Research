@@ -11,7 +11,7 @@ import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 import org.h2.api.ErrorCode;
-import org.h2.message.DbException;
+import org.h2.mvstore.DataUtils;
 
 /**
  * This is a wrapper class for the Deflater class.
@@ -47,24 +47,24 @@ public class CompressDeflate implements Compressor {
                 deflater.setStrategy(strategy);
             }
         } catch (Exception e) {
-            throw DbException.get(ErrorCode.UNSUPPORTED_COMPRESSION_OPTIONS_1, options);
+            throw DataUtils.newMVStoreException(ErrorCode.UNSUPPORTED_COMPRESSION_OPTIONS_1, options);
         }
     }
 
     @Override
-    public int compress(byte[] in, int inLen, byte[] out, int outPos) {
+    public int compress(byte[] in, int inPos, int inLen, byte[] out, int outPos) {
         Deflater deflater = new Deflater(level);
         deflater.setStrategy(strategy);
-        deflater.setInput(in, 0, inLen);
+        deflater.setInput(in, inPos, inLen);
         deflater.finish();
         int compressed = deflater.deflate(out, outPos, out.length - outPos);
-        while (compressed == 0) {
+        if (compressed == 0) {
             // the compressed length is 0, meaning compression didn't work
             // (sounds like a JDK bug)
             // try again, using the default strategy and compression level
             strategy = Deflater.DEFAULT_STRATEGY;
             level = Deflater.DEFAULT_COMPRESSION;
-            return compress(in, inLen, out, outPos);
+            return compress(in, inPos, inLen, out, outPos);
         }
         deflater.end();
         return outPos + compressed;
@@ -87,7 +87,7 @@ public class CompressDeflate implements Compressor {
                 throw new DataFormatException(len + " " + outLen);
             }
         } catch (DataFormatException e) {
-            throw DbException.get(ErrorCode.COMPRESSION_ERROR, e);
+            throw DataUtils.newMVStoreException(ErrorCode.COMPRESSION_ERROR, e.getMessage(), e);
         }
         decompresser.end();
     }

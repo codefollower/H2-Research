@@ -64,16 +64,6 @@ public class SysProperties {
             Utils.getProperty("user.home", "");
 
     /**
-     * System property {@code h2.preview} (default: false).
-     * <p>
-     * Controls default values of other properties. If {@code true} default
-     * values of other properties are changed to planned defaults for the 1.5.x
-     * versions of H2. Some other functionality may be also enabled or disabled.
-     * </p>
-     */
-    public static final boolean PREVIEW = Utils.getProperty("h2.preview", false);
-
-    /**
      * System property <code>h2.allowedClasses</code> (default: *).<br />
      * Comma separated list of class names or prefixes.
      */
@@ -260,16 +250,6 @@ public class SysProperties {
             Utils.getProperty("h2.maxTraceDataLength", 65535);
 
     /**
-     * System property <code>h2.modifyOnWrite</code> (default: false).<br />
-     * Only modify the database file when recovery is necessary, or when writing
-     * to the database. If disabled, opening the database always writes to the
-     * file (except if the database is read-only). When enabled, the serialized
-     * file lock is faster.
-     */
-    public static final boolean MODIFY_ON_WRITE =
-            Utils.getProperty("h2.modifyOnWrite", false);
-
-    /**
      * System property <code>h2.nioLoadMapped</code> (default: false).<br />
      * If the mapped buffer should be loaded when the file is opened.
      * This can improve performance.
@@ -282,7 +262,7 @@ public class SysProperties {
      * If enabled, use the reflection hack to un-map the mapped file if
      * possible. If disabled, System.gc() is called in a loop until the object
      * is garbage collected. See also
-     * https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4724038
+     * https://bugs.openjdk.java.net/browse/JDK-4724038
      */
     public static final boolean NIO_CLEANER_HACK =
             Utils.getProperty("h2.nioCleanerHack", false);
@@ -317,34 +297,6 @@ public class SysProperties {
             throw new IllegalStateException("Invalid h2.objectCacheSize", e);
         }
     }
-
-    /**
-     * System property {@code h2.oldResultSetGetObject}, {@code true} by default
-     * unless {@code h2.preview} is enabled.
-     * <p>
-     * If {@code true} return {@code Byte} and {@code Short} from
-     * {@code ResultSet#getObject(int)} and {@code ResultSet#getObject(String)}
-     * for {@code TINYINT} and {@code SMALLINT} values.
-     * </p>
-     * <p>
-     * If {@code false} return {@code Integer} for them as specified in JDBC
-     * specification (see Mapping from JDBC Types to Java Object Types).
-     * </p>
-     */
-    public static final boolean OLD_RESULT_SET_GET_OBJECT = Utils.getProperty("h2.oldResultSetGetObject", !PREVIEW);
-
-    /**
-     * System property {@code h2.bigDecimalIsDecimal}, {@code true} by default
-     * unless {@code h2.preview} is enabled.
-     * <p>
-     * If {@code true} map {@code BigDecimal} to {@code DECIMAL} type.
-     * </p>
-     * <p>
-     * If {@code false} map {@code BigDecimal} to {@code NUMERIC} as specified
-     * in JDBC specification (see Mapping from Java Object Types to JDBC Types).
-     * </p>
-     */
-    public static final boolean BIG_DECIMAL_IS_DECIMAL = Utils.getProperty("h2.bigDecimalIsDecimal", !PREVIEW);
 
     /**
      * System property <code>h2.pgClientEncoding</code> (default: UTF-8).<br />
@@ -387,7 +339,7 @@ public class SysProperties {
      * System property <code>h2.socketConnectRetry</code> (default: 16).<br />
      * The number of times to retry opening a socket. Windows sometimes fails
      * to open a socket, see bug
-     * https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6213296
+     * https://bugs.openjdk.java.net/browse/JDK-6213296
      */
     public static final int SOCKET_CONNECT_RETRY =
             Utils.getProperty("h2.socketConnectRetry", 16);
@@ -399,34 +351,6 @@ public class SysProperties {
      */
     public static final int SOCKET_CONNECT_TIMEOUT =
             Utils.getProperty("h2.socketConnectTimeout", 2000);
-
-    /**
-     * System property <code>h2.sortBinaryUnsigned</code>
-     * (default: true).<br />
-     * Whether binary data should be sorted in unsigned mode
-     * (0xff is larger than 0x00) by default in new databases.
-     */
-    public static final boolean SORT_BINARY_UNSIGNED =
-            Utils.getProperty("h2.sortBinaryUnsigned", true);
-
-    /**
-     * System property {@code h2.sortUuidUnsigned}, {@code false} by default
-     * unless {@code h2.preview} is enabled.
-     * Whether UUID data should be sorted in unsigned mode
-     * ('ffffffff-ffff-ffff-ffff-ffffffffffff' is larger than
-     * '00000000-0000-0000-0000-000000000000') by default in new databases.
-     */
-    public static final boolean SORT_UUID_UNSIGNED =
-            Utils.getProperty("h2.sortUuidUnsigned", PREVIEW);
-
-    /**
-     * System property <code>h2.sortNullsHigh</code> (default: false).<br />
-     * Invert the default sorting behavior for NULL, such that NULL
-     * is at the end of a result set in an ascending sort and at
-     * the beginning of a result set in a descending sort.
-     */
-    public static final boolean SORT_NULLS_HIGH =
-            Utils.getProperty("h2.sortNullsHigh", false);
 
     /**
      * System property <code>h2.splitFileSizeShift</code> (default: 30).<br />
@@ -476,39 +400,6 @@ public class SysProperties {
      */
     public static final boolean USE_THREAD_CONTEXT_CLASS_LOADER =
         Utils.getProperty("h2.useThreadContextClassLoader", false);
-
-    /**
-     * System property <code>h2.serializeJavaObject</code>
-     * (default: true).<br />
-     * <b>If true</b>, values of type OTHER will be stored in serialized form
-     * and have the semantics of binary data for all operations (such as sorting
-     * and conversion to string).
-     * <br />
-     * <b>If false</b>, the objects will be serialized only for I/O operations
-     * and a few other special cases (for example when someone tries to get the
-     * value in binary form or when comparing objects that are not comparable
-     * otherwise).
-     * <br />
-     * If the object implements the Comparable interface, the method compareTo
-     * will be used for sorting (but only if objects being compared have a
-     * common comparable super type). Otherwise the objects will be compared by
-     * type, and if they are the same by hashCode, and if the hash codes are
-     * equal, but objects are not, the serialized forms (the byte arrays) are
-     * compared.
-     * <br />
-     * The string representation of the values use the toString method of
-     * object.
-     * <br />
-     * In client-server mode, the server must have all required classes in the
-     * class path. On the client side, this setting is required to be disabled
-     * as well, to have correct string representation and display size.
-     * <br />
-     * In embedded mode, no data copying occurs, so the user has to make
-     * defensive copy himself before storing, or ensure that the value object is
-     * immutable.
-     */
-    public static boolean serializeJavaObject =
-            Utils.getProperty("h2.serializeJavaObject", true);
 
     /**
      * System property <code>h2.javaObjectSerializer</code>

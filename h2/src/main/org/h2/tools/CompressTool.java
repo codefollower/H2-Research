@@ -87,7 +87,7 @@ public class CompressTool {
         int newLen = 0;
         out[0] = (byte) compress.getAlgorithm();
         int start = 1 + writeVariableInt(out, 1, len);
-        newLen = compress.compress(in, len, out, start);
+        newLen = compress.compress(in, 0, len, out, start);
         if (newLen > len + start || newLen <= 0) {
             out[0] = Compressor.NO;
             System.arraycopy(in, 0, out, start, len);
@@ -103,6 +103,9 @@ public class CompressTool {
      * @return the uncompressed data
      */
     public byte[] expand(byte[] in) {
+        if (in.length == 0) {
+            throw DbException.get(ErrorCode.COMPRESSION_ERROR);
+        }
         int algorithm = in[0];
         Compressor compress = getCompressor(algorithm);
         try {

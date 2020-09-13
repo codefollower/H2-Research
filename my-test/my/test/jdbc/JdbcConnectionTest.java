@@ -78,7 +78,7 @@ public class JdbcConnectionTest {
 		}
 
 		@Override
-		public void setProgress(int state, String name, int x, int max) {
+		public void setProgress(int state, String name, long x, long max) {
 			// TODO Auto-generated method stub
 			
 		}

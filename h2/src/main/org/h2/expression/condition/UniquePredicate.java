@@ -7,8 +7,8 @@ package org.h2.expression.condition;
 
 import java.util.Arrays;
 
-import org.h2.command.dml.Query;
-import org.h2.engine.Session;
+import org.h2.command.query.Query;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ValueExpression;
 import org.h2.result.LocalResult;
@@ -41,9 +41,9 @@ public class UniquePredicate extends PredicateWithSubquery {
         }
 
         @Override
-        public int getRowCount() {
+        public long getRowCount() {
             // Not required
-            return 0;
+            return 0L;
         }
 
         @Override
@@ -59,7 +59,7 @@ public class UniquePredicate extends PredicateWithSubquery {
             if (values.length != columnCount) {
                 values = Arrays.copyOf(values, columnCount);
             }
-            int expected = result.getRowCount() + 1;
+            long expected = result.getRowCount() + 1;
             result.addRow(values);
             if (expected != result.getRowCount()) {
                 hasDuplicates = true;
@@ -73,7 +73,7 @@ public class UniquePredicate extends PredicateWithSubquery {
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         super.optimize(session);
         if (query.isStandardDistinct()) {
             return ValueExpression.TRUE;
@@ -82,7 +82,7 @@ public class UniquePredicate extends PredicateWithSubquery {
     }
 
     @Override
-    public Value getValue(Session session) {
+    public Value getValue(SessionLocal session) {
         query.setSession(session);
         int columnCount = query.getColumnCount();
         LocalResult result = new LocalResult(session,
@@ -95,8 +95,8 @@ public class UniquePredicate extends PredicateWithSubquery {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
-        return super.getSQL(builder.append("UNIQUE"), alwaysQuote);
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
+        return super.getUnenclosedSQL(builder.append("UNIQUE"), sqlFlags);
     }
 
 }

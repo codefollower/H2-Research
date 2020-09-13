@@ -49,7 +49,7 @@ public abstract class CacheObject implements Comparable<CacheObject> {
 
     public void setPos(int pos) { //没有子类覆盖
         if (cachePrevious != null || cacheNext != null || cacheChained != null) {
-            DbException.throwInternalError("setPos too late");
+            throw DbException.getInternalError("setPos too late");
         }
         this.pos = pos;
     }

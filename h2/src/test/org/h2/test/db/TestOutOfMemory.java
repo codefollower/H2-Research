@@ -16,6 +16,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 import org.h2.api.ErrorCode;
 import org.h2.mvstore.MVStore;
+import org.h2.mvstore.MVStoreException;
 import org.h2.store.fs.FilePath;
 import org.h2.store.fs.FileUtils;
 import org.h2.store.fs.mem.FilePathMem;
@@ -37,7 +38,7 @@ public class TestOutOfMemory extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -86,14 +87,14 @@ public class TestOutOfMemory extends TestDb {
                 }
                 Throwable throwable = exRef.get();
                 if(throwable instanceof OutOfMemoryError) throw (OutOfMemoryError)throwable;
-                if(throwable instanceof IllegalStateException) throw (IllegalStateException)throwable;
+                if(throwable instanceof MVStoreException) throw (MVStoreException)throwable;
                 fail();
-            } catch (OutOfMemoryError | IllegalStateException e) {
+            } catch (OutOfMemoryError | MVStoreException e) {
                 // expected
             }
             try {
                 store.close();
-            } catch (IllegalStateException e) {
+            } catch (MVStoreException e) {
                 // expected
             }
             store.closeImmediately();
@@ -117,7 +118,7 @@ public class TestOutOfMemory extends TestDb {
             int memoryFree = Utils.getMemoryFree();
             try {
                 stat.execute("create table test(id int, name varchar) as " +
-                        "select x, space(10000000+x) from system_range(1, 1000)");
+                        "select x, space(1000000+x) from system_range(1, 10000)");
                 fail();
             } catch (SQLException e) {
                 assertTrue("Unexpected error code: " + e.getErrorCode(),
@@ -210,8 +211,7 @@ public class TestOutOfMemory extends TestDb {
         }
     }
 
-    public static final class MyChild extends TestDb.Child
-    {
+    public static final class MyChild extends TestDb.Child {
 
         /**
          * Run just this test.

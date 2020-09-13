@@ -5,7 +5,7 @@
  */
 package org.h2.expression.condition;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.TypedValueExpression;
@@ -27,17 +27,17 @@ public class ConditionNot extends Condition {
     }
 
     @Override
-    public Expression getNotIfPossible(Session session) {
-        return castToBoolean(session, condition);
+    public Expression getNotIfPossible(SessionLocal session) {
+        return castToBoolean(session, condition.optimize(session));
     }
 
     @Override
-    public Value getValue(Session session) {
+    public Value getValue(SessionLocal session) {
         Value v = condition.getValue(session);
         if (v == ValueNull.INSTANCE) {
             return v;
         }
-        return v.convertTo(Value.BOOLEAN).negate();
+        return v.convertToBoolean().negate();
     }
 
     @Override
@@ -46,7 +46,7 @@ public class ConditionNot extends Condition {
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         Expression e2 = condition.getNotIfPossible(session);
         if (e2 != null) {
             return e2.optimize(session);
@@ -69,13 +69,17 @@ public class ConditionNot extends Condition {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
-        builder.append("(NOT ");
-        return condition.getSQL(builder, alwaysQuote).append(')');
+    public boolean needParentheses() {
+        return true;
     }
 
     @Override
-    public void updateAggregate(Session session, int stage) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
+        return condition.getSQL(builder.append("NOT "), sqlFlags, AUTO_PARENTHESES);
+    }
+
+    @Override
+    public void updateAggregate(SessionLocal session, int stage) {
         condition.updateAggregate(session, stage);
     }
 

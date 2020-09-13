@@ -78,7 +78,7 @@ public class TestTools extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -245,7 +245,7 @@ public class TestTools extends TestDb {
         assertTrue(rs.getMetaData().isSigned(1));
         assertFalse(rs.getMetaData().isWritable(1));
         assertEquals("", rs.getMetaData().getCatalogName(1));
-        assertEquals(null, rs.getMetaData().getColumnClassName(1));
+        assertEquals(Void.class.getName(), rs.getMetaData().getColumnClassName(1));
         assertEquals("NULL", rs.getMetaData().getColumnTypeName(1));
         assertEquals("", rs.getMetaData().getSchemaName(1));
         assertEquals("", rs.getMetaData().getTableName(1));
@@ -514,7 +514,7 @@ public class TestTools extends TestDb {
         rs.addRow(uuid);
         rs.next();
         assertEquals(uuid, rs.getObject(1));
-        assertEquals(uuid, ValueUuid.get(rs.getBytes(1)).getObject());
+        assertEquals(uuid, ValueUuid.get(rs.getBytes(1)).getUuid());
     }
 
     private void testJdbcDriverUtils() {
@@ -717,7 +717,7 @@ public class TestTools extends TestDb {
         prep.executeUpdate();
         stat.execute("create table test2(id int primary key,\n" +
                 "a real, b double, c bigint,\n" +
-                "d smallint, e boolean, f binary, g date, h time, i timestamp)",
+                "d smallint, e boolean, f varbinary, g date, h time, i timestamp)",
                 Statement.NO_GENERATED_KEYS);
         prep = conn.prepareStatement(
                 "insert into test2 values(1, ?, ?, ?, ?, ?, ?, ?, ?, ?)");

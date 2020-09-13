@@ -11,7 +11,7 @@ import java.util.TreeMap;
 
 import org.h2.engine.Database;
 import org.h2.engine.Session;
-import org.h2.engine.SessionInterface;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.SysProperties;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
@@ -19,6 +19,7 @@ import org.h2.mvstore.db.MVTempResult;
 import org.h2.util.Utils;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
+import org.h2.value.ValueLob;
 import org.h2.value.ValueRow;
 
 /**
@@ -34,19 +35,19 @@ import org.h2.value.ValueRow;
 public class LocalResult implements ResultInterface, ResultTarget {
 
     private int maxMemoryRows;
-    private Session session;
+    private SessionLocal session;
     private int visibleColumnCount;
     private int resultColumnCount;
     private Expression[] expressions;
-    private int rowId, rowCount;
+    private long rowId, rowCount;
     private ArrayList<Value[]> rows;
     private SortOrder sort;
     // HashSet cannot be used here, because we need to compare values of
     // different type or scale properly.
     private TreeMap<Value, Value[]> distinctRows;
     private Value[] currentRow;
-    private int offset;
-    private int limit = -1;
+    private long offset;
+    private long limit = -1;
     private boolean fetchPercent;
     private SortOrder withTiesSortOrder;
     private boolean limitsWereApplied;
@@ -77,7 +78,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
      *            the number of columns including visible columns and additional
      *            virtual columns for ORDER BY and DISTINCT ON clauses
      */
-    public LocalResult(Session session, Expression[] expressions, int visibleColumnCount, int resultColumnCount) {
+    public LocalResult(SessionLocal session, Expression[] expressions, int visibleColumnCount, int resultColumnCount) {
         this.session = session;
         if (session == null) {
             this.maxMemoryRows = Integer.MAX_VALUE;
@@ -120,7 +121,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
      * @return the copy if possible, or null if copying is not possible
      */
     @Override
-    public LocalResult createShallowCopy(SessionInterface targetSession) {
+    public LocalResult createShallowCopy(Session targetSession) {
         if (external == null && (rows == null || rows.size() < rowCount)) {
             return null;
         }
@@ -136,7 +137,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
         }
         LocalResult copy = new LocalResult();
         copy.maxMemoryRows = this.maxMemoryRows;
-        copy.session = (Session) targetSession;
+        copy.session = (SessionLocal) targetSession;
         copy.visibleColumnCount = this.visibleColumnCount;
         copy.resultColumnCount = this.resultColumnCount;
         copy.expressions = this.expressions;
@@ -247,7 +248,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
      */
     public void removeDistinct(Value[] values) {
         if (!distinct) {
-            DbException.throwInternalError();
+            throw DbException.getInternalError();
         }
         assert values.length == visibleColumnCount;
         if (distinctRows != null) {
@@ -281,7 +282,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
                 if (external != null) {
                     currentRow = external.next();
                 } else {
-                    currentRow = rows.get(rowId);
+                    currentRow = rows.get((int) rowId);
                 }
                 return true;
             }
@@ -291,7 +292,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     }
 
     @Override
-    public int getRowId() {
+    public long getRowId() {
         return rowId;
     }
 
@@ -303,11 +304,12 @@ public class LocalResult implements ResultInterface, ResultTarget {
     private void cloneLobs(Value[] values) {
         for (int i = 0; i < values.length; i++) {
             Value v = values[i];
-            Value v2 = v.copyToResult();
-            if (v2 != v) {
-                containsLobs = true;
-                session.addTemporaryLob(v2);
-                values[i] = v2;
+            if (v instanceof ValueLob) {
+                ValueLob v2 = ((ValueLob) v).copyToResult();
+                if (v2 != v) {
+                    containsLobs = true;
+                    values[i] = session.addTemporaryLob(v2);
+                }
             }
         }
     }
@@ -391,7 +393,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
             if (sort != null && limit != 0 && !limitsWereApplied) {
                 boolean withLimit = limit > 0 && withTiesSortOrder == null;
                 if (offset > 0 || withLimit) {
-                    sort.sort(rows, offset, withLimit ? limit : rows.size());
+                    sort.sort(rows, (int) offset, withLimit ? (int) limit : rows.size());
                 } else {
                     sort.sort(rows);
                 }
@@ -405,8 +407,8 @@ public class LocalResult implements ResultInterface, ResultTarget {
         if (limitsWereApplied) {
             return;
         }
-        int offset = Math.max(this.offset, 0);
-        int limit = this.limit;
+        long offset = Math.max(this.offset, 0);
+        long limit = this.limit;
         if (offset == 0 && limit < 0 && !fetchPercent || rowCount == 0) {
             return;
         }
@@ -415,11 +417,11 @@ public class LocalResult implements ResultInterface, ResultTarget {
                 throw DbException.getInvalidValueException("FETCH PERCENT", limit);
             }
             // Oracle rounds percent up, do the same for now
-            limit = (int) (((long) limit * rowCount + 99) / 100);
+            limit = (int) ((limit * rowCount + 99) / 100);
         }
         boolean clearAll = offset >= rowCount || limit == 0;
         if (!clearAll) {
-            int remaining = rowCount - offset;
+            long remaining = rowCount - offset;
             limit = limit < 0 ? remaining : Math.min(remaining, limit);
             if (offset == 0 && remaining <= limit) {
                 return;
@@ -434,7 +436,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
                 rows.clear();
                 return;
             }
-            int to = offset + limit;
+            int to = (int) (offset + limit);
             if (withTiesSortOrder != null) {
                 Value[] expected = rows.get(to - 1);
                 while (to < rows.size() && withTiesSortOrder.compare(expected, rows.get(to)) == 0) {
@@ -444,7 +446,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
             }
             if (offset != 0 || to != rows.size()) {
                 // avoid copying the whole array for each row
-                rows = new ArrayList<>(rows.subList(offset, to));
+                rows = new ArrayList<>(rows.subList((int) offset, to));
             }
         } else {
             if (clearAll) {
@@ -456,7 +458,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
         }
     }
 
-    private void trimExternal(int offset, int limit) {
+    private void trimExternal(long offset, long limit) {
         ResultExternal temp = external;
         external = null;
         temp.reset();
@@ -488,7 +490,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
     }
 
     @Override
-    public int getRowCount() {
+    public long getRowCount() {
         return rowCount;
     }
 
@@ -547,7 +549,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
      *
      * @param limit the limit (-1 means no limit, 0 means no rows)
      */
-    public void setLimit(int limit) {
+    public void setLimit(long limit) {
         this.limit = limit;
     }
 
@@ -587,7 +589,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
 
     @Override
     public String getAlias(int i) {
-        return expressions[i].getAlias();
+        return expressions[i].getAlias(session, i);
     }
 
     @Override
@@ -602,7 +604,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
 
     @Override
     public String getColumnName(int i) {
-        return expressions[i].getColumnName();
+        return expressions[i].getColumnName(session, i);
     }
 
     @Override
@@ -625,7 +627,7 @@ public class LocalResult implements ResultInterface, ResultTarget {
      *
      * @param offset the offset
      */
-    public void setOffset(int offset) {
+    public void setOffset(long offset) {
         this.offset = offset;
     }
 

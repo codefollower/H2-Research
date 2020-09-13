@@ -5,9 +5,9 @@
  */
 package org.h2.mvstore.db;
 
+import java.nio.ByteBuffer;
 import org.h2.mvstore.WriteBuffer;
 import org.h2.mvstore.type.LongDataType;
-import java.nio.ByteBuffer;
 
 /**
  * Class LongDBDataType provides version of LongDataType which is backward compatible
@@ -16,8 +16,8 @@ import java.nio.ByteBuffer;
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-public class LongDBDataType extends LongDataType
-{
+public class LongDBDataType extends LongDataType {
+
     public static final LongDBDataType INSTANCE = new LongDBDataType();
     private static final ValueDataType DUMMY = new ValueDataType();
 

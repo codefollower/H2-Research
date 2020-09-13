@@ -6,11 +6,11 @@
 package org.h2.result;
 
 import java.util.Arrays;
-import org.h2.engine.SessionInterface;
+import org.h2.engine.Session;
 import org.h2.util.MathUtils;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
-import org.h2.value.ValueString;
+import org.h2.value.ValueVarchar;
 
 /**
  * Result with padded fixed length strings.
@@ -71,7 +71,7 @@ public class ResultWithPaddedStrings implements ResultInterface {
                      * no difference between ValueStringFixed and ValueString
                      * for JDBC layer anyway.
                      */
-                    row[i] = ValueString.get(rightPadWithSpaces(s, MathUtils.convertLongToInt(precision)));
+                    row[i] = ValueVarchar.get(rightPadWithSpaces(s, MathUtils.convertLongToInt(precision)));
                 }
             }
         }
@@ -95,7 +95,7 @@ public class ResultWithPaddedStrings implements ResultInterface {
     }
 
     @Override
-    public int getRowId() {
+    public long getRowId() {
         return source.getRowId();
     }
 
@@ -110,7 +110,7 @@ public class ResultWithPaddedStrings implements ResultInterface {
     }
 
     @Override
-    public int getRowCount() {
+    public long getRowCount() {
         return source.getRowCount();
     }
 
@@ -185,7 +185,7 @@ public class ResultWithPaddedStrings implements ResultInterface {
     }
 
     @Override
-    public ResultInterface createShallowCopy(SessionInterface targetSession) {
+    public ResultInterface createShallowCopy(Session targetSession) {
         ResultInterface copy = source.createShallowCopy(targetSession);
         return copy != null ? new ResultWithPaddedStrings(copy) : null;
     }

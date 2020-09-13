@@ -39,7 +39,7 @@ public class TestPowerOffFs2 extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -217,7 +217,10 @@ public class TestPowerOffFs2 extends TestDb {
                     rs.getString("NAME");
                 }
             } catch (SQLException e) {
-                if (e.getErrorCode() == ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1) {
+                if (e.getErrorCode() == ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1 ||
+                        e.getErrorCode() == ErrorCode.TABLE_OR_VIEW_NOT_FOUND_DATABASE_EMPTY_1 ||
+                        e.getErrorCode() == ErrorCode.TABLE_OR_VIEW_NOT_FOUND_WITH_CANDIDATES_2
+                ) {
                     // ok
                 } else {
                     throw e;

@@ -32,7 +32,7 @@ public class TestCluster extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -510,7 +510,7 @@ public class TestCluster extends TestDb {
             assertFalse(rs.next());
         }
         ResultSet rs = conn.createStatement().executeQuery(
-                "SELECT `VALUE` FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME='CLUSTER'");
+                "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'CLUSTER'");
         String cluster = rs.next() ? rs.getString(1) : "''";
         assertEquals(expectedCluster, cluster);
     }

@@ -46,7 +46,7 @@ public class TestFullText extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -107,8 +107,7 @@ public class TestFullText extends TestDb {
 
         conn = getConnection("fullTextNative", connList);
         stat = conn.createStatement();
-        stat.execute("create alias if not exists ft_init " +
-                "for \"org.h2.fulltext.FullText.init\"");
+        stat.execute("create alias if not exists ft_init for 'org.h2.fulltext.FullText.init'");
         stat.execute("call ft_init()");
         stat.execute("create table test(id int primary key, name varchar)");
         stat.execute("call ft_create_index('PUBLIC', 'TEST', 'NAME')");
@@ -128,8 +127,7 @@ public class TestFullText extends TestDb {
         ArrayList<Connection> connList = new ArrayList<>();
         Connection conn = getConnection("fullTextNative", connList);
         Statement stat = conn.createStatement();
-        stat.execute("CREATE ALIAS IF NOT EXISTS FT_INIT " +
-                "FOR \"org.h2.fulltext.FullText.init\"");
+        stat.execute("CREATE ALIAS IF NOT EXISTS FT_INIT FOR 'org.h2.fulltext.FullText.init'");
         stat.execute("CALL FT_INIT()");
         FullText.setIgnoreList(conn, "to,this");
         FullText.setWhitespaceChars(conn, " ,.-");
@@ -318,8 +316,7 @@ public class TestFullText extends TestDb {
         deleteDb("fullText");
         Connection conn = getConnection("fullText");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE ALIAS IF NOT EXISTS FT_INIT " +
-                "FOR \"org.h2.fulltext.FullText.init\"");
+        stat.execute("CREATE ALIAS IF NOT EXISTS FT_INIT FOR 'org.h2.fulltext.FullText.init'");
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, DATA CLOB)");
         FullText.createIndex(conn, "PUBLIC", "TEST", null);
         conn.setAutoCommit(false);
@@ -364,8 +361,7 @@ public class TestFullText extends TestDb {
         FileUtils.deleteRecursive(getBaseDir() + "/fullText", false);
         Connection conn = getConnection("fullText");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE ALIAS IF NOT EXISTS FT_INIT " +
-                "FOR \"org.h2.fulltext.FullText.init\"");
+        stat.execute("CREATE ALIAS IF NOT EXISTS FT_INIT FOR 'org.h2.fulltext.FullText.init'");
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR)");
         for (int i = 0; i < 10; i++) {
             FullText.createIndex(conn, "PUBLIC", "TEST", null);
@@ -446,9 +442,18 @@ public class TestFullText extends TestDb {
         initFullText(stat, lucene);
         stat.execute("DROP TABLE IF EXISTS TEST");
         stat.execute(
-                "CREATE TABLE TEST AS SELECT * FROM INFORMATION_SCHEMA.HELP");
-        stat.execute("ALTER TABLE TEST ALTER COLUMN ID INT NOT NULL");
-        stat.execute("CREATE PRIMARY KEY ON TEST(ID)");
+                "CREATE TABLE TEST(ID INT PRIMARY KEY, SECTION VARCHAR, TOPIC VARCHAR, SYNTAX VARCHAR, TEXT VARCHAR)");
+        PreparedStatement ps = conn.prepareStatement("INSERT INTO TEST VALUES (?, ?, ?, ?, ?)");
+        try (ResultSet rs = stat.executeQuery("HELP \"\"")) {
+            while (rs.next()) {
+                ps.setInt(1, rs.getInt(1));
+                for (int i = 2; i <= 5; i++) {
+                    ps.setString(i, rs.getString(i));
+                }
+                ps.addBatch();
+            }
+        }
+        ps.executeUpdate();
         long time = System.nanoTime();
         stat.execute("CALL " + prefix + "_CREATE_INDEX('PUBLIC', 'TEST', NULL)");
         println("create " + prefix + ": " +
@@ -490,8 +495,7 @@ public class TestFullText extends TestDb {
         String prefix = lucene ? "FTL_" : "FT_";
         Statement stat = conn.createStatement();
         String className = lucene ? "FullTextLucene" : "FullText";
-        stat.execute("CREATE ALIAS IF NOT EXISTS " +
-                prefix + "INIT FOR \"org.h2.fulltext." + className + ".init\"");
+        stat.execute("CREATE ALIAS IF NOT EXISTS " + prefix + "INIT FOR 'org.h2.fulltext." + className + ".init'");
         stat.execute("CALL " + prefix + "INIT()");
         stat.execute("DROP TABLE IF EXISTS TEST");
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME " + dataType + ")");
@@ -628,8 +632,7 @@ public class TestFullText extends TestDb {
             throws SQLException {
         String prefix = lucene ? "FTL" : "FT";
         String className = lucene ? "FullTextLucene" : "FullText";
-        stat.execute("CREATE ALIAS IF NOT EXISTS " + prefix +
-                "_INIT FOR \"org.h2.fulltext." + className + ".init\"");
+        stat.execute("CREATE ALIAS IF NOT EXISTS " + prefix + "_INIT FOR 'org.h2.fulltext." + className + ".init'");
         stat.execute("CALL " + prefix + "_INIT()");
     }
 }

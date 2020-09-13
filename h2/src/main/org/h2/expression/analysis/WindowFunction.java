@@ -9,17 +9,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import org.h2.command.dml.Select;
-import org.h2.command.dml.SelectGroups;
-import org.h2.engine.Session;
+import org.h2.command.query.Select;
+import org.h2.command.query.SelectGroups;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
+import org.h2.expression.ValueExpression;
 import org.h2.message.DbException;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
+import org.h2.value.ValueBigint;
 import org.h2.value.ValueDouble;
-import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
 
 /**
@@ -148,12 +149,12 @@ public class WindowFunction extends DataAnalysisOperation {
     }
 
     @Override
-    protected void updateAggregate(Session session, SelectGroups groupData, int groupRowId) {
+    protected void updateAggregate(SessionLocal session, SelectGroups groupData, int groupRowId) {
         updateOrderedAggregate(session, groupData, groupRowId, over.getOrderBy());
     }
 
     @Override
-    protected void updateGroupAggregates(Session session, int stage) {
+    protected void updateGroupAggregates(SessionLocal session, int stage) {
         super.updateGroupAggregates(session, stage);
         if (args != null) {
             for (Expression expr : args) {
@@ -168,7 +169,7 @@ public class WindowFunction extends DataAnalysisOperation {
     }
 
     @Override
-    protected void rememberExpressions(Session session, Value[] array) {
+    protected void rememberExpressions(SessionLocal session, Value[] array) {
         if (args != null) {
             for (int i = 0, cnt = args.length; i < cnt; i++) {
                 array[i] = args[i].getValue(session);
@@ -182,12 +183,12 @@ public class WindowFunction extends DataAnalysisOperation {
     }
 
     @Override
-    protected void getOrderedResultLoop(Session session, HashMap<Integer, Value> result, ArrayList<Value[]> ordered,
-            int rowIdColumn) {
+    protected void getOrderedResultLoop(SessionLocal session, HashMap<Integer, Value> result,
+            ArrayList<Value[]> ordered, int rowIdColumn) {
         switch (type) {
         case ROW_NUMBER:
             for (int i = 0, size = ordered.size(); i < size;) {
-                result.put(ordered.get(i)[rowIdColumn].getInt(), ValueLong.get(++i));
+                result.put(ordered.get(i)[rowIdColumn].getInt(), ValueBigint.get(++i));
             }
             break;
         case RANK:
@@ -203,7 +204,7 @@ public class WindowFunction extends DataAnalysisOperation {
             break;
         case LEAD:
         case LAG:
-            getLeadLag(result, ordered, rowIdColumn);
+            getLeadLag(result, ordered, rowIdColumn, session);
             break;
         case FIRST_VALUE:
         case LAST_VALUE:
@@ -214,7 +215,7 @@ public class WindowFunction extends DataAnalysisOperation {
             getRatioToReport(result, ordered, rowIdColumn);
             break;
         default:
-            throw DbException.throwInternalError("type=" + type);
+            throw DbException.getInternalError("type=" + type);
         }
     }
 
@@ -237,7 +238,7 @@ public class WindowFunction extends DataAnalysisOperation {
                 int nm = number - 1;
                 v = nm == 0 ? ValueDouble.ZERO : ValueDouble.get((double) nm / (size - 1));
             } else {
-                v = ValueLong.get(number);
+                v = ValueBigint.get(number);
             }
             result.put(row[rowIdColumn].getInt(), v);
         }
@@ -277,14 +278,15 @@ public class WindowFunction extends DataAnalysisOperation {
             } else {
                 v = i / (perTile + 1) + 1;
             }
-            result.put(orderedData.get(i)[rowIdColumn].getInt(), ValueLong.get(v));
+            result.put(orderedData.get(i)[rowIdColumn].getInt(), ValueBigint.get(v));
         }
     }
 
-    private void getLeadLag(HashMap<Integer, Value> result, ArrayList<Value[]> ordered, int rowIdColumn) {
+    private void getLeadLag(HashMap<Integer, Value> result, ArrayList<Value[]> ordered, int rowIdColumn,
+            SessionLocal session) {
         int size = ordered.size();
         int numExpressions = getNumExpressions();
-        int dataType = args[0].getType().getValueType();
+        TypeInfo dataType = args[0].getType();
         for (int i = 0; i < size; i++) {
             Value[] row = ordered.get(i);
             int rowId = row[rowIdColumn].getInt();
@@ -336,7 +338,7 @@ public class WindowFunction extends DataAnalysisOperation {
             }
             if (v == null) {
                 if (numExpressions >= 3) {
-                    v = row[2].convertTo(dataType);
+                    v = row[2].convertTo(dataType, session);
                 } else {
                     v = ValueNull.INSTANCE;
                 }
@@ -345,7 +347,8 @@ public class WindowFunction extends DataAnalysisOperation {
         }
     }
 
-    private void getNth(Session session, HashMap<Integer, Value> result, ArrayList<Value[]> ordered, int rowIdColumn) {
+    private void getNth(SessionLocal session, HashMap<Integer, Value> result, ArrayList<Value[]> ordered,
+            int rowIdColumn) {
         int size = ordered.size();
         for (int i = 0; i < size; i++) {
             Value[] row = ordered.get(i);
@@ -372,7 +375,7 @@ public class WindowFunction extends DataAnalysisOperation {
                 break;
             }
             default:
-                throw DbException.throwInternalError("type=" + type);
+                throw DbException.getInternalError("type=" + type);
             }
             result.put(rowId, v);
         }
@@ -385,9 +388,9 @@ public class WindowFunction extends DataAnalysisOperation {
             Value v = ordered.get(i)[0];
             if (v != ValueNull.INSTANCE) {
                 if (value == null) {
-                    value = v.convertTo(Value.DOUBLE);
+                    value = v.convertToDouble();
                 } else {
-                    value = value.add(v.convertTo(Value.DOUBLE));
+                    value = value.add(v.convertToDouble());
                 }
             }
         }
@@ -402,7 +405,7 @@ public class WindowFunction extends DataAnalysisOperation {
             } else {
                 v = row[0];
                 if (v != ValueNull.INSTANCE) {
-                    v = v.convertTo(Value.DOUBLE).divide(value, ValueDouble.PRECISION);
+                    v = v.convertToDouble().divide(value, ValueDouble.DECIMAL_PRECISION);
                 }
             }
             result.put(row[rowIdColumn].getInt(), v);
@@ -410,7 +413,7 @@ public class WindowFunction extends DataAnalysisOperation {
     }
 
     @Override
-    protected Value getAggregatedValue(Session session, Object aggregateData) {
+    protected Value getAggregatedValue(SessionLocal session, Object aggregateData) {
         throw DbException.getUnsupportedException("Window function");
     }
 
@@ -425,7 +428,7 @@ public class WindowFunction extends DataAnalysisOperation {
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         if (over.getWindowFrame() != null) {
             switch (type) {
             case FIRST_VALUE:
@@ -433,26 +436,34 @@ public class WindowFunction extends DataAnalysisOperation {
             case NTH_VALUE:
                 break;
             default:
-                String sql = getSQL(false);
+                String sql = getTraceSQL();
                 throw DbException.getSyntaxError(sql, sql.length() - 1);
             }
         }
         if (over.getOrderBy() == null) {
-            switch (type) {
-            case RANK:
-            case DENSE_RANK:
-            case NTILE:
-            case LEAD:
-            case LAG:
-                String sql = getSQL(false);
+            if (type.requiresWindowOrdering()) {
+                String sql = getTraceSQL();
                 throw DbException.getSyntaxError(sql, sql.length() - 1, "ORDER BY");
-            default:
             }
         } else if (type == WindowFunctionType.RATIO_TO_REPORT) {
-            String sql = getSQL(false);
+            String sql = getTraceSQL();
             throw DbException.getSyntaxError(sql, sql.length() - 1);
         }
         super.optimize(session);
+        // Need to re-test, because optimization may remove the window ordering
+        // clause.
+        if (over.getOrderBy() == null) {
+            switch (type) {
+            case RANK:
+            case DENSE_RANK:
+                return ValueExpression.get(ValueBigint.get(1L));
+            case PERCENT_RANK:
+                return ValueExpression.get(ValueDouble.ZERO);
+            case CUME_DIST:
+                return ValueExpression.get(ValueDouble.ONE);
+            default:
+            }
+        }
         if (args != null) {
             for (int i = 0; i < args.length; i++) {
                 args[i] = args[i].optimize(session);
@@ -490,15 +501,15 @@ public class WindowFunction extends DataAnalysisOperation {
         case NTH_VALUE:
             return args[0].getType();
         default:
-            throw DbException.throwInternalError("type=" + type);
+            throw DbException.getInternalError("type=" + type);
         }
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
         builder.append(type.getSQL()).append('(');
         if (args != null) {
-            writeExpressions(builder, args, alwaysQuote);
+            writeExpressions(builder, args, sqlFlags);
         }
         builder.append(')');
         if (fromLast && type == WindowFunctionType.NTH_VALUE) {
@@ -516,7 +527,7 @@ public class WindowFunction extends DataAnalysisOperation {
             default:
             }
         }
-        return appendTailConditions(builder, alwaysQuote);
+        return appendTailConditions(builder, sqlFlags, type.requiresWindowOrdering());
     }
 
     @Override

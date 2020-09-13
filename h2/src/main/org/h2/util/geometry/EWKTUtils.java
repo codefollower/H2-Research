@@ -539,8 +539,7 @@ public final class EWKTUtils {
      */
     public static String ewkb2ewkt(byte[] ewkb, int dimensionSystem) {
         StringBuilder output = new StringBuilder();
-        EWKTTarget target = new EWKTTarget(output, dimensionSystem);
-        EWKBUtils.parseEWKB(ewkb, target);
+        EWKBUtils.parseEWKB(ewkb, new EWKTTarget(output, dimensionSystem));
         return output.toString();
     }
 
@@ -634,22 +633,24 @@ public final class EWKTUtils {
     /**
      * Formats type and dimension system as a string.
      *
+     * @param builder
+     *            string builder
      * @param type
      *            OGC geometry code format (type + dimensionSystem * 1000)
-     * @return formatted string
+     * @return the specified string builder
      * @throws IllegalArgumentException
      *             if type is not valid
      */
-    public static String formatGeometryTypeAndDimensionSystem(int type) {
+    public static StringBuilder formatGeometryTypeAndDimensionSystem(StringBuilder builder, int type) {
         int t = type % 1_000, d = type / 1_000;
         if (t < POINT || t > GEOMETRY_COLLECTION || d < DIMENSION_SYSTEM_XY || d > DIMENSION_SYSTEM_XYZM) {
             throw new IllegalArgumentException();
         }
-        String result = TYPES[t - 1];
+        builder.append(TYPES[t - 1]);
         if (d != DIMENSION_SYSTEM_XY) {
-            result = result + ' ' + DIMENSION_SYSTEMS[d];
+            builder.append(' ').append(DIMENSION_SYSTEMS[d]);
         }
-        return result;
+        return builder;
     }
 
     /**

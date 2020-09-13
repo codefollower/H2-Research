@@ -5,20 +5,15 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
 import org.h2.api.ErrorCode;
 import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
-import org.h2.util.JSR310Utils;
-import org.h2.util.LegacyDateTimeUtils;
 
 /**
  * Implementation of the TIMESTAMP data type.
  */
-public class ValueTimestamp extends Value {
+public final class ValueTimestamp extends Value {
 
     /**
      * The default precision and display size of the textual representation of a timestamp.
@@ -134,7 +129,7 @@ public class ValueTimestamp extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         return toString(builder.append("TIMESTAMP '")).append('\'');
     }
 
@@ -143,34 +138,6 @@ public class ValueTimestamp extends Value {
         builder.append(' ');
         DateTimeUtils.appendTime(builder, timeNanos);
         return builder;
-    }
-
-    @Override
-    public boolean checkPrecision(long precision) {
-        // TIMESTAMP data type does not have precision parameter
-        return true;
-    }
-
-    @Override
-    public Value convertScale(boolean onlyToSmallerScale, int targetScale) {
-        if (targetScale >= MAXIMUM_SCALE) {
-            return this;
-        }
-        if (targetScale < 0) {
-            throw DbException.getInvalidValueException("scale", targetScale);
-        }
-        long dv = dateValue;
-        long n = timeNanos;
-        long n2 = DateTimeUtils.convertScale(n, targetScale,
-                dv == DateTimeUtils.MAX_DATE_VALUE ? DateTimeUtils.NANOS_PER_DAY : Long.MAX_VALUE);
-        if (n2 == n) {
-            return this;
-        }
-        if (n2 >= DateTimeUtils.NANOS_PER_DAY) {
-            n2 -= DateTimeUtils.NANOS_PER_DAY;
-            dv = DateTimeUtils.incrementDateValue(dv);
-        }
-        return fromDateValueAndNanos(dv, n2);
     }
 
     @Override
@@ -200,24 +167,8 @@ public class ValueTimestamp extends Value {
     }
 
     @Override
-    public Object getObject() {
-        return JSR310Utils.valueToLocalDateTime(this, null);
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        try {
-            prep.setObject(parameterIndex, JSR310Utils.valueToLocalDateTime(this, null), Types.TIMESTAMP);
-            return;
-        } catch (SQLException ignore) {
-            // Nothing to do
-        }
-        prep.setTimestamp(parameterIndex, LegacyDateTimeUtils.toTimestamp(null, null, this));
-    }
-
-    @Override
     public Value add(Value v) {
-        ValueTimestamp t = (ValueTimestamp) v.convertTo(Value.TIMESTAMP);
+        ValueTimestamp t = (ValueTimestamp) v;
         long absoluteDay = DateTimeUtils.absoluteDayFromDateValue(dateValue)
                 + DateTimeUtils.absoluteDayFromDateValue(t.dateValue);
         long nanos = timeNanos + t.timeNanos;
@@ -230,7 +181,7 @@ public class ValueTimestamp extends Value {
 
     @Override
     public Value subtract(Value v) {
-        ValueTimestamp t = (ValueTimestamp) v.convertTo(Value.TIMESTAMP);
+        ValueTimestamp t = (ValueTimestamp) v;
         long absoluteDay = DateTimeUtils.absoluteDayFromDateValue(dateValue)
                 - DateTimeUtils.absoluteDayFromDateValue(t.dateValue);
         long nanos = timeNanos - t.timeNanos;

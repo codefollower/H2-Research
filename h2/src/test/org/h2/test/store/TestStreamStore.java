@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
+import org.h2.mvstore.MVStoreException;
 import org.h2.mvstore.StreamStore;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
@@ -35,11 +36,12 @@ public class TestStreamStore extends TestBase {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
     public void test() throws IOException {
+        FileUtils.createDirectories(getBaseDir());
         testMaxBlockKey();
         testIOException();
         testSaveCount();
@@ -86,7 +88,7 @@ public class TestStreamStore extends TestBase {
             fail();
         } catch (IOException e) {
             assertEquals(DataUtils.ERROR_BLOCK_NOT_FOUND,
-                    DataUtils.getErrorCode(e.getMessage()));
+                    ((MVStoreException) e.getCause()).getErrorCode());
         }
     }
 
@@ -103,9 +105,9 @@ public class TestStreamStore extends TestBase {
         for (int i = 0; i < 8 * 16; i++) {
             streamStore.put(new RandomStream(blockSize, i));
         }
-        long writeCount = s.getFileStore().getWriteCount();
-        assertTrue(writeCount > 2);
         s.close();
+        long writeCount = s.getFileStore().getWriteCount();
+        assertTrue(writeCount > 5);
     }
 
     private void testExceptionDuringStore() throws IOException {

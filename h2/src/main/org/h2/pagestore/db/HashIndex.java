@@ -9,14 +9,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import org.h2.command.dml.AllColumnsForPlan;
+
+import org.h2.command.query.AllColumnsForPlan;
 import org.h2.engine.Mode.UniqueIndexNullsHandling;
-import org.h2.index.BaseIndex;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Cursor;
+import org.h2.index.Index;
 import org.h2.index.IndexCondition;
 import org.h2.index.IndexType;
 import org.h2.index.SingleRowCursor;
-import org.h2.engine.Session;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -31,7 +32,7 @@ import org.h2.value.ValueNull;
 /**
  * A unique index based on an in-memory hash map.
  */
-public class HashIndex extends BaseIndex {
+public class HashIndex extends Index {
 
     /**
      * The index of the indexed column.
@@ -56,12 +57,12 @@ public class HashIndex extends BaseIndex {
     }
 
     @Override
-    public void truncate(Session session) {
+    public void truncate(SessionLocal session) {
         reset();
     }
 
     @Override
-    public void add(Session session, Row row) {
+    public void add(SessionLocal session, Row row) {
         Value key = row.getValue(indexColumn);
         if (key != ValueNull.INSTANCE
                 || database.getMode().uniqueIndexNullsHandling == UniqueIndexNullsHandling.FORBID_ANY_DUPLICATES) {
@@ -77,7 +78,7 @@ public class HashIndex extends BaseIndex {
     }
 
     @Override
-    public void remove(Session session, Row row) {
+    public void remove(SessionLocal session, Row row) {
         Value key = row.getValue(indexColumn);
         if (key != ValueNull.INSTANCE
                 || database.getMode().uniqueIndexNullsHandling == UniqueIndexNullsHandling.FORBID_ANY_DUPLICATES) {
@@ -88,10 +89,10 @@ public class HashIndex extends BaseIndex {
     }
 
     @Override
-    public Cursor find(Session session, SearchRow first, SearchRow last) {
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
         if (first == null || last == null) {
             // TODO hash index: should additionally check if values are the same
-            throw DbException.throwInternalError(first + " " + last);
+            throw DbException.getInternalError(first + " " + last);
         }
         Value v = first.getValue(indexColumn);
         if (v == ValueNull.INSTANCE
@@ -104,7 +105,7 @@ public class HashIndex extends BaseIndex {
          * case we need to convert, otherwise the HashMap will not find the
          * result.
          */
-        v = v.convertTo(tableData.getColumn(indexColumn).getType(), session, null);
+        v = v.convertTo(tableData.getColumn(indexColumn).getType(), session);
         Row result;
         Long pos = rows.get(v);
         if (pos == null) {
@@ -116,32 +117,27 @@ public class HashIndex extends BaseIndex {
     }
 
     @Override
-    public long getRowCount(Session session) {
-        return getRowCountApproximation();
+    public long getRowCount(SessionLocal session) {
+        return getRowCountApproximation(session);
     }
 
     @Override
-    public long getRowCountApproximation() {
+    public long getRowCountApproximation(SessionLocal session) {
         return rows.size() + nullRows.size();
     }
 
     @Override
-    public long getDiskSpaceUsed() {
-        return 0;
-    }
-
-    @Override
-    public void close(Session session) {
+    public void close(SessionLocal session) {
         // nothing to do
     }
 
     @Override
-    public void remove(Session session) {
+    public void remove(SessionLocal session) {
         // nothing to do
     }
 
     @Override
-    public double getCost(Session session, int[] masks,
+    public double getCost(SessionLocal session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
             AllColumnsForPlan allColumnsSet) {
         for (Column column : columns) {

@@ -5,7 +5,7 @@
  */
 package org.h2.expression.analysis;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.table.ColumnResolver;
 
@@ -68,7 +68,7 @@ public class WindowFrameBound {
 
     /**
      * Returns whether bound is defined with a variable. This method may be used
-     * only after {@link #optimize(Session)} invocation.
+     * only after {@link #optimize(SessionLocal)} invocation.
      *
      * @return whether bound is defined with a variable
      */
@@ -117,7 +117,7 @@ public class WindowFrameBound {
      * @param session
      *            the session
      */
-    void optimize(Session session) {
+    void optimize(SessionLocal session) {
         if (value != null) {
             value = value.optimize(session);
             if (!value.isConstant()) {
@@ -133,9 +133,9 @@ public class WindowFrameBound {
      *            the session
      * @param stage
      *            select stage
-     * @see Expression#updateAggregate(Session, int)
+     * @see Expression#updateAggregate(SessionLocal, int)
      */
-    void updateAggregate(Session session, int stage) {
+    void updateAggregate(SessionLocal session, int stage) {
         if (value != null) {
             value.updateAggregate(session, stage);
         }
@@ -149,14 +149,14 @@ public class WindowFrameBound {
      * @param following
      *            if false return SQL for starting clause, if true return SQL
      *            for following clause
-     * @param alwaysQuote
-     *            quote all identifiers
+     * @param sqlFlags
+     *            formatting flags
      * @return the specified string builder
-     * @see Expression#getSQL(StringBuilder, boolean)
+     * @see Expression#getSQL(StringBuilder, int, int)
      */
-    public StringBuilder getSQL(StringBuilder builder, boolean following, boolean alwaysQuote) {
+    public StringBuilder getSQL(StringBuilder builder, boolean following, int sqlFlags) {
         if (type == WindowFrameBoundType.PRECEDING || type == WindowFrameBoundType.FOLLOWING) {
-            value.getSQL(builder, alwaysQuote).append(' ');
+            value.getUnenclosedSQL(builder, sqlFlags).append(' ');
         }
         return builder.append(type.getSQL());
     }

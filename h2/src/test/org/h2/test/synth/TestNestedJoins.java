@@ -37,7 +37,7 @@ public class TestNestedJoins extends TestDb {
     public static void main(String... a) throws Exception {
         TestBase test = TestBase.createCaller().init();
         // test.config.traceTest = true;
-        test.test();
+        test.testFromMain();
     }
 
     @Override
@@ -289,7 +289,6 @@ public class TestNestedJoins extends TestDb {
         assertContains(sql, "(");
         stat.execute("drop table a, b, c");
 
-        // see roadmap, tag: swapInnerJoinTables
         /*
         create table test(id int primary key, x int)
         as select x, x from system_range(1, 10);
@@ -603,7 +602,7 @@ public class TestNestedJoins extends TestDb {
                 "LEFT OUTER JOIN ( \"PUBLIC\".\"B\" " +
                 "INNER JOIN \"PUBLIC\".\"BASE\" \"B_BASE\" " +
                 "ON (\"B_BASE\".\"DELETED\" = 0) AND (\"B\".\"PK\" = \"B_BASE\".\"PK\") ) " +
-                "ON TRUE INNER JOIN \"PUBLIC\".\"A\" ON 1=1 " +
+                "ON 1=1 INNER JOIN \"PUBLIC\".\"A\" ON 1=1 " +
                 "WHERE \"A\".\"PK\" = \"A_BASE\".\"PK\"", sql);
         rs = stat.executeQuery(
                 "select a.pk, a_base.pk, b.pk, b_base.pk from a " +

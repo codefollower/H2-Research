@@ -14,7 +14,7 @@ import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.RightOwner;
 import org.h2.engine.Role;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
 import org.h2.table.Table;
@@ -36,7 +36,7 @@ public class GrantRevoke extends DefineCommand {
     private Schema schema;
     private RightOwner grantee;
 
-    public GrantRevoke(Session session) {
+    public GrantRevoke(SessionLocal session) {
         super(session);
     }
 
@@ -77,7 +77,7 @@ public class GrantRevoke extends DefineCommand {
     }
 
     @Override
-    public int update() {
+    public long update() {
         session.getUser().checkAdmin();
         session.commit(true);
         Database db = session.getDatabase();
@@ -92,7 +92,7 @@ public class GrantRevoke extends DefineCommand {
                 } else if (operationType == CommandInterface.REVOKE) {
                     revokeRole(grantedRole);
                 } else {
-                    DbException.throwInternalError("type=" + operationType);
+                    throw DbException.getInternalError("type=" + operationType);
                 }
             }
         } else {
@@ -101,7 +101,7 @@ public class GrantRevoke extends DefineCommand {
             } else if (operationType == CommandInterface.REVOKE) {
                 revokeRight();
             } else {
-                DbException.throwInternalError("type=" + operationType);
+                throw DbException.getInternalError("type=" + operationType);
             }
         }
         return 0;
@@ -149,7 +149,7 @@ public class GrantRevoke extends DefineCommand {
             //当自己授予自己时，grantedRole.isRoleGranted也会返回true
             if (grantedRole.isRoleGranted(granteeRole)) {
                 // cyclic role grants are not allowed
-                throw DbException.get(ErrorCode.ROLE_ALREADY_GRANTED_1, grantedRole.getSQL(false));
+                throw DbException.get(ErrorCode.ROLE_ALREADY_GRANTED_1, grantedRole.getTraceSQL());
             }
         }
         Database db = session.getDatabase();

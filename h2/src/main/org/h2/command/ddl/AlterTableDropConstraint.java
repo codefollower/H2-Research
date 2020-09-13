@@ -11,7 +11,7 @@ import org.h2.constraint.Constraint;
 import org.h2.constraint.Constraint.Type;
 import org.h2.constraint.ConstraintActionType;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
 
@@ -25,7 +25,7 @@ public class AlterTableDropConstraint extends SchemaCommand {
     private final boolean ifExists;
     private ConstraintActionType dropAction;
 
-    public AlterTableDropConstraint(Session session, Schema schema, boolean ifExists) {
+    public AlterTableDropConstraint(SessionLocal session, Schema schema, boolean ifExists) {
         super(session, schema);
         this.ifExists = ifExists;
         dropAction = session.getDatabase().getSettings().dropRestrict ?
@@ -41,7 +41,7 @@ public class AlterTableDropConstraint extends SchemaCommand {
     }
 
     @Override
-    public int update() {
+    public long update() {
         session.commit(true);
         Constraint constraint = getSchema().findConstraint(session, constraintName);
         Type constraintType;
@@ -57,7 +57,7 @@ public class AlterTableDropConstraint extends SchemaCommand {
                     if (c.getReferencedConstraint() == constraint) {
                         if (dropAction == ConstraintActionType.RESTRICT) {
                             throw DbException.get(ErrorCode.CONSTRAINT_IS_USED_BY_CONSTRAINT_2,
-                                    constraint.getSQL(false), c.getSQL(false));
+                                    constraint.getTraceSQL(), c.getTraceSQL());
                         }
                         session.getUser().checkRight(c.getTable(), Right.ALL);
                     }

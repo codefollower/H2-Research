@@ -6,31 +6,29 @@
 package org.h2.expression;
 
 import org.h2.command.Prepared;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
-import org.h2.table.ColumnResolver;
-import org.h2.table.TableFilter;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
-import org.h2.value.ValueLong;
+import org.h2.value.ValueBigint;
 
 /**
  * Represents the ROWNUM function.
  */
-public class Rownum extends Expression {
+public final class Rownum extends Operation0 {
 
     private final Prepared prepared;
 
     public Rownum(Prepared prepared) {
         if (prepared == null) {
-            throw DbException.throwInternalError();
+            throw DbException.getInternalError();
         }
         this.prepared = prepared;
     }
 
     @Override
-    public Value getValue(Session session) {
-        return ValueLong.get(prepared.getCurrentRowNumber());
+    public Value getValue(SessionLocal session) {
+        return ValueBigint.get(prepared.getCurrentRowNumber());
     }
 
     @Override
@@ -39,33 +37,8 @@ public class Rownum extends Expression {
     }
 
     @Override
-    public void mapColumns(ColumnResolver resolver, int level, int state) {
-        // nothing to do
-    }
-
-    @Override
-    public Expression optimize(Session session) {
-        return this;
-    }
-
-    @Override
-    public void setEvaluatable(TableFilter tableFilter, boolean b) {
-        // nothing to do
-    }
-
-    @Override
-    public String getSQL(boolean alwaysQuote) {
-        return "ROWNUM()";
-    }
-
-    @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
         return builder.append("ROWNUM()");
-    }
-
-    @Override
-    public void updateAggregate(Session session, int stage) {
-        // nothing to do
     }
 
     @Override
@@ -86,7 +59,7 @@ public class Rownum extends Expression {
             // if everything else is the same, the rownum is the same
             return true;
         default:
-            throw DbException.throwInternalError("type="+visitor.getType());
+            throw DbException.getInternalError("type="+visitor.getType());
         }
     }
 

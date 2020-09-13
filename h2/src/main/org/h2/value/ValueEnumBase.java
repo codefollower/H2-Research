@@ -5,8 +5,7 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.math.BigDecimal;
 
 import org.h2.engine.CastDataProvider;
 import org.h2.util.StringUtils;
@@ -19,7 +18,7 @@ import org.h2.util.StringUtils;
  */
 public class ValueEnumBase extends Value {
 
-    private final String label;
+    final String label;
     private final int ordinal;
 
     protected ValueEnumBase(final String label, final int ordinal) {
@@ -28,9 +27,9 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public Value add(final Value v) {
-        final Value iv = v.convertTo(Value.INT);
-        return convertTo(Value.INT).add(iv);
+    public Value add(Value v) {
+        ValueInteger iv = v.convertToInt(null);
+        return convertToInt(null).add(iv);
     }
 
     @Override
@@ -40,8 +39,8 @@ public class ValueEnumBase extends Value {
 
     @Override
     public Value divide(Value v, long divisorPrecision) {
-        final Value iv = v.convertTo(Value.INT);
-        return convertTo(Value.INT).divide(iv, divisorPrecision);
+        ValueInteger iv = v.convertToInt(null);
+        return convertToInt(null).divide(iv, divisorPrecision);
     }
 
     @Override
@@ -57,7 +56,7 @@ public class ValueEnumBase extends Value {
      * @param ordinal the ordinal
      * @return the value
      */
-    public static ValueEnumBase get(final String label, final int ordinal) {
+    public static ValueEnumBase get(String label, int ordinal) {
         return new ValueEnumBase(label, ordinal);
     }
 
@@ -72,8 +71,18 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public Object getObject() {
-        return label;
+    public BigDecimal getBigDecimal() {
+        return BigDecimal.valueOf(ordinal);
+    }
+
+    @Override
+    public float getFloat() {
+        return ordinal;
+    }
+
+    @Override
+    public double getDouble() {
+        return ordinal;
     }
 
     @Override
@@ -82,7 +91,7 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         return StringUtils.quoteStringSQL(builder, label);
     }
 
@@ -115,28 +124,21 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public Value modulus(final Value v) {
-        final Value iv = v.convertTo(Value.INT);
-        return convertTo(Value.INT).modulus(iv);
+    public Value modulus(Value v) {
+        ValueInteger iv = v.convertToInt(null);
+        return convertToInt(null).modulus(iv);
     }
 
     @Override
-    public Value multiply(final Value v) {
-        final Value iv = v.convertTo(Value.INT);
-        return convertTo(Value.INT).multiply(iv);
-    }
-
-
-    @Override
-    public void set(final PreparedStatement prep, final int parameterIndex)
-            throws SQLException {
-            prep.setInt(parameterIndex, ordinal);
+    public Value multiply(Value v) {
+        ValueInteger iv = v.convertToInt(null);
+        return convertToInt(null).multiply(iv);
     }
 
     @Override
-    public Value subtract(final Value v) {
-        final Value iv = v.convertTo(Value.INT);
-        return convertTo(Value.INT).subtract(iv);
+    public Value subtract(Value v) {
+        ValueInteger iv = v.convertToInt(null);
+        return convertToInt(null).subtract(iv);
     }
 
 }

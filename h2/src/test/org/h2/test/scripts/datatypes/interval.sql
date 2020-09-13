@@ -3,25 +3,6 @@
 -- Initial Developer: H2 Group
 --
 
-SELECT TYPE_NAME, PRECISION, PREFIX, SUFFIX, PARAMS, MINIMUM_SCALE, MAXIMUM_SCALE FROM INFORMATION_SCHEMA.TYPE_INFO
-    WHERE TYPE_NAME LIKE 'INTERVAL %';
-> TYPE_NAME                 PRECISION PREFIX     SUFFIX             PARAMS          MINIMUM_SCALE MAXIMUM_SCALE
-> ------------------------- --------- ---------- ------------------ --------------- ------------- -------------
-> INTERVAL DAY              18        INTERVAL ' ' DAY              PRECISION       0             0
-> INTERVAL DAY TO HOUR      18        INTERVAL ' ' DAY TO HOUR      PRECISION       0             0
-> INTERVAL DAY TO MINUTE    18        INTERVAL ' ' DAY TO MINUTE    PRECISION       0             0
-> INTERVAL DAY TO SECOND    18        INTERVAL ' ' DAY TO SECOND    PRECISION,SCALE 0             9
-> INTERVAL HOUR             18        INTERVAL ' ' HOUR             PRECISION       0             0
-> INTERVAL HOUR TO MINUTE   18        INTERVAL ' ' HOUR TO MINUTE   PRECISION       0             0
-> INTERVAL HOUR TO SECOND   18        INTERVAL ' ' HOUR TO SECOND   PRECISION,SCALE 0             9
-> INTERVAL MINUTE           18        INTERVAL ' ' MINUTE           PRECISION       0             0
-> INTERVAL MINUTE TO SECOND 18        INTERVAL ' ' MINUTE TO SECOND PRECISION,SCALE 0             9
-> INTERVAL MONTH            18        INTERVAL ' ' MONTH            PRECISION       0             0
-> INTERVAL SECOND           18        INTERVAL ' ' SECOND           PRECISION,SCALE 0             9
-> INTERVAL YEAR             18        INTERVAL ' ' YEAR             PRECISION       0             0
-> INTERVAL YEAR TO MONTH    18        INTERVAL ' ' YEAR TO MONTH    PRECISION       0             0
-> rows: 13
-
 CREATE TABLE TEST(ID INT PRIMARY KEY,
     I01 INTERVAL YEAR, I02 INTERVAL MONTH, I03 INTERVAL DAY, I04 INTERVAL HOUR, I05 INTERVAL MINUTE,
     I06 INTERVAL SECOND, I07 INTERVAL YEAR TO MONTH, I08 INTERVAL DAY TO HOUR, I09 INTERVAL DAY TO MINUTE,
@@ -33,39 +14,38 @@ CREATE TABLE TEST(ID INT PRIMARY KEY,
     J12 INTERVAL HOUR(5) TO SECOND(9), J13 INTERVAL MINUTE(5) TO SECOND(9));
 > ok
 
-SELECT COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE, DATETIME_PRECISION,
-    INTERVAL_TYPE, INTERVAL_PRECISION
+SELECT COLUMN_NAME, DATA_TYPE, DATETIME_PRECISION, INTERVAL_TYPE, INTERVAL_PRECISION
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_NAME = 'TEST' ORDER BY ORDINAL_POSITION;
-> COLUMN_NAME DATA_TYPE TYPE_NAME COLUMN_TYPE                     NUMERIC_PRECISION NUMERIC_SCALE DATETIME_PRECISION INTERVAL_TYPE          INTERVAL_PRECISION
-> ----------- --------- --------- ------------------------------- ----------------- ------------- ------------------ ---------------------- ------------------
-> ID          4         INTEGER   INT NOT NULL                    10                0             null               null                   null
-> I01         1111      INTERVAL  INTERVAL YEAR                   2                 0             null               YEAR                   2
-> I02         1111      INTERVAL  INTERVAL MONTH                  2                 0             null               MONTH                  2
-> I03         1111      INTERVAL  INTERVAL DAY                    2                 0             null               DAY                    2
-> I04         1111      INTERVAL  INTERVAL HOUR                   2                 0             null               HOUR                   2
-> I05         1111      INTERVAL  INTERVAL MINUTE                 2                 0             null               MINUTE                 2
-> I06         1111      INTERVAL  INTERVAL SECOND                 2                 6             6                  SECOND                 2
-> I07         1111      INTERVAL  INTERVAL YEAR TO MONTH          2                 0             null               YEAR TO MONTH          2
-> I08         1111      INTERVAL  INTERVAL DAY TO HOUR            2                 0             null               DAY TO HOUR            2
-> I09         1111      INTERVAL  INTERVAL DAY TO MINUTE          2                 0             null               DAY TO MINUTE          2
-> I10         1111      INTERVAL  INTERVAL DAY TO SECOND          2                 6             6                  DAY TO SECOND          2
-> I11         1111      INTERVAL  INTERVAL HOUR TO MINUTE         2                 0             null               HOUR TO MINUTE         2
-> I12         1111      INTERVAL  INTERVAL HOUR TO SECOND         2                 6             6                  HOUR TO SECOND         2
-> I13         1111      INTERVAL  INTERVAL MINUTE TO SECOND       2                 6             6                  MINUTE TO SECOND       2
-> J01         1111      INTERVAL  INTERVAL YEAR(5)                5                 0             null               YEAR(5)                5
-> J02         1111      INTERVAL  INTERVAL MONTH(5)               5                 0             null               MONTH(5)               5
-> J03         1111      INTERVAL  INTERVAL DAY(5)                 5                 0             null               DAY(5)                 5
-> J04         1111      INTERVAL  INTERVAL HOUR(5)                5                 0             null               HOUR(5)                5
-> J05         1111      INTERVAL  INTERVAL MINUTE(5)              5                 0             null               MINUTE(5)              5
-> J06         1111      INTERVAL  INTERVAL SECOND(5, 9)           5                 9             9                  SECOND(5, 9)           5
-> J07         1111      INTERVAL  INTERVAL YEAR(5) TO MONTH       5                 0             null               YEAR(5) TO MONTH       5
-> J08         1111      INTERVAL  INTERVAL DAY(5) TO HOUR         5                 0             null               DAY(5) TO HOUR         5
-> J09         1111      INTERVAL  INTERVAL DAY(5) TO MINUTE       5                 0             null               DAY(5) TO MINUTE       5
-> J10         1111      INTERVAL  INTERVAL DAY(5) TO SECOND(9)    5                 9             9                  DAY(5) TO SECOND(9)    5
-> J11         1111      INTERVAL  INTERVAL HOUR(5) TO MINUTE      5                 0             null               HOUR(5) TO MINUTE      5
-> J12         1111      INTERVAL  INTERVAL HOUR(5) TO SECOND(9)   5                 9             9                  HOUR(5) TO SECOND(9)   5
-> J13         1111      INTERVAL  INTERVAL MINUTE(5) TO SECOND(9) 5                 9             9                  MINUTE(5) TO SECOND(9) 5
+> COLUMN_NAME DATA_TYPE DATETIME_PRECISION INTERVAL_TYPE    INTERVAL_PRECISION
+> ----------- --------- ------------------ ---------------- ------------------
+> ID          INTEGER   null               null             null
+> I01         INTERVAL  0                  YEAR             2
+> I02         INTERVAL  0                  MONTH            2
+> I03         INTERVAL  0                  DAY              2
+> I04         INTERVAL  0                  HOUR             2
+> I05         INTERVAL  0                  MINUTE           2
+> I06         INTERVAL  6                  SECOND           2
+> I07         INTERVAL  0                  YEAR TO MONTH    2
+> I08         INTERVAL  0                  DAY TO HOUR      2
+> I09         INTERVAL  0                  DAY TO MINUTE    2
+> I10         INTERVAL  6                  DAY TO SECOND    2
+> I11         INTERVAL  0                  HOUR TO MINUTE   2
+> I12         INTERVAL  6                  HOUR TO SECOND   2
+> I13         INTERVAL  6                  MINUTE TO SECOND 2
+> J01         INTERVAL  0                  YEAR             5
+> J02         INTERVAL  0                  MONTH            5
+> J03         INTERVAL  0                  DAY              5
+> J04         INTERVAL  0                  HOUR             5
+> J05         INTERVAL  0                  MINUTE           5
+> J06         INTERVAL  9                  SECOND           5
+> J07         INTERVAL  0                  YEAR TO MONTH    5
+> J08         INTERVAL  0                  DAY TO HOUR      5
+> J09         INTERVAL  0                  DAY TO MINUTE    5
+> J10         INTERVAL  9                  DAY TO SECOND    5
+> J11         INTERVAL  0                  HOUR TO MINUTE   5
+> J12         INTERVAL  9                  HOUR TO SECOND   5
+> J13         INTERVAL  9                  MINUTE TO SECOND 5
 > rows (ordered): 27
 
 INSERT INTO TEST VALUES (
@@ -606,16 +586,16 @@ SELECT INTERVAL -'0.1' SECOND;
 -- Arithmetic
 
 SELECT INTERVAL '1000' SECOND + INTERVAL '10' MINUTE;
->> INTERVAL '1600' SECOND
+>> INTERVAL '26:40' MINUTE TO SECOND
 
 SELECT INTERVAL '1000' SECOND - INTERVAL '10' MINUTE;
->> INTERVAL '400' SECOND
+>> INTERVAL '6:40' MINUTE TO SECOND
 
 SELECT INTERVAL '10' YEAR + INTERVAL '1' MONTH;
->> INTERVAL '121' MONTH
+>> INTERVAL '10-1' YEAR TO MONTH
 
 SELECT INTERVAL '10' YEAR - INTERVAL '1' MONTH;
->> INTERVAL '119' MONTH
+>> INTERVAL '9-11' YEAR TO MONTH
 
 SELECT INTERVAL '1000' SECOND * 2;
 >> INTERVAL '2000' SECOND
@@ -850,16 +830,16 @@ CALL CAST(INTERVAL '-99' DAY AS INTERVAL DAY);
 >> INTERVAL '-99' DAY
 
 CALL CAST(INTERVAL '100' DAY AS INTERVAL DAY);
-> exception NUMERIC_VALUE_OUT_OF_RANGE_1
+> exception VALUE_TOO_LONG_2
 
 CALL CAST(INTERVAL '-100' DAY AS INTERVAL DAY);
-> exception NUMERIC_VALUE_OUT_OF_RANGE_1
+> exception VALUE_TOO_LONG_2
 
 SELECT (TIMESTAMP '2010-01-01 10:00:00' - TIMESTAMP '1990-05-06 00:30:00');
 >> INTERVAL '7180 09:30:00' DAY TO SECOND
 
 SELECT (TIMESTAMP '2010-01-01 10:00:00' - TIMESTAMP '1990-05-06 00:30:00') HOUR;
-> exception NUMERIC_VALUE_OUT_OF_RANGE_1
+> exception VALUE_TOO_LONG_2
 
 SELECT (TIMESTAMP '2010-01-01 10:00:00' - TIMESTAMP '1990-05-06 00:30:00') HOUR(6);
 >> INTERVAL '172329' HOUR
@@ -874,7 +854,7 @@ SELECT (10 - 2) SECOND;
 > exception SYNTAX_ERROR_2
 
 SELECT (TIMESTAMP '2010-01-01 10:00:00' - TIMESTAMP '1990-05-06 00:30:00') HOUR TO SECOND;
-> exception NUMERIC_VALUE_OUT_OF_RANGE_1
+> exception VALUE_TOO_LONG_2
 
 SELECT (TIMESTAMP '2010-01-01 10:00:00' - TIMESTAMP '1990-05-06 00:30:00') HOUR(6) TO SECOND;
 >> INTERVAL '172329:30:00' HOUR TO SECOND
@@ -1078,3 +1058,18 @@ SELECT TIMESTAMP '2001-01-05 10:30:00' - TIME '11:45:30.5';
 
 SELECT TIME '11:45:30.5' - TIMESTAMP '2001-01-05 10:30:00';
 >> INTERVAL '-11326 22:44:29.5' DAY TO SECOND
+
+EXPLAIN VALUES INTERVAL '1' DAY;
+>> VALUES (INTERVAL '1' DAY)
+
+SELECT CAST(INTERVAL '1000000000000000' MINUTE AS BIGINT);
+>> 1000000000000000
+
+SELECT CAST(INTERVAL '999999999999999999:30' HOUR TO SECOND AS NUMERIC);
+>> 1000000000000000000
+
+SELECT CAST(INTERVAL '999999999999999999:30' HOUR TO SECOND AS NUMERIC(20, 1));
+>> 999999999999999999.5
+
+SELECT CAST(INTERVAL '999999999999999999:30' HOUR TO MINUTE AS BIGINT);
+>> 1000000000000000000

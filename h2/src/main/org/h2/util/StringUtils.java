@@ -312,6 +312,9 @@ public class StringUtils {
                     buff.append('\\');
                     break;
                 case 'u': {
+                    if (i + 4 >= length) {
+                        throw getFormatException(s, i);
+                    }
                     try {
                         c = (char) (Integer.parseInt(s.substring(i + 1, i + 5), 16));
                     } catch (NumberFormatException e) {
@@ -322,7 +325,7 @@ public class StringUtils {
                     break;
                 }
                 default:
-                    if (c >= '0' && c <= '9') {
+                    if (c >= '0' && c <= '9' && i + 2 < length) {
                         try {
                             c = (char) (Integer.parseInt(s.substring(i, i + 3), 8));
                         } catch (NumberFormatException e) {
@@ -397,19 +400,6 @@ public class StringUtils {
             builder.append(array[i]);
         }
         return builder.append('}').toString();
-    }
-
-    /**
-     * Remove enclosing '(' and ')' if this text is enclosed.
-     *
-     * @param s the potentially enclosed string
-     * @return the string
-     */
-    public static String unEnclose(String s) {
-        if (s.startsWith("(") && s.endsWith(")")) {
-            return s.substring(1, s.length() - 1);
-        }
-        return s;
     }
 
     /**
@@ -813,17 +803,6 @@ public class StringUtils {
     }
 
     /**
-     * In a string, replace block comment marks with /++ .. ++/.
-     *
-     * @param sql the string
-     * @return the resulting string
-     */
-    public static String quoteRemarkSQL(String sql) {
-        sql = replaceAll(sql, "*/", "++/");
-        return replaceAll(sql, "/*", "/++");
-    }
-
-    /**
      * Pad a string. This method is used for the SQL function RPAD and LPAD.
      *
      * @param string the original string
@@ -1122,14 +1101,14 @@ public class StringUtils {
      * @return the hex encoded string
      */
     public static String convertBytesToHex(byte[] value, int len) {
-        char[] buff = new char[len + len];
+        byte[] bytes = new byte[len * 2];
         char[] hex = HEX;
-        for (int i = 0; i < len; i++) {
+        for (int i = 0, j = 0; i < len; i++) {
             int c = value[i] & 0xff;
-            buff[i + i] = hex[c >> 4];
-            buff[i + i + 1] = hex[c & 0xf];
+            bytes[j++] = (byte) hex[c >> 4];
+            bytes[j++] = (byte) hex[c & 0xf];
         }
-        return new String(buff);
+        return new String(bytes, StandardCharsets.ISO_8859_1);
     }
 
     /**

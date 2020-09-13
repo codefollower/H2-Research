@@ -28,7 +28,7 @@ public class TestViewDropView extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -50,7 +50,7 @@ public class TestViewDropView extends TestDb {
     }
 
     private void testCreateForceView() throws SQLException {
-        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, stat).
+        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_DATABASE_EMPTY_1, stat).
                 execute("create view test_view as select * from test");
         stat.execute("create force view test_view as select * from test");
         stat.execute("create table test(id int)");
@@ -66,8 +66,8 @@ public class TestViewDropView extends TestDb {
 
     private void testDropViewDefaultBehaviour() throws SQLException {
         createTestData();
-        ResultSet rs = stat.executeQuery("select `value` " +
-                "from information_schema.settings where name = 'DROP_RESTRICT'");
+        ResultSet rs = stat.executeQuery(
+                "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'DROP_RESTRICT'");
         rs.next();
         boolean dropRestrict = rs.getBoolean(1);
         if (dropRestrict) {

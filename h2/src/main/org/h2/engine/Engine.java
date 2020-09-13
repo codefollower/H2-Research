@@ -16,6 +16,8 @@ import org.h2.message.Trace;
 import org.h2.security.auth.AuthenticationException;
 import org.h2.security.auth.AuthenticationInfo;
 import org.h2.security.auth.Authenticator;
+import org.h2.store.fs.FileUtils;
+import org.h2.util.DateTimeUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.ParserUtil;
 import org.h2.util.ThreadDeadlockDetector;
@@ -27,32 +29,28 @@ import org.h2.util.Utils;
  * This is a singleton class.
  */
 //先调用getInstance()，再调用createSession
-public class Engine implements SessionFactory {
+public final class Engine {
 
-    private static final Engine INSTANCE = new Engine();
     private static final Map<String, Database> DATABASES = new HashMap<>();
 
-    private volatile long wrongPasswordDelay =
-            SysProperties.DELAY_WRONG_PASSWORD_MIN;
-    private boolean jmx;
-    
-    private Engine() {
-        // use getInstance()
+    private static volatile long WRONG_PASSWORD_DELAY = SysProperties.DELAY_WRONG_PASSWORD_MIN;
+
+    private static boolean JMX;
+
+    static {
         if (SysProperties.THREAD_DEADLOCK_DETECTOR) {
             ThreadDeadlockDetector.init();
         }
     }
     
     //调用顺序: 1 (如果是内存数据库，这一步不调用，直接到2)
-    public static Engine getInstance() {
-        return INSTANCE;
-    }
 
     //调用顺序: 5
     //验证用户名和密码，如果是第一个用户则设为admin
     	//如果设置了h2.baseDir，如:System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
     	//那么name就包含了h2.baseDir，否则就是当前工作目录
-    private Session openSession(ConnectionInfo ci, boolean ifExists, boolean forbidCreation, String cipher) {
+    private static SessionLocal openSession(ConnectionInfo ci, boolean ifExists, boolean forbidCreation,
+            String cipher) {
         String name = ci.getName();
         Database database;
         ci.removeProperty("NO_UPGRADE", false);
@@ -66,15 +64,37 @@ public class Engine implements SessionFactory {
                 database = DATABASES.get(name);
             }
             if (database == null) {
-                String p;
-                if (!ci.isPersistent() || !((p = ci.getProperty("MV_STORE")) == null ? Database.exists(name)
-                        : Database.exists(name, Utils.parseBoolean(p, true, false)))) {
-                    if (ifExists) {
-                        throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1, name);
+                if (ci.isPersistent()) {
+                    String p = ci.getProperty("MV_STORE");
+                    String fileName;
+                    if (p == null) {
+                        fileName = name + Constants.SUFFIX_MV_FILE;
+                        if (!FileUtils.exists(fileName)) {
+                            fileName = name + Constants.SUFFIX_PAGE_FILE;
+                            if (FileUtils.exists(fileName)) {
+                                ci.setProperty("MV_STORE", "false");
+                            } else {
+                                throwNotFound(ifExists, forbidCreation, name);
+                                fileName = name + Constants.SUFFIX_OLD_DATABASE_FILE;
+                                if (FileUtils.exists(fileName)) {
+                                    throw DbException.getFileVersionError(fileName);
+                                }
+                                fileName = null;
+                            }
+                        }
+                    } else {
+                        fileName = name + (Utils.parseBoolean(p, true, false) ? Constants.SUFFIX_MV_FILE
+                                : Constants.SUFFIX_PAGE_FILE);
+                        if (!FileUtils.exists(fileName)) {
+                            throwNotFound(ifExists, forbidCreation, name);
+                            fileName = null;
+                        }
                     }
-                    if (forbidCreation) {
-                        throw DbException.get(ErrorCode.REMOTE_DATABASE_NOT_FOUND_1, name);
+                    if (fileName != null && !FileUtils.canWrite(fileName)) {
+                        ci.setProperty("ACCESS_MODE_DATA", "r");
                     }
+                } else {
+                    throwNotFound(ifExists, forbidCreation, name);
                 }
                 database = new Database(ci, cipher);
                 opened = true;
@@ -144,10 +164,13 @@ public class Engine implements SessionFactory {
         //Prevent to set _PASSWORD
         ci.cleanAuthenticationInfo();
         checkClustering(ci, database);
-        Session session = database.createSession(user, ci.getNetworkConnectionInfo());
+        SessionLocal session = database.createSession(user, ci.getNetworkConnectionInfo());
         if (session == null) {
             // concurrently closing
             return null;
+        }
+        if (ci.getProperty("OLD_INFORMATION_SCHEMA", false)) {
+            session.setOldInformationSchema(true);
         }
         if (ci.getProperty("JMX", false)) {
             try {
@@ -157,9 +180,18 @@ public class Engine implements SessionFactory {
                 database.removeSession(session);
                 throw DbException.get(ErrorCode.FEATURE_NOT_SUPPORTED_1, e, "JMX");
             }
-            jmx = true;
+            JMX = true;
         }
         return session;
+    }
+
+    private static void throwNotFound(boolean ifExists, boolean forbidCreation, String name) {
+        if (ifExists) {
+            throw DbException.get(ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1, name);
+        }
+        if (forbidCreation) {
+            throw DbException.get(ErrorCode.REMOTE_DATABASE_NOT_FOUND_1, name);
+        }
     }
 
     /**
@@ -168,36 +200,41 @@ public class Engine implements SessionFactory {
      * @param ci the connection information
      * @return the session
      */
-    //调用顺序: 2
-    @Override
-    public Session createSession(ConnectionInfo ci) {
-        return INSTANCE.createSessionAndValidate(ci);
-    }
-    
-    //调用顺序: 3
-    private Session createSessionAndValidate(ConnectionInfo ci) {
-        try {
 //<<<<<<< HEAD
-//            ConnectionInfo backup = null;
-//            String lockMethodName = ci.getProperty("FILE_LOCK", null);
-//            //默认是FileLock.LOCK_FILE
-//            FileLockMethod fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
-//            if (fileLockMethod == FileLockMethod.SERIALIZED) {
-//                // In serialized mode, database instance sharing is not possible
-//                ci.setProperty("OPEN_NEW", "TRUE");
-//                try {
-//                    backup = ci.clone();
-//                } catch (CloneNotSupportedException e) {
-//                    throw DbException.convert(e);
-//                }
-//            }
-//            Session session = openSession(ci); //ci的内部会变化
-//            validateUserAndPassword(true);
-//            if (backup != null) {
-//                session.setConnectionInfo(backup); //使用最初的ci
-//            }
+//    //调用顺序: 2
+//    @Override
+//    public Session createSession(ConnectionInfo ci) {
+//        return INSTANCE.createSessionAndValidate(ci);
+//    }
+//    
+//    //调用顺序: 3
+//    private Session createSessionAndValidate(ConnectionInfo ci) {
+//        try {
+////<<<<<<< HEAD
+////            ConnectionInfo backup = null;
+////            String lockMethodName = ci.getProperty("FILE_LOCK", null);
+////            //默认是FileLock.LOCK_FILE
+////            FileLockMethod fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
+////            if (fileLockMethod == FileLockMethod.SERIALIZED) {
+////                // In serialized mode, database instance sharing is not possible
+////                ci.setProperty("OPEN_NEW", "TRUE");
+////                try {
+////                    backup = ci.clone();
+////                } catch (CloneNotSupportedException e) {
+////                    throw DbException.convert(e);
+////                }
+////            }
+////            Session session = openSession(ci); //ci的内部会变化
+////            validateUserAndPassword(true);
+////            if (backup != null) {
+////                session.setConnectionInfo(backup); //使用最初的ci
+////            }
+////=======
+//            Session session = openSession(ci);
 //=======
-            Session session = openSession(ci);
+    public static SessionLocal createSession(ConnectionInfo ci) {
+        try {
+            SessionLocal session = openSession(ci);
             validateUserAndPassword(true);
             return session;
         } catch (DbException e) {
@@ -210,14 +247,14 @@ public class Engine implements SessionFactory {
 
     //调用顺序: 4
     //执行SET和INIT参数中指定的SQL
-    private synchronized Session openSession(ConnectionInfo ci) {
+    private static synchronized SessionLocal openSession(ConnectionInfo ci) {
         boolean ifExists = ci.removeProperty("IFEXISTS", false);
         boolean forbidCreation = ci.removeProperty("FORBID_CREATION", false);
         boolean ignoreUnknownSetting = ci.removeProperty(
                 "IGNORE_UNKNOWN_SETTINGS", false);
         String cipher = ci.removeProperty("CIPHER", null);
         String init = ci.removeProperty("INIT", null); //INIT参数可以放一些初始化的SQL
-        Session session;
+        SessionLocal session;
         long start = System.nanoTime();
         for (;;) {
             session = openSession(ci, ifExists, forbidCreation, cipher);
@@ -226,8 +263,7 @@ public class Engine implements SessionFactory {
             }
             // we found a database that is currently closing
             // wait a bit to avoid a busy loop (the method is synchronized)
-            if (System.nanoTime() - start > 60_000_000_000L) {
-                // retry at most 1 minute
+            if (System.nanoTime() - start > DateTimeUtils.NANOS_PER_MINUTE) {
                 throw DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1,
                         "Waited for database closing longer than 1 minute");
             }
@@ -318,8 +354,8 @@ public class Engine implements SessionFactory {
      * @param name the database name
      */
     //调用顺序: 8
-    void close(String name) {
-        if (jmx) {
+    static void close(String name) {
+        if (JMX) {
             try {
                 Utils.callStaticMethod("org.h2.jmx.DatabaseInfo.unregisterMBean", name);
             } catch (Exception e) {
@@ -350,15 +386,15 @@ public class Engine implements SessionFactory {
      */
     //调用顺序: 7
     //为了防止攻击，不管用户名和密码是否正确都要调用
-    private void validateUserAndPassword(boolean correct) {
+    private static void validateUserAndPassword(boolean correct) {
         int min = SysProperties.DELAY_WRONG_PASSWORD_MIN;
         if (correct) {
-            long delay = wrongPasswordDelay;
-            //第一次不sleep，因为delay等于min
+            long delay = WRONG_PASSWORD_DELAY;
+           //第一次不sleep，因为delay等于min
             if (delay > min && delay > 0) {
                 // the first correct password must be blocked,
                 // otherwise parallel attacks are possible
-                synchronized (INSTANCE) {
+                synchronized (Engine.class) {
                     // delay up to the last delay
                     // an attacker can't know how long it will be
                     delay = MathUtils.secureRandomInt((int) delay);
@@ -367,21 +403,21 @@ public class Engine implements SessionFactory {
                     } catch (InterruptedException e) {
                         // ignore
                     }
-                    wrongPasswordDelay = min;
+                    WRONG_PASSWORD_DELAY = min;
                 }
             }
         } else {
             // this method is not synchronized on the Engine, so that
             // regular successful attempts are not blocked
-            synchronized (INSTANCE) {
-                long delay = wrongPasswordDelay;
+            synchronized (Engine.class) {
+                long delay = WRONG_PASSWORD_DELAY;
                 int max = SysProperties.DELAY_WRONG_PASSWORD_MAX;
                 if (max <= 0) {
                     max = Integer.MAX_VALUE;
                 }
-                wrongPasswordDelay += wrongPasswordDelay;
-                if (wrongPasswordDelay > max || wrongPasswordDelay < 0) {
-                    wrongPasswordDelay = max;
+                WRONG_PASSWORD_DELAY += WRONG_PASSWORD_DELAY;
+                if (WRONG_PASSWORD_DELAY > max || WRONG_PASSWORD_DELAY < 0) {
+                    WRONG_PASSWORD_DELAY = max;
                 }
                 if (min > 0) {
                     // a bit more to protect against timing attacks
@@ -395,6 +431,9 @@ public class Engine implements SessionFactory {
                 throw DbException.get(ErrorCode.WRONG_USER_OR_PASSWORD);
             }
         }
+    }
+
+    private Engine() {
     }
 
 }

@@ -10,9 +10,7 @@ import java.sql.Date;
 import java.sql.Time;
 import java.util.concurrent.TimeUnit;
 
-import org.h2.api.JavaObjectSerializer;
 import org.h2.pagestore.db.LobStorageBackend;
-import org.h2.result.SimpleResult;
 import org.h2.store.Data;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
@@ -23,23 +21,22 @@ import org.h2.util.TempFileDeleter;
 import org.h2.value.CompareMode;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
+import org.h2.value.ValueBigint;
 import org.h2.value.ValueBoolean;
-import org.h2.value.ValueByte;
-import org.h2.value.ValueBytes;
-import org.h2.value.ValueDecimal;
+import org.h2.value.ValueChar;
 import org.h2.value.ValueDouble;
-import org.h2.value.ValueFloat;
-import org.h2.value.ValueInt;
+import org.h2.value.ValueInteger;
 import org.h2.value.ValueJavaObject;
-import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
-import org.h2.value.ValueResultSet;
-import org.h2.value.ValueShort;
-import org.h2.value.ValueString;
-import org.h2.value.ValueStringFixed;
-import org.h2.value.ValueStringIgnoreCase;
+import org.h2.value.ValueNumeric;
+import org.h2.value.ValueReal;
+import org.h2.value.ValueSmallint;
 import org.h2.value.ValueTimestampTimeZone;
+import org.h2.value.ValueTinyint;
 import org.h2.value.ValueUuid;
+import org.h2.value.ValueVarbinary;
+import org.h2.value.ValueVarchar;
+import org.h2.value.ValueVarcharIgnoreCase;
 
 /**
  * Data page tests.
@@ -55,7 +52,7 @@ public class TestDataPage extends TestBase implements DataHandler {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -126,42 +123,42 @@ public class TestDataPage extends TestBase implements DataHandler {
         testValue(ValueBoolean.FALSE);
         testValue(ValueBoolean.TRUE);
         for (int i = 0; i < 256; i++) {
-            testValue(ValueByte.get((byte) i));
+            testValue(ValueTinyint.get((byte) i));
         }
         for (int i = 0; i < 256 * 256; i += 10) {
-            testValue(ValueShort.get((short) i));
+            testValue(ValueSmallint.get((short) i));
         }
         for (int i = 0; i < 256 * 256; i += 10) {
-            testValue(ValueInt.get(i));
-            testValue(ValueInt.get(-i));
-            testValue(ValueLong.get(i));
-            testValue(ValueLong.get(-i));
+            testValue(ValueInteger.get(i));
+            testValue(ValueInteger.get(-i));
+            testValue(ValueBigint.get(i));
+            testValue(ValueBigint.get(-i));
         }
-        testValue(ValueInt.get(Integer.MAX_VALUE));
-        testValue(ValueInt.get(Integer.MIN_VALUE));
+        testValue(ValueInteger.get(Integer.MAX_VALUE));
+        testValue(ValueInteger.get(Integer.MIN_VALUE));
         for (long i = 0; i < Integer.MAX_VALUE; i += 10 + i / 4) {
-            testValue(ValueInt.get((int) i));
-            testValue(ValueInt.get((int) -i));
+            testValue(ValueInteger.get((int) i));
+            testValue(ValueInteger.get((int) -i));
         }
-        testValue(ValueLong.get(Long.MAX_VALUE));
-        testValue(ValueLong.get(Long.MIN_VALUE));
+        testValue(ValueBigint.get(Long.MAX_VALUE));
+        testValue(ValueBigint.get(Long.MIN_VALUE));
         for (long i = 0; i >= 0; i += 10 + i / 4) {
-            testValue(ValueLong.get(i));
-            testValue(ValueLong.get(-i));
+            testValue(ValueBigint.get(i));
+            testValue(ValueBigint.get(-i));
         }
-        testValue(ValueDecimal.get(BigDecimal.ZERO));
-        testValue(ValueDecimal.get(BigDecimal.ONE));
-        testValue(ValueDecimal.get(BigDecimal.TEN));
-        testValue(ValueDecimal.get(BigDecimal.ONE.negate()));
-        testValue(ValueDecimal.get(BigDecimal.TEN.negate()));
+        testValue(ValueNumeric.get(BigDecimal.ZERO));
+        testValue(ValueNumeric.get(BigDecimal.ONE));
+        testValue(ValueNumeric.get(BigDecimal.TEN));
+        testValue(ValueNumeric.get(BigDecimal.ONE.negate()));
+        testValue(ValueNumeric.get(BigDecimal.TEN.negate()));
         for (long i = 0; i >= 0; i += 10 + i / 4) {
-            testValue(ValueDecimal.get(new BigDecimal(i)));
-            testValue(ValueDecimal.get(new BigDecimal(-i)));
+            testValue(ValueNumeric.get(new BigDecimal(i)));
+            testValue(ValueNumeric.get(new BigDecimal(-i)));
             for (int j = 0; j < 200; j += 50) {
-                testValue(ValueDecimal.get(new BigDecimal(i).setScale(j)));
-                testValue(ValueDecimal.get(new BigDecimal(i * i).setScale(j)));
+                testValue(ValueNumeric.get(new BigDecimal(i).setScale(j)));
+                testValue(ValueNumeric.get(new BigDecimal(i * i).setScale(j)));
             }
-            testValue(ValueDecimal.get(new BigDecimal(i * i)));
+            testValue(ValueNumeric.get(new BigDecimal(i * i)));
         }
         testValue(LegacyDateTimeUtils.fromDate(null, null, new Date(System.currentTimeMillis())));
         testValue(LegacyDateTimeUtils.fromDate(null, null, new Date(0)));
@@ -170,47 +167,39 @@ public class TestDataPage extends TestBase implements DataHandler {
         testValue(LegacyDateTimeUtils.fromTimestamp(null, System.currentTimeMillis(), 0));
         testValue(LegacyDateTimeUtils.fromTimestamp(null, 0L, 0));
         testValue(ValueTimestampTimeZone.parse("2000-01-01 10:00:00+00", null));
-        testValue(ValueJavaObject.getNoCopy(null, new byte[0], this));
-        testValue(ValueJavaObject.getNoCopy(null, new byte[100], this));
+        testValue(ValueJavaObject.getNoCopy(new byte[0]));
+        testValue(ValueJavaObject.getNoCopy(new byte[100]));
         for (int i = 0; i < 300; i++) {
-            testValue(ValueBytes.getNoCopy(new byte[i]));
+            testValue(ValueVarbinary.getNoCopy(new byte[i]));
         }
         for (int i = 0; i < 65000; i += 10 + i) {
-            testValue(ValueBytes.getNoCopy(new byte[i]));
+            testValue(ValueVarbinary.getNoCopy(new byte[i]));
         }
         testValue(ValueUuid.getNewRandom());
         for (int i = 0; i < 100; i++) {
-            testValue(ValueString.get(new String(new char[i])));
+            testValue(ValueVarchar.get(new String(new char[i])));
         }
         for (int i = 0; i < 65000; i += 10 + i) {
-            testValue(ValueString.get(new String(new char[i])));
-            testValue(ValueStringFixed.get(new String(new char[i])));
-            testValue(ValueStringIgnoreCase.get(new String(new char[i])));
+            testValue(ValueVarchar.get(new String(new char[i])));
+            testValue(ValueChar.get(new String(new char[i])));
+            testValue(ValueVarcharIgnoreCase.get(new String(new char[i])));
         }
-        testValue(ValueFloat.get(0f));
-        testValue(ValueFloat.get(1f));
-        testValue(ValueFloat.get(-1f));
+        testValue(ValueReal.get(0f));
+        testValue(ValueReal.get(1f));
+        testValue(ValueReal.get(-1f));
         testValue(ValueDouble.get(0));
         testValue(ValueDouble.get(1));
         testValue(ValueDouble.get(-1));
         for (int i = 0; i < 65000; i += 10 + i) {
             for (double j = 0.1; j < 65000; j += 10 + j) {
-                testValue(ValueFloat.get((float) (i / j)));
+                testValue(ValueReal.get((float) (i / j)));
                 testValue(ValueDouble.get(i / j));
-                testValue(ValueFloat.get((float) -(i / j)));
+                testValue(ValueReal.get((float) -(i / j)));
                 testValue(ValueDouble.get(-(i / j)));
             }
         }
-        testValue(ValueArray.get(new Value[0]));
-        testValue(ValueArray.get(new Value[] { ValueInt.get(-20), ValueInt.get(10) }));
-
-        SimpleResult rs = new SimpleResult();
-        rs.addColumn("ID", "ID", Value.INT, 0, 0);
-        rs.addColumn("NAME", "NAME", Value.VARCHAR, 255, 0);
-        rs.addRow(ValueInt.get(1), ValueString.get("Hello"));
-        rs.addRow(ValueInt.get(2), ValueString.get("World"));
-        rs.addRow(ValueInt.get(3), ValueString.get("Peace"));
-        testValue(ValueResultSet.get(rs));
+        testValue(ValueArray.get(new Value[0], null));
+        testValue(ValueArray.get(new Value[] { ValueInteger.get(-20), ValueInteger.get(10) }, null));
     }
 
     private void testValue(Value v) {
@@ -253,9 +242,9 @@ public class TestDataPage extends TestBase implements DataHandler {
 
         page.writeString("H\u1111!");
         page.writeString("John\tBrack's \"how are you\" M\u1111ller");
-        page.writeValue(ValueInt.get(10));
-        page.writeValue(ValueString.get("test"));
-        page.writeValue(ValueFloat.get(-2.25f));
+        page.writeValue(ValueInteger.get(10));
+        page.writeValue(ValueVarchar.get("test"));
+        page.writeValue(ValueReal.get(-2.25f));
         page.writeValue(ValueDouble.get(10.40));
         page.writeValue(ValueNull.INSTANCE);
         trace(new String(page.getBytes()));
@@ -344,11 +333,6 @@ public class TestDataPage extends TestBase implements DataHandler {
     public int readLob(long lobId, byte[] hmac, long offset, byte[] buff,
             int off, int length) {
         return -1;
-    }
-
-    @Override
-    public JavaObjectSerializer getJavaObjectSerializer() {
-        return null;
     }
 
     @Override

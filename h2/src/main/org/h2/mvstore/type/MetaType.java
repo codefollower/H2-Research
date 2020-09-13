@@ -5,13 +5,13 @@
  */
 package org.h2.mvstore.type;
 
-import org.h2.engine.Constants;
-import org.h2.mvstore.DataUtils;
-import org.h2.mvstore.WriteBuffer;
-
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.h2.engine.Constants;
+import org.h2.mvstore.DataUtils;
+import org.h2.mvstore.WriteBuffer;
 
 /**
  * Class DBMetaType is a type for values in the type registry map.
@@ -20,8 +20,8 @@ import java.util.Map;
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-public final class MetaType<D> extends BasicDataType<DataType<?>>
-{
+public final class MetaType<D> extends BasicDataType<DataType<?>> {
+
     private final D database;
     private final Thread.UncaughtExceptionHandler exceptionHandler;
     private final Map<String, StatefulDataType.Factory<D>> cache = new HashMap<>();
@@ -73,15 +73,15 @@ public final class MetaType<D> extends BasicDataType<DataType<?>>
                 return factory.create(buff, this, database);
             }
             Class<?> clazz = Class.forName(className);
-            Object obj = clazz.newInstance();
+            Object obj = clazz.getDeclaredConstructor().newInstance();
             if (obj instanceof StatefulDataType.Factory) {
                 factory = (StatefulDataType.Factory<D>) obj;
                 cache.put(className, factory);
                 return factory.create(buff, this, database);
             }
             return (DataType<?>) obj;
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-            if(exceptionHandler != null) {
+        } catch (ReflectiveOperationException | SecurityException | IllegalArgumentException e) {
+            if (exceptionHandler != null) {
                 exceptionHandler.uncaughtException(Thread.currentThread(), e);
             }
             throw new RuntimeException(e);

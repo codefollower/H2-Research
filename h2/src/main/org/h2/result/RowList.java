@@ -6,16 +6,16 @@
 package org.h2.result;
 
 import java.util.ArrayList;
-
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.store.Data;
 import org.h2.store.FileStore;
 import org.h2.table.Table;
 import org.h2.util.Utils;
-import org.h2.value.DataType;
 import org.h2.value.Value;
+import org.h2.value.ValueLobDatabase;
+import org.h2.value.ValueLobFile;
 
 /**
  * A list of rows. If the list grows too large, it is buffered to disk
@@ -26,14 +26,14 @@ import org.h2.value.Value;
 //ResultRemote用于存放client端从server端返回的结果
 public class RowList implements AutoCloseable {
 
-    private final Session session;
+    private final SessionLocal session;
     private final Table table;
     private final ArrayList<Row> list = Utils.newSmallArrayList();
     private int size;
     private int index, listIndex;
     private FileStore file;
     private Data rowBuff;
-    private ArrayList<Value> lobs;
+    private ArrayList<ValueLobFile> lobs;
     private final int maxMemory;
     private int memory;
     private boolean written;
@@ -42,8 +42,9 @@ public class RowList implements AutoCloseable {
      * Construct a new row list for this session.
      *
      * @param session the session
+     * @param table the table
      */
-    public RowList(Session session, Table table) {
+    public RowList(SessionLocal session, Table table) {
         this.session = session;
         this.table = table;
         if (session.getDatabase().isPersistent()) {
@@ -67,19 +68,13 @@ public class RowList implements AutoCloseable {
                 buff.writeByte((byte) 0);
             } else {
                 buff.writeByte((byte) 1);
-                if (DataType.isLargeObject(v.getValueType())) {
+                if (v instanceof ValueLobFile) {
                     // need to keep a reference to temporary lobs,
                     // otherwise the temp file is deleted
-                    if (v.getSmall() == null && v.getTableId() == 0) {
-                        if (lobs == null) {
-                            lobs = Utils.newSmallArrayList();
-                        }
-                        // need to create a copy, otherwise,
-                        // if stored multiple times, it may be renamed
-                        // and then not found
-                        v = v.copyToTemp();
-                        lobs.add(v);
+                    if (lobs == null) {
+                        lobs = Utils.newSmallArrayList();
                     }
+                    lobs.add((ValueLobFile)v);
                 }
                 buff.checkCapacity(buff.getValueLen(v));
                 buff.writeValue(v);
@@ -178,11 +173,12 @@ public class RowList implements AutoCloseable {
                 v = null;
             } else {
                 v = buff.readValue();
-                if (v.isLinkedToTable()) {
+                if (v instanceof ValueLobDatabase) {
+                    ValueLobDatabase lob = (ValueLobDatabase) v;
                     // the table id is 0 if it was linked when writing
                     // a temporary entry
-                    if (v.getTableId() == 0) {
-                        session.removeAtCommit(v);
+                    if (lob.getTableId() == 0) {
+                        session.removeAtCommit(lob);
                     }
                 }
             }

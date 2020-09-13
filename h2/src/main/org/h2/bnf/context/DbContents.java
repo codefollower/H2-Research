@@ -11,7 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import org.h2.engine.SessionInterface;
+import org.h2.engine.Session;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.util.ParserUtil;
 import org.h2.util.StringUtils;
@@ -37,81 +37,101 @@ public class DbContents {
 
     private boolean databaseToUpper, databaseToLower;
 
+    private boolean mayHaveStandardViews = true;
+
     /**
-     * @return The default schema.
+     * @return the default schema.
      */
     public DbSchema getDefaultSchema() {
         return defaultSchema;
     }
 
     /**
-     * @return True if this is an Apache Derby database.
+     * @return true if this is an Apache Derby database.
      */
     public boolean isDerby() {
         return isDerby;
     }
 
     /**
-     * @return True if this is a Firebird database.
+     * @return true if this is a Firebird database.
      */
     public boolean isFirebird() {
         return isFirebird;
     }
 
     /**
-     * @return True if this is a H2 database.
+     * @return true if this is a H2 database.
      */
     public boolean isH2() {
         return isH2;
     }
 
     /**
-     * @return True if this is a MS SQL Server database.
+     * @return true if this is a MS SQL Server database.
      */
     public boolean isMSSQLServer() {
         return isMSSQLServer;
     }
 
     /**
-     * @return True if this is a MySQL database.
+     * @return true if this is a MySQL database.
      */
     public boolean isMySQL() {
         return isMySQL;
     }
 
     /**
-     * @return True if this is an Oracle database.
+     * @return true if this is an Oracle database.
      */
     public boolean isOracle() {
         return isOracle;
     }
 
     /**
-     * @return True if this is a PostgreSQL database.
+     * @return true if this is a PostgreSQL database.
      */
     public boolean isPostgreSQL() {
         return isPostgreSQL;
     }
 
     /**
-     * @return True if this is an SQLite database.
+     * @return true if this is an SQLite database.
      */
     public boolean isSQLite() {
         return isSQLite;
     }
 
     /**
-     * @return True if this is an IBM DB2 database.
+     * @return true if this is an IBM DB2 database.
      */
     public boolean isDB2() {
         return isDB2;
     }
 
     /**
-     * @return The list of schemas.
+     * @return the list of schemas.
      */
     public DbSchema[] getSchemas() {
         return schemas;
+    }
+
+    /**
+     * Returns whether standard INFORMATION_SCHEMA.VIEWS may be supported.
+     *
+     * @return whether standard INFORMATION_SCHEMA.VIEWS may be supported
+     */
+    public boolean mayHaveStandardViews() {
+        return mayHaveStandardViews;
+    }
+
+    /**
+     * @param mayHaveStandardViews
+     *            whether standard INFORMATION_SCHEMA.VIEWS is detected as
+     *            supported
+     */
+    public void setMayHaveStandardViews(boolean mayHaveStandardViews) {
+        this.mayHaveStandardViews = mayHaveStandardViews;
     }
 
     /**
@@ -134,7 +154,7 @@ public class DbContents {
         isFirebird = url.startsWith("jdbc:firebirdsql:");
         isMSSQLServer = url.startsWith("jdbc:sqlserver:");
         if (isH2) {
-            SessionInterface.StaticSettings settings = ((JdbcConnection) conn).getStaticSettings();
+            Session.StaticSettings settings = ((JdbcConnection) conn).getStaticSettings();
             databaseToUpper = settings.databaseToUpper;
             databaseToLower = settings.databaseToLower;
         }else if (isMySQL || isPostgreSQL) {
@@ -233,7 +253,9 @@ public class DbContents {
     private String getDefaultSchemaName(DatabaseMetaData meta) {
         String defaultSchemaName = "";
         try {
-            if (isOracle) {
+            if (isH2) {
+                return meta.storesLowerCaseIdentifiers() ? "public" : "PUBLIC";
+            } else if (isOracle) {
                 return meta.getUserName();
             } else if (isPostgreSQL) {
                 return "public";
@@ -244,15 +266,8 @@ public class DbContents {
             } else if (isFirebird) {
                 return null;
             }
-            ResultSet rs = meta.getSchemas();
-            int index = rs.findColumn("IS_DEFAULT");
-            while (rs.next()) {
-                if (rs.getBoolean(index)) {
-                    defaultSchemaName = rs.getString("TABLE_SCHEM");
-                }
-            }
         } catch (SQLException e) {
-            // IS_DEFAULT not found
+            // Ignore
         }
         return defaultSchemaName;
     }

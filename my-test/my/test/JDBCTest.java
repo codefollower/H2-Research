@@ -52,12 +52,7 @@ public class JDBCTest {
             // TODO Auto-generated method stub
 
         }
-
-        @Override
-        public void setProgress(int state, String name, int x, int max) {
-            // TODO Auto-generated method stub
-
-        }
+ 
 
         @Override
         public void closingDatabase() {

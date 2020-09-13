@@ -29,7 +29,7 @@ public class TestSequence extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -172,8 +172,8 @@ public class TestSequence extends TestDb {
         stat.execute("CREATE SCHEMA TEST");
         stat.execute("CREATE SEQUENCE TEST.TEST_SEQ");
         stat.execute("SET SCHEMA_SEARCH_PATH PUBLIC, TEST");
-        stat.execute("CALL TEST_SEQ.NEXTVAL");
-        stat.execute("CALL TEST_SEQ.CURRVAL");
+        stat.execute("CALL NEXT VALUE FOR TEST_SEQ");
+        stat.execute("CALL CURRENT VALUE FOR TEST_SEQ");
         conn.close();
     }
 
@@ -249,10 +249,9 @@ public class TestSequence extends TestDb {
         assertEquals("SEQUENCE", rs.getString("SEQUENCE_CATALOG"));
         assertEquals("PUBLIC", rs.getString("SEQUENCE_SCHEMA"));
         assertEquals("A", rs.getString("SEQUENCE_NAME"));
-        assertEquals(0, rs.getLong("CURRENT_VALUE"));
+        assertEquals(1, rs.getLong("BASE_VALUE"));
         assertEquals(1, rs.getLong("INCREMENT"));
-        assertEquals(false, rs.getBoolean("IS_GENERATED"));
-        assertEquals("", rs.getString("REMARKS"));
+        assertNull(rs.getString("REMARKS"));
         assertEquals(32, rs.getLong("CACHE"));
         assertEquals(1, rs.getLong("MINIMUM_VALUE"));
         assertEquals(Long.MAX_VALUE, rs.getLong("MAXIMUM_VALUE"));
@@ -261,10 +260,9 @@ public class TestSequence extends TestDb {
         assertEquals("SEQUENCE", rs.getString("SEQUENCE_CATALOG"));
         assertEquals("PUBLIC", rs.getString("SEQUENCE_SCHEMA"));
         assertEquals("B", rs.getString("SEQUENCE_NAME"));
-        assertEquals(5, rs.getLong("CURRENT_VALUE"));
+        assertEquals(7, rs.getLong("BASE_VALUE"));
         assertEquals(2, rs.getLong("INCREMENT"));
-        assertEquals(false, rs.getBoolean("IS_GENERATED"));
-        assertEquals("", rs.getString("REMARKS"));
+        assertNull(rs.getString("REMARKS"));
         assertEquals(1, rs.getLong("CACHE"));
         assertEquals(5, rs.getLong("MINIMUM_VALUE"));
         assertEquals(9, rs.getLong("MAXIMUM_VALUE"));
@@ -273,10 +271,9 @@ public class TestSequence extends TestDb {
         assertEquals("SEQUENCE", rs.getString("SEQUENCE_CATALOG"));
         assertEquals("PUBLIC", rs.getString("SEQUENCE_SCHEMA"));
         assertEquals("C", rs.getString("SEQUENCE_NAME"));
-        assertEquals(-2, rs.getLong("CURRENT_VALUE"));
+        assertEquals(-4, rs.getLong("BASE_VALUE"));
         assertEquals(-2, rs.getLong("INCREMENT"));
-        assertEquals(false, rs.getBoolean("IS_GENERATED"));
-        assertEquals("", rs.getString("REMARKS"));
+        assertNull(rs.getString("REMARKS"));
         assertEquals(3, rs.getLong("CACHE"));
         assertEquals(-9, rs.getLong("MINIMUM_VALUE"));
         assertEquals(-3, rs.getLong("MAXIMUM_VALUE"));
@@ -333,33 +330,33 @@ public class TestSequence extends TestDb {
                 stat,
                 "create sequence a minvalue 5 start with 2",
                 "Unable to create or alter sequence \"A\" because of " +
-                "invalid attributes (value \"2\", start value \"2\", " +
+                "invalid attributes (base value \"2\", start value \"2\", " +
                 "min value \"5\", max value \"" + Long.MAX_VALUE +
-                "\", increment \"1\")");
+                "\", increment \"1\", cache size \"32\")");
         expectError(
                 stat,
                 "create sequence b maxvalue 5 start with 7",
                 "Unable to create or alter sequence \"B\" because of " +
-                "invalid attributes (value \"7\", start value \"7\", " +
-                        "min value \"1\", max value \"5\", increment \"1\")");
+                "invalid attributes (base value \"7\", start value \"7\", " +
+                        "min value \"1\", max value \"5\", increment \"1\", cache size \"32\")");
         expectError(
                 stat,
                 "create sequence c minvalue 5 maxvalue 2",
                 "Unable to create or alter sequence \"C\" because of " +
-                "invalid attributes (value \"5\", start value \"5\", " +
-                "min value \"5\", max value \"2\", increment \"1\")");
+                "invalid attributes (base value \"5\", start value \"5\", " +
+                "min value \"5\", max value \"2\", increment \"1\", cache size \"32\")");
         expectError(
                 stat,
                 "create sequence d increment by 0",
                 "Unable to create or alter sequence \"D\" because of " +
-                "invalid attributes (value \"1\", start value \"1\", " +
+                "invalid attributes (base value \"1\", start value \"1\", " +
                 "min value \"1\", max value \"" +
-                Long.MAX_VALUE + "\", increment \"0\")");
+                Long.MAX_VALUE + "\", increment \"0\", cache size \"32\")");
         expectError(stat,
                 "create sequence e minvalue 1 maxvalue 5 increment 99",
                 "Unable to create or alter sequence \"E\" because of " +
-                "invalid attributes (value \"1\", start value \"1\", " +
-                "min value \"1\", max value \"5\", increment \"99\")");
+                "invalid attributes (base value \"1\", start value \"1\", " +
+                "min value \"1\", max value \"5\", increment \"99\", cache size \"32\")");
         conn.close();
     }
 

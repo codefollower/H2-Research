@@ -5,7 +5,6 @@
  */
 package org.h2.command.dml;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
@@ -14,9 +13,10 @@ import org.h2.api.ErrorCode;
 import org.h2.api.Trigger;
 import org.h2.command.Command;
 import org.h2.command.CommandInterface;
+import org.h2.command.query.Query;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
@@ -33,33 +33,33 @@ import org.h2.result.ResultInterface;
 import org.h2.result.ResultTarget;
 import org.h2.result.Row;
 import org.h2.table.Column;
+import org.h2.table.DataChangeDeltaTable;
 import org.h2.table.DataChangeDeltaTable.ResultOption;
 import org.h2.table.Table;
-import org.h2.table.TableFilter;
+import org.h2.util.HasSQL;
 import org.h2.value.Value;
-import org.h2.value.ValueNull;
 
 /**
  * This class represents the statement
  * INSERT
  */
-public class Insert extends CommandWithValues implements ResultTarget, DataChangeStatement {
+public final class Insert extends CommandWithValues implements ResultTarget {
 
     private Table table;
     private Column[] columns;
     private Query query;
     private boolean sortedInsertMode;
-    private int rowNumber;
+    private long rowNumber;
     private boolean insertFromSelect;
-    /**
-     * This table filter is for MERGE..USING support - not used in stand-alone DML
-     */
-    private TableFilter sourceTableFilter;
+
+    private Boolean overridingSystem;
 
     /**
      * For MySQL-style INSERT ... ON DUPLICATE KEY UPDATE ....
      */
     private HashMap<Column, Expression> duplicateKeyAssignmentMap;
+
+    private Value[] onDuplicateKeyRow;
 
     /**
      * For MySQL-style INSERT IGNORE and PostgreSQL-style ON CONFLICT DO
@@ -71,7 +71,7 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
 
     private ResultOption deltaChangeCollectionMode;
 
-    public Insert(Session session) {
+    public Insert(SessionLocal session) {
         super(session);
     }
 
@@ -110,6 +110,10 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         this.query = query;
     }
 
+    public void setOverridingSystem(Boolean overridingSystem) {
+        this.overridingSystem = overridingSystem;
+    }
+
     /**
      * Keep a collection of the columns to pass to update if a duplicate key
      * happens, for MySQL-style INSERT ... ON DUPLICATE KEY UPDATE ....
@@ -136,36 +140,54 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
 //        list.add(expr);
 //=======
     @Override
-    public void setDeltaChangeCollector(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
+    public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
+        Index index = null;
         this.deltaChangeCollector = deltaChangeCollector;
         this.deltaChangeCollectionMode = deltaChangeCollectionMode;
-    }
-
-    @Override
-    public int update() {
-        Index index = null;
-        if (sortedInsertMode) {
-            if (!session.getDatabase().isMVStore()) {
-                /*
-                 * Take exclusive lock, otherwise two different inserts running at
-                 * the same time, the second might accidentally get
-                 * sorted-insert-mode.
-                 */
-                table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
-            }
-            index = table.getScanIndex(session);
-            index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
-        }
+//<<<<<<< HEAD
+//    }
+//
+//    @Override
+//    public int update() {
+//        Index index = null;
+//        if (sortedInsertMode) {
+//            if (!session.getDatabase().isMVStore()) {
+//                /*
+//                 * Take exclusive lock, otherwise two different inserts running at
+//                 * the same time, the second might accidentally get
+//                 * sorted-insert-mode.
+//                 */
+//                table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
+//            }
+//            index = table.getScanIndex(session);
+//            index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
+//        }
+//=======
+//>>>>>>> 5a91cf068195d0e613d30e0e7202a0b05f87f253
         try {
+            if (sortedInsertMode) {
+                if (!session.getDatabase().isMVStore()) {
+                    /*
+                     * Take exclusive lock, otherwise two different inserts running at
+                     * the same time, the second might accidentally get
+                     * sorted-insert-mode.
+                     */
+                    table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
+                    index = table.getScanIndex(session);
+                    index.setSortedInsertMode(true);
+                }
+            }
             return insertRows();
         } finally {
+            this.deltaChangeCollector = null;
+            this.deltaChangeCollectionMode = null;
             if (index != null) {
                 index.setSortedInsertMode(false);
             }
         }
     }
 
-    private int insertRows() {
+    private long insertRows() {
         session.getUser().checkRight(table, Right.INSERT);
         setCurrentRowNumber(0);
         table.fire(session, Trigger.INSERT, true);
@@ -182,17 +204,15 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                     int index = c.getColumnId(); //从0开始
                     Expression e = expr[i];
                     if (e != ValueExpression.DEFAULT) {
-                        e = e.optimize(session);
                         try {
-                            Value v = e.getValue(session);
-                            newRow.setValue(index, v);
+                            newRow.setValue(index, e.getValue(session));
                         } catch (DbException ex) {
                             throw setRow(ex, x, getSimpleSQL(expr));
                         }
                     }
                 }
                 rowNumber++;
-                table.validateConvertUpdateSequence(session, newRow);
+                table.convertInsertRow(session, newRow, overridingSystem);
                 if (deltaChangeCollectionMode == ResultOption.NEW) {
                     deltaChangeCollector.addRow(newRow.getValueList().clone());
                 }
@@ -218,20 +238,25 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                     }
 //<<<<<<< HEAD
 ////<<<<<<< HEAD
-////                    //在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
-////                    //也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
-////                    //这里又记了一次UndoLog
-////                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
+//////<<<<<<< HEAD
+//////                    //在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
+//////                    //也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
+//////                    //这里又记了一次UndoLog
+//////                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
+//////=======
+////                    generatedKeys.confirmRow(newRow);
 ////=======
-//                    generatedKeys.confirmRow(newRow);
+//                    if (deltaChangeCollectionMode == ResultOption.FINAL) {
+//                        deltaChangeCollector.addRow(newRow.getValueList());
+//                    }
 //=======
-                    if (deltaChangeCollectionMode == ResultOption.FINAL) {
-                        deltaChangeCollector.addRow(newRow.getValueList());
-                    }
+                    DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+                            deltaChangeCollectionMode, newRow);
                     session.log(table, UndoLogRecord.INSERT, newRow);
                     table.fireAfterRow(session, null, newRow, false);
-                } else if (deltaChangeCollectionMode == ResultOption.FINAL) {
-                    deltaChangeCollector.addRow(newRow.getValueList());
+                } else {
+                    DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+                            deltaChangeCollectionMode, newRow);
                 }
             }
         } else {
@@ -270,24 +295,25 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         for (int j = 0, len = columns.length; j < len; j++) {
             newRow.setValue(columns[j].getColumnId(), values[j]);
         }
-        table.validateConvertUpdateSequence(session, newRow);
+        table.convertInsertRow(session, newRow, overridingSystem);
         if (deltaChangeCollectionMode == ResultOption.NEW) {
             deltaChangeCollector.addRow(newRow.getValueList().clone());
         }
         if (!table.fireBeforeRow(session, null, newRow)) {
             table.addRow(session, newRow);
-            if (deltaChangeCollectionMode == ResultOption.FINAL) {
-                deltaChangeCollector.addRow(newRow.getValueList());
-            }
+            DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+                    deltaChangeCollectionMode, newRow);
             session.log(table, UndoLogRecord.INSERT, newRow);
             table.fireAfterRow(session, null, newRow, false);
-        } else if (deltaChangeCollectionMode == ResultOption.FINAL) {
-            deltaChangeCollector.addRow(newRow.getValueList());
+        } else {
+            DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
+                    deltaChangeCollectionMode, newRow);
         }
     }
 
     @Override
-    public int getRowCount() {
+    public long getRowCount() {
+        // This method is not used in this class
         return rowNumber;
     }
 
@@ -297,10 +323,10 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
     }
 
     @Override
-    public String getPlanSQL(boolean alwaysQuote) {
+    public String getPlanSQL(int sqlFlags) {
         StringBuilder builder = new StringBuilder("INSERT INTO ");
-        table.getSQL(builder, alwaysQuote).append('(');
-        Column.writeColumns(builder, columns, alwaysQuote);
+        table.getSQL(builder, sqlFlags).append('(');
+        Column.writeColumns(builder, columns, sqlFlags);
         builder.append(")\n");
         if (insertFromSelect) {
             builder.append("DIRECT ");
@@ -318,12 +344,10 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                 if (row++ > 0) {
                     builder.append(",\n");
                 }
-                builder.append('(');
-                Expression.writeExpressions(builder, expr, alwaysQuote);
-                builder.append(')');
+                Expression.writeExpressions(builder.append('('), expr, sqlFlags).append(')');
             }
         } else {
-            builder.append(query.getPlanSQL(alwaysQuote));
+            builder.append(query.getPlanSQL(sqlFlags));
         }
         return builder.toString();
     }
@@ -347,9 +371,6 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                 for (int i = 0, len = expr.length; i < len; i++) {
                     Expression e = expr[i];
                     if (e != null) {
-                        if(sourceTableFilter!=null){
-                            e.mapColumns(sourceTableFilter, 0, Expression.MAP_INITIAL);
-                        }
                         e = e.optimize(session);
                         if (e instanceof Parameter) {
                             Parameter p = (Parameter) e;
@@ -360,6 +381,9 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
                 }
             }
         } else {
+            if (!session.getDatabase().isMVStore()) {
+                query.setNeverLazy(true);
+            }
             query.prepare();
             if (query.getColumnCount() != columns.length) {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
@@ -417,13 +441,10 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         }
 
         int columnCount = columns.length;
-        ArrayList<String> variableNames = new ArrayList<>(columnCount);
         Expression[] row = (currentRow == null) ? valuesExpressionList.get((int) getCurrentRowNumber() - 1)
                 : new Expression[columnCount];
+        onDuplicateKeyRow = new Value[table.getColumns().length];
         for (int i = 0; i < columnCount; i++) {
-            StringBuilder builder = table.getSQL(new StringBuilder(), true).append('.');
-            String key = columns[i].getSQL(builder, true).toString();
-            variableNames.add(key);
             Value value;
             if (currentRow != null) {
                 value = currentRow[i];
@@ -431,19 +452,19 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
             } else {
                 value = row[i].getValue(session);
             }
-            session.setVariable(key, value);
+            onDuplicateKeyRow[columns[i].getColumnId()] = value;
         }
 
         StringBuilder builder = new StringBuilder("UPDATE ");
-        table.getSQL(builder, true).append(" SET ");
+        table.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append(" SET ");
         boolean f = false;
         for (Entry<Column, Expression> entry : duplicateKeyAssignmentMap.entrySet()) {
             if (f) {
                 builder.append(", ");
             }
             f = true;
-            entry.getKey().getSQL(builder, true).append('=');
-            entry.getValue().getSQL(builder, true);
+            entry.getKey().getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append('=');
+            entry.getValue().getUnenclosedSQL(builder, HasSQL.DEFAULT_SQL_FLAGS);
         }
         builder.append(" WHERE ");
         Index foundIndex = (Index) de.getSource();
@@ -451,18 +472,16 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
             throw DbException.getUnsupportedException(
                     "Unable to apply ON DUPLICATE KEY UPDATE, no index found!");
         }
-        prepareUpdateCondition(foundIndex, row).getSQL(builder, true);
+        prepareUpdateCondition(foundIndex, row).getUnenclosedSQL(builder, HasSQL.DEFAULT_SQL_FLAGS);
         String sql = builder.toString();
         Update command = (Update) session.prepare(sql);
-        command.setUpdateToCurrentValuesReturnsZero(true);
+        command.setOnDuplicateKeyInsert(this);
         for (Parameter param : command.getParameters()) {
             Parameter insertParam = parameters.get(param.getIndex());
             param.setValue(insertParam.getValue(session));
         }
         boolean result = command.update() > 0;
-        for (String variableName : variableNames) {
-            session.setVariable(variableName, ValueNull.INSTANCE);
-        }
+        onDuplicateKeyRow = null;
         return result;
     }
 
@@ -491,15 +510,14 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         Expression condition = null;
         for (Column column : indexedColumns) {
             ExpressionColumn expr = new ExpressionColumn(session.getDatabase(),
-                    table.getSchema().getName(), table.getName(),
-                    column.getName(), false);
+                    table.getSchema().getName(), table.getName(), column.getName());
             for (int i = 0; i < columns.length; i++) {
-                if (expr.getColumnName().equals(columns[i].getName())) {
+                if (expr.getColumnName(session, i).equals(columns[i].getName())) {
                     if (condition == null) {
-                        condition = new Comparison(Comparison.EQUAL, expr, row[i]);
+                        condition = new Comparison(Comparison.EQUAL, expr, row[i], false);
                     } else {
                         condition = new ConditionAndOr(ConditionAndOr.AND, condition,
-                                new Comparison(Comparison.EQUAL, expr, row[i]));
+                                new Comparison(Comparison.EQUAL, expr, row[i], false));
                     }
                     break;
                 }
@@ -508,21 +526,27 @@ public class Insert extends CommandWithValues implements ResultTarget, DataChang
         return condition;
     }
 
-    public void setSourceTableFilter(TableFilter sourceTableFilter) {
-        this.sourceTableFilter = sourceTableFilter;
+    /**
+     * Get the value to use for the specified column in case of a duplicate key.
+     *
+     * @param columnIndex the column index
+     * @return the value
+     */
+    public Value getOnDuplicateKeyValue(int columnIndex) {
+        return onDuplicateKeyRow[columnIndex];
     }
 
     @Override
     public void collectDependencies(HashSet<DbObject> dependencies) {
         ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
-        if (query != null) {
-            query.isEverything(visitor);
-        }
-        if (sourceTableFilter != null) {
-            Select select = sourceTableFilter.getSelect();
-            if (select != null) {
-                select.isEverything(visitor);
+        if (!valuesExpressionList.isEmpty()) {
+            for (Expression[] expr : valuesExpressionList) {
+                for (Expression e : expr) {
+                    e.isEverything(visitor);
+                }
             }
+        } else {
+            query.isEverything(visitor);
         }
     }
 }

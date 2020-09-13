@@ -76,7 +76,7 @@ public class UndoLogRecord {
      *
      * @param session the session
      */
-    void undo(Session session) {
+    void undo(SessionLocal session) {
         switch (operation) {
         case INSERT:
             if (state == IN_MEMORY_INVALID) {
@@ -110,7 +110,7 @@ public class UndoLogRecord {
             }
             break;
         default:
-            DbException.throwInternalError("op=" + operation);
+            throw DbException.getInternalError("op=" + operation);
         }
     }
 
@@ -189,7 +189,7 @@ public class UndoLogRecord {
         int oldOp = operation;
         load(buff, log);
         if (operation != oldOp) {
-            DbException.throwInternalError("operation=" + operation + " op=" + oldOp);
+            throw DbException.getInternalError("operation=" + operation + " op=" + oldOp);
         }
     }
 

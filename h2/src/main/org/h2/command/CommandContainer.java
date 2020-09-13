@@ -16,7 +16,7 @@ import org.h2.command.dml.DataChangeStatement;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
 import org.h2.engine.DbSettings;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.Parameter;
@@ -34,7 +34,6 @@ import org.h2.table.TableView;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
 import org.h2.value.Value;
-import org.h2.value.ValueNull;
 
 /**
  * Represents a single SQL statements.
@@ -61,9 +60,9 @@ public class CommandContainer extends Command {
         }
 
         @Override
-        public int getRowCount() {
+        public long getRowCount() {
             // Not required
-            return 0;
+            return 0L;
         }
 
         @Override
@@ -88,7 +87,7 @@ public class CommandContainer extends Command {
      * @param session the session
      * @param prepared prepared statement
      */
-    static void clearCTE(Session session, Prepared prepared) {
+    static void clearCTE(SessionLocal session, Prepared prepared) {
         List<TableView> cteCleanups = prepared.getCteCleanups();
         if (cteCleanups != null) {
             clearCTE(session, cteCleanups);
@@ -101,7 +100,7 @@ public class CommandContainer extends Command {
      * @param session the session
      * @param views list of view
      */
-    static void clearCTE(Session session, List<TableView> views) {
+    static void clearCTE(SessionLocal session, List<TableView> views) {
         for (TableView view : views) {
             // check if view was previously deleted as their name is set to
             // null
@@ -111,7 +110,7 @@ public class CommandContainer extends Command {
         }
     }
 
-    CommandContainer(Session session, String sql, Prepared prepared) {
+    CommandContainer(SessionLocal session, String sql, Prepared prepared) {
         super(session, sql);
         prepared.setCommand(this);
         this.prepared = prepared;
@@ -185,7 +184,6 @@ public class CommandContainer extends Command {
         recompileIfRequired();
         setProgress(DatabaseEventListener.STATE_STATEMENT_START);
         start();
-        session.setLastScopeIdentity(ValueNull.INSTANCE);
         prepared.checkParameters();
         ResultWithGeneratedKeys result;
         if (generatedKeysRequest != null && !Boolean.FALSE.equals(generatedKeysRequest)) {
@@ -213,8 +211,10 @@ public class CommandContainer extends Command {
             Column[] columns = table.getColumns();
             Index primaryKey = table.findPrimaryKey();
             for (Column column : columns) {
-                Expression e = column.getDefaultExpression();
-                if ((e != null && !e.isConstant()) || (primaryKey != null && primaryKey.getColumnIndex(column) >= 0)) {
+                Expression e;
+                if (column.isIdentity()
+                        || ((e = column.getEffectiveDefaultExpression()) != null && !e.isConstant())
+                        || (primaryKey != null && primaryKey.getColumnIndex(column) >= 0)) {
                     expressionColumns.add(new ExpressionColumn(db, column));
                 }
             }
@@ -254,7 +254,7 @@ public class CommandContainer extends Command {
                 expressionColumns.add(new ExpressionColumn(db, column));
             }
         } else {
-            throw DbException.throwInternalError();
+            throw DbException.getInternalError();
         }
         int columnCount = expressionColumns.size();
         if (columnCount == 0) {
@@ -266,19 +266,12 @@ public class CommandContainer extends Command {
             indexes[i] = expressions[i].getColumn().getColumnId();
         }
         LocalResult result = new LocalResult(session, expressions, columnCount, columnCount);
-        ResultTarget collector = new GeneratedKeysCollector(indexes, result);
-        int updateCount;
-        try {
-            statement.setDeltaChangeCollector(collector, ResultOption.FINAL);
-            updateCount = statement.update();
-        } finally {
-            statement.setDeltaChangeCollector(null, null);
-        }
-        return new ResultWithGeneratedKeys.WithKeys(updateCount, result);
+        return new ResultWithGeneratedKeys.WithKeys(
+                statement.update(new GeneratedKeysCollector(indexes, result), ResultOption.FINAL), result);
     }
 
     @Override
-    public ResultInterface query(int maxrows) {
+    public ResultInterface query(long maxrows) {
         recompileIfRequired();
         setProgress(DatabaseEventListener.STATE_STATEMENT_START);
         start();

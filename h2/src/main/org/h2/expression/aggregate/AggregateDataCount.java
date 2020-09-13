@@ -5,9 +5,9 @@
  */
 package org.h2.expression.aggregate;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.value.Value;
-import org.h2.value.ValueLong;
+import org.h2.value.ValueBigint;
 import org.h2.value.ValueNull;
 
 /**
@@ -24,15 +24,15 @@ class AggregateDataCount extends AggregateData {
     }
 
     @Override
-    void add(Session session, Value v) {
+    void add(SessionLocal session, Value v) {
         if (all || v != ValueNull.INSTANCE) {
             count++;
         }
     }
 
     @Override
-    Value getValue(Session session, int dataType) {
-        return ValueLong.get(count).convertTo(dataType);
+    Value getValue(SessionLocal session) {
+        return ValueBigint.get(count);
     }
 
 }

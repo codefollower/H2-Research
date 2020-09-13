@@ -9,12 +9,11 @@ import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
-import org.h2.util.Utils;
 
 /**
  * This class contains various database-level settings. To override the
  * documented default value for a database, append the setting in the database
- * URL: "jdbc:h2:./test;ALIAS_COLUMN_NAME=TRUE" when opening the first connection
+ * URL: "jdbc:h2:./test;ANALYZE_SAMPLE=1000" when opening the first connection
  * to the database. The settings can not be changed once the database is open.
  * <p>
  * Some settings are a last resort and temporary solution to work around a
@@ -35,19 +34,6 @@ public class DbSettings extends SettingsBase {
      * The default settings. Those must not be modified.
      */
     public static final DbSettings DEFAULT = new DbSettings(new HashMap<>(TABLE_SIZE));
-
-    /**
-     * Database setting <code>ALIAS_COLUMN_NAME</code> (default: false).<br />
-     * When enabled, aliased columns (as in SELECT ID AS I FROM TEST) return the
-     * alias (I in this case) in ResultSetMetaData.getColumnName() and 'null' in
-     * getTableName(). If disabled, the real column name (ID in this case) and
-     * table name is returned.
-     * <br />
-     * This setting only affects the default and the MySQL mode. When using
-     * any other mode, this feature is enabled for compatibility, even if this
-     * database setting is not enabled explicitly.
-     */
-    public final boolean aliasColumnName = get("ALIAS_COLUMN_NAME", false);
 
     /**
      * Database setting <code>ANALYZE_AUTO</code> (default: 2000).<br />
@@ -151,16 +137,6 @@ public class DbSettings extends SettingsBase {
             "ESTIMATED_FUNCTION_TABLE_ROWS", 1000);
 
     /**
-     * Database setting <code>FUNCTIONS_IN_SCHEMA</code>
-     * (default: true).<br />
-     * If set, all functions are stored in a schema. Specially, the SCRIPT
-     * statement will always include the schema name in the CREATE ALIAS
-     * statement. This is not backward compatible with H2 versions 1.2.134 and
-     * older.
-     */
-    public final boolean functionsInSchema = get("FUNCTIONS_IN_SCHEMA", true);
-
-    /**
      * Database setting <code>LOB_TIMEOUT</code> (default: 300000,
      * which means 5 minutes).<br />
      * The number of milliseconds a temporary LOB reference is kept until it
@@ -260,13 +236,6 @@ public class DbSettings extends SettingsBase {
     public final boolean optimizeTwoEquals = get("OPTIMIZE_TWO_EQUALS", true);
 
     /**
-     * Database setting <code>OPTIMIZE_UPDATE</code> (default: true).<br />
-     * Speed up inserts, updates, and deletes by not reading all rows from a
-     * page unless necessary.
-     */
-    public final boolean optimizeUpdate = get("OPTIMIZE_UPDATE", true);
-
-    /**
      * Database setting <code>PAGE_STORE_MAX_GROWTH</code>
      * (default: 128 * 1024).<br />
      * The maximum number of pages the file grows at any time.
@@ -337,7 +306,7 @@ public class DbSettings extends SettingsBase {
      * (default: true).<br />
      * Use the MVStore storage engine.
      */
-    public boolean mvStore = get("MV_STORE", true);
+    public final boolean mvStore = get("MV_STORE", true);
 
     /**
      * Database setting <code>COMPRESS</code>
@@ -354,11 +323,15 @@ public class DbSettings extends SettingsBase {
      */
     public final boolean ignoreCatalogs = get("IGNORE_CATALOGS", false);
 
+    /**
+     * Database setting <code>ZERO_BASED_ENUMS</code>
+     * (default: false).<br />
+     * If set, ENUM ordinal values are 0-based.
+     */
+    public final boolean zeroBasedEnums = get("ZERO_BASED_ENUMS", false);
+
     private DbSettings(HashMap<String, String> s) {
         super(s);
-        if (s.get("NESTED_JOINS") != null || Utils.getProperty("h2.nestedJoins", null) != null) {
-            throw DbException.getUnsupportedException("NESTED_JOINS setting is not available since 1.4.197");
-        }
         boolean lower = get("DATABASE_TO_LOWER", false);
         boolean upperSet = containsKey("DATABASE_TO_UPPER");
         boolean upper = get("DATABASE_TO_UPPER", true);
@@ -374,17 +347,6 @@ public class DbSettings extends SettingsBase {
         HashMap<String, String> settings = getSettings();
         settings.put("DATABASE_TO_LOWER", Boolean.toString(lower));
         settings.put("DATABASE_TO_UPPER", Boolean.toString(upper));
-    }
-
-    /**
-     * Sets the database engine setting.
-     *
-     * @param mvStore
-     *            true for MVStore engine, false for PageStore engine
-     */
-    void setMvStore(boolean mvStore) {
-        this.mvStore = mvStore;
-        set("MV_STORE", mvStore);
     }
 
     /**

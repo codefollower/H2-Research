@@ -130,7 +130,7 @@ public class PageOutputStream {
             return;
         }
         if (writing) {
-            DbException.throwInternalError("writing while still writing");
+            throw DbException.getInternalError("writing while still writing");
         }
         try {
             reserve(len);

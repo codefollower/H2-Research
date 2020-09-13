@@ -28,7 +28,7 @@ public class TestExclusive extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -103,7 +103,7 @@ public class TestExclusive extends TestDb {
     }
 
 
-    private void setExclusiveMode(Connection connection, int exclusiveMode) throws SQLException {
+    private static void setExclusiveMode(Connection connection, int exclusiveMode) throws SQLException {
         String sql = "SET EXCLUSIVE " + exclusiveMode;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -111,14 +111,14 @@ public class TestExclusive extends TestDb {
         }
     }
 
-    private boolean getExclusiveMode(Connection connection) throws SQLException{
+    private static boolean getExclusiveMode(Connection connection) throws SQLException{
         boolean exclusiveMode = false;
 
-        String sql = "SELECT `VALUE` FROM INFORMATION_SCHEMA.Settings WHERE NAME = 'EXCLUSIVE'";
+        String sql = "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'EXCLUSIVE'";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             ResultSet result = statement.executeQuery();
             if (result.next()) {
-                exclusiveMode = result.getBoolean("VALUE");
+                exclusiveMode = result.getBoolean(1);
             }
         }
 

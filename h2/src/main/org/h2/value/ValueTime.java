@@ -5,20 +5,15 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
 import org.h2.api.ErrorCode;
 import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
-import org.h2.util.JSR310Utils;
-import org.h2.util.LegacyDateTimeUtils;
 
 /**
  * Implementation of the TIME data type.
  */
-public class ValueTime extends Value {
+public final class ValueTime extends Value {
 
     /**
      * The default precision and display size of the textual representation of a time.
@@ -110,31 +105,9 @@ public class ValueTime extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         DateTimeUtils.appendTime(builder.append("TIME '"), nanos);
         return builder.append('\'');
-    }
-
-    @Override
-    public boolean checkPrecision(long precision) {
-        // TIME data type does not have precision parameter
-        return true;
-    }
-
-    @Override
-    public Value convertScale(boolean onlyToSmallerScale, int targetScale) {
-        if (targetScale >= MAXIMUM_SCALE) {
-            return this;
-        }
-        if (targetScale < 0) {
-            throw DbException.getInvalidValueException("scale", targetScale);
-        }
-        long n = nanos;
-        long n2 = DateTimeUtils.convertScale(n, targetScale, DateTimeUtils.NANOS_PER_DAY);
-        if (n2 == n) {
-            return this;
-        }
-        return fromNanos(n2);
     }
 
     @Override
@@ -156,30 +129,14 @@ public class ValueTime extends Value {
     }
 
     @Override
-    public Object getObject() {
-        return JSR310Utils.valueToLocalTime(this, null);
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        try {
-            prep.setObject(parameterIndex, JSR310Utils.valueToLocalTime(this, null), Types.TIME);
-            return;
-        } catch (SQLException ignore) {
-            // Nothing to do
-        }
-        prep.setTime(parameterIndex, LegacyDateTimeUtils.toTime(null, null, this));
-    }
-
-    @Override
     public Value add(Value v) {
-        ValueTime t = (ValueTime) v.convertTo(Value.TIME);
+        ValueTime t = (ValueTime) v;
         return ValueTime.fromNanos(nanos + t.getNanos());
     }
 
     @Override
     public Value subtract(Value v) {
-        ValueTime t = (ValueTime) v.convertTo(Value.TIME);
+        ValueTime t = (ValueTime) v;
         return ValueTime.fromNanos(nanos - t.getNanos());
     }
 

@@ -11,7 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.api.ErrorCode;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
@@ -29,7 +29,7 @@ public class TestView extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -77,7 +77,7 @@ public class TestView extends TestDb {
                 "name varchar(25) unique, age int unique)");
 
         // check that initial cache size is empty
-        Session s = (Session) ((JdbcConnection) conn).getSession();
+        SessionLocal s = (SessionLocal) ((JdbcConnection) conn).getSession();
         s.clearViewIndexCache();
         assertTrue(s.getViewIndexCache(true).isEmpty());
         assertTrue(s.getViewIndexCache(false).isEmpty());
@@ -169,7 +169,7 @@ public class TestView extends TestDb {
 
     private void testChangeSchemaSearchPath() throws SQLException {
         deleteDb("view");
-        Connection conn = getConnection("view;FUNCTIONS_IN_SCHEMA=TRUE");
+        Connection conn = getConnection("view");
         Statement stat = conn.createStatement();
         stat.execute("CREATE ALIAS X AS $$ int x() { return 1; } $$;");
         stat.execute("CREATE SCHEMA S");
@@ -212,7 +212,7 @@ public class TestView extends TestDb {
         x = 8;
         stat.execute("CREATE ALIAS GET_X " +
                 (deterministic ? "DETERMINISTIC" : "") +
-                " FOR \"" + getClass().getName() + ".getX\"");
+                " FOR '" + getClass().getName() + ".getX'");
         stat.execute("CREATE VIEW V AS SELECT * FROM (SELECT GET_X())");
         ResultSet rs;
         rs = stat.executeQuery("SELECT * FROM V");

@@ -26,7 +26,7 @@ import org.h2.util.Utils;
 /**
  * Represents a user object.
  */
-public class User extends RightOwner {
+public final class User extends RightOwner {
 
     private final boolean systemUser;
     private byte[] salt;
@@ -79,7 +79,7 @@ public class User extends RightOwner {
 
     @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -96,7 +96,7 @@ public class User extends RightOwner {
      */
     public void checkRight(Table table, int rightMask) {
         if (!hasRight(table, rightMask)) {
-            throw DbException.get(ErrorCode.NOT_ENOUGH_RIGHTS_FOR_1, table.getSQL(false));
+            throw DbException.get(ErrorCode.NOT_ENOUGH_RIGHTS_FOR_1, table.getTraceSQL());
         }
     }
 
@@ -164,7 +164,7 @@ public class User extends RightOwner {
      */
     public String getCreateSQL(boolean password) {
         StringBuilder buff = new StringBuilder("CREATE USER IF NOT EXISTS ");
-        getSQL(buff, true);
+        getSQL(buff, DEFAULT_SQL_FLAGS);
         if (comment != null) {
             buff.append(" COMMENT ");
             StringUtils.quoteStringSQL(buff, comment);
@@ -252,8 +252,8 @@ public class User extends RightOwner {
     //不管是直接把权限授予给此user还是把角色授予给些user都会得到一个Right，
     //所以只要取出所有权限，判断一下Grantee是不是user自己就可以了
     @Override
-    public void removeChildrenAndResources(Session session) {
-    	//授予给此user自己的权限要删除
+    public void removeChildrenAndResources(SessionLocal session) {
+    //授予给此user自己的权限要删除    
         for (Right right : database.getAllRights()) {
             if (right.getGrantee() == this) {
                 database.removeDatabaseObject(session, right);

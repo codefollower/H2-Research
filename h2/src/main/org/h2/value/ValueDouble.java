@@ -6,25 +6,28 @@
 package org.h2.value;
 
 import java.math.BigDecimal;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 
 /**
- * Implementation of the DOUBLE data type.
+ * Implementation of the DOUBLE PRECISION data type.
  */
-public class ValueDouble extends Value {
+public final class ValueDouble extends Value {
 
     /**
-     * The precision in digits.
+     * The precision in bits.
      */
-    public static final int PRECISION = 17;
+    static final int PRECISION = 53;
 
     /**
-     * The maximum display size of a double.
+     * The approximate precision in decimal digits.
+     */
+    public static final int DECIMAL_PRECISION = 17;
+
+    /**
+     * The maximum display size of a DOUBLE.
      * Example: -3.3333333333333334E-100
      */
     public static final int DISPLAY_SIZE = 24;
@@ -79,7 +82,7 @@ public class ValueDouble extends Value {
     public Value divide(Value v, long divisorPrecision) {
         ValueDouble v2 = (ValueDouble) v;
         if (v2.value == 0.0) {
-            throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getSQL());
+            throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getTraceSQL());
         }
         return get(value / v2.value);
     }
@@ -88,19 +91,21 @@ public class ValueDouble extends Value {
     public ValueDouble modulus(Value v) {
         ValueDouble other = (ValueDouble) v;
         if (other.value == 0) {
-            throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getSQL());
+            throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getTraceSQL());
         }
         return get(value % other.value);
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         if (value == Double.POSITIVE_INFINITY) {
             builder.append("POWER(0, -1)");
         } else if (value == Double.NEGATIVE_INFINITY) {
             builder.append("(-POWER(0, -1))");
         } else if (Double.isNaN(value)) {
             builder.append("SQRT(-1)");
+        } else if ((sqlFlags & NO_CASTS) == 0) {
+            builder.append("CAST(").append(value).append(" AS DOUBLE PRECISION)");
         } else {
             builder.append(value);
         }
@@ -128,17 +133,22 @@ public class ValueDouble extends Value {
     }
 
     @Override
-    public double getDouble() {
-        return value;
-    }
-
-    @Override
     public BigDecimal getBigDecimal() {
         if (Math.abs(value) <= Double.MAX_VALUE) {
             return BigDecimal.valueOf(value);
         }
         // Infinite or NaN
         throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, Double.toString(value));
+    }
+
+    @Override
+    public float getFloat() {
+        return (float) value;
+    }
+
+    @Override
+    public double getDouble() {
+        return value;
     }
 
     @Override
@@ -156,19 +166,8 @@ public class ValueDouble extends Value {
         return (int) (hash ^ (hash >>> 32));
     }
 
-    @Override
-    public Object getObject() {
-        return value;
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex)
-            throws SQLException {
-        prep.setDouble(parameterIndex, value);
-    }
-
     /**
-     * Get or create double value for the given double.
+     * Get or create a DOUBLE PRECISION value for the given double.
      *
      * @param d the double
      * @return the value

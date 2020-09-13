@@ -17,12 +17,11 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.h2.api.ErrorCode;
-import org.h2.command.dml.Select;
-import org.h2.result.SortOrder;
+import org.h2.command.query.Select;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.tools.SimpleResultSet;
-import org.h2.value.ValueInt;
+import org.h2.value.ValueInteger;
 
 /**
  * Index tests.
@@ -41,7 +40,7 @@ public class TestIndex extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -165,10 +164,10 @@ public class TestIndex extends TestDb {
         stat.execute("create table test(id int, name int primary key)");
         testErrorMessage("PRIMARY", "KEY", " ON PUBLIC.TEST(NAME)");
         stat.execute("create table test(id int, name int, unique(name))");
-        testErrorMessage("CONSTRAINT_INDEX_2 ON PUBLIC.TEST(NAME)");
+        testErrorMessage("CONSTRAINT_INDEX_2 ON PUBLIC.TEST(NAME NULLS FIRST)");
         stat.execute("create table test(id int, name int, " +
                 "constraint abc unique(name, id))");
-        testErrorMessage("ABC_INDEX_2 ON PUBLIC.TEST(NAME, ID)");
+        testErrorMessage("ABC_INDEX_2 ON PUBLIC.TEST(NAME NULLS FIRST, ID NULLS FIRST)");
     }
 
     private void testErrorMessage(String... expected) throws SQLException {
@@ -201,7 +200,7 @@ public class TestIndex extends TestDb {
             // The format of the VALUES clause varies a little depending on the
             // type of the index, so just test that we're getting useful info
             // back.
-            assertContains(m, "IDX_TEST_NAME ON PUBLIC.TEST(NAME)");
+            assertContains(m, "IDX_TEST_NAME ON PUBLIC.TEST(NAME NULLS FIRST)");
             assertContains(m, "'Hello'");
         }
         stat.execute("drop table test");
@@ -370,7 +369,7 @@ public class TestIndex extends TestDb {
         Random rand = new Random(1);
         reconnect();
         stat.execute("drop all objects");
-        stat.execute("CREATE TABLE TEST(ID identity)");
+        stat.execute("CREATE TABLE TEST(ID identity default on null)");
         int len = getSize(100, 1000);
         for (int i = 0; i < len; i++) {
             switch (rand.nextInt(4)) {
@@ -461,7 +460,6 @@ public class TestIndex extends TestDb {
         rs = conn.getMetaData().getIndexInfo(null, null, "TEST", false, false);
         rs.next();
         assertEquals("D", rs.getString("ASC_OR_DESC"));
-        assertEquals(SortOrder.DESCENDING, rs.getInt("SORT_TYPE"));
         stat.execute("INSERT INTO TEST SELECT X FROM SYSTEM_RANGE(1, 30)");
         rs = stat.executeQuery(
                 "SELECT COUNT(*) FROM TEST WHERE ID BETWEEN 10 AND 20");
@@ -471,7 +469,6 @@ public class TestIndex extends TestDb {
         rs = conn.getMetaData().getIndexInfo(null, null, "TEST", false, false);
         rs.next();
         assertEquals("D", rs.getString("ASC_OR_DESC"));
-        assertEquals(SortOrder.DESCENDING, rs.getInt("SORT_TYPE"));
         rs = stat.executeQuery(
                 "SELECT COUNT(*) FROM TEST WHERE ID BETWEEN 10 AND 20");
         rs.next();
@@ -735,8 +732,8 @@ public class TestIndex extends TestDb {
             }
         }
         SimpleResultSet rs = new SimpleResultSet();
-        rs.addColumn("ID", Types.INTEGER, ValueInt.PRECISION, 0);
-        rs.addColumn("VALUE", Types.INTEGER, ValueInt.PRECISION, 0);
+        rs.addColumn("ID", Types.INTEGER, ValueInteger.PRECISION, 0);
+        rs.addColumn("VALUE", Types.INTEGER, ValueInteger.PRECISION, 0);
         rs.addRow(1, 10);
         rs.addRow(2, 20);
         rs.addRow(3, 30);
@@ -745,7 +742,7 @@ public class TestIndex extends TestDb {
 
     private void testFunctionIndex() throws SQLException {
         testFunctionIndexCounter = 0;
-        stat.execute("CREATE ALIAS TEST_INDEX FOR \"" + TestIndex.class.getName() + ".testFunctionIndexFunction\"");
+        stat.execute("CREATE ALIAS TEST_INDEX FOR '" + TestIndex.class.getName() + ".testFunctionIndexFunction'");
         try (ResultSet rs = stat.executeQuery("SELECT * FROM TEST_INDEX() WHERE ID = 1 OR ID = 3")) {
             assertTrue(rs.next());
             assertEquals(1, rs.getInt(1));

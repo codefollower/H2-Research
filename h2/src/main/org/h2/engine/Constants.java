@@ -23,9 +23,10 @@ public class Constants {
     public static final String BUILD_DATE_STABLE = "2019-03-13";
 
     /**
-     * The build id is incremented for each public release.
+     * Sequential version number. Even numbers are used for official releases,
+     * odd numbers are used for development builds.
      */
-    public static final int BUILD_ID = 200;
+    public static final int BUILD_ID = 201;
 
     /**
      * The build id of the last stable release.
@@ -44,36 +45,6 @@ public class Constants {
      * Example: ACME_SVN1651_BUILD3
      */
     public static final String BUILD_VENDOR_AND_VERSION = null;
-
-    /**
-     * The TCP protocol version number 9.
-     * @since 1.3.158 (2011-07-17)
-     */
-    public static final int TCP_PROTOCOL_VERSION_9 = 9;
-
-    /**
-     * The TCP protocol version number 10.
-     * @since 1.3.162 (2011-11-26)
-     */
-    public static final int TCP_PROTOCOL_VERSION_10 = 10;
-
-    /**
-     * The TCP protocol version number 11.
-     * @since 1.3.163 (2011-12-30)
-     */
-    public static final int TCP_PROTOCOL_VERSION_11 = 11;
-
-    /**
-     * The TCP protocol version number 12.
-     * @since 1.3.168 (2012-07-13)
-     */
-    public static final int TCP_PROTOCOL_VERSION_12 = 12;
-
-    /**
-     * The TCP protocol version number 13.
-     * @since 1.3.174 (2013-10-19)
-     */
-    public static final int TCP_PROTOCOL_VERSION_13 = 13;
 
     /**
      * The TCP protocol version number 14.
@@ -112,24 +83,30 @@ public class Constants {
     public static final int TCP_PROTOCOL_VERSION_19 = 19;
 
     /**
+     * The TCP protocol version number 20.
+     * @since 2.0.202 (TODO)
+     */
+    public static final int TCP_PROTOCOL_VERSION_20 = 20;
+
+    /**
      * Minimum supported version of TCP protocol.
      */
-    public static final int TCP_PROTOCOL_VERSION_MIN_SUPPORTED = TCP_PROTOCOL_VERSION_9;
+    public static final int TCP_PROTOCOL_VERSION_MIN_SUPPORTED = TCP_PROTOCOL_VERSION_14;
 
     /**
      * Maximum supported version of TCP protocol.
      */
-    public static final int TCP_PROTOCOL_VERSION_MAX_SUPPORTED = TCP_PROTOCOL_VERSION_19;
+    public static final int TCP_PROTOCOL_VERSION_MAX_SUPPORTED = TCP_PROTOCOL_VERSION_20;
 
     /**
      * The major version of this database.
      */
-    public static final int VERSION_MAJOR = 1;
+    public static final int VERSION_MAJOR = 2;
 
     /**
      * The minor version of this database.
      */
-    public static final int VERSION_MINOR = 4;
+    public static final int VERSION_MINOR = 0;
 
     /**
      * The lock mode that means no locking is used at all.
@@ -321,6 +298,32 @@ public class Constants {
     public static final int LOCK_SLEEP = 1000;
 
     /**
+     * The maximum allowed length of identifiers.
+     */
+    public static final int MAX_IDENTIFIER_LENGTH = 256;
+
+    /**
+     * The maximum number of columns in a table, select statement or row value.
+     */
+    public static final int MAX_COLUMNS = 16_384;
+
+    /**
+     * The maximum allowed length for character string, binary string, and other
+     * data types based on them; excluding LOB data types.
+     */
+    public static final int MAX_STRING_LENGTH = 1024 * 1024;
+
+    /**
+     * The maximum allowed precision of numeric data types.
+     */
+    public static final int MAX_NUMERIC_PRECISION = 100_000;
+
+    /**
+     * The maximum allowed cardinality of array.
+     */
+    public static final int MAX_ARRAY_CARDINALITY = 65_536;
+
+    /**
      * The highest possible parameter index.
      */
     public static final int MAX_PARAMETER_INDEX = 100_000;
@@ -346,23 +349,6 @@ public class Constants {
      * The memory needed by an array.
      */
     public static final int MEMORY_ARRAY = 24;
-
-    /**
-     * The memory needed by an object of class PageBtree.
-     */
-    public static final int MEMORY_PAGE_BTREE =
-            112 + MEMORY_DATA + 2 * MEMORY_OBJECT;
-
-    /**
-     * The memory needed by an object of class PageData.
-     */
-    public static final int MEMORY_PAGE_DATA =
-            144 + MEMORY_DATA + 3 * MEMORY_OBJECT;
-
-    /**
-     * The memory needed by an object of class PageDataOverflow.
-     */
-    public static final int MEMORY_PAGE_DATA_OVERFLOW = 96 + MEMORY_DATA;
 
     /**
      * The memory needed by a pointer.
@@ -428,6 +414,16 @@ public class Constants {
     public static final String SCHEMA_MAIN = "PUBLIC";
 
     /**
+     * The identity of pg_catalog schema.
+     */
+    public static final int PG_CATALOG_SCHEMA_ID = -1_000;
+
+    /**
+     * The name of the pg_catalog schema.
+     */
+    public static final String SCHEMA_PG_CATALOG = "PG_CATALOG";
+
+    /**
      * The default selectivity (used if the selectivity is not calculated).
      */
     public static final int SELECTIVITY_DEFAULT = 50;
@@ -463,17 +459,6 @@ public class Constants {
      * The file name suffix of all database files.
      */
     public static final String SUFFIX_DB_FILE = ".db";
-
-    /**
-     * The file name suffix of large object files.
-     */
-    public static final String SUFFIX_LOB_FILE = ".lob.db";
-
-    /**
-     * The suffix of the directory name used if LOB objects are stored in a
-     * directory.
-     */
-    public static final String SUFFIX_LOBS_DIRECTORY = ".lobs.db";
 
     /**
      * The file name suffix of file lock files that are used to make sure a

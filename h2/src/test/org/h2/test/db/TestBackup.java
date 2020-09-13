@@ -31,7 +31,7 @@ public class TestBackup extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -115,27 +115,7 @@ public class TestBackup extends TestDb {
     public static class BackupListener implements DatabaseEventListener {
 
         @Override
-        public void closingDatabase() {
-            // ignore
-        }
-
-        @Override
-        public void exceptionThrown(SQLException e, String sql) {
-            // ignore
-        }
-
-        @Override
-        public void init(String url) {
-            // ignore
-        }
-
-        @Override
-        public void opened() {
-            // ignore
-        }
-
-        @Override
-        public void setProgress(int state, String name, int x, int max) {
+        public void setProgress(int state, String name, long x, long max) {
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
@@ -189,7 +169,7 @@ public class TestBackup extends TestDb {
         stat1.execute("create table testlob" +
                 "(id int primary key, b blob, c clob)");
         stat1.execute("insert into testlob values" +
-                "(1, space(10000), repeat('00', 10000))");
+                "(1, repeat(char(0), 10000), space(10000))");
         conn2 = getConnection("backup");
         stat2 = conn2.createStatement();
         stat2.execute("insert into test values(3, 'third')");

@@ -17,29 +17,26 @@ import org.h2.command.ddl.CreateTableData;
 import org.h2.constraint.Constraint;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
-import org.h2.engine.DbObjectBase;
 import org.h2.engine.DbSettings;
-import org.h2.engine.FunctionAlias;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.SysProperties;
 import org.h2.engine.User;
 import org.h2.index.Index;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
-import org.h2.mvstore.db.MVTableEngine;
 import org.h2.pagestore.db.PageStoreTable;
+import org.h2.table.MetaTable;
 import org.h2.table.Table;
 import org.h2.table.TableLink;
 import org.h2.table.TableSynonym;
-import org.h2.util.StringUtils;
 import org.h2.util.Utils;
 
 /**
  * A schema as created by the SQL statement
  * CREATE SCHEMA
  */
-public class Schema extends DbObjectBase {
+public class Schema extends DbObject {
 
     private User owner;
     private final boolean system;
@@ -54,6 +51,7 @@ public class Schema extends DbObjectBase {
     private final ConcurrentHashMap<String, Constraint> constraints;
     private final ConcurrentHashMap<String, Constant> constants;
     private final ConcurrentHashMap<String, FunctionAlias> functions;
+    private final ConcurrentHashMap<String, UserAggregate> aggregates;
 
     /**
      * The set of returned unique names that are not yet stored. It is used to
@@ -84,6 +82,7 @@ public class Schema extends DbObjectBase {
         constraints = database.newConcurrentStringMap();
         constants = database.newConcurrentStringMap();
         functions = database.newConcurrentStringMap();
+        aggregates = database.newConcurrentStringMap();
         this.owner = owner;
         this.system = system;
     }
@@ -99,7 +98,7 @@ public class Schema extends DbObjectBase {
 
     @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -108,8 +107,8 @@ public class Schema extends DbObjectBase {
             return null;
         }
         StringBuilder builder = new StringBuilder("CREATE SCHEMA IF NOT EXISTS ");
-        getSQL(builder, true).append(" AUTHORIZATION ");
-        owner.getSQL(builder, true);
+        getSQL(builder, DEFAULT_SQL_FLAGS).append(" AUTHORIZATION ");
+        owner.getSQL(builder, DEFAULT_SQL_FLAGS);
         return builder.toString();
     }
 
@@ -126,7 +125,7 @@ public class Schema extends DbObjectBase {
     public boolean isEmpty() {
         return tablesAndViews.isEmpty() && domains.isEmpty() && synonyms.isEmpty() && indexes.isEmpty()
                 && sequences.isEmpty() && triggers.isEmpty() && constraints.isEmpty() && constants.isEmpty()
-                && functions.isEmpty();
+                && functions.isEmpty() && aggregates.isEmpty();
     }
 
     @Override
@@ -141,20 +140,23 @@ public class Schema extends DbObjectBase {
         return children;
     }
 
-    @Override
-    public void removeChildrenAndResources(Session session) {
 //<<<<<<< HEAD
-//        //删除每个SchemaObject的子类时会触发Schema.remove(SchemaObject)，此方法会在对应的map中清除SchemaObject的子类实例引用，
-//        //所以XXX.values().toArray()[0]是正确的，总是取map的values中的第一个
-//        while (triggers != null && triggers.size() > 0) {
-//            TriggerObject obj = (TriggerObject) triggers.values().toArray()[0];
-//            database.removeSchemaObject(session, obj);
-//        }
-//        while (constraints != null && constraints.size() > 0) {
-//            Constraint obj = (Constraint) constraints.values().toArray()[0];
-//            database.removeSchemaObject(session, obj);
-//        }
+//    public void removeChildrenAndResources(Session session) {
+////<<<<<<< HEAD
+////        //删除每个SchemaObject的子类时会触发Schema.remove(SchemaObject)，此方法会在对应的map中清除SchemaObject的子类实例引用，
+////        //所以XXX.values().toArray()[0]是正确的，总是取map的values中的第一个
+////        while (triggers != null && triggers.size() > 0) {
+////            TriggerObject obj = (TriggerObject) triggers.values().toArray()[0];
+////            database.removeSchemaObject(session, obj);
+////        }
+////        while (constraints != null && constraints.size() > 0) {
+////            Constraint obj = (Constraint) constraints.values().toArray()[0];
+////            database.removeSchemaObject(session, obj);
+////        }
+////=======
 //=======
+    @Override
+    public void removeChildrenAndResources(SessionLocal session) {
         removeChildrenFromMap(session, triggers);
         removeChildrenFromMap(session, constraints);
         // There can be dependencies between tables e.g. using computed columns,
@@ -172,7 +174,7 @@ public class Schema extends DbObjectBase {
                         newModified = true;
                     } else if (dependentTable.getSchema() != this) {
                         throw DbException.get(ErrorCode.CANNOT_DROP_2, //
-                                obj.getSQL(false), dependentTable.getSQL(false));
+                                obj.getTraceSQL(), dependentTable.getTraceSQL());
                     } else if (!modified) {
                         dependentTable.removeColumnExpressionsDependencies(session);
                         dependentTable.setModified();
@@ -187,6 +189,7 @@ public class Schema extends DbObjectBase {
         removeChildrenFromMap(session, sequences);
         removeChildrenFromMap(session, constants);
         removeChildrenFromMap(session, functions);
+        removeChildrenFromMap(session, aggregates);
         for (Right right : database.getAllRights()) {
             if (right.getGrantedObject() == this) {
                 database.removeDatabaseObject(session, right);
@@ -197,7 +200,7 @@ public class Schema extends DbObjectBase {
         invalidate();
     }
 
-    private void removeChildrenFromMap(Session session, ConcurrentHashMap<String, ? extends SchemaObject> map) {
+    private void removeChildrenFromMap(SessionLocal session, ConcurrentHashMap<String, ? extends SchemaObject> map) {
         if (!map.isEmpty()) {
             for (SchemaObject obj : map.values()) {
                 // Database.removeSchemaObject() removes the object from
@@ -264,8 +267,11 @@ public class Schema extends DbObjectBase {
         case DbObject.FUNCTION_ALIAS:
             result = functions;
             break;
+        case DbObject.AGGREGATE:
+            result = aggregates;
+            break;
         default:
-            throw DbException.throwInternalError("type=" + type);
+            throw DbException.getInternalError("type=" + type);
         }
         return (Map<String, SchemaObject>) result;
     }
@@ -279,14 +285,13 @@ public class Schema extends DbObjectBase {
      */
     public void add(SchemaObject obj) {
         if (obj.getSchema() != this) {
-            DbException.throwInternalError("wrong schema");
+            throw DbException.getInternalError("wrong schema");
         }
         String name = obj.getName();
         Map<String, SchemaObject> map = getMap(obj.getType());
-        if (SysProperties.CHECK && map.get(name) != null) {
-            DbException.throwInternalError("object already exists: " + name);
+        if (map.putIfAbsent(name, obj) != null) {
+            throw DbException.getInternalError("object already exists: " + name);
         }
-        map.put(name, obj);
         freeUniqueName(name);
     }
 
@@ -300,11 +305,11 @@ public class Schema extends DbObjectBase {
         int type = obj.getType();
         Map<String, SchemaObject> map = getMap(type);
         if (SysProperties.CHECK) {
-            if (!map.containsKey(obj.getName())) {
-                DbException.throwInternalError("not found: " + obj.getName());
+            if (!map.containsKey(obj.getName()) && !(obj instanceof MetaTable)) {
+                throw DbException.getInternalError("not found: " + obj.getName());
             }
             if (obj.getName().equals(newName) || map.containsKey(newName)) {
-                DbException.throwInternalError("object already exists: " + newName);
+                throw DbException.getInternalError("object already exists: " + newName);
             }
         }
         obj.checkRename();
@@ -325,7 +330,7 @@ public class Schema extends DbObjectBase {
      * @return the object or null
      */
     //getTableOrView和findTableOrView差不多，差别是getTableOrView如果表不存在抛出异常，而findTableOrView只返回null
-    public Table findTableOrView(Session session, String name) {
+    public Table findTableOrView(SessionLocal session, String name) {
         Table table = tablesAndViews.get(name);
         if (table == null && session != null) {
             table = session.findLocalTempTable(name);
@@ -343,7 +348,7 @@ public class Schema extends DbObjectBase {
      * @param name the object name
      * @return the object or null
      */
-    public Table resolveTableOrView(Session session, String name) {
+    public Table resolveTableOrView(SessionLocal session, String name) {
         Table table = findTableOrView(session, name);
         if (table == null) {
             TableSynonym synonym = synonyms.get(name);
@@ -366,6 +371,19 @@ public class Schema extends DbObjectBase {
     }
 
     /**
+     * Get objects of the given type.
+     *
+     * @param type
+     *                  the object type
+     * @param name
+     *                  the name of the object
+     * @return the object, or null
+     */
+    public SchemaObject find(int type, String name) {
+        return getMap(type).get(name);
+    }
+
+    /**
      * Get the domain if it exists, or null if not.
      *
      * @param name the name of the domain
@@ -383,7 +401,7 @@ public class Schema extends DbObjectBase {
      * @param name the object name
      * @return the object or null
      */
-    public Index findIndex(Session session, String name) {
+    public Index findIndex(SessionLocal session, String name) {
         Index index = indexes.get(name);
         if (index == null) {
             index = session.findLocalTempTableIndex(name);
@@ -421,7 +439,7 @@ public class Schema extends DbObjectBase {
      * @param name the object name
      * @return the object or null
      */
-    public Constraint findConstraint(Session session, String name) {
+    public Constraint findConstraint(SessionLocal session, String name) {
         Constraint constraint = constraints.get(name);
         if (constraint == null) {
             constraint = session.findLocalTempTableConstraint(name);
@@ -452,6 +470,17 @@ public class Schema extends DbObjectBase {
     }
 
     /**
+     * Get the user defined aggregate function if it exists. This method returns
+     * null if no object with this name exists.
+     *
+     * @param name the name of the user defined aggregate function
+     * @return the aggregate function or null
+     */
+    public UserAggregate findAggregate(String name) {
+        return aggregates.get(name);
+    }
+
+    /**
      * Release a unique object name.
      *
      * @param name the object name
@@ -464,30 +493,26 @@ public class Schema extends DbObjectBase {
         }
     }
 
-    private String getUniqueName(DbObject obj,
-            Map<String, ? extends SchemaObject> map, String prefix) {
-        String hash = StringUtils.toUpperEnglish(Integer.toHexString(obj.getName().hashCode()));
-        String name = null;
+    private String getUniqueName(DbObject obj, Map<String, ? extends SchemaObject> map, String prefix) {
+        StringBuilder nameBuilder = new StringBuilder(prefix);
+        String hash = Integer.toHexString(obj.getName().hashCode());
         synchronized (temporaryUniqueNames) {
-            for (int i = 1, len = hash.length(); i < len; i++) {
-                name = prefix + hash.substring(0, i);
-                if (!map.containsKey(name) && !temporaryUniqueNames.contains(name)) {
-                    break;
-                }
-                name = null;
-            }
-            if (name == null) {
-                prefix = prefix + hash + "_";
-                for (int i = 0;; i++) {
-                    name = prefix + i;
-                    if (!map.containsKey(name) && !temporaryUniqueNames.contains(name)) {
-                        break;
-                    }
+            for (int i = 0, len = hash.length(); i < len; i++) {
+                char c = hash.charAt(i);
+                String name = nameBuilder.append(c >= 'a' ? (char) (c - 0x20) : c).toString();
+                if (!map.containsKey(name) && temporaryUniqueNames.add(name)) {
+                    return name;
                 }
             }
-            temporaryUniqueNames.add(name);
+            int nameLength = nameBuilder.append('_').length();
+            for (int i = 0;; i++) {
+                String name = nameBuilder.append(i).toString();
+                if (!map.containsKey(name) && temporaryUniqueNames.add(name)) {
+                    return name;
+                }
+                nameBuilder.setLength(nameLength);
+            }
         }
-        return name;
     }
 
     /**
@@ -497,7 +522,7 @@ public class Schema extends DbObjectBase {
      * @param table the constraint table
      * @return the unique name
      */
-    public String getUniqueConstraintName(Session session, Table table) {
+    public String getUniqueConstraintName(SessionLocal session, Table table) {
         Map<String, Constraint> tableConstraints;
         if (table.isTemporary() && !table.isGlobalTemporary()) {
             tableConstraints = session.getLocalTempTableConstraints();
@@ -514,7 +539,7 @@ public class Schema extends DbObjectBase {
      * @param domain the constraint domain
      * @return the unique name
      */
-    public String getUniqueDomainConstraintName(Session session, Domain domain) {
+    public String getUniqueDomainConstraintName(SessionLocal session, Domain domain) {
         return getUniqueName(domain, constraints, "CONSTRAINT_");
     }
 
@@ -526,7 +551,7 @@ public class Schema extends DbObjectBase {
      * @param prefix the index name prefix
      * @return the unique name
      */
-    public String getUniqueIndexName(Session session, Table table, String prefix) {
+    public String getUniqueIndexName(SessionLocal session, Table table, String prefix) {
         Map<String, Index> tableIndexes;
         if (table.isTemporary() && !table.isGlobalTemporary()) {
             tableIndexes = session.getLocalTempTableIndexes();
@@ -546,7 +571,7 @@ public class Schema extends DbObjectBase {
      * @throws DbException if no such object exists
      */
     //getTableOrView和findTableOrView差不多，差别是getTableOrView如果表不存在抛出异常，而findTableOrView只返回null
-    public Table getTableOrView(Session session, String name) {
+    public Table getTableOrView(SessionLocal session, String name) {
         Table table = tablesAndViews.get(name);
         if (table == null) {
             if (session != null) {
@@ -656,6 +681,7 @@ public class Schema extends DbObjectBase {
         addTo.addAll(constraints.values());
         addTo.addAll(constants.values());
         addTo.addAll(functions.values());
+        addTo.addAll(aggregates.values());
         return addTo;
     }
 
@@ -665,42 +691,66 @@ public class Schema extends DbObjectBase {
      * @param type
      *                  the object type
      * @param addTo
-     *                  list to add objects to, or {@code null} to allocate a new
-     *                  list
-     * @return the specified list with added objects, or a new (possibly empty) list
-     *         with objects of the given type
+     *                  list to add objects to
      */
-    public ArrayList<SchemaObject> getAll(int type, ArrayList<SchemaObject> addTo) {
-        Collection<SchemaObject> values = getMap(type).values();
-        if (addTo != null) {
-            addTo.addAll(values);
-        } else {
-            addTo = new ArrayList<>(values);
-        }
-        return addTo;
+    public void getAll(int type, ArrayList<SchemaObject> addTo) {
+        addTo.addAll(getMap(type).values());
+    }
+
+    public Collection<Domain> getAllDomains() {
+        return domains.values();
+    }
+
+    public Collection<Constraint> getAllConstraints() {
+        return constraints.values();
+    }
+
+    public Collection<Constant> getAllConstants() {
+        return constants.values();
+    }
+
+    public Collection<Sequence> getAllSequences() {
+        return sequences.values();
+    }
+
+    public Collection<TriggerObject> getAllTriggers() {
+        return triggers.values();
     }
 
     /**
      * Get all tables and views.
      *
+     * @param session the session, {@code null} to exclude meta tables
      * @return a (possible empty) list of all objects
      */
-    public Collection<Table> getAllTablesAndViews() {
+    public Collection<Table> getAllTablesAndViews(SessionLocal session) {
         return tablesAndViews.values();
     }
 
+    public Collection<Index> getAllIndexes() {
+        return indexes.values();
+    }
 
     public Collection<TableSynonym> getAllSynonyms() {
         return synonyms.values();
     }
 
+    public Collection<FunctionAlias> getAllFunctionAliases() {
+        return functions.values();
+    }
+
+    public Collection<UserAggregate> getAllAggregates() {
+        return aggregates.values();
+    }
+
     /**
      * Get the table with the given name, if any.
      *
+     * @param session the session
      * @param name the table name
      * @return the table or null if not found
      */
-    public Table getTableOrViewByName(String name) {
+    public Table getTableOrViewByName(SessionLocal session, String name) {
         return tablesAndViews.get(name);
     }
 
@@ -713,7 +763,7 @@ public class Schema extends DbObjectBase {
         String objName = obj.getName();
         Map<String, SchemaObject> map = getMap(obj.getType());
         if (map.remove(objName) == null) {
-            DbException.throwInternalError("not found: " + objName);
+            throw DbException.getInternalError("not found: " + objName);
         }
         freeUniqueName(objName);
     }
@@ -730,21 +780,23 @@ public class Schema extends DbObjectBase {
                 database.lockMeta(data.session);
             }
             data.schema = this;
-            if (data.tableEngine == null) {
+            String tableEngine = data.tableEngine;
+            if (tableEngine == null) {
                 DbSettings s = database.getSettings();
-                if (s.defaultTableEngine != null) {
-                    data.tableEngine = s.defaultTableEngine;
-                } else if (s.mvStore) {
-                    data.tableEngine = MVTableEngine.class.getName();
+                tableEngine = s.defaultTableEngine;
+                if (tableEngine == null) {
+                    if (s.mvStore) {
+                        return database.getStore().createTable(data);
+                    } else {
+                        return new PageStoreTable(data);
+                    }
                 }
+                data.tableEngine = tableEngine;
             }
-            if (data.tableEngine != null) {
-                if (data.tableEngineParams == null) {
-                    data.tableEngineParams = this.tableEngineParams;
-                }
-                return database.getTableEngine(data.tableEngine).createTable(data);
+            if (data.tableEngineParams == null) {
+                data.tableEngineParams = this.tableEngineParams;
             }
-            return new PageStoreTable(data);
+            return database.getTableEngine(tableEngine).createTable(data);
         }
     }
 

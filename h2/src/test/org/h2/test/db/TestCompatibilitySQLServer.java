@@ -5,13 +5,13 @@
  */
 package org.h2.test.db;
 
-import org.h2.test.TestBase;
-import org.h2.test.TestDb;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+
+import org.h2.test.TestBase;
+import org.h2.test.TestDb;
 
 /**
  * Test MSSQLServer compatibility mode.
@@ -25,7 +25,7 @@ public class TestCompatibilitySQLServer extends TestDb {
      */
     public static void main(String... s) throws Exception {
         TestBase test = TestBase.createCaller().init();
-        test.test();
+        test.testFromMain();
     }
 
     @Override

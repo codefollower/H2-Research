@@ -13,16 +13,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import org.h2.engine.IsolationLevel;
 import org.h2.mvstore.Cursor;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.RootReference;
-import org.h2.mvstore.type.MetaType;
 import org.h2.mvstore.rtree.MVRTreeMap;
 import org.h2.mvstore.rtree.SpatialDataType;
 import org.h2.mvstore.type.DataType;
 import org.h2.mvstore.type.LongDataType;
+import org.h2.mvstore.type.MetaType;
 import org.h2.mvstore.type.ObjectDataType;
 import org.h2.mvstore.type.StringDataType;
 import org.h2.util.StringUtils;
@@ -166,7 +167,7 @@ public class TransactionStore {
                 .valueType(new Record.Type(this));
     }
 
-    public static MVMap<String, DataType<?>> openTypeRegistry(MVStore store, MetaType<?> metaDataType) {
+    private static MVMap<String, DataType<?>> openTypeRegistry(MVStore store, MetaType<?> metaDataType) {
         MVMap.Builder<String, DataType<?>> typeRegistryBuilder =
                                     new MVMap.Builder<String, DataType<?>>()
                                                 .keyType(StringDataType.INSTANCE)
@@ -224,7 +225,7 @@ public class TransactionStore {
                                     logId = lastUndoKey == null ? 0 : getLogId(lastUndoKey) + 1;
                                 }
                                 registerTransaction(transactionId, status, name, logId, timeoutMillis, 0,
-                                        ROLLBACK_LISTENER_NONE);
+                                        IsolationLevel.READ_COMMITTED, ROLLBACK_LISTENER_NONE);
                                 continue;
                             }
                         }
@@ -356,7 +357,7 @@ public class TransactionStore {
      * @return the transaction
      */
     public Transaction begin() {
-        return begin(ROLLBACK_LISTENER_NONE, timeoutMillis, 0);
+        return begin(ROLLBACK_LISTENER_NONE, timeoutMillis, 0, IsolationLevel.READ_COMMITTED);
     }
 
     /**
@@ -364,16 +365,19 @@ public class TransactionStore {
      * @param listener to be notified in case of a rollback
      * @param timeoutMillis to wait for a blocking transaction
      * @param ownerId of the owner (Session?) to be reported by getBlockerId
+     * @param isolationLevel of new transaction
      * @return the transaction
      */
-    public Transaction begin(RollbackListener listener, int timeoutMillis, int ownerId) {
+    public Transaction begin(RollbackListener listener, int timeoutMillis, int ownerId,
+            IsolationLevel isolationLevel) {
         Transaction transaction = registerTransaction(0, Transaction.STATUS_OPEN, null, 0,
-                timeoutMillis, ownerId, listener);
+                timeoutMillis, ownerId, isolationLevel, listener);
         return transaction;
     }
 
     private Transaction registerTransaction(int txId, int status, String name, long logId,
-                                            int timeoutMillis, int ownerId, RollbackListener listener) {
+                                            int timeoutMillis, int ownerId,
+                                            IsolationLevel isolationLevel, RollbackListener listener) {
         int transactionId;
         long sequenceNo;
         boolean success;
@@ -386,7 +390,7 @@ public class TransactionStore {
                 assert !original.get(transactionId);
             }
             if (transactionId > maxTransactionId) {
-                throw DataUtils.newIllegalStateException(
+                throw DataUtils.newMVStoreException(
                         DataUtils.ERROR_TOO_MANY_OPEN_TRANSACTIONS,
                         "There are {0} open transactions",
                         transactionId - 1);
@@ -399,7 +403,7 @@ public class TransactionStore {
         } while(!success);
 
         Transaction transaction = new Transaction(this, transactionId, sequenceNo, status, name, logId,
-                timeoutMillis, ownerId, listener);
+                timeoutMillis, ownerId, isolationLevel, listener);
 
         assert transactions.get(transactionId) == null;
         transactions.set(transactionId, transaction);
@@ -437,7 +441,7 @@ public class TransactionStore {
         MVMap<Long, Record<?,?>> undoLog = undoLogs[transactionId];
         long undoKey = getOperationId(transactionId, logId);
         if (logId == 0 && !undoLog.isEmpty()) {
-            throw DataUtils.newIllegalStateException(
+            throw DataUtils.newMVStoreException(
                     DataUtils.ERROR_TOO_MANY_OPEN_TRANSACTIONS,
                     "An old transaction with the same id " +
                     "is still open: {0}",
@@ -497,7 +501,7 @@ public class TransactionStore {
                     Record<?,?> op = cursor.getValue();
                     int mapId = op.mapId;
                     MVMap<Object, VersionedValue<Object>> map = openMap(mapId);
-                    if (map != null) { // might be null if map was removed later
+                    if (map != null && !map.isClosed()) { // might be null if map was removed later
                         Object key = op.key;
                         commitDecisionMaker.setUndoKey(undoKey);
                         // second parameter (value) is not really
@@ -505,9 +509,12 @@ public class TransactionStore {
                         map.operate(key, null, commitDecisionMaker);
                     }
                 }
-                undoLog.clear();
             } finally {
-                flipCommittingTransactionsBit(transactionId, false);
+                try {
+                    undoLog.clear();
+                } finally {
+                    flipCommittingTransactionsBit(transactionId, false);
+                }
             }
         }
     }
@@ -601,7 +608,7 @@ public class TransactionStore {
             }
 
             if (wasStored || store.getAutoCommitDelay() == 0) {
-                store.tryCommit();
+                store.commit();
             } else {
                 if (isUndoEmpty()) {
                     // to avoid having to store the transaction log,
@@ -845,7 +852,7 @@ public class TransactionStore {
                 if (keyTypeKey != null) {
                     keyType = (DataType<K>)typeRegistry.get(keyTypeKey);
                     if (keyType == null) {
-                        throw DataUtils.newIllegalStateException(DataUtils.ERROR_UNKNOWN_DATA_TYPE,
+                        throw DataUtils.newMVStoreException(DataUtils.ERROR_UNKNOWN_DATA_TYPE,
                                 "Data type with hash {0} can not be found", keyTypeKey);
                     }
                     setKeyType(keyType);
@@ -860,7 +867,7 @@ public class TransactionStore {
                 if (valueTypeKey != null) {
                     valueType = (DataType<V>)typeRegistry.get(valueTypeKey);
                     if (valueType == null) {
-                        throw DataUtils.newIllegalStateException(DataUtils.ERROR_UNKNOWN_DATA_TYPE,
+                        throw DataUtils.newMVStoreException(DataUtils.ERROR_UNKNOWN_DATA_TYPE,
                                 "Data type with hash {0} can not be found", valueTypeKey);
                     }
                     setValueType(valueType);

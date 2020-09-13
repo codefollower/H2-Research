@@ -7,7 +7,7 @@ package org.h2.pagestore.db;
 
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.pagestore.Page;
@@ -179,7 +179,7 @@ public class PageBtreeNode extends PageBtree {
             last = entryCount == 0 ? pageSize : offsets[entryCount - 1];
             rowLength = index.getRowSize(data, row, true);
             if (last - rowLength < start + CHILD_OFFSET_PAIR_LENGTH) {
-                throw DbException.throwInternalError();
+                throw DbException.getInternalError();
             }
         }
         int offset = last - rowLength;
@@ -416,9 +416,7 @@ public class PageBtreeNode extends PageBtree {
                 int child = childPageIds[i];
                 PageBtree page = index.getPage(child);
                 count += page.getRowCount();
-                index.getDatabase().setProgress(
-                        DatabaseEventListener.STATE_SCAN_FILE,
-                        index.getName(), count, Integer.MAX_VALUE);
+                index.getDatabase().setProgress(DatabaseEventListener.STATE_SCAN_FILE, index.getName(), count, 0);
             }
             rowCount = count;
         }
@@ -445,9 +443,8 @@ public class PageBtreeNode extends PageBtree {
     private void check() {
         if (SysProperties.CHECK) {
             for (int i = 0; i < entryCount + 1; i++) { //childPageIds的长度比entryCount大1
-                int child = childPageIds[i];
-                if (child == 0) {
-                    DbException.throwInternalError();
+                if (childPageIds[i] == 0) {
+                    throw DbException.getInternalError();
                 }
             }
         }
@@ -507,7 +504,7 @@ public class PageBtreeNode extends PageBtree {
         written = false;
         changeCount = index.getPageStore().getChangeCount();
         if (entryCount < 0) {
-            DbException.throwInternalError(Integer.toString(entryCount));
+            throw DbException.getInternalError(Integer.toString(entryCount));
         }
         if (entryCount > i) {
             int startNext = i > 0 ? offsets[i - 1] : index.getPageStore().getPageSize();
@@ -591,7 +588,7 @@ public class PageBtreeNode extends PageBtree {
 //    }
 
     @Override
-    public void moveTo(Session session, int newPos) {
+    public void moveTo(SessionLocal session, int newPos) {
         PageStore store = index.getPageStore();
         store.logUndo(this, data);
         PageBtreeNode p2 = PageBtreeNode.create(index, newPos, parentPageId);
@@ -611,7 +608,7 @@ public class PageBtreeNode extends PageBtree {
         } else {
             Page p = store.getPage(parentPageId);
             if (!(p instanceof PageBtreeNode)) {
-                throw DbException.throwInternalError();
+                throw DbException.getInternalError();
             }
             PageBtreeNode n = (PageBtreeNode) p;
             n.moveChild(getPos(), newPos);
@@ -642,7 +639,7 @@ public class PageBtreeNode extends PageBtree {
                 return;
             }
         }
-        throw DbException.throwInternalError(oldPos + " " + newPos);
+        throw DbException.getInternalError(oldPos + " " + newPos);
     }
 
 //	// 我加上的

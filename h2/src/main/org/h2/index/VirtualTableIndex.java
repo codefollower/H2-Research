@@ -5,7 +5,7 @@
  */
 package org.h2.index;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.table.IndexColumn;
@@ -14,34 +14,34 @@ import org.h2.table.VirtualTable;
 /**
  * An base class for indexes of virtual tables.
  */
-public abstract class VirtualTableIndex extends BaseIndex {
+public abstract class VirtualTableIndex extends Index {
 
     protected VirtualTableIndex(VirtualTable table, String name, IndexColumn[] columns) {
         super(table, 0, name, columns, IndexType.createNonUnique(true));
     }
 
     @Override
-    public void close(Session session) {
+    public void close(SessionLocal session) {
         // nothing to do
     }
 
     @Override
-    public void add(Session session, Row row) {
+    public void add(SessionLocal session, Row row) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 
     @Override
-    public void remove(Session session, Row row) {
+    public void remove(SessionLocal session, Row row) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 
     @Override
-    public void remove(Session session) {
+    public void remove(SessionLocal session) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 
     @Override
-    public void truncate(Session session) {
+    public void truncate(SessionLocal session) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 
@@ -56,18 +56,13 @@ public abstract class VirtualTableIndex extends BaseIndex {
     }
 
     @Override
-    public long getRowCount(Session session) {
+    public long getRowCount(SessionLocal session) {
         return table.getRowCount(session);
     }
 
     @Override
-    public long getRowCountApproximation() {
-        return table.getRowCountApproximation();
-    }
-
-    @Override
-    public long getDiskSpaceUsed() {
-        return 0;
+    public long getRowCountApproximation(SessionLocal session) {
+        return table.getRowCountApproximation(session);
     }
 
 }

@@ -5,10 +5,9 @@
  */
 package org.h2.mvstore.type;
 
+import java.nio.ByteBuffer;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
-
-import java.nio.ByteBuffer;
 
 /**
  * Class LongDataType.
@@ -18,10 +17,11 @@ import java.nio.ByteBuffer;
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-public class LongDataType extends BasicDataType<Long>
-{
+public class LongDataType extends BasicDataType<Long> {
+
     public static final LongDataType INSTANCE = new LongDataType();
-    public static final Long[] EMPTY_LONG_ARR = new Long[0];
+
+    private static final Long[] EMPTY_LONG_ARR = new Long[0];
 
     public LongDataType() {}
 

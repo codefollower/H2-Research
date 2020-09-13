@@ -5,6 +5,10 @@
  */
 package org.h2.test.unit;
 
+import static org.h2.engine.Constants.MAX_ARRAY_CARDINALITY;
+import static org.h2.engine.Constants.MAX_NUMERIC_PRECISION;
+import static org.h2.engine.Constants.MAX_STRING_LENGTH;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
@@ -17,43 +21,37 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.UUID;
-
 import org.h2.api.ErrorCode;
+import org.h2.api.H2Type;
 import org.h2.engine.Database;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
-import org.h2.result.ResultInterface;
-import org.h2.result.SimpleResult;
 import org.h2.store.DataHandler;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.test.utils.AssertThrows;
-import org.h2.tools.SimpleResultSet;
 import org.h2.util.Bits;
+import org.h2.util.JdbcUtils;
 import org.h2.util.LegacyDateTimeUtils;
-import org.h2.value.DataType;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
-import org.h2.value.ValueBytes;
-import org.h2.value.ValueDecimal;
 import org.h2.value.ValueDouble;
-import org.h2.value.ValueFloat;
-import org.h2.value.ValueInt;
 import org.h2.value.ValueInterval;
 import org.h2.value.ValueJavaObject;
-import org.h2.value.ValueLobDb;
-import org.h2.value.ValueNull;
-import org.h2.value.ValueResultSet;
-import org.h2.value.ValueString;
+import org.h2.value.ValueLobInMemory;
+import org.h2.value.ValueNumeric;
+import org.h2.value.ValueReal;
 import org.h2.value.ValueTimestamp;
+import org.h2.value.ValueToObjectConverter2;
 import org.h2.value.ValueUuid;
+import org.h2.value.ValueVarbinary;
+import org.h2.value.ValueVarchar;
 
 /**
  * Tests features of values.
@@ -66,15 +64,13 @@ public class TestValue extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
     public void test() throws SQLException {
-        testResultSetOperations();
         testBinaryAndUuid();
         testCastTrim();
-        testValueResultSet();
         testDataType();
         testArray();
         testUUID();
@@ -86,60 +82,8 @@ public class TestValue extends TestDb {
         testModulusOperator();
         testLobComparison();
         testTypeInfo();
-    }
-
-    private void testResultSetOperations() throws SQLException {
-        SimpleResultSet rs = new SimpleResultSet();
-        rs.setAutoClose(false);
-        rs.addColumn("X", Types.INTEGER, 10, 0);
-        rs.addRow(new Object[]{null});
-        rs.next();
-        for (int type = Value.NULL; type < Value.TYPE_COUNT; type++) {
-            if (type == 23) {
-                // a defunct experimental type
-            } else {
-                Value v = DataType.readValue(null, rs, 1, type);
-                assertTrue(v == ValueNull.INSTANCE);
-            }
-        }
-        testResultSetOperation(new byte[0]);
-        testResultSetOperation(1);
-        testResultSetOperation(Boolean.TRUE);
-        testResultSetOperation((byte) 1);
-        testResultSetOperation((short) 2);
-        testResultSetOperation((long) 3);
-        testResultSetOperation(4.0f);
-        testResultSetOperation(5.0d);
-        testResultSetOperation(new Date(6));
-        testResultSetOperation(new Time(7));
-        testResultSetOperation(new Timestamp(8));
-        testResultSetOperation(new BigDecimal("9"));
-        testResultSetOperation(UUID.randomUUID());
-
-        SimpleResultSet rs2 = new SimpleResultSet();
-        rs2.setAutoClose(false);
-        rs2.addColumn("X", Types.INTEGER, 10, 0);
-        rs2.addRow(new Object[]{1});
-        rs2.next();
-        testResultSetOperation(rs2);
-
-    }
-
-    private void testResultSetOperation(Object obj) throws SQLException {
-        SimpleResultSet rs = new SimpleResultSet();
-        rs.setAutoClose(false);
-        int valueType = DataType.getTypeFromClass(obj.getClass());
-        int sqlType = DataType.convertTypeToSQLType(valueType);
-        rs.addColumn("X", sqlType, 10, 0);
-        rs.addRow(new Object[]{obj});
-        rs.next();
-        Value v = DataType.readValue(null, rs, 1, valueType);
-        Value v2 = DataType.convertToValue(null, obj, valueType);
-        if (v.getValueType() == Value.RESULT_SET) {
-            assertEquals(v.toString(), v2.toString());
-        } else {
-            assertTrue(v.equals(v2));
-        }
+        testH2Type();
+        testHigherType();
     }
 
     private void testBinaryAndUuid() throws SQLException {
@@ -148,7 +92,13 @@ public class TestValue extends TestDb {
             PreparedStatement prep;
             ResultSet rs;
             // Check conversion to byte[]
-            prep = conn.prepareStatement("SELECT * FROM TABLE(X BINARY=?)");
+            prep = conn.prepareStatement("SELECT * FROM TABLE(X BINARY(16)=?)");
+            prep.setObject(1, new Object[] { uuid });
+            rs = prep.executeQuery();
+            rs.next();
+            assertTrue(Arrays.equals(Bits.uuidToBytes(uuid), (byte[]) rs.getObject(1)));
+            // Check conversion to byte[]
+            prep = conn.prepareStatement("SELECT * FROM TABLE(X VARBINARY=?)");
             prep.setObject(1, new Object[] { uuid });
             rs = prep.executeQuery();
             rs.next();
@@ -168,146 +118,79 @@ public class TestValue extends TestDb {
         Value v;
         String spaces = new String(new char[100]).replace((char) 0, ' ');
 
-        v = ValueArray.get(new Value[] { ValueString.get("hello"), ValueString.get("world") });
+        v = ValueArray.get(new Value[] { ValueVarchar.get("hello"), ValueVarchar.get("world") }, null);
+        TypeInfo typeInfo = TypeInfo.getTypeInfo(Value.ARRAY, 1L, 0, TypeInfo.TYPE_VARCHAR);
         assertEquals(2, v.getType().getPrecision());
-        assertEquals(1, v.convertPrecision(1).getType().getPrecision());
-        v = ValueArray.get(new Value[]{ValueString.get(""), ValueString.get("")});
+        assertEquals(1, v.castTo(typeInfo, null).getType().getPrecision());
+        v = ValueArray.get(new Value[]{ValueVarchar.get(""), ValueVarchar.get("")}, null);
         assertEquals(2, v.getType().getPrecision());
-        assertEquals("['']", v.convertPrecision(1).toString());
+        assertEquals("ARRAY ['']", v.castTo(typeInfo, null).toString());
 
-        v = ValueBytes.get(spaces.getBytes());
+        v = ValueVarbinary.get(spaces.getBytes());
+        typeInfo = TypeInfo.getTypeInfo(Value.VARBINARY, 10L, 0, null);
         assertEquals(100, v.getType().getPrecision());
-        assertEquals(10, v.convertPrecision(10).getType().getPrecision());
-        assertEquals(10, v.convertPrecision(10).getBytes().length);
-        assertEquals(32, v.convertPrecision(10).getBytes()[9]);
-        assertEquals(10, v.convertPrecision(10).getType().getPrecision());
+        assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
+        assertEquals(10, v.castTo(typeInfo, null).getBytes().length);
+        assertEquals(32, v.castTo(typeInfo, null).getBytes()[9]);
+        assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
 
-        final Value vd = ValueDecimal.get(new BigDecimal("1234567890.123456789"));
-        assertEquals(19, vd.getType().getPrecision());
-        assertEquals("1234567890", vd.convertPrecision(10).getString());
-        new AssertThrows(ErrorCode.NUMERIC_VALUE_OUT_OF_RANGE_1) {
-            @Override
-            public void test() {
-                vd.convertPrecision(0);
-            }
-        };
-
-        v = ValueLobDb.createSmallLob(Value.CLOB, spaces.getBytes(), 100);
+        v = ValueLobInMemory.createSmallLob(Value.CLOB, spaces.getBytes(), 100);
+        typeInfo = TypeInfo.getTypeInfo(Value.CLOB, 10L, 0, null);
         assertEquals(100, v.getType().getPrecision());
-        assertEquals(10, v.convertPrecision(10).getType().getPrecision());
-        assertEquals(10, v.convertPrecision(10).getString().length());
-        assertEquals("          ", v.convertPrecision(10).getString());
-        assertEquals(10, v.convertPrecision(10).getType().getPrecision());
+        assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
+        assertEquals(10, v.castTo(typeInfo, null).getString().length());
+        assertEquals("          ", v.castTo(typeInfo, null).getString());
+        assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
 
-        v = ValueLobDb.createSmallLob(Value.BLOB, spaces.getBytes(), 100);
+        v = ValueLobInMemory.createSmallLob(Value.BLOB, spaces.getBytes(), 100);
+        typeInfo = TypeInfo.getTypeInfo(Value.BLOB, 10L, 0, null);
         assertEquals(100, v.getType().getPrecision());
-        assertEquals(10, v.convertPrecision(10).getType().getPrecision());
-        assertEquals(10, v.convertPrecision(10).getBytes().length);
-        assertEquals(32, v.convertPrecision(10).getBytes()[9]);
-        assertEquals(10, v.convertPrecision(10).getType().getPrecision());
+        assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
+        assertEquals(10, v.castTo(typeInfo, null).getBytes().length);
+        assertEquals(32, v.castTo(typeInfo, null).getBytes()[9]);
+        assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
 
-        v = ValueString.get(spaces);
+        v = ValueVarchar.get(spaces);
+        typeInfo = TypeInfo.getTypeInfo(Value.VARCHAR, 10L, 0, null);
         assertEquals(100, v.getType().getPrecision());
-        assertEquals(10, v.convertPrecision(10).getType().getPrecision());
-        assertEquals("          ", v.convertPrecision(10).getString());
-        assertEquals("          ", v.convertPrecision(10).getString());
+        assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
+        assertEquals("          ", v.castTo(typeInfo, null).getString());
+        assertEquals("          ", v.castTo(typeInfo, null).getString());
 
-    }
-
-    private void testValueResultSet() throws SQLException {
-        SimpleResultSet rs = new SimpleResultSet();
-        rs.setAutoClose(false);
-        rs.addColumn("ID", Types.INTEGER, 0, 0);
-        rs.addColumn("NAME", Types.VARCHAR, 255, 0);
-        rs.addRow(1, "Hello");
-        rs.addRow(2, "World");
-        rs.addRow(3, "Peace");
-
-        testValueResultSetTest(ValueResultSet.get(null, rs, Integer.MAX_VALUE), Integer.MAX_VALUE, true);
-        rs.beforeFirst();
-        testValueResultSetTest(ValueResultSet.get(null, rs, 2), 2, true);
-
-        SimpleResult result = new SimpleResult();
-        result.addColumn("ID", "ID", Value.INT, 0, 0);
-        result.addColumn("NAME", "NAME", Value.VARCHAR, 255, 0);
-        result.addRow(ValueInt.get(1), ValueString.get("Hello"));
-        result.addRow(ValueInt.get(2), ValueString.get("World"));
-        result.addRow(ValueInt.get(3), ValueString.get("Peace"));
-
-        ValueResultSet v = ValueResultSet.get(result);
-        testValueResultSetTest(v, Integer.MAX_VALUE, false);
-
-        testValueResultSetTest(ValueResultSet.get(v.getResult(), Integer.MAX_VALUE), Integer.MAX_VALUE, false);
-        testValueResultSetTest(ValueResultSet.get(v.getResult(), 2), 2, false);
-    }
-
-    private void testValueResultSetTest(ValueResultSet v, int count, boolean fromSimple) {
-        ResultInterface res = v.getResult();
-        assertEquals(2, res.getVisibleColumnCount());
-        assertEquals("ID", res.getAlias(0));
-        assertEquals("ID", res.getColumnName(0));
-        TypeInfo type = res.getColumnType(0);
-        assertEquals(Value.INT, type.getValueType());
-        assertEquals(ValueInt.PRECISION, type.getPrecision());
-        assertEquals(0, type.getScale());
-        assertEquals(ValueInt.DISPLAY_SIZE, type.getDisplaySize());
-        assertEquals("NAME", res.getAlias(1));
-        assertEquals("NAME", res.getColumnName(1));
-        type = res.getColumnType(1);
-        assertEquals(Value.VARCHAR, type.getValueType());
-        assertEquals(255, type.getPrecision());
-        assertEquals(0, type.getScale());
-        assertEquals(255, type.getDisplaySize());
-        if (count >= 1) {
-            assertTrue(res.next());
-            assertEquals(new Value[] {ValueInt.get(1), ValueString.get("Hello")}, res.currentRow());
-            if (count >= 2) {
-                assertTrue(res.next());
-                assertEquals(new Value[] {ValueInt.get(2), ValueString.get("World")}, res.currentRow());
-                if (count >= 3) {
-                    assertTrue(res.next());
-                    assertEquals(new Value[] {ValueInt.get(3), ValueString.get("Peace")}, res.currentRow());
-                }
-            }
-        }
-        assertFalse(res.next());
     }
 
     private void testDataType() {
-        testDataType(Value.NULL, null);
-        testDataType(Value.NULL, Void.class);
-        testDataType(Value.NULL, void.class);
-        testDataType(Value.ARRAY, String[].class);
-        testDataType(Value.VARCHAR, String.class);
-        testDataType(Value.INT, Integer.class);
-        testDataType(Value.BIGINT, Long.class);
-        testDataType(Value.BOOLEAN, Boolean.class);
-        testDataType(Value.DOUBLE, Double.class);
-        testDataType(Value.TINYINT, Byte.class);
-        testDataType(Value.SMALLINT, Short.class);
-        testDataType(Value.REAL, Float.class);
-        testDataType(Value.VARBINARY, byte[].class);
-        testDataType(Value.UUID, UUID.class);
-        testDataType(Value.NULL, Void.class);
-        testDataType(Value.NUMERIC, BigDecimal.class);
-        testDataType(Value.RESULT_SET, ResultSet.class);
-        testDataType(Value.BLOB, ValueLobDb.class);
-        // see FIXME in DataType.getTypeFromClass
-        //testDataType(Value.CLOB, Value.ValueClob.class);
-        testDataType(Value.DATE, Date.class);
-        testDataType(Value.TIME, Time.class);
-        testDataType(Value.TIMESTAMP, Timestamp.class);
-        testDataType(Value.TIMESTAMP, java.util.Date.class);
-        testDataType(Value.CLOB, java.io.Reader.class);
-        testDataType(Value.CLOB, java.sql.Clob.class);
-        testDataType(Value.BLOB, java.io.InputStream.class);
-        testDataType(Value.BLOB, java.sql.Blob.class);
-        testDataType(Value.ARRAY, Object[].class);
-        testDataType(Value.JAVA_OBJECT, StringBuffer.class);
+        testDataType(TypeInfo.TYPE_NULL, null);
+        testDataType(TypeInfo.TYPE_NULL, Void.class);
+        testDataType(TypeInfo.TYPE_NULL, void.class);
+        testDataType(TypeInfo.getTypeInfo(Value.ARRAY, Integer.MAX_VALUE, 0, TypeInfo.TYPE_VARCHAR), String[].class);
+        testDataType(TypeInfo.TYPE_VARCHAR, String.class);
+        testDataType(TypeInfo.TYPE_INTEGER, Integer.class);
+        testDataType(TypeInfo.TYPE_BIGINT, Long.class);
+        testDataType(TypeInfo.TYPE_BOOLEAN, Boolean.class);
+        testDataType(TypeInfo.TYPE_DOUBLE, Double.class);
+        testDataType(TypeInfo.TYPE_TINYINT, Byte.class);
+        testDataType(TypeInfo.TYPE_SMALLINT, Short.class);
+        testDataType(TypeInfo.TYPE_REAL, Float.class);
+        testDataType(TypeInfo.TYPE_VARBINARY, byte[].class);
+        testDataType(TypeInfo.TYPE_UUID, UUID.class);
+        testDataType(TypeInfo.TYPE_NULL, Void.class);
+        testDataType(TypeInfo.TYPE_NUMERIC, BigDecimal.class);
+        testDataType(TypeInfo.TYPE_DATE, Date.class);
+        testDataType(TypeInfo.TYPE_TIME, Time.class);
+        testDataType(TypeInfo.TYPE_TIMESTAMP, Timestamp.class);
+        testDataType(TypeInfo.TYPE_TIMESTAMP, java.util.Date.class);
+        testDataType(TypeInfo.TYPE_CLOB, java.io.Reader.class);
+        testDataType(TypeInfo.TYPE_CLOB, java.sql.Clob.class);
+        testDataType(TypeInfo.TYPE_BLOB, java.io.InputStream.class);
+        testDataType(TypeInfo.TYPE_BLOB, java.sql.Blob.class);
+        testDataType(TypeInfo.getTypeInfo(Value.ARRAY, Integer.MAX_VALUE, 0, TypeInfo.TYPE_JAVA_OBJECT),
+                Object[].class);
+        testDataType(TypeInfo.TYPE_JAVA_OBJECT, StringBuffer.class);
     }
 
-    private void testDataType(int type, Class<?> clazz) {
-        assertEquals(type, DataType.getTypeFromClass(clazz));
+    private void testDataType(TypeInfo type, Class<?> clazz) {
+        assertEquals(type, ValueToObjectConverter2.classToType(clazz));
     }
 
     private void testDouble(boolean useFloat) {
@@ -321,7 +204,7 @@ public class TestValue extends TestDb {
         };
         Value[] values = new Value[d.length];
         for (int i = 0; i < d.length; i++) {
-            Value v = useFloat ? (Value) ValueFloat.get((float) d[i])
+            Value v = useFloat ? (Value) ValueReal.get((float) d[i])
                     : (Value) ValueDouble.get(d[i]);
             values[i] = v;
             assertTrue(values[i].compareTypeSafe(values[i], null, null) == 0);
@@ -365,16 +248,16 @@ public class TestValue extends TestDb {
 
     private void testArray() {
         ValueArray src = ValueArray.get(
-                new Value[] {ValueString.get("1"), ValueString.get("22"), ValueString.get("333")});
+                new Value[] {ValueVarchar.get("1"), ValueVarchar.get("22"), ValueVarchar.get("333")}, null);
         assertEquals(3, src.getType().getPrecision());
-        assertSame(src, src.convertPrecision(3));
+        assertSame(src, src.castTo(TypeInfo.getTypeInfo(Value.ARRAY, 3L, 0, TypeInfo.TYPE_VARCHAR), null));
         ValueArray exp = ValueArray.get(
-                new Value[] {ValueString.get("1"), ValueString.get("22")});
-        Value got = src.convertPrecision(2);
+                new Value[] {ValueVarchar.get("1"), ValueVarchar.get("22")}, null);
+        Value got = src.castTo(TypeInfo.getTypeInfo(Value.ARRAY, 2L, 0, TypeInfo.TYPE_VARCHAR), null);
         assertEquals(exp, got);
         assertEquals(Value.VARCHAR, ((ValueArray) got).getComponentType().getValueType());
-        exp = ValueArray.get(TypeInfo.TYPE_VARCHAR, new Value[0]);
-        got = src.convertPrecision(0);
+        exp = ValueArray.get(TypeInfo.TYPE_VARCHAR, new Value[0], null);
+        got = src.castTo(TypeInfo.getTypeInfo(Value.ARRAY, 0L, 0, TypeInfo.TYPE_VARCHAR), null);
         assertEquals(exp, got);
         assertEquals(Value.VARCHAR, ((ValueArray) got).getComponentType().getValueType());
     }
@@ -397,16 +280,15 @@ public class TestValue extends TestDb {
         String uuidStr = "12345678-1234-4321-8765-123456789012";
 
         UUID origUUID = UUID.fromString(uuidStr);
-        ValueJavaObject valObj = ValueJavaObject.getNoCopy(origUUID, null, null);
-        Value valUUID = valObj.convertTo(Value.UUID);
-        assertTrue(valUUID instanceof ValueUuid);
-        assertTrue(valUUID.getString().equals(uuidStr));
-        assertTrue(valUUID.getObject().equals(origUUID));
+        ValueJavaObject valObj = ValueJavaObject.getNoCopy(JdbcUtils.serialize(origUUID, null));
+        ValueUuid valUUID = valObj.convertToUuid();
+        assertEquals(uuidStr, valUUID.getString());
+        assertEquals(origUUID, valUUID.getUuid());
 
-        ValueJavaObject voString = ValueJavaObject.getNoCopy(
-                new String("This is not a ValueUuid object"), null, null);
+        ValueJavaObject voString = ValueJavaObject.getNoCopy(JdbcUtils.serialize(
+                new String("This is not a ValueUuid object"), null));
         try {
-            voString.convertTo(Value.UUID);
+            voString.convertToUuid();
             fail();
         } catch (DbException expected) {
         }
@@ -424,13 +306,13 @@ public class TestValue extends TestDb {
     }
 
     private void testModulusDecimal() {
-        final ValueDecimal vd1 = ValueDecimal.get(new BigDecimal(12));
+        final ValueNumeric vd1 = ValueNumeric.get(new BigDecimal(12));
         new AssertThrows(ErrorCode.DIVISION_BY_ZERO_1) { @Override
         public void test() {
-            vd1.modulus(ValueDecimal.get(new BigDecimal(0)));
+            vd1.modulus(ValueNumeric.get(new BigDecimal(0)));
         }};
-        ValueDecimal vd2 = ValueDecimal.get(new BigDecimal(10));
-        ValueDecimal vd3 = vd1.modulus(vd2);
+        ValueNumeric vd2 = ValueNumeric.get(new BigDecimal(10));
+        Value vd3 = vd1.modulus(vd2);
         assertEquals(2, vd3.getDouble());
     }
 
@@ -452,7 +334,7 @@ public class TestValue extends TestDb {
         assertEquals(1, testLobComparisonImpl(null, Value.BLOB, 512, 512, 210, 200));
         assertEquals(1, testLobComparisonImpl(null, Value.CLOB, 512, 512, 'B', 'A'));
         try (Connection c = DriverManager.getConnection("jdbc:h2:mem:testValue")) {
-            Database dh = ((Session) ((JdbcConnection) c).getSession()).getDatabase();
+            Database dh = ((SessionLocal) ((JdbcConnection) c).getSession()).getDatabase();
             assertEquals(1, testLobComparisonImpl(dh, Value.BLOB, 1_024, 1_024, 210, 200));
             assertEquals(1, testLobComparisonImpl(dh, Value.CLOB, 1_024, 1_024, 'B', 'A'));
             assertEquals(-1, testLobComparisonImpl(dh, Value.BLOB, 10_000, 10_000, 200, 210));
@@ -483,7 +365,7 @@ public class TestValue extends TestDb {
 
     private static Value createLob(DataHandler dh, int type, byte[] bytes) {
         if (dh == null) {
-            return ValueLobDb.createSmallLob(type, bytes);
+            return ValueLobInMemory.createSmallLob(type, bytes);
         }
         ByteArrayInputStream in = new ByteArrayInputStream(bytes);
         if (type == Value.BLOB) {
@@ -506,16 +388,17 @@ public class TestValue extends TestDb {
 
         testTypeInfoCheck(Value.BOOLEAN, 1, 0, 5, TypeInfo.TYPE_BOOLEAN, TypeInfo.getTypeInfo(Value.BOOLEAN));
 
-        testTypeInfoCheck(Value.TINYINT, 3, 0, 4, TypeInfo.TYPE_TINYINT, TypeInfo.getTypeInfo(Value.TINYINT));
-        testTypeInfoCheck(Value.SMALLINT, 5, 0, 6, TypeInfo.TYPE_SMALLINT, TypeInfo.getTypeInfo(Value.SMALLINT));
-        testTypeInfoCheck(Value.INT, 10, 0, 11, TypeInfo.TYPE_INT, TypeInfo.getTypeInfo(Value.INT));
-        testTypeInfoCheck(Value.BIGINT, 19, 0, 20, TypeInfo.TYPE_BIGINT, TypeInfo.getTypeInfo(Value.BIGINT));
+        testTypeInfoCheck(Value.TINYINT, 8, 0, 4, TypeInfo.TYPE_TINYINT, TypeInfo.getTypeInfo(Value.TINYINT));
+        testTypeInfoCheck(Value.SMALLINT, 16, 0, 6, TypeInfo.TYPE_SMALLINT, TypeInfo.getTypeInfo(Value.SMALLINT));
+        testTypeInfoCheck(Value.INTEGER, 32, 0, 11, TypeInfo.TYPE_INTEGER, TypeInfo.getTypeInfo(Value.INTEGER));
+        testTypeInfoCheck(Value.BIGINT, 64, 0, 20, TypeInfo.TYPE_BIGINT, TypeInfo.getTypeInfo(Value.BIGINT));
 
-        testTypeInfoCheck(Value.REAL, 7, 0, 15, TypeInfo.TYPE_REAL, TypeInfo.getTypeInfo(Value.REAL));
-        testTypeInfoCheck(Value.DOUBLE, 17, 0, 24, TypeInfo.TYPE_DOUBLE, TypeInfo.getTypeInfo(Value.DOUBLE));
-        testTypeInfoCheck(Value.NUMERIC, Integer.MAX_VALUE, ValueDecimal.MAXIMUM_SCALE, Integer.MAX_VALUE,
+        testTypeInfoCheck(Value.REAL, 24, 0, 15, TypeInfo.TYPE_REAL, TypeInfo.getTypeInfo(Value.REAL));
+        testTypeInfoCheck(Value.DOUBLE, 53, 0, 24, TypeInfo.TYPE_DOUBLE, TypeInfo.getTypeInfo(Value.DOUBLE));
+        testTypeInfoCheck(Value.NUMERIC, MAX_NUMERIC_PRECISION, ValueNumeric.MAXIMUM_SCALE, MAX_NUMERIC_PRECISION + 2,
                 TypeInfo.TYPE_NUMERIC, TypeInfo.getTypeInfo(Value.NUMERIC));
-        testTypeInfoCheck(Value.NUMERIC, 65_535, 32_767, 65_537, TypeInfo.TYPE_NUMERIC_FLOATING_POINT);
+        testTypeInfoCheck(Value.NUMERIC, MAX_NUMERIC_PRECISION, MAX_NUMERIC_PRECISION / 2, MAX_NUMERIC_PRECISION + 2,
+                TypeInfo.TYPE_NUMERIC_FLOATING_POINT);
 
         testTypeInfoCheck(Value.TIME, 18, 9, 18, TypeInfo.TYPE_TIME, TypeInfo.getTypeInfo(Value.TIME));
         for (int s = 0; s <= 9; s++) {
@@ -535,31 +418,29 @@ public class TestValue extends TestDb {
             testTypeInfoCheck(Value.TIMESTAMP_TZ, d, s, d, TypeInfo.getTypeInfo(Value.TIMESTAMP_TZ, 0, s, null));
         }
 
-        testTypeInfoCheck(Value.VARBINARY, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
+        testTypeInfoCheck(Value.BINARY, 1, 0, 2, TypeInfo.getTypeInfo(Value.BINARY));
+        testTypeInfoCheck(Value.VARBINARY, MAX_STRING_LENGTH, 0, MAX_STRING_LENGTH * 2,
                 TypeInfo.getTypeInfo(Value.VARBINARY));
         testTypeInfoCheck(Value.BLOB, Long.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.getTypeInfo(Value.BLOB));
         testTypeInfoCheck(Value.CLOB, Long.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.getTypeInfo(Value.CLOB));
 
-        testTypeInfoCheck(Value.VARCHAR, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_VARCHAR,
+        testTypeInfoCheck(Value.VARCHAR, MAX_STRING_LENGTH, 0, MAX_STRING_LENGTH, TypeInfo.TYPE_VARCHAR,
                 TypeInfo.getTypeInfo(Value.VARCHAR));
-        testTypeInfoCheck(Value.CHAR, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
-                TypeInfo.getTypeInfo(Value.CHAR));
-        testTypeInfoCheck(Value.VARCHAR_IGNORECASE, Integer.MAX_VALUE, 0, Integer.MAX_VALUE,
+        testTypeInfoCheck(Value.CHAR, 1, 0, 1, TypeInfo.getTypeInfo(Value.CHAR));
+        testTypeInfoCheck(Value.VARCHAR_IGNORECASE, MAX_STRING_LENGTH, 0, MAX_STRING_LENGTH,
                 TypeInfo.getTypeInfo(Value.VARCHAR_IGNORECASE));
 
-        testTypeInfoCheck(Value.ARRAY, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_ARRAY,
+        testTypeInfoCheck(Value.ARRAY, MAX_ARRAY_CARDINALITY, 0, Integer.MAX_VALUE, TypeInfo.TYPE_ARRAY_UNKNOWN,
                 TypeInfo.getTypeInfo(Value.ARRAY));
-        testTypeInfoCheck(Value.RESULT_SET, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
-                TypeInfo.TYPE_RESULT_SET, TypeInfo.getTypeInfo(Value.RESULT_SET));
-        testTypeInfoCheck(Value.ROW, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_ROW,
+        testTypeInfoCheck(Value.ROW, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_ROW_EMPTY,
                 TypeInfo.getTypeInfo(Value.ROW));
 
-        testTypeInfoCheck(Value.JAVA_OBJECT, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_JAVA_OBJECT,
+        testTypeInfoCheck(Value.JAVA_OBJECT, MAX_STRING_LENGTH, 0, MAX_STRING_LENGTH * 2, TypeInfo.TYPE_JAVA_OBJECT,
                 TypeInfo.getTypeInfo(Value.JAVA_OBJECT));
         testTypeInfoCheck(Value.UUID, 16, 0, 36, TypeInfo.TYPE_UUID, TypeInfo.getTypeInfo(Value.UUID));
-        testTypeInfoCheck(Value.GEOMETRY, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_GEOMETRY,
+        testTypeInfoCheck(Value.GEOMETRY, MAX_STRING_LENGTH, 0, Integer.MAX_VALUE, TypeInfo.TYPE_GEOMETRY,
                 TypeInfo.getTypeInfo(Value.GEOMETRY));
-        testTypeInfoCheck(Value.ENUM, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_ENUM_UNDEFINED,
+        testTypeInfoCheck(Value.ENUM, MAX_STRING_LENGTH, 0, MAX_STRING_LENGTH, TypeInfo.TYPE_ENUM_UNDEFINED,
                 TypeInfo.getTypeInfo(Value.ENUM));
 
         testTypeInfoInterval1(Value.INTERVAL_YEAR);
@@ -576,7 +457,7 @@ public class TestValue extends TestDb {
         testTypeInfoInterval2(Value.INTERVAL_HOUR_TO_SECOND);
         testTypeInfoInterval2(Value.INTERVAL_MINUTE_TO_SECOND);
 
-        testTypeInfoCheck(Value.JSON, Integer.MAX_VALUE, 0, Integer.MAX_VALUE, TypeInfo.TYPE_JSON,
+        testTypeInfoCheck(Value.JSON, MAX_STRING_LENGTH, 0, MAX_STRING_LENGTH, TypeInfo.TYPE_JSON,
                 TypeInfo.getTypeInfo(Value.JSON));
     }
 
@@ -609,6 +490,73 @@ public class TestValue extends TestDb {
         assertEquals(precision, typeInfo.getPrecision());
         assertEquals(scale, typeInfo.getScale());
         assertEquals(displaySize, typeInfo.getDisplaySize());
+    }
+
+    private void testH2Type() {
+        assertEquals(Value.CHAR, (int) H2Type.CHAR.getVendorTypeNumber());
+        assertEquals(Value.VARCHAR, (int) H2Type.VARCHAR.getVendorTypeNumber());
+        assertEquals(Value.CLOB, (int) H2Type.CLOB.getVendorTypeNumber());
+        assertEquals(Value.VARCHAR_IGNORECASE, (int) H2Type.VARCHAR_IGNORECASE.getVendorTypeNumber());
+        assertEquals(Value.BINARY, (int) H2Type.BINARY.getVendorTypeNumber());
+        assertEquals(Value.VARBINARY, (int) H2Type.VARBINARY.getVendorTypeNumber());
+        assertEquals(Value.BLOB, (int) H2Type.BLOB.getVendorTypeNumber());
+        assertEquals(Value.BOOLEAN, (int) H2Type.BOOLEAN.getVendorTypeNumber());
+        assertEquals(Value.TINYINT, (int) H2Type.TINYINT.getVendorTypeNumber());
+        assertEquals(Value.SMALLINT, (int) H2Type.SMALLINT.getVendorTypeNumber());
+        assertEquals(Value.INTEGER, (int) H2Type.INTEGER.getVendorTypeNumber());
+        assertEquals(Value.BIGINT, (int) H2Type.BIGINT.getVendorTypeNumber());
+        assertEquals(Value.NUMERIC, (int) H2Type.NUMERIC.getVendorTypeNumber());
+        assertEquals(Value.REAL, (int) H2Type.REAL.getVendorTypeNumber());
+        assertEquals(Value.DOUBLE, (int) H2Type.DOUBLE_PRECISION.getVendorTypeNumber());
+        assertEquals(Value.DECFLOAT, (int) H2Type.DECFLOAT.getVendorTypeNumber());
+        assertEquals(Value.DATE, (int) H2Type.DATE.getVendorTypeNumber());
+        assertEquals(Value.TIME, (int) H2Type.TIME.getVendorTypeNumber());
+        assertEquals(Value.TIME_TZ, (int) H2Type.TIME_WITH_TIME_ZONE.getVendorTypeNumber());
+        assertEquals(Value.TIMESTAMP, (int) H2Type.TIMESTAMP.getVendorTypeNumber());
+        assertEquals(Value.TIMESTAMP_TZ, (int) H2Type.TIMESTAMP_WITH_TIME_ZONE.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_YEAR, (int) H2Type.INTERVAL_YEAR.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_MONTH, (int) H2Type.INTERVAL_MONTH.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_DAY, (int) H2Type.INTERVAL_DAY.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_HOUR, (int) H2Type.INTERVAL_HOUR.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_MINUTE, (int) H2Type.INTERVAL_MINUTE.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_SECOND, (int) H2Type.INTERVAL_SECOND.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_YEAR_TO_MONTH, (int) H2Type.INTERVAL_YEAR_TO_MONTH.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_DAY_TO_HOUR, (int) H2Type.INTERVAL_DAY_TO_HOUR.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_DAY_TO_MINUTE, (int) H2Type.INTERVAL_DAY_TO_MINUTE.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_DAY_TO_SECOND, (int) H2Type.INTERVAL_DAY_TO_SECOND.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_HOUR_TO_MINUTE, (int) H2Type.INTERVAL_HOUR_TO_MINUTE.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_HOUR_TO_SECOND, (int) H2Type.INTERVAL_HOUR_TO_SECOND.getVendorTypeNumber());
+        assertEquals(Value.INTERVAL_MINUTE_TO_SECOND, (int) H2Type.INTERVAL_MINUTE_TO_SECOND.getVendorTypeNumber());
+        assertEquals(Value.JAVA_OBJECT, (int) H2Type.JAVA_OBJECT.getVendorTypeNumber());
+        assertEquals(Value.ENUM, (int) H2Type.ENUM.getVendorTypeNumber());
+        assertEquals(Value.GEOMETRY, (int) H2Type.GEOMETRY.getVendorTypeNumber());
+        assertEquals(Value.JSON, (int) H2Type.JSON.getVendorTypeNumber());
+        assertEquals(Value.UUID, (int) H2Type.UUID.getVendorTypeNumber());
+        assertEquals(Value.ARRAY, (int) H2Type.array(H2Type.VARCHAR).getVendorTypeNumber());
+        assertEquals(Value.ROW, (int) H2Type.row(H2Type.VARCHAR).getVendorTypeNumber());
+    }
+
+    private void testHigherType() {
+        testHigherTypeNumeric(15L, 6, 10L, 1, 5L, 6);
+        testHigherTypeNumeric(15L, 6, 5L, 6, 10L, 1);
+        TypeInfo intArray10 = TypeInfo.getTypeInfo(Value.ARRAY, 10, 0, TypeInfo.TYPE_INTEGER);
+        TypeInfo bigintArray1 = TypeInfo.getTypeInfo(Value.ARRAY, 1, 0, TypeInfo.TYPE_BIGINT);
+        TypeInfo bigintArray10 = TypeInfo.getTypeInfo(Value.ARRAY, 10, 0, TypeInfo.TYPE_BIGINT);
+        assertEquals(bigintArray10, TypeInfo.getHigherType(intArray10, bigintArray1));
+        TypeInfo intArray10Array1 = TypeInfo.getTypeInfo(Value.ARRAY, 1, 0, intArray10);
+        TypeInfo bigintArray1Array10 = TypeInfo.getTypeInfo(Value.ARRAY, 10, 0, bigintArray1);
+        TypeInfo bigintArray10Array10 = TypeInfo.getTypeInfo(Value.ARRAY, 10, 0, bigintArray10);
+        assertEquals(bigintArray10Array10, TypeInfo.getHigherType(intArray10Array1, bigintArray1Array10));
+        assertEquals(bigintArray10Array10, TypeInfo.getHigherType(intArray10, bigintArray1Array10));
+        TypeInfo bigintArray10Array1 = TypeInfo.getTypeInfo(Value.ARRAY, 1, 0, bigintArray10);
+        assertEquals(bigintArray10Array1, TypeInfo.getHigherType(intArray10Array1, bigintArray1));
+    }
+
+    private void testHigherTypeNumeric(long expectedPrecision, int expectedScale, long precision1, int scale1,
+            long precision2, int scale2) {
+        assertEquals(TypeInfo.getTypeInfo(Value.NUMERIC, expectedPrecision, expectedScale, null),
+                TypeInfo.getHigherType(TypeInfo.getTypeInfo(Value.NUMERIC, precision1, scale1, null),
+                        TypeInfo.getTypeInfo(Value.NUMERIC, precision2, scale2, null)));
     }
 
 }

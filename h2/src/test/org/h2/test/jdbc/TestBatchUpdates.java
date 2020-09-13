@@ -57,7 +57,7 @@ public class TestBatchUpdates extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -115,8 +115,7 @@ public class TestBatchUpdates extends TestDb {
         deleteDb("batchUpdates");
         conn = getConnection("batchUpdates");
         stat = conn.createStatement();
-        stat.execute("CREATE ALIAS updatePrices FOR \"" +
-                getClass().getName() + ".updatePrices\"");
+        stat.execute("CREATE ALIAS updatePrices FOR '" + getClass().getName() + ".updatePrices'");
         CallableStatement call = conn.prepareCall("{call updatePrices(?, ?)}");
         call.setString(1, "Hello");
         call.setFloat(2, 1.4f);

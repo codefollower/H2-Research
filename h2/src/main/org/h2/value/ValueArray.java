@@ -5,29 +5,34 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Arrays;
-
 import org.h2.engine.CastDataProvider;
-import org.h2.util.MathUtils;
+import org.h2.engine.Constants;
+import org.h2.message.DbException;
 
 /**
  * Implementation of the ARRAY data type.
  */
-public class ValueArray extends ValueCollectionBase {
+public final class ValueArray extends ValueCollectionBase {
 
     /**
      * Empty array.
      */
-    public static final ValueArray EMPTY = get(Value.EMPTY_VALUES);
+    public static final ValueArray EMPTY = get(Value.EMPTY_VALUES, null);
 
     private TypeInfo type;
 
     private TypeInfo componentType;
 
-    private ValueArray(TypeInfo componentType, Value[] list) {
+    private ValueArray(TypeInfo componentType, Value[] list, CastDataProvider provider) {
         super(list);
+        int length = list.length;
+        if (length > Constants.MAX_ARRAY_CARDINALITY) {
+            String typeName = getTypeName(getValueType());
+            throw DbException.getValueTooLongException(typeName, typeName, length);
+        }
+        for (int i = 0; i < length; i++) {
+            list[i] = list[i].castTo(componentType, provider);
+        }
         this.componentType = componentType;
     }
 
@@ -36,10 +41,11 @@ public class ValueArray extends ValueCollectionBase {
      * Do not clone the data.
      *
      * @param list the value array
+     * @param provider the cast information provider
      * @return the value
      */
-    public static ValueArray get(Value[] list) {
-        return new ValueArray(null, list);
+    public static ValueArray get(Value[] list, CastDataProvider provider) {
+        return new ValueArray(TypeInfo.getHigherType(list), list, provider);
     }
 
     /**
@@ -48,10 +54,11 @@ public class ValueArray extends ValueCollectionBase {
      *
      * @param componentType the type of elements, or {@code null}
      * @param list the value array
+     * @param provider the cast information provider
      * @return the value
      */
-    public static ValueArray get(TypeInfo componentType, Value[] list) {
-        return new ValueArray(componentType, list);
+    public static ValueArray get(TypeInfo componentType, Value[] list, CastDataProvider provider) {
+        return new ValueArray(componentType, list, provider);
     }
 
     @Override
@@ -59,8 +66,7 @@ public class ValueArray extends ValueCollectionBase {
         TypeInfo type = this.type;
         if (type == null) {
             TypeInfo componentType = getComponentType();
-            this.type = type = TypeInfo.getTypeInfo(getValueType(), values.length, 0,
-                    componentType.getValueType() != NULL ? new ExtTypeInfoArray(componentType) : null);
+            this.type = type = TypeInfo.getTypeInfo(getValueType(), values.length, 0, componentType);
         }
         return type;
     }
@@ -71,31 +77,7 @@ public class ValueArray extends ValueCollectionBase {
     }
 
     public TypeInfo getComponentType() {
-        TypeInfo type = componentType;
-        if (type == null) {
-            int length = values.length;
-            if (length == 0) {
-                type = TypeInfo.TYPE_NULL;
-            } else {
-                int t = values[0].getValueType();
-                if (length > 1) {
-                    for (int i = 1; i < length; i++) {
-                        int t2 = values[i].getValueType();
-                        if (t2 != Value.NULL) {
-                            if (t == Value.NULL) {
-                                t = t2;
-                            } else if (t != t2) {
-                                t = Value.NULL;
-                                break;
-                            }
-                        }
-                    }
-                }
-                type = TypeInfo.getTypeInfo(t);
-            }
-            componentType = type;
-        }
-        return type;
+        return componentType;
     }
 
     @Override
@@ -131,34 +113,16 @@ public class ValueArray extends ValueCollectionBase {
     }
 
     @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        prep.setArray(parameterIndex, prep.getConnection().createArrayOf("NULL", (Object[]) getObject()));
-    }
-
-    @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         builder.append("ARRAY [");
         int length = values.length;
         for (int i = 0; i < length; i++) {
             if (i > 0) {
                 builder.append(", ");
             }
-            values[i].getSQL(builder);
+            values[i].getSQL(builder, sqlFlags);
         }
         return builder.append(']');
-    }
-
-    @Override
-    public String getTraceSQL() {
-        StringBuilder builder = new StringBuilder("[");
-        for (int i = 0; i < values.length; i++) {
-            if (i > 0) {
-                builder.append(", ");
-            }
-            Value v = values[i];
-            builder.append(v == null ? "null" : v.getTraceSQL());
-        }
-        return builder.append(']').toString();
     }
 
     @Override
@@ -180,15 +144,6 @@ public class ValueArray extends ValueCollectionBase {
             }
         }
         return true;
-    }
-
-    @Override
-    public Value convertPrecision(long precision) {
-        int p = MathUtils.convertLongToInt(precision);
-        if (values.length <= p) {
-            return this;
-        }
-        return get(getComponentType(), Arrays.copyOf(values, p));
     }
 
 }

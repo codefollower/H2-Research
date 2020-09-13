@@ -9,53 +9,53 @@ select cast(null as varchar(255)) xn, cast(' 10' as int) x10, cast(' 20 ' as int
 > null 10  20
 > rows: 1
 
-select cast(128 as binary);
->> 00000080
+select cast(128 as varbinary);
+>> X'00000080'
 
-select cast(65535 as binary);
->> 0000ffff
+select cast(65535 as varbinary);
+>> X'0000ffff'
 
-select cast(cast('ff' as binary) as tinyint) x;
+select cast(X'ff' as tinyint);
 >> -1
 
-select cast(cast('7f' as binary) as tinyint) x;
+select cast(X'7f' as tinyint);
 >> 127
 
-select cast(cast('ff' as binary) as smallint) x;
+select cast(X'00ff' as smallint);
 >> 255
 
-select cast(cast('ff' as binary) as int) x;
+select cast(X'000000ff' as int);
 >> 255
 
-select cast(cast('ffff' as binary) as long) x;
+select cast(X'000000000000ffff' as long);
 >> 65535
 
-select cast(cast(65535 as long) as binary);
->> 000000000000ffff
+select cast(cast(65535 as long) as varbinary);
+>> X'000000000000ffff'
 
-select cast(cast(-1 as tinyint) as binary);
->> ff
+select cast(cast(-1 as tinyint) as varbinary);
+>> X'ff'
 
-select cast(cast(-1 as smallint) as binary);
->> ffff
+select cast(cast(-1 as smallint) as varbinary);
+>> X'ffff'
 
-select cast(cast(-1 as int) as binary);
->> ffffffff
+select cast(cast(-1 as int) as varbinary);
+>> X'ffffffff'
 
-select cast(cast(-1 as long) as binary);
->> ffffffffffffffff
+select cast(cast(-1 as long) as varbinary);
+>> X'ffffffffffffffff'
 
-select cast(cast(1 as tinyint) as binary);
->> 01
+select cast(cast(1 as tinyint) as varbinary);
+>> X'01'
 
-select cast(cast(1 as smallint) as binary);
->> 0001
+select cast(cast(1 as smallint) as varbinary);
+>> X'0001'
 
-select cast(cast(1 as int) as binary);
->> 00000001
+select cast(cast(1 as int) as varbinary);
+>> X'00000001'
 
-select cast(cast(1 as long) as binary);
->> 0000000000000001
+select cast(cast(1 as long) as varbinary);
+>> X'0000000000000001'
 
 select cast(X'ff' as tinyint);
 >> -1
@@ -76,10 +76,10 @@ select cast(cast(0.1 as real) as decimal(1, 1));
 >> 0.1
 
 select cast(cast(95605327.73 as float) as decimal(10, 8));
->> 95605327.73
+> exception VALUE_TOO_LONG_2
 
-select cast(cast('01020304-0506-0708-090a-0b0c0d0e0f00' as uuid) as binary);
->> 0102030405060708090a0b0c0d0e0f00
+select cast(cast('01020304-0506-0708-090a-0b0c0d0e0f00' as uuid) as varbinary);
+>> X'0102030405060708090a0b0c0d0e0f00'
 
 call cast('null' as uuid);
 > exception DATA_CONVERSION_ERROR_1
@@ -121,7 +121,7 @@ SELECT * FROM (SELECT CAST('2000-01-01 11:11:11.123456789Z' AS TIMESTAMP(9) WITH
 >> 2000-01-01 11:11:11.123456789+00
 
 EXPLAIN SELECT CAST('A' AS VARCHAR(10)), CAST(NULL AS BOOLEAN), CAST(NULL AS VARCHAR), CAST(1 AS INT);
->> SELECT CAST('A' AS VARCHAR(10)), UNKNOWN, CAST(NULL AS VARCHAR), 1
+>> SELECT CAST('A' AS CHARACTER VARYING(10)), UNKNOWN, CAST(NULL AS CHARACTER VARYING), 1
 
 SELECT CURRENT_TIMESTAMP(9) = CAST(CURRENT_TIME(9) AS TIMESTAMP(9) WITH TIME ZONE);
 >> TRUE
@@ -132,11 +132,12 @@ SELECT LOCALTIMESTAMP(9) = CAST(LOCALTIME(9) AS TIMESTAMP(9));
 CREATE TABLE TEST(I INTERVAL DAY TO SECOND(9), T TIME(9) WITH TIME ZONE);
 > ok
 
-EXPLAIN SELECT CAST(I AS INTERVAL HOUR(4) TO SECOND(6)), CAST(I AS INTERVAL HOUR(2) TO SECOND(9)) FROM TEST;
->> SELECT CAST("I" AS INTERVAL HOUR(4) TO SECOND), CAST("I" AS INTERVAL HOUR TO SECOND(9)) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+EXPLAIN SELECT CAST(I AS INTERVAL HOUR(4) TO SECOND), CAST(I AS INTERVAL HOUR(4) TO SECOND(6)),
+    CAST(I AS INTERVAL HOUR TO SECOND(9)), CAST(I AS INTERVAL HOUR(2) TO SECOND(9)) FROM TEST;
+>> SELECT CAST("I" AS INTERVAL HOUR(4) TO SECOND), CAST("I" AS INTERVAL HOUR(4) TO SECOND(6)), CAST("I" AS INTERVAL HOUR TO SECOND(9)), CAST("I" AS INTERVAL HOUR(2) TO SECOND(9)) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
 
-EXPLAIN SELECT CAST(T AS TIME(0) WITH TIME ZONE), CAST(T AS TIME(3) WITH TIME ZONE) FROM TEST;
->> SELECT CAST("T" AS TIME WITH TIME ZONE), CAST("T" AS TIME(3) WITH TIME ZONE) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+EXPLAIN SELECT CAST(T AS TIME WITH TIME ZONE), CAST(T AS TIME(0) WITH TIME ZONE), CAST(T AS TIME(3) WITH TIME ZONE) FROM TEST;
+>> SELECT CAST("T" AS TIME WITH TIME ZONE), CAST("T" AS TIME(0) WITH TIME ZONE), CAST("T" AS TIME(3) WITH TIME ZONE) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
 
 DROP TABLE TEST;
 > ok
@@ -191,3 +192,6 @@ EXPLAIN SELECT CAST(X AS D) FROM SYSTEM_RANGE(20, 30);
 
 DROP DOMAIN D;
 > ok
+
+EXPLAIN VALUES CAST('a' AS VARCHAR_IGNORECASE(10));
+>> VALUES (CAST('a' AS VARCHAR_IGNORECASE(10)))

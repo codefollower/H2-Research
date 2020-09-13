@@ -6,13 +6,18 @@
 package org.h2.engine;
 
 import java.util.ArrayList;
+
+import org.h2.command.Parser;
+import org.h2.message.DbException;
+import org.h2.message.Trace;
 import org.h2.table.Table;
+import org.h2.util.HasSQL;
+import org.h2.util.ParserUtil;
 
 /**
  * A database object such as a table, an index, or a user.
  */
 //15个字段，16个方法
-public interface DbObject {
 	
 	//15种数据库对象(从0到14)，
 	/*
@@ -35,135 +40,208 @@ public interface DbObject {
     private final HashMap<String, UserAggregate> aggregates = New.hashMap();
     private final HashMap<String, Comment> comments = New.hashMap();
     */
+public abstract class DbObject implements HasSQL {
 
     /**
      * The object is of the type table or view.
      */
-    int TABLE_OR_VIEW = 0;
+    public static final int TABLE_OR_VIEW = 0;
 
     /**
      * This object is an index.
      */
-    int INDEX = 1;
+    public static final int INDEX = 1;
 
     /**
      * This object is a user.
      */
-    int USER = 2;
+    public static final int USER = 2;
 
     /**
      * This object is a sequence.
      */
-    int SEQUENCE = 3;
+    public static final int SEQUENCE = 3;
 
     /**
      * This object is a trigger.
      */
-    int TRIGGER = 4;
+    public static final int TRIGGER = 4;
 
     /**
      * This object is a constraint (check constraint, unique constraint, or
      * referential constraint).
      */
-    int CONSTRAINT = 5;
+    public static final int CONSTRAINT = 5;
 
     /**
      * This object is a setting.
      */
-    int SETTING = 6;
+    public static final int SETTING = 6;
 
     /**
      * This object is a role.
      */
-    int ROLE = 7;
+    public static final int ROLE = 7;
 
     /**
      * This object is a right.
      */
-    int RIGHT = 8;
+    public static final int RIGHT = 8;
 
     /**
      * This object is an alias for a Java function.
      */
-    int FUNCTION_ALIAS = 9;
+    public static final int FUNCTION_ALIAS = 9;
 
     /**
      * This object is a schema.
      */
-    int SCHEMA = 10;
+    public static final int SCHEMA = 10;
 
     /**
      * This object is a constant.
      */
-    int CONSTANT = 11;
+    public static final int CONSTANT = 11;
 
     /**
      * This object is a domain.
      */
-    int DOMAIN = 12;
+    public static final int DOMAIN = 12;
 
     /**
      * This object is a comment.
      */
-    int COMMENT = 13;
+    public static final int COMMENT = 13;
 
     /**
      * This object is a user-defined aggregate function.
      */
-    int AGGREGATE = 14;
+    public static final int AGGREGATE = 14;
 
     /**
      * This object is a synonym.
      */
-    int SYNONYM = 15;
+    public static final int SYNONYM = 15;
 
     /**
-     * Get the SQL name of this object (may be quoted).
-     *
-     * @param alwaysQuote quote all identifiers
-     * @return the SQL name
+     * The database.
      */
-    String getSQL(boolean alwaysQuote);
+    protected Database database;
 
     /**
-     * Appends the SQL name of this object (may be quoted) to the specified
-     * builder.
-     *
-     * @param builder
-     *            string builder
-     * @param alwaysQuote quote all identifiers
-     * @return the specified string builder
+     * The trace module.
      */
-    StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote);
+    protected Trace trace;
+
+    /**
+     * The comment (if set).
+     */
+    protected String comment;
+
+    private int id;
+
+    private String objectName;
+
+    private long modificationId;
+
+    private boolean temporary;
+
+    /**
+     * Initialize some attributes of this object.
+     *
+     * @param db the database
+     * @param objectId the object id
+     * @param name the name
+     * @param traceModuleId the trace module id
+     */
+    protected DbObject(Database db, int objectId, String name, int traceModuleId) {
+        this.database = db;
+        this.trace = db.getTrace(traceModuleId);
+        this.id = objectId;
+        this.objectName = name;
+        this.modificationId = db.getModificationMetaId();
+    }
+
+    /**
+     * Tell the object that is was modified.
+     */
+    public final void setModified() {
+        this.modificationId = database == null ? -1 : database.getNextModificationMetaId();
+    }
+
+    public final long getModificationId() {
+        return modificationId;
+    }
+
+    protected final void setObjectName(String name) {
+        objectName = name;
+    }
+
+    @Override
+    public String getSQL(int sqlFlags) {
+        return Parser.quoteIdentifier(objectName, sqlFlags);
+    }
+
+    @Override
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
+        return ParserUtil.quoteIdentifier(builder, objectName, sqlFlags);
+    }
 
     /**
      * Get the list of dependent children (for tables, this includes indexes and
      * so on).
      *
-     * @return the list of children
+     * @return the list of children, or {@code null}
      */
-    ArrayList<DbObject> getChildren(); //只有Table和User有Children
+    public ArrayList<DbObject> getChildren() { //只有Table和User有Children
+        return null;
+    }
 
     /**
      * Get the database.
      *
      * @return the database
      */
-    Database getDatabase();
+    public final Database getDatabase() {
+        return database;
+    }
 
     /**
      * Get the unique object id.
      *
      * @return the object id
      */
-    int getId();
+    public final int getId() {
+        return id;
+    }
 
     /**
      * Get the name.
      *
      * @return the name
      */
-    String getName();
+    public final String getName() {
+        return objectName;
+    }
+
+    /**
+     * Set the main attributes to null to make sure the object is no longer
+     * used.
+     */
+    protected void invalidate() {
+        if (id == -1) {
+            throw DbException.getInternalError();
+        }
+        setModified();
+        id = -1;
+        database = null;
+        trace = null;
+        objectName = null;
+    }
+
+    public final boolean isValid() {
+        return id != -1;
+    }
 
     /**
      * Build a SQL statement to re-create the object, or to create a copy of the
@@ -173,14 +251,23 @@ public interface DbObject {
      * @param quotedName the quoted name
      * @return the SQL statement
      */
-    String getCreateSQLForCopy(Table table, String quotedName); //用在AlterTableAlterColumn
+    public abstract String getCreateSQLForCopy(Table table, String quotedName); //用在AlterTableAlterColumn
 
     /**
-     * Construct the original CREATE ... SQL statement for this object.
+     * Construct the CREATE ... SQL statement for this object for meta table.
      *
      * @return the SQL statement
      */
-    String getCreateSQL();
+    public String getCreateSQLForMeta() {
+        return getCreateSQL();
+    }
+
+    /**
+     * Construct the CREATE ... SQL statement for this object.
+     *
+     * @return the SQL statement
+     */
+    public abstract String getCreateSQL();
 
     /**
      * Construct a DROP ... SQL statement for this object.
@@ -188,7 +275,7 @@ public interface DbObject {
      * @return the SQL statement
      */
     //只看到org.h2.command.dml.ScriptCommand中有使用
-    default String getDropSQL() {
+    public String getDropSQL() {
         return null;
     }
 
@@ -197,19 +284,19 @@ public interface DbObject {
      *
      * @return the object type
      */
-    int getType();
+    public abstract int getType();
 
     /**
      * Delete all dependent children objects and resources of this object.
      *
      * @param session the session
      */
-    void removeChildrenAndResources(Session session);
+    public abstract void removeChildrenAndResources(SessionLocal session);
 
     /**
      * Check if renaming is allowed. Does nothing when allowed.
      */
-    default void checkRename() {
+    public void checkRename() {
         // Allowed by default
     }
 
@@ -218,34 +305,51 @@ public interface DbObject {
      *
      * @param newName the new name
      */
-    void rename(String newName);
+    public void rename(String newName) {
+        checkRename();
+        objectName = newName;
+        setModified();
+    }
 
     /**
      * Check if this object is temporary (for example, a temporary table).
      *
      * @return true if is temporary
      */
-    boolean isTemporary();
+    public boolean isTemporary() {
+        return temporary;
+    }
 
     /**
      * Tell this object that it is temporary or not.
      *
      * @param temporary the new value
      */
-    void setTemporary(boolean temporary);
+    public void setTemporary(boolean temporary) {
+        this.temporary = temporary;
+    }
 
     /**
      * Change the comment of this object.
      *
      * @param comment the new comment, or null for no comment
      */
-    void setComment(String comment);
+    public void setComment(String comment) {
+        this.comment = comment != null && !comment.isEmpty() ? comment : null;
+    }
 
     /**
      * Get the current comment of this object.
      *
      * @return the comment, or null if not set
      */
-    String getComment();
+    public String getComment() {
+        return comment;
+    }
+
+    @Override
+    public String toString() {
+        return objectName + ":" + id + ":" + super.toString();
+    }
 
 }

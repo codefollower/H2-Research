@@ -5,10 +5,12 @@
  */
 package org.h2.value;
 
+import org.h2.util.StringUtils;
+
 /**
  * ENUM value.
  */
-public class ValueEnum extends ValueEnumBase {
+public final class ValueEnum extends ValueEnumBase {
 
     private final ExtTypeInfoEnum enumerators;
 
@@ -24,6 +26,15 @@ public class ValueEnum extends ValueEnumBase {
 
     public ExtTypeInfoEnum getEnumerators() {
         return enumerators;
+    }
+
+    @Override
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
+        if ((sqlFlags & NO_CASTS) == 0) {
+            StringUtils.quoteStringSQL(builder.append("CAST("), label).append(" AS ");
+            return enumerators.getType().getSQL(builder, sqlFlags).append(')');
+        }
+        return StringUtils.quoteStringSQL(builder, label);
     }
 
 }

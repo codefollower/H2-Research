@@ -6,21 +6,18 @@
 package org.h2.value;
 
 import static org.h2.util.geometry.EWKBUtils.EWKB_SRID;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Arrays;
+
 import org.h2.api.ErrorCode;
-import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.Bits;
 import org.h2.util.StringUtils;
-import org.h2.util.Utils;
 import org.h2.util.geometry.EWKBUtils;
 import org.h2.util.geometry.EWKTUtils;
 import org.h2.util.geometry.GeometryUtils;
 import org.h2.util.geometry.GeometryUtils.EnvelopeAndDimensionSystemTarget;
 import org.h2.util.geometry.GeometryUtils.EnvelopeTarget;
 import org.h2.util.geometry.JTSUtils;
+import org.h2.util.geometry.EWKTUtils.EWKTTarget;
 import org.locationtech.jts.geom.Geometry;
 
 /**
@@ -30,21 +27,9 @@ import org.locationtech.jts.geom.Geometry;
  * @author Noel Grandin
  * @author Nicolas Fortin, Atelier SIG, IRSTV FR CNRS 24888
  */
-public class ValueGeometry extends Value {
+public final class ValueGeometry extends ValueBytesBase {
 
     private static final double[] UNKNOWN_ENVELOPE = new double[0];
-
-    /**
-     * As conversion from/to WKB cost a significant amount of CPU cycles, WKB
-     * are kept in ValueGeometry instance.
-     *
-     * We always calculate the WKB, because not all WKT values can be
-     * represented in WKB, but since we persist it in WKB format, it has to be
-     * valid in WKB
-     */
-    private final byte[] bytes;
-
-    private final int hashCode;
 
     /**
      * Geometry type and dimension system in OGC geometry code format (type +
@@ -75,15 +60,15 @@ public class ValueGeometry extends Value {
      * @param envelope the envelope
      */
     private ValueGeometry(byte[] bytes, double[] envelope) {
+        super(bytes);
         if (bytes.length < 9 || bytes[0] != 0) {
             throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, StringUtils.convertBytesToHex(bytes));
         }
-        this.bytes = bytes;
+        this.value = bytes;
         this.envelope = envelope;
         int t = Bits.readInt(bytes, 1);
         srid = (t & EWKB_SRID) != 0 ? Bits.readInt(bytes, 5) : 0;
         typeAndDimensionSystem = (t & 0xffff) % 1_000 + EWKBUtils.type2dimensionSystem(t) * 1_000;
-        hashCode = Arrays.hashCode(bytes);
     }
 
     /**
@@ -120,18 +105,6 @@ public class ValueGeometry extends Value {
         } catch (RuntimeException ex) {
             throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, s);
         }
-    }
-
-    /**
-     * Get or create a geometry value for the given geometry.
-     *
-     * @param s the WKT representation of the geometry
-     * @param srid the srid of the object
-     * @return the value
-     */
-    public static ValueGeometry get(String s, int srid) {
-        // This method is not used in H2, but preserved for H2GIS
-        return get(srid == 0 ? s : "SRID=" + srid + ';' + s);
     }
 
     /**
@@ -182,7 +155,7 @@ public class ValueGeometry extends Value {
     public Geometry getGeometry() {
         if (geometry == null) {
             try {
-                geometry = JTSUtils.ewkb2geometry(bytes, getDimensionSystem());
+                geometry = JTSUtils.ewkb2geometry(value, getDimensionSystem());
             } catch (RuntimeException ex) {
                 throw DbException.convert(ex);
             }
@@ -235,7 +208,7 @@ public class ValueGeometry extends Value {
     public double[] getEnvelopeNoCopy() {
         if (envelope == UNKNOWN_ENVELOPE) {
             EnvelopeTarget target = new EnvelopeTarget();
-            EWKBUtils.parseEWKB(bytes, target);
+            EWKBUtils.parseEWKB(value, target);
             envelope = target.getEnvelope();
         }
         return envelope;
@@ -273,76 +246,25 @@ public class ValueGeometry extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
-        // Using bytes is faster than converting to EWKT.
-        builder.append("X'");
-        return StringUtils.convertBytesToHex(builder, getBytesNoCopy()).append("'::Geometry");
-    }
-
-    @Override
-    public int compareTypeSafe(Value v, CompareMode mode, CastDataProvider provider) {
-        return Bits.compareNotNullUnsigned(bytes, ((ValueGeometry) v).bytes);
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
+        builder.append("GEOMETRY ");
+        if ((sqlFlags & ADD_PLAN_INFORMATION) != 0) {
+            EWKBUtils.parseEWKB(value, new EWKTTarget(builder.append('\''), getDimensionSystem()));
+            builder.append('\'');
+        } else {
+            super.getSQL(builder, DEFAULT_SQL_FLAGS);
+        }
+        return builder;
     }
 
     @Override
     public String getString() {
-        return getEWKT();
-    }
-
-    @Override
-    public int hashCode() {
-        return hashCode;
-    }
-
-    @Override
-    public Object getObject() {
-        if (DataType.GEOMETRY_CLASS != null) {
-            return getGeometry();
-        }
-        return getEWKT();
-    }
-
-    @Override
-    public byte[] getBytes() {
-        return Utils.cloneByteArray(bytes);
-    }
-
-    @Override
-    public byte[] getBytesNoCopy() {
-        return bytes;
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        prep.setBytes(parameterIndex, bytes);
+        return EWKTUtils.ewkb2ewkt(value, getDimensionSystem());
     }
 
     @Override
     public int getMemory() {
-        return bytes.length * 20 + 24;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        return other instanceof ValueGeometry && Arrays.equals(bytes, ((ValueGeometry) other).bytes);
-    }
-
-    /**
-     * Get the value in Extended Well-Known Text format.
-     *
-     * @return the extended well-known text
-     */
-    public String getEWKT() {
-        return EWKTUtils.ewkb2ewkt(bytes, getDimensionSystem());
-    }
-
-    /**
-     * Get the value in extended Well-Known Binary format.
-     *
-     * @return the extended well-known binary
-     */
-    public byte[] getEWKB() {
-        return bytes;
+        return value.length * 20 + 24;
     }
 
 }

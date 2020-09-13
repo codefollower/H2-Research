@@ -5,22 +5,22 @@
  */
 package org.h2.expression.aggregate;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import org.h2.api.Aggregate;
-import org.h2.command.Parser;
-import org.h2.command.dml.Select;
-import org.h2.engine.Session;
-import org.h2.engine.UserAggregate;
+import org.h2.command.query.Select;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
+import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
-import org.h2.value.DataType;
+import org.h2.schema.UserAggregate;
+import org.h2.util.ParserUtil;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueNull;
 import org.h2.value.ValueRow;
+import org.h2.value.ValueToObjectConverter;
 
 /**
  * This class wraps a user-defined aggregate.
@@ -30,7 +30,7 @@ public class JavaAggregate extends AbstractAggregate {
     private final UserAggregate userAggregate;
     private int[] argTypes;
     private int dataType;
-    private Connection userConnection;
+    private JdbcConnection userConnection;
 
     public JavaAggregate(UserAggregate userAggregate, Expression[] args, Select select, boolean distinct) {
         super(select, args, distinct);
@@ -50,11 +50,10 @@ public class JavaAggregate extends AbstractAggregate {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
-        Parser.quoteIdentifier(builder, userAggregate.getName(), alwaysQuote).append('(');
-        writeExpressions(builder, args, alwaysQuote);
-        builder.append(')');
-        return appendTailConditions(builder, alwaysQuote);
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
+        ParserUtil.quoteIdentifier(builder, userAggregate.getName(), sqlFlags).append('(');
+        writeExpressions(builder, args, sqlFlags).append(')');
+        return appendTailConditions(builder, sqlFlags, false);
     }
 
     @Override
@@ -83,7 +82,7 @@ public class JavaAggregate extends AbstractAggregate {
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         super.optimize(session);
         userConnection = session.createConnection(false);
         int len = args.length;
@@ -125,7 +124,7 @@ public class JavaAggregate extends AbstractAggregate {
     }
 
     @Override
-    public Value getAggregatedValue(Session session, Object aggregateData) {
+    public Value getAggregatedValue(SessionLocal session, Object aggregateData) {
         try {
             Aggregate agg;
             if (distinct) {
@@ -134,12 +133,13 @@ public class JavaAggregate extends AbstractAggregate {
                 if (data != null) {
                     for (Value value : data.values) {
                         if (args.length == 1) {
-                            agg.add(value.getObject());
+                            agg.add(ValueToObjectConverter.valueToDefaultObject(value, userConnection, false));
                         } else {
                             Value[] values = ((ValueRow) value).getList();
                             Object[] argValues = new Object[args.length];
                             for (int i = 0, len = args.length; i < len; i++) {
-                                argValues[i] = values[i].getObject();
+                                argValues[i] = ValueToObjectConverter.valueToDefaultObject(values[i], userConnection,
+                                        false);
                             }
                             agg.add(argValues);
                         }
@@ -155,18 +155,18 @@ public class JavaAggregate extends AbstractAggregate {
             if (obj == null) {
                 return ValueNull.INSTANCE;
             }
-            return DataType.convertToValue(session, obj, dataType);
+            return ValueToObjectConverter.objectToValue(session, obj, dataType);
         } catch (SQLException e) {
             throw DbException.convert(e);
         }
     }
 
     @Override
-    protected void updateAggregate(Session session, Object aggregateData) {
+    protected void updateAggregate(SessionLocal session, Object aggregateData) {
         updateData(session, aggregateData, null);
     }
 
-    private void updateData(Session session, Object aggregateData, Value[] remembered) {
+    private void updateData(SessionLocal session, Object aggregateData, Value[] remembered) {
         try {
             if (distinct) {
                 AggregateDataCollecting data = (AggregateDataCollecting) aggregateData;
@@ -174,7 +174,6 @@ public class JavaAggregate extends AbstractAggregate {
                 Value arg = null;
                 for (int i = 0, len = args.length; i < len; i++) {
                     arg = remembered == null ? args[i].getValue(session) : remembered[i];
-                    arg = arg.convertTo(argTypes[i], session);
                     argValues[i] = arg;
                 }
                 data.add(session, args.length == 1 ? arg : ValueRow.get(argValues));
@@ -184,8 +183,7 @@ public class JavaAggregate extends AbstractAggregate {
                 Object arg = null;
                 for (int i = 0, len = args.length; i < len; i++) {
                     Value v = remembered == null ? args[i].getValue(session) : remembered[i];
-                    v = v.convertTo(argTypes[i], session);
-                    arg = v.getObject();
+                    arg = ValueToObjectConverter.valueToDefaultObject(v, userConnection, false);
                     argValues[i] = arg;
                 }
                 agg.add(args.length == 1 ? arg : argValues);
@@ -196,7 +194,7 @@ public class JavaAggregate extends AbstractAggregate {
     }
 
     @Override
-    protected void updateGroupAggregates(Session session, int stage) {
+    protected void updateGroupAggregates(SessionLocal session, int stage) {
         super.updateGroupAggregates(session, stage);
         for (Expression expr : args) {
             expr.updateAggregate(session, stage);
@@ -213,7 +211,7 @@ public class JavaAggregate extends AbstractAggregate {
     }
 
     @Override
-    protected void rememberExpressions(Session session, Value[] array) {
+    protected void rememberExpressions(SessionLocal session, Value[] array) {
         int length = args.length;
         for (int i = 0; i < length; i++) {
             array[i] = args[i].getValue(session);
@@ -224,7 +222,7 @@ public class JavaAggregate extends AbstractAggregate {
     }
 
     @Override
-    protected void updateFromExpressions(Session session, Object aggregateData, Value[] array) {
+    protected void updateFromExpressions(SessionLocal session, Object aggregateData, Value[] array) {
         if (filterCondition == null || array[getNumExpressions() - 1].getBoolean()) {
             updateData(session, aggregateData, array);
         }

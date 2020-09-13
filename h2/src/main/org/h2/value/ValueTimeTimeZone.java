@@ -5,20 +5,15 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
-
 import org.h2.api.ErrorCode;
 import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
-import org.h2.util.JSR310Utils;
 
 /**
  * Implementation of the TIME WITH TIME ZONE data type.
  */
-public class ValueTimeTimeZone extends Value {
+public final class ValueTimeTimeZone extends Value {
 
     /**
      * The default precision and display size of the textual representation of a
@@ -130,7 +125,7 @@ public class ValueTimeTimeZone extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         return toString(builder.append("TIME WITH TIME ZONE '")).append('\'');
     }
 
@@ -138,28 +133,6 @@ public class ValueTimeTimeZone extends Value {
         DateTimeUtils.appendTime(builder, nanos);
         DateTimeUtils.appendTimeZone(builder, timeZoneOffsetSeconds);
         return builder;
-    }
-
-    @Override
-    public boolean checkPrecision(long precision) {
-        // TIME WITH TIME ZONE data type does not have precision parameter
-        return true;
-    }
-
-    @Override
-    public Value convertScale(boolean onlyToSmallerScale, int targetScale) {
-        if (targetScale >= ValueTime.MAXIMUM_SCALE) {
-            return this;
-        }
-        if (targetScale < 0) {
-            throw DbException.getInvalidValueException("scale", targetScale);
-        }
-        long n = nanos;
-        long n2 = DateTimeUtils.convertScale(n, targetScale, DateTimeUtils.NANOS_PER_DAY);
-        if (n2 == n) {
-            return this;
-        }
-        return fromNanos(n2, timeZoneOffsetSeconds);
     }
 
     @Override
@@ -183,22 +156,6 @@ public class ValueTimeTimeZone extends Value {
     @Override
     public int hashCode() {
         return (int) (nanos ^ (nanos >>> 32) ^ timeZoneOffsetSeconds);
-    }
-
-    @Override
-    public Object getObject() {
-        return JSR310Utils.valueToOffsetTime(this, null);
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        try {
-            prep.setObject(parameterIndex, JSR310Utils.valueToOffsetTime(this, null), Types.TIME_WITH_TIMEZONE);
-            return;
-        } catch (SQLException ignore) {
-            // Nothing to do
-        }
-        prep.setString(parameterIndex, getString());
     }
 
 }

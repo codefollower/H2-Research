@@ -30,35 +30,38 @@ import org.h2.engine.Database;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.Role;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.Setting;
 import org.h2.engine.SysProperties;
 import org.h2.engine.User;
-import org.h2.engine.UserAggregate;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
 import org.h2.message.DbException;
+import org.h2.mvstore.DataUtils;
 import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
 import org.h2.result.Row;
 import org.h2.schema.Constant;
 import org.h2.schema.Domain;
+import org.h2.schema.FunctionAlias;
 import org.h2.schema.Schema;
-import org.h2.schema.SchemaObject;
 import org.h2.schema.Sequence;
 import org.h2.schema.TriggerObject;
+import org.h2.schema.UserAggregate;
 import org.h2.table.Column;
 import org.h2.table.PlanItem;
 import org.h2.table.Table;
 import org.h2.table.TableType;
+import org.h2.util.HasSQL;
 import org.h2.util.IOUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
-import org.h2.value.ValueString;
+import org.h2.value.ValueVarchar;
 
 /**
  * This class represents the statement
@@ -87,7 +90,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
     private int nextLobId;
     private int lobBlockSize = Constants.IO_BUFFER_SIZE;
 
-    public ScriptCommand(Session session) {
+    public ScriptCommand(SessionLocal session) {
         super(session);
     }
 
@@ -135,11 +138,11 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
 
     private LocalResult createResult() {
         return new LocalResult(session, new Expression[] {
-                new ExpressionColumn(session.getDatabase(), new Column("SCRIPT", Value.VARCHAR)) }, 1, 1);
+                new ExpressionColumn(session.getDatabase(), new Column("SCRIPT", TypeInfo.TYPE_VARCHAR)) }, 1, 1);
     }
 
     @Override
-    public ResultInterface query(int maxrows) {
+    public ResultInterface query(long maxrows) {
         session.getUser().checkAdmin();
         reset();
         Database db = session.getDatabase();
@@ -179,29 +182,29 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
             for (Role role : db.getAllRoles()) {
                 add(role.getCreateSQL(true), false);
             }
+            ArrayList<Schema> schemas = new ArrayList<>();
             for (Schema schema : db.getAllSchemas()) {
                 if (excludeSchema(schema)) {
                     continue;
                 }
+                schemas.add(schema);
                 add(schema.getCreateSQL(), false);
             }
-            for (SchemaObject obj : db.getAllSchemaObjects(DbObject.DOMAIN)) {
-                Domain domain = (Domain) obj;
-                if (drop) {
-                    add(domain.getDropSQL(), false);
+            for (Schema schema : schemas) {
+                for (Domain domain : schema.getAllDomains()) {
+                    if (drop) {
+                        add(domain.getDropSQL(), false);
+                    }
+                    add(domain.getCreateSQL(), false);
                 }
-                add(domain.getCreateSQL(), false);
             }
-            for (SchemaObject obj : db.getAllSchemaObjects(
-                    DbObject.CONSTANT)) {
-                if (excludeSchema(obj.getSchema())) {
-                    continue;
+            for (Schema schema : schemas) {
+                for (Constant constant : schema.getAllConstants()) {
+                    add(constant.getCreateSQL(), false);
                 }
-                Constant constant = (Constant) obj;
-                add(constant.getCreateSQL(), false);
             }
 
-            final ArrayList<Table> tables = db.getAllTablesAndViews(false);
+            final ArrayList<Table> tables = db.getAllTablesAndViews();
             // sort by id, so that views are after tables and views on views
             // after the base views
             tables.sort(Comparator.comparingInt(Table::getId));
@@ -227,39 +230,31 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                     add(table.getDropSQL(), false);
                 }
             }
-            for (SchemaObject obj : db.getAllSchemaObjects(
-                    DbObject.FUNCTION_ALIAS)) {
-                if (excludeSchema(obj.getSchema())) {
-                    continue;
+            for (Schema schema : schemas) {
+                for (FunctionAlias obj : schema.getAllFunctionAliases()) {
+                    if (drop) {
+                        add(obj.getDropSQL(), false);
+                    }
+                    add(obj.getCreateSQL(), false);
                 }
-                if (drop) {
-                    add(obj.getDropSQL(), false);
-                }
-                add(obj.getCreateSQL(), false);
             }
-            for (UserAggregate agg : db.getAllAggregates()) {
-                if (drop) {
-                    add(agg.getDropSQL(), false);
+            for (Schema schema : schemas) {
+                for (UserAggregate obj : schema.getAllAggregates()) {
+                    if (drop) {
+                        add(obj.getDropSQL(), false);
+                    }
+                    add(obj.getCreateSQL(), false);
                 }
-                add(agg.getCreateSQL(), false);
             }
-            for (SchemaObject obj : db.getAllSchemaObjects(
-                    DbObject.SEQUENCE)) {
-                if (excludeSchema(obj.getSchema())) {
-                    continue;
-                }
-                Sequence sequence = (Sequence) obj;
-                if (drop) {
-                    add(sequence.getDropSQL(), false);
-                }
-                String createSQL, alterSQL;
-                synchronized (sequence) {
-                    createSQL = sequence.getCreateSQL(true, false);
-                    alterSQL = sequence.getCreateSQL(true, true);
-                }
-                add(createSQL, false);
-                if (alterSQL != null) {
-                    add(alterSQL, false);
+            for (Schema schema : schemas) {
+                for (Sequence sequence : schema.getAllSequences()) {
+                    if (sequence.getBelongsToTable()) {
+                        continue;
+                    }
+                    if (drop) {
+                        add(sequence.getDropSQL(), false);
+                    }
+                    add(sequence.getCreateSQL(), false);
                 }
             }
 
@@ -292,10 +287,11 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                     }
                 }
                 if (TableType.TABLE == tableType) {
-                    if (table.canGetRowCount()) {
-                        StringBuilder builder = new StringBuilder("-- ").append(table.getRowCountApproximation())
+                    if (table.canGetRowCount(session)) {
+                        StringBuilder builder = new StringBuilder("-- ")
+                                .append(table.getRowCountApproximation(session))
                                 .append(" +/- SELECT COUNT(*) FROM ");
-                        table.getSQL(builder, false);
+                        table.getSQL(builder, HasSQL.TRACE_SQL_FLAGS);
                         add(builder.toString(), false);
                     }
                     if (data) {
@@ -318,34 +314,33 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 tempLobTableCreated = false;
             }
             // Generate CREATE CONSTRAINT ...
-            final ArrayList<SchemaObject> constraints = db.getAllSchemaObjects(DbObject.CONSTRAINT);
-            constraints.sort(null);
-            for (SchemaObject obj : constraints) {
-                if (excludeSchema(obj.getSchema())) {
-                    continue;
-                }
-                Constraint constraint = (Constraint) obj;
-                if (excludeTable(constraint.getTable())) {
-                    continue;
-                }
-                Type constraintType = constraint.getConstraintType();
-                if (constraintType != Type.DOMAIN && constraint.getTable().isHidden()) {
-                    continue;
-                }
-                if (constraintType != Constraint.Type.PRIMARY_KEY) {
-                    add(constraint.getCreateSQLWithoutIndexes(), false);
+            ArrayList<Constraint> constraints = new ArrayList<>();
+            for (Schema schema : schemas) {
+                for (Constraint constraint : schema.getAllConstraints()) {
+                    if (excludeTable(constraint.getTable())) {
+                        continue;
+                    }
+                    Type constraintType = constraint.getConstraintType();
+                    if (constraintType != Type.DOMAIN && constraint.getTable().isHidden()) {
+                        continue;
+                    }
+                    if (constraintType != Constraint.Type.PRIMARY_KEY) {
+                        constraints.add(constraint);
+                    }
                 }
             }
+            constraints.sort(null);
+            for (Constraint constraint : constraints) {
+                add(constraint.getCreateSQLWithoutIndexes(), false);
+            }
             // Generate CREATE TRIGGER ...
-            for (SchemaObject obj : db.getAllSchemaObjects(DbObject.TRIGGER)) {
-                if (excludeSchema(obj.getSchema())) {
-                    continue;
+            for (Schema schema : schemas) {
+                for (TriggerObject trigger : schema.getAllTriggers()) {
+                    if (excludeTable(trigger.getTable())) {
+                        continue;
+                    }
+                    add(trigger.getCreateSQL(), false);
                 }
-                TriggerObject trigger = (TriggerObject) obj;
-                if (excludeTable(trigger.getTable())) {
-                    continue;
-                }
-                add(trigger.getCreateSQL(), false);
             }
             // Generate GRANT ...
             for (Right right : db.getAllRights()) {
@@ -390,12 +385,34 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
         Index index = plan.getIndex();
         Cursor cursor = index.find(session, null, null);
         Column[] columns = table.getColumns();
+        boolean withGenerated = false, withGeneratedAlwaysAsIdentity = false;
+        for (Column c : columns) {
+            if (c.isGeneratedAlways()) {
+                if (c.isIdentity()) {
+                    withGeneratedAlwaysAsIdentity = true;
+                } else {
+                    withGenerated = true;
+                }
+            }
+        }
         StringBuilder builder = new StringBuilder("INSERT INTO ");
-        table.getSQL(builder, true);
-        if (withColumns) {
+        table.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS);
+        if (withGenerated || withGeneratedAlwaysAsIdentity || withColumns) {
             builder.append('(');
-            Column.writeColumns(builder, columns, true);
+            boolean needComma = false;
+            for (Column column : columns) {
+                if (!column.isGenerated()) {
+                    if (needComma) {
+                        builder.append(", ");
+                    }
+                    needComma = true;
+                    column.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS);
+                }
+            }
             builder.append(')');
+            if (withGeneratedAlwaysAsIdentity) {
+                builder.append(" OVERRIDING SYSTEM VALUE");
+            }
         }
         builder.append(" VALUES");
         if (!simple) {
@@ -404,6 +421,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
         builder.append('(');
         String ins = builder.toString();
         builder = null;
+        int columnCount = columns.length;
         while (cursor.next()) {
             Row row = cursor.get();
             if (builder == null) {
@@ -411,11 +429,16 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
             } else {
                 builder.append(",\n(");
             }
-            for (int j = 0; j < row.getColumnCount(); j++) {
-                if (j > 0) {
+            boolean needComma = false;
+            for (int i = 0; i < columnCount; i++) {
+                if (columns[i].isGenerated()) {
+                    continue;
+                }
+                if (needComma) {
                     builder.append(", ");
                 }
-                Value v = row.getValue(j);
+                needComma = true;
+                Value v = row.getValue(i);
                 if (v.getType().getPrecision() > lobBlockSize) {
                     int id;
                     if (v.getValueType() == Value.CLOB) {
@@ -425,10 +448,10 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                         id = writeLobStream(v);
                         builder.append("SYSTEM_COMBINE_BLOB(").append(id).append(')');
                     } else {
-                        v.getSQL(builder);
+                        v.getSQL(builder, HasSQL.NO_CASTS);
                     }
                 } else {
-                    v.getSQL(builder);
+                    v.getSQL(builder, HasSQL.NO_CASTS);
                 }
             }
             builder.append(')');
@@ -451,14 +474,13 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
         if (!tempLobTableCreated) {
             add("CREATE TABLE IF NOT EXISTS SYSTEM_LOB_STREAM" +
                     "(ID INT NOT NULL, PART INT NOT NULL, " +
-                    "CDATA VARCHAR, BDATA BINARY)",
+                    "CDATA VARCHAR, BDATA VARBINARY)",
                     true);
             add("CREATE PRIMARY KEY SYSTEM_LOB_STREAM_PRIMARY_KEY " +
                     "ON SYSTEM_LOB_STREAM(ID, PART)", true);
-            add("CREATE ALIAS IF NOT EXISTS " + "SYSTEM_COMBINE_CLOB FOR \"" +
-                    this.getClass().getName() + ".combineClob\"", true);
-            add("CREATE ALIAS IF NOT EXISTS " + "SYSTEM_COMBINE_BLOB FOR \"" +
-                    this.getClass().getName() + ".combineBlob\"", true);
+            String className = getClass().getName();
+            add("CREATE ALIAS IF NOT EXISTS " + "SYSTEM_COMBINE_CLOB FOR '" + className + ".combineClob'", true);
+            add("CREATE ALIAS IF NOT EXISTS " + "SYSTEM_COMBINE_BLOB FOR '" + className + ".combineBlob'", true);
             tempLobTableCreated = true;
         }
         int id = nextLobId++;
@@ -469,7 +491,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 for (int i = 0;; i++) {
                     StringBuilder buff = new StringBuilder(lobBlockSize * 2);
                     buff.append("INSERT INTO SYSTEM_LOB_STREAM VALUES(").append(id)
-                            .append(", ").append(i).append(", NULL, '");
+                            .append(", ").append(i).append(", NULL, X'");
                     int len = IOUtils.readFully(input, bytes, lobBlockSize);
                     if (len <= 0) {
                         break;
@@ -502,7 +524,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
             break;
         }
         default:
-            DbException.throwInternalError("type:" + v.getValueType());
+            throw DbException.getInternalError("type:" + v.getValueType());
         }
         return id;
     }
@@ -546,7 +568,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                         }
                         current = null;
                     } catch (SQLException e) {
-                        throw DbException.convertToIOException(e);
+                        throw DataUtils.convertToIOException(e);
                     }
                 }
             }
@@ -559,7 +581,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 try {
                     rs.close();
                 } catch (SQLException e) {
-                    throw DbException.convertToIOException(e);
+                    throw DataUtils.convertToIOException(e);
                 }
             }
         };
@@ -602,7 +624,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                         }
                         current = null;
                     } catch (SQLException e) {
-                        throw DbException.convertToIOException(e);
+                        throw DataUtils.convertToIOException(e);
                     }
                 }
             }
@@ -615,7 +637,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
                 try {
                     rs.close();
                 } catch (SQLException e) {
-                    throw DbException.convertToIOException(e);
+                    throw DataUtils.convertToIOException(e);
                 }
             }
             @Override
@@ -662,7 +684,7 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
         }
         if (tables != null) {
             // if filtering on specific tables, only include those schemas
-            for (Table table : schema.getAllTablesAndViews()) {
+            for (Table table : schema.getAllTablesAndViews(session)) {
                 if (tables.contains(table)) {
                     return false;
                 }
@@ -702,10 +724,10 @@ public class ScriptCommand extends ScriptBase { //生成各种Create SQL，此�
             }
             out.write(buffer, 0, len);
             if (!insert) {
-                result.addRow(ValueString.get(s));
+                result.addRow(ValueVarchar.get(s));
             }
         } else {
-            result.addRow(ValueString.get(s));
+            result.addRow(ValueVarchar.get(s));
         }
     }
 

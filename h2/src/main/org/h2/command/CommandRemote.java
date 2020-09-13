@@ -7,7 +7,6 @@ package org.h2.command;
 
 import java.io.IOException;
 import java.util.ArrayList;
-
 import org.h2.engine.Constants;
 import org.h2.engine.GeneratedKeysMode;
 import org.h2.engine.SessionRemote;
@@ -22,6 +21,7 @@ import org.h2.result.ResultWithGeneratedKeys;
 import org.h2.util.Utils;
 import org.h2.value.Transfer;
 import org.h2.value.Value;
+import org.h2.value.ValueLob;
 import org.h2.value.ValueNull;
 
 /**
@@ -58,8 +58,7 @@ public class CommandRemote implements CommandInterface {
 
     @Override
     public void stop() {
-        // Must never be called, because remote result is not lazy.
-        throw DbException.throwInternalError();
+        // Ignore
     }
 
     private void prepare(SessionRemote s, boolean createParams) {
@@ -172,7 +171,7 @@ public class CommandRemote implements CommandInterface {
     }
 
     @Override
-    public ResultInterface executeQuery(int maxRows, boolean scrollable) {
+    public ResultInterface executeQuery(long maxRows, boolean scrollable) {
         checkParameters();
         synchronized (session) {
             int objectId = session.getNextId();
@@ -182,8 +181,8 @@ public class CommandRemote implements CommandInterface {
                 Transfer transfer = transferList.get(i);
                 try {
                     session.traceOperation("COMMAND_EXECUTE_QUERY", id);
-                    transfer.writeInt(SessionRemote.COMMAND_EXECUTE_QUERY).
-                        writeInt(id).writeInt(objectId).writeInt(maxRows);
+                    transfer.writeInt(SessionRemote.COMMAND_EXECUTE_QUERY).writeInt(id).writeInt(objectId);
+                    transfer.writeRowCount(maxRows);
                     int fetch;
                     if (session.isClustered() || scrollable) {
                         fetch = Integer.MAX_VALUE;
@@ -227,7 +226,7 @@ public class CommandRemote implements CommandInterface {
         boolean readGeneratedKeys = supportsGeneratedKeys && generatedKeysMode != GeneratedKeysMode.NONE;
         int objectId = readGeneratedKeys ? session.getNextId() : 0;
         synchronized (session) {
-            int updateCount = 0;
+            long updateCount = 0L;
             ResultRemote generatedKeys = null;
             boolean autoCommit = false;
             for (int i = 0, count = 0; i < transferList.size(); i++) {
@@ -260,7 +259,7 @@ public class CommandRemote implements CommandInterface {
                         }
                     }
                     session.done(transfer);
-                    updateCount = transfer.readInt();
+                    updateCount = transfer.readRowCount();
                     autoCommit = transfer.readBoolean();
                     if (readGeneratedKeys) {
                         int columnCount = transfer.readInt();
@@ -335,8 +334,12 @@ public class CommandRemote implements CommandInterface {
         try {
             for (ParameterInterface p : parameters) {
                 Value v = p.getParamValue();
-                if (v != null) {
-                    v.remove(); //只对ValueLob、ValueLobDb有用
+//<<<<<<< HEAD
+//                if (v != null) {
+//                    v.remove(); //只对ValueLob、ValueLobDb有用
+//=======
+                if (v instanceof ValueLob) {
+                    ((ValueLob) v).remove();
                 }
             }
         } catch (DbException e) {

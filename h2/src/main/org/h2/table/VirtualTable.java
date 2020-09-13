@@ -7,7 +7,7 @@ package org.h2.table;
 
 import java.util.ArrayList;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
@@ -24,40 +24,34 @@ public abstract class VirtualTable extends Table {
     }
 
     @Override
-    public boolean lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
-        // Nothing to do
-        return false;
-    }
-
-    @Override
-    public void close(Session session) {
+    public void close(SessionLocal session) {
         // Nothing to do
     }
 
     @Override
-    public void unlock(Session s) {
-        // Nothing to do
-    }
-
-    @Override
-    public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
+    public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols, IndexType indexType,
             boolean create, String indexComment) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 
     @Override
-    public void removeRow(Session session, Row row) {
+    public boolean isInsertable() {
+        return false;
+    }
+
+    @Override
+    public void removeRow(SessionLocal session, Row row) {
         throw DbException.getUnsupportedException("Virtual table");
 
     }
 
     @Override
-    public void truncate(Session session) {
+    public long truncate(SessionLocal session) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 
     @Override
-    public void addRow(Session session, Row row) {
+    public void addRow(SessionLocal session, Row row) {
         throw DbException.getUnsupportedException("Virtual table");
     }
 
@@ -82,23 +76,13 @@ public abstract class VirtualTable extends Table {
     }
 
     @Override
-    public boolean isLockedExclusively() {
-        return false;
-    }
-
-    @Override
     public boolean canReference() {
         return false;
     }
 
     @Override
     public boolean canDrop() {
-        throw DbException.throwInternalError(toString());
-    }
-
-    @Override
-    public long getDiskSpaceUsed() {
-        return 0;
+        throw DbException.getInternalError(toString());
     }
 
     @Override

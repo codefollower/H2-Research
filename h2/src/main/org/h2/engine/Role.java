@@ -12,7 +12,7 @@ import org.h2.table.Table;
 /**
  * Represents a role. Roles can be granted to users, and to other roles.
  */
-public class Role extends RightOwner {
+public final class Role extends RightOwner {
 
     private final boolean system;
 
@@ -25,7 +25,7 @@ public class Role extends RightOwner {
 
     @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     /**
@@ -38,12 +38,11 @@ public class Role extends RightOwner {
         if (system) { //system角色不需要生成create语句，在org.h2.engine.Database.open(int, int)里会自动建立
             return null;
         }
-        StringBuilder buff = new StringBuilder("CREATE ROLE ");
+        StringBuilder builder = new StringBuilder("CREATE ROLE ");
         if (ifNotExists) {
-            buff.append("IF NOT EXISTS ");
+            builder.append("IF NOT EXISTS ");
         }
-        getSQL(buff, true);
-        return buff.toString();
+        return getSQL(builder, DEFAULT_SQL_FLAGS).toString();
     }
 
     @Override
@@ -56,15 +55,16 @@ public class Role extends RightOwner {
         return DbObject.ROLE;
     }
     
-    //dorp role时会调用
-    //删除权限(类似于调用revoke命令)
+    // dorp role时会调用
+    // 删除权限(类似于调用revoke命令)
+
+    // 与一个role相关的权限有三种
+    // 前两种是此role被动授予给其他RightOwner的(包括用户和其他角色)
+    // 另一种是授予给此role自己的
+
+    // 此role被授予给哪些user了，那们这些user要把此权限删了
     @Override
-    public void removeChildrenAndResources(Session session) {
-    	//与一个role相关的权限有三种
-    	//前两种是此role被动授予给其他RightOwner的(包括用户和其他角色)
-    	//另一种是授予给此role自己的
-    	
-    	//此role被授予给哪些user了，那们这些user要把此权限删了
+    public void removeChildrenAndResources(SessionLocal session) {
         for (User user : database.getAllUsers()) {
             Right right = user.getRightForRole(this);
             if (right != null) {

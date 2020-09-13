@@ -12,15 +12,14 @@ import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.Parameter;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.ResultInterface;
 import org.h2.table.TableView;
-import org.h2.util.MathUtils;
-import org.h2.value.Value;
+import org.h2.util.HasSQL;
 
 /**
  * A prepared statement.
@@ -31,7 +30,7 @@ public abstract class Prepared {
     /**
      * The session.
      */
-    protected Session session;
+    protected SessionLocal session;
 
     /**
      * The SQL string.
@@ -76,7 +75,7 @@ public abstract class Prepared {
      *
      * @param session the session
      */
-    public Prepared(Session session) {
+    public Prepared(SessionLocal session) {
         this.session = session;
         modificationMetaId = session.getDatabase().getModificationMetaId();
     }
@@ -223,7 +222,7 @@ public abstract class Prepared {
      * @return the update count
      * @throws DbException if it is a query
      */
-    public int update() {
+    public long update() {
         throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_QUERY);
     }
 
@@ -234,7 +233,8 @@ public abstract class Prepared {
      * @return the result set
      * @throws DbException if it is not a query
      */
-    public ResultInterface query(int maxrows) {
+    @SuppressWarnings("unused")
+    public ResultInterface query(long maxrows) {
         throw DbException.get(ErrorCode.METHOD_ONLY_ALLOWED_FOR_QUERY);
     }
 
@@ -280,7 +280,7 @@ public abstract class Prepared {
         if (id == 0) {
             id = session.getDatabase().allocateObjectId();
         } else if (id < 0) {
-            throw DbException.throwInternalError("Prepared.getObjectId() was called before");
+            throw DbException.getInternalError("Prepared.getObjectId() was called before");
         }
         persistedObjectId = ~persistedObjectId;  // while negative, it can be restored later
         return id;
@@ -289,10 +289,10 @@ public abstract class Prepared {
     /**
      * Get the SQL statement with the execution plan.
      *
-     * @param alwaysQuote quote all identifiers
+     * @param sqlFlags formatting flags
      * @return the execution plan
      */
-    public String getPlanSQL(boolean alwaysQuote) { //只有CRUD及Merge实现了此方法
+    public String getPlanSQL(int sqlFlags) { //只有CRUD及Merge实现了此方法
         return null;
     }
 
@@ -324,7 +324,7 @@ public abstract class Prepared {
      *
      * @param currentSession the new session
      */
-    public void setSession(Session currentSession) {
+    public void setSession(SessionLocal currentSession) {
         this.session = currentSession;
     }
 
@@ -335,19 +335,17 @@ public abstract class Prepared {
      * @param startTimeNanos when the statement was started
      * @param rowCount the query or update row count
      */
-    void trace(long startTimeNanos, int rowCount) {
+    void trace(long startTimeNanos, long rowCount) {
         if (session.getTrace().isInfoEnabled() && startTimeNanos > 0) {
             long deltaTimeNanos = System.nanoTime() - startTimeNanos;
             String params = Trace.formatParams(parameters);
-            session.getTrace().infoSQL(sqlStatement, params, rowCount,
-                    deltaTimeNanos / 1000 / 1000);
+            session.getTrace().infoSQL(sqlStatement, params, rowCount, deltaTimeNanos / 1_000_000L);
         }
         // startTime_nanos can be zero for the command that actually turns on
         // statistics
         if (session.getDatabase().getQueryStatistics() && startTimeNanos != 0) {
             long deltaTimeNanos = System.nanoTime() - startTimeNanos;
-            session.getDatabase().getQueryStatisticsData().
-                    update(toString(), deltaTimeNanos, rowCount);
+            session.getDatabase().getQueryStatisticsData().update(toString(), deltaTimeNanos, rowCount);
         }
     }
 
@@ -390,11 +388,8 @@ public abstract class Prepared {
     	//等价于((currentRowNumber % 128) == 0)，但是(currentRowNumber & 127)性能更高
         //每过128条记录提示一次进度
         if ((currentRowNumber & 127) == 0) {
-            session.getDatabase().setProgress(
-                    DatabaseEventListener.STATE_STATEMENT_PROGRESS,
-                    sqlStatement,
-                    // TODO update interface
-                    MathUtils.convertLongToInt(currentRowNumber), 0);
+            session.getDatabase().setProgress(DatabaseEventListener.STATE_STATEMENT_PROGRESS, sqlStatement,
+                    currentRowNumber, 0L);
         }
     }
 
@@ -409,35 +404,13 @@ public abstract class Prepared {
     }
 
     /**
-     * Get the SQL snippet of the value list.
-     *
-     * @param values the value list
-     * @return the SQL snippet
-     */
-    protected static String getSQL(Value[] values) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0, l = values.length; i < l; i++) {
-            if (i > 0) {
-                builder.append(", ");
-            }
-            Value v = values[i];
-            if (v != null) {
-                v.getSQL(builder);
-            }
-        }
-        return builder.toString();
-    }
-
-    /**
      * Get the SQL snippet of the expression list.
      *
      * @param list the expression list
      * @return the SQL snippet
      */
-    protected static String getSimpleSQL(Expression[] list) {
-        StringBuilder builder = new StringBuilder();
-        Expression.writeExpressions(builder, list, false);
-        return builder.toString();
+    public static String getSimpleSQL(Expression[] list) {
+        return Expression.writeExpressions(new StringBuilder(), list, HasSQL.TRACE_SQL_FLAGS).toString();
     }
 
     /**
@@ -455,7 +428,7 @@ public abstract class Prepared {
     //insert into TableFilterTest(id, name, b) values(70, 'b3', true), ('o7', 'b3', true) -- row #2 ('o7', 'b3', TRUE) 
     //[22018-171]
     //在org.h2.command.dml.Insert.insertRows()中触发，先调用Prepared.getSQL(Expression[])
-    protected DbException setRow(DbException e, int rowId, String values) {
+    protected DbException setRow(DbException e, long rowId, String values) {
         StringBuilder buff = new StringBuilder();
         if (sqlStatement != null) {
             buff.append(sqlStatement);
@@ -492,7 +465,7 @@ public abstract class Prepared {
         this.cteCleanups = cteCleanups;
     }
 
-    public Session getSession() {
+    public SessionLocal getSession() {
         return session;
     }
 

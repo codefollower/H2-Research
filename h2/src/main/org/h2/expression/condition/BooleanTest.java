@@ -7,7 +7,7 @@ package org.h2.expression.condition;
 
 import java.util.ArrayList;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.TypedValueExpression;
@@ -21,36 +21,53 @@ import org.h2.value.ValueNull;
 /**
  * Boolean test (IS [NOT] { TRUE | FALSE | UNKNOWN }).
  */
-public class BooleanTest extends SimplePredicate {
+public final class BooleanTest extends SimplePredicate {
 
     private final Boolean right;
 
-    public BooleanTest(Expression left, boolean not, Boolean right) {
-        super(left, not);
+    public BooleanTest(Expression left, boolean not, boolean whenOperand, Boolean right) {
+        super(left, not, whenOperand);
         this.right = right;
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
-        return left.getSQL(builder.append('('), alwaysQuote).append(not ? " IS NOT " : " IS ")
-                .append(right == null ? "UNKNOWN)" : right ? "TRUE)" : "FALSE)");
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
+        return getWhenSQL(left.getSQL(builder, sqlFlags, AUTO_PARENTHESES), sqlFlags);
     }
 
     @Override
-    public Value getValue(Session session) {
-        Value l = left.getValue(session);
-        return ValueBoolean
-                .get((l == ValueNull.INSTANCE ? right == null : right != null && right == l.getBoolean()) ^ not);
+    public StringBuilder getWhenSQL(StringBuilder builder, int sqlFlags) {
+        return builder.append(not ? " IS NOT " : " IS ").append(right == null ? "UNKNOWN" : right ? "TRUE" : "FALSE");
     }
 
     @Override
-    public Expression getNotIfPossible(Session session) {
-        return new BooleanTest(left, !not, right);
+    public Value getValue(SessionLocal session) {
+        return ValueBoolean.get(getValue(left.getValue(session)));
     }
 
     @Override
-    public void createIndexConditions(Session session, TableFilter filter) {
-        if (!filter.getTable().isQueryComparable()) {
+    public boolean getWhenValue(SessionLocal session, Value left) {
+        if (!whenOperand) {
+            return super.getWhenValue(session, left);
+        }
+        return getValue(left);
+    }
+
+    private boolean getValue(Value left) {
+        return (left == ValueNull.INSTANCE ? right == null : right != null && right == left.getBoolean()) ^ not;
+    }
+
+    @Override
+    public Expression getNotIfPossible(SessionLocal session) {
+        if (whenOperand) {
+            return null;
+        }
+        return new BooleanTest(left, !not, false, right);
+    }
+
+    @Override
+    public void createIndexConditions(SessionLocal session, TableFilter filter) {
+        if (whenOperand || !filter.getTable().isQueryComparable()) {
             return;
         }
         if (left instanceof ExpressionColumn) {

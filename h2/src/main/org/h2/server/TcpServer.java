@@ -107,10 +107,9 @@ public class TcpServer implements Service {
         // 不过因为函数STOP_SERVER是在内存数据库的，所以通过TCP远程调用是不行的，
         // 要在Client端手工再建立同样的函数，见: my.test.server.TcpServerTest
         try (Statement stat = conn.createStatement()) {
-            stat.execute("CREATE ALIAS IF NOT EXISTS STOP_SERVER FOR \"" +
-                    TcpServer.class.getName() + ".stopServer\"");
+            stat.execute("CREATE ALIAS IF NOT EXISTS STOP_SERVER FOR '" + TcpServer.class.getName() + ".stopServer'");
             stat.execute("CREATE TABLE IF NOT EXISTS SESSIONS" +
-                    "(ID INT PRIMARY KEY, URL VARCHAR, USER VARCHAR, " +
+                    "(ID INT PRIMARY KEY, URL VARCHAR, `USER` VARCHAR, " +
                     "CONNECTED TIMESTAMP(9) WITH TIME ZONE)");
             managementDbAdd = conn.prepareStatement(
                     "INSERT INTO SESSIONS VALUES(?, ?, ?, CURRENT_TIMESTAMP(9))");

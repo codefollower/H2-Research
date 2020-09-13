@@ -653,7 +653,7 @@ thus tick ticker tid tigers tilde time timed timely timeout timer times timestam
 timestampadd timestampdiff timestamps timezone timezones timing tiny tinyblob
 tinyint tinytext tip tips tired tis title titled titles tls tme tmendrscan tmfail
 tmjoin tmnoflags tmonephase tmp tmpdir tmresume tmstartrscan tmsuccess tmsuspend
-tmueller tmzone toc today todescato todo tofu together toggle token tokenize
+tmueller tmzone toast toc today todescato todo tofu together toggle token tokenize
 tokenizer tokens tolerant tom tomas tomcat tong too took tool toolbar toolkit
 tools toolset top topic topics toplink topology tort total totals touch toward
 tpc trace traces tracing track tracked tracker tracking tracks trade trademark
@@ -823,3 +823,24 @@ scr ffffl suspend asap ldt lmt movement ago snapshotting paris phenomena backend
 umcfo iapi autoloaded derbyshared darkred coral mistyrose lightseagreen unmodifiable posix exc attrs relativize
 quotient niomem niomapped obtaining rare occasions oversynchronizing disallows opponent adversarial broader decent tmv
 prize secured stateful generification bracketed permissible opaque aside indexable daytime uncomparable reevaluates
+pct sliding deliberately sampling grabs saw video keyed carries estimator restrain remainer magnitude placeholder
+expandable jira meaningless iterated maliciously crafted cdef attention deserialized hurts absorb bufcnt digests
+consumer reread relname proargtypes pronamespace relnamespace heidi proname reltuples collects trigraphs nspname
+timetz timestamptz psycopg adbin attrdef objoid attnotnull adnum adrelid objsubid atttypid attname attisdropped pgc
+attrelid currtid encodings
+
+rolconnlimit spcname indisclustered tgconstrname relhasoids rolcreaterole usecreatedb datconfig reltablespace relchecks
+amname relhasindex tablespace reltriggers tgconstrrelid groname indrelid relhasrules classoid inhseqno tgargs datdba
+indisunique rolinherit datacl rolvaliduntil datname indexprs usename typbasetype rolconfig relkind spcacl prorettype
+datallowconn atthasdef dattablespace rolcreatedb inhrelid inhparent attlen rolname rolcanlogin aclitem datlastsysoid
+indpred tgfoid indisprimary adsrc spcowner tgnargs typtype typinput rolcatupdate typnamespace tgrelid authid indexrelid
+usesuper tgdeferrable rolpassword relam relpages tginitdeferred rolsuper autovacuum typnotnull spclocation cancreate
+nsp pgagent pga awoken serverencoding untyped ambiguities tons lhs letting rhs opportunities specifications
+usefully pipelining fetches reenable joiner visits dcl avxaaa german fold degree supertype overloads hierarchy locator
+conrelid conkey tabrelname refnamespace dsc pred typrelid conname contype confrelid numscans beaver typdelim typelem
+jsonb und decfloat attnums oids studio smells pvs mention statically deletable insertable reconstructed similarly
+submissions explaining cycled assigns separation aimed ababab quotation cleanly beff cdab efgh
+xnor bitnand bitcount nand bitnor bitxnor ulshift urshift rotates rotation rotateleft rotateright leaking incomparable
+deref corr asensitive sqlexception avgy avgx lateral rollup syy reseved specifictype classifier sqlcode covar uescape
+ptf overlay precedes regr slope sqlerror multiset submultiset inout sxx sxy intercept sqlwarning tablesample preorder
+orientation

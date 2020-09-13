@@ -9,10 +9,10 @@ import java.util.HashSet;
 
 import org.h2.api.Trigger;
 import org.h2.command.CommandInterface;
-import org.h2.command.Prepared;
+import org.h2.command.query.AllColumnsForPlan;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
@@ -31,7 +31,7 @@ import org.h2.value.ValueNull;
  * This class represents the statement
  * DELETE
  */
-public class Delete extends Prepared implements DataChangeStatement {
+public final class Delete extends DataChangeStatement {
 
     private Expression condition;
     private TableFilter targetTableFilter;
@@ -40,18 +40,8 @@ public class Delete extends Prepared implements DataChangeStatement {
      * The limit expression as specified in the LIMIT or TOP clause.
      */
     private Expression limitExpr;
-    /**
-     * This table filter is for MERGE..USING support - not used in stand-alone DML
-     */
-    private TableFilter sourceTableFilter;
 
-    private HashSet<Long> keysFilter;
-
-    private ResultTarget deltaChangeCollector;
-
-    private ResultOption deltaChangeCollectionMode;
-
-    public Delete(Session session) {
+    public Delete(SessionLocal session) {
         super(session);
     }
 
@@ -72,23 +62,8 @@ public class Delete extends Prepared implements DataChangeStatement {
         return this.condition;
     }
 
-    /**
-     * Sets the keys filter.
-     *
-     * @param keysFilter the keys filter
-     */
-    public void setKeysFilter(HashSet<Long> keysFilter) {
-        this.keysFilter = keysFilter;
-    }
-
     @Override
-    public void setDeltaChangeCollector(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
-        this.deltaChangeCollector = deltaChangeCollector;
-        this.deltaChangeCollectionMode = deltaChangeCollectionMode;
-    }
-
-    @Override
-    public int update() {
+    public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
         targetTableFilter.startQuery(session);
         targetTableFilter.reset();
         Table table = targetTableFilter.getTable();
@@ -105,42 +80,46 @@ public class Delete extends Prepared implements DataChangeStatement {
         }
         try (RowList rows = new RowList(session, table)) {
             setCurrentRowNumber(0);
-            int count = 0;
-            //比如delete from DeleteTest limit 0，
-            //此时limitRows为0，不删除任何行
+//<<<<<<< HEAD
+//            int count = 0;
+//            //比如delete from DeleteTest limit 0，
+//            //此时limitRows为0，不删除任何行
+//            while (limitRows != 0 && targetTableFilter.next()) {
+//                setCurrentRowNumber(rows.size() + 1);
+//                //condition.getBooleanValue(session)内部会取当前行与之比较，
+//                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
+//                //然后在从当前行中按列id取当前行value数组中对应元素
+//                if (condition == null || condition.getBooleanValue(session)
+//                        // the following is to support Oracle-style MERGE
+//                        || (keysFilter != null && table.isMVStore())) {
+//=======
+            long count = 0;
             while (limitRows != 0 && targetTableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
-                //condition.getBooleanValue(session)内部会取当前行与之比较，
-                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
-                //然后在从当前行中按列id取当前行value数组中对应元素
-                if (condition == null || condition.getBooleanValue(session)
-                        // the following is to support Oracle-style MERGE
-                        || (keysFilter != null && table.isMVStore())) {
+                if (condition == null || condition.getBooleanValue(session)) {
                     Row row = targetTableFilter.get();
-                    if (keysFilter == null || keysFilter.contains(row.getKey())) {
-                        if (table.isMVStore()) {
-                            Row lockedRow = table.lockRow(session, row);
-                            if (lockedRow == null) {
+                    if (table.isMVStore()) {
+                        Row lockedRow = table.lockRow(session, row);
+                        if (lockedRow == null) {
+                            continue;
+                        }
+                        if (!row.hasSharedData(lockedRow)) {
+                            row = lockedRow;
+                            targetTableFilter.set(row);
+                            if (condition != null && !condition.getBooleanValue(session)) {
                                 continue;
                             }
-                            if (!row.hasSharedData(lockedRow)) {
-                                row = lockedRow;
-                                targetTableFilter.set(row);
-                                if (condition != null && !condition.getBooleanValue(session)) {
-                                    continue;
-                                }
-                            }
                         }
-                        if (deltaChangeCollectionMode == ResultOption.OLD) {
-                            deltaChangeCollector.addRow(row.getValueList());
-                        }
-                        if (!table.fireRow() || !table.fireBeforeRow(session, row, null)) {
-                            rows.add(row);
-                        }
-                        count++;
-                        if (limitRows >= 0 && count >= limitRows) {
-                            break;
-                        }
+                    }
+                    if (deltaChangeCollectionMode == ResultOption.OLD) {
+                        deltaChangeCollector.addRow(row.getValueList());
+                    }
+                    if (!table.fireRow() || !table.fireBeforeRow(session, row, null)) {
+                        rows.add(row);
+                    }
+                    count++;
+                    if (limitRows >= 0 && count >= limitRows) {
+                        break;
                     }
                 }
             }
@@ -165,17 +144,17 @@ public class Delete extends Prepared implements DataChangeStatement {
     }
 
     @Override
-    public String getPlanSQL(boolean alwaysQuote) {
+    public String getPlanSQL(int sqlFlags) {
         StringBuilder buff = new StringBuilder();
         buff.append("DELETE FROM ");
-        targetTableFilter.getPlanSQL(buff, false, alwaysQuote);
+        targetTableFilter.getPlanSQL(buff, false, sqlFlags);
         if (condition != null) {
             buff.append("\nWHERE ");
-            condition.getUnenclosedSQL(buff, alwaysQuote);
+            condition.getUnenclosedSQL(buff, sqlFlags);
         }
         if (limitExpr != null) {
-            buff.append("\nLIMIT (");
-            limitExpr.getUnenclosedSQL(buff, alwaysQuote).append(')');
+            buff.append("\nLIMIT ");
+            limitExpr.getUnenclosedSQL(buff, sqlFlags);
         }
         return buff.toString();
     }
@@ -186,31 +165,28 @@ public class Delete extends Prepared implements DataChangeStatement {
     public void prepare() {
         if (condition != null) {
             condition.mapColumns(targetTableFilter, 0, Expression.MAP_INITIAL);
-            if (sourceTableFilter != null) {
-                condition.mapColumns(sourceTableFilter, 0, Expression.MAP_INITIAL);
+            condition = condition.optimizeCondition(session);
+            if (condition != null) {
+                condition.createIndexConditions(session, targetTableFilter);
             }
-            condition = condition.optimize(session);
-            condition.createIndexConditions(session, targetTableFilter);
-        }
-        TableFilter[] filters;
-        if (sourceTableFilter == null) {
-            filters = new TableFilter[] { targetTableFilter };
-        } else {
-            filters = new TableFilter[] { targetTableFilter, sourceTableFilter };
         }
 //<<<<<<< HEAD
 ////<<<<<<< HEAD
-////        //为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
-////        PlanItem item = tableFilter.getBestPlanItem(session, 1);
+//////<<<<<<< HEAD
+//////        //为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
+//////        PlanItem item = tableFilter.getBestPlanItem(session, 1);
+//////=======
+////        TableFilter[] filters = new TableFilter[] { tableFilter };
+////        PlanItem item = tableFilter.getBestPlanItem(session, filters, 0,
+////                ExpressionVisitor.allColumnsForTableFilters(filters));
+////        tableFilter.setPlanItem(item);
+////        tableFilter.prepare();
 ////=======
-//        TableFilter[] filters = new TableFilter[] { tableFilter };
-//        PlanItem item = tableFilter.getBestPlanItem(session, filters, 0,
-//                ExpressionVisitor.allColumnsForTableFilters(filters));
-//        tableFilter.setPlanItem(item);
-//        tableFilter.prepare();
+//        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0,
+//                new AllColumnsForPlan(filters));
 //=======
-        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0,
-                new AllColumnsForPlan(filters));
+        TableFilter[] filters = new TableFilter[] { targetTableFilter };
+        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters));
         targetTableFilter.setPlanItem(item);
         targetTableFilter.prepare();
     }
@@ -244,16 +220,8 @@ public class Delete extends Prepared implements DataChangeStatement {
         return true;
     }
 
-    public void setSourceTableFilter(TableFilter sourceTableFilter) {
-        this.sourceTableFilter = sourceTableFilter;
-    }
-
     public TableFilter getTableFilter() {
         return targetTableFilter;
-    }
-
-    public TableFilter getSourceTableFilter() {
-        return sourceTableFilter;
     }
 
     @Override
@@ -261,12 +229,6 @@ public class Delete extends Prepared implements DataChangeStatement {
         ExpressionVisitor visitor = ExpressionVisitor.getDependenciesVisitor(dependencies);
         if (condition != null) {
             condition.isEverything(visitor);
-        }
-        if (sourceTableFilter != null) {
-            Select select = sourceTableFilter.getSelect();
-            if (select != null) {
-                select.isEverything(visitor);
-            }
         }
     }
 }

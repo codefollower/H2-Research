@@ -5,9 +5,9 @@
  */
 package org.h2.expression.condition;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
-import org.h2.expression.function.Function;
+import org.h2.expression.function.CastSpecification;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 
@@ -23,13 +23,11 @@ abstract class Condition extends Expression {
      * @param expression the expression
      * @return the new expression
      */
-    static Expression castToBoolean(Session session, Expression expression) {
+    static Expression castToBoolean(SessionLocal session, Expression expression) {
         if (expression.getType().getValueType() == Value.BOOLEAN) {
             return expression;
         }
-        Function f = Function.getFunctionWithArgs(session.getDatabase(), Function.CAST, expression);
-        f.setDataType(TypeInfo.TYPE_BOOLEAN);
-        return f;
+        return new CastSpecification(expression, TypeInfo.TYPE_BOOLEAN);
     }
 
     //所有Condition的子类都默认使用这个方法的返回值，没有子类覆盖，scale是0

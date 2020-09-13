@@ -17,7 +17,7 @@ import org.h2.constraint.ConstraintUnique;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
@@ -27,6 +27,7 @@ import org.h2.table.Column;
 import org.h2.table.IndexColumn;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
+import org.h2.util.HasSQL;
 import org.h2.value.DataType;
 
 /**
@@ -56,7 +57,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
     private final ArrayList<Index> createdIndexes = new ArrayList<>();
     private ConstraintUnique createdUniqueConstraint;
 
-    public AlterTableAddConstraint(Session session, Schema schema, int type, boolean ifNotExists) {
+    public AlterTableAddConstraint(SessionLocal session, Schema schema, int type, boolean ifNotExists) {
         super(session, schema);
         this.ifNotExists = ifNotExists;
         this.type = type;
@@ -74,7 +75,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
     }
 
     @Override
-    public int update() {
+    public long update() {
         try {
             return tryUpdate();
         } catch (DbException e) {
@@ -202,7 +203,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
             session.getUser().checkRight(refTable, Right.ALL);
             if (!refTable.canReference()) {
                 StringBuilder builder = new StringBuilder("Reference ");
-                refTable.getSQL(builder, false);
+                refTable.getSQL(builder, HasSQL.TRACE_SQL_FLAGS);
                 throw DbException.getUnsupportedException(builder.toString());
             }
             boolean isOwner = false;
@@ -217,14 +218,14 @@ public class AlterTableAddConstraint extends SchemaCommand {
             if (refIndexColumns.length != columnCount) {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
             }
-            for (IndexColumn indexColumn : refIndexColumns) {
+            for (IndexColumn indexColumn : indexColumns) {
                 Column column = indexColumn.column;
-                if (column.getGenerated()) {
+                if (column.isGeneratedAlways()) {
                     switch (deleteAction) {
                     case SET_DEFAULT:
                     case SET_NULL:
                         throw DbException.get(ErrorCode.GENERATED_COLUMN_CANNOT_BE_UPDATABLE_BY_CONSTRAINT_2,
-                                column.getSQLWithTable(new StringBuilder(), false).toString(),
+                                column.getSQLWithTable(new StringBuilder(), HasSQL.TRACE_SQL_FLAGS).toString(),
                                 "ON DELETE " + deleteAction.getSqlName());
                     default:
                         // All other actions are allowed
@@ -234,7 +235,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
                     case SET_DEFAULT:
                     case SET_NULL:
                         throw DbException.get(ErrorCode.GENERATED_COLUMN_CANNOT_BE_UPDATABLE_BY_CONSTRAINT_2,
-                                column.getSQLWithTable(new StringBuilder(), false).toString(),
+                                column.getSQLWithTable(new StringBuilder(), HasSQL.TRACE_SQL_FLAGS).toString(),
                                 "ON UPDATE " + updateAction.getSqlName());
                     default:
                         // All other actions are allowed
@@ -285,7 +286,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
             break;
         }
         default:
-            throw DbException.throwInternalError("type=" + type);
+            throw DbException.getInternalError("type=" + type);
         }
         // parent relationship is already set with addConstraint
         constraint.setComment(comment);
@@ -314,14 +315,15 @@ public class AlterTableAddConstraint extends SchemaCommand {
         }
         int id;
         String name;
+        Schema tableSchema = table.getSchema();
         if (forForeignKey) {
             id = session.getDatabase().allocateObjectId();
-            name = getSchema().getUniqueConstraintName(session, table);
+            name = tableSchema.getUniqueConstraintName(session, table);
         } else {
             id = getObjectId();
             name = generateConstraintName(table);
         }
-        ConstraintUnique unique = new ConstraintUnique(getSchema(), id, name, table, false);
+        ConstraintUnique unique = new ConstraintUnique(tableSchema, id, name, table, false);
         unique.setColumns(indexColumns);
         unique.setIndex(index, isOwner);
         return unique;

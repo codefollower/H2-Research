@@ -9,10 +9,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
-import org.h2.command.dml.Select;
-import org.h2.command.dml.SelectGroups;
-import org.h2.command.dml.SelectOrderBy;
-import org.h2.engine.Session;
+import org.h2.command.query.QueryOrderBy;
+import org.h2.command.query.Select;
+import org.h2.command.query.SelectGroups;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.message.DbException;
@@ -20,7 +20,7 @@ import org.h2.result.SortOrder;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
 import org.h2.value.Value;
-import org.h2.value.ValueInt;
+import org.h2.value.ValueInteger;
 
 /**
  * A base class for data analysis operations such as aggregates and window
@@ -73,12 +73,12 @@ public abstract class DataAnalysisOperation extends Expression {
      *            index offset
      * @return the SortOrder
      */
-    protected static SortOrder createOrder(Session session, ArrayList<SelectOrderBy> orderBy, int offset) {
+    protected static SortOrder createOrder(SessionLocal session, ArrayList<QueryOrderBy> orderBy, int offset) {
         int size = orderBy.size();
         int[] index = new int[size];
         int[] sortType = new int[size];
         for (int i = 0; i < size; i++) {
-            SelectOrderBy o = orderBy.get(i);
+            QueryOrderBy o = orderBy.get(i);
             index[i] = i + offset;
             sortType[i] = o.sortType;
         }
@@ -120,12 +120,12 @@ public abstract class DataAnalysisOperation extends Expression {
     public final void mapColumns(ColumnResolver resolver, int level, int state) {
         if (over != null) {
             if (state != MAP_INITIAL) {
-                throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getSQL(false));
+                throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getTraceSQL());
             }
             state = MAP_IN_WINDOW;
         } else {
             if (state == MAP_IN_AGGREGATE) {
-                throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getSQL(false));
+                throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getTraceSQL());
             }
             state = MAP_IN_AGGREGATE;
         }
@@ -149,14 +149,14 @@ public abstract class DataAnalysisOperation extends Expression {
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         if (over != null) {
             over.optimize(session);
-            ArrayList<SelectOrderBy> orderBy = over.getOrderBy();
+            ArrayList<QueryOrderBy> orderBy = over.getOrderBy();
             if (orderBy != null) {
                 overOrderBySort = createOrder(session, orderBy, getNumExpressions());
             } else if (!isAggregate()) {
-                overOrderBySort = new SortOrder(session, new int[getNumExpressions()], new int[0], null);
+                overOrderBySort = new SortOrder(session, new int[getNumExpressions()]);
             }
             WindowFrame frame = over.getWindowFrame();
             if (frame != null) {
@@ -193,14 +193,14 @@ public abstract class DataAnalysisOperation extends Expression {
         switch (units) {
         case RANGE:
             if (orderBySize != 1) {
-                String sql = getSQL(false);
+                String sql = getTraceSQL();
                 throw DbException.getSyntaxError(sql, sql.length() - 1,
                         "exactly one sort key is required for RANGE units");
             }
             break;
         case GROUPS:
             if (orderBySize < 1) {
-                String sql = getSQL(false);
+                String sql = getTraceSQL();
                 throw DbException.getSyntaxError(sql, sql.length() - 1,
                         "a sort key is required for GROUPS units");
             }
@@ -217,7 +217,7 @@ public abstract class DataAnalysisOperation extends Expression {
     }
 
     @Override
-    public final void updateAggregate(Session session, int stage) {
+    public final void updateAggregate(SessionLocal session, int stage) {
         if (stage == STAGE_RESET) {
             updateGroupAggregates(session, STAGE_RESET);
             lastGroupRowId = 0;
@@ -261,7 +261,7 @@ public abstract class DataAnalysisOperation extends Expression {
      * @param groupRowId
      *            row id of group
      */
-    protected abstract void updateAggregate(Session session, SelectGroups groupData, int groupRowId);
+    protected abstract void updateAggregate(SessionLocal session, SelectGroups groupData, int groupRowId);
 
     /**
      * Invoked when processing group stage of grouped window queries to update
@@ -272,7 +272,7 @@ public abstract class DataAnalysisOperation extends Expression {
      * @param stage
      *            select stage
      */
-    protected void updateGroupAggregates(Session session, int stage) {
+    protected void updateGroupAggregates(SessionLocal session, int stage) {
         if (over != null) {
             over.updateAggregate(session, stage);
         }
@@ -302,7 +302,7 @@ public abstract class DataAnalysisOperation extends Expression {
      * @param array
      *            array to store values of expressions
      */
-    protected abstract void rememberExpressions(Session session, Value[] array);
+    protected abstract void rememberExpressions(SessionLocal session, Value[] array);
 
     /**
      * Get the aggregate data for a window clause.
@@ -315,7 +315,7 @@ public abstract class DataAnalysisOperation extends Expression {
      *            true if this is for ORDER BY
      * @return the aggregate data object, specific to each kind of aggregate.
      */
-    protected Object getWindowData(Session session, SelectGroups groupData, boolean forOrderBy) {
+    protected Object getWindowData(SessionLocal session, SelectGroups groupData, boolean forOrderBy) {
         Object data;
         Value key = over.getCurrentKey(session);
         PartitionData partition = groupData.getWindowExprData(this, key);
@@ -378,15 +378,15 @@ public abstract class DataAnalysisOperation extends Expression {
         case ExpressionVisitor.GET_COLUMNS2:
             return true;
         default:
-            throw DbException.throwInternalError("type=" + visitor.getType());
+            throw DbException.getInternalError("type=" + visitor.getType());
         }
     }
 
     @Override
-    public Value getValue(Session session) {
+    public Value getValue(SessionLocal session) {
         SelectGroups groupData = select.getGroupDataIfCurrent(over != null);
         if (groupData == null) {
-            throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getSQL(false));
+            throw DbException.get(ErrorCode.INVALID_USE_OF_AGGREGATE_FUNCTION_1, getTraceSQL());
         }
         return over == null ? getAggregatedValue(session, getGroupData(groupData, true))
                 : getWindowResult(session, groupData);
@@ -402,7 +402,7 @@ public abstract class DataAnalysisOperation extends Expression {
      *            the group data
      * @return result of this function
      */
-    private Value getWindowResult(Session session, SelectGroups groupData) {
+    private Value getWindowResult(SessionLocal session, SelectGroups groupData) {
         PartitionData partition;
         Object data;
         boolean isOrdered = over.isOrdered();
@@ -441,7 +441,7 @@ public abstract class DataAnalysisOperation extends Expression {
      *            the aggregate data
      * @return aggregated value.
      */
-    protected abstract Value getAggregatedValue(Session session, Object aggregateData);
+    protected abstract Value getAggregatedValue(SessionLocal session, Object aggregateData);
 
     /**
      * Update a row of an ordered aggregate.
@@ -455,15 +455,16 @@ public abstract class DataAnalysisOperation extends Expression {
      * @param orderBy
      *            list of order by expressions
      */
-    protected void updateOrderedAggregate(Session session, SelectGroups groupData, int groupRowId,
-            ArrayList<SelectOrderBy> orderBy) {
+    protected void updateOrderedAggregate(SessionLocal session, SelectGroups groupData, int groupRowId,
+            ArrayList<QueryOrderBy> orderBy) {
         int ne = getNumExpressions();
         int size = orderBy != null ? orderBy.size() : 0;
         int frameSize = getNumFrameExpressions();
         Value[] array = new Value[ne + size + frameSize + 1];
         rememberExpressions(session, array);
         for (int i = 0; i < size; i++) {
-            SelectOrderBy o = orderBy.get(i);
+            @SuppressWarnings("null")
+            QueryOrderBy o = orderBy.get(i);
             array[ne++] = o.expression.getValue(session);
         }
         if (frameSize > 0) {
@@ -477,20 +478,21 @@ public abstract class DataAnalysisOperation extends Expression {
                 array[ne++] = bound.getValue().getValue(session);
             }
         }
-        array[ne] = ValueInt.get(groupRowId);
+        array[ne] = ValueInteger.get(groupRowId);
         @SuppressWarnings("unchecked")
         ArrayList<Value[]> data = (ArrayList<Value[]>) getWindowData(session, groupData, true);
         data.add(array);
     }
 
-    private Value getOrderedResult(Session session, SelectGroups groupData, PartitionData partition, Object data) {
+    private Value getOrderedResult(SessionLocal session, SelectGroups groupData, PartitionData partition, //
+            Object data) {
         HashMap<Integer, Value> result = partition.getOrderedResult();
         if (result == null) {
             result = new HashMap<>();
             @SuppressWarnings("unchecked")
             ArrayList<Value[]> orderedData = (ArrayList<Value[]>) data;
             int rowIdColumn = getNumExpressions();
-            ArrayList<SelectOrderBy> orderBy = over.getOrderBy();
+            ArrayList<QueryOrderBy> orderBy = over.getOrderBy();
             if (orderBy != null) {
                 rowIdColumn += orderBy.size();
                 orderedData.sort(overOrderBySort);
@@ -515,7 +517,7 @@ public abstract class DataAnalysisOperation extends Expression {
      * @param rowIdColumn
      *            the index of row id value
      */
-    protected abstract void getOrderedResultLoop(Session session, HashMap<Integer, Value> result,
+    protected abstract void getOrderedResultLoop(SessionLocal session, HashMap<Integer, Value> result,
             ArrayList<Value[]> ordered, int rowIdColumn);
 
     /**
@@ -523,14 +525,17 @@ public abstract class DataAnalysisOperation extends Expression {
      *
      * @param builder
      *            string builder
-     * @param alwaysQuote
-     *            quote all identifiers
+     * @param sqlFlags
+     *            formatting flags
+     * @param forceOrderBy
+     *            whether synthetic ORDER BY clause should be generated when it
+     *            is missing
      * @return the builder object
      */
-    protected StringBuilder appendTailConditions(StringBuilder builder, boolean alwaysQuote) {
+    protected StringBuilder appendTailConditions(StringBuilder builder, int sqlFlags, boolean forceOrderBy) {
         if (over != null) {
             builder.append(' ');
-            over.getSQL(builder, alwaysQuote);
+            over.getSQL(builder, sqlFlags, forceOrderBy);
         }
         return builder;
     }

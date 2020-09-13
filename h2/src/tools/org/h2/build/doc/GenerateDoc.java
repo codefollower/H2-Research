@@ -30,7 +30,7 @@ import org.h2.util.StringUtils;
 
 /**
  * This application generates sections of the documentation
- * by converting the built-in help section (INFORMATION_SCHEMA.HELP)
+ * by converting the built-in help section
  * to cross linked html.
  */
 public class GenerateDoc {
@@ -71,7 +71,6 @@ public class GenerateDoc {
         session.put("versionDate", Constants.BUILD_DATE);
         session.put("stableVersion", Constants.VERSION_STABLE);
         session.put("stableVersionDate", Constants.BUILD_DATE_STABLE);
-        // String help = "SELECT * FROM INFORMATION_SCHEMA.HELP WHERE SECTION";
         String help = "SELECT ROWNUM ID, * FROM CSVREAD('" +
                 IN_HELP + "', NULL, 'lineComment=#') WHERE SECTION ";
         map("commandsDML",
@@ -97,6 +96,8 @@ public class GenerateDoc {
                 help + "= 'Functions (System)' ORDER BY ID", true, false);
         map("functionsJson",
                 help + "= 'Functions (JSON)' ORDER BY ID", true, false);
+        map("functionsTable",
+                help + "= 'Functions (Table)' ORDER BY ID", true, false);
 
         map("aggregateFunctionsGeneral",
                 help + "= 'Aggregate Functions (General)' ORDER BY ID", true, false);
@@ -140,6 +141,11 @@ public class GenerateDoc {
         conn.close();
     }
 
+    /**
+     * Process a file.
+     *
+     * @param inFile the file
+     */
     void process(Path inFile) throws IOException {
         Path outFile = outDir.resolve(inDir.relativize(inFile));
         Files.createDirectories(outFile.getParent());
@@ -212,7 +218,7 @@ public class GenerateDoc {
             for (int i = 0, start = 0; i < div; i++, start += part) {
                 int end = Math.min(start + part, list.size());
                 List<HashMap<String, String>> listThird = start <= end ? list.subList(start, end)
-                        : Collections.<HashMap<String, String>> emptyList();
+                        : Collections.emptyList();
                 session.put(key + "-" + i, listThird);
             }
         } finally {

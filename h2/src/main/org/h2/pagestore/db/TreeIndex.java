@@ -5,10 +5,10 @@
  */
 package org.h2.pagestore.db;
 
-import org.h2.command.dml.AllColumnsForPlan;
-import org.h2.engine.Session;
-import org.h2.index.BaseIndex;
+import org.h2.command.query.AllColumnsForPlan;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Cursor;
+import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
 import org.h2.result.Row;
@@ -22,7 +22,24 @@ import org.h2.value.ValueNull;
 /**
  * The tree index is an in-memory index based on a binary AVL trees.
  */
-public class TreeIndex extends BaseIndex {
+public class TreeIndex extends Index {
+
+    /**
+     * Compare the positions of two rows.
+     *
+     * @param rowData the first row
+     * @param compare the second row
+     * @return 0 if both rows are equal, -1 if the first row is smaller,
+     *         otherwise 1
+     */
+    public static int compareKeys(SearchRow rowData, SearchRow compare) {
+        long k1 = rowData.getKey();
+        long k2 = compare.getKey();
+        if (k1 == k2) {
+            return 0;
+        }
+        return k1 > k2 ? 1 : -1;
+    }
 
     private TreeNode root;
     private final PageStoreTable tableData;
@@ -39,15 +56,15 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public void close(Session session) {
+    public void close(SessionLocal session) {
         root = null;
         closed = true;
     }
 
     @Override
-    public void add(Session session, Row row) {
+    public void add(SessionLocal session, Row row) {
         if (closed) {
-            throw DbException.throwInternalError();
+            throw DbException.getInternalError();
         }
         TreeNode i = new TreeNode(row);
         TreeNode n = root, x = n;
@@ -112,7 +129,7 @@ public class TreeIndex extends BaseIndex {
                 }
                 return;
             default:
-                DbException.throwInternalError("b:" + x.balance * sign);
+                throw DbException.getInternalError("b:" + x.balance * sign);
             }
             if (x == root) {
                 return;
@@ -149,13 +166,13 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public void remove(Session session, Row row) {
+    public void remove(SessionLocal session, Row row) {
         if (closed) {
-            throw DbException.throwInternalError();
+            throw DbException.getInternalError();
         }
         TreeNode x = findFirstNode(row, true);
         if (x == null) {
-            throw DbException.throwInternalError("not found!");
+            throw DbException.getInternalError("not found!");
         }
         TreeNode n;
         if (x.left == null) {
@@ -207,7 +224,7 @@ public class TreeIndex extends BaseIndex {
             }
 
             if (x.right == null) {
-                DbException.throwInternalError("tree corrupted");
+                throw DbException.getInternalError("tree corrupted");
             }
             x.right.parent = x;
             x.left.parent = x;
@@ -264,7 +281,7 @@ public class TreeIndex extends BaseIndex {
                 }
                 break;
             default:
-                DbException.throwInternalError("b: " + x.balance * sign);
+                throw DbException.getInternalError("b: " + x.balance * sign);
             }
             isLeft = x.isFromLeft();
             n = x.parent;
@@ -294,7 +311,7 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public Cursor find(Session session, SearchRow first, SearchRow last) {
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
         if (first == null) {
             TreeNode x = root, n;
             while (x != null) {
@@ -311,19 +328,19 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks, TableFilter[] filters, int filter,
+    public double getCost(SessionLocal session, int[] masks, TableFilter[] filters, int filter,
             SortOrder sortOrder, AllColumnsForPlan allColumnsSet) {
-        return getCostRangeIndex(masks, tableData.getRowCountApproximation(),
+        return getCostRangeIndex(masks, tableData.getRowCountApproximation(session),
                 filters, filter, sortOrder, false, allColumnsSet);
     }
 
     @Override
-    public void remove(Session session) {
+    public void remove(SessionLocal session) {
         truncate(session);
     }
 
     @Override
-    public void truncate(Session session) {
+    public void truncate(SessionLocal session) {
         root = null;
         rowCount = 0;
     }
@@ -339,9 +356,9 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public Cursor findFirstOrLast(Session session, boolean first) {
+    public Cursor findFirstOrLast(SessionLocal session, boolean first) {
         if (closed) {
-            throw DbException.throwInternalError(toString());
+            throw DbException.getInternalError(toString());
         }
         if (first) {
             // TODO optimization: this loops through NULL
@@ -382,18 +399,13 @@ public class TreeIndex extends BaseIndex {
     }
 
     @Override
-    public long getRowCount(Session session) {
+    public long getRowCount(SessionLocal session) {
         return rowCount;
     }
 
     @Override
-    public long getRowCountApproximation() {
+    public long getRowCountApproximation(SessionLocal session) {
         return rowCount;
-    }
-
-    @Override
-    public long getDiskSpaceUsed() {
-        return 0;
     }
 
 }

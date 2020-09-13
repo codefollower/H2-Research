@@ -7,7 +7,7 @@ package org.h2.pagestore.db;
 
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.pagestore.Page;
 import org.h2.pagestore.PageStore;
@@ -25,6 +25,11 @@ import org.h2.store.Data;
  * </ul>
  */
 public class PageDataOverflow extends Page {
+
+    /**
+     * The memory needed by an object of class PageDataOverflow.
+     */
+    private static final int MEMORY_PAGE_DATA_OVERFLOW = 96 + Constants.MEMORY_DATA;
 
     /**
      * The start of the data in the last overflow page.
@@ -204,7 +209,7 @@ public class PageDataOverflow extends Page {
      */
     @Override
     public int getMemory() {
-        return (Constants.MEMORY_PAGE_DATA_OVERFLOW + store.getPageSize()) >> 2;
+        return (MEMORY_PAGE_DATA_OVERFLOW + store.getPageSize()) >> 2;
     }
 
     void setParentPageId(int parent) {
@@ -213,12 +218,12 @@ public class PageDataOverflow extends Page {
     }
 
     @Override
-    public void moveTo(Session session, int newPos) {
+    public void moveTo(SessionLocal session, int newPos) {
         // load the pages into the cache, to ensure old pages
         // are written
         Page parent = store.getPage(parentPageId);
         if (parent == null) {
-            throw DbException.throwInternalError();
+            throw DbException.getInternalError();
         }
         PageDataOverflow next = null;
         if (nextPage != 0) {
@@ -245,7 +250,7 @@ public class PageDataOverflow extends Page {
 
     private void setNext(int old, int nextPage) {
         if (old != this.nextPage) {
-            DbException.throwInternalError("move " + this + " " + nextPage);
+            throw DbException.getInternalError("move " + this + ' ' + nextPage);
         }
         store.logUndo(this, data);
         this.nextPage = nextPage;

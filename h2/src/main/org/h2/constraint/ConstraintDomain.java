@@ -9,7 +9,9 @@ import java.util.HashSet;
 
 import org.h2.api.ErrorCode;
 import org.h2.command.Parser;
-import org.h2.engine.Session;
+import org.h2.command.ddl.AlterDomain;
+import org.h2.command.query.AllColumnsForPlan;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.index.Index;
@@ -18,7 +20,9 @@ import org.h2.result.Row;
 import org.h2.schema.Domain;
 import org.h2.schema.Schema;
 import org.h2.table.Column;
+import org.h2.table.PlanItem;
 import org.h2.table.Table;
+import org.h2.table.TableFilter;
 import org.h2.util.StringUtils;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
@@ -37,7 +41,7 @@ public class ConstraintDomain extends Constraint {
     public ConstraintDomain(Schema schema, int id, String name, Domain domain) {
         super(schema, id, name, null);
         this.domain = domain;
-        resolver = new DomainColumnResolver(domain.getColumn().getType());
+        resolver = new DomainColumnResolver(domain.getDataType());
     }
 
     @Override
@@ -54,7 +58,13 @@ public class ConstraintDomain extends Constraint {
         return domain;
     }
 
-    public void setExpression(Session session, Expression expr) {
+    /**
+     * Set the expression.
+     *
+     * @param session the session
+     * @param expr the expression
+     */
+    public void setExpression(SessionLocal session, Expression expr) {
         expr.mapColumns(resolver, 0, Expression.MAP_INITIAL);
         expr = expr.optimize(session);
         // check if the column is mapped
@@ -67,7 +77,7 @@ public class ConstraintDomain extends Constraint {
 
     @Override
     public String getCreateSQLForCopy(Table forTable, String quotedName) {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -78,19 +88,19 @@ public class ConstraintDomain extends Constraint {
     @Override
     public String getCreateSQL() {
         StringBuilder builder = new StringBuilder("ALTER DOMAIN ");
-        domain.getSQL(builder, true).append(" ADD CONSTRAINT ");
-        getSQL(builder, true);
+        domain.getSQL(builder, DEFAULT_SQL_FLAGS).append(" ADD CONSTRAINT ");
+        getSQL(builder, DEFAULT_SQL_FLAGS);
         if (comment != null) {
             builder.append(" COMMENT ");
             StringUtils.quoteStringSQL(builder, comment);
         }
-        builder.append(" CHECK(");
-        expr.getUnenclosedSQL(builder, true).append(") NOCHECK");
+        builder.append(" CHECK");
+        expr.getEnclosedSQL(builder, DEFAULT_SQL_FLAGS).append(" NOCHECK");
         return builder.toString();
     }
 
     @Override
-    public void removeChildrenAndResources(Session session) {
+    public void removeChildrenAndResources(SessionLocal session) {
         domain.removeConstraint(this);
         database.removeMeta(session, getId());
         domain = null;
@@ -99,8 +109,8 @@ public class ConstraintDomain extends Constraint {
     }
 
     @Override
-    public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
-        DbException.throwInternalError(toString());
+    public void checkRow(SessionLocal session, Table t, Row oldRow, Row newRow) {
+        throw DbException.getInternalError(toString());
     }
 
     /**
@@ -111,7 +121,7 @@ public class ConstraintDomain extends Constraint {
      * @param value
      *            the value to check
      */
-    public void check(Session session, Value value) {
+    public void check(SessionLocal session, Value value) {
         Value v;
         synchronized (this) {
             resolver.setValue(value);
@@ -119,17 +129,24 @@ public class ConstraintDomain extends Constraint {
         }
         // Both TRUE and NULL are OK
         if (v != ValueNull.INSTANCE && !v.getBoolean()) {
-            throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, expr.getSQL(false));
+            throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1, expr.getTraceSQL());
         }
     }
 
-    public Expression getCheckConstraint(Session session, String columnName) {
+    /**
+     * Get the check constraint expression for this column.
+     *
+     * @param session the session
+     * @param columnName the column name
+     * @return the expression
+     */
+    public Expression getCheckConstraint(SessionLocal session, String columnName) {
         String sql;
         if (columnName != null) {
             synchronized (this) {
                 try {
                     resolver.setColumnName(columnName);
-                    sql = expr.getSQL(true);
+                    sql = expr.getSQL(DEFAULT_SQL_FLAGS);
                 } finally {
                     resolver.resetColumnName();
                 }
@@ -137,7 +154,7 @@ public class ConstraintDomain extends Constraint {
             return new Parser(session).parseExpression(sql);
         } else {
             synchronized (this) {
-                sql = expr.getSQL(true);
+                sql = expr.getSQL(DEFAULT_SQL_FLAGS);
             }
             return new Parser(session).parseDomainConstraintExpression(sql);
         }
@@ -150,7 +167,7 @@ public class ConstraintDomain extends Constraint {
 
     @Override
     public void setIndexOwner(Index index) {
-        DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -171,8 +188,12 @@ public class ConstraintDomain extends Constraint {
     }
 
     @Override
-    public void checkExistingData(Session session) {
-        // TODO
+    public void checkExistingData(SessionLocal session) {
+        if (session.getDatabase().isStarting()) {
+            // don't check at startup
+            return;
+        }
+        new CheckExistingData(session, domain);
     }
 
     @Override
@@ -183,6 +204,37 @@ public class ConstraintDomain extends Constraint {
     @Override
     public boolean isEverything(ExpressionVisitor visitor) {
         return expr.isEverything(visitor);
+    }
+
+    private class CheckExistingData {
+
+        private final SessionLocal session;
+
+        CheckExistingData(SessionLocal session, Domain domain) {
+            this.session = session;
+            checkDomain(null, domain);
+        }
+
+        private boolean checkColumn(Domain domain, Column targetColumn) {
+            Table table = targetColumn.getTable();
+            TableFilter filter = new TableFilter(session, table, null, true, null, 0, null);
+            TableFilter[] filters = { filter };
+            PlanItem item = filter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters));
+            filter.setPlanItem(item);
+            filter.prepare();
+            filter.startQuery(session);
+            filter.reset();
+            while (filter.next()) {
+                check(session, filter.getValue(targetColumn));
+            }
+            return false;
+        }
+
+        private boolean checkDomain(Domain domain, Domain targetDomain) {
+            AlterDomain.forAllDependencies(session, targetDomain, this::checkColumn, this::checkDomain, false);
+            return false;
+        }
+
     }
 
 }

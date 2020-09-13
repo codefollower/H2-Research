@@ -31,7 +31,7 @@ SELECT TRUNCATE('bad');
 > exception INVALID_DATETIME_CONSTANT_2
 
 SELECT TRUNCATE(1, 2, 3);
-> exception INVALID_PARAMETER_COUNT_2
+> exception SYNTAX_ERROR_2
 
 select truncate(null, null) en, truncate(1.99, 0) e1, truncate(-10.9, 0) em10;
 > EN   E1 EM10
@@ -77,3 +77,6 @@ SELECT TRUNCATE(1.99::REAL, 0), TRUNCATE(1.99::REAL, 1), TRUNCATE(-1.99::REAL, 0
 
 SELECT TRUNCATE(V, S) FROM (VALUES (1.111, 1)) T(V, S);
 >> 1.1
+
+SELECT TRUNC(1, 10000000);
+> exception INVALID_VALUE_2

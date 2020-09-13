@@ -27,7 +27,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 import org.h2.api.ErrorCode;
-import org.h2.engine.SysProperties;
+import org.h2.api.H2Type;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 
@@ -42,7 +42,7 @@ public class TestUpdatableResultSet extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -71,6 +71,8 @@ public class TestUpdatableResultSet extends TestDb {
         rs = stat.executeQuery("select name from test");
         assertEquals(ResultSet.CONCUR_READ_ONLY, rs.getConcurrency());
         stat.execute("drop table test");
+        rs = stat.executeQuery("SELECT");
+        assertEquals(ResultSet.CONCUR_READ_ONLY, rs.getConcurrency());
 
         stat.execute("create table test(a int, b int, " +
                 "name varchar, primary key(a, b))");
@@ -303,7 +305,7 @@ public class TestUpdatableResultSet extends TestDb {
         Statement stat = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY,
                 ResultSet.CONCUR_UPDATABLE);
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255), "
-                + "DEC DECIMAL(10,2), BOO BIT, BYE TINYINT, BIN BINARY(100), "
+                + "DEC DECIMAL(10,2), BOO BIT, BYE TINYINT, BIN VARBINARY(100), "
                 + "D DATE, T TIME, TS TIMESTAMP(9), TSTZ TIMESTAMP(9) WITH TIME ZONE, DB DOUBLE, R REAL, L BIGINT, "
                 + "O_I INT, SH SMALLINT, CL CLOB, BL BLOB)");
         final int clobIndex = 16, blobIndex = 17;
@@ -314,8 +316,7 @@ public class TestUpdatableResultSet extends TestDb {
         assertEquals("java.lang.String", meta.getColumnClassName(++c));
         assertEquals("java.math.BigDecimal", meta.getColumnClassName(++c));
         assertEquals("java.lang.Boolean", meta.getColumnClassName(++c));
-        assertEquals(SysProperties.OLD_RESULT_SET_GET_OBJECT ? "java.lang.Byte" : "java.lang.Integer",
-                meta.getColumnClassName(++c));
+        assertEquals("java.lang.Integer", meta.getColumnClassName(++c));
         assertEquals("[B", meta.getColumnClassName(++c));
         assertEquals("java.sql.Date", meta.getColumnClassName(++c));
         assertEquals("java.sql.Time", meta.getColumnClassName(++c));
@@ -325,8 +326,7 @@ public class TestUpdatableResultSet extends TestDb {
         assertEquals("java.lang.Float", meta.getColumnClassName(++c));
         assertEquals("java.lang.Long", meta.getColumnClassName(++c));
         assertEquals("java.lang.Integer", meta.getColumnClassName(++c));
-        assertEquals(SysProperties.OLD_RESULT_SET_GET_OBJECT ? "java.lang.Short" : "java.lang.Integer",
-                meta.getColumnClassName(++c));
+        assertEquals("java.lang.Integer", meta.getColumnClassName(++c));
         assertEquals("java.sql.Clob", meta.getColumnClassName(++c));
         assertEquals("java.sql.Blob", meta.getColumnClassName(++c));
         rs.moveToInsertRow();
@@ -740,14 +740,14 @@ public class TestUpdatableResultSet extends TestDb {
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, V INT)");
         PreparedStatement prep = conn.prepareStatement("INSERT INTO TEST VALUES (?1, ?1)");
-        for (int i = 1; i <= 8; i++) {
+        for (int i = 1; i <= 12; i++) {
             prep.setInt(1, i);
             prep.executeUpdate();
         }
         prep = conn.prepareStatement("TABLE TEST ORDER BY ID", ResultSet.TYPE_FORWARD_ONLY,
                 ResultSet.CONCUR_UPDATABLE);
         try (ResultSet rs = prep.executeQuery()) {
-            for (int i = 1; i <= 8; i++) {
+            for (int i = 1; i <= 12; i++) {
             rs.next();
                 assertEquals(i, rs.getInt(1));
                 assertEquals(i, rs.getInt(2));
@@ -757,7 +757,7 @@ public class TestUpdatableResultSet extends TestDb {
             assertFalse(rs.next());
         }
         try (ResultSet rs = prep.executeQuery()) {
-            for (int i = 1; i <= 8; i++) {
+            for (int i = 1; i <= 12; i++) {
                 assertTrue(rs.next());
                 assertEquals(i, rs.getInt(1));
                 assertEquals(i * 10, rs.getInt(2));
@@ -767,7 +767,7 @@ public class TestUpdatableResultSet extends TestDb {
             assertFalse(rs.next());
         }
         try (ResultSet rs = prep.executeQuery()) {
-            for (int i = 1; i <= 8; i++) {
+            for (int i = 1; i <= 12; i++) {
                 assertTrue(rs.next());
                 assertEquals(i, rs.getInt(1));
                 assertNull(rs.getObject(2));
@@ -792,16 +792,28 @@ public class TestUpdatableResultSet extends TestDb {
             rs.updateObject(2, value, JDBCType.INTEGER);
             break;
         case 5:
-            rs.updateObject("V", value, 0);
+            rs.updateObject(2, value, H2Type.INTEGER);
             break;
         case 6:
-            rs.updateObject("V", value, JDBCType.INTEGER);
+            rs.updateObject("V", value, 0);
             break;
         case 7:
-            rs.updateObject(2, value, JDBCType.INTEGER, 0);
+            rs.updateObject("V", value, JDBCType.INTEGER);
             break;
         case 8:
+            rs.updateObject("V", value, H2Type.INTEGER);
+            break;
+        case 9:
+            rs.updateObject(2, value, JDBCType.INTEGER, 0);
+            break;
+        case 10:
+            rs.updateObject(2, value, H2Type.INTEGER, 0);
+            break;
+        case 11:
             rs.updateObject("V", value, JDBCType.INTEGER, 0);
+            break;
+        case 12:
+            rs.updateObject("V", value, H2Type.INTEGER, 0);
         }
     }
 

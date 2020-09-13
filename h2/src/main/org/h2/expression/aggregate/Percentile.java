@@ -11,17 +11,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.h2.api.IntervalQualifier;
-import org.h2.command.dml.SelectOrderBy;
-import org.h2.engine.Session;
-import org.h2.engine.SysProperties;
+import org.h2.command.query.QueryOrderBy;
+import org.h2.engine.Database;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
+import org.h2.mode.DefaultNullOrdering;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
 import org.h2.table.Column;
-import org.h2.table.IndexColumn;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
 import org.h2.util.DateTimeUtils;
@@ -29,9 +29,9 @@ import org.h2.util.IntervalUtils;
 import org.h2.value.CompareMode;
 import org.h2.value.Value;
 import org.h2.value.ValueDate;
-import org.h2.value.ValueDecimal;
 import org.h2.value.ValueInterval;
 import org.h2.value.ValueNull;
+import org.h2.value.ValueNumeric;
 import org.h2.value.ValueTime;
 import org.h2.value.ValueTimeTimeZone;
 import org.h2.value.ValueTimestamp;
@@ -47,22 +47,20 @@ final class Percentile {
      */
     static final BigDecimal HALF = BigDecimal.valueOf(0.5d);
 
-    private static boolean isNullsLast(Index index) {
-        IndexColumn ic = index.getIndexColumns()[0];
-        int sortType = ic.sortType;
-        return (sortType & SortOrder.NULLS_LAST) != 0
-                || (sortType & SortOrder.NULLS_FIRST) == 0
-                        && (sortType & SortOrder.DESCENDING) != 0 ^ SysProperties.SORT_NULLS_HIGH;
+    private static boolean isNullsLast(DefaultNullOrdering defaultNullOrdering, Index index) {
+        return defaultNullOrdering.compareNull(true, index.getIndexColumns()[0].sortType) > 0;
     }
 
     /**
      * Get the index (if any) for the column specified in the inverse
      * distribution function.
      *
+     * @param database the database
      * @param on the expression (usually a column expression)
      * @return the index, or null
      */
-    static Index getColumnIndex(Expression on) {
+    static Index getColumnIndex(Database database, Expression on) {
+        DefaultNullOrdering defaultNullOrdering = database.getDefaultNullOrdering();
         if (on instanceof ExpressionColumn) {
             ExpressionColumn col = (ExpressionColumn) on;
             Column column = col.getColumn();
@@ -83,7 +81,8 @@ final class Percentile {
                         }
                         // Prefer index without nulls last for nullable columns
                         if (result == null || result.getColumns().length > index.getColumns().length
-                                || nullable && isNullsLast(result) && !isNullsLast(index)) {
+                                || nullable && isNullsLast(defaultNullOrdering, result)
+                                        && !isNullsLast(defaultNullOrdering, index)) {
                             result = index;
                         }
                     }
@@ -105,7 +104,7 @@ final class Percentile {
      * @param interpolate whether value should be interpolated
      * @return the result
      */
-    static Value getValue(Session session, Value[] array, int dataType, ArrayList<SelectOrderBy> orderByList,
+    static Value getValue(SessionLocal session, Value[] array, int dataType, ArrayList<QueryOrderBy> orderByList,
             BigDecimal percentile, boolean interpolate) {
         final CompareMode compareMode = session.getDatabase().getCompareMode();
         Arrays.sort(array, compareMode);
@@ -134,7 +133,7 @@ final class Percentile {
         }
         Value v = array[rowIdx1];
         if (!interpolate) {
-            return v.convertTo(dataType);
+            return v;
         }
         return interpolate(v, array[rowIdx2], factor, dataType, session, compareMode);
     }
@@ -150,9 +149,10 @@ final class Percentile {
      * @param interpolate whether value should be interpolated
      * @return the result
      */
-    static Value getFromIndex(Session session, Expression expression, int dataType,
-            ArrayList<SelectOrderBy> orderByList, BigDecimal percentile, boolean interpolate) {
-        Index index = getColumnIndex(expression);
+    static Value getFromIndex(SessionLocal session, Expression expression, int dataType,
+            ArrayList<QueryOrderBy> orderByList, BigDecimal percentile, boolean interpolate) {
+        Database db = session.getDatabase();
+        Index index = getColumnIndex(db, expression);
         long count = index.getRowCount(session);
         if (count == 0) {
             return ValueNull.INSTANCE;
@@ -184,7 +184,7 @@ final class Percentile {
             }
             // If no nulls found and if index orders nulls last create a second
             // cursor to count nulls at the end.
-            if (!hasNulls && isNullsLast(index)) {
+            if (!hasNulls && isNullsLast(db.getDefaultNullOrdering(), index)) {
                 TableFilter tableFilter = expr.getTableFilter();
                 SearchRow check = tableFilter.getTable().getTemplateSimpleRow(true);
                 check.setValue(columnId, ValueNull.INSTANCE);
@@ -243,41 +243,41 @@ final class Percentile {
                 v = v2;
                 v2 = t;
             }
-            return interpolate(v, v2, factor, dataType, session, session.getDatabase().getCompareMode());
+            return interpolate(v, v2, factor, dataType, session, db.getCompareMode());
         }
-        return v.convertTo(dataType);
+        return v;
     }
 
-    private static Value interpolate(Value v0, Value v1, BigDecimal factor, int dataType, Session session,
+    private static Value interpolate(Value v0, Value v1, BigDecimal factor, int dataType, SessionLocal session,
             CompareMode compareMode) {
         if (v0.compareTo(v1, session, compareMode) == 0) {
-            return v0.convertTo(dataType);
+            return v0;
         }
         switch (dataType) {
         case Value.TINYINT:
         case Value.SMALLINT:
-        case Value.INT:
-            return ValueDecimal.get(
+        case Value.INTEGER:
+            return ValueNumeric.get(
                     interpolateDecimal(BigDecimal.valueOf(v0.getInt()), BigDecimal.valueOf(v1.getInt()), factor));
         case Value.BIGINT:
-            return ValueDecimal.get(
+            return ValueNumeric.get(
                     interpolateDecimal(BigDecimal.valueOf(v0.getLong()), BigDecimal.valueOf(v1.getLong()), factor));
         case Value.NUMERIC:
-            return ValueDecimal.get(interpolateDecimal(v0.getBigDecimal(), v1.getBigDecimal(), factor));
+        case Value.DECFLOAT:
+            return ValueNumeric.get(interpolateDecimal(v0.getBigDecimal(), v1.getBigDecimal(), factor));
         case Value.REAL:
         case Value.DOUBLE:
-            return ValueDecimal.get(
+            return ValueNumeric.get(
                     interpolateDecimal(
                             BigDecimal.valueOf(v0.getDouble()), BigDecimal.valueOf(v1.getDouble()), factor));
         case Value.TIME: {
-            ValueTime t0 = (ValueTime) v0.convertTo(Value.TIME), t1 = (ValueTime) v1.convertTo(Value.TIME);
+            ValueTime t0 = (ValueTime) v0, t1 = (ValueTime) v1;
             BigDecimal n0 = BigDecimal.valueOf(t0.getNanos());
             BigDecimal n1 = BigDecimal.valueOf(t1.getNanos());
             return ValueTime.fromNanos(interpolateDecimal(n0, n1, factor).longValue());
         }
         case Value.TIME_TZ: {
-            ValueTimeTimeZone t0 = (ValueTimeTimeZone) v0.convertTo(Value.TIME_TZ),
-                    t1 = (ValueTimeTimeZone) v1.convertTo(Value.TIME_TZ);
+            ValueTimeTimeZone t0 = (ValueTimeTimeZone) v0, t1 = (ValueTimeTimeZone) v1;
             BigDecimal n0 = BigDecimal.valueOf(t0.getNanos());
             BigDecimal n1 = BigDecimal.valueOf(t1.getNanos());
             BigDecimal offset = BigDecimal.valueOf(t0.getTimeZoneOffsetSeconds())
@@ -301,15 +301,14 @@ final class Percentile {
             return ValueTimeTimeZone.fromNanos(timeNanos, intOffset);
         }
         case Value.DATE: {
-            ValueDate d0 = (ValueDate) v0.convertTo(Value.DATE), d1 = (ValueDate) v1.convertTo(Value.DATE);
+            ValueDate d0 = (ValueDate) v0, d1 = (ValueDate) v1;
             BigDecimal a0 = BigDecimal.valueOf(DateTimeUtils.absoluteDayFromDateValue(d0.getDateValue()));
             BigDecimal a1 = BigDecimal.valueOf(DateTimeUtils.absoluteDayFromDateValue(d1.getDateValue()));
             return ValueDate.fromDateValue(
                     DateTimeUtils.dateValueFromAbsoluteDay(interpolateDecimal(a0, a1, factor).longValue()));
         }
         case Value.TIMESTAMP: {
-            ValueTimestamp ts0 = (ValueTimestamp) v0.convertTo(Value.TIMESTAMP),
-                    ts1 = (ValueTimestamp) v1.convertTo(Value.TIMESTAMP);
+            ValueTimestamp ts0 = (ValueTimestamp) v0, ts1 = (ValueTimestamp) v1;
             BigDecimal a0 = timestampToDecimal(ts0.getDateValue(), ts0.getTimeNanos());
             BigDecimal a1 = timestampToDecimal(ts1.getDateValue(), ts1.getTimeNanos());
             BigInteger[] dr = interpolateDecimal(a0, a1, factor).toBigInteger()
@@ -324,8 +323,7 @@ final class Percentile {
                     DateTimeUtils.dateValueFromAbsoluteDay(absoluteDay), timeNanos);
         }
         case Value.TIMESTAMP_TZ: {
-            ValueTimestampTimeZone ts0 = (ValueTimestampTimeZone) v0.convertTo(Value.TIMESTAMP_TZ),
-                    ts1 = (ValueTimestampTimeZone) v1.convertTo(Value.TIMESTAMP_TZ);
+            ValueTimestampTimeZone ts0 = (ValueTimestampTimeZone) v0, ts1 = (ValueTimestampTimeZone) v1;
             BigDecimal a0 = timestampToDecimal(ts0.getDateValue(), ts0.getTimeNanos());
             BigDecimal a1 = timestampToDecimal(ts1.getDateValue(), ts1.getTimeNanos());
             BigDecimal offset = BigDecimal.valueOf(ts0.getTimeZoneOffsetSeconds())
@@ -367,7 +365,7 @@ final class Percentile {
                                     .toBigInteger());
         default:
             // Use the same rules as PERCENTILE_DISC
-            return (factor.compareTo(HALF) > 0 ? v1 : v0).convertTo(dataType);
+            return (factor.compareTo(HALF) > 0 ? v1 : v0);
         }
     }
 

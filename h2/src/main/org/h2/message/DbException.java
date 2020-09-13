@@ -269,36 +269,66 @@ public class DbException extends RuntimeException {
      *
      * @param param the name of the parameter
      * @param value the value passed
-     * @return the IllegalArgumentException object
+     * @return the exception
      */
     public static DbException getInvalidValueException(String param, Object value) {
         return get(INVALID_VALUE_2, value == null ? "null" : value.toString(), param);
     }
 
     /**
-     * Throw an internal error. This method seems to return an exception object,
-     * so that it can be used instead of 'return', but in fact it always throws
-     * the exception.
+     * Gets a SQL exception meaning this value is too long.
      *
-     * @param s the message
-     * @return the RuntimeException object
-     * @throws RuntimeException the exception
+     * @param columnOrType
+     *            column with data type or data type name
+     * @param value
+     *            string representation of value, will be truncated to 80
+     *            characters
+     * @param valueLength
+     *            the actual length of value, {@code -1L} if unknown
+     * @return the exception
      */
-    public static RuntimeException throwInternalError(String s) {
-        RuntimeException e = new RuntimeException(s);
-        DbException.traceThrowable(e);
-        throw e;
+    public static DbException getValueTooLongException(String columnOrType, String value, long valueLength) {
+        int length = value.length();
+        int m = valueLength >= 0 ? 22 : 0;
+        StringBuilder builder = length > 80 //
+                ? new StringBuilder(83 + m).append(value, 0, 80).append("...")
+                : new StringBuilder(length + m).append(value);
+        if (valueLength >= 0) {
+            builder.append(" (").append(valueLength).append(')');
+        }
+        return get(VALUE_TOO_LONG_2, columnOrType, builder.toString());
     }
 
     /**
-     * Throw an internal error. This method seems to return an exception object,
-     * so that it can be used instead of 'return', but in fact it always throws
-     * the exception.
+     * Gets a file version exception.
+     *
+     * @param dataFileName the name of the database
+     * @return the exception
+     */
+    public static DbException getFileVersionError(String dataFileName) {
+        return DbException.get(FILE_VERSION_ERROR_1, "Old database: " + dataFileName
+                + " - please convert the database to a SQL script and re-create it.");
+    }
+
+    /**
+     * Gets an internal error.
+     *
+     * @param s the message
+     * @return the RuntimeException object
+     */
+    public static RuntimeException getInternalError(String s) {
+        RuntimeException e = new RuntimeException(s);
+        DbException.traceThrowable(e);
+        return e;
+    }
+
+    /**
+     * Gets an internal error.
      *
      * @return the RuntimeException object
      */
-    public static RuntimeException throwInternalError() {
-        return throwInternalError("Unexpected code path");
+    public static RuntimeException getInternalError() {
+        return getInternalError("Unexpected code path");
     }
 
     /**
@@ -445,6 +475,7 @@ public class DbException extends RuntimeException {
         case 7:
         case 21:
         case 42:
+        case 54:
             return new JdbcSQLSyntaxErrorException(message, sql, state, errorCode, cause, stackTrace);
         case 8:
             return new JdbcSQLNonTransientConnectionException(message, sql, state, errorCode, cause, stackTrace);
@@ -505,7 +536,7 @@ public class DbException extends RuntimeException {
         case LOB_CLOSED_ON_TIMEOUT_1:
             return new JdbcSQLTimeoutException(message, sql, state, errorCode, cause, stackTrace);
         case FUNCTION_MUST_RETURN_RESULT_SET_1:
-        case TRIGGER_SELECT_AND_ROW_BASED_NOT_SUPPORTED:
+        case INVALID_TRIGGER_FLAGS_1:
         case SUM_OR_AVG_ON_WRONG_DATATYPE_1:
         case MUST_GROUP_BY_COLUMN_1:
         case SECOND_PRIMARY_KEY:
@@ -551,7 +582,7 @@ public class DbException extends RuntimeException {
         case CANNOT_TRUNCATE_1:
         case CANNOT_DROP_2:
         case VIEW_IS_INVALID_2:
-        case COMPARING_ARRAY_TO_SCALAR:
+        case TYPES_ARE_NOT_COMPARABLE_2:
         case CONSTANT_ALREADY_EXISTS_1:
         case CONSTANT_NOT_FOUND_1:
         case LITERALS_ARE_NOT_ALLOWED:
@@ -573,11 +604,12 @@ public class DbException extends RuntimeException {
         case UNCOMPARABLE_REFERENCED_COLUMN_2:
         case GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1:
         case GENERATED_COLUMN_CANNOT_BE_UPDATABLE_BY_CONSTRAINT_2:
+        case COLUMN_ALIAS_IS_NOT_SPECIFIED_1:
             return new JdbcSQLSyntaxErrorException(message, sql, state, errorCode, cause, stackTrace);
         case HEX_STRING_ODD_1:
         case HEX_STRING_WRONG_1:
         case INVALID_VALUE_2:
-        case SEQUENCE_ATTRIBUTES_INVALID_6:
+        case SEQUENCE_ATTRIBUTES_INVALID_7:
         case INVALID_TO_CHAR_FORMAT:
         case PARAMETER_NOT_SET_1:
         case PARSE_ERROR_1:
@@ -631,24 +663,6 @@ public class DbException extends RuntimeException {
 
     private static String filterSQL(String sql) {
         return sql == null || !sql.contains(HIDE_SQL) ? sql : "-";
-    }
-
-    /**
-     * Convert an exception to an IO exception.
-     *
-     * @param e the root cause
-     * @return the IO exception
-     */
-    public static IOException convertToIOException(Throwable e) {
-        if (e instanceof IOException) {
-            return (IOException) e;
-        }
-        if (e instanceof JdbcException) {
-            if (e.getCause() != null) {
-                e = e.getCause();
-            }
-        }
-        return new IOException(e.toString(), e);
     }
 
     /**

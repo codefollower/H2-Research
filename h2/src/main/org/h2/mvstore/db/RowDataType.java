@@ -22,10 +22,7 @@ import org.h2.value.CompareMode;
 import org.h2.value.Value;
 
 /**
- * Class RowDataType.
- * <UL>
- * <LI> 8/12/17 10:48 AM initial creation
- * </UL>
+ * The data type for rows.
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
@@ -161,6 +158,12 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
 */
     }
 
+    /**
+     * Reads a row.
+     *
+     * @param buff the source buffer
+     * @return the row
+     */
     public SearchRow readCompatible(ByteBuffer buff) {
         return (SearchRow)valueDataType.read(buff);
     }
@@ -184,6 +187,12 @@ public final class RowDataType extends BasicDataType<SearchRow> implements State
 //        }
     }
 
+    /**
+     * Writes a row.
+     *
+     * @param buff the target buffer
+     * @param row the row
+     */
     public void writeCompatible(WriteBuffer buff, SearchRow row) {
         valueDataType.writeRow(buff, row, indexes);
     }

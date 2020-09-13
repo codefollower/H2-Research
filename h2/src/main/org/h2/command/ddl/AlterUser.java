@@ -8,7 +8,7 @@ package org.h2.command.ddl;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.engine.Database;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.User;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
@@ -29,7 +29,7 @@ public class AlterUser extends DefineCommand {
     private Expression hash;
     private boolean admin;
 
-    public AlterUser(Session session) {
+    public AlterUser(SessionLocal session) {
         super(session);
     }
 
@@ -62,7 +62,7 @@ public class AlterUser extends DefineCommand {
     }
 
     @Override
-    public int update() {
+    public long update() {
         session.commit(true);
         Database db = session.getDatabase();
         switch (type) {
@@ -91,7 +91,7 @@ public class AlterUser extends DefineCommand {
             user.setAdmin(admin);
             break;
         default:
-            DbException.throwInternalError("type=" + type);
+            throw DbException.getInternalError("type=" + type);
         }
         db.updateMeta(session, user);
         return 0;

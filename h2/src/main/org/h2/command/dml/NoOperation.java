@@ -7,7 +7,7 @@ package org.h2.command.dml;
 
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.result.ResultInterface;
 
 /**
@@ -15,12 +15,12 @@ import org.h2.result.ResultInterface;
  */
 public class NoOperation extends Prepared {
 
-    public NoOperation(Session session) {
+    public NoOperation(SessionLocal session) {
         super(session);
     }
 
     @Override
-    public int update() {
+    public long update() {
         return 0;
     }
 

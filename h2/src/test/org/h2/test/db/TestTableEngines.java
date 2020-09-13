@@ -21,9 +21,8 @@ import java.util.TreeSet;
 
 import org.h2.api.TableEngine;
 import org.h2.command.ddl.CreateTableData;
-import org.h2.command.dml.AllColumnsForPlan;
-import org.h2.engine.Session;
-import org.h2.index.BaseIndex;
+import org.h2.command.query.AllColumnsForPlan;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
@@ -40,7 +39,7 @@ import org.h2.table.TableType;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.value.Value;
-import org.h2.value.ValueInt;
+import org.h2.value.ValueInteger;
 import org.h2.value.ValueNull;
 
 /**
@@ -56,7 +55,7 @@ public class TestTableEngines extends TestDb {
      * @param a ignored
      */
     public static void main(String[] a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -196,12 +195,12 @@ public class TestTableEngines extends TestDb {
 
         List<List<Object>> dataSet = new ArrayList<>();
 
-        dataSet.add(Arrays.<Object>asList(1, "1", 1L));
-        dataSet.add(Arrays.<Object>asList(1, "0", 2L));
-        dataSet.add(Arrays.<Object>asList(2, "0", -1L));
-        dataSet.add(Arrays.<Object>asList(0, "0", 1L));
-        dataSet.add(Arrays.<Object>asList(0, "1", null));
-        dataSet.add(Arrays.<Object>asList(2, null, 0L));
+        dataSet.add(Arrays.asList(1, "1", 1L));
+        dataSet.add(Arrays.asList(1, "0", 2L));
+        dataSet.add(Arrays.asList(2, "0", -1L));
+        dataSet.add(Arrays.asList(0, "0", 1L));
+        dataSet.add(Arrays.asList(0, "1", null));
+        dataSet.add(Arrays.asList(2, null, 0L));
 
         PreparedStatement prep = conn.prepareStatement("INSERT INTO T(A,B,C) VALUES(?,?,?)");
         for (List<Object> row : dataSet) {
@@ -515,7 +514,7 @@ public class TestTableEngines extends TestDb {
             /**
              * A scan index for one row.
              */
-            public class Scan extends BaseIndex {
+            public class Scan extends Index {
 
                 Scan(Table table) {
                     super(table, table.getId(), table.getName() + "_SCAN",
@@ -523,8 +522,8 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public long getRowCountApproximation() {
-                    return table.getRowCountApproximation();
+                public long getRowCountApproximation(SessionLocal session) {
+                    return table.getRowCountApproximation(session);
                 }
 
                 @Override
@@ -533,22 +532,22 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public long getRowCount(Session session) {
+                public long getRowCount(SessionLocal session) {
                     return table.getRowCount(session);
                 }
 
                 @Override
-                public void truncate(Session session) {
+                public void truncate(SessionLocal session) {
                     // do nothing
                 }
 
                 @Override
-                public void remove(Session session) {
+                public void remove(SessionLocal session) {
                     // do nothing
                 }
 
                 @Override
-                public void remove(Session session, Row r) {
+                public void remove(SessionLocal session, Row r) {
                     // do nothing
                 }
 
@@ -558,24 +557,24 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public double getCost(Session session, int[] masks,
+                public double getCost(SessionLocal session, int[] masks,
                         TableFilter[] filters, int filter, SortOrder sortOrder,
                         AllColumnsForPlan allColumnsSet) {
                     return 0;
                 }
 
                 @Override
-                public Cursor findFirstOrLast(Session session, boolean first) {
+                public Cursor findFirstOrLast(SessionLocal session, boolean first) {
                     return new SingleRowCursor(row);
                 }
 
                 @Override
-                public Cursor find(Session session, SearchRow first, SearchRow last) {
+                public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
                     return new SingleRowCursor(row);
                 }
 
                 @Override
-                public void close(Session session) {
+                public void close(SessionLocal session) {
                     // do nothing
                 }
 
@@ -585,7 +584,7 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public void add(Session session, Row r) {
+                public void add(SessionLocal session, Row r) {
                     // do nothing
                 }
             }
@@ -600,14 +599,14 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public Index addIndex(Session session, String indexName,
+            public Index addIndex(SessionLocal session, String indexName,
                     int indexId, IndexColumn[] cols, IndexType indexType,
                     boolean create, String indexComment) {
                 return null;
             }
 
             @Override
-            public void addRow(Session session, Row r) {
+            public void addRow(SessionLocal session, Row r) {
                 this.row = r;
             }
 
@@ -617,7 +616,7 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public boolean canGetRowCount() {
+            public boolean canGetRowCount(SessionLocal session) {
                 return true;
             }
 
@@ -627,7 +626,7 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public void close(Session session) {
+            public void close(SessionLocal session) {
                 // do nothing
             }
 
@@ -642,22 +641,17 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public long getRowCount(Session session) {
-                return getRowCountApproximation();
+            public long getRowCount(SessionLocal session) {
+                return getRowCountApproximation(session);
             }
 
             @Override
-            public long getRowCountApproximation() {
+            public long getRowCountApproximation(SessionLocal session) {
                 return row == null ? 0 : 1;
             }
 
             @Override
-            public long getDiskSpaceUsed() {
-                return 0;
-            }
-
-            @Override
-            public Index getScanIndex(Session session) {
+            public Index getScanIndex(SessionLocal session) {
                 return scanIndex;
             }
 
@@ -677,29 +671,15 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public boolean isLockedExclusively() {
-                return false;
-            }
-
-            @Override
-            public boolean lock(Session session, boolean exclusive, boolean force) {
-                // do nothing
-                return false;
-            }
-
-            @Override
-            public void removeRow(Session session, Row r) {
+            public void removeRow(SessionLocal session, Row r) {
                 this.row = null;
             }
 
             @Override
-            public void truncate(Session session) {
+            public long truncate(SessionLocal session) {
+                long result = row != null ? 1L : 0L;
                 row = null;
-            }
-
-            @Override
-            public void unlock(Session s) {
-                // do nothing
+                return result;
             }
 
         }
@@ -731,7 +711,7 @@ public class TestTableEngines extends TestDb {
 
             EndlessTable(CreateTableData data) {
                 super(data);
-                row = Row.get(new Value[] { ValueInt.get(1), ValueNull.INSTANCE }, 0);
+                row = Row.get(new Value[] { ValueInteger.get(1), ValueNull.INSTANCE }, 0);
                 scanIndex = new Auto(this);
             }
 
@@ -745,7 +725,7 @@ public class TestTableEngines extends TestDb {
                 }
 
                 @Override
-                public Cursor find(Session session, SearchRow first, SearchRow last) {
+                public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
                     return new SingleRowCursor(row);
                 }
 
@@ -791,7 +771,7 @@ public class TestTableEngines extends TestDb {
         TreeSetIndex scan = new TreeSetIndex(this, "scan",
                 IndexColumn.wrap(getColumns()), IndexType.createScan(false)) {
             @Override
-            public double getCost(Session session, int[] masks,
+            public double getCost(SessionLocal session, int[] masks,
                     TableFilter[] filters, int filter, SortOrder sortOrder,
                     AllColumnsForPlan allColumnsSet) {
                 return getCostRangeIndex(masks, getRowCount(session), filters,
@@ -804,12 +784,8 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public void unlock(Session s) {
-            // No-op.
-        }
-
-        @Override
-        public void truncate(Session session) {
+        public long truncate(SessionLocal session) {
+            long result = getRowCountApproximation(session);
             if (indexes != null) {
                 for (Index index : indexes) {
                     index.truncate(session);
@@ -818,10 +794,11 @@ public class TestTableEngines extends TestDb {
                 scan.truncate(session);
             }
             dataModificationId++;
+            return result;
         }
 
         @Override
-        public void removeRow(Session session, Row row) {
+        public void removeRow(SessionLocal session, Row row) {
             if (indexes != null) {
                 for (Index index : indexes) {
                     index.remove(session, row);
@@ -833,7 +810,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public void addRow(Session session, Row row) {
+        public void addRow(SessionLocal session, Row row) {
             if (indexes != null) {
                 for (Index index : indexes) {
                     index.add(session, row);
@@ -845,7 +822,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public Index addIndex(Session session, String indexName, int indexId, IndexColumn[] cols,
+        public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
                 IndexType indexType, boolean create, String indexComment) {
             if (indexes == null) {
                 indexes = new ArrayList<>(2);
@@ -860,16 +837,6 @@ public class TestTableEngines extends TestDb {
             dataModificationId++;
             setModified();
             return index;
-        }
-
-        @Override
-        public boolean lock(Session session, boolean exclusive, boolean forceLockEvenInMvcc) {
-            return true;
-        }
-
-        @Override
-        public boolean isLockedExclusively() {
-            return false;
         }
 
         @Override
@@ -888,17 +855,17 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public Index getScanIndex(Session session) {
+        public Index getScanIndex(SessionLocal session) {
             return scan;
         }
 
         @Override
-        public long getRowCountApproximation() {
-            return getScanIndex(null).getRowCountApproximation();
+        public long getRowCountApproximation(SessionLocal session) {
+            return getScanIndex(null).getRowCountApproximation(session);
         }
 
         @Override
-        public long getRowCount(Session session) {
+        public long getRowCount(SessionLocal session) {
             return scan.getRowCount(session);
         }
 
@@ -913,12 +880,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public long getDiskSpaceUsed() {
-            return 0;
-        }
-
-        @Override
-        public void close(Session session) {
+        public void close(SessionLocal session) {
             // No-op.
         }
 
@@ -928,7 +890,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public boolean canGetRowCount() {
+        public boolean canGetRowCount(SessionLocal session) {
             return true;
         }
 
@@ -941,7 +903,7 @@ public class TestTableEngines extends TestDb {
     /**
      * An index that internally uses a tree set.
      */
-    private static class TreeSetIndex extends BaseIndex implements Comparator<SearchRow> {
+    private static class TreeSetIndex extends Index implements Comparator<SearchRow> {
 
         final TreeSet<SearchRow> set = new TreeSet<>(this);
 
@@ -963,17 +925,17 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public void close(Session session) {
+        public void close(SessionLocal session) {
             // No-op.
         }
 
         @Override
-        public void add(Session session, Row row) {
+        public void add(SessionLocal session, Row row) {
             set.add(row);
         }
 
         @Override
-        public void remove(Session session, Row row) {
+        public void remove(SessionLocal session, Row row) {
             set.remove(row);
         }
 
@@ -986,7 +948,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public Cursor find(Session session, SearchRow first, SearchRow last) {
+        public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
             Set<SearchRow> subSet;
             if (first != null && last != null && compareRows(last, first) < 0) {
                 subSet = Collections.emptySet();
@@ -1015,7 +977,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public double getCost(Session session, int[] masks,
+        public double getCost(SessionLocal session, int[] masks,
                 TableFilter[] filters, int filter, SortOrder sortOrder,
                 AllColumnsForPlan allColumnsSet) {
             return getCostRangeIndex(masks, set.size(), filters, filter,
@@ -1023,12 +985,12 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public void remove(Session session) {
+        public void remove(SessionLocal session) {
             // No-op.
         }
 
         @Override
-        public void truncate(Session session) {
+        public void truncate(SessionLocal session) {
             set.clear();
         }
 
@@ -1038,7 +1000,7 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public Cursor findFirstOrLast(Session session, boolean first) {
+        public Cursor findFirstOrLast(SessionLocal session, boolean first) {
             return new SingleRowCursor((Row)
                     (set.isEmpty() ? null : first ? set.first() : set.last()));
         }
@@ -1049,19 +1011,15 @@ public class TestTableEngines extends TestDb {
         }
 
         @Override
-        public long getRowCount(Session session) {
+        public long getRowCount(SessionLocal session) {
             return set.size();
         }
 
         @Override
-        public long getRowCountApproximation() {
+        public long getRowCountApproximation(SessionLocal session) {
             return getRowCount(null);
         }
 
-        @Override
-        public long getDiskSpaceUsed() {
-            return 0;
-        }
     }
 
     /**

@@ -7,18 +7,24 @@ package org.h2.result;
 
 import org.h2.engine.Constants;
 import org.h2.value.Value;
-import org.h2.value.ValueLong;
+import org.h2.value.ValueBigint;
 
 /**
  * The default implementation of a row in a table.
  */
-public class DefaultRow extends Row
-{
-    protected final Value[] data;
-    private         int     memory;
+public class DefaultRow extends Row {
 
+    /**
+     * The constant that means "memory usage is unknown and needs to be calculated first".
+     */
     public static final int MEMORY_CALCULATE = -1;
 
+    /**
+     * The values of the row (one entry per column).
+     */
+    protected final Value[] data;
+
+    private int memory;
 
     DefaultRow(int columnCount) {
         this.data = new Value[columnCount];
@@ -37,7 +43,7 @@ public class DefaultRow extends Row
 
     @Override
     public Value getValue(int i) {
-        return i == ROWID_INDEX ? ValueLong.get(key) : data[i];
+        return i == ROWID_INDEX ? ValueBigint.get(key) : data[i];
     }
 
     @Override

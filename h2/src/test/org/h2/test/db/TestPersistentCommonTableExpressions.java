@@ -5,7 +5,6 @@
  */
 package org.h2.test.db;
 
-import org.h2.engine.SysProperties;
 import org.h2.test.TestBase;
 
 /**
@@ -19,7 +18,7 @@ public class TestPersistentCommonTableExpressions extends AbstractBaseForCommonT
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -33,34 +32,12 @@ public class TestPersistentCommonTableExpressions extends AbstractBaseForCommonT
     }
 
     private void testRecursiveTable() throws Exception {
-        String numericName;
-        if (SysProperties.BIG_DECIMAL_IS_DECIMAL) {
-            numericName = "DECIMAL";
-        } else {
-            numericName = "NUMERIC";
-        }
         String[] expectedRowData = new String[]{"|meat|null", "|fruit|3", "|veg|2"};
-        String[] expectedColumnTypes = new String[]{"VARCHAR", numericName};
+        String[] expectedColumnTypes = new String[]{"CHARACTER VARYING", "NUMERIC"};
         String[] expectedColumnNames = new String[]{"VAL",
                 "SUM((SELECT\n" +
                 "    X\n" +
                 "FROM PUBLIC.\"\" BB\n" +
-                "    /* SELECT\n" +
-                "        SUM(1) AS X,\n" +
-                "        A\n" +
-                "    FROM PUBLIC.B\n" +
-                "        /++ PUBLIC.B.tableScan ++/\n" +
-                "        /++ WHERE A IS NOT DISTINCT FROM ?1\n" +
-                "        ++/\n" +
-                "        /++ scanCount: 4 ++/\n" +
-                "    INNER JOIN PUBLIC.C\n" +
-                "        /++ PUBLIC.C.tableScan ++/\n" +
-                "        ON 1=1\n" +
-                "    WHERE (B.VAL = C.B)\n" +
-                "        _LOCAL_AND_GLOBAL_ (A IS NOT DISTINCT FROM ?1)\n" +
-                "    GROUP BY A: A IS NOT DISTINCT FROM A.VAL\n" +
-                "     */\n" +
-                "    /* scanCount: 1 */\n" +
                 "WHERE BB.A IS NOT DISTINCT FROM A.VAL))"};
 
         String setupSQL =

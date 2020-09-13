@@ -6,10 +6,9 @@
 package org.h2.pagestore.db;
 
 import org.h2.api.ErrorCode;
-import org.h2.command.dml.AllColumnsForPlan;
+import org.h2.command.query.AllColumnsForPlan;
 import org.h2.engine.Constants;
-import org.h2.engine.Session;
-import org.h2.engine.SysProperties;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Cursor;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
@@ -44,7 +43,7 @@ public class PageBtreeIndex extends PageIndex {
     //PageDataIndex的id就是表的id，其他索引如PageBtreeIndex的id是自动分配的并不是表的id
     public PageBtreeIndex(PageStoreTable table, int id, String indexName,
             IndexColumn[] columns,
-            IndexType indexType, boolean create, Session session) {
+            IndexType indexType, boolean create, SessionLocal session) {
         super(table, id, indexName, columns, indexType);
         if (!database.isStarting() && create) {
             checkIndexColumnTypes(columns); //索引字段不能是 BLOB or CLOB类型
@@ -54,10 +53,11 @@ public class PageBtreeIndex extends PageIndex {
         tableData = table;
         //内存数据库显然不能建立Btree索引，因为Btree索引要存硬盘
         if (!database.isPersistent() || id < 0) {
-            throw DbException.throwInternalError(indexName);
+            throw DbException.getInternalError(indexName);
         }
         this.store = database.getPageStore();
         store.addIndex(this); //加到PageStore的metaObjects
+        boolean needRebuild = false;
         if (create) {
             // new index
             rootPageId = store.allocatePage();
@@ -68,22 +68,32 @@ public class PageBtreeIndex extends PageIndex {
             PageBtreeLeaf root = PageBtreeLeaf.create(this, rootPageId, PageBtree.ROOT);
             store.logUndo(root, null);
             store.update(root); //放到缓存中
+            needRebuild = true;
         } else {
             rootPageId = store.getRootPageId(id);
             PageBtree root = getPage(rootPageId);
             rowCount = root.getRowCount();
+            if (rowCount == 0 && store.isRecoveryRunning()) {
+                needRebuild = true;
+            } else if (database.upgradeTo2_0()) {
+                for (IndexColumn c : columns) {
+                    if (org.h2.value.DataType.rebuildIndexOnUpgradeTo2_0(c.column.getType().getValueType())) {
+                        removeAllRows();
+                        needRebuild = true;
+                        break;
+                    }
+                }
+            }
         }
-        this.needRebuild = create || (rowCount == 0 && store.isRecoveryRunning());
+        this.needRebuild = needRebuild;
         if (trace.isDebugEnabled()) {
             trace.debug("opened {0} rows: {1}", getName() , rowCount);
         }
-        memoryPerPage = (Constants.MEMORY_PAGE_BTREE + store.getPageSize()) >> 2;
-        //System.out.println(getPlanSQL());
-        //System.out.println(getCreateSQL());
+        memoryPerPage = (PageBtree.MEMORY_PAGE_BTREE + store.getPageSize()) >> 2;
     }
 
     @Override
-    public void add(Session session, Row row) { //row是完整的记录
+    public void add(SessionLocal session, Row row) { //row是完整的记录
         if (trace.isDebugEnabled()) {
             trace.debug("{0} add {1}", getName(), row);
         }
@@ -196,16 +206,16 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public Cursor findNext(Session session, SearchRow first, SearchRow last) {
+    public Cursor findNext(SessionLocal session, SearchRow first, SearchRow last) {
         return find(session, first, true, last);
     }
 
     @Override
-    public Cursor find(Session session, SearchRow first, SearchRow last) {
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
         return find(session, first, false, last);
     }
 
-    private Cursor find(Session session, SearchRow first, boolean bigger,
+    private Cursor find(SessionLocal session, SearchRow first, boolean bigger,
             SearchRow last) {
         if (store == null) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED);
@@ -219,7 +229,7 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public Cursor findFirstOrLast(Session session, boolean first) {
+    public Cursor findFirstOrLast(SessionLocal session, boolean first) {
         if (first) {
             // TODO optimization: this loops through NULL elements
             Cursor cursor = find(session, null, false, null);
@@ -251,7 +261,7 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public double getCost(Session session, int[] masks,
+    public double getCost(SessionLocal session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
             AllColumnsForPlan allColumnsSet) {
         return 10 * getCostRangeIndex(masks, tableData.getRowCount(session),
@@ -264,7 +274,7 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public void remove(Session session, Row row) {
+    public void remove(SessionLocal session, Row row) {
         if (trace.isDebugEnabled()) {
             trace.debug("{0} remove {1}", getName(), row);
         }
@@ -285,7 +295,7 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public void remove(Session session) { //删掉索引时会调用(删表时也会触发删索引)
+    public void remove(SessionLocal session) { //删掉索引时会调用(删表时也会触发删索引)
         if (trace.isDebugEnabled()) {
             trace.debug("remove");
         }
@@ -295,7 +305,7 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public void truncate(Session session) { //TRUNCATE表时触发
+    public void truncate(SessionLocal session) { //TRUNCATE表时触发
         if (trace.isDebugEnabled()) {
             trace.debug("truncate");
         }
@@ -328,7 +338,7 @@ public class PageBtreeIndex extends PageIndex {
      * @return the row
      */
     @Override
-    public Row getRow(Session session, long key) {
+    public Row getRow(SessionLocal session, long key) {
         return tableData.getRow(session, key);
     }
 
@@ -337,8 +347,8 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public long getRowCountApproximation() {
-        return tableData.getRowCountApproximation();
+    public long getRowCountApproximation(SessionLocal session) {
+        return tableData.getRowCountApproximation(session);
     }
 
     @Override
@@ -347,12 +357,12 @@ public class PageBtreeIndex extends PageIndex {
     }
 
     @Override
-    public long getRowCount(Session session) {
+    public long getRowCount(SessionLocal session) {
         return rowCount;
     }
 
     @Override
-    public void close(Session session) {
+    public void close(SessionLocal session) {
         if (trace.isDebugEnabled()) {
             trace.debug("close");
         }
@@ -456,7 +466,7 @@ public class PageBtreeIndex extends PageIndex {
      * @param session the session
      * @param newPos the new position
      */
-    void setRootPageId(Session session, int newPos) {
+    void setRootPageId(SessionLocal session, int newPos) {
         store.removeMeta(this, session);
         this.rootPageId = newPos;
         store.addMeta(this, session);
@@ -470,10 +480,6 @@ public class PageBtreeIndex extends PageIndex {
 
     @Override
     public void writeRowCount() {
-        if (SysProperties.MODIFY_ON_WRITE && rootPageId == 0) {
-            // currently creating the index
-            return;
-        }
         PageBtree root = getPage(rootPageId);
         //PageBtreeLeaf什么都不做，PageBtreeNode在头中更新rowCountStored字段值
         root.setRowCountStored(MathUtils.convertLongToInt(rowCount));

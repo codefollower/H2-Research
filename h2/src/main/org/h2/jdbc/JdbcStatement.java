@@ -13,7 +13,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
-import org.h2.engine.SessionInterface;
+import org.h2.engine.Session;
 import org.h2.engine.SysProperties;
 import org.h2.message.DbException;
 import org.h2.message.TraceObject;
@@ -30,30 +30,32 @@ import org.h2.util.Utils;
 public class JdbcStatement extends TraceObject implements Statement, JdbcStatementBackwardsCompat {
 
     protected JdbcConnection conn;
-    protected SessionInterface session;
+    protected Session session;
     protected JdbcResultSet resultSet;
-    protected int maxRows;
+    protected long maxRows;
     protected int fetchSize = SysProperties.SERVER_RESULT_SET_FETCH_SIZE;
-    protected int updateCount;
+    protected long updateCount;
     protected JdbcResultSet generatedKeys;
     protected final int resultSetType;
     protected final int resultSetConcurrency;
-    protected final boolean closedByResultSet;
     private volatile CommandInterface executingCommand;
     private int lastExecutedCommandType;
     private ArrayList<String> batchCommands;
     private boolean escapeProcessing = true;
     private volatile boolean cancelled;
+    private boolean closeOnCompletion;
 
-    JdbcStatement(JdbcConnection conn, int id, int resultSetType,
-            int resultSetConcurrency, boolean closeWithResultSet) {
+    JdbcStatement(JdbcConnection conn, int id, int resultSetType, int resultSetConcurrency) {
         this.conn = conn;
         this.session = conn.getSession();
         setTrace(session.getTrace(), TraceObject.STATEMENT, id);
         this.resultSetType = resultSetType;
         this.resultSetConcurrency = resultSetConcurrency;
-        //只在org.h2.jdbc.JdbcConnection.prepareAutoCloseStatement(String)中设为true，意思是由ResultSet自己关闭
-        this.closedByResultSet = closeWithResultSet;
+//<<<<<<< HEAD
+//        //只在org.h2.jdbc.JdbcConnection.prepareAutoCloseStatement(String)中设为true，意思是由ResultSet自己关闭
+//        this.closedByResultSet = closeWithResultSet;
+//=======
+//>>>>>>> 5a91cf068195d0e613d30e0e7202a0b05f87f253
     }
 
     /**
@@ -98,8 +100,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
                 if (!lazy) {
                     command.close();
                 }
-                resultSet = new JdbcResultSet(conn, this, command, result, id,
-                        closedByResultSet, scrollable, updatable);
+                resultSet = new JdbcResultSet(conn, this, command, result, id, scrollable, updatable);
             }
             return resultSet;
         } catch (Exception e) {
@@ -109,7 +110,8 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
 
     /**
      * Executes a statement (insert, update, delete, create, drop)
-     * and returns the update count.
+     * and returns the update count. This method is not
+     * allowed for prepared statements.
      * If another result set exists for this statement, this will be closed
      * (even if this statement fails).
      *
@@ -119,17 +121,21 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      * executing the statement.
      *
      * @param sql the SQL statement
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing, or
+     *         {@link #SUCCESS_NO_INFO} if number of rows is too large for the
+     *         {@code int} data type)
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
+     * @see #executeLargeUpdate(String)
      */
     @Override
-    public int executeUpdate(String sql) throws SQLException {
+    public final int executeUpdate(String sql) throws SQLException {
         try {
             debugCodeCall("executeUpdate", sql);
-            return executeUpdateInternal(sql, null);
+            long updateCount = executeUpdateInternal(sql, null);
+            return updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -137,7 +143,8 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
 
     /**
      * Executes a statement (insert, update, delete, create, drop)
-     * and returns the update count.
+     * and returns the update count. This method is not
+     * allowed for prepared statements.
      * If another result set exists for this statement, this will be closed
      * (even if this statement fails).
      *
@@ -147,14 +154,14 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      * executing the statement.
      *
      * @param sql the SQL statement
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing)
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
      */
     @Override
-    public long executeLargeUpdate(String sql) throws SQLException {
+    public final long executeLargeUpdate(String sql) throws SQLException {
         try {
             debugCodeCall("executeLargeUpdate", sql);
             return executeUpdateInternal(sql, null);
@@ -163,7 +170,10 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
         }
     }
 
-    private int executeUpdateInternal(String sql, Object generatedKeysRequest) throws SQLException {
+    private long executeUpdateInternal(String sql, Object generatedKeysRequest) {
+        if (getClass() != JdbcStatement.class) {
+            throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
+        }
         checkClosed();
         closeOldResultSet();
         sql = JdbcConnection.translateSQL(sql, escapeProcessing);
@@ -171,14 +181,12 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
         synchronized (session) {
             setExecutingStatement(command);
             try {
-                ResultWithGeneratedKeys result = command.executeUpdate(
-                        conn.scopeGeneratedKeys() ? null : generatedKeysRequest);
+                ResultWithGeneratedKeys result = command.executeUpdate(generatedKeysRequest);
                 updateCount = result.getUpdateCount();
                 ResultInterface gk = result.getGeneratedKeys();
                 if (gk != null) {
                     int id = getNextId(TraceObject.RESULT_SET);
-                    generatedKeys = new JdbcResultSet(conn, this, command, gk, id,
-                            false, true, false);
+                    generatedKeys = new JdbcResultSet(conn, this, command, gk, id, true, false);
                 }
             } finally {
                 setExecutingStatement(null);
@@ -196,7 +204,9 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * Executes an arbitrary statement. If another result set exists for this
+     * Executes a statement and returns type of its result. This method is not
+     * allowed for prepared statements.
+     * If another result set exists for this
      * statement, this will be closed (even if this statement fails).
      *
      * If the statement is a create or drop and does not throw an exception, the
@@ -205,10 +215,10 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      * will be committed.
      *
      * @param sql the SQL statement to execute
-     * @return true if a result set is available, false if not
+     * @return true if result is a result set, false otherwise
      */
     @Override
-    public boolean execute(String sql) throws SQLException {
+    public final boolean execute(String sql) throws SQLException {
         try {
             debugCodeCall("execute", sql);
             return executeInternal(sql, false);
@@ -217,7 +227,10 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
         }
     }
 
-    private boolean executeInternal(String sql, Object generatedKeysRequest) throws SQLException {
+    private boolean executeInternal(String sql, Object generatedKeysRequest) {
+        if (getClass() != JdbcStatement.class) {
+            throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_PREPARED_STATEMENT);
+        }
         int id = getNextId(TraceObject.RESULT_SET);
         checkClosed();
         closeOldResultSet();
@@ -234,17 +247,14 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
                     boolean updatable = resultSetConcurrency == ResultSet.CONCUR_UPDATABLE;
                     ResultInterface result = command.executeQuery(maxRows, scrollable);
                     lazy = result.isLazy();
-                    resultSet = new JdbcResultSet(conn, this, command, result, id,
-                            closedByResultSet, scrollable, updatable);
+                    resultSet = new JdbcResultSet(conn, this, command, result, id, scrollable, updatable);
                 } else {
                     returnsResultSet = false;
-                    ResultWithGeneratedKeys result = command.executeUpdate(
-                            conn.scopeGeneratedKeys() ? null : generatedKeysRequest);
+                    ResultWithGeneratedKeys result = command.executeUpdate(generatedKeysRequest);
                     updateCount = result.getUpdateCount();
                     ResultInterface gk = result.getGeneratedKeys();
                     if (gk != null) {
-                        generatedKeys = new JdbcResultSet(conn, this, command, gk, id,
-                                false, true, false);
+                        generatedKeys = new JdbcResultSet(conn, this, command, gk, id, true, false);
                     }
                 }
             } finally {
@@ -283,17 +293,20 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     /**
      * Returns the last update count of this statement.
      *
-     * @return the update count (number of row affected by an insert, update or
-     *         delete, or 0 if no rows or the statement was a create, drop,
-     *         commit or rollback; -1 if the statement was a select).
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing, or -1 if
+     *         statement was a query, or {@link #SUCCESS_NO_INFO} if number of
+     *         rows is too large for the {@code int} data type)
      * @throws SQLException if this object is closed or invalid
+     * @see #getLargeUpdateCount()
      */
     @Override
-    public int getUpdateCount() throws SQLException {
+    public final int getUpdateCount() throws SQLException {
         try {
             debugCodeCall("getUpdateCount");
             checkClosed();
-            return updateCount;
+            return updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -302,13 +315,14 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     /**
      * Returns the last update count of this statement.
      *
-     * @return the update count (number of row affected by an insert, update or
-     *         delete, or 0 if no rows or the statement was a create, drop,
-     *         commit or rollback; -1 if the statement was a select).
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing, or -1 if
+     *         statement was a query)
      * @throws SQLException if this object is closed or invalid
      */
     @Override
-    public long getLargeUpdateCount() throws SQLException {
+    public final long getLargeUpdateCount() throws SQLException {
         try {
             debugCodeCall("getLargeUpdateCount");
             checkClosed();
@@ -327,14 +341,18 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     public void close() throws SQLException {
         try {
             debugCodeCall("close");
-            synchronized (session) {
-                closeOldResultSet();
-                if (conn != null) {
-                    conn = null;
-                }
-            }
+            closeInternal();
         } catch (Exception e) {
             throw logAndConvert(e);
+        }
+    }
+
+    private void closeInternal() {
+        synchronized (session) {
+            closeOldResultSet();
+            if (conn != null) {
+                conn = null;
+            }
         }
     }
 
@@ -441,7 +459,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
         try {
             debugCodeCall("getMaxRows");
             checkClosed();
-            return maxRows;
+            return maxRows <= Integer.MAX_VALUE ? (int) maxRows : 0;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -498,7 +516,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
             if (maxRows < 0) {
                 throw DbException.getInvalidValueException("maxRows", maxRows);
             }
-            this.maxRows = maxRows <= Integer.MAX_VALUE ? (int) maxRows : 0;
+            this.maxRows = maxRows;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
@@ -760,6 +778,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      * If one of the batched statements fails, this database will continue.
      *
      * @return the array of update counts
+     * @see #executeLargeBatch()
      */
     @Override
     public int[] executeBatch() throws SQLException {
@@ -767,31 +786,19 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
             debugCodeCall("executeBatch");
             checkClosed();
             if (batchCommands == null) {
-                // TODO batch: check what other database do if no commands
-                // are set
-                batchCommands = Utils.newSmallArrayList();
+                batchCommands = new ArrayList<>();
             }
             int size = batchCommands.size();
             int[] result = new int[size];
-            SQLException first = null;
-            SQLException last = null;
+            SQLException exception = new SQLException();
             for (int i = 0; i < size; i++) {
-                String sql = batchCommands.get(i);
-                try {
-                    result[i] = executeUpdateInternal(sql, null);
-                } catch (Exception re) {
-                    SQLException e = logAndConvert(re);
-                    if (last == null) {
-                        first = last = e;
-                    } else {
-                        last.setNextException(e);
-                    }
-                    result[i] = Statement.EXECUTE_FAILED;
-                }
+                long updateCount = executeBatchElement(batchCommands.get(i), exception);
+                result[i] = updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
             }
             batchCommands = null;
-            if (first != null) {
-                throw new JdbcBatchUpdateException(first, result);
+            exception = exception.getNextException();
+            if (exception != null) {
+                throw new JdbcBatchUpdateException(exception, result);
             }
             return result;
         } catch (Exception e) {
@@ -807,13 +814,38 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      */
     @Override
     public long[] executeLargeBatch() throws SQLException {
-        int[] intResult = executeBatch();
-        int count = intResult.length;
-        long[] longResult = new long[count];
-        for (int i = 0; i < count; i++) {
-            longResult[i] = intResult[i];
+        try {
+            debugCodeCall("executeLargeBatch");
+            checkClosed();
+            if (batchCommands == null) {
+                batchCommands = new ArrayList<>();
+            }
+            int size = batchCommands.size();
+            long[] result = new long[size];
+            SQLException exception = new SQLException();
+            for (int i = 0; i < size; i++) {
+                result[i] = executeBatchElement(batchCommands.get(i), exception);
+            }
+            batchCommands = null;
+            exception = exception.getNextException();
+            if (exception != null) {
+                throw new JdbcBatchUpdateException(exception, result);
+            }
+            return result;
+        } catch (Exception e) {
+            throw logAndConvert(e);
         }
-        return longResult;
+    }
+
+    private long executeBatchElement(String sql, SQLException exception) {
+        long updateCount;
+        try {
+            updateCount = executeUpdateInternal(sql, null);
+        } catch (Exception e) {
+            exception.setNextException(logAndConvert(e));
+            updateCount = Statement.EXECUTE_FAILED;
+        }
+        return updateCount;
     }
 
     /**
@@ -859,10 +891,10 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
             }
             checkClosed();
             if (generatedKeys == null) {
-                if (!conn.scopeGeneratedKeys() && session.isSupportsGeneratedKeys()) {
-                    generatedKeys = new JdbcResultSet(conn, this, null, new SimpleResult(), id, false, true, false);
+                if (session.isSupportsGeneratedKeys()) {
+                    generatedKeys = new JdbcResultSet(conn, this, null, new SimpleResult(), id, true, false);
                 } else {
-                    // Compatibility mode or an old server, so use SCOPE_IDENTITY()
+                    // Old server, use SCOPE_IDENTITY()
                     generatedKeys = conn.getGeneratedKeys(this, id);
                 }
             }
@@ -925,48 +957,54 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns the update count. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param autoGeneratedKeys
      *            {@link Statement#RETURN_GENERATED_KEYS} if generated keys should
      *            be available for retrieval, {@link Statement#NO_GENERATED_KEYS} if
      *            generated keys should not be available
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing, or
+     *         {@link #SUCCESS_NO_INFO} if number of rows is too large for the
+     *         {@code int} data type)
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
+     * @see #executeLargeUpdate(String, int)
      */
     @Override
-    public int executeUpdate(String sql, int autoGeneratedKeys)
+    public final int executeUpdate(String sql, int autoGeneratedKeys)
             throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("executeUpdate("+quote(sql)+", "+autoGeneratedKeys+");");
             }
-            return executeUpdateInternal(sql, autoGeneratedKeys == RETURN_GENERATED_KEYS);
+            long updateCount = executeUpdateInternal(sql, autoGeneratedKeys == RETURN_GENERATED_KEYS);
+            return updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns the update count. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param autoGeneratedKeys
      *            {@link Statement#RETURN_GENERATED_KEYS} if generated keys should
      *            be available for retrieval, {@link Statement#NO_GENERATED_KEYS} if
      *            generated keys should not be available
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing)
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
      */
     @Override
-    public long executeLargeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
+    public final long executeLargeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("executeLargeUpdate("+quote(sql)+", "+autoGeneratedKeys+");");
@@ -978,45 +1016,51 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns the update count. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param columnIndexes
      *            an array of column indexes indicating the columns with generated
      *            keys that should be returned from the inserted row
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing, or
+     *         {@link #SUCCESS_NO_INFO} if number of rows is too large for the
+     *         {@code int} data type)
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
+     * @see #executeLargeUpdate(String, int[])
      */
     @Override
-    public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
+    public final int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("executeUpdate("+quote(sql)+", "+quoteIntArray(columnIndexes)+");");
             }
-            return executeUpdateInternal(sql, columnIndexes);
+            long updateCount = executeUpdateInternal(sql, columnIndexes);
+            return updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns the update count. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param columnIndexes
      *            an array of column indexes indicating the columns with generated
      *            keys that should be returned from the inserted row
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing)
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
      */
     @Override
-    public long executeLargeUpdate(String sql, int columnIndexes[]) throws SQLException {
+    public final long executeLargeUpdate(String sql, int columnIndexes[]) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("executeLargeUpdate("+quote(sql)+", "+quoteIntArray(columnIndexes)+");");
@@ -1028,32 +1072,38 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns the update count. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param columnNames
      *            an array of column names indicating the columns with generated
      *            keys that should be returned from the inserted row
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return the update count (number of affected rows by a DML statement or
+     *         other statement able to return number of rows, or 0 if no rows
+     *         were affected or the statement returned nothing, or
+     *         {@link #SUCCESS_NO_INFO} if number of rows is too large for the
+     *         {@code int} data type)
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
+     * @see #executeLargeUpdate(String, String[])
      */
     @Override
-    public int executeUpdate(String sql, String[] columnNames) throws SQLException {
+    public final int executeUpdate(String sql, String[] columnNames) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("executeUpdate("+quote(sql)+", "+quoteArray(columnNames)+");");
             }
-            return executeUpdateInternal(sql, columnNames);
+            long updateCount = executeUpdateInternal(sql, columnNames);
+            return updateCount <= Integer.MAX_VALUE ? (int) updateCount : SUCCESS_NO_INFO;
         } catch (Exception e) {
             throw logAndConvert(e);
         }
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns the update count. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param columnNames
@@ -1066,7 +1116,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      *         select statement was executed
      */
     @Override
-    public long executeLargeUpdate(String sql, String columnNames[]) throws SQLException {
+    public final long executeLargeUpdate(String sql, String columnNames[]) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("executeLargeUpdate("+quote(sql)+", "+quoteArray(columnNames)+");");
@@ -1078,21 +1128,20 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns type of its result. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param autoGeneratedKeys
      *            {@link Statement#RETURN_GENERATED_KEYS} if generated keys should
      *            be available for retrieval, {@link Statement#NO_GENERATED_KEYS} if
      *            generated keys should not be available
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return true if result is a result set, false otherwise
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
      */
     @Override
-    public boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
+    public final boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("execute("+quote(sql)+", "+autoGeneratedKeys+");");
@@ -1104,20 +1153,19 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns type of its result. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param columnIndexes
      *            an array of column indexes indicating the columns with generated
      *            keys that should be returned from the inserted row
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return true if result is a result set, false otherwise
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
      */
     @Override
-    public boolean execute(String sql, int[] columnIndexes) throws SQLException {
+    public final boolean execute(String sql, int[] columnIndexes) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("execute("+quote(sql)+", "+quoteIntArray(columnIndexes)+");");
@@ -1129,20 +1177,19 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * Executes a statement and returns the update count.
+     * Executes a statement and returns type of its result. This method is not
+     * allowed for prepared statements.
      *
      * @param sql the SQL statement
      * @param columnNames
      *            an array of column names indicating the columns with generated
      *            keys that should be returned from the inserted row
-     * @return the update count (number of row affected by an insert,
-     *         update or delete, or 0 if no rows or the statement was a
-     *         create, drop, commit or rollback)
+     * @return true if result is a result set, false otherwise
      * @throws SQLException if a database error occurred or a
      *         select statement was executed
      */
     @Override
-    public boolean execute(String sql, String[] columnNames) throws SQLException {
+    public final boolean execute(String sql, String[] columnNames) throws SQLException {
         try {
             if (isDebugEnabled()) {
                 debugCode("execute("+quote(sql)+", "+quoteArray(columnNames)+");");
@@ -1170,19 +1217,52 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
     }
 
     /**
-     * [Not supported]
+     * Specifies that this statement will be closed when its dependent result
+     * set is closed.
+     *
+     * @throws SQLException
+     *             if this statement is closed
      */
     @Override
-    public void closeOnCompletion() {
-        // not supported
+    public void closeOnCompletion() throws SQLException {
+        try {
+            debugCodeCall("closeOnCompletion");
+            checkClosed();
+            closeOnCompletion = true;
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
     }
 
     /**
-     * [Not supported]
+     * Returns whether this statement will be closed when its dependent result
+     * set is closed.
+     *
+     * @return {@code true} if this statement will be closed when its dependent
+     *         result set is closed
+     * @throws SQLException
+     *             if this statement is closed
      */
     @Override
-    public boolean isCloseOnCompletion() {
-        return true;
+    public boolean isCloseOnCompletion() throws SQLException {
+        try {
+            debugCodeCall("isCloseOnCompletion");
+            checkClosed();
+            return closeOnCompletion;
+        } catch (Exception e) {
+            throw logAndConvert(e);
+        }
+    }
+
+    void closeIfCloseOnCompletion() {
+        if (closeOnCompletion) {
+            try {
+                closeInternal();
+            } catch (Exception e) {
+                // Don't re-throw
+                logAndConvert(e);
+            }
+        }
     }
 
     // =============================================================
@@ -1203,15 +1283,13 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      * INTERNAL.
      * Close and old result set if there is still one open.
      */
-    protected void closeOldResultSet() throws SQLException {
+    protected void closeOldResultSet() {
         try {
-            if (!closedByResultSet) {
-                if (resultSet != null) {
-                    resultSet.closeInternal();
-                }
-                if (generatedKeys != null) {
-                    generatedKeys.closeInternal();
-                }
+            if (resultSet != null) {
+                resultSet.closeInternal(true);
+            }
+            if (generatedKeys != null) {
+                generatedKeys.closeInternal(true);
             }
         } finally {
             cancelled = false;
@@ -1227,7 +1305,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      *
      * @param c the command
      */
-    protected void setExecutingStatement(CommandInterface c) {
+    void setExecutingStatement(CommandInterface c) {
         if (c == null) {
             conn.setExecutingStatement(null);
         } else {
@@ -1375,7 +1453,7 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
      */
     @Override
     public boolean isSimpleIdentifier(String identifier) throws SQLException {
-        SessionInterface.StaticSettings settings;
+        Session.StaticSettings settings;
         try {
             checkClosed();
             settings = conn.getStaticSettings();

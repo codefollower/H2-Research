@@ -13,8 +13,8 @@ import org.h2.command.Prepared;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.SearchRow;
-import org.h2.value.ValueInt;
-import org.h2.value.ValueString;
+import org.h2.value.ValueInteger;
+import org.h2.value.ValueVarchar;
 
 /**
  * A record in the system table of the database.
@@ -51,10 +51,10 @@ public class MetaRecord implements Comparable<MetaRecord> {
      *            search row
      */
     public static void populateRowFromDBObject(DbObject obj, SearchRow r) {
-        r.setValue(0, ValueInt.get(obj.getId()));
-        r.setValue(1, ValueInt.get(0));
-        r.setValue(2, ValueInt.get(obj.getType()));
-        r.setValue(3, ValueString.get(obj.getCreateSQL()));
+        r.setValue(0, ValueInteger.get(obj.getId()));
+        r.setValue(1, ValueInteger.get(0));
+        r.setValue(2, ValueInteger.get(obj.getType()));
+        r.setValue(3, ValueVarchar.get(obj.getCreateSQLForMeta()));
     }
 
     public MetaRecord(SearchRow r) {
@@ -87,7 +87,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
      * @param systemSession the system session
      * @param listener the database event listener
      */
-    void prepareAndExecute(Database db, Session systemSession, DatabaseEventListener listener) {
+    void prepareAndExecute(Database db, SessionLocal systemSession, DatabaseEventListener listener) {
         try {
             Prepared command = systemSession.prepare(sql);
             command.setPersistedObjectId(id);
@@ -105,7 +105,7 @@ public class MetaRecord implements Comparable<MetaRecord> {
      * @param listener the database event listener
      * @return the prepared command
      */
-    Prepared prepare(Database db, Session systemSession, DatabaseEventListener listener) {
+    Prepared prepare(Database db, SessionLocal systemSession, DatabaseEventListener listener) {
         try {
             Prepared command = systemSession.prepare(sql);
 //<<<<<<< HEAD
@@ -217,14 +217,13 @@ public class MetaRecord implements Comparable<MetaRecord> {
         case DbObject.COMMENT:
             return 15;
         default:
-            throw DbException.throwInternalError("type="+objectType);
+            throw DbException.getInternalError("type=" + objectType);
         }
     }
 
     @Override
     public String toString() {
-        return "MetaRecord [id=" + id + ", objectType=" + objectType +
-                ", sql=" + sql + "]";
+        return "MetaRecord [id=" + id + ", objectType=" + objectType + ", sql=" + sql + ']';
     }
 
 }

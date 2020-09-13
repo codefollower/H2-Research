@@ -11,11 +11,15 @@ import static org.h2.util.DateTimeUtils.NANOS_PER_SECOND;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
 import org.h2.engine.CastDataProvider;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueDate;
+import org.h2.value.ValueNull;
 import org.h2.value.ValueTime;
 import org.h2.value.ValueTimestamp;
 import org.h2.value.ValueTimestampTimeZone;
@@ -148,32 +152,22 @@ public final class LegacyDateTimeUtils {
     /**
      * Get the date value converted to the specified time zone.
      *
-     * @param provider
-     *            the cast information provider
-     * @param timeZone
-     *            the target time zone
+     * @param provider the cast information provider
+     * @param timeZone the target time zone
+     * @param value the value to convert
      * @return the date
      */
     public static Date toDate(CastDataProvider provider, TimeZone timeZone, Value value) {
-        switch (value.getValueType()) {
-        case Value.NULL:
-            return null;
-        default:
-            value = value.convertTo(Value.DATE, provider);
-            //$FALL-THROUGH$
-        case Value.DATE:
-            ValueDate v = (ValueDate) value;
-            return new Date(getMillis(provider, timeZone, v.getDateValue(), 0));
-        }
+        return value != ValueNull.INSTANCE
+                ? new Date(getMillis(provider, timeZone, value.convertToDate(provider).getDateValue(), 0)) : null;
     }
 
     /**
      * Get the time value converted to the specified time zone.
      *
-     * @param provider
-     *            the cast information provider
-     * @param timeZone
-     *            the target time zone
+     * @param provider the cast information provider
+     * @param timeZone the target time zone
+     * @param value the value to convert
      * @return the time
      */
     public static Time toTime(CastDataProvider provider, TimeZone timeZone, Value value) {
@@ -181,7 +175,7 @@ public final class LegacyDateTimeUtils {
         case Value.NULL:
             return null;
         default:
-            value = value.convertTo(Value.TIME, provider);
+            value = value.convertTo(TypeInfo.TYPE_TIME, provider);
             //$FALL-THROUGH$
         case Value.TIME:
             return new Time(
@@ -192,10 +186,9 @@ public final class LegacyDateTimeUtils {
     /**
      * Get the timestamp value converted to the specified time zone.
      *
-     * @param provider
-     *            the cast information provider
-     * @param timeZone
-     *            the target time zone
+     * @param provider the cast information provider
+     * @param timeZone the target time zone
+     * @param value the value to convert
      * @return the timestamp
      */
     public static Timestamp toTimestamp(CastDataProvider provider, TimeZone timeZone, Value value) {
@@ -203,7 +196,7 @@ public final class LegacyDateTimeUtils {
         case Value.NULL:
             return null;
         default:
-            value = value.convertTo(Value.TIMESTAMP, provider);
+            value = value.convertTo(TypeInfo.TYPE_TIMESTAMP, provider);
             //$FALL-THROUGH$
         case Value.TIMESTAMP: {
             ValueTimestamp v = (ValueTimestamp) value;
@@ -227,15 +220,11 @@ public final class LegacyDateTimeUtils {
      * Calculate the milliseconds since 1970-01-01 (UTC) for the given date and
      * time (in the specified timezone).
      *
-     * @param provider
-     *            the cast information provider
-     * @param tz
-     *            the timezone of the parameters, or null for the default
+     * @param provider the cast information provider
+     * @param tz the timezone of the parameters, or null for the default
      *            timezone
-     * @param dateValue
-     *            date value
-     * @param timeNanos
-     *            nanoseconds since midnight
+     * @param dateValue date value
+     * @param timeNanos nanoseconds since midnight
      * @return the number of milliseconds (UTC)
      */
     public static long getMillis(CastDataProvider provider, TimeZone tz, long dateValue, long timeNanos) {
@@ -247,10 +236,8 @@ public final class LegacyDateTimeUtils {
     /**
      * Returns local time zone offset for a specified timestamp.
      *
-     * @param provider
-     *            the cast information provider
-     * @param ms
-     *            milliseconds since Epoch in UTC
+     * @param provider the cast information provider
+     * @param ms milliseconds since Epoch in UTC
      * @return local time zone offset
      */
     public static int getTimeZoneOffsetMillis(CastDataProvider provider, long ms) {
@@ -261,6 +248,81 @@ public final class LegacyDateTimeUtils {
         }
         return (provider != null ? provider.currentTimeZone() : DateTimeUtils.getTimeZone())
                 .getTimeZoneOffsetUTC(seconds) * 1_000;
+    }
+
+    /**
+     * Convert a legacy Java object to a value.
+     *
+     * @param session
+     *            the session
+     * @param x
+     *            the value
+     * @return the value, or {@code null} if not supported
+     */
+    public static Value legacyObjectToValue(CastDataProvider session, Object x) {
+        if (x instanceof Date) {
+            return fromDate(session, null, (Date) x);
+        } else if (x instanceof Time) {
+            return fromTime(session, null, (Time) x);
+        } else if (x instanceof Timestamp) {
+            return fromTimestamp(session, null, (Timestamp) x);
+        } else if (x instanceof java.util.Date) {
+            return fromTimestamp(session, ((java.util.Date) x).getTime(), 0);
+        } else if (x instanceof GregorianCalendar) {
+            GregorianCalendar gc = (GregorianCalendar) x;
+            long ms = gc.getTimeInMillis();
+            return timestampFromLocalMillis(ms + gc.getTimeZone().getOffset(ms), 0);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Converts the specified value to an object of the specified legacy type.
+     *
+     * @param <T> the type
+     * @param type the class
+     * @param value the value
+     * @param provider the cast information provider
+     * @return an instance of the specified class, or {@code null} if not supported
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T valueToLegacyType(Class<T> type, Value value, CastDataProvider provider) {
+        if (type == Date.class) {
+            return (T) toDate(provider, null, value);
+        } else if (type == Time.class) {
+            return (T) toTime(provider, null, value);
+        } else if (type == Timestamp.class) {
+            return (T) toTimestamp(provider, null, value);
+        } else if (type == java.util.Date.class) {
+            return (T) new java.util.Date(toTimestamp(provider, null, value).getTime());
+        } else if (type == Calendar.class) {
+            GregorianCalendar calendar = new GregorianCalendar();
+            calendar.setGregorianChange(PROLEPTIC_GREGORIAN_CHANGE);
+            calendar.setTime(toTimestamp(provider, calendar.getTimeZone(), value));
+            return (T) calendar;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Get the type information for the given legacy Java class.
+     *
+     * @param clazz
+     *            the Java class
+     * @return the value type, or {@code null} if not supported
+     */
+    public static TypeInfo legacyClassToType(Class<?> clazz) {
+        if (Date.class.isAssignableFrom(clazz)) {
+            return TypeInfo.TYPE_DATE;
+        } else if (Time.class.isAssignableFrom(clazz)) {
+            return TypeInfo.TYPE_TIME;
+        } else if (java.util.Date.class.isAssignableFrom(clazz) || Calendar.class.isAssignableFrom(clazz)) {
+            return TypeInfo.TYPE_TIMESTAMP;
+        } else{
+            return null;
+        }
     }
 
 }

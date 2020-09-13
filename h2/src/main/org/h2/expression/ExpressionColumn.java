@@ -6,12 +6,12 @@
 package org.h2.expression;
 
 import org.h2.api.ErrorCode;
-import org.h2.command.Parser;
-import org.h2.command.dml.Select;
-import org.h2.command.dml.SelectGroups;
-import org.h2.command.dml.SelectListColumnResolver;
+import org.h2.command.query.Select;
+import org.h2.command.query.SelectGroups;
+import org.h2.command.query.SelectListColumnResolver;
 import org.h2.engine.Database;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
+import org.h2.expression.analysis.DataAnalysisOperation;
 import org.h2.expression.condition.Comparison;
 import org.h2.index.IndexCondition;
 import org.h2.message.DbException;
@@ -21,21 +21,30 @@ import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
-import org.h2.value.ExtTypeInfo;
+import org.h2.util.ParserUtil;
+import org.h2.value.ExtTypeInfoEnum;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
+import org.h2.value.ValueBigint;
 import org.h2.value.ValueBoolean;
+import org.h2.value.ValueDecfloat;
+import org.h2.value.ValueDouble;
+import org.h2.value.ValueInteger;
 import org.h2.value.ValueNull;
+import org.h2.value.ValueNumeric;
+import org.h2.value.ValueReal;
+import org.h2.value.ValueSmallint;
+import org.h2.value.ValueTinyint;
 
 /**
- * A expression that represents a column of a table or view.
+ * A column reference expression that represents a column of a table or view.
  */
-public class ExpressionColumn extends Expression {
+public final class ExpressionColumn extends Expression {
 
     private final Database database;
     private final String schemaName;
     private final String tableAlias;
-    private String columnName;
+    private final String columnName;
     private final boolean rowId;
     private ColumnResolver columnResolver;
     private int queryLevel;
@@ -47,46 +56,84 @@ public class ExpressionColumn extends Expression {
 //=======
 //>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
 
+    /**
+     * Creates a new column reference for metadata of queries; should not be
+     * used as normal expression.
+     *
+     * @param database
+     *            the database
+     * @param column
+     *            the column
+     */
     public ExpressionColumn(Database database, Column column) {
         this.database = database;
         this.column = column;
-        this.schemaName = null;
-        this.tableAlias = null;
-        this.columnName = null;
-        this.rowId = column.isRowId();
+        columnName = tableAlias = schemaName = null;
+        rowId = column.isRowId();
     }
-    
+
+    /**
+     * Creates a new instance of column reference for regular columns as normal
+     * expression.
+     *
+     * @param database
+     *            the database
+     * @param schemaName
+     *            the schema name, or {@code null}
+     * @param tableAlias
+     *            the table alias name, table name, or {@code null}
+     * @param columnName
+     *            the column name
+     */
     //对于SELECT public.t.id FROM ExpressionColumnTest as t
     //schemaName = public
     //tableAlias = t
     //columnName = id
-    public ExpressionColumn(Database database, String schemaName,
-            String tableAlias, String columnName, boolean rowId) {
+    public ExpressionColumn(Database database, String schemaName, String tableAlias, String columnName) {
         this.database = database;
         this.schemaName = schemaName;
         this.tableAlias = tableAlias;
         this.columnName = columnName;
-        this.rowId = rowId;
+        rowId = false;
+    }
+
+    /**
+     * Creates a new instance of column reference for {@code _ROWID_} column as
+     * normal expression.
+     *
+     * @param database
+     *            the database
+     * @param schemaName
+     *            the schema name, or {@code null}
+     * @param tableAlias
+     *            the table alias name, table name, or {@code null}
+     */
+    public ExpressionColumn(Database database, String schemaName, String tableAlias) {
+        this.database = database;
+        this.schemaName = schemaName;
+        this.tableAlias = tableAlias;
+        columnName = Column.ROWID;
+        rowId = true;
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
         if (schemaName != null) {
-            Parser.quoteIdentifier(builder, schemaName, alwaysQuote).append('.');
+            ParserUtil.quoteIdentifier(builder, schemaName, sqlFlags).append('.');
         }
         if (tableAlias != null) {
-            Parser.quoteIdentifier(builder, tableAlias, alwaysQuote).append('.');
+            ParserUtil.quoteIdentifier(builder, tableAlias, sqlFlags).append('.');
         }
         if (column != null) {
             if (columnResolver != null && columnResolver.hasDerivedColumnList()) {
-                Parser.quoteIdentifier(builder, columnResolver.getColumnName(column), alwaysQuote);
+                ParserUtil.quoteIdentifier(builder, columnResolver.getColumnName(column), sqlFlags);
             } else {
-                column.getSQL(builder, alwaysQuote);
+                column.getSQL(builder, sqlFlags);
             }
         } else if (rowId) {
             builder.append(columnName);
         } else {
-            Parser.quoteIdentifier(builder, columnName, alwaysQuote);
+            ParserUtil.quoteIdentifier(builder, columnName, sqlFlags);
         }
         return builder;
     }
@@ -103,12 +150,10 @@ public class ExpressionColumn extends Expression {
 //            select = resolver.getSelect();
 //=======
     public void mapColumns(ColumnResolver resolver, int level, int state) {
-        if (tableAlias != null && !database.equalsIdentifiers(
-                tableAlias, resolver.getTableAlias())) {
+        if (tableAlias != null && !database.equalsIdentifiers(tableAlias, resolver.getTableAlias())) {
             return;
         }
-        if (schemaName != null && !database.equalsIdentifiers(
-                schemaName, resolver.getSchemaName())) {
+        if (schemaName != null && !database.equalsIdentifiers(schemaName, resolver.getSchemaName())) {
             return;
         }
         if (rowId) {
@@ -151,7 +196,7 @@ public class ExpressionColumn extends Expression {
 	//sql = "select name,id3 from mytable order by name";
     //Column "ID3" not found;
     @Override
-    public Expression optimize(Session session) { //在之前已调用mapColumns了，确保columnResolver被适当赋值了
+    public Expression optimize(SessionLocal session) { //在之前已调用mapColumns了，确保columnResolver被适当赋值了
         if (columnResolver == null) {
             Schema schema = session.getDatabase().findSchema(
                     tableAlias == null ? session.getCurrentSchemaName() : tableAlias);
@@ -185,25 +230,30 @@ public class ExpressionColumn extends Expression {
 
     /**
      * Get exception to throw, with column and table info added
+     *
      * @param code SQL error code
      * @return DbException
      */
     public DbException getColumnException(int code) {
         String name = columnName;
         if (tableAlias != null) {
-            name = tableAlias + '.' + name;
             if (schemaName != null) {
-                name = schemaName + '.' + name;
+                name = schemaName + '.' + tableAlias + '.' + name;
+            } else {
+                name = tableAlias + '.' + name;
             }
         }
         return DbException.get(code, name);
     }
 
     @Override
-    public void updateAggregate(Session session, int stage) {
+    public void updateAggregate(SessionLocal session, int stage) {
         Select select = columnResolver.getSelect();
         if (select == null) {
-            throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
+            throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getTraceSQL());
+        }
+        if (stage == DataAnalysisOperation.STAGE_RESET) {
+            return;
         }
         SelectGroups groupData = select.getGroupDataIfCurrent(false);
         if (groupData == null) {
@@ -228,13 +278,13 @@ public class ExpressionColumn extends Expression {
             groupData.setCurrentGroupExprData(this, columnResolver.getValue(column));
         } else if (!select.isGroupWindowStage2()) {
             if (!session.areEqual(columnResolver.getValue(column), v)) {
-                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
+                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getTraceSQL());
             }
         }
     }
 
     @Override
-    public Value getValue(Session session) {
+    public Value getValue(SessionLocal session) {
         Select select = columnResolver.getSelect();
         if (select != null) {
             SelectGroups groupData = select.getGroupDataIfCurrent(false);
@@ -244,25 +294,25 @@ public class ExpressionColumn extends Expression {
                     return v;
                 }
                 if (select.isGroupWindowStage2()) {
-                    throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
+                    throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getTraceSQL());
                 }
             }
         }
         Value value = columnResolver.getValue(column);
         if (value == null) {
             if (select == null) {
-                throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, getSQL(false));
+                throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, getTraceSQL());
             } else {
-                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getSQL(false));
+                throw DbException.get(ErrorCode.MUST_GROUP_BY_COLUMN_1, getTraceSQL());
             }
         }
         /*
          * ENUM values are stored as integers.
          */
         if (value != ValueNull.INSTANCE) {
-            ExtTypeInfo extTypeInfo = column.getType().getExtTypeInfo();
-            if (extTypeInfo != null) {
-                return extTypeInfo.cast(value, session);
+            TypeInfo type = column.getType();
+            if (type.getValueType() == Value.ENUM) {
+                return value.convertToEnum((ExtTypeInfoEnum) type.getExtTypeInfo(), session);
             }
         }
         return value;
@@ -290,7 +340,7 @@ public class ExpressionColumn extends Expression {
     }
 
     @Override
-    public String getColumnName() {
+    public String getColumnName(SessionLocal session, int columnIndex) {
         if (column != null) {
             if (columnResolver != null) {
                 return columnResolver.getColumnName(column);
@@ -313,7 +363,7 @@ public class ExpressionColumn extends Expression {
     }
 
     @Override
-    public String getAlias() {
+    public String getAlias(SessionLocal session, int columnIndex) {
         if (column != null) {
             if (columnResolver != null) {
                 return columnResolver.getColumnName(column);
@@ -327,8 +377,13 @@ public class ExpressionColumn extends Expression {
     }
 
     @Override
+    public String getColumnNameForView(SessionLocal session, int columnIndex) {
+        return getAlias(session, columnIndex);
+    }
+
+    @Override
     public boolean isAutoIncrement() {
-        return column.getSequence() != null;
+        return column.isIdentity();
     }
 
     @Override
@@ -369,18 +424,18 @@ public class ExpressionColumn extends Expression {
             return true;
         case ExpressionVisitor.GET_COLUMNS1:
             if (column == null) {
-                throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, getSQL(false));
+                throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, getTraceSQL());
             }
             visitor.addColumn1(column);
             return true;
         case ExpressionVisitor.GET_COLUMNS2:
             if (column == null) {
-                throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, getSQL(false));
+                throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, getTraceSQL());
             }
             visitor.addColumn2(column);
             return true;
         default:
-            throw DbException.throwInternalError("type=" + visitor.getType());
+            throw DbException.getInternalError("type=" + visitor.getType());
         }
     }
 
@@ -390,24 +445,62 @@ public class ExpressionColumn extends Expression {
     }
 
     @Override
-    public void createIndexConditions(Session session, TableFilter filter) {
-    	//如
-    	//create table IF NOT EXISTS DeleteTest(id int, name varchar(500), b boolean)
-    	//delete from DeleteTest where b
-    	//按字段b删除，实际上就是删除b=true的记录
-    	//如果没有为字段b建立索引，就在org.h2.table.TableFilter.prepare()中删除这个无用条件
+    // 如
+    // create table IF NOT EXISTS DeleteTest(id int, name varchar(500), b boolean)
+    // delete from DeleteTest where b
+    // 按字段b删除，实际上就是删除b=true的记录
+    // 如果没有为字段b建立索引，就在org.h2.table.TableFilter.prepare()中删除这个无用条件
+    public void createIndexConditions(SessionLocal session, TableFilter filter) {
         TableFilter tf = getTableFilter();
         if (filter == tf && column.getType().getValueType() == Value.BOOLEAN) {
-            IndexCondition cond = IndexCondition.get(
-                    Comparison.EQUAL, this, ValueExpression.get(
-                            ValueBoolean.TRUE));
-            filter.addIndexCondition(cond);
+            filter.addIndexCondition(IndexCondition.get(Comparison.EQUAL, this, ValueExpression.TRUE));
         }
     }
 
     @Override
-    public Expression getNotIfPossible(Session session) {
-        return new Comparison(Comparison.EQUAL, this, ValueExpression.FALSE);
+    public Expression getNotIfPossible(SessionLocal session) {
+        Expression o = optimize(session);
+        if (o != this) {
+            return o.getNotIfPossible(session);
+        }
+        Value v;
+        switch (column.getType().getValueType()) {
+        case Value.BOOLEAN:
+            v = ValueBoolean.FALSE;
+            break;
+        case Value.TINYINT:
+            v = ValueTinyint.get((byte) 0);
+            break;
+        case Value.SMALLINT:
+            v = ValueSmallint.get((short) 0);
+            break;
+        case Value.INTEGER:
+            v = ValueInteger.get(0);
+            break;
+        case Value.BIGINT:
+            v = ValueBigint.get(0L);
+            break;
+        case Value.NUMERIC:
+            v = ValueNumeric.ZERO;
+            break;
+        case Value.REAL:
+            v = ValueReal.ZERO;
+            break;
+        case Value.DOUBLE:
+            v = ValueDouble.ZERO;
+            break;
+        case Value.DECFLOAT:
+            v = ValueDecfloat.ZERO;
+            break;
+        default:
+            /*
+             * Can be replaced with CAST(column AS BOOLEAN) = FALSE, but this
+             * replacement can't be optimized further, so it's better to leave
+             * NOT (column) as is.
+             */
+            return null;
+        }
+        return new Comparison(Comparison.EQUAL, this, ValueExpression.get(v), false);
     }
 
 }

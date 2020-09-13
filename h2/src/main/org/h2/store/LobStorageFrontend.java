@@ -5,12 +5,12 @@
  */
 package org.h2.store;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import org.h2.value.Value;
-import org.h2.value.ValueLobDb;
+import org.h2.engine.SessionRemote;
+import org.h2.value.ValueLob;
+import org.h2.value.ValueLobFile;
 
 /**
  * This factory creates in-memory objects and temporary files. It is used on the
@@ -33,33 +33,22 @@ public class LobStorageFrontend implements LobStorageInterface {
      */
     public static final int TABLE_RESULT = -3;
 
-    private final DataHandler handler;
+    private final SessionRemote sessionRemote;
 
-    public LobStorageFrontend(DataHandler handler) {
-        this.handler = handler;
+    public LobStorageFrontend(SessionRemote handler) {
+        this.sessionRemote = handler;
     }
 
     @Override
-    public void removeLob(ValueLobDb lob) {
+    public void removeLob(ValueLob lob) {
         // not stored in the database
     }
 
-    /**
-     * Get the input stream for the given lob.
-     *
-     * @param lob the lob
-     * @param hmac the message authentication code (for remote input streams)
-     * @param byteCount the number of bytes to read, or -1 if not known
-     * @return the stream
-     */
     @Override
-    public InputStream getInputStream(ValueLobDb lob, byte[] hmac,
+    public InputStream getInputStream(long lobId,
             long byteCount) throws IOException {
-        if (byteCount < 0) {
-            byteCount = Long.MAX_VALUE;
-        }
-        return new BufferedInputStream(new LobStorageRemoteInputStream(
-                handler, lob, hmac, byteCount));
+        // this method is only implemented on the server side of a TCP connection
+        throw new IllegalStateException();
     }
 
     @Override
@@ -68,7 +57,7 @@ public class LobStorageFrontend implements LobStorageInterface {
     }
 
     @Override
-    public ValueLobDb copyLob(ValueLobDb old, int tableId, long length) {
+    public ValueLob copyLob(ValueLob old, int tableId, long length) {
         throw new UnsupportedOperationException();
     }
 
@@ -78,11 +67,11 @@ public class LobStorageFrontend implements LobStorageInterface {
     }
 
     @Override
-    public Value createBlob(InputStream in, long maxLength) {
+    public ValueLob createBlob(InputStream in, long maxLength) {
         // need to use a temp file, because the input stream could come from
         // the same database, which would create a weird situation (trying
         // to read a block while writing something)
-        return ValueLobDb.createTempBlob(in, maxLength, handler);
+        return ValueLobFile.createTempBlob(in, maxLength, sessionRemote);
     }
 
     /**
@@ -93,11 +82,11 @@ public class LobStorageFrontend implements LobStorageInterface {
      * @return the LOB
      */
     @Override
-    public Value createClob(Reader reader, long maxLength) {
+    public ValueLob createClob(Reader reader, long maxLength) {
         // need to use a temp file, because the input stream could come from
         // the same database, which would create a weird situation (trying
         // to read a block while writing something)
-        return ValueLobDb.createTempClob(reader, maxLength, handler);
+        return ValueLobFile.createTempClob(reader, maxLength, sessionRemote);
     }
 
     @Override

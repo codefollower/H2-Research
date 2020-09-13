@@ -10,15 +10,21 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.h2.api.ErrorCode;
 import org.h2.command.ddl.CreateTableData;
 import org.h2.constraint.Constraint;
 import org.h2.constraint.ConstraintReferential;
-import org.h2.engine.Session;
+import org.h2.engine.Database;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Index;
+import org.h2.index.IndexType;
+import org.h2.message.DbException;
+import org.h2.mode.DefaultNullOrdering;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
+import org.h2.result.SortOrder;
 import org.h2.value.DataType;
-import org.h2.value.Value;
+import org.h2.value.TypeInfo;
 
 /**
  * Most tables are an instance of this class. For this table, the data is stored
@@ -101,8 +107,7 @@ public abstract class RegularTable extends TableBase {
 //    public void close(Session session) {
 //        for (Index index : indexes) {
 //            index.close(session);
-//=======
-    protected static void addRowsToIndex(Session session, ArrayList<Row> list, Index index) {
+    protected static void addRowsToIndex(SessionLocal session, ArrayList<Row> list, Index index) {
         sortRows(list, index);
         for (Row row : list) {
             index.add(session, row);
@@ -179,11 +184,11 @@ public abstract class RegularTable extends TableBase {
      *            true if waiting for exclusive lock, false otherwise
      * @return formatted details of a deadlock
      */
-    protected static String getDeadlockDetails(ArrayList<Session> sessions, boolean exclusive) {
+    protected static String getDeadlockDetails(ArrayList<SessionLocal> sessions, boolean exclusive) {
         // We add the thread details here to make it easier for customers to
         // match up these error messages with their own logs.
         StringBuilder builder = new StringBuilder();
-        for (Session s : sessions) {
+        for (SessionLocal s : sessions) {
             Table lock = s.getWaitForLock();
             Thread thread = s.getWaitForLockThread();
             builder.append("\nSession ").append(s.toString()).append(" on thread ").append(thread.getName())
@@ -372,14 +377,14 @@ public abstract class RegularTable extends TableBase {
     /**
      * The session (if any) that has exclusively locked this table.
      */
-    protected volatile Session lockExclusiveSession; 
+    protected volatile SessionLocal lockExclusiveSession;
 
     /**
      * The set of sessions (if any) that have a shared lock on the table. Here
      * we are using using a ConcurrentHashMap as a set, as there is no
      * ConcurrentHashSet.
      */
-    protected final ConcurrentHashMap<Session, Session> lockSharedSessions = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap<SessionLocal, SessionLocal> lockSharedSessions = new ConcurrentHashMap<>();
 
     private Column rowIdColumn;
 
@@ -402,7 +407,6 @@ public abstract class RegularTable extends TableBase {
     }
 
     @Override
-//<<<<<<< HEAD
 //    public long getRowCount(Session session) {
 //        return rowCount;
 //    }
@@ -659,13 +663,20 @@ public abstract class RegularTable extends TableBase {
 //                        // required.
 //                        // Row level locks work like read committed.
 //                        return true;
-//=======
-    public boolean canGetRowCount() {
+    public boolean canGetRowCount(SessionLocal session) {
         return true;
     }
 
     @Override
     public boolean canTruncate() {
+        // 例如这样是不行的:
+        // stmt.executeUpdate("create table IF NOT EXISTS RegularTableTest1(id int, primary key(id))");
+        // stmt.executeUpdate("create table IF NOT EXISTS RegularTableTest2(id int,"
+        // +
+        // " FOREIGN KEY(id) REFERENCES RegularTableTest1(id))");
+        //
+        // stmt.executeUpdate("TRUNCATE TABLE RegularTableTest1");
+        // 因为RegularTableTest2表引用了RegularTableTest1
         if (getCheckForeignKeyConstraints() && database.getReferentialIntegrity()) {
             ArrayList<Constraint> constraints = getConstraints();
             if (constraints != null) {
@@ -674,6 +685,7 @@ public abstract class RegularTable extends TableBase {
                         continue;
                     }
                     ConstraintReferential ref = (ConstraintReferential) c;
+                    //this是RegularTableTest1
                     if (ref.getRefTable() == this) {
                         return false;
                     }
@@ -699,7 +711,7 @@ public abstract class RegularTable extends TableBase {
 	//    Session #2 (user: SA) is waiting to lock PUBLIC.TEST_B while locking PUBLIC.TEST_A (exclusive).
 	//    Session #4 (user: SA) is waiting to lock PUBLIC.TEST_A while locking PUBLIC.TEST_C (exclusive).
     @Override
-    public ArrayList<Session> checkDeadlock(Session session, Session clash, Set<Session> visited) {
+    public ArrayList<SessionLocal> checkDeadlock(SessionLocal session, SessionLocal clash, Set<SessionLocal> visited) {
         // only one deadlock check at any given time
         synchronized (getClass()) {
             if (clash == null) {
@@ -716,8 +728,8 @@ public abstract class RegularTable extends TableBase {
                 return null;
             }
             visited.add(session);
-            ArrayList<Session> error = null;
-            for (Session s : lockSharedSessions.keySet()) {
+            ArrayList<SessionLocal> error = null;
+            for (SessionLocal s : lockSharedSessions.keySet()) {
                 if (s == session) {
                     // it doesn't matter if we have locked the object already
                     continue;
@@ -733,7 +745,7 @@ public abstract class RegularTable extends TableBase {
             }
             // take a local copy so we don't see inconsistent data, since we are
             // not locked while checking the lockExclusiveSession value
-            Session copyOfLockExclusiveSession = lockExclusiveSession;
+            SessionLocal copyOfLockExclusiveSession = lockExclusiveSession;
             if (error == null && copyOfLockExclusiveSession != null) {
                 Table t = copyOfLockExclusiveSession.getWaitForLock();
                 if (t != null) {
@@ -854,35 +866,9 @@ public abstract class RegularTable extends TableBase {
     }
 
     @Override
-//<<<<<<< HEAD
-//    public boolean canTruncate() {
-//		// 例如这样是不行的:
-//		// stmt.executeUpdate("create table IF NOT EXISTS RegularTableTest1(id int,  primary key(id))");
-//		// stmt.executeUpdate("create table IF NOT EXISTS RegularTableTest2(id int,"
-//		// +
-//		// " FOREIGN KEY(id) REFERENCES RegularTableTest1(id))");
-//		//
-//		// stmt.executeUpdate("TRUNCATE TABLE RegularTableTest1");
-//    	//因为RegularTableTest2表引用了RegularTableTest1
-//        if (getCheckForeignKeyConstraints() && database.getReferentialIntegrity()) {
-//            ArrayList<Constraint> constraints = getConstraints();
-//            if (constraints != null) {
-//                for (Constraint c : constraints) {
-//                    if (c.getConstraintType() != Constraint.Type.REFERENTIAL) {
-//                        continue;
-//                    }
-//                    ConstraintReferential ref = (ConstraintReferential) c;
-//                    //this是RegularTableTest1
-//                    if (ref.getRefTable() == this) {
-//                        return false;
-//                    }
-//                }
-//            }
-//=======
-    public Column getRowIdColumn() {
+    public Column getRowIdColumn() { //ROWID伪列，columnId是-1
         if (rowIdColumn == null) {
-            rowIdColumn = new Column(Column.ROWID, Value.BIGINT);
-            rowIdColumn.setTable(this, SearchRow.ROWID_INDEX);
+            rowIdColumn = new Column(Column.ROWID, TypeInfo.TYPE_BIGINT, this, SearchRow.ROWID_INDEX);
             rowIdColumn.setRowId(true);
         }
         return rowIdColumn;
@@ -928,21 +914,68 @@ public abstract class RegularTable extends TableBase {
     }
 
     @Override
-    public boolean isLockedExclusivelyBy(Session session) {
+    public boolean isLockedExclusivelyBy(SessionLocal session) {
         return lockExclusiveSession == session;
     }
 
     @Override
-//<<<<<<< HEAD
-//    public Column getRowIdColumn() { //ROWID伪列，columnId是-1
-//        if (rowIdColumn == null) {
-//            rowIdColumn = new Column(Column.ROWID, Value.LONG);
-//            rowIdColumn.setTable(this, -1);
-//        }
-//        return rowIdColumn;
-//=======
+    protected void invalidate() {
+        super.invalidate();
+        /*
+         * Query cache of a some sleeping session can have references to
+         * invalidated tables. When this table was dropped by another session,
+         * the field below still points to it and prevents its garbage
+         * collection, so this field needs to be cleared to prevent a memory
+         * leak.
+         */
+        lockExclusiveSession = null;
+    }
+
+    @Override
     public String toString() {
-        return getSQL(false);
+        return getTraceSQL();
+    }
+
+    /**
+     * Prepares columns of an index.
+     *
+     * @param database the database
+     * @param cols the index columns
+     * @param indexType the type of an index
+     * @return the prepared columns with flags set
+     */
+    protected static IndexColumn[] prepareColumns(Database database, IndexColumn[] cols, IndexType indexType) {
+        if (indexType.isPrimaryKey()) {
+            for (IndexColumn c : cols) {
+                Column column = c.column;
+                if (column.isNullable()) {
+                    throw DbException.get(ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1, column.getName());
+                }
+            }
+            for (IndexColumn c : cols) {
+                c.column.setPrimaryKey(true);
+            }
+        } else if (!indexType.isSpatial()) {
+            int i = 0, l = cols.length;
+            while (i < l && (cols[i].sortType & (SortOrder.NULLS_FIRST | SortOrder.NULLS_LAST)) != 0) {
+                i++;
+            }
+            if (i != l) {
+                cols = cols.clone();
+                DefaultNullOrdering defaultNullOrdering = database.getDefaultNullOrdering();
+                for (; i < l; i++) {
+                    IndexColumn oldColumn = cols[i];
+                    int sortTypeOld = oldColumn.sortType;
+                    int sortTypeNew = defaultNullOrdering.addExplicitNullOrdering(sortTypeOld);
+                    if (sortTypeNew != sortTypeOld) {
+                        IndexColumn newColumn = new IndexColumn(oldColumn.columnName, sortTypeNew);
+                        newColumn.column = oldColumn.column;
+                        cols[i] = newColumn;
+                    }
+                }
+            }
+        }
+        return cols;
     }
 
 }

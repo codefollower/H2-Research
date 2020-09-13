@@ -278,8 +278,7 @@ public class FileStore {
      */
     public void readFully(byte[] b, int off, int len) {
         if (len < 0 || len % Constants.FILE_BLOCK_SIZE != 0) {
-            DbException.throwInternalError(
-                    "unaligned read " + name + " len " + len);
+            throw DbException.getInternalError("unaligned read " + name + " len " + len);
         }
         checkPowerOff();
         try {
@@ -297,8 +296,7 @@ public class FileStore {
      */
     public void seek(long pos) {
         if (pos % Constants.FILE_BLOCK_SIZE != 0) {
-            DbException.throwInternalError(
-                    "unaligned seek " + name + " pos " + pos);
+            throw DbException.getInternalError("unaligned seek " + name + " pos " + pos);
         }
         try {
             if (pos != filePos) {
@@ -330,8 +328,7 @@ public class FileStore {
      */
     public void write(byte[] b, int off, int len) {
         if (len < 0 || len % Constants.FILE_BLOCK_SIZE != 0) {
-            DbException.throwInternalError(
-                    "unaligned write " + name + " len " + len);
+            throw DbException.getInternalError("unaligned write " + name + " len " + len);
         }
         checkWritingAllowed();
         checkPowerOff();
@@ -352,8 +349,7 @@ public class FileStore {
      */
     public void setLength(long newLength) {
         if (newLength % Constants.FILE_BLOCK_SIZE != 0) {
-            DbException.throwInternalError(
-                    "unaligned setLength " + name + " pos " + newLength);
+            throw DbException.getInternalError("unaligned setLength " + name + " pos " + newLength);
         }
         checkPowerOff();
         checkWritingAllowed();
@@ -384,16 +380,14 @@ public class FileStore {
             try {
                 len = file.size();
                 if (len != fileLength) {
-                    DbException.throwInternalError(
-                            "file " + name + " length " + len + " expected " + fileLength);
+                    throw DbException.getInternalError("file " + name + " length " + len + " expected " + fileLength);
                 }
                 if (len % Constants.FILE_BLOCK_SIZE != 0) {
                     long newLength = len + Constants.FILE_BLOCK_SIZE -
                             (len % Constants.FILE_BLOCK_SIZE);
                     file.truncate(newLength);
                     fileLength = newLength;
-                    DbException.throwInternalError(
-                            "unaligned file length " + name + " len " + len);
+                    throw DbException.getInternalError("unaligned file length " + name + " len " + len);
                 }
             } catch (IOException e) {
                 throw DbException.convertIOException(e, name);
@@ -411,7 +405,7 @@ public class FileStore {
         if (ASSERT) {
             try {
                 if (file.position() != filePos) {
-                    DbException.throwInternalError(file.position() + " " + filePos);
+                    throw DbException.getInternalError(file.position() + " " + filePos);
                 }
             } catch (IOException e) {
                 throw DbException.convertIOException(e, name);

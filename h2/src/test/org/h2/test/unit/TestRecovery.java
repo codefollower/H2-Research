@@ -33,7 +33,7 @@ public class TestRecovery extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -92,8 +92,7 @@ public class TestRecovery extends TestDb {
         DeleteDbFiles.execute(getBaseDir(), "recovery", true);
         Connection conn = getConnection("recovery");
         Statement stat = conn.createStatement();
-        stat.execute("CREATE ALIAS IF NOT EXISTS FTL_INIT " +
-                "FOR \"org.h2.fulltext.FullTextLucene.init\"");
+        stat.execute("CREATE ALIAS IF NOT EXISTS FTL_INIT FOR 'org.h2.fulltext.FullTextLucene.init'");
         stat.execute("CALL FTL_INIT()");
         stat.execute("create table test(id int primary key, name varchar) as " +
                 "select 1, 'Hello'");
@@ -203,9 +202,8 @@ public class TestRecovery extends TestDb {
         conn.setAutoCommit(false);
         long base = 0;
         while (true) {
-            ResultSet rs = stat.executeQuery(
-                        "select `value` from information_schema.settings " +
-                        "where name = 'info.FILE_WRITE'");
+            ResultSet rs = stat.executeQuery("SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS"
+                    + " WHERE SETTING_NAME = 'info.FILE_WRITE'");
             rs.next();
             long count = rs.getLong(1);
             if (base == 0) {
@@ -336,7 +334,6 @@ public class TestRecovery extends TestDb {
         Connection conn = getConnection("recovery");
         Statement stat = conn.createStatement();
         stat.execute("SET COLLATION EN");
-        stat.execute("SET BINARY_COLLATION UNSIGNED");
         stat.execute("CREATE TABLE TEST(A VARCHAR)");
         conn.close();
 

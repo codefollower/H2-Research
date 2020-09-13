@@ -25,8 +25,6 @@ Build
     Environment</a><br />
 <a href="#building">
     Building the Software</a><br />
-<a href="#build_targets">
-    Build Targets</a><br />
 <a href="#maven2">
     Using Maven 2</a><br />
 <a href="#using_eclipse">
@@ -93,27 +91,9 @@ To run the build tool in shell mode, use the command line option <code>-</code>:
 ./build.sh -
 </pre>
 
-<h2 id="build_targets">Build Targets</h2>
-<p>
-The build system can generate smaller jar files as well. The following targets are currently supported:
-</p>
-<ul><li><code>jarClient</code>
-    creates the file <code>h2client.jar</code>. This only contains the JDBC client.
-</li><li><code>jarSmall</code>
-    creates the file <code>h2small.jar</code>.
-    This only contains the embedded database. Debug information is disabled.
-</li><li><code>javadocImpl</code> creates the Javadocs of the implementation.
-</li></ul>
-<p>
-To create the file <code>h2client.jar</code>, go to the directory <code>h2</code> and execute the following command:
-</p>
-<pre>
-build jarClient
-</pre>
-
 <h3>Using Apache Lucene</h3>
 <p>
-Apache Lucene 8.2.0 is used for testing.
+Apache Lucene 8.5.2 is used for testing.
 </p>
 
 <h2 id="maven2">Using Maven 2</h2>
@@ -131,7 +111,7 @@ Example:
 </pre>
 <p>
 New versions of this database are first uploaded to http://hsql.sourceforge.net/m2-repo/ and then automatically
-synchronized with the main <a href="http://repo2.maven.org/maven2/com/h2database/h2/">Maven repository</a>;
+synchronized with the main <a href="https://repo1.maven.org/maven2/com/h2database/h2/">Maven repository</a>;
 however after a new release it may take a few hours before they are available there.
 </p>
 <h3>Maven Plugin to Start and Stop the TCP Server</h3>
@@ -251,7 +231,8 @@ or if  you have a feature request:
 <ul><li>For bug reports, please provide a
     <a href="http://sscce.org/">short, self contained, correct (compilable), example</a> of the problem.
 </li><li>Feature requests are always welcome, even if the feature is already on the
-    <a href="https://h2database.com/html/roadmap.html">roadmap</a>. Your mail will help prioritize feature requests.
+    <a href="https://github.com/h2database/h2database/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement">issue tracker</a>
+    you can comment it.
     If you urgently need a feature, consider <a href="#providing_patches">providing a patch</a>.
 </li><li>Before posting problems, check the
     <a href="faq.html">FAQ</a> and do a <a href="http://google.com">Google search</a>.

@@ -9,13 +9,14 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
- * A cursor to iterate over elements in ascending order.
+ * A cursor to iterate over elements in ascending or descending order.
  *
  * @param <K> the key type
  * @param <V> the value type
  */
 //深度优先，然后到右边的同节点中的记录，接着过渡到父节点，父节点的右节点...
 public final class Cursor<K,V> implements Iterator<K> {
+    private final boolean reverse;
     private final K to;
     private CursorPos<K,V> cursorPos;
     private CursorPos<K,V> keeper;
@@ -24,48 +25,59 @@ public final class Cursor<K,V> implements Iterator<K> {
     private V lastValue;
     private Page<K,V> lastPage;
 
-    public Cursor(Page<K,V> root, K from) {
-        this(root, from, null);
+
+    public Cursor(RootReference<K,V> rootReference, K from, K to) {
+        this(rootReference, from, to, false);
     }
 
-    public Cursor(Page<K,V> root, K from, K to) {
-        this.cursorPos = traverseDown(root, from);
+    /**
+     * @param rootReference of the tree
+     * @param from starting key (inclusive), if null start from the first / last key
+     * @param to ending key (inclusive), if null there is no boundary
+     * @param reverse true if tree should be iterated in key's descending order
+     */
+    public Cursor(RootReference<K,V> rootReference, K from, K to, boolean reverse) {
+        this.lastPage = rootReference.root;
+        this.cursorPos = traverseDown(lastPage, from, reverse);
         this.to = to;
+        this.reverse = reverse;
     }
 
     @Override
     public boolean hasNext() {
         if (cursorPos != null) {
+            int increment = reverse ? -1 : 1;
             while (current == null) {
                 Page<K,V> page = cursorPos.page;
                 int index = cursorPos.index;
-                if (index >= (page.isLeaf() ? page.getKeyCount() : page.map.getChildPageCount(page))) {
+                if (reverse ? index < 0 : index >= upperBound(page)) {
+                    // traversal of this page is over, going up a level or stop if at the root already
                     CursorPos<K,V> tmp = cursorPos;
                     cursorPos = cursorPos.parent;
-                    tmp.parent = keeper;
-                    keeper = tmp;
-                    if(cursorPos == null)
-                    {
+                    if (cursorPos == null) {
                         return false;
                     }
+                    tmp.parent = keeper;
+                    keeper = tmp;
                 } else {
+                    // traverse down to the leaf taking the leftmost path
                     while (!page.isLeaf()) {
                         page = page.getChildPage(index);
+                        index = reverse ? upperBound(page) - 1 : 0;
                         if (keeper == null) {
-                            cursorPos = new CursorPos<>(page, 0, cursorPos);
+                            cursorPos = new CursorPos<>(page, index, cursorPos);
                         } else {
                             CursorPos<K,V> tmp = keeper;
                             keeper = keeper.parent;
                             tmp.parent = cursorPos;
                             tmp.page = page;
-                            tmp.index = 0;
+                            tmp.index = index;
                             cursorPos = tmp;
                         }
-                        index = 0;
                     }
-                    if (index < page.getKeyCount()) {
+                    if (reverse ? index >= 0 : index < page.getKeyCount()) {
                         K key = page.getKey(index);
-                        if (to != null && page.map.getKeyType().compare(key, to) > 0) {
+                        if (to != null && Integer.signum(page.map.getKeyType().compare(key, to)) == increment) {
                             return false;
                         }
                         current = last = key;
@@ -73,7 +85,7 @@ public final class Cursor<K,V> implements Iterator<K> {
                         lastPage = page;
                     }
                 }
-                ++cursorPos.index;
+                cursorPos.index += increment;
             }
         }
         return current != null;
@@ -135,8 +147,8 @@ public final class Cursor<K,V> implements Iterator<K> {
             Page<K,V> root = cp.page;
             MVMap<K,V> map = root.map;
             long index = map.getKeyIndex(next());
-            last = map.getKey(index + n);
-            this.cursorPos = traverseDown(root, last);
+            last = map.getKey(index + (reverse ? -n : n));
+            this.cursorPos = traverseDown(root, last, reverse);
         }
     }
 
@@ -144,45 +156,61 @@ public final class Cursor<K,V> implements Iterator<K> {
      * Fetch the next entry that is equal or larger than the given key, starting
      * from the given page. This method retains the stack.
      *
-     * @param p the page to start from
-     * @param key the key to search, null means search for the first key
+     * @param page to start from as a root
+     * @param key to search for, null means search for the first available key
      */
 //<<<<<<< HEAD
-//    private static CursorPos traverseDown(Page p, Object key) {
 ////<<<<<<< HEAD
-////        CursorPos cursorPos = null;
-////        while (!p.isLeaf()) {
-////            assert p.getKeyCount() > 0;
-////            int index = 0;
-////            if(key != null) {
-////                index = p.binarySearch(key) + 1;
-////                if (index < 0) {
-////                    index = -index;
-////                }
-////            }
+////    private static CursorPos traverseDown(Page p, Object key) {
 //////<<<<<<< HEAD
-//////            //遍历完当前leaf page后，就转到parent page，然后就到右边的第一个兄弟page，
-//////            //所以要x+1
-//////            pos = new CursorPos(p, x + 1, pos); 
-//////            p = p.getChildPage(x);
+//////        CursorPos cursorPos = null;
+//////        while (!p.isLeaf()) {
+//////            assert p.getKeyCount() > 0;
+//////            int index = 0;
+//////            if(key != null) {
+//////                index = p.binarySearch(key) + 1;
+//////                if (index < 0) {
+//////                    index = -index;
+//////                }
+//////            }
+////////<<<<<<< HEAD
+////////            //遍历完当前leaf page后，就转到parent page，然后就到右边的第一个兄弟page，
+////////            //所以要x+1
+////////            pos = new CursorPos(p, x + 1, pos); 
+////////            p = p.getChildPage(x);
+////////=======
+//////            cursorPos = new CursorPos(p, index, cursorPos);
+//////            p = p.getChildPage(index);
+//////        }
+//////        int index = 0;
+//////        if(key != null) {
+//////            index = p.binarySearch(key);
+//////            if (index < 0) {
+//////                index = -index - 1;
+//////            }
 //////=======
-////            cursorPos = new CursorPos(p, index, cursorPos);
-////            p = p.getChildPage(index);
-////        }
-////        int index = 0;
-////        if(key != null) {
-////            index = p.binarySearch(key);
-////            if (index < 0) {
-////                index = -index - 1;
-////            }
+////        CursorPos cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
 ////=======
-//        CursorPos cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
+//    private static <K,V> CursorPos<K,V> traverseDown(Page<K,V> p, K key) {
+//        CursorPos<K,V> cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
+//        if (cursorPos.index < 0) {
+//            cursorPos.index = -cursorPos.index - 1; 
 //=======
-    private static <K,V> CursorPos<K,V> traverseDown(Page<K,V> p, K key) {
-        CursorPos<K,V> cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
-        if (cursorPos.index < 0) {
-            cursorPos.index = -cursorPos.index - 1; 
+    static <K,V> CursorPos<K,V> traverseDown(Page<K,V> page, K key, boolean reverse) {
+        CursorPos<K,V> cursorPos = key != null ? CursorPos.traverseDown(page, key) :
+                reverse ? page.getAppendCursorPos(null) : page.getPrependCursorPos(null);
+        int index = cursorPos.index;
+        if (index < 0) {
+            index = ~index;
+            if (reverse) {
+                --index;
+            }
+            cursorPos.index = index;
         }
         return cursorPos;
+    }
+
+    private static <K,V> int upperBound(Page<K,V> page) {
+        return page.isLeaf() ? page.getKeyCount() : page.map.getChildPageCount(page);
     }
 }

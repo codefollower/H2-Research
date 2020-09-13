@@ -5,7 +5,8 @@
  */
 package org.h2.pagestore.db;
 
-import org.h2.engine.Session;
+import org.h2.engine.Constants;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Cursor;
 import org.h2.pagestore.Page;
 import org.h2.result.Row;
@@ -15,6 +16,11 @@ import org.h2.store.Data;
  * A page that contains data rows.
  */
 abstract class PageData extends Page {
+
+    /**
+     * The memory needed by an object of class PageData.
+     */
+    static final int MEMORY_PAGE_DATA = 144 + Constants.MEMORY_DATA + 3 * Constants.MEMORY_OBJECT;
 
     /**
      * The position of the parent page id.
@@ -134,7 +140,7 @@ abstract class PageData extends Page {
      * @param maxKey the largest key
      * @return the cursor
      */
-    abstract Cursor find(Session session, long minKey, long maxKey);
+    abstract Cursor find(SessionLocal session, long minKey, long maxKey);
 
     /**
      * Get the key at this position.

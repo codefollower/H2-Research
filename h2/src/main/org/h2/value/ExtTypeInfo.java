@@ -5,34 +5,16 @@
  */
 package org.h2.value;
 
-import org.h2.engine.CastDataProvider;
+import org.h2.util.HasSQL;
 
 /**
  * Extended parameters of a data type.
  */
-public abstract class ExtTypeInfo {
-
-    /**
-     * Casts a specified value to this data type.
-     *
-     * @param value
-     *            value to cast
-     * @param provider
-     *            the cast information provider
-     * @return casted value
-     */
-    public abstract Value cast(Value value, CastDataProvider provider);
-
-    /**
-     * Returns SQL including parentheses that should be appended to a type name.
-     *
-     * @return SQL including parentheses that should be appended to a type name
-     */
-    public abstract String getCreateSQL();
+public abstract class ExtTypeInfo implements HasSQL {
 
     @Override
     public String toString() {
-        return getCreateSQL();
+        return getSQL(QUOTE_ONLY_WHEN_REQUIRED);
     }
 
 }

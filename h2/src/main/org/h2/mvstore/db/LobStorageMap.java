@@ -16,10 +16,10 @@ import java.util.Map.Entry;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.message.DbException;
+import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.StreamStore;
-import org.h2.mvstore.db.MVTableEngine.Store;
 import org.h2.store.CountingReaderInputStream;
 import org.h2.store.LobStorageFrontend;
 import org.h2.store.LobStorageInterface;
@@ -27,7 +27,9 @@ import org.h2.store.RangeInputStream;
 import org.h2.util.IOUtils;
 import org.h2.util.StringUtils;
 import org.h2.value.Value;
-import org.h2.value.ValueLobDb;
+import org.h2.value.ValueLob;
+import org.h2.value.ValueLobDatabase;
+import org.h2.value.ValueLobInMemory;
 
 /**
  * This class stores LOB objects in the database, in maps. This is the back-end
@@ -141,7 +143,7 @@ public class LobStorageMap implements LobStorageInterface {
     }
 
     @Override
-    public Value createBlob(InputStream in, long maxLength) {
+    public ValueLob createBlob(InputStream in, long maxLength) {
         init();
         int type = Value.BLOB;
         try {
@@ -156,7 +158,7 @@ public class LobStorageMap implements LobStorageInterface {
                 if (len < small.length) {
                     small = Arrays.copyOf(small, len);
                 }
-                return ValueLobDb.createSmallLob(type, small);
+                return ValueLobInMemory.createSmallLob(type, small);
             }
             if (maxLength != -1) {
                 in = new RangeInputStream(in, 0L, maxLength);
@@ -170,7 +172,7 @@ public class LobStorageMap implements LobStorageInterface {
     }
 
     @Override
-    public Value createClob(Reader reader, long maxLength) {
+    public ValueLob createClob(Reader reader, long maxLength) {
         init();
         int type = Value.CLOB;
         try {
@@ -190,17 +192,17 @@ public class LobStorageMap implements LobStorageInterface {
                             "len > maxinplace, " + utf8.length + " > "
                                     + database.getMaxLengthInplaceLob());
                 }
-                return ValueLobDb.createSmallLob(type, utf8);
+                return ValueLobInMemory.createSmallLob(type, utf8);
             }
             if (maxLength < 0) {
                 maxLength = Long.MAX_VALUE;
             }
             CountingReaderInputStream in = new CountingReaderInputStream(reader,
                     maxLength);
-            ValueLobDb lob = createLob(in, type);
+            ValueLobDatabase lob = createLob(in, type);
             // the length is not correct
-            lob = ValueLobDb.create(type, database, lob.getTableId(),
-                    lob.getLobId(), null, in.getLength());
+            lob = ValueLobDatabase.create(type, database, lob.getTableId(),
+                    lob.getLobId(), in.getLength());
             return lob;
         } catch (IllegalStateException e) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
@@ -209,12 +211,12 @@ public class LobStorageMap implements LobStorageInterface {
         }
     }
 
-    private ValueLobDb createLob(InputStream in, int type) throws IOException {
+    private ValueLobDatabase createLob(InputStream in, int type) throws IOException {
         byte[] streamStoreId;
         try {
             streamStoreId = streamStore.put(in);
         } catch (Exception e) {
-            throw DbException.convertToIOException(e);
+            throw DataUtils.convertToIOException(e);
         }
         long lobId = generateLobId();
         long length = streamStore.length(streamStoreId);
@@ -223,8 +225,8 @@ public class LobStorageMap implements LobStorageInterface {
         lobMap.put(lobId, value);
         Object[] key = { streamStoreId, lobId };
         refMap.put(key, Boolean.TRUE);
-        ValueLobDb lob = ValueLobDb.create(
-                type, database, tableId, lobId, null, length);
+        ValueLobDatabase lob = ValueLobDatabase.create(
+                type, database, tableId, lobId, length);
         if (TRACE) {
             trace("create " + tableId + "/" + lobId);
         }
@@ -247,13 +249,14 @@ public class LobStorageMap implements LobStorageInterface {
     }
 
     @Override
-    public ValueLobDb copyLob(ValueLobDb old, int tableId, long length) {
+    public ValueLob copyLob(ValueLob old_, int tableId, long length) {
         init();
+        ValueLobDatabase old = (ValueLobDatabase) old_;
         int type = old.getValueType();
         long oldLobId = old.getLobId();
         long oldLength = old.getType().getPrecision();
         if (oldLength != length) {
-            throw DbException.throwInternalError("Length is different");
+            throw DbException.getInternalError("Length is different");
         }
         Object[] value = lobMap.get(oldLobId);
         value = value.clone();
@@ -263,8 +266,8 @@ public class LobStorageMap implements LobStorageInterface {
         lobMap.put(lobId, value);
         Object[] key = { streamStoreId, lobId };
         refMap.put(key, Boolean.TRUE);
-        ValueLobDb lob = ValueLobDb.create(
-                type, database, tableId, lobId, null, length);
+        ValueLob lob = ValueLobDatabase.create(
+                type, database, tableId, lobId, length);
         if (TRACE) {
             trace("copy " + old.getTableId() + "/" + old.getLobId() +
                     " > " + tableId + "/" + lobId);
@@ -273,18 +276,12 @@ public class LobStorageMap implements LobStorageInterface {
     }
 
     @Override
-    public InputStream getInputStream(ValueLobDb lob, byte[] hmac, long byteCount)
+    public InputStream getInputStream(long lobId, long byteCount)
             throws IOException {
         init();
-        Object[] value = lobMap.get(lob.getLobId());
+        Object[] value = lobMap.get(lobId);
         if (value == null) {
-            if (lob.getTableId() == LobStorageFrontend.TABLE_RESULT ||
-                    lob.getTableId() == LobStorageFrontend.TABLE_ID_SESSION_VARIABLE) {
-                throw DbException.get(
-                        ErrorCode.LOB_CLOSED_ON_TIMEOUT_1, lob.getLobId() + "/" + lob.getTableId());
-            }
-            throw DbException.throwInternalError("Lob not found: " +
-                    lob.getLobId() + "/" + lob.getTableId());
+            throw DbException.get(ErrorCode.LOB_CLOSED_ON_TIMEOUT_1, "" + lobId);
         }
         byte[] streamStoreId = (byte[]) value[0];
         return streamStore.get(streamStoreId);
@@ -316,8 +313,9 @@ public class LobStorageMap implements LobStorageInterface {
     }
 
     @Override
-    public void removeLob(ValueLobDb lob) {
+    public void removeLob(ValueLob lob_) {
         init();
+        ValueLobDatabase lob = (ValueLobDatabase) lob_;
         int tableId = lob.getTableId();
         long lobId = lob.getLobId();
         removeLob(tableId, lobId);

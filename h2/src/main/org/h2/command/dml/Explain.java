@@ -7,22 +7,23 @@ package org.h2.command.dml;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
-import org.h2.mvstore.db.MVTableEngine.Store;
+import org.h2.mvstore.db.Store;
 import org.h2.pagestore.PageStore;
 import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
 import org.h2.table.Column;
-import org.h2.value.Value;
-import org.h2.value.ValueString;
+import org.h2.util.HasSQL;
+import org.h2.value.TypeInfo;
+import org.h2.value.ValueVarchar;
 
 /**
  * This class represents the statement
@@ -34,7 +35,7 @@ public class Explain extends Prepared {
     private LocalResult result;
     private boolean executeCommand;
 
-    public Explain(Session session) {
+    public Explain(SessionLocal session) {
         super(session);
     }
 
@@ -69,26 +70,25 @@ public class Explain extends Prepared {
     }
 
     @Override
-    public ResultInterface query(int maxrows) {
-        Column column = new Column("PLAN", Value.VARCHAR);
+    public ResultInterface query(long maxrows) {
         Database db = session.getDatabase();
-        ExpressionColumn expr = new ExpressionColumn(db, column);
-        Expression[] expressions = { expr };
+        Expression[] expressions = { new ExpressionColumn(db, new Column("PLAN", TypeInfo.TYPE_VARCHAR)) };
         result = new LocalResult(session, expressions, 1, 1);
-        boolean alwaysQuote = true;
+        int sqlFlags = HasSQL.ADD_PLAN_INFORMATION;
         if (maxrows >= 0) {
             String plan;
             if (executeCommand) {
-                PageStore store = null;
-                Store mvStore = null;
+                Store store = null;
+                PageStore pageStore = null;
                 if (db.isPersistent()) {
-                    store = db.getPageStore();
+                    store = db.getStore();
                     if (store != null) {
                         store.statisticsStart();
-                    }
-                    mvStore = db.getStore();
-                    if (mvStore != null) {
-                        mvStore.statisticsStart();
+                    } else {
+                        pageStore = db.getPageStore();
+                        if (pageStore != null) {
+                            pageStore.statisticsStart();
+                        }
                     }
                 }
                 if (command.isQuery()) {
@@ -96,12 +96,12 @@ public class Explain extends Prepared {
                 } else {
                     command.update();
                 }
-                plan = command.getPlanSQL(alwaysQuote);
+                plan = command.getPlanSQL(sqlFlags);
                 Map<String, Integer> statistics = null;
                 if (store != null) {
                     statistics = store.statisticsEnd();
-                } else if (mvStore != null) {
-                    statistics = mvStore.statisticsEnd();
+                } else if (pageStore != null) {
+                    statistics = pageStore.statisticsEnd();
                 }
                 //输出格式类似这样:
                 /*
@@ -133,7 +133,7 @@ public class Explain extends Prepared {
                     }
                 }
             } else {
-                plan = command.getPlanSQL(alwaysQuote);
+                plan = command.getPlanSQL(sqlFlags);
             }
             add(plan);
         }
@@ -142,7 +142,7 @@ public class Explain extends Prepared {
     }
 
     private void add(String text) {
-        result.addRow(ValueString.get(text));
+        result.addRow(ValueVarchar.get(text));
     }
 
     @Override

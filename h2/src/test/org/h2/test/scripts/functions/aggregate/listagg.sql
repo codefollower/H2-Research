@@ -14,16 +14,16 @@ insert into test values ('1'), ('2'), ('3'), ('4'), ('5'), ('6'), ('7'), ('8'), 
 select listagg(v, '-') within group (order by v asc),
     listagg(v, '-') within group (order by v desc) filter (where v >= '4')
     from test where v >= '2';
-> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE (V >= '4'))
-> ----------------------------------------- ------------------------------------------------------------------------
+> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE V >= '4')
+> ----------------------------------------- ----------------------------------------------------------------------
 > 2-3-4-5-6-7-8-9                           9-8-7-6-5-4
 > rows: 1
 
 select group_concat(v order by v asc separator '-'),
     group_concat(v order by v desc separator '-') filter (where v >= '4')
     from test where v >= '2';
-> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE (V >= '4'))
-> ----------------------------------------- ------------------------------------------------------------------------
+> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE V >= '4')
+> ----------------------------------------- ----------------------------------------------------------------------
 > 2-3-4-5-6-7-8-9                           9-8-7-6-5-4
 > rows: 1
 
@@ -33,16 +33,16 @@ create index test_idx on test(v);
 select group_concat(v order by v asc separator '-'),
     group_concat(v order by v desc separator '-') filter (where v >= '4')
     from test where v >= '2';
-> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE (V >= '4'))
-> ----------------------------------------- ------------------------------------------------------------------------
+> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE V >= '4')
+> ----------------------------------------- ----------------------------------------------------------------------
 > 2-3-4-5-6-7-8-9                           9-8-7-6-5-4
 > rows: 1
 
 select group_concat(v order by v asc separator '-'),
     group_concat(v order by v desc separator '-') filter (where v >= '4')
     from test;
-> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE (V >= '4'))
-> ----------------------------------------- ------------------------------------------------------------------------
+> LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) LISTAGG(V, '-') WITHIN GROUP (ORDER BY V DESC) FILTER (WHERE V >= '4')
+> ----------------------------------------- ----------------------------------------------------------------------
 > 1-2-3-4-5-6-7-8-9                         9-8-7-6-5-4
 > rows: 1
 
@@ -56,14 +56,14 @@ insert into test(v) values (7), (2), (8), (3), (7), (3), (9), (-1);
 > update count: 8
 
 select group_concat(v) from test;
-> LISTAGG(V)
-> ----------------
+> LISTAGG(V) WITHIN GROUP (ORDER BY NULL)
+> ---------------------------------------
 > 7,2,8,3,7,3,9,-1
 > rows: 1
 
 select group_concat(distinct v) from test;
-> LISTAGG(DISTINCT V)
-> -------------------
+> LISTAGG(DISTINCT V) WITHIN GROUP (ORDER BY NULL)
+> ------------------------------------------------
 > -1,2,3,7,8,9
 > rows: 1
 
@@ -88,49 +88,49 @@ SELECT LISTAGG(V, ',') WITHIN GROUP (ORDER BY V) FROM TEST;
 drop table test;
 > ok
 
-create table test(g varchar, v int) as values ('-', 1), ('-', 2), ('-', 3), ('|', 4), ('|', 5), ('|', 6), ('*', null);
+create table test(g int, v int) as values (1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (2, 6), (3, null);
 > ok
 
-select g, listagg(v, g) from test group by g;
-> G LISTAGG(V, G)
-> - -------------
-> * null
-> - 1-2-3
-> | 4|5|6
+select g, listagg(v, '-') from test group by g;
+> G LISTAGG(V, '-') WITHIN GROUP (ORDER BY NULL)
+> - --------------------------------------------
+> 1 1-2-3
+> 2 4-5-6
+> 3 null
 > rows: 3
 
-select g, listagg(v, g) over (partition by g) from test order by v;
-> G LISTAGG(V, G) OVER (PARTITION BY G)
-> - -----------------------------------
-> * null
-> - 1-2-3
-> - 1-2-3
-> - 1-2-3
-> | 4|5|6
-> | 4|5|6
-> | 4|5|6
+select g, listagg(v, '-') over (partition by g) from test order by v;
+> G LISTAGG(V, '-') WITHIN GROUP (ORDER BY NULL) OVER (PARTITION BY G)
+> - ------------------------------------------------------------------
+> 3 null
+> 1 1-2-3
+> 1 1-2-3
+> 1 1-2-3
+> 2 4-5-6
+> 2 4-5-6
+> 2 4-5-6
 > rows (ordered): 7
 
-select g, listagg(v, g on overflow error) within group (order by v) filter (where v <> 2) over (partition by g) from test order by v;
-> G LISTAGG(V, G) WITHIN GROUP (ORDER BY V) FILTER (WHERE (V <> 2)) OVER (PARTITION BY G)
+select g, listagg(v, '-' on overflow error) within group (order by v) filter (where v <> 2) over (partition by g) from test order by v;
+> G LISTAGG(V, '-') WITHIN GROUP (ORDER BY V) FILTER (WHERE V <> 2) OVER (PARTITION BY G)
 > - -------------------------------------------------------------------------------------
-> * null
-> - 1-3
-> - 1-3
-> - 1-3
-> | 4|5|6
-> | 4|5|6
-> | 4|5|6
+> 3 null
+> 1 1-3
+> 1 1-3
+> 1 1-3
+> 2 4-5-6
+> 2 4-5-6
+> 2 4-5-6
 > rows (ordered): 7
 
 select listagg(distinct v, '-') from test;
-> LISTAGG(DISTINCT V, '-')
-> ------------------------
+> LISTAGG(DISTINCT V, '-') WITHIN GROUP (ORDER BY NULL)
+> -----------------------------------------------------
 > 1-2-3-4-5-6
 > rows: 1
 
 select g, group_concat(v separator v) from test group by g;
-> exception INVALID_VALUE_2
+> exception SYNTAX_ERROR_2
 
 drop table test;
 > ok
@@ -159,3 +159,97 @@ DROP TABLE TEST;
 
 SELECT LISTAGG(DISTINCT A, ' ') WITHIN GROUP (ORDER BY B) FROM (VALUES ('a', 2), ('a', 3), ('b', 1)) T(A, B);
 >> b a
+
+CREATE TABLE TEST(A INT NOT NULL, B VARCHAR(50) NOT NULL) AS VALUES (1, '1'), (1, '2'), (1, '3');
+> ok
+
+SELECT STRING_AGG(B, ', ') FROM TEST GROUP BY A;
+>> 1, 2, 3
+
+SELECT STRING_AGG(B, ', ' ORDER BY B DESC) FROM TEST GROUP BY A;
+>> 3, 2, 1
+
+DROP TABLE TEST;
+> ok
+
+EXPLAIN SELECT LISTAGG(A) WITHIN GROUP (ORDER BY 'a') FROM (VALUES 'a', 'b') T(A);
+>> SELECT LISTAGG("A") WITHIN GROUP (ORDER BY NULL) FROM (VALUES ('a'), ('b')) "T"("A") /* table scan */
+
+SET MODE Oracle;
+> ok
+
+SELECT LISTAGG(V, '') WITHIN GROUP(ORDER BY V) FROM (VALUES 'a', 'b') T(V);
+>> ab
+
+SET MODE Regular;
+> ok
+
+CREATE TABLE TEST(ID INT, V VARCHAR) AS VALUES (1, 'b'), (2, 'a');
+> ok
+
+EXPLAIN SELECT LISTAGG(V) FROM TEST;
+>> SELECT LISTAGG("V") WITHIN GROUP (ORDER BY NULL) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V) WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V") WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V, ';') WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V", ';') WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V ON OVERFLOW ERROR) WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V") WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V, ';' ON OVERFLOW ERROR) WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V", ';') WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V ON OVERFLOW TRUNCATE WITH COUNT) WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V" ON OVERFLOW TRUNCATE WITH COUNT) WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V ON OVERFLOW TRUNCATE WITHOUT COUNT) WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V" ON OVERFLOW TRUNCATE WITHOUT COUNT) WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V ON OVERFLOW TRUNCATE '..' WITH COUNT) WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V" ON OVERFLOW TRUNCATE '..' WITH COUNT) WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT LISTAGG(V ON OVERFLOW TRUNCATE '..' WITHOUT COUNT) WITHIN GROUP (ORDER BY ID) FROM TEST;
+>> SELECT LISTAGG("V" ON OVERFLOW TRUNCATE '..' WITHOUT COUNT) WITHIN GROUP (ORDER BY "ID") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(V VARCHAR) AS SELECT 'ABCD_EFGH_' || X FROM SYSTEM_RANGE(1, 70000);
+> ok
+
+SELECT RIGHT(LISTAGG(V ON OVERFLOW TRUNCATE WITH COUNT) WITHIN GROUP(ORDER BY V), 40) FROM TEST;
+>> BCD_EFGH_69391,ABCD_EFGH_69392,...(4007)
+
+SELECT RIGHT(LISTAGG(V ON OVERFLOW TRUNCATE WITHOUT COUNT) WITHIN GROUP(ORDER BY V), 40) FROM TEST;
+>> 9391,ABCD_EFGH_69392,ABCD_EFGH_69393,...
+
+SELECT RIGHT(LISTAGG(V ON OVERFLOW TRUNCATE '~~~~~~~~~~~~~~~' WITH COUNT) WITHIN GROUP(ORDER BY V), 40) FROM TEST;
+>> 90,ABCD_EFGH_69391,~~~~~~~~~~~~~~~(4008)
+
+TRUNCATE TABLE TEST;
+> update count: 70000
+
+INSERT INTO TEST VALUES REPEAT('A', 1048573);
+> update count: 1
+
+SELECT RIGHT(LISTAGG(V ON OVERFLOW TRUNCATE WITH COUNT) WITHIN GROUP(ORDER BY V), 40) FROM
+    (TABLE TEST UNION VALUES 'BB');
+>> AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,BB
+
+SELECT RIGHT(LISTAGG(V ON OVERFLOW ERROR) WITHIN GROUP(ORDER BY V), 40) FROM
+    (TABLE TEST UNION VALUES 'BBB');
+> exception VALUE_TOO_LONG_2
+
+SELECT RIGHT(LISTAGG(V ON OVERFLOW TRUNCATE WITH COUNT) WITHIN GROUP(ORDER BY V), 40) FROM
+    (TABLE TEST UNION VALUES 'BBB');
+>> ...(2)
+
+SELECT RIGHT(LISTAGG(V ON OVERFLOW TRUNCATE '..' WITHOUT COUNT) WITHIN GROUP(ORDER BY V), 40) FROM
+    (TABLE TEST UNION VALUES 'BBB');
+>> AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,..
+
+DROP TABLE TEST;
+> ok

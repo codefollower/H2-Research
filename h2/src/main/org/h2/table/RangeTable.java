@@ -7,13 +7,13 @@ package org.h2.table;
 
 import java.util.ArrayList;
 import org.h2.api.ErrorCode;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.index.Index;
 import org.h2.index.RangeIndex;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
-import org.h2.value.Value;
+import org.h2.value.TypeInfo;
 
 /**
  * The table SYSTEM_RANGE is a virtual table that generates incrementing numbers
@@ -47,7 +47,7 @@ public class RangeTable extends VirtualTable {
         super(schema, 0, NAME);
         this.min = min;
         this.max = max;
-        Column[] columns = new Column[] { new Column("X", Value.BIGINT) };
+        Column[] columns = new Column[] { new Column("X", TypeInfo.TYPE_BIGINT) };
         setColumns(columns);
         index = new RangeIndex(this, IndexColumn.wrap(columns));
     }
@@ -58,24 +58,23 @@ public class RangeTable extends VirtualTable {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         builder.append(NAME).append('(');
-        min.getSQL(builder, alwaysQuote).append(", ");
-        max.getSQL(builder, alwaysQuote);
+        min.getUnenclosedSQL(builder, sqlFlags).append(", ");
+        max.getUnenclosedSQL(builder, sqlFlags);
         if (step != null) {
-            builder.append(", ");
-            step.getSQL(builder, alwaysQuote);
+            step.getUnenclosedSQL(builder.append(", "), sqlFlags);
         }
         return builder.append(')');
     }
 
     @Override
-    public boolean canGetRowCount() {
+    public boolean canGetRowCount(SessionLocal session) {
         return true;
     }
 
     @Override
-    public long getRowCount(Session session) {
+    public long getRowCount(SessionLocal session) {
         long step = getStep(session);
         if (step == 0L) {
             throw DbException.get(ErrorCode.STEP_SIZE_MUST_NOT_BE_ZERO);
@@ -97,7 +96,7 @@ public class RangeTable extends VirtualTable {
     }
 
     @Override
-    public Index getScanIndex(Session session) {
+    public Index getScanIndex(SessionLocal session) {
         if (getStep(session) == 0) {
             throw DbException.get(ErrorCode.STEP_SIZE_MUST_NOT_BE_ZERO);
         }
@@ -120,7 +119,7 @@ public class RangeTable extends VirtualTable {
      * @param session the session
      * @return the start value
      */
-    public long getMin(Session session) {
+    public long getMin(SessionLocal session) {
         optimize(session);
         return min.getValue(session).getLong();
     }
@@ -131,7 +130,7 @@ public class RangeTable extends VirtualTable {
      * @param session the session
      * @return the end value
      */
-    public long getMax(Session session) {
+    public long getMax(SessionLocal session) {
         optimize(session);
         return max.getValue(session).getLong();
     }
@@ -142,7 +141,7 @@ public class RangeTable extends VirtualTable {
      * @param session the session
      * @return the increment (1 by default)
      */
-    public long getStep(Session session) {
+    public long getStep(SessionLocal session) {
         optimize(session);
         if (step == null) {
             return 1;
@@ -150,7 +149,7 @@ public class RangeTable extends VirtualTable {
         return step.getValue(session).getLong();
     }
 
-    private void optimize(Session s) {
+    private void optimize(SessionLocal s) {
         if (!optimized) {
             min = min.optimize(s);
             max = max.optimize(s);
@@ -167,7 +166,7 @@ public class RangeTable extends VirtualTable {
     }
 
     @Override
-    public long getRowCountApproximation() {
+    public long getRowCountApproximation(SessionLocal session) {
         return 100;
     }
 

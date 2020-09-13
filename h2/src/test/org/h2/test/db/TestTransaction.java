@@ -33,7 +33,7 @@ public class TestTransaction extends TestDb {
      */
     public static void main(String... a) throws Exception {
         TestBase init = TestBase.createCaller().init();
-        init.test();
+        init.testFromMain();
     }
 
     @Override
@@ -60,6 +60,7 @@ public class TestTransaction extends TestDb {
         testIsolationLevels2();
         testIsolationLevels3();
         testIsolationLevels4();
+        testIsolationLevelsCountAggregate();
         deleteDb("transaction");
     }
 
@@ -140,8 +141,7 @@ public class TestTransaction extends TestDb {
         stat.execute("create table test(id int primary key) as select 1");
         stat.execute("set write_delay 0");
         stat.execute("set log " + logMode);
-        rs = stat.executeQuery(
-                "select `value` from information_schema.settings where name = 'LOG'");
+        rs = stat.executeQuery("SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'LOG'");
         rs.next();
         assertEquals(logMode, rs.getInt(1));
         stat.execute("insert into test values(2)");
@@ -1223,6 +1223,59 @@ public class TestTransaction extends TestDb {
             }
         }
         deleteDb("transaction");
+    }
+
+    private void testIsolationLevelsCountAggregate() throws SQLException {
+        testIsolationLevelsCountAggregate(Connection.TRANSACTION_READ_UNCOMMITTED, 12, 15, 15, 16);
+        if (!config.mvStore) {
+            return;
+        }
+        testIsolationLevelsCountAggregate(Connection.TRANSACTION_READ_COMMITTED, 6, 9, 15, 16);
+        testIsolationLevelsCountAggregate(Connection.TRANSACTION_REPEATABLE_READ, 6, 9, 9, 15);
+        testIsolationLevelsCountAggregate(Constants.TRANSACTION_SNAPSHOT, 6, 9, 9, 15);
+        testIsolationLevelsCountAggregate(Connection.TRANSACTION_SERIALIZABLE, 6, 9, 9, 15);
+    }
+
+    private void testIsolationLevelsCountAggregate(int isolationLevel, long uncommitted1, long uncommitted2,
+            long committed, long committedOther) throws SQLException {
+        deleteDb("transaction");
+        try (Connection conn1 = getConnection("transaction"); Connection conn2 = getConnection("transaction")) {
+            Statement stat1 = conn1.createStatement();
+            stat1.execute("CREATE TABLE TEST(V BIGINT) AS VALUES 1, 2, 3, 4, 5, 18");
+            conn1.setTransactionIsolation(isolationLevel);
+            conn1.setAutoCommit(false);
+            PreparedStatement all = conn1.prepareStatement("SELECT COUNT(*) FROM TEST");
+            PreparedStatement simple = conn1.prepareStatement("SELECT COUNT(V) FROM TEST");
+            conn2.setAutoCommit(false);
+            Statement stat2 = conn2.createStatement();
+            testIsolationLevelsCountAggregate(all, simple, 6);
+            stat2.executeUpdate("DELETE FROM TEST WHERE V IN(3, 4)");
+            stat2.executeUpdate("INSERT INTO TEST SELECT * FROM SYSTEM_RANGE(10, 17)");
+            testIsolationLevelsCountAggregate(all, simple, uncommitted1);
+            stat1.executeUpdate("DELETE FROM TEST WHERE V = 2");
+            stat1.executeUpdate("INSERT INTO TEST SELECT * FROM SYSTEM_RANGE(6, 9)");
+            testIsolationLevelsCountAggregate(all, simple, uncommitted2);
+            conn2.commit();
+            testIsolationLevelsCountAggregate(all, simple, committed);
+            conn1.commit();
+            testIsolationLevelsCountAggregate(all, simple, 15);
+            stat2.executeUpdate("DELETE FROM TEST WHERE V = 17");
+            stat2.executeUpdate("INSERT INTO TEST VALUES 19, 20");
+            conn2.commit();
+            testIsolationLevelsCountAggregate(all, simple, committedOther);
+        }
+    }
+
+    private void testIsolationLevelsCountAggregate(PreparedStatement all, PreparedStatement simple, long expected)
+            throws SQLException {
+        try (ResultSet rs = all.executeQuery()) {
+            rs.next();
+            assertEquals(expected, rs.getLong(1));
+        }
+        try (ResultSet rs = simple.executeQuery()) {
+            rs.next();
+            assertEquals(expected, rs.getLong(1));
+        }
     }
 
 }

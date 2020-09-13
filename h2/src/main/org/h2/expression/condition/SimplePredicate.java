@@ -5,7 +5,7 @@
  */
 package org.h2.expression.condition;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.ValueExpression;
@@ -23,19 +23,25 @@ public abstract class SimplePredicate extends Condition {
     Expression left;
 
     /**
-     * Whether it is a "not" condition (e.g. "is not like").
+     * Whether it is a "not" condition (e.g. "is not null").
      */
     final boolean not;
 
-    SimplePredicate(Expression left, boolean not) {
+    /**
+     * Where this is the when operand of the simple case.
+     */
+    final boolean whenOperand;
+
+    SimplePredicate(Expression left, boolean not, boolean whenOperand) {
         this.left = left;
         this.not = not;
+        this.whenOperand = whenOperand;
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         left = left.optimize(session);
-        if (left.isConstant()) {
+        if (!whenOperand && left.isConstant()) {
             return ValueExpression.getBoolean(getValue(session));
         }
         return this;
@@ -47,7 +53,12 @@ public abstract class SimplePredicate extends Condition {
     }
 
     @Override
-    public void updateAggregate(Session session, int stage) {
+    public final boolean needParentheses() {
+        return true;
+    }
+
+    @Override
+    public void updateAggregate(SessionLocal session, int stage) {
         left.updateAggregate(session, stage);
     }
 
@@ -77,6 +88,11 @@ public abstract class SimplePredicate extends Condition {
             return left;
         }
         throw new IndexOutOfBoundsException();
+    }
+
+    @Override
+    public final boolean isWhenConditionOperand() {
+        return whenOperand;
     }
 
 }

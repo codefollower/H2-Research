@@ -47,7 +47,7 @@ public class UndoLog {
      *
      * @return the number of rows
      */
-    int size() {
+    public int size() {
         return storedEntries + records.size();
     }
 

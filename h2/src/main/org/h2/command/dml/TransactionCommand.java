@@ -8,7 +8,7 @@ package org.h2.command.dml;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.Database;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.result.ResultInterface;
 
@@ -21,7 +21,7 @@ public class TransactionCommand extends Prepared {
     private String savepointName;
     private String transactionName;
 
-    public TransactionCommand(Session session, int type) {
+    public TransactionCommand(SessionLocal session, int type) {
         super(session);
         this.type = type;
     }
@@ -31,7 +31,7 @@ public class TransactionCommand extends Prepared {
     }
 
     @Override
-    public int update() {
+    public long update() {
         switch (type) {
         case CommandInterface.SET_AUTOCOMMIT_TRUE:
             session.setAutoCommit(true);
@@ -73,24 +73,19 @@ public class TransactionCommand extends Prepared {
             session.getUser().checkAdmin();
             session.setPreparedTransaction(transactionName, false);
             break;
-        case CommandInterface.SHUTDOWN_IMMEDIATELY:
-            session.getUser().checkAdmin();
-            session.getDatabase().shutdownImmediately();
-            break;
         case CommandInterface.SHUTDOWN:
         case CommandInterface.SHUTDOWN_COMPACT:
-        case CommandInterface.SHUTDOWN_DEFRAG: {
-            session.getUser().checkAdmin();
+        case CommandInterface.SHUTDOWN_DEFRAG:
             session.commit(false);
+            //$FALL-THROUGH$
+        case CommandInterface.SHUTDOWN_IMMEDIATELY: {
+            session.getUser().checkAdmin();
             // throttle, to allow testing concurrent
             // execution of shutdown and query
             session.throttle();
             Database db = session.getDatabase();
             if (db.setExclusiveSession(session, true)) {
-                if (type == CommandInterface.SHUTDOWN_COMPACT ||
-                        type == CommandInterface.SHUTDOWN_DEFRAG) {
-                    db.setCompactMode(type);
-                }
+                db.setCompactMode(type);
                 // close the database, but don't update the persistent setting
                 db.setCloseDelay(0);
                 session.close();
@@ -98,7 +93,7 @@ public class TransactionCommand extends Prepared {
             break;
         }
         default:
-            DbException.throwInternalError("type=" + type);
+            throw DbException.getInternalError("type=" + type);
         }
         return 0;
     }

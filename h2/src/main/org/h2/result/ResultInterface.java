@@ -5,7 +5,7 @@
  */
 package org.h2.result;
 
-import org.h2.engine.SessionInterface;
+import org.h2.engine.Session;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 
@@ -41,7 +41,7 @@ public interface ResultInterface extends AutoCloseable {
      *
      * @return the row id
      */
-    int getRowId();
+    long getRowId();
 
     /**
      * Check if the current position is after last row.
@@ -63,7 +63,7 @@ public interface ResultInterface extends AutoCloseable {
      *
      * @return the number of rows
      */
-    int getRowCount();
+    long getRowCount();
 
     /**
      * Check if this result has more rows to fetch.
@@ -177,6 +177,6 @@ public interface ResultInterface extends AutoCloseable {
      * @param targetSession the session of the copy
      * @return the copy if possible, or null if copying is not possible
      */
-    ResultInterface createShallowCopy(SessionInterface targetSession);
+    ResultInterface createShallowCopy(Session targetSession);
 
 }

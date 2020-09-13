@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.net.Socket;
 import java.sql.SQLException;
 import java.util.ArrayList;
-
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
@@ -19,6 +18,9 @@ import org.h2.command.dml.SetTypes;
 import org.h2.engine.Mode.ModeEnum;
 import org.h2.expression.ParameterInterface;
 import org.h2.jdbc.JdbcException;
+import org.h2.jdbc.meta.DatabaseMeta;
+import org.h2.jdbc.meta.DatabaseMetaLegacy;
+import org.h2.jdbc.meta.DatabaseMetaRemote;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.message.TraceSystem;
@@ -26,7 +28,6 @@ import org.h2.result.ResultInterface;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
 import org.h2.store.LobStorageFrontend;
-import org.h2.store.LobStorageInterface;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.JdbcUtils;
@@ -41,15 +42,16 @@ import org.h2.util.Utils;
 import org.h2.value.CompareMode;
 import org.h2.value.Transfer;
 import org.h2.value.Value;
-import org.h2.value.ValueInt;
-import org.h2.value.ValueString;
+import org.h2.value.ValueInteger;
+import org.h2.value.ValueLob;
 import org.h2.value.ValueTimestampTimeZone;
+import org.h2.value.ValueVarchar;
 
 /**
  * The client side part of a session when using the server mode. This object
  * communicates with a Session on the server side.
  */
-public class SessionRemote extends SessionWithState implements DataHandler {
+public final class SessionRemote extends Session implements DataHandler {
 
     public static final int SESSION_PREPARE = 0;
     public static final int SESSION_CLOSE = 1;
@@ -70,13 +72,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     public static final int SESSION_HAS_PENDING_TRANSACTION = 16;
     public static final int LOB_READ = 17;
     public static final int SESSION_PREPARE_READ_PARAMS2 = 18;
+    public static final int GET_JDBC_META = 19;
 
     public static final int STATUS_ERROR = 0;
     public static final int STATUS_OK = 1;
     public static final int STATUS_CLOSED = 2;
     public static final int STATUS_OK_STATE_CHANGED = 3;
-
-    private static SessionFactory sessionFactory;
     
     //只有connectionInfo.isRemote()为true时traceSystem才有值，
     //否则是一个内存数据库，connectEmbeddedOrServer返回的是org.h2.engine.Session,
@@ -95,16 +96,17 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     private int clientVersion;
     private boolean autoReconnect;
     private int lastReconnect;
-    private SessionInterface embedded;
+    private Session embedded;
     private DatabaseEventListener eventListener;
     private LobStorageFrontend lobStorage;
     private boolean cluster;
     private TempFileDeleter tempFileDeleter;
 
     private JavaObjectSerializer javaObjectSerializer;
-    private volatile boolean javaObjectSerializerInitialized;
 
     private final CompareMode compareMode = CompareMode.getInstance(null, 0);
+
+    private final boolean oldInformationSchema;
 
     private String currentSchemaName;
 
@@ -112,6 +114,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
 
     public SessionRemote(ConnectionInfo ci) {
         this.connectionInfo = ci;
+        oldInformationSchema = ci.getProperty("OLD_INFORMATION_SCHEMA", false);
     }
 
     @Override
@@ -148,10 +151,8 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             done(trans);
             clientVersion = trans.readInt();
             trans.setVersion(clientVersion);
-            if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_14) {
-                if (ci.getFileEncryptionKey() != null) {
-                    trans.writeBytes(ci.getFileEncryptionKey());
-                }
+            if (ci.getFileEncryptionKey() != null) {
+                trans.writeBytes(ci.getFileEncryptionKey());
             }
             trans.writeInt(SessionRemote.SESSION_SET_ID);
             trans.writeString(sessionId);
@@ -170,9 +171,6 @@ public class SessionRemote extends SessionWithState implements DataHandler {
 
     @Override
     public boolean hasPendingTransaction() {
-        if (clientVersion < Constants.TCP_PROTOCOL_VERSION_10) {
-            return true;
-        }
         for (int i = 0, count = 0; i < transferList.size(); i++) {
             Transfer transfer = transferList.get(i);
             try {
@@ -232,6 +230,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         }
     }
 
+    @Override
     public int getClientVersion() {
         return clientVersion;
     }
@@ -312,32 +311,25 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         return buff.toString();
     }
 
-    @Override
-    public int getPowerOffCount() {
-        return 0;
-    }
-
-    @Override
-    public void setPowerOffCount(int count) {
-        throw DbException.getUnsupportedException("remote");
-    }
-
     /**
      * Open a new (remote or embedded) session.
      *
      * @param openNew whether to open a new session in any case
      * @return the session
      */
-    public SessionInterface connectEmbeddedOrServer(boolean openNew) {
+    public Session connectEmbeddedOrServer(boolean openNew) {
         ConnectionInfo ci = connectionInfo;
         //TCP远程数据库
         if (ci.isRemote()) {
             connectServer(ci);
             return this;
         }
-        //下面的代码是用于嵌入式或内存数据库的场景
-        // create the session using reflection,
-        // so that the JDBC layer can be compiled without it
+//<<<<<<< HEAD
+//        //下面的代码是用于嵌入式或内存数据库的场景
+//        // create the session using reflection,
+//        // so that the JDBC layer can be compiled without it
+//=======
+//>>>>>>> 5a91cf068195d0e613d30e0e7202a0b05f87f253
         boolean autoServerMode = ci.getProperty("AUTO_SERVER", false);
         ConnectionInfo backup = null;
         try {
@@ -348,11 +340,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             if (openNew) {
                 ci.setProperty("OPEN_NEW", "true");
             }
-            if (sessionFactory == null) {
-                sessionFactory = (SessionFactory) Class.forName(
-                        "org.h2.engine.Engine").getMethod("getInstance").invoke(null);
-            }
-            return sessionFactory.createSession(ci);
+            return Engine.createSession(ci);
         } catch (Exception re) {
             DbException e = DbException.convert(re);
             if (e.getErrorCode() == ErrorCode.DATABASE_ALREADY_OPEN_1) {
@@ -477,6 +465,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
             traceSystem.close();
             throw e;
         }
+        getDynamicSettings();
     }
 
     private void switchOffCluster() {
@@ -634,30 +623,45 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     public void done(Transfer transfer) throws IOException {
         transfer.flush();
         int status = transfer.readInt();
-        if (status == STATUS_ERROR) {
-            String sqlstate = transfer.readString();
-            String message = transfer.readString();
-            String sql = transfer.readString();
-            int errorCode = transfer.readInt();
-            String stackTrace = transfer.readString();
-            SQLException s = DbException.getJdbcSQLException(message, sql, sqlstate, errorCode, null, stackTrace);
-            if (errorCode == ErrorCode.CONNECTION_BROKEN_1) {
-                // allow re-connect
-                throw new IOException(s.toString(), s);
-            }
-            throw DbException.convert(s);
-        } else if (status == STATUS_CLOSED) {
+        switch (status) {
+        case STATUS_ERROR:
+            throw readException(transfer);
+        case STATUS_OK:
+            break;
+        case STATUS_CLOSED:
             transferList = null;
-        } else if (status == STATUS_OK_STATE_CHANGED) {
+            break;
+        case STATUS_OK_STATE_CHANGED:
             sessionStateChanged = true;
             currentSchemaName = null;
             dynamicSettings = null;
-        } else if (status == STATUS_OK) {
-            // ok
-        } else {
-            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1,
-                    "unexpected status " + status);
+            break;
+        default:
+            throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "unexpected status " + status);
         }
+    }
+
+    /**
+     * Reads an exception.
+     *
+     * @param transfer
+     *            the transfer object
+     * @return the exception
+     * @throws IOException
+     *             on I/O exception
+     */
+    public static DbException readException(Transfer transfer) throws IOException {
+        String sqlstate = transfer.readString();
+        String message = transfer.readString();
+        String sql = transfer.readString();
+        int errorCode = transfer.readInt();
+        String stackTrace = transfer.readString();
+        SQLException s = DbException.getJdbcSQLException(message, sql, sqlstate, errorCode, null, stackTrace);
+        if (errorCode == ErrorCode.CONNECTION_BROKEN_1) {
+            // allow re-connect
+            throw new IOException(s.toString(), s);
+        }
+        return DbException.convert(s);
     }
 
     /**
@@ -760,7 +764,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     }
 
     @Override
-    public LobStorageInterface getLobStorage() {
+    public LobStorageFrontend getLobStorage() {
         if (lobStorage == null) {
             lobStorage = new LobStorageFrontend(this);
         }
@@ -777,9 +781,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 traceOperation("LOB_READ", (int) lobId);
                 transfer.writeInt(SessionRemote.LOB_READ);
                 transfer.writeLong(lobId);
-                if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_12) {
-                    transfer.writeBytes(hmac);
-                }
+                transfer.writeBytes(hmac);
                 transfer.writeLong(offset);
                 transfer.writeInt(length);
                 done(transfer);
@@ -798,59 +800,16 @@ public class SessionRemote extends SessionWithState implements DataHandler {
 
     @Override
     public JavaObjectSerializer getJavaObjectSerializer() {
-        initJavaObjectSerializer();
+        if (dynamicSettings == null) {
+            getDynamicSettings();
+        }
         return javaObjectSerializer;
     }
 
-    private void initJavaObjectSerializer() {
-        if (javaObjectSerializerInitialized) {
-            return;
-        }
-        synchronized (this) {
-            if (javaObjectSerializerInitialized) {
-                return;
-            }
-            String serializerFQN = readSerializationSettings();
-            if (serializerFQN != null) {
-                serializerFQN = serializerFQN.trim();
-                if (!serializerFQN.isEmpty() && !serializerFQN.equals("null")) {
-                    try {
-                        javaObjectSerializer = (JavaObjectSerializer) JdbcUtils
-                                .loadUserClass(serializerFQN).getDeclaredConstructor().newInstance();
-                    } catch (Exception e) {
-                        throw DbException.convert(e);
-                    }
-                }
-            }
-            javaObjectSerializerInitialized = true;
-        }
-    }
-
-    /**
-     * Read the serializer name from the persistent database settings.
-     *
-     * @return the serializer
-     */
-    private String readSerializationSettings() {
-        String javaObjectSerializerFQN = null;
-        CommandInterface ci = prepareCommand(
-                "SELECT `VALUE` FROM INFORMATION_SCHEMA.SETTINGS "+
-                " WHERE NAME='JAVA_OBJECT_SERIALIZER'", Integer.MAX_VALUE);
-        try {
-            ResultInterface result = ci.executeQuery(0, false);
-            if (result.next()) {
-                Value[] row = result.currentRow();
-                javaObjectSerializerFQN = row[0].getString();
-            }
-        } finally {
-            ci.close();
-        }
-        return javaObjectSerializerFQN;
-    }
-
     @Override
-    public void addTemporaryLob(Value v) {
+    public ValueLob addTemporaryLob(ValueLob v) {
         // do nothing
+        return v;
     }
 
     @Override
@@ -890,7 +849,7 @@ public class SessionRemote extends SessionWithState implements DataHandler {
 
     @Override
     public boolean isSupportsGeneratedKeys() {
-        return getClientVersion() >= Constants.TCP_PROTOCOL_VERSION_17;
+        return clientVersion >= Constants.TCP_PROTOCOL_VERSION_17;
     }
 
     @Override
@@ -900,9 +859,10 @@ public class SessionRemote extends SessionWithState implements DataHandler {
 
     @Override
     public IsolationLevel getIsolationLevel() {
-        if (getClientVersion() >= Constants.TCP_PROTOCOL_VERSION_19) {
-            try (CommandInterface command = prepareCommand(
-                    "SELECT ISOLATION_LEVEL FROM INFORMATION_SCHEMA.SESSIONS WHERE ID = SESSION_ID()", 1);
+        if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_19) {
+            try (CommandInterface command = prepareCommand(!isOldInformationSchema()
+                    ? "SELECT ISOLATION_LEVEL FROM INFORMATION_SCHEMA.SESSIONS WHERE SESSION_ID = SESSION_ID()"
+                    : "SELECT ISOLATION_LEVEL FROM INFORMATION_SCHEMA.SESSIONS WHERE ID = SESSION_ID()", 1);
                     ResultInterface result = command.executeQuery(1, false)) {
                 result.next();
                 return IsolationLevel.fromSql(result.currentRow()[0].getString());
@@ -918,14 +878,14 @@ public class SessionRemote extends SessionWithState implements DataHandler {
 
     @Override
     public void setIsolationLevel(IsolationLevel isolationLevel) {
-        if (getClientVersion() >= Constants.TCP_PROTOCOL_VERSION_19) {
+        if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_19) {
             try (CommandInterface command = prepareCommand(
                     "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL " + isolationLevel.getSQL(), 0)) {
                 command.executeUpdate(null);
             }
         } else {
             try (CommandInterface command = prepareCommand("SET LOCK_MODE ?", 0)) {
-                command.getParameters().get(0).setValue(ValueInt.get(isolationLevel.getLockMode()), false);
+                command.getParameters().get(0).setValue(ValueInteger.get(isolationLevel.getLockMode()), false);
                 command.executeUpdate(null);
             }
         }
@@ -936,13 +896,11 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         StaticSettings settings = staticSettings;
         if (settings == null) {
             boolean databaseToUpper = true, databaseToLower = false, caseInsensitiveIdentifiers = false;
-            try (CommandInterface command = prepareCommand(
-                    "SELECT NAME, `VALUE` FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME IN (?, ?, ?)",
-                    Integer.MAX_VALUE)) {
+            try (CommandInterface command = getSettingsCommand(" IN (?, ?, ?)")) {
                 ArrayList<? extends ParameterInterface> parameters = command.getParameters();
-                parameters.get(0).setValue(ValueString.get("DATABASE_TO_UPPER"), false);
-                parameters.get(1).setValue(ValueString.get("DATABASE_TO_LOWER"), false);
-                parameters.get(2).setValue(ValueString.get("CASE_INSENSITIVE_IDENTIFIERS"), false);
+                parameters.get(0).setValue(ValueVarchar.get("DATABASE_TO_UPPER"), false);
+                parameters.get(1).setValue(ValueVarchar.get("DATABASE_TO_LOWER"), false);
+                parameters.get(2).setValue(ValueVarchar.get("CASE_INSENSITIVE_IDENTIFIERS"), false);
                 try (ResultInterface result = command.executeQuery(Integer.MAX_VALUE, false)) {
                     while (result.next()) {
                         Value[] row = result.currentRow();
@@ -975,12 +933,12 @@ public class SessionRemote extends SessionWithState implements DataHandler {
         if (settings == null) {
             String modeName = ModeEnum.REGULAR.name();
             TimeZoneProvider timeZone = DateTimeUtils.getTimeZone();
-            try (CommandInterface command = prepareCommand(
-                    "SELECT NAME, `VALUE` FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME IN (?, ?)",
-                    Integer.MAX_VALUE)) {
+            String javaObjectSerializerName = null;
+            try (CommandInterface command = getSettingsCommand(" IN (?, ?, ?)")) {
                 ArrayList<? extends ParameterInterface> parameters = command.getParameters();
-                parameters.get(0).setValue(ValueString.get("MODE"), false);
-                parameters.get(1).setValue(ValueString.get("TIME ZONE"), false);
+                parameters.get(0).setValue(ValueVarchar.get("MODE"), false);
+                parameters.get(1).setValue(ValueVarchar.get("TIME ZONE"), false);
+                parameters.get(2).setValue(ValueVarchar.get("JAVA_OBJECT_SERIALIZER"), false);
                 try (ResultInterface result = command.executeQuery(Integer.MAX_VALUE, false)) {
                     while (result.next()) {
                         Value[] row = result.currentRow();
@@ -991,6 +949,9 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                             break;
                         case "TIME ZONE":
                             timeZone = TimeZoneProvider.ofId(value);
+                            break;
+                        case "JAVA_OBJECT_SERIALIZER":
+                            javaObjectSerializerName = value;
                         }
                     }
                 }
@@ -1000,8 +961,28 @@ public class SessionRemote extends SessionWithState implements DataHandler {
                 mode = Mode.getRegular();
             }
             dynamicSettings = settings = new DynamicSettings(mode, timeZone);
+            if (javaObjectSerializerName != null
+                    && !(javaObjectSerializerName = javaObjectSerializerName.trim()).isEmpty()
+                    && !javaObjectSerializerName.equals("null")) {
+                try {
+                    javaObjectSerializer = (JavaObjectSerializer) JdbcUtils
+                            .loadUserClass(javaObjectSerializerName).getDeclaredConstructor().newInstance();
+                } catch (Exception e) {
+                    throw DbException.convert(e);
+                }
+            } else {
+                javaObjectSerializer = null;
+            }
         }
         return settings;
+    }
+
+    private CommandInterface getSettingsCommand(String args) {
+        return prepareCommand(
+                (!isOldInformationSchema()
+                        ? "SELECT SETTING_NAME, SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME"
+                        : "SELECT NAME, `VALUE` FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME") + args,
+                Integer.MAX_VALUE);
     }
 
     @Override
@@ -1017,6 +998,22 @@ public class SessionRemote extends SessionWithState implements DataHandler {
     @Override
     public Mode getMode() {
         return getDynamicSettings().mode;
+    }
+
+    @Override
+    public DatabaseMeta getDatabaseMeta() {
+        return clientVersion >= Constants.TCP_PROTOCOL_VERSION_20 ? new DatabaseMetaRemote(this, transferList)
+                : new DatabaseMetaLegacy(this);
+    }
+
+    @Override
+    public boolean isOldInformationSchema() {
+        return oldInformationSchema || clientVersion < Constants.TCP_PROTOCOL_VERSION_20;
+    }
+
+    @Override
+    public boolean zeroBasedEnums() {
+        return false;
     }
 
 }

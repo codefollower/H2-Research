@@ -16,14 +16,15 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVStore;
+import org.h2.mvstore.MVStoreException;
 import org.h2.mvstore.tx.Transaction;
 import org.h2.mvstore.tx.TransactionMap;
 import org.h2.mvstore.tx.TransactionStore;
 import org.h2.mvstore.tx.TransactionStore.Change;
 import org.h2.mvstore.type.LongDataType;
+import org.h2.mvstore.type.StringDataType;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.util.Task;
@@ -39,7 +40,7 @@ public class TestTransactionStore extends TestBase {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -60,6 +61,7 @@ public class TestTransactionStore extends TestBase {
         testSingleConnection();
         testCompareWithPostgreSQL();
         testStoreMultiThreadedReads();
+        testCommitAfterMapRemoval();
     }
 
     private void testHCLFKey() {
@@ -131,7 +133,7 @@ public class TestTransactionStore extends TestBase {
                         try {
                             map.remove(k);
                             map.put(k, r.nextInt());
-                        } catch (IllegalStateException e) {
+                        } catch (MVStoreException e) {
                             // ignore and retry
                         }
                         tx.commit();
@@ -172,7 +174,7 @@ public class TestTransactionStore extends TestBase {
                     map = tx.openMap("data");
                     try {
                         map.put(k, r.nextInt());
-                    } catch (IllegalStateException e) {
+                    } catch (MVStoreException e) {
                         failCount.incrementAndGet();
                         // ignore and retry
                     }
@@ -192,7 +194,7 @@ public class TestTransactionStore extends TestBase {
             map = tx.openMap("data");
             try {
                 map.put(k, r.nextInt());
-            } catch (IllegalStateException e) {
+            } catch (MVStoreException e) {
                 failCount.incrementAndGet();
                 // ignore and retry
             }
@@ -263,9 +265,9 @@ public class TestTransactionStore extends TestBase {
         try {
             map2.put(1, 20);
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MVStoreException e) {
             assertEquals(DataUtils.ERROR_TRANSACTION_LOCKED,
-                    DataUtils.getErrorCode(e.getMessage()));
+                    e.getErrorCode());
         }
         assertEquals(10, map1.get(1).intValue());
         assertNull(map2.get(1));
@@ -334,7 +336,7 @@ public class TestTransactionStore extends TestBase {
                 try {
                     t = ts.begin();
                     fail();
-                } catch (IllegalStateException e) {
+                } catch (MVStoreException e) {
                     // expected - too many open
                 }
                 Transaction first = fifo.remove(0);
@@ -935,4 +937,26 @@ public class TestTransactionStore extends TestBase {
         ts.close();
     }
 
+    private void testCommitAfterMapRemoval() {
+        try (MVStore s = MVStore.open(null)) {
+            TransactionStore ts = new TransactionStore(s);
+            ts.init();
+            Transaction t = ts.begin();
+            TransactionMap<Long,String> map = t.openMap("test", LongDataType.INSTANCE, StringDataType.INSTANCE);
+            map.put(1L, "A");
+            s.removeMap("test");
+            try {
+                t.commit();
+            } finally {
+                // commit should not fail, but even if it does
+                // transaction should be cleanly removed and store remains operational
+                assertTrue(ts.getOpenTransactions().isEmpty());
+                assertFalse(ts.hasMap("test"));
+                t = ts.begin();
+                map = t.openMap("test", LongDataType.INSTANCE, StringDataType.INSTANCE);
+                assertTrue(map.isEmpty());
+                map.put(2L, "B");
+            }
+        }
+    }
 }

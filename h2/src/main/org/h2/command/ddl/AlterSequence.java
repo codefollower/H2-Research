@@ -8,12 +8,11 @@ package org.h2.command.ddl;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
 import org.h2.schema.Sequence;
 import org.h2.table.Column;
-import org.h2.table.Table;
 
 /**
  * This class represents the statement ALTER SEQUENCE.
@@ -22,7 +21,9 @@ public class AlterSequence extends SchemaCommand {
 
     private boolean ifExists;
 
-    private Table table;
+    private Column column;
+
+    private Boolean always;
 
     private String sequenceName;
 
@@ -30,7 +31,7 @@ public class AlterSequence extends SchemaCommand {
 
     private SequenceOptions options;
 
-    public AlterSequence(Session session, Schema schema) {
+    public AlterSequence(SessionLocal session, Schema schema) {
         super(session, schema);
     }
 
@@ -51,16 +52,24 @@ public class AlterSequence extends SchemaCommand {
         return true;
     }
 
-    public void setColumn(Column column) {
-        table = column.getTable();
+    /**
+     * Set the column
+     *
+     * @param column the column
+     * @param always whether value should be always generated, or null if "set
+     *            generated is not specified
+     */
+    public void setColumn(Column column, Boolean always) {
+        this.column = column;
+        this.always = always;
         sequence = column.getSequence();
         if (sequence == null && !ifExists) {
-            throw DbException.get(ErrorCode.SEQUENCE_NOT_FOUND_1, column.getSQL(false));
+            throw DbException.get(ErrorCode.SEQUENCE_NOT_FOUND_1, column.getTraceSQL());
         }
     }
 
     @Override
-    public int update() {
+    public long update() {
         if (sequence == null) {
             sequence = getSchema().findSequence(sequenceName);
             if (sequence == null) {
@@ -70,25 +79,21 @@ public class AlterSequence extends SchemaCommand {
                 return 0;
             }
         }
-        if (table != null) {
-            session.getUser().checkRight(table, Right.ALL);
+        if (column != null) {
+            session.getUser().checkRight(column.getTable(), Right.ALL);
         }
-        Boolean cycle = options.getCycle();
-        if (cycle != null) {
-            sequence.setCycle(cycle);
-        }
-        Long cache = options.getCacheSize(session);
-        if (cache != null) {
-            sequence.setCacheSize(cache);
-        }
-        if (options.isRangeSet()) {
-            Long startValue = options.getStartValue(session);
-            sequence.modify(startValue,
-                    options.getRestartValue(session, startValue != null ? startValue : sequence.getStartValue()),
-                    options.getMinValue(sequence, session), options.getMaxValue(sequence, session),
-                    options.getIncrement(session));
-        }
+        options.setDataType(sequence.getDataType());
+        Long startValue = options.getStartValue(session);
+        sequence.modify(
+                options.getRestartValue(session, startValue != null ? startValue : sequence.getStartValue()),
+                startValue,
+                options.getMinValue(sequence, session), options.getMaxValue(sequence, session),
+                options.getIncrement(session), options.getCycle(), options.getCacheSize(session));
         sequence.flush(session);
+        if (column != null && always != null) {
+            column.setSequence(sequence, always);
+            session.getDatabase().updateMeta(session, column.getTable());
+        }
         return 0;
     }
 

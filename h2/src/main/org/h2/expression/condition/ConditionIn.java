@@ -6,19 +6,17 @@
 package org.h2.expression.condition;
 
 import java.util.ArrayList;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.Parameter;
 import org.h2.expression.TypedValueExpression;
 import org.h2.expression.ValueExpression;
-import org.h2.expression.function.Function;
-import org.h2.expression.function.TableFunction;
 import org.h2.index.IndexCondition;
-import org.h2.result.ResultInterface;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueNull;
@@ -26,45 +24,60 @@ import org.h2.value.ValueNull;
 /**
  * An 'in' condition with a list of values, as in WHERE NAME IN(...)
  */
-public class ConditionIn extends Condition {
+public final class ConditionIn extends Condition {
 
     private Expression left;
+    private final boolean not;
+    private final boolean whenOperand;
     private final ArrayList<Expression> valueList;
 
     /**
      * Create a new IN(..) condition.
      *
      * @param left the expression before IN
+     * @param not whether the result should be negated
+     * @param whenOperand whether this is a when operand
      * @param values the value list (at least one element)
      */
-    public ConditionIn(Expression left, ArrayList<Expression> values) {
+    public ConditionIn(Expression left, boolean not, boolean whenOperand, ArrayList<Expression> values) {
         this.left = left;
+        this.not = not;
+        this.whenOperand = whenOperand;
         this.valueList = values;
     }
 
     @Override
-    public Value getValue(Session session) { //每行记录都要调用此方法判断一下
-        Value l = left.getValue(session); //如果left是字段，这里就会取这个字段在当前记录中的字段值
-        if (l.containsNull()) {
-            return ValueNull.INSTANCE;
+//<<<<<<< HEAD
+//    public Value getValue(Session session) { //每行记录都要调用此方法判断一下
+//        Value l = left.getValue(session); //如果left是字段，这里就会取这个字段在当前记录中的字段值
+//        if (l.containsNull()) {
+//            return ValueNull.INSTANCE;
+//=======
+    public Value getValue(SessionLocal session) {
+        return getValue(session, left.getValue(session));
+    }
+
+    @Override
+    public boolean getWhenValue(SessionLocal session, Value left) {
+        if (!whenOperand) {
+            return super.getWhenValue(session, left);
         }
-        int size = valueList.size();
-        if (size == 1) {
-            Expression e = valueList.get(0);
-            if (e instanceof TableFunction) {
-                return ConditionInParameter.getValue(session, l, e.getValue(session));
-            }
+        return getValue(session, left).getBoolean();
+    }
+
+    private Value getValue(SessionLocal session, Value left) {
+        if (left.containsNull()) {
+            return ValueNull.INSTANCE;
         }
         boolean hasNull = false;
         //然后在这个for中，把valueList中的值转换成left的类型，并与left比较，如果相等，那么就返回true了
-        for (int i = 0; i < size; i++) {
-            Expression e = valueList.get(i);
+        for (Expression e : valueList) {
             Value r = e.getValue(session);
-            Value cmp = Comparison.compare(session, l, r, Comparison.EQUAL);
+            Value cmp = Comparison.compare(session, left, r, Comparison.EQUAL);
             if (cmp == ValueNull.INSTANCE) {
                 hasNull = true;
             } else if (cmp == ValueBoolean.TRUE) {
-                return cmp;
+                return ValueBoolean.get(!not);
             }
         }
         //valueList中有null值，并且没有值满足left，那么返回null
@@ -72,7 +85,12 @@ public class ConditionIn extends Condition {
         if (hasNull) {
             return ValueNull.INSTANCE;
         }
-        return ValueBoolean.FALSE;
+        return ValueBoolean.get(not);
+    }
+
+    @Override
+    public boolean isWhenConditionOperand() {
+        return whenOperand;
     }
 
     @Override
@@ -84,49 +102,21 @@ public class ConditionIn extends Condition {
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         left = left.optimize(session);
-        boolean constant = left.isConstant();
-        //如delete from ConditionInTest where null in(1,2)
-        //此时left是个constant，返回null，什么都没删除
+        boolean constant = !whenOperand && left.isConstant();
+        // 如delete from ConditionInTest where null in(1,2)
+        // 此时left是个constant，返回null，什么都没删除
         if (constant && left.isNullConstant()) {
             return TypedValueExpression.UNKNOWN;
         }
-        int size = valueList.size();
-        if (size == 1) {
-            Expression right = valueList.get(0);
-            if (right instanceof TableFunction) {
-                TableFunction tf = (TableFunction) right;
-                if (tf.getFunctionType() == Function.UNNEST) {
-                    Expression[] args = tf.getArgs();
-                    if (args.length == 1) {
-                        Expression arg = args[0];
-                        if (arg instanceof Parameter) {
-                            return new ConditionInParameter(left, (Parameter) arg);
-                        }
-                    }
-                }
-                if (tf.isConstant()) {
-                    boolean allValuesNull = true;
-                    ResultInterface ri = right.getValue(session).getResult();
-                    ArrayList<Expression> list = new ArrayList<>(ri.getRowCount());
-                    while (ri.next()) {
-                        Value v = ri.currentRow()[0];
-                        if (!v.containsNull()) {
-                            allValuesNull = false;
-                        }
-                        list.add(ValueExpression.get(v));
-                    }
-                    return optimize2(session, constant, true, allValuesNull, list);
-                }
-                return this;
-            }
-        }
         boolean allValuesConstant = true;
         boolean allValuesNull = true;
-        for (int i = 0; i < size; i++) {
+        TypeInfo leftType = left.getType();
+        for (int i = 0, l = valueList.size(); i < l; i++) {
             Expression e = valueList.get(i);
             e = e.optimize(session);
+            TypeInfo.checkComparable(leftType, e.getType());
             if (e.isConstant() && !e.getValue(session).containsNull()) {
                 allValuesNull = false;
             }
@@ -134,8 +124,7 @@ public class ConditionIn extends Condition {
                 allValuesConstant = false;
             }
             if (left instanceof ExpressionColumn && e instanceof Parameter) {
-                ((Parameter) e)
-                        .setColumn(((ExpressionColumn) left).getColumn());
+                ((Parameter) e).setColumn(((ExpressionColumn) left).getColumn());
             }
             valueList.set(i, e);
         }
@@ -146,15 +135,16 @@ public class ConditionIn extends Condition {
         return optimize2(session, constant, allValuesConstant, allValuesNull, valueList);
     }
 
-    private Expression optimize2(Session session, boolean constant, boolean allValuesConstant, boolean allValuesNull,
-            ArrayList<Expression> values) {
+    private Expression optimize2(SessionLocal session, boolean constant, boolean allValuesConstant,
+            boolean allValuesNull, ArrayList<Expression> values) {
         if (constant && allValuesConstant) {
             return ValueExpression.getBoolean(getValue(session));
         }
         //如delete from ConditionInTest where id in(2)
         //转换成delete from ConditionInTest where id = 2
         if (values.size() == 1) {
-            return new Comparison(Comparison.EQUAL, left, values.get(0)).optimize(session);
+            return new Comparison(not ? Comparison.NOT_EQUAL : Comparison.EQUAL, left, values.get(0), whenOperand)
+                    .optimize(session);
         }
 
         //如select count(*) from ConditionInTest where id in(1,2)
@@ -168,16 +158,22 @@ public class ConditionIn extends Condition {
             if (leftType == Value.ENUM && !(left instanceof ExpressionColumn)) {
                 return this;
             }
-            Expression expr = new ConditionInConstantSet(session, left, values);
-            expr = expr.optimize(session);
-            return expr;
+            return new ConditionInConstantSet(session, left, not, whenOperand, values).optimize(session);
         }
         return this;
     }
 
     @Override
-    public void createIndexConditions(Session session, TableFilter filter) {
-        if (!(left instanceof ExpressionColumn)) {
+    public Expression getNotIfPossible(SessionLocal session) {
+        if (whenOperand) {
+            return null;
+        }
+        return new ConditionIn(left, !not, false, valueList);
+    }
+
+    @Override
+    public void createIndexConditions(SessionLocal session, TableFilter filter) {
+        if (not || whenOperand || !(left instanceof ExpressionColumn)) {
             return;
         }
         ExpressionColumn l = (ExpressionColumn) left;
@@ -204,15 +200,25 @@ public class ConditionIn extends Condition {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
-        builder.append('(');
-        left.getSQL(builder, alwaysQuote).append(" IN(");
-        writeExpressions(builder, valueList, alwaysQuote);
-        return builder.append("))");
+    public boolean needParentheses() {
+        return true;
     }
 
     @Override
-    public void updateAggregate(Session session, int stage) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
+        return getWhenSQL(left.getSQL(builder, sqlFlags, AUTO_PARENTHESES), sqlFlags);
+    }
+
+    @Override
+    public StringBuilder getWhenSQL(StringBuilder builder, int sqlFlags) {
+        if (not) {
+            builder.append(" NOT");
+        }
+        return writeExpressions(builder.append(" IN("), valueList, sqlFlags).append(')');
+    }
+
+    @Override
+    public void updateAggregate(SessionLocal session, int stage) {
         left.updateAggregate(session, stage);
         for (Expression e : valueList) {
             e.updateAggregate(session, stage);
@@ -253,10 +259,14 @@ public class ConditionIn extends Condition {
      * @return null if the condition was not added, or the new condition
      */
     Expression getAdditional(Comparison other) {
-        Expression add = other.getIfEquals(left);
-        if (add != null) {
-            valueList.add(add);
-            return this;
+        if (!not && !whenOperand) {
+            Expression add = other.getIfEquals(left);
+            if (add != null) {
+                ArrayList<Expression> list = new ArrayList<>(valueList.size() + 1);
+                list.addAll(valueList);
+                list.add(add);
+                return new ConditionIn(left, false, false, list);
+            }
         }
         return null;
     }

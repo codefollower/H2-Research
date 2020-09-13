@@ -11,13 +11,21 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Properties;
 import javax.naming.Context;
@@ -26,9 +34,14 @@ import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.engine.SysProperties;
 import org.h2.jdbc.JdbcConnection;
+import org.h2.jdbc.JdbcPreparedStatement;
 import org.h2.message.DbException;
-import org.h2.store.DataHandler;
+import org.h2.tools.SimpleResultSet;
 import org.h2.util.Utils.ClassFactory;
+import org.h2.value.Value;
+import org.h2.value.ValueLob;
+import org.h2.value.ValueToObjectConverter;
+import org.h2.value.ValueUuid;
 
 /**
  * This is a utility class with JDBC helper functions.
@@ -68,6 +81,10 @@ public class JdbcUtils {
         "sqlserver:", "com.microsoft.sqlserver.jdbc.SQLServerDriver",
         "teradata:", "com.ncr.teradata.TeraDriver",
     };
+
+    private static final byte[] UUID_PREFIX =
+            "\254\355\0\5sr\0\16java.util.UUID\274\231\3\367\230m\205/\2\0\2J\0\14leastSigBitsJ\0\13mostSigBitsxp"
+            .getBytes(StandardCharsets.ISO_8859_1);
 
     private static boolean allowAllClasses;
     private static HashSet<String> allowedClassNames;
@@ -347,17 +364,13 @@ public class JdbcUtils {
      * the connection info if set, or the default serializer.
      *
      * @param obj the object to serialize
-     * @param dataHandler provides the object serializer (may be null)
+     * @param javaObjectSerializer the object serializer (may be null)
      * @return the byte array
      */
-    public static byte[] serialize(Object obj, DataHandler dataHandler) {
+    public static byte[] serialize(Object obj, JavaObjectSerializer javaObjectSerializer) {
         try {
-            JavaObjectSerializer handlerSerializer = null;
-            if (dataHandler != null) {
-                handlerSerializer = dataHandler.getJavaObjectSerializer();
-            }
-            if (handlerSerializer != null) {
-                return handlerSerializer.serialize(obj);
+            if (javaObjectSerializer != null) {
+                return javaObjectSerializer.serialize(obj);
             }
             if (serializer != null) {
                 return serializer.serialize(obj);
@@ -376,18 +389,14 @@ public class JdbcUtils {
      * specified by the connection info.
      *
      * @param data the byte array
-     * @param dataHandler provides the object serializer (may be null)
+     * @param javaObjectSerializer the object serializer (may be null)
      * @return the object
      * @throws DbException if serialization fails
      */
-    public static Object deserialize(byte[] data, DataHandler dataHandler) {
+    public static Object deserialize(byte[] data, JavaObjectSerializer javaObjectSerializer) {
         try {
-            JavaObjectSerializer dbJavaObjectSerializer = null;
-            if (dataHandler != null) {
-                dbJavaObjectSerializer = dataHandler.getJavaObjectSerializer();
-            }
-            if (dbJavaObjectSerializer != null) {
-                return dbJavaObjectSerializer.deserialize(data);
+            if (javaObjectSerializer != null) {
+                return javaObjectSerializer.deserialize(data);
             }
             if (serializer != null) {
                 return serializer.deserialize(data);
@@ -416,4 +425,346 @@ public class JdbcUtils {
         }
     }
 
+    /**
+     * De-serialize the byte array to a UUID object. This method is called on
+     * the server side where regular de-serialization of user-supplied Java
+     * objects may create a security hole if object was maliciously crafted.
+     * Unlike {@link #deserialize(byte[], JavaObjectSerializer)}, this method
+     * does not try to de-serialize instances of other classes.
+     *
+     * @param data the byte array
+     * @return the UUID object
+     * @throws DbException if serialization fails
+     */
+    public static ValueUuid deserializeUuid(byte[] data) {
+        uuid: if (data.length == 80) {
+            for (int i = 0; i < 64; i++) {
+                if (data[i] != UUID_PREFIX[i]) {
+                    break uuid;
+                }
+            }
+            return ValueUuid.get(Bits.readLong(data, 72), Bits.readLong(data, 64));
+        }
+        throw DbException.get(ErrorCode.DESERIALIZATION_FAILED_1, "Is not a UUID");
+    }
+
+    /**
+     * Set a value as a parameter in a prepared statement.
+     *
+     * @param prep
+     *            the prepared statement
+     * @param parameterIndex
+     *            the parameter index
+     * @param value
+     *            the value
+     * @param conn
+     *            the own connection
+     */
+    public static void set(PreparedStatement prep, int parameterIndex, Value value, JdbcConnection conn)
+            throws SQLException {
+        if (prep instanceof JdbcPreparedStatement) {
+            if (value instanceof ValueLob) {
+                setLob(prep, parameterIndex, (ValueLob) value);
+            } else {
+                prep.setObject(parameterIndex, value);
+            }
+        } else {
+            setOther(prep, parameterIndex, value, conn);
+        }
+    }
+
+    private static void setOther(PreparedStatement prep, int parameterIndex, Value value, JdbcConnection conn)
+                throws SQLException {
+        int valueType = value.getValueType();
+        switch (valueType) {
+        case Value.NULL:
+            prep.setNull(parameterIndex, Types.NULL);
+            break;
+        case Value.BOOLEAN:
+            prep.setBoolean(parameterIndex, value.getBoolean());
+            break;
+        case Value.TINYINT:
+            prep.setByte(parameterIndex, value.getByte());
+            break;
+        case Value.SMALLINT:
+            prep.setShort(parameterIndex, value.getShort());
+            break;
+        case Value.INTEGER:
+            prep.setInt(parameterIndex, value.getInt());
+            break;
+        case Value.BIGINT:
+            prep.setLong(parameterIndex, value.getLong());
+            break;
+        case Value.NUMERIC:
+        case Value.DECFLOAT:
+            prep.setBigDecimal(parameterIndex, value.getBigDecimal());
+            break;
+        case Value.DOUBLE:
+            prep.setDouble(parameterIndex, value.getDouble());
+            break;
+        case Value.REAL:
+            prep.setFloat(parameterIndex, value.getFloat());
+            break;
+        case Value.TIME:
+            try {
+                prep.setObject(parameterIndex, JSR310Utils.valueToLocalTime(value, null), Types.TIME);
+            } catch (SQLException ignore) {
+                prep.setTime(parameterIndex, LegacyDateTimeUtils.toTime(null, null, value));
+            }
+            break;
+        case Value.DATE:
+            try {
+                prep.setObject(parameterIndex, JSR310Utils.valueToLocalDate(value, null), Types.DATE);
+            } catch (SQLException ignore) {
+                prep.setDate(parameterIndex, LegacyDateTimeUtils.toDate(null, null, value));
+            }
+            break;
+        case Value.TIMESTAMP:
+            try {
+                prep.setObject(parameterIndex, JSR310Utils.valueToLocalDateTime(value, null), Types.TIMESTAMP);
+            } catch (SQLException ignore) {
+                prep.setTimestamp(parameterIndex, LegacyDateTimeUtils.toTimestamp(null, null, value));
+            }
+            break;
+        case Value.VARBINARY:
+        case Value.BINARY:
+        case Value.GEOMETRY:
+        case Value.JSON:
+            prep.setBytes(parameterIndex, value.getBytesNoCopy());
+            break;
+        case Value.VARCHAR:
+        case Value.VARCHAR_IGNORECASE:
+        case Value.ENUM:
+        case Value.INTERVAL_YEAR:
+        case Value.INTERVAL_MONTH:
+        case Value.INTERVAL_DAY:
+        case Value.INTERVAL_HOUR:
+        case Value.INTERVAL_MINUTE:
+        case Value.INTERVAL_SECOND:
+        case Value.INTERVAL_YEAR_TO_MONTH:
+        case Value.INTERVAL_DAY_TO_HOUR:
+        case Value.INTERVAL_DAY_TO_MINUTE:
+        case Value.INTERVAL_DAY_TO_SECOND:
+        case Value.INTERVAL_HOUR_TO_MINUTE:
+        case Value.INTERVAL_HOUR_TO_SECOND:
+        case Value.INTERVAL_MINUTE_TO_SECOND:
+            prep.setString(parameterIndex, value.getString());
+            break;
+        case Value.BLOB:
+        case Value.CLOB:
+            setLob(prep, parameterIndex, (ValueLob) value);
+            break;
+        case Value.ARRAY:
+            prep.setArray(parameterIndex, prep.getConnection().createArrayOf("NULL",
+                    (Object[]) ValueToObjectConverter.valueToDefaultObject(value, conn, true)));
+            break;
+        case Value.JAVA_OBJECT:
+            prep.setObject(parameterIndex,
+                    JdbcUtils.deserialize(value.getBytesNoCopy(), conn.getJavaObjectSerializer()),
+                    Types.JAVA_OBJECT);
+            break;
+        case Value.UUID:
+            prep.setBytes(parameterIndex, value.getBytes());
+            break;
+        case Value.CHAR:
+            try {
+                prep.setObject(parameterIndex, value.getString(), Types.CHAR);
+            } catch (SQLException ignore) {
+                prep.setString(parameterIndex, value.getString());
+            }
+            break;
+        case Value.TIMESTAMP_TZ:
+            try {
+                prep.setObject(parameterIndex, JSR310Utils.valueToOffsetDateTime(value, null),
+                        Types.TIMESTAMP_WITH_TIMEZONE);
+                return;
+            } catch (SQLException ignore) {
+                prep.setString(parameterIndex, value.getString());
+            }
+            break;
+        case Value.TIME_TZ:
+            try {
+                prep.setObject(parameterIndex, JSR310Utils.valueToOffsetTime(value, null), Types.TIME_WITH_TIMEZONE);
+                return;
+            } catch (SQLException ignore) {
+                prep.setString(parameterIndex, value.getString());
+            }
+            break;
+        default:
+            throw DbException.getUnsupportedException(Value.getTypeName(valueType));
+        }
+    }
+
+    private static void setLob(PreparedStatement prep, int parameterIndex, ValueLob value) throws SQLException {
+        long p = value.getPrecision();
+        if (p > Integer.MAX_VALUE) {
+            p = -1;
+        }
+        if (value.getValueType() == Value.BLOB) {
+            prep.setBinaryStream(parameterIndex, value.getInputStream(), (int) p);
+        } else {
+            prep.setCharacterStream(parameterIndex, value.getReader(), (int) p);
+        }
+    }
+
+    /**
+     * Get metadata from the database.
+     *
+     * @param conn the connection
+     * @param sql the SQL statement
+     * @return the metadata
+     */
+    public static ResultSet getMetaResultSet(Connection conn, String sql)
+            throws SQLException {
+        DatabaseMetaData meta = conn.getMetaData();
+        if (isBuiltIn(sql, "@best_row_identifier")) {
+            String[] p = split(sql);
+            int scale = p[4] == null ? 0 : Integer.parseInt(p[4]);
+            boolean nullable = Boolean.parseBoolean(p[5]);
+            return meta.getBestRowIdentifier(p[1], p[2], p[3], scale, nullable);
+        } else if (isBuiltIn(sql, "@catalogs")) {
+            return meta.getCatalogs();
+        } else if (isBuiltIn(sql, "@columns")) {
+            String[] p = split(sql);
+            return meta.getColumns(p[1], p[2], p[3], p[4]);
+        } else if (isBuiltIn(sql, "@column_privileges")) {
+            String[] p = split(sql);
+            return meta.getColumnPrivileges(p[1], p[2], p[3], p[4]);
+        } else if (isBuiltIn(sql, "@cross_references")) {
+            String[] p = split(sql);
+            return meta.getCrossReference(p[1], p[2], p[3], p[4], p[5], p[6]);
+        } else if (isBuiltIn(sql, "@exported_keys")) {
+            String[] p = split(sql);
+            return meta.getExportedKeys(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@imported_keys")) {
+            String[] p = split(sql);
+            return meta.getImportedKeys(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@index_info")) {
+            String[] p = split(sql);
+            boolean unique = Boolean.parseBoolean(p[4]);
+            boolean approx = Boolean.parseBoolean(p[5]);
+            return meta.getIndexInfo(p[1], p[2], p[3], unique, approx);
+        } else if (isBuiltIn(sql, "@primary_keys")) {
+            String[] p = split(sql);
+            return meta.getPrimaryKeys(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@procedures")) {
+            String[] p = split(sql);
+            return meta.getProcedures(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@procedure_columns")) {
+            String[] p = split(sql);
+            return meta.getProcedureColumns(p[1], p[2], p[3], p[4]);
+        } else if (isBuiltIn(sql, "@schemas")) {
+            return meta.getSchemas();
+        } else if (isBuiltIn(sql, "@tables")) {
+            String[] p = split(sql);
+            String[] types = p[4] == null ? null : StringUtils.arraySplit(p[4], ',', false);
+            return meta.getTables(p[1], p[2], p[3], types);
+        } else if (isBuiltIn(sql, "@table_privileges")) {
+            String[] p = split(sql);
+            return meta.getTablePrivileges(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@table_types")) {
+            return meta.getTableTypes();
+        } else if (isBuiltIn(sql, "@type_info")) {
+            return meta.getTypeInfo();
+        } else if (isBuiltIn(sql, "@udts")) {
+            String[] p = split(sql);
+            int[] types;
+            if (p[4] == null) {
+                types = null;
+            } else {
+                String[] t = StringUtils.arraySplit(p[4], ',', false);
+                types = new int[t.length];
+                for (int i = 0; i < t.length; i++) {
+                    types[i] = Integer.parseInt(t[i]);
+                }
+            }
+            return meta.getUDTs(p[1], p[2], p[3], types);
+        } else if (isBuiltIn(sql, "@version_columns")) {
+            String[] p = split(sql);
+            return meta.getVersionColumns(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@memory")) {
+            SimpleResultSet rs = new SimpleResultSet();
+            rs.addColumn("Type", Types.VARCHAR, 0, 0);
+            rs.addColumn("KB", Types.VARCHAR, 0, 0);
+            rs.addRow("Used Memory", Integer.toString(Utils.getMemoryUsed()));
+            rs.addRow("Free Memory", Integer.toString(Utils.getMemoryFree()));
+            return rs;
+        } else if (isBuiltIn(sql, "@info")) {
+            SimpleResultSet rs = new SimpleResultSet();
+            rs.addColumn("KEY", Types.VARCHAR, 0, 0);
+            rs.addColumn("VALUE", Types.VARCHAR, 0, 0);
+            rs.addRow("conn.getCatalog", conn.getCatalog());
+            rs.addRow("conn.getAutoCommit", Boolean.toString(conn.getAutoCommit()));
+            rs.addRow("conn.getTransactionIsolation", Integer.toString(conn.getTransactionIsolation()));
+            rs.addRow("conn.getWarnings", String.valueOf(conn.getWarnings()));
+            String map;
+            try {
+                map = String.valueOf(conn.getTypeMap());
+            } catch (SQLException e) {
+                map = e.toString();
+            }
+            rs.addRow("conn.getTypeMap", map);
+            rs.addRow("conn.isReadOnly", Boolean.toString(conn.isReadOnly()));
+            rs.addRow("conn.getHoldability", Integer.toString(conn.getHoldability()));
+            addDatabaseMetaData(rs, meta);
+            return rs;
+        } else if (isBuiltIn(sql, "@attributes")) {
+            String[] p = split(sql);
+            return meta.getAttributes(p[1], p[2], p[3], p[4]);
+        } else if (isBuiltIn(sql, "@super_tables")) {
+            String[] p = split(sql);
+            return meta.getSuperTables(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@super_types")) {
+            String[] p = split(sql);
+            return meta.getSuperTypes(p[1], p[2], p[3]);
+        }
+        return null;
+    }
+
+    private static void addDatabaseMetaData(SimpleResultSet rs,
+            DatabaseMetaData meta) {
+        Method[] methods = DatabaseMetaData.class.getDeclaredMethods();
+        Arrays.sort(methods, Comparator.comparing(Method::toString));
+        for (Method m : methods) {
+            if (m.getParameterTypes().length == 0) {
+                try {
+                    Object o = m.invoke(meta);
+                    rs.addRow("meta." + m.getName(), String.valueOf(o));
+                } catch (InvocationTargetException e) {
+                    rs.addRow("meta." + m.getName(), e.getTargetException().toString());
+                } catch (Exception e) {
+                    rs.addRow("meta." + m.getName(), e.toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * Check is the SQL string starts with a prefix (case insensitive).
+     *
+     * @param sql the SQL statement
+     * @param builtIn the prefix
+     * @return true if yes
+     */
+    public static boolean isBuiltIn(String sql, String builtIn) {
+        return sql.regionMatches(true, 0, builtIn, 0, builtIn.length());
+    }
+
+    /**
+     * Split the string using the space separator into at least 10 entries.
+     *
+     * @param s the string
+     * @return the array
+     */
+    public static String[] split(String s) {
+        String[] t = StringUtils.arraySplit(s, ' ', true);
+        String[] list = new String[Math.max(10, t.length)];
+        System.arraycopy(t, 0, list, 0, t.length);
+        for (int i = 0; i < list.length; i++) {
+            if ("null".equals(list[i])) {
+                list[i] = null;
+            }
+        }
+        return list;
+    }
 }

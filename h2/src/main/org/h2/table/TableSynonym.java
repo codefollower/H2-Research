@@ -5,19 +5,19 @@
  */
 package org.h2.table;
 
-import org.h2.command.Parser;
 import org.h2.command.ddl.CreateSynonymData;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.schema.Schema;
-import org.h2.schema.SchemaObjectBase;
+import org.h2.schema.SchemaObject;
+import org.h2.util.ParserUtil;
 
 /**
  * Synonym for an existing table or view. All DML requests are forwarded to the backing table.
  * Adding indices to a synonym or altering the table is not supported.
  */
-public class TableSynonym extends SchemaObjectBase {
+public class TableSynonym extends SchemaObject {
 
     private CreateSynonymData data;
 
@@ -61,7 +61,7 @@ public class TableSynonym extends SchemaObjectBase {
     public void rename(String newName) { throw DbException.getUnsupportedException("SYNONYM"); }
 
     @Override
-    public void removeChildrenAndResources(Session session) {
+    public void removeChildrenAndResources(SessionLocal session) {
         synonymFor.removeSynonym(this);
         database.removeMeta(session, getId());
     }
@@ -69,16 +69,15 @@ public class TableSynonym extends SchemaObjectBase {
     @Override
     public String getCreateSQL() {
         StringBuilder builder = new StringBuilder("CREATE SYNONYM ");
-        getSQL(builder, true).append(" FOR ");
-        Parser.quoteIdentifier(builder, data.synonymForSchema.getName(), true).append('.');
-        Parser.quoteIdentifier(builder, data.synonymFor, true);
+        getSQL(builder, DEFAULT_SQL_FLAGS).append(" FOR ");
+        ParserUtil.quoteIdentifier(builder, data.synonymForSchema.getName(), DEFAULT_SQL_FLAGS).append('.');
+        ParserUtil.quoteIdentifier(builder, data.synonymFor, DEFAULT_SQL_FLAGS);
         return builder.toString();
     }
 
     @Override
     public String getDropSQL() {
-        StringBuilder builder = new StringBuilder("DROP SYNONYM ");
-        return getSQL(builder, true).toString();
+        return getSQL(new StringBuilder("DROP SYNONYM "), DEFAULT_SQL_FLAGS).toString();
     }
 
     @Override

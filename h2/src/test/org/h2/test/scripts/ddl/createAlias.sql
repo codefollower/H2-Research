@@ -3,19 +3,16 @@
 -- Initial Developer: H2 Group
 --
 
-create alias "SYSDATE" for "java.lang.Integer.parseInt(java.lang.String)";
+create alias "MIN" for 'java.lang.Integer.parseInt(java.lang.String)';
 > exception FUNCTION_ALIAS_ALREADY_EXISTS_1
 
-create alias "MIN" for "java.lang.Integer.parseInt(java.lang.String)";
-> exception FUNCTION_ALIAS_ALREADY_EXISTS_1
-
-create alias "CAST" for "java.lang.Integer.parseInt(java.lang.String)";
+create alias "CAST" for 'java.lang.Integer.parseInt(java.lang.String)';
 > exception FUNCTION_ALIAS_ALREADY_EXISTS_1
 
 @reconnect off
 
 --- function alias ---------------------------------------------------------------------------------------------
-CREATE ALIAS MY_SQRT FOR "java.lang.Math.sqrt";
+CREATE ALIAS MY_SQRT FOR 'java.lang.Math.sqrt';
 > ok
 
 SELECT MY_SQRT(2.0) MS, SQRT(2.0);
@@ -39,14 +36,22 @@ SELECT MY_SQRT(-1.0) MS, SQRT(NULL) S;
 SCRIPT NOPASSWORDS NOSETTINGS;
 > SCRIPT
 > ----------------------------------------------------------------
-> CREATE FORCE ALIAS "PUBLIC"."MY_SQRT" FOR "java.lang.Math.sqrt";
+> CREATE FORCE ALIAS "PUBLIC"."MY_SQRT" FOR 'java.lang.Math.sqrt';
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
 > rows: 2
 
-SELECT ALIAS_NAME, JAVA_CLASS, JAVA_METHOD, DATA_TYPE, COLUMN_COUNT, RETURNS_RESULT, REMARKS FROM INFORMATION_SCHEMA.FUNCTION_ALIASES;
-> ALIAS_NAME JAVA_CLASS     JAVA_METHOD DATA_TYPE COLUMN_COUNT RETURNS_RESULT REMARKS
-> ---------- -------------- ----------- --------- ------------ -------------- -------
-> MY_SQRT    java.lang.Math sqrt        8         1            2
+SELECT SPECIFIC_NAME, ROUTINE_NAME, ROUTINE_TYPE, DATA_TYPE, ROUTINE_BODY, EXTERNAL_NAME, EXTERNAL_LANGUAGE,
+    IS_DETERMINISTIC, REMARKS FROM INFORMATION_SCHEMA.ROUTINES;
+> SPECIFIC_NAME ROUTINE_NAME ROUTINE_TYPE DATA_TYPE        ROUTINE_BODY EXTERNAL_NAME       EXTERNAL_LANGUAGE IS_DETERMINISTIC REMARKS
+> ------------- ------------ ------------ ---------------- ------------ ------------------- ----------------- ---------------- -------
+> MY_SQRT_1     MY_SQRT      FUNCTION     DOUBLE PRECISION EXTERNAL     java.lang.Math.sqrt JAVA              NO               null
+> rows: 1
+
+SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, IS_RESULT, AS_LOCATOR, PARAMETER_NAME, DATA_TYPE,
+    PARAMETER_DEFAULT FROM INFORMATION_SCHEMA.PARAMETERS;
+> SPECIFIC_NAME ORDINAL_POSITION PARAMETER_MODE IS_RESULT AS_LOCATOR PARAMETER_NAME DATA_TYPE        PARAMETER_DEFAULT
+> ------------- ---------------- -------------- --------- ---------- -------------- ---------------- -----------------
+> MY_SQRT_1     1                IN             NO        NO         P1             DOUBLE PRECISION null
 > rows: 1
 
 DROP ALIAS MY_SQRT;
@@ -55,19 +60,19 @@ DROP ALIAS MY_SQRT;
 CREATE SCHEMA TEST_SCHEMA;
 > ok
 
-CREATE ALIAS TRUNC FOR "java.lang.Math.floor(double)";
+CREATE ALIAS TRUNC FOR 'java.lang.Math.floor(double)';
 > exception FUNCTION_ALIAS_ALREADY_EXISTS_1
 
-CREATE ALIAS PUBLIC.TRUNC FOR "java.lang.Math.floor(double)";
+CREATE ALIAS PUBLIC.TRUNC FOR 'java.lang.Math.floor(double)';
 > exception FUNCTION_ALIAS_ALREADY_EXISTS_1
 
-CREATE ALIAS TEST_SCHEMA.TRUNC FOR "java.lang.Math.round(double)";
+CREATE ALIAS TEST_SCHEMA.TRUNC FOR 'java.lang.Math.round(double)';
 > exception FUNCTION_ALIAS_ALREADY_EXISTS_1
 
 SET BUILTIN_ALIAS_OVERRIDE=1;
 > ok
 
-CREATE ALIAS TRUNC FOR "java.lang.Math.floor(double)";
+CREATE ALIAS TRUNC FOR 'java.lang.Math.floor(double)';
 > ok
 
 SELECT TRUNC(1.5);
@@ -79,10 +84,20 @@ SELECT TRUNC(-1.5);
 DROP ALIAS TRUNC;
 > ok
 
-CREATE ALIAS PUBLIC.TRUNC FOR "java.lang.Math.floor(double)";
+-- Compatibility syntax with identifier
+CREATE ALIAS TRUNC FOR "java.lang.Math.floor(double)";
 > ok
 
-CREATE ALIAS TEST_SCHEMA.TRUNC FOR "java.lang.Math.round(double)";
+SELECT TRUNC(-1.5);
+>> -2.0
+
+DROP ALIAS TRUNC;
+> ok
+
+CREATE ALIAS PUBLIC.TRUNC FOR 'java.lang.Math.floor(double)';
+> ok
+
+CREATE ALIAS TEST_SCHEMA.TRUNC FOR 'java.lang.Math.round(double)';
 > ok
 
 SELECT PUBLIC.TRUNC(1.5);

@@ -30,7 +30,7 @@ public class TestLinkedTable extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -236,7 +236,7 @@ public class TestLinkedTable extends TestDb {
         assertSingleValue(sb, "SELECT * FROM T2", 2);
         sa.execute("DROP ALL OBJECTS");
         sb.execute("DROP ALL OBJECTS");
-        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, sa).
+        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_DATABASE_EMPTY_1, sa).
                 execute("SELECT * FROM TEST");
         ca.close();
         cb.close();
@@ -287,9 +287,9 @@ public class TestLinkedTable extends TestDb {
         sa.execute("CREATE TABLE GOOD (X NUMBER)");
         sa.execute("CREATE SCHEMA S");
         sa.execute("CREATE TABLE S.BAD (X NUMBER)");
-        sb.execute("CALL LINK_SCHEMA('G', '', " +
+        sb.execute("SELECT * FROM LINK_SCHEMA('G', '', " +
                 "'jdbc:h2:mem:one', 'sa', 'sa', 'PUBLIC'); ");
-        sb.execute("CALL LINK_SCHEMA('B', '', " +
+        sb.execute("SELECT * FROM LINK_SCHEMA('B', '', " +
                 "'jdbc:h2:mem:one', 'sa', 'sa', 'S'); ");
         // OK
         sb.executeQuery("SELECT * FROM G.GOOD");
@@ -427,7 +427,7 @@ public class TestLinkedTable extends TestDb {
 
         Connection conn2 = DriverManager.getConnection(url2, "sa2", "def def");
         Statement stat2 = conn2.createStatement();
-        String link = "CALL LINK_SCHEMA('LINKED', '', '" + url1 +
+        String link = "SELECT * FROM LINK_SCHEMA('LINKED', '', '" + url1 +
                 "', 'sa1', 'abc abc', 'PUBLIC')";
         stat2.execute(link);
         stat2.executeQuery("SELECT * FROM LINKED.TEST1");
@@ -458,7 +458,7 @@ public class TestLinkedTable extends TestDb {
         stat.execute("CREATE TEMP TABLE TEST_TEMP(ID INT PRIMARY KEY)");
         stat.execute("CREATE TABLE TEST(ID INT PRIMARY KEY, " +
                 "NAME VARCHAR(200), XT TINYINT, XD DECIMAL(10,2), " +
-                "XTS TIMESTAMP, XBY BINARY(255), XBO BIT, XSM SMALLINT, " +
+                "XTS TIMESTAMP, XBY VARBINARY(255), XBO BIT, XSM SMALLINT, " +
                 "XBI BIGINT, XBL BLOB, XDA DATE, XTI TIME, XCL CLOB, XDO DOUBLE)");
         stat.execute("CREATE INDEX IDXNAME ON TEST(NAME)");
         stat.execute("INSERT INTO TEST VALUES(0, NULL, NULL, NULL, NULL, " +
@@ -494,7 +494,7 @@ public class TestLinkedTable extends TestDb {
         testRow(stat, "LINK_TEST");
         ResultSet rs = stat.executeQuery("SELECT * FROM LINK_TEST");
         ResultSetMetaData meta = rs.getMetaData();
-        assertEquals(10, meta.getPrecision(1));
+        assertEquals(32, meta.getPrecision(1));
         assertEquals(200, meta.getPrecision(2));
 
         conn.close();
@@ -524,7 +524,7 @@ public class TestLinkedTable extends TestDb {
         rs = stat.executeQuery("SELECT * FROM " +
                 "INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='LINK_TEST'");
         rs.next();
-        assertEquals("TABLE LINK", rs.getString("TABLE_TYPE"));
+        assertEquals("TABLE LINK", rs.getString("STORAGE_TYPE"));
 
         rs.next();
         rs = stat.executeQuery("SELECT * FROM LINK_TEST WHERE ID=0");
@@ -575,7 +575,7 @@ public class TestLinkedTable extends TestDb {
         assertTrue(rs.getBoolean("XBO"));
         assertEquals(3000, rs.getShort("XSM"));
         assertEquals(1234567890123456789L, rs.getLong("XBI"));
-        assertEquals("1122aa", rs.getString("XBL"));
+        assertEquals(new byte[] {0x11, 0x22, (byte) 0xAA }, rs.getBytes("XBL"));
         assertEquals("0002-01-01", rs.getString("XDA"));
         assertEquals("00:00:00", rs.getString("XTI"));
         assertEquals("J\u00fcrg", rs.getString("XCL"));

@@ -12,20 +12,20 @@ insert into test values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11),
 > update count: 13
 
 select count(v), count(v) filter (where v >= 4) from test where v <= 10;
-> COUNT(V) COUNT(V) FILTER (WHERE (V >= 4))
-> -------- --------------------------------
+> COUNT(V) COUNT(V) FILTER (WHERE V >= 4)
+> -------- ------------------------------
 > 10       7
 > rows: 1
 
 select count(*), count(*) filter (where v >= 4) from test;
-> COUNT(*) COUNT(*) FILTER (WHERE (V >= 4))
-> -------- --------------------------------
+> COUNT(*) COUNT(*) FILTER (WHERE V >= 4)
+> -------- ------------------------------
 > 13       9
 > rows: 1
 
 select count(*), count(*) filter (where v >= 4) from test where v <= 10;
-> COUNT(*) COUNT(*) FILTER (WHERE (V >= 4))
-> -------- --------------------------------
+> COUNT(*) COUNT(*) FILTER (WHERE V >= 4)
+> -------- ------------------------------
 > 10       7
 > rows: 1
 
@@ -33,14 +33,14 @@ create index test_idx on test(v);
 > ok
 
 select count(v), count(v) filter (where v >= 4) from test where v <= 10;
-> COUNT(V) COUNT(V) FILTER (WHERE (V >= 4))
-> -------- --------------------------------
+> COUNT(V) COUNT(V) FILTER (WHERE V >= 4)
+> -------- ------------------------------
 > 10       7
 > rows: 1
 
 select count(v), count(v) filter (where v >= 4) from test;
-> COUNT(V) COUNT(V) FILTER (WHERE (V >= 4))
-> -------- --------------------------------
+> COUNT(V) COUNT(V) FILTER (WHERE V >= 4)
+> -------- ------------------------------
 > 12       9
 > rows: 1
 
@@ -186,6 +186,9 @@ SELECT COUNT(DISTINCT NULL) FROM TEST;
 EXPLAIN SELECT COUNT(*) FROM TEST;
 >> SELECT COUNT(*) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ /* direct lookup */
 
+EXPLAIN SELECT COUNT(*) FILTER (WHERE TRUE) FROM TEST;
+>> SELECT COUNT(*) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ /* direct lookup */
+
 EXPLAIN SELECT COUNT(1) FROM TEST;
 >> SELECT COUNT(*) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ /* direct lookup */
 
@@ -199,10 +202,10 @@ EXPLAIN SELECT COUNT(1) OVER(PARTITION BY X IS NULL) FROM TEST;
 >> SELECT COUNT(*) OVER (PARTITION BY "X" IS NULL) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
 
 EXPLAIN SELECT COUNT(NULL) FROM TEST;
->> SELECT 0 FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ GROUP BY () /* direct lookup */
+>> SELECT CAST(0 AS BIGINT) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ GROUP BY () /* direct lookup */
 
 EXPLAIN SELECT COUNT(DISTINCT NULL) FROM TEST;
->> SELECT 0 FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ GROUP BY () /* direct lookup */
+>> SELECT CAST(0 AS BIGINT) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ GROUP BY () /* direct lookup */
 
 DROP TABLE TEST;
 > ok

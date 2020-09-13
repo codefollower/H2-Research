@@ -6,8 +6,9 @@
 package org.h2.index;
 
 import java.util.ArrayList;
-import org.h2.command.dml.AllColumnsForPlan;
-import org.h2.engine.Session;
+
+import org.h2.command.query.AllColumnsForPlan;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
@@ -20,7 +21,7 @@ import org.h2.table.TableFilter;
 /**
  * The index implementation for meta data tables.
  */
-public class MetaIndex extends BaseIndex {
+public class MetaIndex extends Index {
 
     private final MetaTable meta;
     private final boolean scan;
@@ -32,28 +33,28 @@ public class MetaIndex extends BaseIndex {
     }
 
     @Override
-    public void close(Session session) {
+    public void close(SessionLocal session) {
         // nothing to do
     }
 
     @Override
-    public void add(Session session, Row row) {
+    public void add(SessionLocal session, Row row) {
         throw DbException.getUnsupportedException("META");
     }
 
     @Override
-    public void remove(Session session, Row row) {
+    public void remove(SessionLocal session, Row row) {
         throw DbException.getUnsupportedException("META");
     }
 
     @Override
-    public Cursor find(Session session, SearchRow first, SearchRow last) {
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
         ArrayList<Row> rows = meta.generateRows(session, first, last);
         return new MetaCursor(rows);
     }
 
     @Override
-    public double getCost(Session session, int[] masks,
+    public double getCost(SessionLocal session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
             AllColumnsForPlan allColumnsSet) {
         if (scan) {
@@ -64,12 +65,12 @@ public class MetaIndex extends BaseIndex {
     }
 
     @Override
-    public void truncate(Session session) {
+    public void truncate(SessionLocal session) {
         throw DbException.getUnsupportedException("META");
     }
 
     @Override
-    public void remove(Session session) {
+    public void remove(SessionLocal session) {
         throw DbException.getUnsupportedException("META");
     }
 
@@ -106,12 +107,12 @@ public class MetaIndex extends BaseIndex {
     }
 
     @Override
-    public long getRowCount(Session session) {
+    public long getRowCount(SessionLocal session) {
         return MetaTable.ROW_COUNT_APPROXIMATION;
     }
 
     @Override
-    public long getRowCountApproximation() {
+    public long getRowCountApproximation(SessionLocal session) {
         return MetaTable.ROW_COUNT_APPROXIMATION;
     }
 

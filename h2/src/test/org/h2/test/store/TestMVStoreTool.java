@@ -12,7 +12,8 @@ import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.MVStoreTool;
 import org.h2.mvstore.rtree.MVRTreeMap;
-import org.h2.mvstore.rtree.SpatialKey;
+import org.h2.mvstore.rtree.Spatial;
+import org.h2.mvstore.db.SpatialKey;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 
@@ -30,15 +31,7 @@ public class TestMVStoreTool extends TestBase {
         TestBase test = TestBase.createCaller().init();
         test.config.traceTest = true;
         test.config.big = true;
-        test.test();
-    }
-
-    @Override
-    public boolean isEnabled() {
-        if (config.memory) {
-            return false;
-        }
-        return true;
+        test.testFromMain();
     }
 
     @Override
@@ -109,7 +102,7 @@ public class TestMVStoreTool extends TestBase {
 
         start = System.currentTimeMillis();
         MVStoreTool.compact(fileNameNew, false);
-        assertEquals(size2, FileUtils.size(fileNameNew));
+        assertTrue(100L * Math.abs(size2 - FileUtils.size(fileNameNew)) / size2 < 1);
         MVStoreTool.compact(fileNameCompressed, true);
         assertEquals(size3, FileUtils.size(fileNameCompressed));
         trace("Re-compacted in " + (System.currentTimeMillis() - start) + " ms.");
@@ -138,7 +131,7 @@ public class TestMVStoreTool extends TestBase {
                 MVRTreeMap<String> mb = b.openMap(
                         mapName, new MVRTreeMap.Builder<String>());
                 assertEquals(ma.sizeAsLong(), mb.sizeAsLong());
-                for (Entry<SpatialKey, String> e : ma.entrySet()) {
+                for (Entry<Spatial, String> e : ma.entrySet()) {
                     Object x = mb.get(e.getKey());
                     assertEquals(e.getValue(), x.toString());
                 }

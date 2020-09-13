@@ -5,13 +5,15 @@
  */
 package org.h2.expression.aggregate;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
+import org.h2.expression.function.BitFunction;
 import org.h2.message.DbException;
 import org.h2.value.DataType;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
+import org.h2.value.ValueBigint;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueDouble;
-import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
 
 /**
@@ -20,7 +22,7 @@ import org.h2.value.ValueNull;
 class AggregateDataDefault extends AggregateData {
 
     private final AggregateType aggregateType;
-    private final int dataType;
+    private final TypeInfo dataType;
     private long count;
     private Value value;
     private double m2, mean;
@@ -29,13 +31,13 @@ class AggregateDataDefault extends AggregateData {
      * @param aggregateType the type of the aggregate operation
      * @param dataType the data type of the computed result
      */
-    AggregateDataDefault(AggregateType aggregateType, int dataType) {
+    AggregateDataDefault(AggregateType aggregateType, TypeInfo dataType) {
         this.aggregateType = aggregateType;
         this.dataType = dataType;
     }
 
     @Override
-    void add(Session session, Value v) {
+    void add(SessionLocal session, Value v) {
         if (v == ValueNull.INSTANCE) {
             return;
         }
@@ -43,7 +45,7 @@ class AggregateDataDefault extends AggregateData {
         switch (aggregateType) {
         case SUM:
             if (value == null) {
-                value = v.convertTo(dataType);
+                value = v.convertTo(dataType.getValueType());
             } else {
                 v = v.convertTo(value.getValueType());
                 value = value.add(v);
@@ -51,7 +53,7 @@ class AggregateDataDefault extends AggregateData {
             break;
         case AVG:
             if (value == null) {
-                value = v.convertTo(DataType.getAddProofType(dataType));
+                value = v.convertTo(DataType.getAddProofType(dataType.getValueType()));
             } else {
                 v = v.convertTo(value.getValueType());
                 value = value.add(v);
@@ -86,7 +88,7 @@ class AggregateDataDefault extends AggregateData {
             break;
         }
         case EVERY:
-            v = v.convertTo(Value.BOOLEAN);
+            v = v.convertToBoolean();
             if (value == null) {
                 value = v;
             } else {
@@ -94,44 +96,62 @@ class AggregateDataDefault extends AggregateData {
             }
             break;
         case ANY:
-            v = v.convertTo(Value.BOOLEAN);
+            v = v.convertToBoolean();
             if (value == null) {
                 value = v;
             } else {
                 value = ValueBoolean.get(value.getBoolean() || v.getBoolean());
             }
             break;
-        case BIT_AND:
+        case BIT_AND_AGG:
+        case BIT_NAND_AGG:
             if (value == null) {
-                value = v.convertTo(dataType);
+                value = v;
             } else {
-                value = ValueLong.get(value.getLong() & v.getLong()).convertTo(dataType);
+                value = BitFunction.getBitwise(BitFunction.BITAND, dataType, value, v);
             }
             break;
-        case BIT_OR:
+        case BIT_OR_AGG:
+        case BIT_NOR_AGG:
             if (value == null) {
-                value = v.convertTo(dataType);
+                value = v;
             } else {
-                value = ValueLong.get(value.getLong() | v.getLong()).convertTo(dataType);
+                value = BitFunction.getBitwise(BitFunction.BITOR, dataType, value, v);
+            }
+            break;
+        case BIT_XOR_AGG:
+        case BIT_XNOR_AGG:
+            if (value == null) {
+                value = v;
+            } else {
+                value = BitFunction.getBitwise(BitFunction.BITXOR, dataType, value, v);
             }
             break;
         default:
-            DbException.throwInternalError("type=" + aggregateType);
+            throw DbException.getInternalError("type=" + aggregateType);
         }
     }
 
     @Override
-    Value getValue(Session session, int dataType) {
+    Value getValue(SessionLocal session) {
         Value v = null;
         switch (aggregateType) {
         case SUM:
         case MIN:
         case MAX:
-        case BIT_OR:
-        case BIT_AND:
+        case BIT_AND_AGG:
+        case BIT_OR_AGG:
+        case BIT_XOR_AGG:
         case ANY:
         case EVERY:
             v = value;
+            break;
+        case BIT_NAND_AGG:
+        case BIT_NOR_AGG:
+        case BIT_XNOR_AGG:
+            if (value != null) {
+                v = BitFunction.getBitwise(BitFunction.BITNOT, dataType, value, null);
+            }
             break;
         case AVG:
             if (value != null) {
@@ -167,7 +187,7 @@ class AggregateDataDefault extends AggregateData {
             break;
         }
         default:
-            DbException.throwInternalError("type=" + aggregateType);
+            throw DbException.getInternalError("type=" + aggregateType);
         }
         return v == null ? ValueNull.INSTANCE : v.convertTo(dataType);
     }
@@ -177,8 +197,8 @@ class AggregateDataDefault extends AggregateData {
             return ValueNull.INSTANCE;
         }
         int type = Value.getHigherOrder(a.getValueType(), Value.BIGINT);
-        Value b = ValueLong.get(by).convertTo(type);
-        a = a.convertTo(type).divide(b, ValueLong.PRECISION);
+        Value b = ValueBigint.get(by).convertTo(type);
+        a = a.convertTo(type).divide(b, ValueBigint.DECIMAL_PRECISION);
         return a;
     }
 

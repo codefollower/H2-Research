@@ -45,7 +45,7 @@ public class TestPageStore extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -241,8 +241,11 @@ public class TestPageStore extends TestDb {
             return;
         }
         deleteDb("pageStoreDefrag");
-        Connection conn = getConnection(
-                "pageStoreDefrag;LOG=0;UNDO_LOG=0;LOCK_MODE=0");
+        String url = "pageStoreDefrag;UNDO_LOG=0;LOCK_MODE=0";
+        if (!config.mvStore) {
+            url += ";LOG=0";
+        }
+        Connection conn = getConnection(url);
         Statement stat = conn.createStatement();
         int tableCount = 10;
         int rowCount = getSize(1000, 100000);
@@ -354,7 +357,7 @@ public class TestPageStore extends TestDb {
         conn = getConnection(url);
         Statement stat = conn.createStatement();
         stat.execute("CREATE TEMP TABLE A(A INT)");
-        stat.execute("CREATE TABLE B(A VARCHAR IDENTITY)");
+        stat.execute("CREATE TABLE B(A VARCHAR, B IDENTITY)");
         stat.execute("CREATE TEMP TABLE C(A INT)");
         conn.close();
         conn = getConnection(url);
@@ -365,18 +368,17 @@ public class TestPageStore extends TestDb {
 
     private void testCloseTempTable() throws SQLException {
         deleteDb("pageStoreCloseTempTable");
-        Connection conn;
         String url = "pageStoreCloseTempTable;CACHE_SIZE=0";
-        conn = getConnection(url);
-        Statement stat = conn.createStatement();
-        stat.execute("create local temporary table test(id int)");
-        conn.rollback();
-        Connection conn2 = getConnection(url);
-        Statement stat2 = conn2.createStatement();
-        stat2.execute("create table test2 as select x from system_range(1, 5000)");
-        stat2.execute("shutdown immediately");
-        assertThrows(ErrorCode.DATABASE_IS_CLOSED, conn).close();
-        assertThrows(ErrorCode.DATABASE_IS_CLOSED, conn2).close();
+        try (Connection conn = getConnection(url)) {
+            Statement stat = conn.createStatement();
+            stat.execute("create local temporary table test(id int)");
+            conn.rollback();
+            try (Connection conn2 = getConnection(url)) {
+                Statement stat2 = conn2.createStatement();
+                stat2.execute("create table test2 as select x from system_range(1, 5000)");
+                stat2.execute("shutdown immediately");
+            }
+        }
     }
 
     private void testDuplicateKey() throws SQLException {
@@ -774,16 +776,15 @@ public class TestPageStore extends TestDb {
 
     private void testCreateIndexLater() throws SQLException {
         deleteDb("pageStoreCreateIndexLater");
-        Connection conn = getConnection("pageStoreCreateIndexLater");
-        Statement stat = conn.createStatement();
-        stat.execute("CREATE TABLE TEST(NAME VARCHAR) AS SELECT 1");
-        stat.execute("CREATE INDEX IDX_N ON TEST(NAME)");
-        stat.execute("INSERT INTO TEST SELECT X FROM SYSTEM_RANGE(20, 100)");
-        stat.execute("INSERT INTO TEST SELECT X FROM SYSTEM_RANGE(1000, 1100)");
-        stat.execute("SHUTDOWN IMMEDIATELY");
-        assertThrows(ErrorCode.DATABASE_IS_CLOSED, conn).close();
-        conn = getConnection("pageStoreCreateIndexLater");
-        conn.close();
+        try (Connection conn = getConnection("pageStoreCreateIndexLater")) {
+            Statement stat = conn.createStatement();
+            stat.execute("CREATE TABLE TEST(NAME VARCHAR) AS SELECT 1");
+            stat.execute("CREATE INDEX IDX_N ON TEST(NAME)");
+            stat.execute("INSERT INTO TEST SELECT X FROM SYSTEM_RANGE(20, 100)");
+            stat.execute("INSERT INTO TEST SELECT X FROM SYSTEM_RANGE(1000, 1100)");
+            stat.execute("SHUTDOWN IMMEDIATELY");
+        }
+        try (Connection conn = getConnection("pageStoreCreateIndexLater")) {/**/}
     }
 
     private void testFuzzOperations() throws Exception {
@@ -872,7 +873,7 @@ public class TestPageStore extends TestDb {
         }
         try (Connection c = DriverManager.getConnection(url)) {
             try (ResultSet rs = c.createStatement().executeQuery(
-                    "SELECT `VALUE` FROM INFORMATION_SCHEMA.SETTINGS WHERE NAME = 'MV_STORE'")) {
+                    "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'MV_STORE'")) {
                 assertTrue(rs.next());
                 assertEquals("false", rs.getString(1));
                 assertFalse(rs.next());
@@ -884,8 +885,7 @@ public class TestPageStore extends TestDb {
     /**
      * A database event listener used in this test.
      */
-    public static final class MyDatabaseEventListener implements
-            DatabaseEventListener {
+    public static final class MyDatabaseEventListener implements DatabaseEventListener {
 
         @Override
         public void closingDatabase() {
@@ -908,7 +908,7 @@ public class TestPageStore extends TestDb {
         }
 
         @Override
-        public void setProgress(int state, String name, int x, int max) {
+        public void setProgress(int state, String name, long x, long max) {
             if (name.startsWith("SYS:SYS_ID")) {
                 // ignore
                 return;

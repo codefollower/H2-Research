@@ -12,6 +12,7 @@ import java.time.Instant;
 import org.h2.api.ErrorCode;
 import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
+import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueDate;
 import org.h2.value.ValueTime;
@@ -60,12 +61,12 @@ public class DateTimeUtils {
     /**
      * The offset of year bits in date values.
      */
-    static final int SHIFT_YEAR = 9;
+    public static final int SHIFT_YEAR = 9;
 
     /**
      * The offset of month bits in date values.
      */
-    static final int SHIFT_MONTH = 5;
+    public static final int SHIFT_MONTH = 5;
 
     /**
      * Date value for 1970-01-01.
@@ -480,7 +481,7 @@ public class DateTimeUtils {
         } else if (value instanceof ValueTimeTimeZone) {
             timeNanos = ((ValueTimeTimeZone) value).getNanos();
         } else {
-            ValueTimestamp v = (ValueTimestamp) value.convertTo(Value.TIMESTAMP, provider);
+            ValueTimestamp v = (ValueTimestamp) value.convertTo(TypeInfo.TYPE_TIMESTAMP, provider);
             dateValue = v.getDateValue();
             timeNanos = v.getTimeNanos();
         }
@@ -628,19 +629,30 @@ public class DateTimeUtils {
     public static int getWeekOfYear(long dateValue, int firstDayOfWeek, int minimalDaysInFirstWeek) {
         long abs = absoluteDayFromDateValue(dateValue);
         int year = yearFromDateValue(dateValue);
-        long base = getWeekOfYearBase(year, firstDayOfWeek, minimalDaysInFirstWeek);
+        long base = getWeekYearAbsoluteStart(year, firstDayOfWeek, minimalDaysInFirstWeek);
         if (abs - base < 0) {
-            base = getWeekOfYearBase(year - 1, firstDayOfWeek, minimalDaysInFirstWeek);
+            base = getWeekYearAbsoluteStart(year - 1, firstDayOfWeek, minimalDaysInFirstWeek);
         } else if (monthFromDateValue(dateValue) == 12 && 24 + minimalDaysInFirstWeek < dayFromDateValue(dateValue)) {
-            if (abs >= getWeekOfYearBase(year + 1, firstDayOfWeek, minimalDaysInFirstWeek)) {
+            if (abs >= getWeekYearAbsoluteStart(year + 1, firstDayOfWeek, minimalDaysInFirstWeek)) {
                 return 1;
             }
         }
         return (int) ((abs - base) / 7) + 1;
     }
 
-    private static long getWeekOfYearBase(int year, int firstDayOfWeek, int minimalDaysInFirstWeek) {
-        long first = absoluteDayFromYear(year);
+    /**
+     * Get absolute day of the first day in the week year.
+     *
+     * @param weekYear
+     *            the week year
+     * @param firstDayOfWeek
+     *            first day of week, Monday as 1, Sunday as 7 or 0
+     * @param minimalDaysInFirstWeek
+     *            minimal days in first week of year
+     * @return absolute day of the first day in the week year
+     */
+    public static long getWeekYearAbsoluteStart(int weekYear, int firstDayOfWeek, int minimalDaysInFirstWeek) {
+        long first = absoluteDayFromYear(weekYear);
         int daysInFirstWeek = 8 - getDayOfWeekFromAbsolute(first, firstDayOfWeek);
         long base = first + daysInFirstWeek;
         if (daysInFirstWeek >= minimalDaysInFirstWeek) {
@@ -664,11 +676,11 @@ public class DateTimeUtils {
     public static int getWeekYear(long dateValue, int firstDayOfWeek, int minimalDaysInFirstWeek) {
         long abs = absoluteDayFromDateValue(dateValue);
         int year = yearFromDateValue(dateValue);
-        long base = getWeekOfYearBase(year, firstDayOfWeek, minimalDaysInFirstWeek);
-        if (abs - base < 0) {
+        long base = getWeekYearAbsoluteStart(year, firstDayOfWeek, minimalDaysInFirstWeek);
+        if (abs < base) {
             return year - 1;
         } else if (monthFromDateValue(dateValue) == 12 && 24 + minimalDaysInFirstWeek < dayFromDateValue(dateValue)) {
-            if (abs >= getWeekOfYearBase(year + 1, firstDayOfWeek, minimalDaysInFirstWeek)) {
+            if (abs >= getWeekYearAbsoluteStart(year + 1, firstDayOfWeek, minimalDaysInFirstWeek)) {
                 return year + 1;
             }
         }
@@ -1078,6 +1090,7 @@ public class DateTimeUtils {
         }
         return b.toString();
     }
+
 
     /**
      * Converts scale of nanoseconds.

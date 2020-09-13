@@ -10,7 +10,13 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collection;
+
 import org.h2.api.ErrorCode;
+import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
+import org.h2.jdbc.JdbcConnection;
+import org.h2.schema.Sequence;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 
@@ -28,7 +34,7 @@ public class TestAlter extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -123,22 +129,25 @@ public class TestAlter extends TestDb {
     }
 
     private void testAlterTableDropIdentityColumn() throws SQLException {
+        Session iface = ((JdbcConnection) stat.getConnection()).getSession();
+        if (!(iface instanceof SessionLocal)) {
+            return;
+        }
+        Collection<Sequence> allSequences = ((SessionLocal) iface).getDatabase().getMainSchema().getAllSequences();
         stat.execute("create table test(id int auto_increment, name varchar)");
         stat.execute("alter table test drop column id");
-        ResultSet rs = stat.executeQuery("select * from INFORMATION_SCHEMA.SEQUENCES");
-        assertFalse(rs.next());
+        assertEquals(0, allSequences.size());
         stat.execute("drop table test");
 
         stat.execute("create table test(id int auto_increment, name varchar)");
         stat.execute("alter table test drop column name");
-        rs = stat.executeQuery("select * from INFORMATION_SCHEMA.SEQUENCES");
-        assertTrue(rs.next());
+        assertEquals(1, allSequences.size());
         stat.execute("drop table test");
     }
 
     private void testAlterTableAddColumnIdentity() throws SQLException {
         stat.execute("create table t(x varchar)");
-        stat.execute("alter table t add id bigint identity(5, 5) not null");
+        stat.execute("alter table t add id bigint identity(5, 5) default on null");
         stat.execute("insert into t values (null, null)");
         stat.execute("insert into t values (null, null)");
         ResultSet rs = stat.executeQuery("select id from t order by id");

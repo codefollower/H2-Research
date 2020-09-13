@@ -35,9 +35,9 @@ public class TriggerPassData implements Trigger {
                 "jdbc:h2:mem:test", "sa", "");
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE TEST(ID INT)");
-        stat.execute("CREATE ALIAS TRIGGER_SET FOR \"" +
+        stat.execute("CREATE ALIAS TRIGGER_SET FOR '" +
                 TriggerPassData.class.getName() +
-                ".setTriggerData\"");
+                ".setTriggerData'");
         stat.execute("CREATE TRIGGER T1 " +
                 "BEFORE INSERT ON TEST " +
                 "FOR EACH ROW CALL \"" +
@@ -77,7 +77,7 @@ public class TriggerPassData implements Trigger {
     private static String getPrefix(Connection conn) throws SQLException {
         Statement stat = conn.createStatement();
         ResultSet rs = stat.executeQuery(
-                "call ifnull(database_path() || '_', '') || database() || '_'");
+                "call coalesce(database_path() || '_', '') || database() || '_'");
         rs.next();
         return rs.getString(1);
     }

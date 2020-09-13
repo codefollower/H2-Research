@@ -12,7 +12,7 @@ import org.h2.table.Table;
 /**
  * A persistent database setting.
  */
-public class Setting extends DbObjectBase {
+public final class Setting extends DbObject {
 
     private int intValue;
     private String stringValue;
@@ -22,12 +22,12 @@ public class Setting extends DbObjectBase {
     }
 
     @Override
-    public String getSQL(boolean alwaysQuote) {
+    public String getSQL(int sqlFlags) {
         return getName();
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         return builder.append(getName());
     }
 
@@ -49,13 +49,13 @@ public class Setting extends DbObjectBase {
 
     @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
     public String getCreateSQL() {
         StringBuilder buff = new StringBuilder("SET ");
-        getSQL(buff, true).append(' ');
+        getSQL(buff, DEFAULT_SQL_FLAGS).append(' ');
         if (stringValue != null) {
             buff.append(stringValue);
         } else {
@@ -70,7 +70,7 @@ public class Setting extends DbObjectBase {
     }
 
     @Override
-    public void removeChildrenAndResources(Session session) {
+    public void removeChildrenAndResources(SessionLocal session) {
         database.removeMeta(session, getId());
         invalidate();
     }

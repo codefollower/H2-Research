@@ -26,7 +26,7 @@ public class TestDriver extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -45,9 +45,9 @@ public class TestDriver extends TestDb {
         Connection conn = DriverManager.getConnection(url, prop);
         ResultSet rs;
         rs = conn.createStatement().executeQuery(
-                "select * from information_schema.settings where name='MAX_COMPACT_TIME'");
+                "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'MAX_COMPACT_TIME'");
         rs.next();
-        assertEquals(1234, rs.getInt(2));
+        assertEquals(1234, rs.getInt(1));
         conn.close();
     }
 

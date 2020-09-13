@@ -6,9 +6,7 @@
 package org.h2.value;
 
 import java.util.Objects;
-import org.h2.api.ErrorCode;
-import org.h2.engine.CastDataProvider;
-import org.h2.message.DbException;
+
 import org.h2.util.geometry.EWKTUtils;
 
 /**
@@ -20,21 +18,20 @@ public final class ExtTypeInfoGeometry extends ExtTypeInfo {
 
     private final Integer srid;
 
-    private static String toSQL(int type, Integer srid) {
+    static StringBuilder toSQL(StringBuilder builder, int type, Integer srid) {
         if (type == 0 && srid == null) {
-            return "";
+            return builder;
         }
-        StringBuilder builder = new StringBuilder();
         builder.append('(');
         if (type == 0) {
             builder.append("GEOMETRY");
         } else {
-            builder.append(EWKTUtils.formatGeometryTypeAndDimensionSystem(type));
+            EWKTUtils.formatGeometryTypeAndDimensionSystem(builder, type);
         }
         if (srid != null) {
             builder.append(", ").append((int) srid);
         }
-        return builder.append(')').toString();
+        return builder.append(')');
     }
 
     /**
@@ -49,19 +46,6 @@ public final class ExtTypeInfoGeometry extends ExtTypeInfo {
     public ExtTypeInfoGeometry(int type, Integer srid) {
         this.type = type;
         this.srid = srid;
-    }
-
-    @Override
-    public Value cast(Value value, CastDataProvider provider) {
-        if (value.getValueType() != Value.GEOMETRY) {
-            value = value.convertTo(Value.GEOMETRY);
-        }
-        ValueGeometry g = (ValueGeometry) value;
-        if (type != 0 && g.getTypeAndDimensionSystem() != type || srid != null && g.getSRID() != srid) {
-            throw DbException.get(ErrorCode.CHECK_CONSTRAINT_VIOLATED_1,
-                    toSQL(g.getTypeAndDimensionSystem(), g.getSRID()) + " <> " + toString());
-        }
-        return g;
     }
 
     @Override
@@ -82,8 +66,8 @@ public final class ExtTypeInfoGeometry extends ExtTypeInfo {
     }
 
     @Override
-    public String getCreateSQL() {
-        return toSQL(type, srid);
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
+        return toSQL(builder, type, srid);
     }
 
     /**

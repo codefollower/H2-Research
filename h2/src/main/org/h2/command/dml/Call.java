@@ -7,11 +7,15 @@ package org.h2.command.dml;
 
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
+import org.h2.expression.Alias;
 import org.h2.expression.Expression;
+import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
+import org.h2.expression.function.table.TableFunction;
 import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
+import org.h2.table.Column;
 import org.h2.value.Value;
 
 /**
@@ -20,37 +24,34 @@ import org.h2.value.Value;
  */
 public class Call extends Prepared {
 
-    private boolean isResultSet;
     private Expression expression;
+
+    private TableFunction tableFunction;
+
     private Expression[] expressions;
 
-    public Call(Session session) {
+    public Call(SessionLocal session) {
         super(session);
     }
 
     @Override
     public ResultInterface queryMeta() {
-        LocalResult result;
-        if (isResultSet) {
-            Expression[] expr = expression.getExpressionColumns(session);
-            int count = expr.length;
-            result = new LocalResult(session, expr, count, count);
-        } else {
-            result = new LocalResult(session, expressions, 1, 1);
-        }
+        int columnCount = expressions.length;
+        LocalResult result = new LocalResult(session, expressions, columnCount, columnCount);
         result.done();
         return result;
     }
 
     @Override
-    public int update() {
-        Value v = expression.getValue(session);
-        int type = v.getValueType();
-        switch (type) {
-        case Value.RESULT_SET:
+    public long update() {
+        if (tableFunction != null) {
             // this will throw an exception
             // methods returning a result set may not be called like this.
             return super.update();
+        }
+        Value v = expression.getValue(session);
+        int type = v.getValueType();
+        switch (type) {
         case Value.UNKNOWN:
         case Value.NULL:
             return 0;
@@ -60,30 +61,50 @@ public class Call extends Prepared {
     }
 
     @Override
-    public ResultInterface query(int maxrows) {
+    public ResultInterface query(long maxrows) {
         setCurrentRowNumber(1);
-        Value v = expression.getValue(session);
-        if (isResultSet) { //例如 "CALL TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World'))"
-            return v.getResult();
+//<<<<<<< HEAD
+//        Value v = expression.getValue(session);
+//        if (isResultSet) { //例如 "CALL TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World'))"
+//            return v.getResult();
+//=======
+        if (tableFunction != null) {
+            return tableFunction.getValue(session);
         }
         LocalResult result = new LocalResult(session, expressions, 1, 1);
-        result.addRow(v);
+        result.addRow(expression.getValue(session));
         result.done();
         return result;
     }
 
     @Override
     public void prepare() {
-        expression = expression.optimize(session);
-        expressions = new Expression[] { expression };
-        isResultSet = expression.getType().getValueType() == Value.RESULT_SET;
-        if (isResultSet) {
+        if (tableFunction != null) {
             prepareAlways = true;
+            tableFunction.optimize(session);
+            ResultInterface result = tableFunction.getValueTemplate(session);
+            int columnCount = result.getVisibleColumnCount();
+            expressions = new Expression[columnCount];
+            for (int i = 0; i < columnCount; i++) {
+                String name = result.getColumnName(i);
+                String alias = result.getAlias(i);
+                Expression e = new ExpressionColumn(session.getDatabase(), new Column(name, result.getColumnType(i)));
+                if (!alias.equals(name)) {
+                    e = new Alias(e, alias, false);
+                }
+                expressions[i] = e;
+            }
+        } else {
+            expressions = new Expression[] { expression = expression.optimize(session) };
         }
     }
 
     public void setExpression(Expression expression) {
         this.expression = expression;
+    }
+
+    public void setTableFunction(TableFunction tableFunction) {
+        this.tableFunction = tableFunction;
     }
 
     @Override
@@ -98,7 +119,7 @@ public class Call extends Prepared {
 
     @Override
     public boolean isReadOnly() {
-        return expression.isEverything(ExpressionVisitor.READONLY_VISITOR);
+        return tableFunction == null && expression.isEverything(ExpressionVisitor.READONLY_VISITOR);
 
     }
 
@@ -109,7 +130,7 @@ public class Call extends Prepared {
 
     @Override
     public boolean isCacheable() {
-        return !isResultSet;
+        return tableFunction == null;
     }
 
 }

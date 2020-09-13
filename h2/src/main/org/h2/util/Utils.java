@@ -404,33 +404,6 @@ public class Utils {
     }
 
     /**
-     * Checks if given classes have a common Comparable superclass.
-     *
-     * @param c1 the first class
-     * @param c2 the second class
-     * @return true if they have
-     */
-    public static boolean haveCommonComparableSuperclass(
-            Class<?> c1, Class<?> c2) {
-        if (c1 == c2 || c1.isAssignableFrom(c2) || c2.isAssignableFrom(c1)) {
-            return true;
-        }
-        Class<?> top1;
-        do {
-            top1 = c1;
-            c1 = c1.getSuperclass();
-        } while (Comparable.class.isAssignableFrom(c1));
-
-        Class<?> top2;
-        do {
-            top2 = c2;
-            c2 = c2.getSuperclass();
-        } while (Comparable.class.isAssignableFrom(c2));
-
-        return top1 == top2;
-    }
-
-    /**
      * Get a resource from the resource map.
      *
      * @param name the name of the resource
@@ -791,6 +764,52 @@ public class Utils {
             // ignore
         }
         return value;
+    }
+
+    /**
+     * Returns the current value of the high-resolution time source.
+     *
+     * @return time in nanoseconds, never equal to 0
+     * @see System#nanoTime()
+     */
+    public static long currentNanoTime() {
+        long time = System.nanoTime();
+        if (time == 0L) {
+            time = 1L;
+        }
+        return time;
+    }
+
+    /**
+     * Returns the current value of the high-resolution time source plus the
+     * specified offset.
+     *
+     * @param ms
+     *            additional offset in milliseconds
+     * @return time in nanoseconds, never equal to 0
+     * @see System#nanoTime()
+     */
+    public static long currentNanoTimePlusMillis(int ms) {
+        return nanoTimePlusMillis(System.nanoTime(), ms);
+    }
+
+    /**
+     * Returns the current value of the high-resolution time source plus the
+     * specified offset.
+     *
+     * @param nanoTime
+     *            time in nanoseconds
+     * @param ms
+     *            additional offset in milliseconds
+     * @return time in nanoseconds, never equal to 0
+     * @see System#nanoTime()
+     */
+    public static long nanoTimePlusMillis(long nanoTime, int ms) {
+        long time = nanoTime + ms * 1_000_000L;
+        if (time == 0L) {
+            time = 1L;
+        }
+        return time;
     }
 
     /**

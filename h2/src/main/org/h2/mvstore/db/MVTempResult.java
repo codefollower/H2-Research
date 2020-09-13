@@ -19,8 +19,10 @@ import org.h2.result.ResultExternal;
 import org.h2.result.SortOrder;
 import org.h2.store.fs.FileUtils;
 import org.h2.util.TempFileDeleter;
+import org.h2.value.ExtTypeInfoEnum;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
+import org.h2.value.ValueNull;
 
 /**
  * Temporary result.
@@ -85,6 +87,8 @@ public abstract class MVTempResult implements ResultExternal {
                         resultColumnCount, sort)
                 : new MVPlainTempResult(database, expressions, visibleColumnCount, resultColumnCount);
     }
+
+    private final Database database;
 
     /**
      * MVStore.
@@ -151,6 +155,7 @@ public abstract class MVTempResult implements ResultExternal {
      */
     MVTempResult(MVTempResult parent) {
         this.parent = parent;
+        this.database = parent.database;
         this.store = parent.store;
         this.expressions = parent.expressions;
         this.visibleColumnCount = parent.visibleColumnCount;
@@ -174,12 +179,13 @@ public abstract class MVTempResult implements ResultExternal {
      *            total count of columns
      */
     MVTempResult(Database database, Expression[] expressions, int visibleColumnCount, int resultColumnCount) {
+        this.database = database;
         try {
             String fileName = FileUtils.createTempFile("h2tmp", Constants.SUFFIX_TEMP_FILE, true);
             Builder builder = new MVStore.Builder().fileName(fileName).cacheSize(0).autoCommitDisabled();
             byte[] key = database.getFileEncryptionKey();
             if (key != null) {
-                builder.encryptionKey(MVTableEngine.decodePassword(key));
+                builder.encryptionKey(Store.decodePassword(key));
             }
             store = builder.open();
             this.expressions = expressions;
@@ -243,9 +249,11 @@ public abstract class MVTempResult implements ResultExternal {
      */
     final void fixEnum(Value[] row) {
         for (int i = 0, l = resultColumnCount; i < l; i++) {
-            TypeInfo type = expressions[i].getType();
-            if (type.getValueType() == Value.ENUM) {
-                row[i] = type.getExtTypeInfo().cast(row[i], null);
+            if (row[i] != ValueNull.INSTANCE) {
+                TypeInfo type = expressions[i].getType();
+                if (type.getValueType() == Value.ENUM) {
+                    row[i] = row[i].convertToEnum((ExtTypeInfoEnum) type.getExtTypeInfo(), database);
+                }
             }
         }
     }

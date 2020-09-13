@@ -8,9 +8,6 @@ package org.h2.value;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
 
 import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
@@ -18,7 +15,7 @@ import org.h2.message.DbException;
 /**
  * Implementation of NULL. NULL is not a regular data type.
  */
-public class ValueNull extends Value {
+public final class ValueNull extends Value {
 
     /**
      * The main NULL instance.
@@ -40,7 +37,7 @@ public class ValueNull extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         return builder.append("NULL");
     }
 
@@ -66,13 +63,33 @@ public class ValueNull extends Value {
     }
 
     @Override
-    public boolean getBoolean() {
-        return false;
+    public Reader getReader() {
+        return null;
+    }
+
+    @Override
+    public Reader getReader(long oneBasedOffset, long length) {
+        return null;
     }
 
     @Override
     public byte[] getBytes() {
         return null;
+    }
+
+    @Override
+    public InputStream getInputStream() {
+        return null;
+    }
+
+    @Override
+    public InputStream getInputStream(long oneBasedOffset, long length) {
+        return null;
+    }
+
+    @Override
+    public boolean getBoolean() {
+        return false;
     }
 
     @Override
@@ -86,21 +103,6 @@ public class ValueNull extends Value {
     }
 
     @Override
-    public BigDecimal getBigDecimal() {
-        return null;
-    }
-
-    @Override
-    public double getDouble() {
-        return 0.0;
-    }
-
-    @Override
-    public float getFloat() {
-        return 0.0F;
-    }
-
-    @Override
     public int getInt() {
         return 0;
     }
@@ -111,23 +113,23 @@ public class ValueNull extends Value {
     }
 
     @Override
-    public InputStream getInputStream() {
+    public BigDecimal getBigDecimal() {
         return null;
     }
 
     @Override
-    public Reader getReader() {
-        return null;
+    public float getFloat() {
+        return 0.0F;
     }
 
     @Override
-    protected Value convertTo(int targetType, ExtTypeInfo extTypeInfo, CastDataProvider provider, Object column) {
-        return this;
+    public double getDouble() {
+        return 0.0;
     }
 
     @Override
     public int compareTypeSafe(Value v, CompareMode mode, CastDataProvider provider) {
-        throw DbException.throwInternalError("compare null");
+        throw DbException.getInternalError("compare null");
     }
 
     @Override
@@ -138,17 +140,6 @@ public class ValueNull extends Value {
     @Override
     public int hashCode() {
         return 0;
-    }
-
-    @Override
-    public Object getObject() {
-        return null;
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex)
-            throws SQLException {
-        prep.setNull(parameterIndex, Types.NULL);
     }
 
     @Override

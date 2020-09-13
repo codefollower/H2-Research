@@ -7,7 +7,7 @@ package org.h2.command.ddl;
 
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
 import org.h2.table.TableSynonym;
@@ -21,7 +21,7 @@ public class DropSynonym extends SchemaCommand {
     private String synonymName;
     private boolean ifExists;
 
-    public DropSynonym(Session session, Schema schema) {
+    public DropSynonym(SessionLocal session, Schema schema) {
         super(session, schema);
     }
 
@@ -30,7 +30,7 @@ public class DropSynonym extends SchemaCommand {
     }
 
     @Override
-    public int update() {
+    public long update() {
         session.commit(true);
         session.getUser().checkAdmin();
 

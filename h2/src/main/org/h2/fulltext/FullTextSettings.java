@@ -12,9 +12,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.h2.util.SoftHashMap;
+import org.h2.util.SoftValuesHashMap;
 
 /**
  * The global settings of a full text search.
@@ -49,9 +50,7 @@ final class FullTextSettings {
     /**
      * The prepared statement cache.
      */
-    private final SoftHashMap<Connection,
-            SoftHashMap<String, PreparedStatement>> cache =
-            new SoftHashMap<>();
+    private final WeakHashMap<Connection, SoftValuesHashMap<String, PreparedStatement>> cache = new WeakHashMap<>();
 
     /**
      * The whitespace characters.
@@ -183,7 +182,7 @@ final class FullTextSettings {
     private static String getIndexPath(Connection conn) throws SQLException {
         Statement stat = conn.createStatement();
         ResultSet rs = stat.executeQuery(
-                "CALL IFNULL(DATABASE_PATH(), 'MEM:' || DATABASE())");
+                "CALL COALESCE(DATABASE_PATH(), 'MEM:' || DATABASE())");
         rs.next();
         String path = rs.getString(1);
         if ("MEM:UNNAMED".equals(path)) {
@@ -204,9 +203,9 @@ final class FullTextSettings {
      */
     protected synchronized PreparedStatement prepare(Connection conn, String sql)
             throws SQLException {
-        SoftHashMap<String, PreparedStatement> c = cache.get(conn);
+        SoftValuesHashMap<String, PreparedStatement> c = cache.get(conn);
         if (c == null) {
-            c = new SoftHashMap<>();
+            c = new SoftValuesHashMap<>();
             cache.put(conn, c);
         }
         PreparedStatement prep = c.get(sql);

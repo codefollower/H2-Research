@@ -17,11 +17,11 @@ import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
 import org.h2.mvstore.MVStore;
-import org.h2.mvstore.db.MVTableEngine.Store;
+import org.h2.mvstore.db.Store;
 import org.h2.pagestore.PageStore;
 import org.h2.result.ResultInterface;
 import org.h2.store.FileLister;
@@ -36,7 +36,7 @@ public class BackupCommand extends Prepared {
 
     private Expression fileNameExpr;
 
-    public BackupCommand(Session session) {
+    public BackupCommand(SessionLocal session) {
         super(session);
     }
 
@@ -45,7 +45,7 @@ public class BackupCommand extends Prepared {
     }
 
     @Override
-    public int update() {
+    public long update() {
         String name = fileNameExpr.getValue(session).getString();
         session.getUser().checkAdmin();
         backupTo(name);
@@ -120,9 +120,6 @@ public class BackupCommand extends Prepared {
                     dir = FileLister.getDir(dir);
                     ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
                     for (String n : fileList) {
-                        if (n.endsWith(Constants.SUFFIX_LOB_FILE)) {
-                            backupFile(out, base, n);
-                        }
                         if (n.endsWith(Constants.SUFFIX_MV_FILE) && store != null) {
                             MVStore s = store.getMvStore();
                             boolean before = s.getReuseSpace();
@@ -165,17 +162,12 @@ public class BackupCommand extends Prepared {
         out.closeEntry();
     }
 
-    private static void backupFile(ZipOutputStream out, String base, String fn)
-            throws IOException {
-        InputStream in = FileUtils.newInputStream(fn);
-        backupFile(out, base, fn, in);
-    }
-
-    private static void backupFile(ZipOutputStream out, String base, String fn, InputStream in) throws IOException {
+    private static void backupFile(ZipOutputStream out, String base, String fn,
+            InputStream in) throws IOException {
         String f = FileUtils.toRealPath(fn); //返回E:/H2/baseDir/mydb.mv.db
-        base = FileUtils.toRealPath(base); //返回E:/H2/baseDir
+        base = FileUtils.toRealPath(base);//返回E:/H2/baseDir
         if (!f.startsWith(base)) {
-            DbException.throwInternalError(f + " does not start with " + base);
+            throw DbException.getInternalError(f + " does not start with " + base);
         }
         f = f.substring(base.length()); //返回/mydb.mv.db
         f = correctFileName(f); //返回mydb.mv.db

@@ -143,21 +143,19 @@ FROM (SELECT DISTINCT TYPE FROM TEST) T ORDER BY TYPE;
 -->        FROM "PUBLIC"."TEST" "T2"
 -->            /* PUBLIC.IDX_TEST_TYPE_VALUE: TYPE = T.TYPE */
 -->        WHERE "T"."TYPE" = "T2"."TYPE"
--->        ORDER BY ="TYPE", 1
+-->        ORDER BY "TYPE", 1
 -->        FETCH FIRST ROW ONLY
 -->        /* index sorted */) AS "MIN"
 -->    FROM (
 -->        SELECT DISTINCT
 -->            "TYPE"
 -->        FROM "PUBLIC"."TEST"
--->            /* PUBLIC.IDX_TEST_TYPE_VALUE */
--->        /* distinct */
 -->    ) "T"
 -->        /* SELECT DISTINCT
 -->            TYPE
 -->        FROM PUBLIC.TEST
--->            /++ PUBLIC.IDX_TEST_TYPE_VALUE ++/
--->        /++ distinct ++/
+-->            /* PUBLIC.IDX_TEST_TYPE_VALUE */
+-->        /* distinct */
 -->         */
 -->    ORDER BY 1
 ;
@@ -264,7 +262,7 @@ EXPLAIN SELECT * FROM TEST WHERE ID IN (10, 20) AND DATA IN (1, 2);
 -->        "PUBLIC"."TEST"."ID",
 -->        "PUBLIC"."TEST"."DATA"
 -->    FROM "PUBLIC"."TEST"
--->        /* PUBLIC.PRIMARY_KEY_2: ID IN(10, 20) */
+-->        /* PUBLIC.TEST_DATA: DATA IN(1, 2) */
 -->    WHERE ("ID" IN(10, 20))
 -->        AND ("DATA" IN(1, 2))
 ;

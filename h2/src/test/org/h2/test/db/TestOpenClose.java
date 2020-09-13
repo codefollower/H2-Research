@@ -5,8 +5,12 @@
  */
 package org.h2.test.db;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -37,7 +41,7 @@ public class TestOpenClose extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -48,6 +52,7 @@ public class TestOpenClose extends TestDb {
         testBackup();
         testCase();
         testReconnectFast();
+        test1_1();
         deleteDb("openClose");
     }
 
@@ -223,11 +228,27 @@ public class TestOpenClose extends TestDb {
         return nextId++;
     }
 
+    private void test1_1() throws IOException {
+        Path old = Paths.get(getBaseDir()).resolve("db" + Constants.SUFFIX_OLD_DATABASE_FILE);
+        Files.createFile(old);
+        try {
+            try {
+                DriverManager.getConnection("jdbc:h2:" + getBaseDir() + "/db");
+            } catch (SQLException e) {
+                assertEquals(ErrorCode.FILE_VERSION_ERROR_1, e.getErrorCode());
+                return;
+            }
+            fail("Old 1.1 database isn't detected");
+        } finally {
+            Files.deleteIfExists(old);
+        }
+    }
+
+
     /**
      * A database event listener used in this test.
      */
-    public static final class MyDatabaseEventListener implements
-            DatabaseEventListener {
+    public static final class MyDatabaseEventListener implements DatabaseEventListener {
 
         @Override
         public void exceptionThrown(SQLException e, String sql) {
@@ -235,7 +256,7 @@ public class TestOpenClose extends TestDb {
         }
 
         @Override
-        public void setProgress(int state, String name, int current, int max) {
+        public void setProgress(int state, String name, long current, long max) {
             String stateName;
             switch (state) {
             case STATE_SCAN_FILE:
@@ -261,20 +282,6 @@ public class TestOpenClose extends TestDb {
             // System.out.println(": " + stateName);
         }
 
-        @Override
-        public void closingDatabase() {
-            // nothing to do
-        }
-
-        @Override
-        public void init(String url) {
-            // nothing to do
-        }
-
-        @Override
-        public void opened() {
-            // nothing to do
-        }
     }
 
 }

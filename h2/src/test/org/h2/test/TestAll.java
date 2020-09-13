@@ -9,11 +9,11 @@ import java.lang.management.ManagementFactory;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
-
 import org.h2.Driver;
 import org.h2.engine.Constants;
 import org.h2.store.fs.FileUtils;
@@ -22,6 +22,7 @@ import org.h2.test.auth.TestAuthentication;
 import org.h2.test.bench.TestPerformance;
 import org.h2.test.db.TestAlter;
 import org.h2.test.db.TestAlterSchemaRename;
+import org.h2.test.db.TestAlterTableNotFound;
 import org.h2.test.db.TestAnalyzeTableTx;
 import org.h2.test.db.TestAutoRecompile;
 import org.h2.test.db.TestBackup;
@@ -69,6 +70,7 @@ import org.h2.test.db.TestRights;
 import org.h2.test.db.TestRunscript;
 import org.h2.test.db.TestSQLInjection;
 import org.h2.test.db.TestSelectCountNonNullColumn;
+import org.h2.test.db.TestSelectTableNotFound;
 import org.h2.test.db.TestSequence;
 import org.h2.test.db.TestSessionsLocks;
 import org.h2.test.db.TestSetCollation;
@@ -82,7 +84,6 @@ import org.h2.test.db.TestTempTables;
 import org.h2.test.db.TestTransaction;
 import org.h2.test.db.TestTriggersConstraints;
 import org.h2.test.db.TestTwoPhaseCommit;
-import org.h2.test.db.TestUpgrade;
 import org.h2.test.db.TestView;
 import org.h2.test.db.TestViewAlterTable;
 import org.h2.test.db.TestViewDropView;
@@ -94,7 +95,6 @@ import org.h2.test.jdbc.TestConnection;
 import org.h2.test.jdbc.TestDatabaseEventListener;
 import org.h2.test.jdbc.TestDriver;
 import org.h2.test.jdbc.TestGetGeneratedKeys;
-import org.h2.test.jdbc.TestJavaObject;
 import org.h2.test.jdbc.TestJavaObjectSerializer;
 import org.h2.test.jdbc.TestLimitUpdates;
 import org.h2.test.jdbc.TestLobApi;
@@ -130,7 +130,6 @@ import org.h2.test.server.TestWeb;
 import org.h2.test.store.TestCacheConcurrentLIRS;
 import org.h2.test.store.TestCacheLIRS;
 import org.h2.test.store.TestCacheLongKeyLIRS;
-import org.h2.test.store.TestConcurrent;
 import org.h2.test.store.TestDataUtils;
 import org.h2.test.store.TestDefrag;
 import org.h2.test.store.TestFreeSpace;
@@ -138,6 +137,7 @@ import org.h2.test.store.TestKillProcessWhileWriting;
 import org.h2.test.store.TestMVRTree;
 import org.h2.test.store.TestMVStore;
 import org.h2.test.store.TestMVStoreBenchmark;
+import org.h2.test.store.TestMVStoreConcurrent;
 import org.h2.test.store.TestMVStoreStopCompact;
 import org.h2.test.store.TestMVStoreTool;
 import org.h2.test.store.TestMVTableEngine;
@@ -162,7 +162,6 @@ import org.h2.test.synth.TestNestedJoins;
 import org.h2.test.synth.TestOuterJoins;
 import org.h2.test.synth.TestRandomCompare;
 import org.h2.test.synth.TestRandomSQL;
-import org.h2.test.synth.TestStringAggCompatibility;
 import org.h2.test.synth.TestTimer;
 import org.h2.test.synth.sql.TestSynth;
 import org.h2.test.synth.thread.TestMulti;
@@ -176,6 +175,7 @@ import org.h2.test.unit.TestCache;
 import org.h2.test.unit.TestCharsetCollator;
 import org.h2.test.unit.TestCollation;
 import org.h2.test.unit.TestCompress;
+import org.h2.test.unit.TestConcurrentJdbc;
 import org.h2.test.unit.TestConnectionInfo;
 import org.h2.test.unit.TestDataPage;
 import org.h2.test.unit.TestDate;
@@ -201,7 +201,6 @@ import org.h2.test.unit.TestMVTempResult;
 import org.h2.test.unit.TestMathUtils;
 import org.h2.test.unit.TestMemoryUnmapper;
 import org.h2.test.unit.TestMode;
-import org.h2.test.unit.TestModifyOnWrite;
 import org.h2.test.unit.TestNetUtils;
 import org.h2.test.unit.TestObjectDeserialization;
 import org.h2.test.unit.TestOldVersion;
@@ -230,7 +229,6 @@ import org.h2.test.unit.TestValue;
 import org.h2.test.unit.TestValueMemory;
 import org.h2.test.utils.OutputCatcher;
 import org.h2.test.utils.SelfDestructor;
-import org.h2.test.utils.TestColumnNamer;
 import org.h2.tools.DeleteDbFiles;
 import org.h2.tools.Server;
 import org.h2.util.AbbaLockingDetector;
@@ -406,11 +404,6 @@ java org.h2.test.TestAll timer
     boolean stopOnError;
 
     /**
-     * If the database should always be defragmented when closing.
-     */
-    public boolean defrag;
-
-    /**
      * The cache type.
      */
     String cacheType;
@@ -430,6 +423,8 @@ java org.h2.test.TestAll timer
     ArrayList<TestBase> tests = new ArrayList<>();
 
     private Server server;
+
+    HashSet<String> excludedTests = new HashSet<>();
 
     /**
      * The map of executed tests to detect not executed tests.
@@ -492,8 +487,6 @@ documentation: rolling review at main.html
 
 -------------
 
-remove old TODO, move to roadmap
-
 kill a test:
 kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
 
@@ -502,10 +495,10 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         if (args.length > 0) {
             if ("travis".equals(args[0])) {
                 test.travis = true;
-                test.testAll();
+                test.testAll(args, 1);
             } else if ("vmlens".equals(args[0])) {
                 test.vmlens = true;
-                test.testAll();
+                test.testAll(args, 1);
             } else if ("reopen".equals(args[0])) {
                 System.setProperty("h2.delayWrongPasswordMin", "0");
                 System.setProperty("h2.analyzeAuto", "100");
@@ -545,13 +538,22 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
                 new TestTimer().runTest(test);
             }
         } else {
-            test.testAll();
+            test.testAll(args, 0);
         }
         System.out.println(TestBase.formatTime(new StringBuilder(),
                 TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - time)).append(" total").toString());
     }
 
-    private void testAll() throws Exception {
+    private void testAll(String[] args, int offset) throws Exception {
+        int l = args.length;
+        while (l > offset + 1) {
+            if ("-exclude".equals(args[offset])) {
+                excludedTests.add(args[offset + 1]);
+                offset += 2;
+            } else {
+                break;
+            }
+        }
         runTests();
         if (!travis && !vmlens) {
             Profiler prof = new Profiler();
@@ -599,10 +601,10 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             abbaLockingDetector = new AbbaLockingDetector().startCollecting();
         }
 
-        smallLog = big = networked = memory = ssl = false;
+        mvStore = true;
+        smallLog = big = networked = memory = lazy = ssl = false;
         diskResult = traceSystemOut = diskUndo = false;
         traceTest = stopOnError = false;
-        defrag = false;
         traceLevelFile = throttle = 0;
         cipher = null;
 
@@ -636,14 +638,20 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         mvStore = false;
         test();
         testAdditional();
-
         mvStore = true;
-        memory = true;
-        networked = true;
-        test();
 
+        networked = true;
+
+        memory = true;
+        test();
         memory = false;
+
+        lazy = true;
+        test();
+        lazy = false;
+
         networked = false;
+
         diskUndo = true;
         diskResult = true;
         traceLevelFile = 3;
@@ -658,14 +666,11 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         throttle = 0;
         cacheType = null;
         cipher = null;
-        defrag = true;
-        test();
 
         if (!travis) {
             traceLevelFile = 0;
             smallLog = true;
             networked = true;
-            defrag = false;
             ssl = true;
             test();
 
@@ -695,7 +700,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         smallLog = big = networked = memory = ssl = false;
         diskResult = traceSystemOut = diskUndo = false;
         traceTest = stopOnError = false;
-        defrag = false;
         traceLevelFile = throttle = 0;
         cipher = null;
 
@@ -717,154 +721,154 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         System.out.println("Test " + toString() +
                 " (" + Utils.getMemoryUsed() + " KB used)");
         beforeTest();
+        try {
+            // db
+            addTest(new TestScript());
+            addTest(new TestAlter());
+            addTest(new TestAlterSchemaRename());
+            addTest(new TestAutoRecompile());
+            addTest(new TestBackup());
+            addTest(new TestBigDb());
+            addTest(new TestBigResult());
+            addTest(new TestCases());
+            addTest(new TestCheckpoint());
+            addTest(new TestCompatibility());
+            addTest(new TestCompatibilityOracle());
+            addTest(new TestCompatibilitySQLServer());
+            addTest(new TestCsv());
+            addTest(new TestDeadlock());
+            if (vmlens) {
+                return;
+            }
+            addTest(new TestDuplicateKeyUpdate());
+            addTest(new TestEncryptedDb());
+            addTest(new TestExclusive());
+            addTest(new TestFullText());
+            addTest(new TestFunctionOverload());
+            addTest(new TestFunctions());
+            addTest(new TestInit());
+            addTest(new TestIndex());
+            addTest(new TestIndexHints());
+            addTest(new TestLargeBlob());
+            addTest(new TestLinkedTable());
+            addTest(new TestListener());
+            addTest(new TestLob());
+            addTest(new TestMergeUsing());
+            addTest(new TestMultiConn());
+            addTest(new TestMultiDimension());
+            addTest(new TestMultiThreadedKernel());
+            addTest(new TestOpenClose());
+            addTest(new TestOptimizerHints());
+            addTest(new TestReadOnly());
+            addTest(new TestRecursiveQueries());
+            addTest(new TestGeneralCommonTableQueries());
+            addTest(new TestAlterTableNotFound());
+            addTest(new TestSelectTableNotFound());
+            if (!memory) {
+                // requires persistent store for reconnection tests
+                addTest(new TestPersistentCommonTableExpressions());
+            }
+            addTest(new TestRights());
+            addTest(new TestRunscript());
+            addTest(new TestSQLInjection());
+            addTest(new TestSessionsLocks());
+            addTest(new TestSelectCountNonNullColumn());
+            addTest(new TestSequence());
+            addTest(new TestSpaceReuse());
+            addTest(new TestSpatial());
+            addTest(new TestSpeed());
+            addTest(new TestTableEngines());
+            addTest(new TestTempTables());
+            addTest(new TestTransaction());
+            addTest(new TestTriggersConstraints());
+            addTest(new TestTwoPhaseCommit());
+            addTest(new TestView());
+            addTest(new TestViewAlterTable());
+            addTest(new TestViewDropView());
+            addTest(new TestSynonymForTable());
 
-        // db
-        addTest(new TestScript());
-        addTest(new TestAlter());
-        addTest(new TestAlterSchemaRename());
-        addTest(new TestAutoRecompile());
-        addTest(new TestBackup());
-        addTest(new TestBigDb());
-        addTest(new TestBigResult());
-        addTest(new TestCases());
-        addTest(new TestCheckpoint());
-        addTest(new TestCompatibility());
-        addTest(new TestCompatibilityOracle());
-        addTest(new TestCompatibilitySQLServer());
-        addTest(new TestCsv());
-        addTest(new TestDeadlock());
-        if (vmlens) {
-            return;
+            // jdbc
+            addTest(new TestBatchUpdates());
+            addTest(new TestCallableStatement());
+            addTest(new TestCancel());
+            addTest(new TestConcurrentConnectionUsage());
+            addTest(new TestConnection());
+            addTest(new TestDatabaseEventListener());
+            addTest(new TestLimitUpdates());
+            addTest(new TestLobApi());
+            addTest(new TestSQLXML());
+            addTest(new TestManyJdbcObjects());
+            addTest(new TestMetaData());
+            addTest(new TestNativeSQL());
+            addTest(new TestPreparedStatement());
+            addTest(new TestResultSet());
+            addTest(new TestStatement());
+            addTest(new TestGetGeneratedKeys());
+            addTest(new TestTransactionIsolation());
+            addTest(new TestUpdatableResultSet());
+            addTest(new TestZloty());
+            addTest(new TestSetCollation());
+
+            // jdbcx
+            addTest(new TestConnectionPool());
+            addTest(new TestDataSource());
+            addTest(new TestXA());
+            addTest(new TestXASimple());
+
+            // server
+            addTest(new TestAutoServer());
+            addTest(new TestNestedLoop());
+
+            // mvcc & row level locking
+            addTest(new TestMvcc1());
+            addTest(new TestMvcc2());
+            addTest(new TestMvcc3());
+            addTest(new TestMvcc4());
+            addTest(new TestMvccMultiThreaded());
+            addTest(new TestMvccMultiThreaded2());
+            addTest(new TestRowLocks());
+            addTest(new TestAnalyzeTableTx());
+
+            // synth
+            addTest(new TestBtreeIndex());
+            addTest(new TestConcurrentUpdate());
+            addTest(new TestDiskFull());
+            addTest(new TestCrashAPI());
+            addTest(new TestFuzzOptimizations());
+            addTest(new TestLimit());
+            addTest(new TestRandomCompare());
+            addTest(new TestKillRestart());
+            addTest(new TestKillRestartMulti());
+            addTest(new TestMultiThreaded());
+            addTest(new TestOuterJoins());
+            addTest(new TestNestedJoins());
+
+            runAddedTests();
+
+            // serial
+            addTest(new TestDateStorage());
+            addTest(new TestDriver());
+            addTest(new TestJavaObjectSerializer());
+            addTest(new TestLocale());
+            addTest(new TestMemoryUsage());
+            addTest(new TestMultiThread());
+            addTest(new TestPowerOff());
+            addTest(new TestReorderWrites());
+            addTest(new TestRandomSQL());
+            addTest(new TestQueryCache());
+            addTest(new TestUrlJavaObjectSerializer());
+            addTest(new TestWeb());
+
+            // other unsafe
+            addTest(new TestOptimizations());
+            addTest(new TestOutOfMemory());
+            addTest(new TestIgnoreCatalogs());
+
+
+            runAddedTests(1);
+        } finally {
+            afterTest();
         }
-        addTest(new TestDuplicateKeyUpdate());
-        addTest(new TestEncryptedDb());
-        addTest(new TestExclusive());
-        addTest(new TestFullText());
-        addTest(new TestFunctionOverload());
-        addTest(new TestFunctions());
-        addTest(new TestInit());
-        addTest(new TestIndex());
-        addTest(new TestIndexHints());
-        addTest(new TestLargeBlob());
-        addTest(new TestLinkedTable());
-        addTest(new TestListener());
-        addTest(new TestLob());
-        addTest(new TestMergeUsing());
-        addTest(new TestMultiConn());
-        addTest(new TestMultiDimension());
-        addTest(new TestMultiThreadedKernel());
-        addTest(new TestOpenClose());
-        addTest(new TestOptimizerHints());
-        addTest(new TestReadOnly());
-        addTest(new TestRecursiveQueries());
-        addTest(new TestGeneralCommonTableQueries());
-        if (!memory) {
-            // requires persistent store for reconnection tests
-            addTest(new TestPersistentCommonTableExpressions());
-        }
-        addTest(new TestRights());
-        addTest(new TestRunscript());
-        addTest(new TestSQLInjection());
-        addTest(new TestSessionsLocks());
-        addTest(new TestSelectCountNonNullColumn());
-        addTest(new TestSequence());
-        addTest(new TestSpaceReuse());
-        addTest(new TestSpatial());
-        addTest(new TestSpeed());
-        addTest(new TestTableEngines());
-        addTest(new TestTempTables());
-        addTest(new TestTransaction());
-        addTest(new TestTriggersConstraints());
-        addTest(new TestTwoPhaseCommit());
-        addTest(new TestView());
-        addTest(new TestViewAlterTable());
-        addTest(new TestViewDropView());
-        addTest(new TestSynonymForTable());
-        addTest(new TestColumnNamer());
-
-        // jdbc
-        addTest(new TestBatchUpdates());
-        addTest(new TestCallableStatement());
-        addTest(new TestCancel());
-        addTest(new TestConcurrentConnectionUsage());
-        addTest(new TestConnection());
-        addTest(new TestDatabaseEventListener());
-        addTest(new TestJavaObject());
-        addTest(new TestLimitUpdates());
-        addTest(new TestLobApi());
-        addTest(new TestSQLXML());
-        addTest(new TestManyJdbcObjects());
-        addTest(new TestMetaData());
-        addTest(new TestNativeSQL());
-        addTest(new TestPreparedStatement());
-        addTest(new TestResultSet());
-        addTest(new TestStatement());
-        addTest(new TestGetGeneratedKeys());
-        addTest(new TestTransactionIsolation());
-        addTest(new TestUpdatableResultSet());
-        addTest(new TestZloty());
-        addTest(new TestSetCollation());
-
-        // jdbcx
-        addTest(new TestConnectionPool());
-        addTest(new TestDataSource());
-        addTest(new TestXA());
-        addTest(new TestXASimple());
-
-        // server
-        addTest(new TestAutoServer());
-        addTest(new TestNestedLoop());
-
-        // mvcc & row level locking
-        addTest(new TestMvcc1());
-        addTest(new TestMvcc2());
-        addTest(new TestMvcc3());
-        addTest(new TestMvcc4());
-        addTest(new TestMvccMultiThreaded());
-        addTest(new TestMvccMultiThreaded2());
-        addTest(new TestRowLocks());
-        addTest(new TestAnalyzeTableTx());
-
-        // synth
-        addTest(new TestBtreeIndex());
-        addTest(new TestConcurrentUpdate());
-        addTest(new TestDiskFull());
-        addTest(new TestCrashAPI());
-        addTest(new TestFuzzOptimizations());
-        addTest(new TestLimit());
-        addTest(new TestRandomCompare());
-        addTest(new TestKillRestart());
-        addTest(new TestKillRestartMulti());
-        addTest(new TestMultiThreaded());
-        addTest(new TestOuterJoins());
-        addTest(new TestNestedJoins());
-        addTest(new TestStringAggCompatibility());
-
-        runAddedTests();
-
-        // serial
-        addTest(new TestDateStorage());
-        addTest(new TestDriver());
-        addTest(new TestJavaObjectSerializer());
-        addTest(new TestLocale());
-        addTest(new TestMemoryUsage());
-        addTest(new TestMultiThread());
-        addTest(new TestPowerOff());
-        addTest(new TestReorderWrites());
-        addTest(new TestRandomSQL());
-        addTest(new TestQueryCache());
-        addTest(new TestUrlJavaObjectSerializer());
-        addTest(new TestWeb());
-
-        // other unsafe
-        addTest(new TestOptimizations());
-        addTest(new TestOutOfMemory());
-        addTest(new TestIgnoreCatalogs());
-
-
-        runAddedTests(1);
-
-        afterTest();
     }
 
     /**
@@ -885,7 +889,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestExit());
         addTest(new TestFileLock());
         addTest(new TestJmx());
-        addTest(new TestModifyOnWrite());
         addTest(new TestOldVersion());
         addTest(new TestMultiThreadedKernel());
         addTest(new TestPageStore());
@@ -895,9 +898,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new RecoverLobTest());
         addTest(createTest("org.h2.test.unit.TestServlet"));
         addTest(new TestTimeStampWithTimeZone());
-        addTest(new TestUpgrade());
         addTest(new TestValue());
-        addTest(new TestWeb());
 
         runAddedTests();
 
@@ -938,6 +939,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestMVTempResult());
 
         // unit
+        addTest(new TestConcurrentJdbc());
         addTest(new TestAnsCompression());
         addTest(new TestBinaryArithmeticStream());
         addTest(new TestBinaryOperation());
@@ -977,7 +979,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         // serial
         addTest(new TestDate());
         addTest(new TestDateTimeUtils());
-        addTest(new TestConcurrent());
+        addTest(new TestMVStoreConcurrent());
         addTest(new TestNetUtils());
         addTest(new TestPattern());
         addTest(new TestStringCache());
@@ -988,6 +990,9 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
     }
 
     private void addTest(TestBase test) {
+        if (excludedTests.contains(test.getClass().getName())) {
+            return;
+        }
         // tests.add(test);
         // run directly for now, because concurrently running tests
         // fails on Raspberry Pi quite often (seems to be a JVM problem)
@@ -1028,7 +1033,9 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
                             }
                             test = tests.remove(0);
                         }
-                        test.runTest(TestAll.this);
+                        if (!excludedTests.contains(test.getClass().getName())) {
+                            test.runTest(TestAll.this);
+                        }
                     }
                 }
             };
@@ -1147,7 +1154,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         appendIf(buff, throttle > 0, "throttle:" + throttle);
         appendIf(buff, traceTest, "traceTest");
         appendIf(buff, stopOnError, "stopOnError");
-        appendIf(buff, defrag, "defrag");
         appendIf(buff, splitFileSystem, "split");
         appendIf(buff, collation != null, collation);
         return buff.toString();

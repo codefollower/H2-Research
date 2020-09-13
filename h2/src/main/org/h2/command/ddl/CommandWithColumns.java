@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.engine.Constants;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
 import org.h2.schema.Sequence;
@@ -23,7 +23,7 @@ public abstract class CommandWithColumns extends SchemaCommand {
 
     private AlterTableAddConstraint primaryKey;
 
-    protected CommandWithColumns(Session session, Schema schema) {
+    protected CommandWithColumns(SessionLocal session, Schema schema) {
         super(session, schema);
     }
 
@@ -100,11 +100,11 @@ public abstract class CommandWithColumns extends SchemaCommand {
         ArrayList<Sequence> sequences = new ArrayList<>(columns == null ? 0 : columns.size());
         if (columns != null) {
             for (Column c : columns) {
-                if (c.isAutoIncrement()) {
+                if (c.hasIdentityOptions()) {
                     int objId = session.getDatabase().allocateObjectId();
-                    c.convertAutoIncrementToSequence(session, getSchema(), objId, temporary);
+                    c.initializeSequence(session, getSchema(), objId, temporary);
                     if (!Constants.CLUSTERING_DISABLED.equals(session.getDatabase().getCluster())) {
-                        throw DbException.getUnsupportedException("CLUSTERING && auto-increment columns");
+                        throw DbException.getUnsupportedException("CLUSTERING && identity columns");
                     }
                 }
                 Sequence seq = c.getSequence();

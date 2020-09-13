@@ -37,8 +37,7 @@ public class SpellChecker {
     private static final String DELIMITERS =
             " \n.();-\"=,*/{}_<>+\r:'@[]&\\!#|?$^%~`\t";
     private static final String PREFIX_IGNORE = "abc";
-    private static final String[] IGNORE_FILES = { "mainWeb.html",
-            "pg_catalog.sql" };
+    private static final String[] IGNORE_FILES = { "mainWeb.html" };
 
     // These are public so we can set them during development testing
 
@@ -185,10 +184,7 @@ public class SpellChecker {
                 System.out.println();
             }
         }
-        if (notFound.isEmpty()) {
-            return;
-        }
-        if (notFound.size() > 0) {
+        if (!notFound.isEmpty()) {
             System.out.println("file: " + fileName);
             for (String s : notFound) {
                 System.out.print(s + " ");

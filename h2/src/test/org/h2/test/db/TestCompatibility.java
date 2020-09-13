@@ -32,7 +32,7 @@ public class TestCompatibility extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -58,6 +58,7 @@ public class TestCompatibility extends TestDb {
         conn.close();
         testIdentifiers();
         testIdentifiersCaseInResultSet();
+        testOldInformationSchema();
         deleteDb("compatibility");
 
         testUnknownURL();
@@ -304,7 +305,7 @@ public class TestCompatibility extends TestDb {
         conn.close();
         deleteDb("compatibility");
         // `stat.getQueryTimeout()` caches the result, so create another connection
-        conn = getConnection("compatibility");
+        conn = getConnection("compatibility;MODE=PostgreSQL");
         stat = conn.createStatement();
         // `STATEMENT_TIMEOUT` uses milliseconds
         stat.execute("SET STATEMENT_TIMEOUT TO 30000");
@@ -420,6 +421,11 @@ public class TestCompatibility extends TestDb {
                 "(ID INT, KEY TEST_7_IDX(ID) USING BTREE)");
         stat.execute("CREATE TABLE TEST_10" +
                 "(ID INT, UNIQUE KEY TEST_10_IDX(ID) USING BTREE)");
+        stat.execute("CREATE TABLE TEST_11(ID INT) COLLATE UTF8");
+        stat.execute("CREATE TABLE TEST_12(ID INT) DEFAULT COLLATE UTF8");
+        stat.execute("CREATE TABLE TEST_13(a VARCHAR(10) COLLATE UTF8MB4)");
+        stat.execute("CREATE TABLE TEST_14(a VARCHAR(10) NULL CHARACTER SET UTF8MB4 COLLATE UTF8MB4_BIN)");
+        stat.execute("ALTER TABLE TEST_14 MODIFY a VARCHAR(10) NOT NULL CHARACTER SET UTF8MB4 COLLATE UTF8");
         assertThrows(ErrorCode.SYNTAX_ERROR_2, stat).execute("CREATE TABLE TEST_99" +
                 "(ID INT PRIMARY KEY) CHARSET UTF8,");
         assertThrows(ErrorCode.COLUMN_NOT_FOUND_1, stat).execute("CREATE TABLE TEST_99" +
@@ -686,8 +692,8 @@ public class TestCompatibility extends TestDb {
         testIdentifiers(false, true, true);
     }
 
-    private void testIdentifiers(boolean upper, boolean lower, boolean caseInsensitiveIdentifiers) throws SQLException
-    {
+    private void testIdentifiers(boolean upper, boolean lower, boolean caseInsensitiveIdentifiers) //
+            throws SQLException {
         try (Connection conn = getConnection("compatibility;DATABASE_TO_UPPER=" + upper + ";DATABASE_TO_LOWER=" + lower
                 + ";CASE_INSENSITIVE_IDENTIFIERS=" + caseInsensitiveIdentifiers)) {
             Statement stat = conn.createStatement();
@@ -737,7 +743,7 @@ public class TestCompatibility extends TestDb {
                 assertEquals(2, rs.getInt(2));
             }
         } else {
-            assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, stat).executeQuery(query);
+            assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_WITH_CANDIDATES_2, stat).executeQuery(query);
         }
     }
 
@@ -763,6 +769,18 @@ public class TestCompatibility extends TestDb {
             rs = stat.executeQuery("SELECT a FROM (SELECT 1) t(A)");
             md = rs.getMetaData();
             assertEquals("A", md.getColumnName(1));
+        } finally {
+            deleteDb("compatibility");
+        }
+    }
+
+    private void testOldInformationSchema() throws SQLException {
+        try (Connection conn = getConnection(
+                "compatibility;OLD_INFORMATION_SCHEMA=TRUE")) {
+            Statement stat = conn.createStatement();
+            ResultSet rs = stat.executeQuery("TABLE INFORMATION_SCHEMA.TABLE_TYPES");
+            rs.next();
+            assertEquals("TABLE", rs.getString(1));
         } finally {
             deleteDb("compatibility");
         }

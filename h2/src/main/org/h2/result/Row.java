@@ -5,13 +5,15 @@
  */
 package org.h2.result;
 
+import java.util.Arrays;
+
 import org.h2.value.Value;
 
 /**
  * Represents a row in a table.
  */
-public abstract class Row extends SearchRow
-{
+public abstract class Row extends SearchRow {
+
     /**
      * Creates a new row.
      *
@@ -43,6 +45,18 @@ public abstract class Row extends SearchRow
      * @return values
      */
     public abstract Value[] getValueList();
+
+    /**
+     * Check whether values of this row are equal to values of other row.
+     *
+     * @param other
+     *            the other row
+     * @return {@code true} if values are equal,
+     *         {@code false} otherwise
+     */
+    public boolean hasSameValues(Row other) {
+        return Arrays.equals(getValueList(), other.getValueList());
+    }
 
     /**
      * Check whether this row and the specified row share the same underlying

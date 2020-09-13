@@ -15,7 +15,7 @@ import org.h2.table.Table;
  * names.
  */
 //一个Right实例对应一条GRANT ROLE或GRANT RIGHT语句
-public class Right extends DbObjectBase {
+public final class Right extends DbObject {
 
     /**
      * The right bit mask that means: selecting from a table is allowed.
@@ -133,25 +133,25 @@ public class Right extends DbObjectBase {
     }
 
     private String getCreateSQLForCopy(DbObject object) {
-        StringBuilder buff = new StringBuilder();
-        buff.append("GRANT ");
+        StringBuilder builder = new StringBuilder();
+        builder.append("GRANT ");
         if (grantedRole != null) {
-            grantedRole.getSQL(buff, true);
+            grantedRole.getSQL(builder, DEFAULT_SQL_FLAGS);
         } else {
-            buff.append(getRights());
+            builder.append(getRights());
             if (object != null) {
                 if (object instanceof Schema) {
-                    buff.append(" ON SCHEMA ");
-                    object.getSQL(buff, true);
+                    builder.append(" ON SCHEMA ");
+                    object.getSQL(builder, DEFAULT_SQL_FLAGS);
                 } else if (object instanceof Table) {
-                    buff.append(" ON ");
-                    object.getSQL(buff, true);
+                    builder.append(" ON ");
+                    object.getSQL(builder, DEFAULT_SQL_FLAGS);
                 }
             }
         }
-        buff.append(" TO ");
-        grantee.getSQL(buff, true);
-        return buff.toString();
+        builder.append(" TO ");
+        grantee.getSQL(builder, DEFAULT_SQL_FLAGS);
+        return builder.toString();
     }
 
     @Override
@@ -165,7 +165,7 @@ public class Right extends DbObjectBase {
     }
 
     @Override
-    public void removeChildrenAndResources(Session session) {
+    public void removeChildrenAndResources(SessionLocal session) {
         if (grantedRole != null) {
             grantee.revokeRole(grantedRole);
         } else {
@@ -180,7 +180,7 @@ public class Right extends DbObjectBase {
 
     @Override
     public void checkRename() {
-        DbException.throwInternalError();
+        throw DbException.getInternalError();
     }
 
     public void setRightMask(int rightMask) {

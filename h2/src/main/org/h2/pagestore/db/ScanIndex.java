@@ -8,11 +8,11 @@ package org.h2.pagestore.db;
 import java.util.ArrayList;
 
 import org.h2.api.ErrorCode;
-import org.h2.command.dml.AllColumnsForPlan;
+import org.h2.command.query.AllColumnsForPlan;
 import org.h2.engine.Constants;
-import org.h2.engine.Session;
-import org.h2.index.BaseIndex;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Cursor;
+import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
 import org.h2.result.Row;
@@ -36,7 +36,7 @@ import org.h2.util.Utils;
 //即：只在RegularTable(CreateTableData)中使用，不能通过RegularTable.addIndex触发
 //org.h2.index.MultiVersionIndex不会嵌套ScanIndex
 //因为MultiVersionIndex只在RegularTable.addIndex中使用，而ScanIndex不能通过RegularTable.addIndex触发
-public class ScanIndex extends BaseIndex {
+public class ScanIndex extends Index {
     private long firstFree = -1;
     private ArrayList<Row> rows = Utils.newSmallArrayList();
     private final PageStoreTable tableData;
@@ -60,12 +60,12 @@ public class ScanIndex extends BaseIndex {
     }
 
     @Override
-    public void remove(Session session) {
+    public void remove(SessionLocal session) {
         truncate(session);
     }
 
     @Override
-    public void truncate(Session session) {
+    public void truncate(SessionLocal session) {
         rows = Utils.newSmallArrayList();
         firstFree = -1;
         if (tableData.getContainsLargeObject() && tableData.isPersistData()) {
@@ -81,17 +81,17 @@ public class ScanIndex extends BaseIndex {
     }
 
     @Override
-    public void close(Session session) {
+    public void close(SessionLocal session) {
         // nothing to do
     }
 
     @Override
-    public Row getRow(Session session, long key) {
+    public Row getRow(SessionLocal session, long key) {
         return rows.get((int) key);
     }
 
     @Override
-    public void add(Session session, Row row) {
+    public void add(SessionLocal session, Row row) {
         // in-memory
         if (firstFree == -1) {
             int key = rows.size();
@@ -127,7 +127,7 @@ public class ScanIndex extends BaseIndex {
     //通过Connection.setAutoCommit(false)禁用自动提交事务，就不会每insert或delete一条记录就调用此方法，
     //这样delta中就会有记录了，否则每次调用此方法清除row
     @Override
-    public void remove(Session session, Row row) {
+    public void remove(SessionLocal session, Row row) {
         // in-memory
         if (rowCount == 1) {
             rows = Utils.newSmallArrayList();
@@ -146,19 +146,19 @@ public class ScanIndex extends BaseIndex {
     }
 
     @Override
-    public Cursor find(Session session, SearchRow first, SearchRow last) {
+    public Cursor find(SessionLocal session, SearchRow first, SearchRow last) {
         return new ScanCursor(this);
     }
 
     @Override
-    public double getCost(Session session, int[] masks,
+    public double getCost(SessionLocal session, int[] masks,
             TableFilter[] filters, int filter, SortOrder sortOrder,
             AllColumnsForPlan allColumnsSet) {
-        return tableData.getRowCountApproximation() + Constants.COST_ROW_OFFSET;
+        return tableData.getRowCountApproximation(session) + Constants.COST_ROW_OFFSET;
     }
 
     @Override
-    public long getRowCount(Session session) {
+    public long getRowCount(SessionLocal session) {
         return rowCount;
     }
 
@@ -209,18 +209,13 @@ public class ScanIndex extends BaseIndex {
     }
 
     @Override
-    public long getRowCountApproximation() {
+    public long getRowCountApproximation(SessionLocal session) {
         return rowCount;
     }
 
     @Override
-    public long getDiskSpaceUsed() {
-        return 0;
-    }
-
-    @Override
     public String getPlanSQL() {
-        return table.getSQL(new StringBuilder(), false).append(".tableScan").toString();
+        return table.getSQL(new StringBuilder(), TRACE_SQL_FLAGS).append(".tableScan").toString();
     }
 
 }

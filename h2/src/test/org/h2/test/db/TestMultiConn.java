@@ -30,7 +30,7 @@ public class TestMultiConn extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -46,7 +46,7 @@ public class TestMultiConn extends TestDb {
         Connection conn1 = getConnection("multiConn");
         Connection conn2 = getConnection("multiConn");
         final Statement stat1 = conn1.createStatement();
-        stat1.execute("CREATE ALIAS SLEEP FOR \"java.lang.Thread.sleep(long)\"");
+        stat1.execute("CREATE ALIAS SLEEP FOR 'java.lang.Thread.sleep(long)'");
         final Statement stat2 = conn2.createStatement();
         stat1.execute("SET THROTTLE 100");
         Task t = new Task() {
@@ -199,16 +199,10 @@ public class TestMultiConn extends TestDb {
     /**
      * A database event listener used in this test.
      */
-    public static final class MyDatabaseEventListener implements
-            DatabaseEventListener {
+    public static final class MyDatabaseEventListener implements DatabaseEventListener {
 
         @Override
-        public void exceptionThrown(SQLException e, String sql) {
-            // do nothing
-        }
-
-        @Override
-        public void setProgress(int state, String name, int x, int max) {
+        public void setProgress(int state, String name, long x, long max) {
             if (wait > 0) {
                 try {
                     Thread.sleep(wait);
@@ -218,20 +212,6 @@ public class TestMultiConn extends TestDb {
             }
         }
 
-        @Override
-        public void closingDatabase() {
-            // do nothing
-        }
-
-        @Override
-        public void init(String url) {
-            // do nothing
-        }
-
-        @Override
-        public void opened() {
-            // do nothing
-        }
     }
 
 }

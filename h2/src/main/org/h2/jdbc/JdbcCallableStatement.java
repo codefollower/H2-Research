@@ -39,16 +39,14 @@ import org.h2.value.ValueNull;
  * @author Sergi Vladykin
  * @author Thomas Mueller
  */
-public class JdbcCallableStatement extends JdbcPreparedStatement implements
-        CallableStatement, JdbcCallableStatementBackwardsCompat {
+public class JdbcCallableStatement extends JdbcPreparedStatement implements CallableStatement {
 
     private BitSet outParameters;
     private int maxOutParameters;
     private HashMap<String, Integer> namedParameters;
 
-    JdbcCallableStatement(JdbcConnection conn, String sql, int id,
-            int resultSetType, int resultSetConcurrency) {
-        super(conn, sql, id, resultSetType, resultSetConcurrency, false, null);
+    JdbcCallableStatement(JdbcConnection conn, String sql, int id, int resultSetType, int resultSetConcurrency) {
+        super(conn, sql, id, resultSetType, resultSetConcurrency, null);
         setTrace(session.getTrace(), TraceObject.CALLABLE_STATEMENT, id);
     }
 

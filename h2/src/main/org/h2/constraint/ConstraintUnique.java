@@ -7,7 +7,7 @@ package org.h2.constraint;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.index.Index;
 import org.h2.result.Row;
 import org.h2.schema.Schema;
@@ -44,7 +44,7 @@ public class ConstraintUnique extends Constraint {
 
     private String getCreateSQLForCopy(Table forTable, String quotedName, boolean internalIndex) {
         StringBuilder builder = new StringBuilder("ALTER TABLE ");
-        forTable.getSQL(builder, true).append(" ADD CONSTRAINT ");
+        forTable.getSQL(builder, DEFAULT_SQL_FLAGS).append(" ADD CONSTRAINT ");
         if (forTable.isHidden()) {
             builder.append("IF NOT EXISTS ");
         }
@@ -54,28 +54,22 @@ public class ConstraintUnique extends Constraint {
             StringUtils.quoteStringSQL(builder, comment);
         }
         builder.append(' ').append(getConstraintType().getSqlName()).append('(');
-        for (int i = 0, l = columns.length; i < l; i++) {
-            if (i > 0) {
-                builder.append(", ");
-            }
-            columns[i].column.getSQL(builder, true);
-        }
-        builder.append(')');
+        IndexColumn.writeColumns(builder, columns, DEFAULT_SQL_FLAGS).append(')');
         if (internalIndex && indexOwner && forTable == this.table) {
             builder.append(" INDEX ");
-            index.getSQL(builder, true);
+            index.getSQL(builder, DEFAULT_SQL_FLAGS);
         }
         return builder.toString();
     }
 
     @Override
     public String getCreateSQLWithoutIndexes() {
-        return getCreateSQLForCopy(table, getSQL(true), false);
+        return getCreateSQLForCopy(table, getSQL(DEFAULT_SQL_FLAGS), false);
     }
 
     @Override
     public String getCreateSQL() {
-        return getCreateSQLForCopy(table, getSQL(true));
+        return getCreateSQLForCopy(table, getSQL(DEFAULT_SQL_FLAGS));
     }
 
     public void setColumns(IndexColumn[] columns) {
@@ -99,7 +93,7 @@ public class ConstraintUnique extends Constraint {
     }
 
     @Override
-    public void removeChildrenAndResources(Session session) {
+    public void removeChildrenAndResources(SessionLocal session) {
         ArrayList<Constraint> constraints = table.getConstraints();
         if (constraints != null) {
             constraints = new ArrayList<>(table.getConstraints());
@@ -122,7 +116,7 @@ public class ConstraintUnique extends Constraint {
 
 	//因为建立了Index，在Index加记录时已检查是否重复了，见org.h2.command.ddl.AlterTableAddConstraint.tryUpdate()
     @Override
-    public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
+    public void checkRow(SessionLocal session, Table t, Row oldRow, Row newRow) {
         // unique index check is enough
     }
 
@@ -151,7 +145,7 @@ public class ConstraintUnique extends Constraint {
     }
 
     @Override
-    public void checkExistingData(Session session) {
+    public void checkExistingData(SessionLocal session) {
         // no need to check: when creating the unique index any problems are
         // found
     }

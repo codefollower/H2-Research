@@ -8,7 +8,7 @@ package org.h2.pagestore.db;
 import java.util.Arrays;
 import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.engine.SysProperties;
 import org.h2.index.Cursor;
 import org.h2.message.DbException;
@@ -161,7 +161,7 @@ public class PageDataNode extends PageData {
     }
 
     @Override
-    Cursor find(Session session, long minKey, long maxKey) {
+    Cursor find(SessionLocal session, long minKey, long maxKey) {
         int x = find(minKey);
         int child = childPageIds[x];
         return index.getPage(child, getPos()).find(session, minKey, maxKey);
@@ -288,11 +288,11 @@ public class PageDataNode extends PageData {
                 int child = childPageIds[i];
                 PageData page = index.getPage(child, getPos());
                 if (getPos() == page.getPos()) {
-                    throw DbException.throwInternalError("Page is its own child: " + getPos());
+                    throw DbException.getInternalError("Page is its own child: " + getPos());
                 }
                 count += page.getRowCount();
                 index.getDatabase().setProgress(DatabaseEventListener.STATE_SCAN_FILE,
-                        index.getTable() + "." + index.getName(), count, Integer.MAX_VALUE);
+                        index.getTable() + "." + index.getName(), count, 0);
             }
             rowCount = count;
         }
@@ -306,12 +306,11 @@ public class PageDataNode extends PageData {
             int child = childPageIds[i];
             PageData page = index.getPage(child, getPos());
             if (getPos() == page.getPos()) {
-                throw DbException.throwInternalError("Page is its own child: " + getPos());
+                throw DbException.getInternalError("Page is its own child: " + getPos());
             }
             count += page.getDiskSpaceUsed();
             index.getDatabase().setProgress(DatabaseEventListener.STATE_SCAN_FILE,
-                    index.getTable() + "." + index.getName(),
-                    (int) (count >> 16), Integer.MAX_VALUE);
+                    index.getTable() + "." + index.getName(), count, 0);
         }
         return count;
     }
@@ -333,9 +332,8 @@ public class PageDataNode extends PageData {
     private void check() {
         if (SysProperties.CHECK) {
             for (int i = 0; i < entryCount + 1; i++) {
-                int child = childPageIds[i];
-                if (child == 0) {
-                    DbException.throwInternalError();
+                if (childPageIds[i] == 0) {
+                    throw DbException.getInternalError();
                 }
             }
         }
@@ -370,8 +368,7 @@ public class PageDataNode extends PageData {
             data.writeVarLong(keys[i]);
         }
         if (length != data.length()) {
-            DbException.throwInternalError("expected pos: " + length +
-                    " got: " + data.length());
+            throw DbException.getInternalError("expected pos: " + length + " got: " + data.length());
         }
         written = true;
     }
@@ -384,7 +381,7 @@ public class PageDataNode extends PageData {
         entryCount--;
         length -= 4 + Data.getVarLongLen(keys[removedKeyIndex]);
         if (entryCount < 0) {
-            DbException.throwInternalError(Integer.toString(entryCount));
+            throw DbException.getInternalError(Integer.toString(entryCount));
         }
         keys = remove(keys, entryCount + 1, removedKeyIndex);
         childPageIds = remove(childPageIds, entryCount + 2, i);
@@ -397,7 +394,7 @@ public class PageDataNode extends PageData {
     }
 
     @Override
-    public void moveTo(Session session, int newPos) {
+    public void moveTo(SessionLocal session, int newPos) {
         PageStore store = index.getPageStore();
         // load the pages into the cache, to ensure old pages
         // are written
@@ -449,7 +446,7 @@ public class PageDataNode extends PageData {
                 return;
             }
         }
-        throw DbException.throwInternalError(oldPos + " " + newPos);
+        throw DbException.getInternalError(oldPos + " " + newPos);
     }
 
 }

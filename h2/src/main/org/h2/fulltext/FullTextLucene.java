@@ -40,7 +40,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.h2.api.Trigger;
 import org.h2.command.Parser;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.ExpressionColumn;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.store.fs.FileUtils;
@@ -103,18 +103,13 @@ public class FullTextLucene extends FullText {
             stat.execute("CREATE TABLE IF NOT EXISTS " + SCHEMA +
                     ".INDEXES(SCHEMA VARCHAR, `TABLE` VARCHAR, " +
                     "COLUMNS VARCHAR, PRIMARY KEY(SCHEMA, `TABLE`))");
-            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_CREATE_INDEX FOR \"" +
-                    FullTextLucene.class.getName() + ".createIndex\"");
-            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_DROP_INDEX FOR \"" +
-                    FullTextLucene.class.getName() + ".dropIndex\"");
-            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_SEARCH FOR \"" +
-                    FullTextLucene.class.getName() + ".search\"");
-            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_SEARCH_DATA FOR \"" +
-                    FullTextLucene.class.getName() + ".searchData\"");
-            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_REINDEX FOR \"" +
-                    FullTextLucene.class.getName() + ".reindex\"");
-            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_DROP_ALL FOR \"" +
-                    FullTextLucene.class.getName() + ".dropAll\"");
+            String className = FullTextLucene.class.getName();
+            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_CREATE_INDEX FOR '" + className + ".createIndex'");
+            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_DROP_INDEX FOR '" + className + ".dropIndex'");
+            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_SEARCH FOR '" + className + ".search'");
+            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_SEARCH_DATA FOR '" + className + ".searchData'");
+            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_REINDEX FOR '" + className + ".reindex'");
+            stat.execute("CREATE ALIAS IF NOT EXISTS FTL_DROP_ALL FOR '" + className + ".dropAll'");
         }
     }
 
@@ -445,15 +440,15 @@ public class FullTextLucene extends FullText {
                     if (data) {
                         int idx = q.indexOf(" WHERE ");
                         JdbcConnection c = (JdbcConnection) conn;
-                        Session session = (Session) c.getSession();
+                        SessionLocal session = (SessionLocal) c.getSession();
                         Parser p = new Parser(session);
                         String tab = q.substring(0, idx);
                         ExpressionColumn expr = (ExpressionColumn) p
                                 .parseExpression(tab);
                         String schemaName = expr.getOriginalTableAliasName();
-                        String tableName = expr.getColumnName();
+                        String tableName = expr.getColumnName(session, -1);
                         q = q.substring(idx + " WHERE ".length());
-                        Object[][] columnData = parseKey(conn, q);
+                        String[][] columnData = parseKey(conn, q);
                         result.addRow(schemaName, tableName, columnData[0],
                                 columnData[1], score);
                     } else {

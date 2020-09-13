@@ -10,7 +10,7 @@ import org.h2.command.CommandInterface;
 import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
@@ -31,7 +31,7 @@ public class CreateIndex extends SchemaCommand {
     private boolean ifNotExists;
     private String comment;
 
-    public CreateIndex(Session session, Schema schema) {
+    public CreateIndex(SessionLocal session, Schema schema) {
         super(session, schema);
     }
 
@@ -56,13 +56,17 @@ public class CreateIndex extends SchemaCommand {
     }
 
     @Override
-    public int update() {
-    	//当执行这样的SQL时: create TEMPORARY table myTable(name varchar(500),CONSTRAINT myindex INDEX (name)) TRANSACTIONAL
-        //transactional为true
-    	//在org.h2.command.Parser.parseAlterTableAddConstraintIf(String, Schema)中为INDEX (name)构建一个CreateIndex
-    	//然后执行org.h2.command.ddl.CreateTable.update()时
-    	//在"for (DefineCommand command : constraintCommands)"那里触发此方法
-    	if (!transactional) {
+//<<<<<<< HEAD
+//    public int update() {
+//    	//当执行这样的SQL时: create TEMPORARY table myTable(name varchar(500),CONSTRAINT myindex INDEX (name)) TRANSACTIONAL
+//        //transactional为true
+//    	//在org.h2.command.Parser.parseAlterTableAddConstraintIf(String, Schema)中为INDEX (name)构建一个CreateIndex
+//    	//然后执行org.h2.command.ddl.CreateTable.update()时
+//    	//在"for (DefineCommand command : constraintCommands)"那里触发此方法
+//    	if (!transactional) {
+//=======
+    public long update() {
+        if (!transactional) {
             session.commit(true);
         }
         Database db = session.getDatabase();

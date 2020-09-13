@@ -13,7 +13,7 @@ import org.h2.util.StringUtils;
 /**
  * Represents a database object comment.
  */
-public class Comment extends DbObjectBase {
+public final class Comment extends DbObject {
 
     private final int objectType;
     private final String quotedObjectName;
@@ -22,12 +22,12 @@ public class Comment extends DbObjectBase {
     public Comment(Database database, int id, DbObject obj) {
         super(database, id,  getKey(obj), Trace.DATABASE);
         this.objectType = obj.getType();
-        this.quotedObjectName = obj.getSQL(true);
+        this.quotedObjectName = obj.getSQL(DEFAULT_SQL_FLAGS);
     }
 
     @Override
     public String getCreateSQLForCopy(Table table, String quotedName) {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     private static String getTypeName(int type) {
@@ -80,13 +80,13 @@ public class Comment extends DbObjectBase {
     }
 
     @Override
-    public void removeChildrenAndResources(Session session) {
+    public void removeChildrenAndResources(SessionLocal session) {
         database.removeMeta(session, getId());
     }
 
     @Override
     public void checkRename() {
-        DbException.throwInternalError();
+        throw DbException.getInternalError();
     }
 
     /**
@@ -98,7 +98,7 @@ public class Comment extends DbObjectBase {
      */
     static String getKey(DbObject obj) {
         StringBuilder builder = new StringBuilder(getTypeName(obj.getType())).append(' ');
-        obj.getSQL(builder, true);
+        obj.getSQL(builder, DEFAULT_SQL_FLAGS);
         return builder.toString();
     }
 

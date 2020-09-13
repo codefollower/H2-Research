@@ -19,6 +19,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.h2.api.ErrorCode;
@@ -48,7 +49,7 @@ public class TestMVTableEngine extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -204,7 +205,7 @@ public class TestMVTableEngine extends TestDb {
             Statement stat = conn.createStatement();
             ResultSet rs = stat.executeQuery("select * " +
                     "from information_schema.settings " +
-                    "where name = 'info.PAGE_COUNT'");
+                    "where setting_name = 'info.PAGE_COUNT'");
             rs.next();
             int pages = rs.getInt(2);
             // only one lob should remain (but it is small and compressed)
@@ -241,7 +242,7 @@ public class TestMVTableEngine extends TestDb {
             Statement stat = conn.createStatement();
             ResultSet rs = stat.executeQuery("select * " +
                     "from information_schema.settings " +
-                    "where name = 'info.PAGE_COUNT'");
+                    "where setting_name = 'info.PAGE_COUNT'");
             rs.next();
             int pages = rs.getInt(2);
             // no lobs should remain
@@ -671,8 +672,8 @@ public class TestMVTableEngine extends TestDb {
                 retentionTime = 0;
             }
             ResultSet rs = stat.executeQuery(
-                    "select value from information_schema.settings " +
-                    "where name='RETENTION_TIME'");
+                    "select setting_value from information_schema.settings " +
+                    "where setting_name='RETENTION_TIME'");
             assertTrue(rs.next());
             assertEquals(retentionTime, rs.getInt(1));
             stat.execute("create table test(id int primary key, data varchar)");
@@ -1150,24 +1151,24 @@ public class TestMVTableEngine extends TestDb {
                 "ti time," +
                 "da date," +
                 "ts timestamp," +
-                "bin binary," +
+                "bin varbinary," +
                 "uu uuid," +
                 "bl blob," +
                 "cl clob)");
         stat.execute("insert into test values(1000, '', '', null, 0, 0, 0, "
                 + "9, 2, 3, '10:00:00', '2001-01-01', "
-                + "'2010-10-10 10:10:10', x'00', 0, x'b1', 'clob')");
+                + "'2010-10-10 10:10:10', x'00', '01234567-89AB-CDEF-0123-456789ABCDEF', x'b1', 'clob')");
         stat.execute("insert into test values(1, 'vc', 'ch', true, 8, 16, 64, "
                 + "123.00, 64.0, 32.0, '10:00:00', '2001-01-01', "
-                + "'2010-10-10 10:10:10', x'00', 0, x'b1', 'clob')");
+                + "'2010-10-10 10:10:10', x'00', '01234567-89AB-CDEF-0123-456789ABCDEF', x'b1', 'clob')");
         stat.execute("insert into test values(-1, "
                 + "'quite a long string \u1234 \u00ff', 'ch', false, -8, -16, -64, "
                 + "0, 0, 0, '10:00:00', '2001-01-01', "
-                + "'2010-10-10 10:10:10', SECURE_RAND(100), 0, x'b1', 'clob')");
+                + "'2010-10-10 10:10:10', SECURE_RAND(100), RANDOM_UUID(), x'b1', 'clob')");
         stat.execute("insert into test values(-1000, space(1000), 'ch', "
                 + "false, -8, -16, -64, "
                 + "1, 1, 1, '10:00:00', '2001-01-01', "
-                + "'2010-10-10 10:10:10', SECURE_RAND(100), 0, x'b1', 'clob')");
+                + "'2010-10-10 10:10:10', SECURE_RAND(100), RANDOM_UUID(), x'b1', 'clob')");
         if (!config.memory) {
             conn.close();
             conn = getConnection(dbName);
@@ -1178,7 +1179,7 @@ public class TestMVTableEngine extends TestDb {
         rs.next();
         assertEquals(1000, rs.getInt(1));
         assertEquals("", rs.getString(2));
-        assertEquals("", rs.getString(3));
+        assertEquals("          ", rs.getString(3));
         assertFalse(rs.getBoolean(4));
         assertEquals(0, rs.getByte(5));
         assertEquals(0, rs.getShort(6));
@@ -1190,14 +1191,13 @@ public class TestMVTableEngine extends TestDb {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10", rs.getString(13));
         assertEquals(1, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000",
-                rs.getString(15));
+        assertEquals(UUID.fromString("01234567-89AB-CDEF-0123-456789ABCDEF"), rs.getObject(15));
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
         rs.next();
         assertEquals(1, rs.getInt(1));
         assertEquals("vc", rs.getString(2));
-        assertEquals("ch", rs.getString(3));
+        assertEquals("ch        ", rs.getString(3));
         assertTrue(rs.getBoolean(4));
         assertEquals(8, rs.getByte(5));
         assertEquals(16, rs.getShort(6));
@@ -1209,15 +1209,14 @@ public class TestMVTableEngine extends TestDb {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10", rs.getString(13));
         assertEquals(1, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000",
-                rs.getString(15));
+        assertEquals(UUID.fromString("01234567-89AB-CDEF-0123-456789ABCDEF"), rs.getObject(15));
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
         rs.next();
         assertEquals(-1, rs.getInt(1));
         assertEquals("quite a long string \u1234 \u00ff",
                 rs.getString(2));
-        assertEquals("ch", rs.getString(3));
+        assertEquals("ch        ", rs.getString(3));
         assertFalse(rs.getBoolean(4));
         assertEquals(-8, rs.getByte(5));
         assertEquals(-16, rs.getShort(6));
@@ -1229,14 +1228,13 @@ public class TestMVTableEngine extends TestDb {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10", rs.getString(13));
         assertEquals(100, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000",
-                rs.getString(15));
+        assertEquals(2, rs.getObject(15, UUID.class).variant());
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
         rs.next();
         assertEquals(-1000, rs.getInt(1));
         assertEquals(1000, rs.getString(2).length());
-        assertEquals("ch", rs.getString(3));
+        assertEquals("ch        ", rs.getString(3));
         assertFalse(rs.getBoolean(4));
         assertEquals(-8, rs.getByte(5));
         assertEquals(-16, rs.getShort(6));
@@ -1248,30 +1246,31 @@ public class TestMVTableEngine extends TestDb {
         assertEquals("2001-01-01", rs.getString(12));
         assertEquals("2010-10-10 10:10:10", rs.getString(13));
         assertEquals(100, rs.getBytes(14).length);
-        assertEquals("00000000-0000-0000-0000-000000000000",
-                rs.getString(15));
+        assertEquals(2, rs.getObject(15, UUID.class).variant());
         assertEquals(1, rs.getBytes(16).length);
         assertEquals("clob", rs.getString(17));
 
         stat.execute("drop table test");
 
         stat.execute("create table test(id int, obj object, " +
-                "rs result_set, arr array, ig varchar_ignorecase)");
+                "rs row(a int), arr1 int array, arr2 numeric(1000) array, ig varchar_ignorecase)");
         PreparedStatement prep = conn.prepareStatement(
-                "insert into test values(?, ?, ?, ?, ?)");
+                "insert into test values(?, ?, ?, ?, ?, ?)");
         prep.setInt(1, 1);
         prep.setObject(2, new java.lang.AssertionError());
         prep.setObject(3, stat.executeQuery("select 1 from dual"));
         prep.setObject(4, new Object[]{1, 2});
-        prep.setObject(5, "test");
+        prep.setObject(5, new Object[0]);
+        prep.setObject(6, "test");
         prep.execute();
         prep.setInt(1, 1);
         prep.setObject(2, new java.lang.AssertionError());
         prep.setObject(3, stat.executeQuery("select 1 from dual"));
-        prep.setObject(4, new Object[]{
+        prep.setObject(4, new Object[0]);
+        prep.setObject(5, new Object[]{
                 new BigDecimal(new String(
                 new char[1000]).replace((char) 0, '1'))});
-        prep.setObject(5, "test");
+        prep.setObject(6, "test");
         prep.execute();
         if (!config.memory) {
             conn.close();

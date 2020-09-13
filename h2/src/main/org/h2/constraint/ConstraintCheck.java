@@ -7,7 +7,7 @@ package org.h2.constraint;
 
 import java.util.HashSet;
 import org.h2.api.ErrorCode;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.index.Index;
@@ -50,7 +50,7 @@ public class ConstraintCheck extends Constraint {
     @Override
     public String getCreateSQLForCopy(Table forTable, String quotedName) {
         StringBuilder buff = new StringBuilder("ALTER TABLE ");
-        forTable.getSQL(buff, true).append(" ADD CONSTRAINT ");
+        forTable.getSQL(buff, DEFAULT_SQL_FLAGS).append(" ADD CONSTRAINT ");
         if (forTable.isHidden()) {
             buff.append("IF NOT EXISTS ");
         }
@@ -59,14 +59,14 @@ public class ConstraintCheck extends Constraint {
             buff.append(" COMMENT ");
             StringUtils.quoteStringSQL(buff, comment);
         }
-        buff.append(" CHECK(");
-        expr.getUnenclosedSQL(buff, true).append(") NOCHECK");
+        buff.append(" CHECK");
+        expr.getEnclosedSQL(buff, DEFAULT_SQL_FLAGS).append(" NOCHECK");
         return buff.toString();
     }
 
     private String getShortDescription() {
         StringBuilder builder = new StringBuilder().append(getName()).append(": ");
-        expr.getSQL(builder, false);
+        expr.getTraceSQL();
         return builder.toString();
     }
 
@@ -77,11 +77,11 @@ public class ConstraintCheck extends Constraint {
 
     @Override
     public String getCreateSQL() {
-        return getCreateSQLForCopy(table, getSQL(true));
+        return getCreateSQLForCopy(table, getSQL(DEFAULT_SQL_FLAGS));
     }
 
     @Override
-    public void removeChildrenAndResources(Session session) {
+    public void removeChildrenAndResources(SessionLocal session) {
         table.removeConstraint(this);
         database.removeMeta(session, getId());
         filter = null;
@@ -92,7 +92,7 @@ public class ConstraintCheck extends Constraint {
     
     //只用于insert和update
     @Override
-    public void checkRow(Session session, Table t, Row oldRow, Row newRow) {
+    public void checkRow(SessionLocal session, Table t, Row oldRow, Row newRow) {
         if (newRow == null) {
             return;
         }
@@ -123,7 +123,7 @@ public class ConstraintCheck extends Constraint {
 
     @Override
     public void setIndexOwner(Index index) {
-        DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -145,7 +145,7 @@ public class ConstraintCheck extends Constraint {
 
     //通常是在构建约束对象之后马上根据CHECK和NOCHECK调用与不调用
     @Override
-    public void checkExistingData(Session session) { //比如用于alter时
+    public void checkExistingData(SessionLocal session) { //比如用于alter时
         if (session.getDatabase().isStarting()) {
             // don't check at startup
             return;
@@ -153,9 +153,9 @@ public class ConstraintCheck extends Constraint {
         //用NOT，意思就是说只要找到一个反例就与约束冲突了
         //比如，如果是CHECK f1 not null，
         //如果此时表中的f1字段存在null值，那么这个约束就创建失败
-        StringBuilder builder = new StringBuilder().append("SELECT 1 FROM ");
-        filter.getTable().getSQL(builder, true).append(" WHERE NOT(");
-        expr.getSQL(builder, true).append(')');
+        StringBuilder builder = new StringBuilder().append("SELECT NULL FROM ");
+        filter.getTable().getSQL(builder, DEFAULT_SQL_FLAGS).append(" WHERE NOT ");
+        expr.getSQL(builder, DEFAULT_SQL_FLAGS, Expression.AUTO_PARENTHESES);
         String sql = builder.toString();
         ResultInterface r = session.prepare(sql).query(1);
         if (r.next()) {

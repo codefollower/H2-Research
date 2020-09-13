@@ -592,7 +592,7 @@ public class BuildBase {
      */
     protected void downloadUsingMaven(String target, String group,
             String artifact, String version, String sha1Checksum) {
-        String repoDir = "http://repo1.maven.org/maven2";
+        String repoDir = "https://repo1.maven.org/maven2";
         Path targetFile = Paths.get(target);
         if (Files.exists(targetFile)) {
             return;
@@ -662,7 +662,7 @@ public class BuildBase {
             int len = 0;
             while (true) {
                 long now = System.nanoTime();
-                if (now > last + TimeUnit.SECONDS.toNanos(1)) {
+                if (now - last > 1_000_000_000L) {
                     println("Downloaded " + len + " bytes");
                     last = now;
                 }

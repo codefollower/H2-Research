@@ -11,22 +11,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.h2.api.ErrorCode;
-import org.h2.command.dml.Select;
-import org.h2.command.dml.SelectOrderBy;
+import org.h2.command.query.QueryOrderBy;
+import org.h2.command.query.Select;
+import org.h2.engine.Constants;
 import org.h2.engine.Database;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.expression.ExpressionWithFlags;
-import org.h2.expression.Subquery;
 import org.h2.expression.ValueExpression;
 import org.h2.expression.analysis.Window;
-import org.h2.expression.function.Function;
+import org.h2.expression.function.BitFunction;
+import org.h2.expression.function.JsonConstructorFunction;
 import org.h2.index.Cursor;
 import org.h2.index.Index;
 import org.h2.message.DbException;
@@ -37,19 +40,21 @@ import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
 import org.h2.table.Table;
 import org.h2.table.TableFilter;
+import org.h2.util.StringUtils;
 import org.h2.value.CompareMode;
 import org.h2.value.DataType;
+import org.h2.value.ExtTypeInfoRow;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
+import org.h2.value.ValueBigint;
 import org.h2.value.ValueBoolean;
 import org.h2.value.ValueDouble;
-import org.h2.value.ValueInt;
+import org.h2.value.ValueInteger;
 import org.h2.value.ValueJson;
-import org.h2.value.ValueLong;
 import org.h2.value.ValueNull;
 import org.h2.value.ValueRow;
-import org.h2.value.ValueString;
+import org.h2.value.ValueVarchar;
 
 /**
  * Implements the integrated aggregate functions, such as COUNT, MAX, SUM.
@@ -74,8 +79,10 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
 
     private final AggregateType aggregateType;
 
-    private ArrayList<SelectOrderBy> orderByList;
+    private ArrayList<QueryOrderBy> orderByList;
     private SortOrder orderBySort;
+
+    private Object extraArguments;
 
     private int flags;
 
@@ -94,7 +101,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     public Aggregate(AggregateType aggregateType, Expression[] args, Select select, boolean distinct) {
         super(select, args, distinct);
         if (distinct && aggregateType == AggregateType.COUNT_ALL) {
-            throw DbException.throwInternalError();
+            throw DbException.getInternalError();
         }
         this.aggregateType = aggregateType;
     }
@@ -130,8 +137,14 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         // PostgreSQL compatibility
         addAggregate("BOOL_AND", AggregateType.EVERY);
         addAggregate("HISTOGRAM", AggregateType.HISTOGRAM);
-        addAggregate("BIT_OR", AggregateType.BIT_OR);
-        addAggregate("BIT_AND", AggregateType.BIT_AND);
+        addAggregate("BIT_AND_AGG", AggregateType.BIT_AND_AGG);
+        addAggregate("BIT_AND", AggregateType.BIT_AND_AGG);
+        addAggregate("BIT_OR_AGG", AggregateType.BIT_OR_AGG);
+        addAggregate("BIT_OR", AggregateType.BIT_OR_AGG);
+        addAggregate("BIT_XOR_AGG", AggregateType.BIT_XOR_AGG);
+        addAggregate("BIT_NAND_AGG", AggregateType.BIT_NAND_AGG);
+        addAggregate("BIT_NOR_AGG", AggregateType.BIT_NOR_AGG);
+        addAggregate("BIT_XNOR_AGG", AggregateType.BIT_XNOR_AGG);
 
         addAggregate("RANK", AggregateType.RANK);
         addAggregate("DENSE_RANK", AggregateType.DENSE_RANK);
@@ -175,7 +188,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
      * @param orderByList
      *            the order by list
      */
-    public void setOrderByList(ArrayList<SelectOrderBy> orderByList) {
+    public void setOrderByList(ArrayList<QueryOrderBy> orderByList) {
         this.orderByList = orderByList;
     }
 
@@ -186,6 +199,24 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
      */
     public AggregateType getAggregateType() {
         return aggregateType;
+    }
+
+    /**
+     * Sets the additional arguments.
+     *
+     * @param extraArguments the additional arguments
+     */
+    public void setExtraArguments(Object extraArguments) {
+        this.extraArguments = extraArguments;
+    }
+
+    /**
+     * Returns the additional arguments.
+     *
+     * @return the additional arguments
+     */
+    public Object getExtraArguments() {
+        return extraArguments;
     }
 
     @Override
@@ -207,21 +238,17 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     }
 
     @Override
-    protected void updateAggregate(Session session, Object aggregateData) {
+    protected void updateAggregate(SessionLocal session, Object aggregateData) {
         AggregateData data = (AggregateData) aggregateData;
         Value v = args.length == 0 ? null : args[0].getValue(session);
         updateData(session, data, v, null);
     }
 
-    private void updateData(Session session, AggregateData data, Value v, Value[] remembered) {
+    private void updateData(SessionLocal session, AggregateData data, Value v, Value[] remembered) {
         switch (aggregateType) {
         case LISTAGG:
             if (v != ValueNull.INSTANCE) {
-                v = updateCollecting(session, v.convertTo(Value.VARCHAR), remembered);
-            }
-            if (args.length >= 2) {
-                ((AggregateDataCollecting) data).setSharedArgument(
-                        remembered != null ? remembered[1] : args[1].getValue(session));
+                v = updateCollecting(session, v.convertTo(TypeInfo.TYPE_VARCHAR), remembered);
             }
             break;
         case ARRAY_AGG:
@@ -255,7 +282,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         case JSON_ARRAYAGG:
             if (v != ValueNull.INSTANCE) {
                 v = updateCollecting(session, v, remembered);
-            } else if ((flags & Function.JSON_ABSENT_ON_NULL) == 0) {
+            } else if ((flags & JsonConstructorFunction.JSON_ABSENT_ON_NULL) == 0) {
                 v = updateCollecting(session, ValueJson.NULL, remembered);
             } else {
                 return;
@@ -269,7 +296,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             }
             if (value != ValueNull.INSTANCE) {
                 v = ValueRow.get(new Value[] { key, value });
-            } else if ((flags & Function.JSON_ABSENT_ON_NULL) == 0) {
+            } else if ((flags & JsonConstructorFunction.JSON_ABSENT_ON_NULL) == 0) {
                 v = ValueRow.get(new Value[] { key, ValueJson.NULL });
             } else {
                 return;
@@ -283,26 +310,26 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     }
 
     @Override
-    protected void updateGroupAggregates(Session session, int stage) {
+    protected void updateGroupAggregates(SessionLocal session, int stage) {
         super.updateGroupAggregates(session, stage);
         for (Expression arg : args) {
             arg.updateAggregate(session, stage);
         }
         if (orderByList != null) {
-            for (SelectOrderBy orderBy : orderByList) {
+            for (QueryOrderBy orderBy : orderByList) {
                 orderBy.expression.updateAggregate(session, stage);
             }
         }
     }
 
-    private Value updateCollecting(Session session, Value v, Value[] remembered) {
+    private Value updateCollecting(SessionLocal session, Value v, Value[] remembered) {
         if (orderByList != null) {
             int size = orderByList.size();
             Value[] row = new Value[1 + size];
             row[0] = v;
             if (remembered == null) {
                 for (int i = 0; i < size; i++) {
-                    SelectOrderBy o = orderByList.get(i);
+                    QueryOrderBy o = orderByList.get(i);
                     row[i + 1] = o.expression.getValue(session);
                 }
             } else {
@@ -326,13 +353,13 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     }
 
     @Override
-    protected void rememberExpressions(Session session, Value[] array) {
+    protected void rememberExpressions(SessionLocal session, Value[] array) {
         int offset = 0;
         for (Expression arg : args) {
             array[offset++] = arg.getValue(session);
         }
         if (orderByList != null) {
-            for (SelectOrderBy o : orderByList) {
+            for (QueryOrderBy o : orderByList) {
                 array[offset++] = o.expression.getValue(session);
             }
         }
@@ -342,7 +369,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     }
 
     @Override
-    protected void updateFromExpressions(Session session, Object aggregateData, Value[] array) {
+    protected void updateFromExpressions(SessionLocal session, Object aggregateData, Value[] array) {
         if (filterCondition == null || array[getNumExpressions() - 1].getBoolean()) {
             AggregateData data = (AggregateData) aggregateData;
             Value v = args.length == 0 ? null : array[0];
@@ -352,22 +379,22 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
 
     @Override
     protected Object createAggregateData() {
-        return AggregateData.create(aggregateType, distinct, type.getValueType(), orderByList != null);
+        return AggregateData.create(aggregateType, distinct, type, orderByList != null);
     }
 
     @Override
-    public Value getValue(Session session) {
+    public Value getValue(SessionLocal session) {
         return select.isQuickAggregateQuery() ? getValueQuick(session) : super.getValue(session);
     }
 
-    private Value getValueQuick(Session session) {
-        //快速聚合查询，行数通过索引里的某个字段就能得到
-        //同样min、max也好得到，因为b-tree索引是有序的，只要字段是索引主键min就是第一行、max就是最后一行
+    // 快速聚合查询，行数通过索引里的某个字段就能得到
+    // 同样min、max也好得到，因为b-tree索引是有序的，只要字段是索引主键min就是第一行、max就是最后一行
+    private Value getValueQuick(SessionLocal session) {
         switch (aggregateType) {
         case COUNT:
         case COUNT_ALL:
             Table table = select.getTopTableFilter().getTable();
-            return ValueLong.get(table.getRowCount(session));
+            return ValueBigint.get(table.getRowCount(session));
         case MIN:
         case MAX: {
             boolean first = aggregateType == AggregateType.MIN;
@@ -406,12 +433,12 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         case ENVELOPE:
             return ((MVSpatialIndex) AggregateDataEnvelope.getGeometryColumnIndex(args[0])).getBounds(session);
         default:
-            throw DbException.throwInternalError("type=" + aggregateType);
+            throw DbException.getInternalError("type=" + aggregateType);
         }
     }
 
     @Override
-    public Value getAggregatedValue(Session session, Object aggregateData) {
+    public Value getAggregatedValue(SessionLocal session, Object aggregateData) {
         AggregateData data = (AggregateData) aggregateData;
         if (data == null) {
             data = (AggregateData) createAggregateData();
@@ -419,7 +446,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         switch (aggregateType) {
         case COUNT:
             if (distinct) {
-                return ValueLong.get(((AggregateDataCollecting) data).getCount());
+                return ValueBigint.get(((AggregateDataCollecting) data).getCount());
             }
             break;
         case SUM:
@@ -428,17 +455,18 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         case STDDEV_SAMP:
         case VAR_POP:
         case VAR_SAMP:
+        case BIT_XOR_AGG:
+        case BIT_XNOR_AGG:
             if (distinct) {
                 AggregateDataCollecting c = ((AggregateDataCollecting) data);
                 if (c.getCount() == 0) {
                     return ValueNull.INSTANCE;
                 }
-                AggregateDataDefault d = new AggregateDataDefault(aggregateType, type.getValueType());
-                int dataType = type.getValueType();
+                AggregateDataDefault d = new AggregateDataDefault(aggregateType, type);
                 for (Value v : c) {
                     d.add(session, v);
                 }
-                return d.getValue(session, dataType);
+                return d.getValue(session);
             }
             break;
         case HISTOGRAM:
@@ -458,7 +486,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                     array[i] = ((ValueRow) array[i]).getList()[0];
                 }
             }
-            return ValueArray.get(array);
+            return ValueArray.get(array, session);
         }
         case RANK:
         case DENSE_RANK:
@@ -508,7 +536,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 if (orderByList != null) {
                     v = ((ValueRow) v).getList()[0];
                 }
-                Function.jsonArrayAppend(baos, v, flags);
+                JsonConstructorFunction.jsonArrayAppend(baos, v, flags);
             }
             baos.write(']');
             return ValueJson.getInternal(baos.toByteArray());
@@ -526,24 +554,24 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 if (key == null) {
                     throw DbException.getInvalidValueException("JSON_OBJECTAGG key", "NULL");
                 }
-                Function.jsonObjectAppend(baos, key, row[1]);
+                JsonConstructorFunction.jsonObjectAppend(baos, key, row[1]);
             }
-            return Function.jsonObjectFinish(baos, flags);
+            return JsonConstructorFunction.jsonObjectFinish(baos, flags);
         }
         default:
             // Avoid compiler warning
         }
-        return data.getValue(session, type.getValueType());
+        return data.getValue(session);
     }
 
-    private Value getHypotheticalSet(Session session, AggregateData data) {
+    private Value getHypotheticalSet(SessionLocal session, AggregateData data) {
         AggregateDataCollecting collectingData = (AggregateDataCollecting) data;
         Value arg = collectingData.getSharedArgument();
         if (arg == null) {
             switch (aggregateType) {
             case RANK:
             case DENSE_RANK:
-                return ValueInt.get(1);
+                return ValueInteger.get(1);
             case PERCENT_RANK:
                 return ValueDouble.ZERO;
             case CUME_DIST:
@@ -578,13 +606,13 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 int nm = number - 1;
                 v = nm == 0 ? ValueDouble.ZERO : ValueDouble.get((double) nm / (size - 1));
             } else {
-                v = ValueLong.get(number);
+                v = ValueBigint.get(number);
             }
             if (sort.compare(row, arg) == 0) {
                 return v;
             }
         }
-        throw DbException.throwInternalError();
+        throw DbException.getInternalError();
     }
 
     private static Value getCumeDist(Value[] ordered, Value arg, Comparator<Value> sort) {
@@ -603,37 +631,84 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             }
             start = end;
         }
-        throw DbException.throwInternalError();
+        throw DbException.getInternalError();
     }
 
-    private Value getListagg(Session session, AggregateData data) {
+    private Value getListagg(SessionLocal session, AggregateData data) {
         AggregateDataCollecting collectingData = (AggregateDataCollecting) data;
         Value[] array = collectingData.getArray();
         if (array == null) {
             return ValueNull.INSTANCE;
         }
+        if (array.length == 1) {
+            Value v = array[0];
+            if (orderByList != null) {
+                v = ((ValueRow) v).getList()[0];
+            }
+            return v.convertTo(Value.VARCHAR, session);
+        }
         if (orderByList != null || distinct) {
             sortWithOrderBy(array);
         }
-        StringBuilder builder = new StringBuilder();
-        String sep = args.length < 2 ? "," : collectingData.getSharedArgument().getString();
-        for (int i = 0, length = array.length; i < length; i++) {
-            Value val = array[i];
-            String s;
-            if (orderByList != null) {
-                s = ((ValueRow) val).getList()[0].getString();
-            } else {
-                s = val.getString();
-            }
-            if (sep != null && i > 0) {
-                builder.append(sep);
-            }
-            builder.append(s);
-        }
-        return ValueString.get(builder.toString());
+        ListaggArguments arguments = (ListaggArguments) extraArguments;
+        String separator = arguments.getEffectiveSeparator();
+        return ValueVarchar
+                .get((arguments.getOnOverflowTruncate()
+                        ? getListaggTruncate(session, array, separator, arguments.getEffectiveFilter(),
+                                arguments.isWithoutCount())
+                        : getListaggError(session, array, separator)).toString(), session);
     }
 
-    private static Value getHistogram(Session session, AggregateData data) {
+    private StringBuilder getListaggError(SessionLocal session, Value[] array, String separator) {
+        StringBuilder builder = new StringBuilder(getListaggItem(array[0]));
+        for (int i = 1, count = array.length; i < count; i++) {
+            builder.append(separator).append(getListaggItem(array[i]));
+            if (builder.length() > Constants.MAX_STRING_LENGTH) {
+                throw DbException.getValueTooLongException("CHARACTER VARYING", builder.substring(0, 81), -1L);
+            }
+        }
+        return builder;
+    }
+
+    private StringBuilder getListaggTruncate(SessionLocal session, Value[] array, String separator, String filter,
+            boolean withoutCount) {
+        int count = array.length;
+        String[] strings = new String[count];
+        String s = getListaggItem(array[0]);
+        strings[0] = s;
+        StringBuilder builder = new StringBuilder(s);
+        loop: for (int i = 1; i < count; i++) {
+            builder.append(separator).append(strings[i] = s = getListaggItem(array[i]));
+            int length = builder.length();
+            if (length > Constants.MAX_STRING_LENGTH) {
+                for (; i > 0; i--) {
+                    length -= strings[i].length();
+                    builder.setLength(length);
+                    builder.append(filter);
+                    if (!withoutCount) {
+                        builder.append('(').append(count - i).append(')');
+                    }
+                    if (builder.length() <= Constants.MAX_STRING_LENGTH) {
+                        break loop;
+                    }
+                    length -= separator.length();
+                }
+                builder.setLength(0);
+                builder.append(filter).append('(').append(count).append(')');
+                break;
+            }
+        }
+        return builder;
+    }
+
+    private String getListaggItem(Value v) {
+        if (orderByList != null) {
+            v = ((ValueRow) v).getList()[0];
+        }
+        return v.getString();
+    }
+
+    private static Value getHistogram(SessionLocal session, AggregateData data) {
         TreeMap<Value, LongDataCounter> distinctValues = ((AggregateDataDistinctWithCounts) data).getValues();
         if (distinctValues == null) {
             return ValueArray.EMPTY;
@@ -642,16 +717,16 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         int i = 0;
         for (Entry<Value, LongDataCounter> entry : distinctValues.entrySet()) {
             LongDataCounter d = entry.getValue();
-            values[i] = ValueRow.get(new Value[] { entry.getKey(), ValueLong.get(d.count) });
+            values[i] = ValueRow.get(new Value[] { entry.getKey(), ValueBigint.get(d.count) });
             i++;
         }
         Database db = session.getDatabase();
         CompareMode compareMode = db.getCompareMode();
         Arrays.sort(values, (v1, v2) -> v1.getList()[0].compareTo(v2.getList()[0], session, compareMode));
-        return ValueArray.get(values);
+        return ValueArray.get(values, session);
     }
 
-    private Value getMode(Session session, AggregateData data) {
+    private Value getMode(SessionLocal session, AggregateData data) {
         Value v = ValueNull.INSTANCE;
         TreeMap<Value, LongDataCounter> distinctValues = ((AggregateDataDistinctWithCounts) data).getValues();
         if (distinctValues == null) {
@@ -687,13 +762,13 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
                 }
             }
         }
-        return v.convertTo(type.getValueType());
+        return v;
     }
 
     @Override
     public void mapColumnsAnalysis(ColumnResolver resolver, int level, int innerState) {
         if (orderByList != null) {
-            for (SelectOrderBy o : orderByList) {
+            for (QueryOrderBy o : orderByList) {
                 o.expression.mapColumns(resolver, level, innerState);
             }
         }
@@ -701,15 +776,12 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         super.optimize(session);
         if (args.length == 1) {
             type = args[0].getType();
         }
         if (orderByList != null) {
-            for (SelectOrderBy o : orderByList) {
-                o.expression = o.expression.optimize(session);
-            }
             int offset;
             switch (aggregateType) {
             case ARRAY_AGG:
@@ -720,7 +792,20 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             default:
                 offset = 0;
             }
-            orderBySort = createOrder(session, orderByList, offset);
+            for (Iterator<QueryOrderBy> i = orderByList.iterator(); i.hasNext();) {
+                QueryOrderBy o = i.next();
+                Expression e = o.expression.optimize(session);
+                if (offset != 0 && e.isConstant()) {
+                    i.remove();
+                } else {
+                    o.expression = e;
+                }
+            }
+            if (orderByList.isEmpty()) {
+                orderByList = null;
+            } else {
+                orderBySort = createOrder(session, orderByList, offset);
+            }
         }
         switch (aggregateType) {
         case LISTAGG:
@@ -732,7 +817,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         case COUNT:
             if (args[0].isConstant()) {
                 if (args[0].getValue(session) == ValueNull.INSTANCE) {
-                    return ValueExpression.get(ValueLong.get(0L));
+                    return ValueExpression.get(ValueBigint.get(0L));
                 }
                 if (!distinct) {
                     Aggregate aggregate = new Aggregate(AggregateType.COUNT_ALL, new Expression[0], select, false);
@@ -743,16 +828,21 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             }
             type = TypeInfo.TYPE_BIGINT;
             break;
-        case HISTOGRAM:
-            type = TypeInfo.TYPE_ARRAY;
+        case HISTOGRAM: {
+            LinkedHashMap<String, TypeInfo> fields = new LinkedHashMap<>(4);
+            fields.put("VALUE", type);
+            fields.put("COUNT", TypeInfo.TYPE_BIGINT);
+            type = TypeInfo.getTypeInfo(Value.ARRAY, -1, 0,
+                    TypeInfo.getTypeInfo(Value.ROW, -1, -1, new ExtTypeInfoRow(fields)));
             break;
+        }
         case SUM: {
             int dataType = type.getValueType();
             if (dataType == Value.BOOLEAN) {
                 // example: sum(id > 3) (count the rows)
                 type = TypeInfo.TYPE_BIGINT;
             } else if (!DataType.supportsAdd(dataType)) {
-                throw DbException.get(ErrorCode.SUM_OR_AVG_ON_WRONG_DATATYPE_1, getSQL(false));
+                throw DbException.get(ErrorCode.SUM_OR_AVG_ON_WRONG_DATATYPE_1, getTraceSQL());
             } else {
                 type = TypeInfo.getTypeInfo(DataType.getAddProofType(dataType));
             }
@@ -760,7 +850,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         }
         case AVG:
             if (!DataType.supportsAdd(type.getValueType())) {
-                throw DbException.get(ErrorCode.SUM_OR_AVG_ON_WRONG_DATATYPE_1, getSQL(false));
+                throw DbException.get(ErrorCode.SUM_OR_AVG_ON_WRONG_DATATYPE_1, getTraceSQL());
             }
             break;
         case MIN:
@@ -781,11 +871,12 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             switch (type.getValueType()) {
             case Value.TINYINT:
             case Value.SMALLINT:
-            case Value.INT:
+            case Value.INTEGER:
             case Value.BIGINT:
             case Value.NUMERIC:
-            case Value.DOUBLE:
             case Value.REAL:
+            case Value.DOUBLE:
+            case Value.DECFLOAT:
                 type = TypeInfo.TYPE_NUMERIC_FLOATING_POINT;
                 break;
             }
@@ -804,14 +895,16 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         case ANY:
             type = TypeInfo.TYPE_BOOLEAN;
             break;
-        case BIT_AND:
-        case BIT_OR:
-            if (!DataType.supportsAdd(type.getValueType())) {
-                throw DbException.get(ErrorCode.SUM_OR_AVG_ON_WRONG_DATATYPE_1, getSQL(false));
-            }
+        case BIT_AND_AGG:
+        case BIT_OR_AGG:
+        case BIT_XOR_AGG:
+        case BIT_NAND_AGG:
+        case BIT_NOR_AGG:
+        case BIT_XNOR_AGG:
+            BitFunction.checkArgType(args[0]);
             break;
         case ARRAY_AGG:
-            type = TypeInfo.TYPE_ARRAY;
+            type = TypeInfo.getTypeInfo(Value.ARRAY, -1, 0, args[0].getType());
             break;
         case ENVELOPE:
             type = TypeInfo.TYPE_GEOMETRY;
@@ -821,7 +914,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             type = TypeInfo.TYPE_JSON;
             break;
         default:
-            DbException.throwInternalError("type=" + aggregateType);
+            throw DbException.getInternalError("type=" + aggregateType);
         }
         return this;
     }
@@ -829,7 +922,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     @Override
     public void setEvaluatable(TableFilter tableFilter, boolean b) {
         if (orderByList != null) {
-            for (SelectOrderBy o : orderByList) {
+            for (QueryOrderBy o : orderByList) {
                 o.expression.setEvaluatable(tableFilter, b);
             }
         }
@@ -837,11 +930,11 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
         String text;
         switch (aggregateType) {
         case COUNT_ALL:
-            return appendTailConditions(builder.append("COUNT(*)"), alwaysQuote);
+            return appendTailConditions(builder.append("COUNT(*)"), sqlFlags, false);
         case COUNT:
             text = "COUNT";
             break;
@@ -878,11 +971,23 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         case ANY:
             text = "ANY";
             break;
-        case BIT_AND:
-            text = "BIT_AND";
+        case BIT_AND_AGG:
+            text = "BIT_AND_AGG";
             break;
-        case BIT_OR:
-            text = "BIT_OR";
+        case BIT_OR_AGG:
+            text = "BIT_OR_AGG";
+            break;
+        case BIT_XOR_AGG:
+            text = "BIT_XOR_AGG";
+            break;
+        case BIT_NAND_AGG:
+            text = "BIT_NAND_AGG";
+            break;
+        case BIT_NOR_AGG:
+            text = "BIT_NOR_AGG";
+            break;
+        case BIT_XNOR_AGG:
+            text = "BIT_XNOR_AGG";
             break;
         case RANK:
             text = "RANK";
@@ -906,10 +1011,9 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             text = "MEDIAN";
             break;
         case LISTAGG:
-            text = "LISTAGG";
-            break;
+            return getSQLListagg(builder, sqlFlags);
         case ARRAY_AGG:
-            return getSQLArrayAggregate(builder, alwaysQuote);
+            return getSQLArrayAggregate(builder, sqlFlags);
         case MODE:
             text = "MODE";
             break;
@@ -917,11 +1021,11 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             text = "ENVELOPE";
             break;
         case JSON_OBJECTAGG:
-            return getSQLJsonObjectAggregate(builder, alwaysQuote);
+            return getSQLJsonObjectAggregate(builder, sqlFlags);
         case JSON_ARRAYAGG:
-            return getSQLJsonArrayAggregate(builder, alwaysQuote);
+            return getSQLJsonArrayAggregate(builder, sqlFlags);
         default:
-            throw DbException.throwInternalError("type=" + aggregateType);
+            throw DbException.getInternalError("type=" + aggregateType);
         }
         builder.append(text);
         if (distinct) {
@@ -929,53 +1033,67 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         } else {
             builder.append('(');
         }
-        for (int i = 0; i < args.length; i++) {
-            if (i > 0) {
-                builder.append(", ");
-            }
-            Expression arg = args[i];
-            if (arg instanceof Subquery) {
-                arg.getSQL(builder, alwaysQuote);
-            } else {
-                arg.getUnenclosedSQL(builder, alwaysQuote);
-            }
-        }
-        builder.append(')');
+        writeExpressions(builder, args, sqlFlags).append(')');
         if (orderByList != null) {
             builder.append(" WITHIN GROUP (");
-            Window.appendOrderBy(builder, orderByList, alwaysQuote);
+            Window.appendOrderBy(builder, orderByList, sqlFlags, false);
             builder.append(')');
         }
-        return appendTailConditions(builder, alwaysQuote);
+        return appendTailConditions(builder, sqlFlags, false);
     }
 
-    private StringBuilder getSQLArrayAggregate(StringBuilder builder, boolean alwaysQuote) {
+    private StringBuilder getSQLArrayAggregate(StringBuilder builder, int sqlFlags) {
         builder.append("ARRAY_AGG(");
         if (distinct) {
             builder.append("DISTINCT ");
         }
-        args[0].getSQL(builder, alwaysQuote);
-        Window.appendOrderBy(builder, orderByList, alwaysQuote);
+        args[0].getUnenclosedSQL(builder, sqlFlags);
+        Window.appendOrderBy(builder, orderByList, sqlFlags, false);
         builder.append(')');
-        return appendTailConditions(builder, alwaysQuote);
+        return appendTailConditions(builder, sqlFlags, false);
     }
 
-    private StringBuilder getSQLJsonObjectAggregate(StringBuilder builder, boolean alwaysQuote) {
+    private StringBuilder getSQLListagg(StringBuilder builder, int sqlFlags) {
+        builder.append("LISTAGG(");
+        if (distinct) {
+            builder.append("DISTINCT ");
+        }
+        args[0].getUnenclosedSQL(builder, sqlFlags);
+        ListaggArguments arguments = (ListaggArguments) extraArguments;
+        String s = arguments.getSeparator();
+        if (s != null) {
+            StringUtils.quoteStringSQL(builder.append(", "), s);
+        }
+        if (arguments.getOnOverflowTruncate()) {
+            builder.append(" ON OVERFLOW TRUNCATE ");
+            s = arguments.getFilter();
+            if (s != null) {
+                StringUtils.quoteStringSQL(builder, s).append(' ');
+            }
+            builder.append(arguments.isWithoutCount() ? "WITHOUT" : "WITH").append(" COUNT");
+        }
+        builder.append(')');
+        builder.append(" WITHIN GROUP (");
+        Window.appendOrderBy(builder, orderByList, sqlFlags, true);
+        builder.append(')');
+        return appendTailConditions(builder, sqlFlags, false);
+    }
+
+    private StringBuilder getSQLJsonObjectAggregate(StringBuilder builder, int sqlFlags) {
         builder.append("JSON_OBJECTAGG(");
-        args[0].getSQL(builder, alwaysQuote).append(": ");
-        args[1].getSQL(builder, alwaysQuote);
-        Function.getJsonFunctionFlagsSQL(builder, flags, false);
-        builder.append(')');
-        return appendTailConditions(builder, alwaysQuote);
+        args[0].getUnenclosedSQL(builder, sqlFlags).append(": ");
+        args[1].getUnenclosedSQL(builder, sqlFlags);
+        JsonConstructorFunction.getJsonFunctionFlagsSQL(builder, flags, false).append(')');
+        return appendTailConditions(builder, sqlFlags, false);
     }
 
-    private StringBuilder getSQLJsonArrayAggregate(StringBuilder builder, boolean alwaysQuote) {
+    private StringBuilder getSQLJsonArrayAggregate(StringBuilder builder, int sqlFlags) {
         builder.append("JSON_ARRAYAGG(");
-        args[0].getSQL(builder, alwaysQuote);
-        Function.getJsonFunctionFlagsSQL(builder, flags, true);
-        Window.appendOrderBy(builder, orderByList, alwaysQuote);
+        args[0].getUnenclosedSQL(builder, sqlFlags);
+        JsonConstructorFunction.getJsonFunctionFlagsSQL(builder, flags, true);
+        Window.appendOrderBy(builder, orderByList, sqlFlags, false);
         builder.append(')');
-        return appendTailConditions(builder, alwaysQuote);
+        return appendTailConditions(builder, sqlFlags, false);
     }
 
     private Index getMinMaxColumnIndex() {
@@ -1006,23 +1124,24 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             case COUNT:
                 //count(指定字段)的情况，这种场景如果是DISTINCT或字段为null，那么不能使用OPTIMIZABLE_MIN_MAX_COUNT_ALL优化
                 if (!distinct && args[0].getNullable() == Column.NOT_NULLABLE) {
-                    return visitor.getTable().canGetRowCount();
+                    return visitor.getTable().canGetRowCount(select.getSession());
                 }
                 return false;
             case COUNT_ALL: //count(*)的情况
-                return visitor.getTable().canGetRowCount();
+                return visitor.getTable().canGetRowCount(select.getSession());
             case MIN:
             case MAX:
                 Index index = getMinMaxColumnIndex();
                 return index != null;
             case PERCENTILE_CONT:
             case PERCENTILE_DISC:
-                return args[0].isConstant() && Percentile.getColumnIndex(orderByList.get(0).expression) != null;
+                return args[0].isConstant() && Percentile.getColumnIndex(select.getSession().getDatabase(),
+                        orderByList.get(0).expression) != null;
             case MEDIAN:
                 if (distinct) {
                     return false;
                 }
-                return Percentile.getColumnIndex(args[0]) != null;
+                return Percentile.getColumnIndex(select.getSession().getDatabase(), args[0]) != null;
             case ENVELOPE:
                 return AggregateDataEnvelope.getGeometryColumnIndex(args[0]) != null;
             default:
@@ -1035,7 +1154,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             }
         }
         if (orderByList != null) {
-            for (SelectOrderBy o : orderByList) {
+            for (QueryOrderBy o : orderByList) {
                 if (!o.expression.isEverything(visitor)) {
                     return false;
                 }
@@ -1051,7 +1170,7 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             cost += arg.getCost();
         }
         if (orderByList != null) {
-            for (SelectOrderBy o : orderByList) {
+            for (QueryOrderBy o : orderByList) {
                 cost += o.expression.getCost();
             }
         }
@@ -1059,6 +1178,23 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
             cost += filterCondition.getCost();
         }
         return cost;
+    }
+
+    /**
+     * Returns the select statement.
+     * @return the select statement
+     */
+    public Select getSelect() {
+        return select;
+    }
+
+    /**
+     * Returns if distinct is used.
+     *
+     * @return if distinct is used
+     */
+    public boolean isDistinct() {
+        return distinct;
     }
 
 }

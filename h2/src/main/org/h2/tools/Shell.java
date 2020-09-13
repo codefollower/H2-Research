@@ -144,7 +144,6 @@ public class Shell extends Tool implements Runnable {
             }
         }
         if (url != null) {
-            org.h2.Driver.load();
             conn = DriverManager.getConnection(url, user, password);
             stat = conn.createStatement();
         }
@@ -364,29 +363,31 @@ public class Shell extends Tool implements Runnable {
         println("[Enter]   " + user);
         print("User      ");
         user = readLine(user);
+        conn = url.startsWith(Constants.START_URL) ? connectH2(driver, url, user)
+                : JdbcUtils.getConnection(driver, url, user, readPassword());
+        stat = conn.createStatement();
+        println("Connected");
+    }
+
+    private Connection connectH2(String driver, String url, String user) throws IOException, SQLException {
         for (;;) {
             String password = readPassword();
             try {
-                conn = JdbcUtils.getConnection(driver, url + ";IFEXISTS=TRUE", user, password);
-                break;
+                return JdbcUtils.getConnection(driver, url + ";IFEXISTS=TRUE", user, password);
             } catch (SQLException ex) {
                 if (ex.getErrorCode() == ErrorCode.DATABASE_NOT_FOUND_WITH_IF_EXISTS_1) {
                     println("Type the same password again to confirm database creation.");
                     String password2 = readPassword();
                     if (password.equals(password2)) {
-                        conn = JdbcUtils.getConnection(driver, url, user, password);
-                        break;
+                        return JdbcUtils.getConnection(driver, url, user, password);
                     } else {
                         println("Passwords don't match. Try again.");
-                        continue;
                     }
                 } else {
                     throw ex;
                 }
             }
         }
-        stat = conn.createStatement();
-        println("Connected");
     }
 
     /**
@@ -467,14 +468,22 @@ public class Shell extends Tool implements Runnable {
         try {
             ResultSet rs = null;
             try {
-                if (stat.execute(sql)) {
+                if (sql.startsWith("@")) {
+                    rs = JdbcUtils.getMetaResultSet(conn, sql);
+                    printResult(rs, listMode);
+                } else if (stat.execute(sql)) {
                     rs = stat.getResultSet();
                     int rowCount = printResult(rs, listMode);
                     time = System.nanoTime() - time;
                     println("(" + rowCount + (rowCount == 1 ?
                             " row, " : " rows, ") + TimeUnit.NANOSECONDS.toMillis(time) + " ms)");
                 } else {
-                    int updateCount = stat.getUpdateCount();
+                    long updateCount;
+                    try {
+                        updateCount = stat.getLargeUpdateCount();
+                    } catch (UnsupportedOperationException e) {
+                        updateCount = stat.getUpdateCount();
+                    }
                     time = System.nanoTime() - time;
                     println("(Update count: " + updateCount + ", " +
                             TimeUnit.NANOSECONDS.toMillis(time) + " ms)");

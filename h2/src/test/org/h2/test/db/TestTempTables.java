@@ -12,6 +12,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
+import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
+import org.h2.jdbc.JdbcConnection;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
@@ -27,7 +30,7 @@ public class TestTempTables extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -58,7 +61,7 @@ public class TestTempTables extends TestDb {
         Statement stat = conn.createStatement();
         stat.execute("create local temporary table test(id identity)");
         PreparedStatement prep = conn
-                .prepareStatement("insert into test values(null)");
+                .prepareStatement("insert into test default values");
         for (int i = 0; i < 10000; i++) {
             prep.execute();
         }
@@ -72,21 +75,18 @@ public class TestTempTables extends TestDb {
         Connection conn = getConnection("tempTables");
         Statement stat = conn.createStatement();
         stat.execute("create local temporary table test(id identity)");
-        ResultSet rs = stat.executeQuery("script");
-        boolean foundSequence = false;
-        while (rs.next()) {
-            if (rs.getString(1).startsWith("CREATE SEQUENCE")) {
-                foundSequence = true;
-            }
+        Session iface = ((JdbcConnection) conn).getSession();
+        if ((iface instanceof SessionLocal)) {
+            assertEquals(1, ((SessionLocal) iface).getDatabase().getMainSchema().getAllSequences().size());
         }
-        assertTrue(foundSequence);
-        stat.execute("insert into test values(null)");
+        stat.execute("insert into test default values");
         stat.execute("shutdown");
         conn.close();
         conn = getConnection("tempTables");
-        rs = conn.createStatement().executeQuery(
-                "select * from information_schema.sequences");
-        assertFalse(rs.next());
+        iface = ((JdbcConnection) conn).getSession();
+        if ((iface instanceof SessionLocal)) {
+            assertEquals(0, ((SessionLocal) iface).getDatabase().getMainSchema().getAllSequences().size());
+        }
         conn.close();
     }
 
@@ -319,7 +319,7 @@ public class TestTempTables extends TestDb {
         assertResultRowCount(1, rs);
         c1.commit();
         // test_temp should have been dropped automatically
-        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, s1).
+        assertThrows(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_DATABASE_EMPTY_1, s1).
                 executeQuery("select * from test_temp");
     }
 

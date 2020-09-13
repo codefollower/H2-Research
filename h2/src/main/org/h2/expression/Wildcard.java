@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
@@ -23,17 +23,21 @@ import org.h2.value.Value;
  * This object is only used temporarily during the parsing phase, and later
  * replaced by column expressions.
  */
-//Wildcard表达式即*号表达式在org.h2.command.dml.Select.expandColumnList()中会被替换成字段列表
-//所以此类很多方法是不能调用的，非法的
-public class Wildcard extends Expression {
-	//对于下面三条sql:
-	//sql = "select * from WildcardTest";
-	//sql = "select WildcardTest.* from WildcardTest";
-	//sql = "select public.WildcardTest.* from WildcardTest";
-	//字段schema、table分别是
-	//null, null
-	//null, WildcardTest
-	//public, WildcardTest
+//<<<<<<< HEAD
+////Wildcard表达式即*号表达式在org.h2.command.dml.Select.expandColumnList()中会被替换成字段列表
+////所以此类很多方法是不能调用的，非法的
+//public class Wildcard extends Expression {
+//	//对于下面三条sql:
+//	//sql = "select * from WildcardTest";
+//	//sql = "select WildcardTest.* from WildcardTest";
+//	//sql = "select public.WildcardTest.* from WildcardTest";
+//	//字段schema、table分别是
+//	//null, null
+//	//null, WildcardTest
+//	//public, WildcardTest
+//=======
+public final class Wildcard extends Expression {
+
     private final String schema;
     private final String table;
 
@@ -73,13 +77,13 @@ public class Wildcard extends Expression {
     }
 
     @Override
-    public Value getValue(Session session) {
-        throw DbException.throwInternalError(toString());
+    public Value getValue(SessionLocal session) {
+        throw DbException.getInternalError(toString());
     }
 
     @Override
     public TypeInfo getType() {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -92,13 +96,13 @@ public class Wildcard extends Expression {
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         throw DbException.get(ErrorCode.SYNTAX_ERROR_1, table);
     }
 
     @Override
     public void setEvaluatable(TableFilter tableFilter, boolean b) {
-        DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -114,22 +118,20 @@ public class Wildcard extends Expression {
     //对于select WildcardTest.* from WildcardTest
     //此时table=WildcardTest
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
         if (table != null) {
             StringUtils.quoteIdentifier(builder, table).append('.'); //此时返回: "WildcardTest".*
         }
         builder.append('*');
         if (exceptColumns != null) {
-            builder.append(" EXCEPT (");
-            writeExpressions(builder, exceptColumns, alwaysQuote);
-            builder.append(')');
+            writeExpressions(builder.append(" EXCEPT ("), exceptColumns, sqlFlags).append(')');
         }
         return builder;
     }
 
     @Override
-    public void updateAggregate(Session session, int stage) {
-        DbException.throwInternalError(toString());
+    public void updateAggregate(SessionLocal session, int stage) {
+        throw DbException.getInternalError(toString());
     }
 
     @Override
@@ -137,12 +139,12 @@ public class Wildcard extends Expression {
         if (visitor.getType() == ExpressionVisitor.QUERY_COMPARABLE) {
             return true;
         }
-        throw DbException.throwInternalError(Integer.toString(visitor.getType()));
+        throw DbException.getInternalError(Integer.toString(visitor.getType()));
     }
 
     @Override
     public int getCost() {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
 }

@@ -21,7 +21,7 @@ public class MyDatabaseEventListener implements org.h2.api.DatabaseEventListener
 	}
 
 	@Override
-	public void setProgress(int state, String name, int x, int max) {
+	public void setProgress(int state, String name, long x, long max)  {
 		System.out.println("my.test.MyDatabaseEventListener.setProgress(int, String, int, int) => " + name);
 	}
 

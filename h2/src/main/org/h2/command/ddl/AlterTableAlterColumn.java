@@ -18,7 +18,7 @@ import org.h2.engine.Constants;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.index.Index;
@@ -34,6 +34,7 @@ import org.h2.table.Column;
 import org.h2.table.Table;
 import org.h2.table.TableBase;
 import org.h2.table.TableView;
+import org.h2.util.HasSQL;
 import org.h2.util.Utils;
 
 /**
@@ -41,11 +42,12 @@ import org.h2.util.Utils;
  * ALTER TABLE ADD,
  * ALTER TABLE ADD IF NOT EXISTS,
  * ALTER TABLE ALTER COLUMN,
- * ALTER TABLE ALTER COLUMN RESTART,
  * ALTER TABLE ALTER COLUMN SELECTIVITY,
  * ALTER TABLE ALTER COLUMN SET DEFAULT,
- * ALTER TABLE ALTER COLUMN SET NOT NULL,
+ * ALTER TABLE ALTER COLUMN DROP DEFAULT,
+ * ALTER TABLE ALTER COLUMN DROP EXPRESSION,
  * ALTER TABLE ALTER COLUMN SET NULL,
+ * ALTER TABLE ALTER COLUMN DROP NULL,
  * ALTER TABLE ALTER COLUMN SET VISIBLE,
  * ALTER TABLE ALTER COLUMN SET INVISIBLE,
  * ALTER TABLE DROP COLUMN
@@ -71,9 +73,9 @@ public class AlterTableAlterColumn extends CommandWithColumns {
     private boolean ifNotExists;
     private ArrayList<Column> columnsToAdd;
     private ArrayList<Column> columnsToRemove;
-    private boolean newVisibility;
+    private boolean booleanFlag;
 
-    public AlterTableAlterColumn(Session session, Schema schema) {
+    public AlterTableAlterColumn(SessionLocal session, Schema schema) {
         super(session, schema);
     }
 
@@ -105,7 +107,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
     }
 
     @Override
-    public int update() {
+    public long update() {
         session.commit(true);
         Database db = session.getDatabase();
         Table table = getSchema().resolveTableOrView(session, tableName);
@@ -151,19 +153,46 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             db.updateMeta(session, table);
             break;
         }
-        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT: {
 //<<<<<<< HEAD
-//            //这个oldColumn == null判断是多余的，如果为null了，下面的oldColumn.setSequence就没意义了，
-//            //在Parser里也会设置oldColumn的
-//            Sequence sequence = oldColumn == null ? null : oldColumn.getSequence();
+//        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT: {
+////<<<<<<< HEAD
+////            //这个oldColumn == null判断是多余的，如果为null了，下面的oldColumn.setSequence就没意义了，
+////            //在Parser里也会设置oldColumn的
+////            Sequence sequence = oldColumn == null ? null : oldColumn.getSequence();
+////=======
 //=======
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT:
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_EXPRESSION:  {
+            if (oldColumn == null) {
+                break;
+            }
+            if (oldColumn.isIdentity()) {
+                break;
+            }
+            if (defaultExpression != null) {
+                if (oldColumn.isGenerated()) {
+                    break;
+                }
+                checkDefaultReferencesTable(table, defaultExpression);
+                oldColumn.setDefaultExpression(session, defaultExpression);
+            } else {
+                if (type == CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_EXPRESSION != oldColumn.isGenerated()) {
+                    break;
+                }
+                oldColumn.setDefaultExpression(session, null);
+            }
+            db.updateMeta(session, table);
+            break;
+        }
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DROP_IDENTITY:  {
             if (oldColumn == null) {
                 break;
             }
             Sequence sequence = oldColumn.getSequence();
-            checkDefaultReferencesTable(table, defaultExpression);
-            oldColumn.setSequence(null);
-            oldColumn.setDefaultExpression(session, defaultExpression);
+            if (sequence == null) {
+                break;
+            }
+            oldColumn.setSequence(null, false);
             removeSequence(table, sequence);
             db.updateMeta(session, table);
             break;
@@ -172,8 +201,15 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             if (oldColumn == null) {
                 break;
             }
-            checkDefaultReferencesTable(table, defaultExpression);
-            oldColumn.setOnUpdateExpression(session, defaultExpression);
+            if (defaultExpression != null) {
+                if (oldColumn.isIdentity() || oldColumn.isGenerated()) {
+                    break;
+                }
+                checkDefaultReferencesTable(table, defaultExpression);
+                oldColumn.setOnUpdateExpression(session, defaultExpression);
+            } else {
+                oldColumn.setOnUpdateExpression(session, null);
+            }
             db.updateMeta(session, table);
             break;
         }
@@ -189,9 +225,8 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 oldColumn.copy(newColumn);
                 db.updateMeta(session, table);
             } else {
-                oldColumn.setSequence(null);
+                oldColumn.setSequence(null, false);
                 oldColumn.setDefaultExpression(session, null);
-                oldColumn.setConvertNullToDefault(false);
                 if (oldColumn.isNullable() && !newColumn.isNullable()) {
                     checkNoNullValues(table);
                 } else if (!oldColumn.isNullable() && newColumn.isNullable()) {
@@ -201,7 +236,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                     oldColumn.setVisible(newColumn.getVisible());
                 }
                 convertAutoIncrementColumn(table, newColumn);
-                copyData(table);
+                copyData(table, null, true);
             }
             table.setModified();
             break;
@@ -221,7 +256,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         }
         case CommandInterface.ALTER_TABLE_DROP_COLUMN: {
             if (table.getColumns().length - columnsToRemove.size() < 1) { //不能删除最后一列
-                throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, columnsToRemove.get(0).getSQL(false));
+                throw DbException.get(ErrorCode.CANNOT_DROP_LAST_COLUMN, columnsToRemove.get(0).getTraceSQL());
             }
             table.dropMultipleColumnsConstraintsAndIndexes(session, columnsToRemove);
             copyData(table);
@@ -236,17 +271,28 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             db.updateMeta(session, table);
             break;
         }
-        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_VISIBILITY: {
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_VISIBILITY:
             if (oldColumn == null) {
                 break;
             }
-            oldColumn.setVisible(newVisibility);
-            table.setModified();
-            db.updateMeta(session, table);
+            if (oldColumn.getVisible() != booleanFlag) {
+                oldColumn.setVisible(booleanFlag);
+                table.setModified();
+                db.updateMeta(session, table);
+            }
             break;
-        }
+        case CommandInterface.ALTER_TABLE_ALTER_COLUMN_DEFAULT_ON_NULL:
+            if (oldColumn == null) {
+                break;
+            }
+            if (oldColumn.isDefaultOnNull() != booleanFlag) {
+                oldColumn.setDefaultOnNull(booleanFlag);
+                table.setModified();
+                db.updateMeta(session, table);
+            }
+            break;
         default:
-            DbException.throwInternalError("type=" + type);
+            throw DbException.getInternalError("type=" + type);
         }
         return 0;
     }
@@ -264,27 +310,33 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 .getDependenciesVisitor(dependencies);
         defaultExpression.isEverything(visitor);
         if (dependencies.contains(table)) {
-            throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, defaultExpression.getSQL(false));
+            throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, defaultExpression.getTraceSQL());
         }
     }
 
     private void checkClustering(Column c) {
         if (!Constants.CLUSTERING_DISABLED
                 .equals(session.getDatabase().getCluster())
-                && c.isAutoIncrement()) {
+                && c.hasIdentityOptions()) {
             throw DbException.getUnsupportedException(
-                    "CLUSTERING && auto-increment columns");
+                    "CLUSTERING && identity columns");
         }
     }
 
     private void convertAutoIncrementColumn(Table table, Column c) {
-        if (c.isAutoIncrement()) {
+        if (c.hasIdentityOptions()) {
             if (c.isPrimaryKey()) {
-                c.setOriginalSQL("IDENTITY");
-            } else {
-                int objId = getObjectId(); //作为自动生成的Sequence的对象id
-                c.convertAutoIncrementToSequence(session, getSchema(), objId, table.isTemporary());
+//<<<<<<< HEAD
+//                c.setOriginalSQL("IDENTITY");
+//            } else {
+//                int objId = getObjectId(); //作为自动生成的Sequence的对象id
+//                c.convertAutoIncrementToSequence(session, getSchema(), objId, table.isTemporary());
+//=======
+                addConstraintCommand(
+                        Parser.newPrimaryKeyConstraintCommand(session, table.getSchema(), table.getName(), c));
             }
+            int objId = getObjectId();
+            c.initializeSequence(session, getSchema(), objId, table.isTemporary());
         }
     }
 
@@ -323,7 +375,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             checkViews(table, newTable);
         } catch (DbException e) {
             StringBuilder builder = new StringBuilder("DROP TABLE ");
-            newTable.getSQL(builder, true);
+            newTable.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS);
             execute(builder.toString(), true);
             throw e;
         }
@@ -333,7 +385,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             table.removeDependentView(view);
         }
         StringBuilder builder = new StringBuilder("DROP TABLE ");
-        table.getSQL(builder, true).append(" IGNORE");
+        table.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append(" IGNORE");
         execute(builder.toString(), true);
         db.renameSchemaObject(session, newTable, tableName);
         for (DbObject child : newTable.getChildren()) {
@@ -390,7 +442,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                     }
                 }
                 if (foundCol == null) {
-                    throw DbException.throwInternalError(removeCol.getCreateSQL());
+                    throw DbException.getInternalError(removeCol.getCreateSQL());
                 }
                 newColumns.remove(foundCol);
             }
@@ -435,7 +487,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         data.session = session;
         Table newTable = getSchema().createTable(data); //作者在这里创建表我想他只是为了调用getCreateSQL
         newTable.setComment(table.getComment());
-        String newTableSQL = newTable.getCreateSQL();
+        String newTableSQL = newTable.getCreateSQLForMeta();
         StringBuilder columnList = new StringBuilder();
         for (Column nc : newColumns) {
             if (columnList.length() > 0) {
@@ -455,13 +507,13 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             case CommandInterface.ALTER_TABLE_ADD_COLUMN:
                 if (columnsToAdd != null && columnsToAdd.contains(nc)) {
                     if (usingExpression != null) {
-                        usingExpression.getSQL(columnList, true);
+                        usingExpression.getUnenclosedSQL(columnList, HasSQL.DEFAULT_SQL_FLAGS);
                     } else {
                         Expression def = nc.getDefaultExpression();
                         if (def == null) {
                             columnList.append("NULL");
                         } else {
-                            def.getSQL(columnList, true);
+                            def.getUnenclosedSQL(columnList, HasSQL.DEFAULT_SQL_FLAGS);
                         }
                     }
                     continue;
@@ -469,11 +521,11 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 break;
             case CommandInterface.ALTER_TABLE_ALTER_COLUMN_CHANGE_TYPE:
                 if (nc.equals(newColumn) && usingExpression != null) {
-                    usingExpression.getSQL(columnList, true);
+                    usingExpression.getUnenclosedSQL(columnList, HasSQL.DEFAULT_SQL_FLAGS);
                     continue;
                 }
             }
-            nc.getSQL(columnList, true);
+            nc.getSQL(columnList, HasSQL.DEFAULT_SQL_FLAGS);
         }
 //<<<<<<< HEAD
 //        buff.append(" AS SELECT ");
@@ -516,9 +568,9 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 continue;
             //前面的if已排除TableView，所以不可以出现Table的子对象是Table
             } else if (child.getType() == DbObject.TABLE_OR_VIEW) {
-                DbException.throwInternalError();
+                throw DbException.getInternalError();
             }
-            String quotedName = Parser.quoteIdentifier(tempName + "_" + child.getName(), true);
+            String quotedName = Parser.quoteIdentifier(tempName + "_" + child.getName(), HasSQL.DEFAULT_SQL_FLAGS);
             String sql = null;
             if (child instanceof ConstraintReferential) {
                 ConstraintReferential r = (ConstraintReferential) child;
@@ -559,7 +611,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         }
         StringBuilder buff = new StringBuilder();
         buff.append("INSERT INTO ");
-        newTable.getSQL(buff, true);
+        newTable.getSQL(buff, HasSQL.DEFAULT_SQL_FLAGS);
         buff.append(" SELECT ");
         if (columnList.length() == 0) {
             // special case: insert into test select * from
@@ -568,14 +620,14 @@ public class AlterTableAlterColumn extends CommandWithColumns {
             buff.append(columnList);
         }
         buff.append(" FROM ");
-        table.getSQL(buff, true);
+        table.getSQL(buff, HasSQL.DEFAULT_SQL_FLAGS);
         try {
             execute(buff.toString(), true);
         } catch (Throwable t) {
             // data was not inserted due to data conversion error or some
             // unexpected reason
             StringBuilder builder = new StringBuilder("DROP TABLE ");
-            newTable.getSQL(builder, true);
+            newTable.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS);
             execute(builder.toString(), true);
             throw t;
         }
@@ -591,7 +643,8 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 //这里可能有潜在的问题，如果接下来检查view失败了，那么table中就少一个Sequence了，
                 //但是目前没有引发问题
                 table.removeSequence(seq);
-                col.setSequence(null); //因为newColumns中的列是通过Clone得来，所以就算之后检查view失败了也不会影响原来的列
+                //因为newColumns中的列是通过Clone得来，所以就算之后检查view失败了也不会影响原来的列
+                col.setSequence(null, false);
             }
         }
         for (String sql : triggers) {
@@ -639,7 +692,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
                 try {
                     session.prepare(sql);
                 } catch (DbException e) {
-                    throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, e, view.getSQL(false));
+                    throw DbException.get(ErrorCode.COLUMN_IS_REFERENCED_1, e, view.getTraceSQL());
                 }
                 checkViewsAreValid(view);
             }
@@ -656,27 +709,30 @@ public class AlterTableAlterColumn extends CommandWithColumns {
     }
 
     private void checkNullable(Table table) {
+        if (oldColumn.isIdentity()) {
+            throw DbException.get(ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1, oldColumn.getName());
+        }
         for (Index index : table.getIndexes()) {
             if (index.getColumnIndex(oldColumn) < 0) {
                 continue;
             }
             IndexType indexType = index.getIndexType();
-            if (indexType.isPrimaryKey() || indexType.isHash()) {
-                throw DbException.get(ErrorCode.COLUMN_IS_PART_OF_INDEX_1, index.getSQL(false));
+            if (indexType.isPrimaryKey()) {
+                throw DbException.get(ErrorCode.COLUMN_MUST_NOT_BE_NULLABLE_1, oldColumn.getName());
             }
         }
     }
 
     private void checkNoNullValues(Table table) {
         StringBuilder builder = new StringBuilder("SELECT COUNT(*) FROM ");
-        table.getSQL(builder, true).append(" WHERE ");
-        oldColumn.getSQL(builder, true).append(" IS NULL");
+        table.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append(" WHERE ");
+        oldColumn.getSQL(builder, HasSQL.DEFAULT_SQL_FLAGS).append(" IS NULL");
         String sql = builder.toString();
         Prepared command = session.prepare(sql);
         ResultInterface result = command.query(0);
         result.next();
         if (result.currentRow()[0].getInt() > 0) {
-            throw DbException.get(ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1, oldColumn.getSQL(false));
+            throw DbException.get(ErrorCode.COLUMN_CONTAINS_NULL_VALUES_1, oldColumn.getTraceSQL());
         }
     }
 
@@ -731,7 +787,7 @@ public class AlterTableAlterColumn extends CommandWithColumns {
         this.columnsToRemove = columnsToRemove;
     }
 
-    public void setVisible(boolean visible) {
-        this.newVisibility = visible;
+    public void setBooleanFlag(boolean booleanFlag) {
+        this.booleanFlag = booleanFlag;
     }
 }

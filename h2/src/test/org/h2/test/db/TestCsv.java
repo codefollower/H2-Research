@@ -49,7 +49,7 @@ public class TestCsv extends TestDb {
     public static void main(String... a) throws Exception {
         TestBase test = TestBase.createCaller().init();
         test.config.traceTest = true;
-        test.test();
+        test.testFromMain();
     }
 
     @Override
@@ -490,7 +490,7 @@ public class TestCsv extends TestDb {
         assertTrue(rs.next());
         assertEquals("Hello", rs.getString(1));
         assertFalse(rs.next());
-        rs = stat.executeQuery("call csvread('" + getBaseDir() + "/test.csv')");
+        rs = stat.executeQuery("select * from csvread('" + getBaseDir() + "/test.csv')");
         assertTrue(rs.next());
         assertEquals(1, rs.getInt(1));
         assertEquals("Hello", rs.getString(2));
@@ -571,7 +571,7 @@ public class TestCsv extends TestDb {
         }
         trace("read: " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - time));
         rs = new Csv().read(getBaseDir() + "/testRW.csv", null, "UTF8");
-        // stat.execute("CREATE ALIAS CSVREAD FOR \"org.h2.tools.Csv.read\"");
+        // stat.execute("CREATE ALIAS CSVREAD FOR 'org.h2.tools.Csv.read'");
         ResultSetMetaData meta = rs.getMetaData();
         assertEquals(2, meta.getColumnCount());
         for (int i = 0; i < len; i++) {

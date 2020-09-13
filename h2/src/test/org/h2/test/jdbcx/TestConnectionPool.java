@@ -12,6 +12,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.sql.DataSource;
 
@@ -32,7 +33,7 @@ public class TestConnectionPool extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -61,7 +62,7 @@ public class TestConnectionPool extends TestDb {
         conn1.close();
         conn2.createStatement().execute("shutdown immediately");
         cp.dispose();
-        assertTrue(w.toString().length() > 0);
+        assertTrue(w.toString().length() == 0);
         cp.dispose();
     }
 
@@ -189,7 +190,7 @@ public class TestConnectionPool extends TestDb {
     private void testThreads() throws Exception {
         final int len = getSize(4, 20);
         final JdbcConnectionPool man = getConnectionPool(len - 2);
-        final boolean[] stop = { false };
+        final AtomicBoolean stop = new AtomicBoolean();
 
         /**
          * This class gets and returns connections from the pool.
@@ -198,7 +199,7 @@ public class TestConnectionPool extends TestDb {
             @Override
             public void run() {
                 try {
-                    while (!stop[0]) {
+                    while (!stop.get()) {
                         Connection conn = man.getConnection();
                         if (man.getActiveConnections() >= len + 1) {
                             throw new Exception("a: " +
@@ -221,7 +222,7 @@ public class TestConnectionPool extends TestDb {
             threads[i].start();
         }
         Thread.sleep(1000);
-        stop[0] = true;
+        stop.set(true);
         for (int i = 0; i < len; i++) {
             threads[i].join();
         }

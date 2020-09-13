@@ -5,21 +5,21 @@
  */
 package org.h2.mvstore.tx;
 
+import java.nio.ByteBuffer;
 import org.h2.engine.Constants;
 import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.WriteBuffer;
 import org.h2.mvstore.type.BasicDataType;
+import org.h2.mvstore.type.DataType;
 import org.h2.mvstore.type.MetaType;
 import org.h2.mvstore.type.StatefulDataType;
-import org.h2.mvstore.type.DataType;
 import org.h2.value.VersionedValue;
-import java.nio.ByteBuffer;
 
 /**
  * The value type for a versioned value.
  */
-public class VersionedValueType<T,D> extends BasicDataType<VersionedValue<T>> implements StatefulDataType<D>
-{
+public class VersionedValueType<T,D> extends BasicDataType<VersionedValue<T>> implements StatefulDataType<D> {
+
     private final DataType<T> valueType;
     private final Factory<D> factory = new Factory<>();
 
@@ -153,8 +153,7 @@ public class VersionedValueType<T,D> extends BasicDataType<VersionedValue<T>> im
         return factory;
     }
 
-    public static final class Factory<D> implements StatefulDataType.Factory<D>
-    {
+    public static final class Factory<D> implements StatefulDataType.Factory<D> {
         @SuppressWarnings("unchecked")
         @Override
         public DataType<?> create(ByteBuffer buff, MetaType<D> metaType, D database) {

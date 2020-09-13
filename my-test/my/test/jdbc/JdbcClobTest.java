@@ -47,10 +47,10 @@ public class JdbcClobTest extends TestBase {
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS JdbcClobTest (f1 int, f2 long, f3 clob)");
 
         JdbcClob clob = (JdbcClob) conn.createClob();
-        Value clobValue = ((JdbcConnection) conn).createClob(
-                IOUtils.getBufferedReader(new FileInputStream("C:/TDDOWNLOAD/kotlin-compiler-1.1.2-2.zip")), -1);
-
-        clob = new JdbcClob((JdbcConnection) conn, clobValue, State.WITH_VALUE, 100);
+//        Value clobValue = ((JdbcConnection) conn).createClob(
+//                IOUtils.getBufferedReader(new FileInputStream("C:/TDDOWNLOAD/kotlin-compiler-1.1.2-2.zip")), -1);
+//
+//        clob = new JdbcClob((JdbcConnection) conn, clobValue, State.WITH_VALUE, 100);
 
         String clobStr = "clob-test";
         StringBuilder buff = new StringBuilder(5000 * clobStr.length());

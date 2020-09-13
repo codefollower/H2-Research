@@ -119,11 +119,6 @@ public class FileStoreTest {
         }
 
         @Override
-        public JavaObjectSerializer getJavaObjectSerializer() {
-            return null;
-        }
-
-        @Override
         public CompareMode getCompareMode() {
             // TODO Auto-generated method stub
             return null;

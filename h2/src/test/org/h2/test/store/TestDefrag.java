@@ -6,28 +6,30 @@
 package org.h2.test.store;
 
 import static org.h2.engine.Constants.SUFFIX_MV_FILE;
-import org.h2.test.TestBase;
-import org.h2.test.TestDb;
+
 import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.text.NumberFormat;
 
+import org.h2.test.TestBase;
+import org.h2.test.TestDb;
+
 /**
  * Test off-line compaction procedure used by SHUTDOWN DEFRAG command
  *
  * @author <a href='mailto:andrei.tokar@gmail.com'>Andrei Tokar</a>
  */
-public class TestDefrag  extends TestDb
-{
+public class TestDefrag  extends TestDb {
+
     /**
      * Run just this test.
      *
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override

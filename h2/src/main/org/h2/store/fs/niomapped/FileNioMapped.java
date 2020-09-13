@@ -15,7 +15,6 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.file.Paths;
-import java.util.concurrent.TimeUnit;
 import org.h2.engine.SysProperties;
 import org.h2.store.fs.FileBaseDefault;
 import org.h2.store.fs.FileUtils;
@@ -27,7 +26,7 @@ import org.h2.util.MemoryUnmapper;
  */
 class FileNioMapped extends FileBaseDefault {
 
-    private static final long GC_TIMEOUT_MS = 10_000;
+    private static final int GC_TIMEOUT_MS = 10_000;
     private final String name;
     private final MapMode mode;
     private FileChannel channel;
@@ -53,7 +52,7 @@ class FileNioMapped extends FileBaseDefault {
         mapped.force();
 
         // need to dispose old direct buffer, see bug
-        // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4724038
+        // https://bugs.openjdk.java.net/browse/JDK-4724038
 
         if (SysProperties.NIO_CLEANER_HACK) {
             if (MemoryUnmapper.unmap(mapped)) {
@@ -63,11 +62,10 @@ class FileNioMapped extends FileBaseDefault {
         }
         WeakReference<MappedByteBuffer> bufferWeakRef = new WeakReference<>(mapped);
         mapped = null;
-        long start = System.nanoTime();
+        long stopAt = System.nanoTime() + GC_TIMEOUT_MS * 1_000_000L;
         while (bufferWeakRef.get() != null) {
-            if (System.nanoTime() - start > TimeUnit.MILLISECONDS.toNanos(GC_TIMEOUT_MS)) {
-                throw new IOException("Timeout (" + GC_TIMEOUT_MS
-                        + " ms) reached while trying to GC mapped buffer");
+            if (System.nanoTime() - stopAt > 0L) {
+                throw new IOException("Timeout (" + GC_TIMEOUT_MS + " ms) reached while trying to GC mapped buffer");
             }
             System.gc();
             Thread.yield();

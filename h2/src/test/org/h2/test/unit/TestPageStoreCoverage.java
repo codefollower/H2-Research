@@ -11,7 +11,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
@@ -32,7 +31,7 @@ public class TestPageStoreCoverage extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -101,55 +100,54 @@ public class TestPageStoreCoverage extends TestDb {
     }
 
     private void testRecoverTemp() throws SQLException {
-        Connection conn;
-        conn = getConnection(URL);
-        Statement stat = conn.createStatement();
-        stat.execute("create cached temporary table test(id identity, name varchar)");
-        stat.execute("create index idx_test_name on test(name)");
-        stat.execute("create index idx_test_name2 on test(name, id)");
-        stat.execute("create table test2(id identity, name varchar)");
-        stat.execute("create index idx_test2_name on test2(name desc)");
-        stat.execute("create index idx_test2_name2 on test2(name, id)");
-        stat.execute("insert into test2 " +
-                "select null, space(10) from system_range(1, 10)");
-        stat.execute("create table test3(id identity, name varchar)");
-        stat.execute("checkpoint");
-        conn.setAutoCommit(false);
-        stat.execute("create table test4(id identity, name varchar)");
-        stat.execute("create index idx_test4_name2 on test(name, id)");
-        stat.execute("insert into test " +
-                "select null, space(10) from system_range(1, 10)");
-        stat.execute("insert into test3 " +
-                "select null, space(10) from system_range(1, 10)");
-        stat.execute("insert into test4 " +
-                "select null, space(10) from system_range(1, 10)");
-        stat.execute("truncate table test2");
-        stat.execute("drop index idx_test_name");
-        stat.execute("drop index idx_test2_name");
-        stat.execute("drop table test2");
-        stat.execute("insert into test " +
-                "select null, space(10) from system_range(1, 10)");
-        stat.execute("shutdown immediately");
-        assertThrows(ErrorCode.DATABASE_IS_CLOSED, conn).close();
-        conn = getConnection(URL);
-        stat = conn.createStatement();
-        stat.execute("drop all objects");
-        // re-allocate index root pages
-        for (int i = 0; i < 10; i++) {
-            stat.execute("create table test" + i + "(id identity, name varchar)");
+        try (Connection conn = getConnection(URL)) {
+            Statement stat = conn.createStatement();
+            stat.execute("create cached temporary table test(id identity, name varchar)");
+            stat.execute("create index idx_test_name on test(name)");
+            stat.execute("create index idx_test_name2 on test(name, id)");
+            stat.execute("create table test2(id identity, name varchar)");
+            stat.execute("create index idx_test2_name on test2(name desc)");
+            stat.execute("create index idx_test2_name2 on test2(name, id)");
+            stat.execute("insert into test2(name) " +
+                    "select space(10) from system_range(1, 10)");
+            stat.execute("create table test3(id identity, name varchar)");
+            stat.execute("checkpoint");
+            conn.setAutoCommit(false);
+            stat.execute("create table test4(id identity, name varchar)");
+            stat.execute("create index idx_test4_name2 on test(name, id)");
+            stat.execute("insert into test(name) " +
+                    "select space(10) from system_range(1, 10)");
+            stat.execute("insert into test3(name) " +
+                    "select space(10) from system_range(1, 10)");
+            stat.execute("insert into test4(name) " +
+                    "select space(10) from system_range(1, 10)");
+            stat.execute("truncate table test2");
+            stat.execute("drop index idx_test_name");
+            stat.execute("drop index idx_test2_name");
+            stat.execute("drop table test2");
+            stat.execute("insert into test(name) " +
+                    "select space(10) from system_range(1, 10)");
+            stat.execute("shutdown immediately");
         }
-        stat.execute("checkpoint");
-        for (int i = 0; i < 10; i++) {
-            stat.execute("drop table test" + i);
+        try (Connection conn = getConnection(URL)) {
+            Statement stat = conn.createStatement();
+            stat.execute("drop all objects");
+            // re-allocate index root pages
+            for (int i = 0; i < 10; i++) {
+                stat.execute("create table test" + i + "(id identity, name varchar)");
+            }
+            stat.execute("checkpoint");
+            for (int i = 0; i < 10; i++) {
+                stat.execute("drop table test" + i);
+            }
+            for (int i = 0; i < 10; i++) {
+                stat.execute("create table test" + i + "(id identity, name varchar)");
+            }
+            stat.execute("shutdown immediately");
         }
-        for (int i = 0; i < 10; i++) {
-            stat.execute("create table test" + i + "(id identity, name varchar)");
+        try (Connection conn = getConnection(URL)) {
+            conn.createStatement().execute("drop all objects");
         }
-        stat.execute("shutdown immediately");
-        assertThrows(ErrorCode.DATABASE_IS_CLOSED, conn).close();
-        conn = getConnection(URL);
-        conn.createStatement().execute("drop all objects");
-        conn.close();
     }
 
     private void testLongTransaction() throws SQLException {
@@ -158,8 +156,8 @@ public class TestPageStoreCoverage extends TestDb {
         Statement stat = conn.createStatement();
         stat.execute("create table test(id identity, name varchar)");
         conn.setAutoCommit(false);
-        stat.execute("insert into test " +
-                "select null, space(10) from system_range(1, 10)");
+        stat.execute("insert into test(name) " +
+                "select space(10) from system_range(1, 10)");
         Connection conn2;
         conn2 = getConnection(URL);
         Statement stat2 = conn2.createStatement();
@@ -167,8 +165,8 @@ public class TestPageStoreCoverage extends TestDb {
         // large transaction
         stat2.execute("create table test2(id identity, name varchar)");
         stat2.execute("create index idx_test2_name on test2(name)");
-        stat2.execute("insert into test2 " +
-                "select null, x || space(10000) from system_range(1, 100)");
+        stat2.execute("insert into test2(name) " +
+                "select x || space(10000) from system_range(1, 100)");
         stat2.execute("drop table test2");
         conn2.close();
         stat.execute("drop table test");

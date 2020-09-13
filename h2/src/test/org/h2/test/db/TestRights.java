@@ -30,7 +30,7 @@ public class TestRights extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -68,7 +68,7 @@ public class TestRights extends TestDb {
 
     private void testLinkedTableMeta() throws SQLException {
         deleteDb("rights");
-        try (Connection conn = getConnection("rights")) {
+        try (Connection conn = getConnection("rights;OLD_INFORMATION_SCHEMA=TRUE")) {
             stat = conn.createStatement();
             stat.execute("create user test password 'test'");
             stat.execute("create linked table test" +
@@ -290,13 +290,13 @@ public class TestRights extends TestDb {
 
         DatabaseMetaData meta = conn2.getMetaData();
         ResultSet rs;
-        rs = meta.getTables(null, null, "%", new String[]{"TABLE", "VIEW", "SEQUENCE"});
+        rs = meta.getTables(null, "PUBLIC", "%", new String[]{"TABLE", "VIEW", "SEQUENCE"});
         assertTrue(rs.next());
         assertTrue(rs.next());
         assertFalse(rs.next());
         for (String s : new String[] {
-                "information_schema.settings where name='property.java.runtime.version'",
-                "information_schema.users where name='SA'",
+                "information_schema.settings where setting_name='property.java.runtime.version'",
+                "information_schema.users where user_name='SA'",
                 "information_schema.roles",
                 "information_schema.rights",
                 "information_schema.sessions where user_name='SA'"
@@ -425,8 +425,13 @@ public class TestRights extends TestDb {
                 "(ID INT PRIMARY KEY, NAME VARCHAR)");
         conn.close();
 
+        String url = "rights";
+        if (!config.mvStore) {
+            url += ";LOG=2";
+        }
+
         // try and fail (no rights yet)
-        conn = getConnection("rights;LOG=2", "SCHEMA_CREATOR", getPassword("xyz"));
+        conn = getConnection(url, "SCHEMA_CREATOR", getPassword("xyz"));
         stat = conn.createStatement();
         assertThrows(ErrorCode.ADMIN_RIGHTS_REQUIRED, stat).execute(
                 "CREATE SCHEMA SCHEMA_RIGHT_TEST_WILL_FAIL");
@@ -443,7 +448,7 @@ public class TestRights extends TestDb {
         conn.close();
 
         // try and succeed
-        conn = getConnection("rights;LOG=2", "SCHEMA_CREATOR", getPassword("xyz"));
+        conn = getConnection(url, "SCHEMA_CREATOR", getPassword("xyz"));
         stat = conn.createStatement();
 
         // should be able to create a schema and manipulate tables on that
@@ -473,7 +478,7 @@ public class TestRights extends TestDb {
         conn.close();
 
         // try again and fail
-        conn = getConnection("rights;LOG=2", "SCHEMA_CREATOR", getPassword("xyz"));
+        conn = getConnection(url, "SCHEMA_CREATOR", getPassword("xyz"));
         stat = conn.createStatement();
         assertThrows(ErrorCode.ADMIN_RIGHTS_REQUIRED, stat).
             execute("CREATE SCHEMA SCHEMA_RIGHT_TEST");
@@ -572,7 +577,11 @@ public class TestRights extends TestDb {
         executeSuccess("GRANT SELECT, INSERT, UPDATE ON TEST TO PASS_READER");
         conn.close();
 
-        conn = getConnection("rights;LOG=2", "PASS_READER", getPassword("abc"));
+        String url = "rights";
+        if (!config.mvStore) {
+            url += ";LOG=2";
+        }
+        conn = getConnection(url, "PASS_READER", getPassword("abc"));
         stat = conn.createStatement();
         executeSuccess("SELECT * FROM PASS_NAME");
         executeSuccess("SELECT * FROM (SELECT * FROM PASS_NAME)");
@@ -645,7 +654,7 @@ public class TestRights extends TestDb {
         } catch (SQLException e) {
             assertKnownException(e);
         }
-        conn = getConnection("rights;LOG=2", "TEST", getPassword("def"));
+        conn = getConnection(url, "TEST", getPassword("def"));
         stat = conn.createStatement();
 
         assertThrows(ErrorCode.ADMIN_RIGHTS_REQUIRED, stat).

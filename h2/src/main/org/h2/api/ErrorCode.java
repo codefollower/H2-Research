@@ -212,6 +212,17 @@ public class ErrorCode {
      */
     public static final int ENUM_DUPLICATE = 22033;
 
+    /**
+     * The error with code <code>22034</code> is thrown when an
+     * attempt is made to read non-existing element of an array.
+     *
+     * Example:
+     * <pre>
+     * VALUES ARRAY[1, 2][3]
+     * </pre>
+     */
+    public static final int ARRAY_ELEMENT_ERROR_2 = 22034;
+
     // 23: constraint violation
 
     /**
@@ -368,6 +379,30 @@ public class ErrorCode {
     public static final int TABLE_OR_VIEW_NOT_FOUND_1 = 42102;
 
     /**
+     * The error with code <code>42103</code> is thrown when
+     * trying to query, modify or drop a table or view that does not exists
+     * in this schema and database but similar names were found. A common cause
+     * is that the names are written in different case.
+     * Example:
+     * <pre>
+     * SELECT * FROM ABC;
+     * </pre>
+     */
+    public static final int TABLE_OR_VIEW_NOT_FOUND_WITH_CANDIDATES_2 = 42103;
+
+    /**
+     * The error with code <code>42104</code> is thrown when
+     * trying to query, modify or drop a table or view that does not exists
+     * in this schema and database but it is empty anyway. A common cause is
+     * that the wrong database was opened.
+     * Example:
+     * <pre>
+     * SELECT * FROM ABC;
+     * </pre>
+     */
+    public static final int TABLE_OR_VIEW_NOT_FOUND_DATABASE_EMPTY_1 = 42104;
+
+    /**
      * The error with code <code>42111</code> is thrown when
      * trying to create an index if an index with the same name already exists.
      * Example:
@@ -431,6 +466,31 @@ public class ErrorCode {
      * </pre>
      */
     public static final int INVALID_NAME_1 = 42602;
+
+    /**
+     * The error with code <code>42622</code> is thrown when
+     * name of identifier is too long.
+     * Example:
+     * <pre>
+     * char[] c = new char[1000];
+     * Arrays.fill(c, 'A');
+     * statement.executeQuery("SELECT 1 " + new String(c));
+     * </pre>
+     */
+    public static final int NAME_TOO_LONG_2 = 42622;
+
+    // 54: program limit exceeded
+
+    /**
+     * The error with code <code>54011</code> is thrown when
+     * too many columns were specified in a table, select statement,
+     * or row value.
+     * Example:
+     * <pre>
+     * CREATE TABLE TEST(C1 INTEGER, C2 INTEGER, ..., C20000 INTEGER);
+     * </pre>
+     */
+    public static final int TOO_MANY_COLUMNS_1 = 54011;
 
     // 0A: feature not supported
 
@@ -549,10 +609,9 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90005</code> is thrown when
-     * trying to create a trigger and using the combination of SELECT
-     * and FOR EACH ROW, which we do not support.
+     * trying to create a trigger with invalid combination of flags.
      */
-    public static final int TRIGGER_SELECT_AND_ROW_BASED_NOT_SUPPORTED = 90005;
+    public static final int INVALID_TRIGGER_FLAGS_1 = 90005;
 
     /**
      * The error with code <code>90006</code> is thrown when
@@ -582,7 +641,7 @@ public class ErrorCode {
      * trying to create a sequence with an invalid combination
      * of attributes (min value, max value, start value, etc).
      */
-    public static final int SEQUENCE_ATTRIBUTES_INVALID_6 = 90009;
+    public static final int SEQUENCE_ATTRIBUTES_INVALID_7 = 90009;
 
     /**
      * The error with code <code>90010</code> is thrown when
@@ -745,12 +804,21 @@ public class ErrorCode {
     public static final int FUNCTION_NOT_FOUND_1 = 90022;
 
     /**
-     * The error with code <code>90023</code> is thrown when
-     * trying to set a primary key on a nullable column.
-     * Example:
+     * The error with code <code>90023</code> is thrown when trying to set a
+     * primary key on a nullable column or when trying to drop NOT NULL
+     * constraint on primary key or identity column.
+     * Examples:
      * <pre>
      * CREATE TABLE TEST(ID INT, NAME VARCHAR);
      * ALTER TABLE TEST ADD CONSTRAINT PK PRIMARY KEY(ID);
+     * </pre>
+     * <pre>
+     * CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR);
+     * ALTER TABLE TEST ALTER COLUMN ID DROP NOT NULL;
+     * </pre>
+     * <pre>
+     * CREATE TABLE TEST(ID INT GENERATED ALWAYS AS IDENTITY, NAME VARCHAR);
+     * ALTER TABLE TEST ALTER COLUMN ID DROP NOT NULL;
      * </pre>
      */
     public static final int COLUMN_MUST_NOT_BE_NULLABLE_1 = 90023;
@@ -1653,14 +1721,14 @@ public class ErrorCode {
 
     /**
      * The error with code <code>90110</code> is thrown when
-     * trying to compare an array value against a non-array value.
+     * trying to compare values of incomparable data types.
      * Example:
      * <pre>
      * CREATE TABLE test (id INT NOT NULL, name VARCHAR);
      * select * from test where id = (1, 2);
      * </pre>
      */
-    public static final int COMPARING_ARRAY_TO_SCALAR = 90110;
+    public static final int TYPES_ARE_NOT_COMPARABLE_2 = 90110;
 
     /**
      * The error with code <code>90111</code> is thrown when
@@ -1964,7 +2032,7 @@ public class ErrorCode {
      * The error with code <code>90137</code> is thrown when
      * trying to assign a value to something that is not a variable.
      * <pre>
-     * SELECT AMOUNT, SET(@V, IFNULL(@V, 0)+AMOUNT) FROM TEST;
+     * SELECT AMOUNT, SET(@V, COALESCE(@V, 0)+AMOUNT) FROM TEST;
      * </pre>
      */
     public static final int CAN_ONLY_ASSIGN_TO_VARIABLE_1 = 90137;
@@ -2160,7 +2228,20 @@ public class ErrorCode {
      */
     public static final int GENERATED_COLUMN_CANNOT_BE_UPDATABLE_BY_CONSTRAINT_2 = 90155;
 
-    // next is 90156
+    /**
+     * The error with code <code>90156</code> is thrown when trying to create a
+     * view or a table from a select and some expression doesn't have a column
+     * name or alias when it is required by a compatibility mode.
+     *
+     * <pre>
+     * SET MODE DB2;
+     * CREATE TABLE T1(A INT, B INT);
+     * CREATE TABLE T2 AS (SELECT A + B FROM T1) WITH DATA;
+     * </pre>
+     */
+    public static final int COLUMN_ALIAS_IS_NOT_SPECIFIED_1 = 90156;
+
+    // next is 90157
 
     private ErrorCode() {
         // utility class
@@ -2186,6 +2267,8 @@ public class ErrorCode {
         case SYNTAX_ERROR_2:
         case TABLE_OR_VIEW_ALREADY_EXISTS_1:
         case TABLE_OR_VIEW_NOT_FOUND_1:
+        case TABLE_OR_VIEW_NOT_FOUND_WITH_CANDIDATES_2:
+        case TABLE_OR_VIEW_NOT_FOUND_DATABASE_EMPTY_1:
         case VALUE_TOO_LONG_2:
             return true;
         }
@@ -2213,9 +2296,14 @@ public class ErrorCode {
         // 21: cardinality violation
         case COLUMN_COUNT_DOES_NOT_MATCH: return "21S02";
 
+        // 22: data exception
+        case ARRAY_ELEMENT_ERROR_2: return "2202E";
+
         // 42: syntax error or access rule violation
         case TABLE_OR_VIEW_ALREADY_EXISTS_1: return "42S01";
         case TABLE_OR_VIEW_NOT_FOUND_1: return "42S02";
+        case TABLE_OR_VIEW_NOT_FOUND_WITH_CANDIDATES_2: return "42S03";
+        case TABLE_OR_VIEW_NOT_FOUND_DATABASE_EMPTY_1: return "42S04";
         case INDEX_ALREADY_EXISTS_1: return "42S11";
         case INDEX_NOT_FOUND_1: return "42S12";
         case DUPLICATE_COLUMN_NAME_1: return "42S21";

@@ -85,12 +85,7 @@ public class MyDataHandler implements DataHandler {
         // TODO Auto-generated method stub
         return null;
     }
-
-    @Override
-    public JavaObjectSerializer getJavaObjectSerializer() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+ 
 
     @Override
     public CompareMode getCompareMode() {

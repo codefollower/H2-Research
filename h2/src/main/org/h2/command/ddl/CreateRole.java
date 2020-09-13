@@ -9,7 +9,7 @@ import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.engine.Database;
 import org.h2.engine.Role;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 
 /**
@@ -21,7 +21,7 @@ public class CreateRole extends DefineCommand {
     private String roleName;
     private boolean ifNotExists;
 
-    public CreateRole(Session session) {
+    public CreateRole(SessionLocal session) {
         super(session);
     }
 
@@ -34,7 +34,7 @@ public class CreateRole extends DefineCommand {
     }
 
     @Override
-    public int update() {
+    public long update() {
         session.getUser().checkAdmin();
         session.commit(true);
         Database db = session.getDatabase();

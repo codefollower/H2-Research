@@ -5,8 +5,6 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.UUID;
 
 import org.h2.api.ErrorCode;
@@ -19,7 +17,7 @@ import org.h2.util.StringUtils;
 /**
  * Implementation of the UUID data type.
  */
-public class ValueUuid extends Value {
+public final class ValueUuid extends Value {
 
     /**
      * The precision of this value in number of bytes.
@@ -62,16 +60,15 @@ public class ValueUuid extends Value {
     /**
      * Get or create a UUID for the given 16 bytes.
      *
-     * @param binary the byte array (must be at least 16 bytes long)
+     * @param binary the byte array
      * @return the UUID
      */
     public static ValueUuid get(byte[] binary) {
-        if (binary.length < 16) {
-            return get(StringUtils.convertBytesToHex(binary));
+        int length = binary.length;
+        if (length != 16) {
+            throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, "UUID requires 16 bytes, got " + length);
         }
-        long high = Bits.readLong(binary, 0);
-        long low = Bits.readLong(binary, 8);
-        return (ValueUuid) Value.cache(new ValueUuid(high, low));
+        return get(Bits.readLong(binary, 0), Bits.readLong(binary, 8));
     }
 
     /**
@@ -103,33 +100,36 @@ public class ValueUuid extends Value {
      */
     public static ValueUuid get(String s) {
         long low = 0, high = 0;
-        for (int i = 0, j = 0, length = s.length(); i < length; i++) {
+        int j = 0;
+        for (int i = 0, length = s.length(); i < length; i++) {
             char c = s.charAt(i);
             if (c >= '0' && c <= '9') {
                 low = (low << 4) | (c - '0');
             } else if (c >= 'a' && c <= 'f') {
-                low = (low << 4) | (c - 'a' + 0xa);
+                low = (low << 4) | (c - ('a' - 0xa));
             } else if (c == '-') {
                 continue;
             } else if (c >= 'A' && c <= 'F') {
-                low = (low << 4) | (c - 'A' + 0xa);
+                low = (low << 4) | (c - ('A' - 0xa));
             } else if (c <= ' ') {
                 continue;
             } else {
                 throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, s);
             }
-            if (j++ == 15) {
+            if (++j == 16) {
                 high = low;
                 low = 0;
             }
         }
-        return (ValueUuid) Value.cache(new ValueUuid(high, low));
+        if (j != 32) {
+            throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, s);
+        }
+        return get(high, low);
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
-        builder.append('\'');
-        return addString(builder).append('\'');
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
+        return addString(builder.append("UUID '")).append('\'');
     }
 
     @Override
@@ -152,6 +152,11 @@ public class ValueUuid extends Value {
         return addString(new StringBuilder(36)).toString();
     }
 
+    @Override
+    public byte[] getBytes() {
+        return Bits.uuidToBytes(high, low);
+    }
+
     private StringBuilder addString(StringBuilder builder) {
         StringUtils.appendHex(builder, high >> 32, 4).append('-');
         StringUtils.appendHex(builder, high >> 16, 2).append('-');
@@ -166,21 +171,8 @@ public class ValueUuid extends Value {
             return 0;
         }
         ValueUuid v = (ValueUuid) o;
-        long v1 = high, v2 = v.high;
-        if (v1 == v2) {
-            v1 = low;
-            v2 = v.low;
-            if (mode.isUuidUnsigned()) {
-                v1 += Long.MIN_VALUE;
-                v2 += Long.MIN_VALUE;
-            }
-            return Long.compare(v1, v2);
-        }
-        if (mode.isUuidUnsigned()) {
-            v1 += Long.MIN_VALUE;
-            v2 += Long.MIN_VALUE;
-        }
-        return v1 > v2 ? 1 : -1;
+        int cmp = Long.compareUnsigned(high, v.high);
+        return cmp != 0 ? cmp : Long.compareUnsigned(low, v.low);
     }
 
     @Override
@@ -192,20 +184,13 @@ public class ValueUuid extends Value {
         return high == v.high && low == v.low;
     }
 
-    @Override
-    public Object getObject() {
+    /**
+     * Returns the UUID.
+     *
+     * @return the UUID
+     */
+    public UUID getUuid() {
         return new UUID(high, low);
-    }
-
-    @Override
-    public byte[] getBytes() {
-        return Bits.uuidToBytes(high, low);
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex)
-            throws SQLException {
-        prep.setBytes(parameterIndex, getBytes());
     }
 
     /**
@@ -224,6 +209,16 @@ public class ValueUuid extends Value {
      */
     public long getLow() {
         return low;
+    }
+
+    @Override
+    public long charLength() {
+        return DISPLAY_SIZE;
+    }
+
+    @Override
+    public long octetLength() {
+        return PRECISION;
     }
 
 }

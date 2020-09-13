@@ -9,8 +9,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.TreeSet;
-import org.h2.command.dml.Query;
-import org.h2.engine.Session;
+
+import org.h2.command.query.Query;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
@@ -134,7 +135,7 @@ public class IndexCondition {
      * @param session the session
      * @return the value
      */
-    public Value getCurrentValue(Session session) {
+    public Value getCurrentValue(SessionLocal session) {
         return expression.getValue(session);
     }
 
@@ -145,7 +146,7 @@ public class IndexCondition {
      * @param session the session
      * @return the value list
      */
-    public Value[] getCurrentValueList(Session session) {
+    public Value[] getCurrentValueList(SessionLocal session) {
         TreeSet<Value> valueSet = new TreeSet<>(session.getDatabase().getCompareMode());
         for (Expression e : expressionList) {
             Value v = e.getValue(session);
@@ -170,15 +171,15 @@ public class IndexCondition {
     /**
      * Get the SQL snippet of this comparison.
      *
-     * @param alwaysQuote quote all identifiers
+     * @param sqlFlags formatting flags
      * @return the SQL snippet
      */
-    public String getSQL(boolean alwaysQuote) {
+    public String getSQL(int sqlFlags) {
         if (compareType == Comparison.FALSE) {
             return "FALSE";
         }
         StringBuilder builder = new StringBuilder();
-        column.getSQL(builder, alwaysQuote);
+        column.getSQL(builder, sqlFlags);
         switch (compareType) {
         case Comparison.EQUAL:
             builder.append(" = ");
@@ -202,23 +203,21 @@ public class IndexCondition {
             builder.append(" < ");
             break;
         case Comparison.IN_LIST:
-            builder.append(" IN(");
-            Expression.writeExpressions(builder, expressionList, alwaysQuote);
-            builder.append(')');
+            Expression.writeExpressions(builder.append(" IN("), expressionList, sqlFlags).append(')');
             break;
         case Comparison.IN_QUERY:
             builder.append(" IN(");
-            builder.append(expressionQuery.getPlanSQL(alwaysQuote));
+            builder.append(expressionQuery.getPlanSQL(sqlFlags));
             builder.append(')');
             break;
         case Comparison.SPATIAL_INTERSECTS:
             builder.append(" && ");
             break;
         default:
-            DbException.throwInternalError("type=" + compareType);
+            throw DbException.getInternalError("type=" + compareType);
         }
         if (expression != null) {
-            expression.getSQL(builder, alwaysQuote);
+            expression.getSQL(builder, sqlFlags, Expression.AUTO_PARENTHESES);
         }
         return builder.toString();
     }
@@ -265,7 +264,7 @@ public class IndexCondition {
         case Comparison.SPATIAL_INTERSECTS:
             return SPATIAL_INTERSECTS;
         default:
-            throw DbException.throwInternalError("type=" + compareType);
+            throw DbException.getInternalError("type=" + compareType);
         }
     }
 

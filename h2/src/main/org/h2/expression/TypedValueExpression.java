@@ -5,6 +5,9 @@
  */
 package org.h2.expression;
 
+import java.util.Objects;
+
+import org.h2.value.DataType;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueNull;
@@ -29,11 +32,44 @@ public class TypedValueExpression extends ValueExpression {
      *            the value type
      * @return the expression
      */
-    public static TypedValueExpression get(Value value, TypeInfo type) {
-        if (value == ValueNull.INSTANCE && type.getValueType() == Value.BOOLEAN) {
-            return UNKNOWN;
+    public static ValueExpression get(Value value, TypeInfo type) {
+        return getImpl(value, type, true);
+    }
+
+    /**
+     * Create a new typed value expression with the given value and type if
+     * value is {@code NULL}, or a plain value expression otherwise.
+     *
+     * @param value
+     *            the value
+     * @param type
+     *            the value type
+     * @return the expression
+     */
+    public static ValueExpression getTypedIfNull(Value value, TypeInfo type) {
+        return getImpl(value, type, false);
+    }
+
+    private static ValueExpression getImpl(Value value, TypeInfo type, boolean preserveStrictType) {
+        if (value == ValueNull.INSTANCE) {
+            switch (type.getValueType()) {
+            case Value.NULL:
+                return ValueExpression.NULL;
+            case Value.BOOLEAN:
+                return UNKNOWN;
+            }
+            return new TypedValueExpression(value, type);
         }
-        return new TypedValueExpression(value, type);
+        if (preserveStrictType) {
+            DataType dt = DataType.getDataType(type.getValueType());
+            TypeInfo vt = value.getType();
+            if (dt.supportsPrecision && type.getPrecision() != vt.getPrecision()
+                    || dt.supportsScale && type.getScale() != vt.getScale()
+                    || !Objects.equals(type.getExtTypeInfo(), vt.getExtTypeInfo())) {
+                return new TypedValueExpression(value, type);
+            }
+        }
+        return ValueExpression.get(value);
     }
 
     private final TypeInfo type;
@@ -49,12 +85,12 @@ public class TypedValueExpression extends ValueExpression {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
         if (this == UNKNOWN) {
             builder.append("UNKNOWN");
         } else {
-            value.getSQL(builder.append("CAST(")).append(" AS ");
-            type.getSQL(builder).append(')');
+            value.getSQL(builder.append("CAST("), sqlFlags | NO_CASTS).append(" AS ");
+            type.getSQL(builder, sqlFlags).append(')');
         }
         return builder;
     }

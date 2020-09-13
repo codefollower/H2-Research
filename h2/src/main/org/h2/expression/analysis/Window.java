@@ -6,16 +6,19 @@
 package org.h2.expression.analysis;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.ListIterator;
 
 import org.h2.api.ErrorCode;
-import org.h2.command.dml.Select;
-import org.h2.command.dml.SelectOrderBy;
-import org.h2.engine.Session;
+import org.h2.command.query.QueryOrderBy;
+import org.h2.command.query.Select;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
 import org.h2.result.SortOrder;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
+import org.h2.util.HasSQL;
 import org.h2.value.Value;
 import org.h2.value.ValueRow;
 
@@ -26,7 +29,7 @@ public final class Window {
 
     private ArrayList<Expression> partitionBy;
 
-    private ArrayList<SelectOrderBy> orderBy;
+    private ArrayList<QueryOrderBy> orderBy;
 
     private WindowFrame frame;
 
@@ -39,24 +42,35 @@ public final class Window {
      *            string builder
      * @param orderBy
      *            ORDER BY clause, or null
-     * @param alwaysQuote
-     *            quote all identifiers
+     * @param sqlFlags
+     *            formatting flags
+     * @param forceOrderBy
+     *            whether synthetic ORDER BY clause should be generated when it
+     *            is missing
      */
-    public static void appendOrderBy(StringBuilder builder, ArrayList<SelectOrderBy> orderBy, boolean alwaysQuote) {
+    public static void appendOrderBy(StringBuilder builder, ArrayList<QueryOrderBy> orderBy, int sqlFlags,
+            boolean forceOrderBy) {
         if (orderBy != null && !orderBy.isEmpty()) {
-            if (builder.charAt(builder.length() - 1) != '(') {
-                builder.append(' ');
-            }
-            builder.append("ORDER BY ");
+            appendOrderByStart(builder);
             for (int i = 0; i < orderBy.size(); i++) {
-                SelectOrderBy o = orderBy.get(i);
+                QueryOrderBy o = orderBy.get(i);
                 if (i > 0) {
                     builder.append(", ");
                 }
-                o.expression.getSQL(builder, alwaysQuote);
+                o.expression.getUnenclosedSQL(builder, sqlFlags);
                 SortOrder.typeToString(builder, o.sortType);
             }
+        } else if (forceOrderBy) {
+            appendOrderByStart(builder);
+            builder.append("NULL");
         }
+    }
+
+    private static void appendOrderByStart(StringBuilder builder) {
+        if (builder.charAt(builder.length() - 1) != '(') {
+            builder.append(' ');
+        }
+        builder.append("ORDER BY ");
     }
 
     /**
@@ -71,7 +85,7 @@ public final class Window {
      * @param frame
      *            window frame clause, or null
      */
-    public Window(String parent, ArrayList<Expression> partitionBy, ArrayList<SelectOrderBy> orderBy,
+    public Window(String parent, ArrayList<Expression> partitionBy, ArrayList<QueryOrderBy> orderBy,
             WindowFrame frame) {
         this.parent = parent;
         this.partitionBy = partitionBy;
@@ -96,7 +110,7 @@ public final class Window {
             }
         }
         if (orderBy != null) {
-            for (SelectOrderBy o : orderBy) {
+            for (QueryOrderBy o : orderBy) {
                 o.expression.mapColumns(resolver, level, Expression.MAP_IN_WINDOW);
             }
         }
@@ -135,15 +149,32 @@ public final class Window {
      * @param session
      *            the session
      */
-    public void optimize(Session session) {
+    public void optimize(SessionLocal session) {
         if (partitionBy != null) {
-            for (int i = 0; i < partitionBy.size(); i++) {
-                partitionBy.set(i, partitionBy.get(i).optimize(session));
+            for (ListIterator<Expression> i = partitionBy.listIterator(); i.hasNext();) {
+                Expression e = i.next().optimize(session);
+                if (e.isConstant()) {
+                    i.remove();
+                } else {
+                    i.set(e);
+                }
+            }
+            if (partitionBy.isEmpty()) {
+                partitionBy = null;
             }
         }
         if (orderBy != null) {
-            for (SelectOrderBy o : orderBy) {
-                o.expression = o.expression.optimize(session);
+            for (Iterator<QueryOrderBy> i = orderBy.iterator(); i.hasNext();) {
+                QueryOrderBy o = i.next();
+                Expression e = o.expression.optimize(session);
+                if (e.isConstant()) {
+                    i.remove();
+                } else {
+                    o.expression = e;
+                }
+            }
+            if (orderBy.isEmpty()) {
+                orderBy = null;
             }
         }
         if (frame != null) {
@@ -168,7 +199,7 @@ public final class Window {
             }
         }
         if (orderBy != null) {
-            for (SelectOrderBy o : orderBy) {
+            for (QueryOrderBy o : orderBy) {
                 o.expression.setEvaluatable(tableFilter, value);
             }
         }
@@ -179,7 +210,7 @@ public final class Window {
      *
      * @return ORDER BY clause, or null
      */
-    public ArrayList<SelectOrderBy> getOrderBy() {
+    public ArrayList<QueryOrderBy> getOrderBy() {
         return orderBy;
     }
 
@@ -222,7 +253,7 @@ public final class Window {
      *            session
      * @return key for the current group, or null
      */
-    public Value getCurrentKey(Session session) {
+    public Value getCurrentKey(SessionLocal session) {
         if (partitionBy == null) {
             return null;
         }
@@ -245,12 +276,15 @@ public final class Window {
      *
      * @param builder
      *            string builder
-     * @param alwaysQuote
-     *            quote all identifiers
+     * @param sqlFlags
+     *            formatting flags
+     * @param forceOrderBy
+     *            whether synthetic ORDER BY clause should be generated when it
+     *            is missing
      * @return the specified string builder
-     * @see Expression#getSQL(StringBuilder, boolean)
+     * @see Expression#getSQL(StringBuilder, int, int)
      */
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags, boolean forceOrderBy) {
         builder.append("OVER (");
         if (partitionBy != null) {
             builder.append("PARTITION BY ");
@@ -258,15 +292,15 @@ public final class Window {
                 if (i > 0) {
                     builder.append(", ");
                 }
-                partitionBy.get(i).getUnenclosedSQL(builder, alwaysQuote);
+                partitionBy.get(i).getUnenclosedSQL(builder, sqlFlags);
             }
         }
-        appendOrderBy(builder, orderBy, alwaysQuote);
+        appendOrderBy(builder, orderBy, sqlFlags, forceOrderBy);
         if (frame != null) {
             if (builder.charAt(builder.length() - 1) != '(') {
                 builder.append(' ');
             }
-            frame.getSQL(builder, alwaysQuote);
+            frame.getSQL(builder, sqlFlags);
         }
         return builder.append(')');
     }
@@ -278,16 +312,16 @@ public final class Window {
      *            the session
      * @param stage
      *            select stage
-     * @see Expression#updateAggregate(Session, int)
+     * @see Expression#updateAggregate(SessionLocal, int)
      */
-    public void updateAggregate(Session session, int stage) {
+    public void updateAggregate(SessionLocal session, int stage) {
         if (partitionBy != null) {
             for (Expression expr : partitionBy) {
                 expr.updateAggregate(session, stage);
             }
         }
         if (orderBy != null) {
-            for (SelectOrderBy o : orderBy) {
+            for (QueryOrderBy o : orderBy) {
                 o.expression.updateAggregate(session, stage);
             }
         }
@@ -298,7 +332,7 @@ public final class Window {
 
     @Override
     public String toString() {
-        return getSQL(new StringBuilder(), false).toString();
+        return getSQL(new StringBuilder(), HasSQL.TRACE_SQL_FLAGS, false).toString();
     }
 
 }

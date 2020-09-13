@@ -6,7 +6,7 @@
 package org.h2.command.ddl;
 
 import org.h2.command.CommandInterface;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 
 /**
  * This class represents the statement
@@ -17,12 +17,12 @@ public class DeallocateProcedure extends DefineCommand {
 
     private String procedureName;
 
-    public DeallocateProcedure(Session session) {
+    public DeallocateProcedure(SessionLocal session) {
         super(session);
     }
 
     @Override
-    public int update() {
+    public long update() {
         session.removeProcedure(procedureName);
         return 0;
     }

@@ -7,7 +7,7 @@ package org.h2.expression.condition;
 
 import java.util.Arrays;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
@@ -17,20 +17,24 @@ import org.h2.value.ValueNull;
 /**
  * Type predicate (IS [NOT] OF).
  */
-public class TypePredicate extends SimplePredicate {
+public final class TypePredicate extends SimplePredicate {
 
     private final TypeInfo[] typeList;
     private int[] valueTypes;
 
-    public TypePredicate(Expression left, boolean not, TypeInfo[] typeList) {
-        super(left, not);
+    public TypePredicate(Expression left, boolean not, boolean whenOperand, TypeInfo[] typeList) {
+        super(left, not, whenOperand);
         this.typeList = typeList;
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
-        builder.append('(');
-        left.getSQL(builder, alwaysQuote).append(" IS");
+    public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
+        return getWhenSQL(left.getSQL(builder, sqlFlags, AUTO_PARENTHESES), sqlFlags);
+    }
+
+    @Override
+    public StringBuilder getWhenSQL(StringBuilder builder, int sqlFlags) {
+        builder.append(" IS");
         if (not) {
             builder.append(" NOT");
         }
@@ -39,13 +43,13 @@ public class TypePredicate extends SimplePredicate {
             if (i > 0) {
                 builder.append(", ");
             }
-            typeList[i].getSQL(builder);
+            typeList[i].getSQL(builder, sqlFlags);
         }
         return builder.append(')');
     }
 
     @Override
-    public Expression optimize(Session session) {
+    public Expression optimize(SessionLocal session) {
         int count = typeList.length;
         valueTypes = new int[count];
         for (int i = 0; i < count; i++) {
@@ -56,7 +60,7 @@ public class TypePredicate extends SimplePredicate {
     }
 
     @Override
-    public Value getValue(Session session) {
+    public Value getValue(SessionLocal session) {
         Value l = left.getValue(session);
         if (l == ValueNull.INSTANCE) {
             return ValueNull.INSTANCE;
@@ -65,8 +69,22 @@ public class TypePredicate extends SimplePredicate {
     }
 
     @Override
-    public Expression getNotIfPossible(Session session) {
-        return new TypePredicate(left, !not, typeList);
+    public boolean getWhenValue(SessionLocal session, Value left) {
+        if (!whenOperand) {
+            return super.getWhenValue(session, left);
+        }
+        if (left == ValueNull.INSTANCE) {
+            return false;
+        }
+        return Arrays.binarySearch(valueTypes, left.getValueType()) >= 0 ^ not;
+    }
+
+    @Override
+    public Expression getNotIfPossible(SessionLocal session) {
+        if (whenOperand) {
+            return null;
+        }
+        return new TypePredicate(left, !not, false, typeList);
     }
 
 }

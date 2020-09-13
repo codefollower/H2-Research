@@ -5,22 +5,15 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
 import org.h2.api.ErrorCode;
 import org.h2.engine.CastDataProvider;
 import org.h2.message.DbException;
 import org.h2.util.DateTimeUtils;
-import org.h2.util.JSR310Utils;
 
 /**
  * Implementation of the TIMESTAMP WITH TIME ZONE data type.
- *
- * @see <a href="https://en.wikipedia.org/wiki/ISO_8601#Time_zone_designators">
- *      ISO 8601 Time zone designators</a>
  */
-public class ValueTimestampTimeZone extends Value {
+public final class ValueTimestampTimeZone extends Value {
 
     /**
      * The default precision and display size of the textual representation of a timestamp.
@@ -156,7 +149,7 @@ public class ValueTimestampTimeZone extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         return toString(builder.append("TIMESTAMP WITH TIME ZONE '")).append('\'');
     }
 
@@ -166,34 +159,6 @@ public class ValueTimestampTimeZone extends Value {
         DateTimeUtils.appendTime(builder, timeNanos);
         DateTimeUtils.appendTimeZone(builder, timeZoneOffsetSeconds);
         return builder;
-    }
-
-    @Override
-    public boolean checkPrecision(long precision) {
-        // TIMESTAMP WITH TIME ZONE data type does not have precision parameter
-        return true;
-    }
-
-    @Override
-    public Value convertScale(boolean onlyToSmallerScale, int targetScale) {
-        if (targetScale >= ValueTimestamp.MAXIMUM_SCALE) {
-            return this;
-        }
-        if (targetScale < 0) {
-            throw DbException.getInvalidValueException("scale", targetScale);
-        }
-        long dv = dateValue;
-        long n = timeNanos;
-        long n2 = DateTimeUtils.convertScale(n, targetScale,
-                dv == DateTimeUtils.MAX_DATE_VALUE ? DateTimeUtils.NANOS_PER_DAY : Long.MAX_VALUE);
-        if (n2 == n) {
-            return this;
-        }
-        if (n2 >= DateTimeUtils.NANOS_PER_DAY) {
-            n2 -= DateTimeUtils.NANOS_PER_DAY;
-            dv = DateTimeUtils.incrementDateValue(dv);
-        }
-        return fromDateValueAndNanos(dv, n2, timeZoneOffsetSeconds);
     }
 
     @Override
@@ -242,23 +207,6 @@ public class ValueTimestampTimeZone extends Value {
     public int hashCode() {
         return (int) (dateValue ^ (dateValue >>> 32) ^ timeNanos
                 ^ (timeNanos >>> 32) ^ timeZoneOffsetSeconds);
-    }
-
-    @Override
-    public Object getObject() {
-        return JSR310Utils.valueToOffsetDateTime(this, null);
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex) throws SQLException {
-        try {
-            prep.setObject(parameterIndex, JSR310Utils.valueToOffsetDateTime(this, null),
-                    Types.TIMESTAMP_WITH_TIMEZONE);
-            return;
-        } catch (SQLException ignore) {
-            // Nothing to do
-        }
-        prep.setString(parameterIndex, getString());
     }
 
 }

@@ -13,9 +13,11 @@ import java.util.HashMap;
 
 import org.h2.api.ErrorCode;
 import org.h2.compress.CompressLZF;
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
+import org.h2.mvstore.DataUtils;
+import org.h2.pagestore.db.SessionPageStore;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
 import org.h2.store.Data;
@@ -230,8 +232,7 @@ public class PageLog {
                     loopCount = 0;
                     loopDetect *= 2;
                 } else if (first != 0 && first == t.getPos()) {
-                    throw DbException.throwInternalError(
-                            "endless loop at " + t);
+                    throw DbException.getInternalError("endless loop at " + t);
                 }
                 t.free(currentDataPage);
                 firstTrunkPage = t.getNextTrunk();
@@ -262,10 +263,9 @@ public class PageLog {
      * committed operations are re-applied.
      *
      * @param stage the recovery stage
-     * @return whether the transaction log was empty
      */
     //顺序是RECOVERY_STAGE_UNDO => RECOVERY_STAGE_ALLOCATE => RECOVERY_STAGE_REDO
-    boolean recover(int stage) {
+    void recover(int stage) {
         if (trace.isDebugEnabled()) {
             trace.debug("log recover stage: " + stage);
         }
@@ -274,14 +274,13 @@ public class PageLog {
                     logKey, firstTrunkPage, firstDataPage);
             usedLogPages = in.allocateAllPages();
             in.close();
-            return true;
+            return;
         }
         PageInputStream pageIn = new PageInputStream(store,
                 logKey, firstTrunkPage, firstDataPage);
         DataReader in = new DataReader(pageIn);
         int logId = 0;
         Data data = store.createData();
-        boolean isEmpty = true;
         try {
             int pos = 0;
             while (true) {
@@ -290,7 +289,6 @@ public class PageLog {
                     break;
                 }
                 pos++;
-                isEmpty = false;
                 if (x == UNDO) {
                     int pageId = in.readVarInt();
                     int size = in.readVarInt();
@@ -305,7 +303,7 @@ public class PageLog {
                             compress.expand(compressBuffer, 0, size,
                                     data.getBytes(), 0, store.getPageSize());
                         } catch (ArrayIndexOutOfBoundsException e) {
-                            DbException.convertToIOException(e);
+                            DataUtils.convertToIOException(e);
                         }
                     }
                     if (stage == RECOVERY_STAGE_UNDO) {
@@ -435,7 +433,6 @@ public class PageLog {
         if (stage == RECOVERY_STAGE_REDO) {
             usedLogPages = null;
         }
-        return isEmpty;
     }
 
     /**
@@ -504,7 +501,7 @@ public class PageLog {
             trace.debug("log undo " + pageId);
         }
         if (page == null) {
-            DbException.throwInternalError("Undo entry not written");
+            throw DbException.getInternalError("Undo entry not written");
         }
         undo.set(pageId);
         undoAll.set(pageId);
@@ -517,7 +514,7 @@ public class PageLog {
             int pageSize = store.getPageSize();
             //COMPRESS_UNDO是final的，并且总是true
             if (COMPRESS_UNDO) {
-                int size = compress.compress(page.getBytes(),
+                int size = compress.compress(page.getBytes(), 0,
                         pageSize, compressBuffer, 0);
                 if (size < pageSize) {
                     buffer.writeVarInt(size);
@@ -575,7 +572,7 @@ public class PageLog {
         buffer.writeByte((byte) COMMIT);
         buffer.writeVarInt(sessionId);
         write(buffer);
-        if (store.getDatabase().getFlushOnEachCommit()) {
+        if (store.getFlushOnEachCommit()) {
             flush();
         }
     }
@@ -586,7 +583,7 @@ public class PageLog {
      * @param session the session
      * @param transaction the name of the transaction
      */
-    void prepareCommit(Session session, String transaction) {
+    void prepareCommit(SessionLocal session, String transaction) {
         if (trace.isDebugEnabled()) {
             trace.debug("log prepare commit s: " + session.getId() + ", " + transaction);
         }
@@ -613,7 +610,7 @@ public class PageLog {
         //这样接下来的日志不跟prepareCommit共用一个PageStreamData
         //也就是说prepareCommit要独占一个PageStreamData
         pageOut.fillPage();
-        if (store.getDatabase().getFlushOnEachCommit()) {
+        if (store.getFlushOnEachCommit()) {
             flush();
         }
     }
@@ -626,7 +623,7 @@ public class PageLog {
      * @param row the row to add
      * @param add true if the row is added, false if it is removed
      */
-    void logAddOrRemoveRow(Session session, int tableId, Row row, boolean add) {
+    void logAddOrRemoveRow(SessionPageStore session, int tableId, Row row, boolean add) {
         if (trace.isDebugEnabled()) {
             trace.debug("log " + (add ? "+" : "-") +
                     " s: " + session.getId() + " table: " + tableId + " row: " + row);
@@ -675,7 +672,7 @@ public class PageLog {
      * @param session the session
      * @param tableId the table id
      */
-    void logTruncate(Session session, int tableId) {
+    void logTruncate(SessionPageStore session, int tableId) {
         if (trace.isDebugEnabled()) {
             trace.debug("log truncate s: " + session.getId() + " table: " + tableId);
         }
@@ -764,7 +761,7 @@ public class PageLog {
             Page p = store.getPage(trunkPage);
             PageStreamTrunk t = (PageStreamTrunk) p;
             if (t == null) {
-                throw DbException.throwInternalError(
+                throw DbException.getInternalError(
                         "log.removeUntil not found: " + firstDataPageToKeep + " last " + last);
             }
             logKey = t.getLogKey();

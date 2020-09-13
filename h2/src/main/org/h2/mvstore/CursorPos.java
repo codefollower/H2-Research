@@ -12,8 +12,8 @@ package org.h2.mvstore;
  * (bottom up path).
  */
 //遍历B-Tree时通过它能向上或向右指定节点
-public final class CursorPos<K,V>
-{
+public final class CursorPos<K,V> {
+
     /**
      * The page at the current level.
      */
@@ -48,7 +48,7 @@ public final class CursorPos<K,V>
      * @param key       the key to search for
      * @return head of the CursorPos chain (insertion point)
      */
-    public static <K,V> CursorPos<K,V> traverseDown(Page<K,V> page, K key) {
+    static <K,V> CursorPos<K,V> traverseDown(Page<K,V> page, K key) {
         CursorPos<K,V> cursorPos = null;
         while (!page.isLeaf()) {
             int index = page.binarySearch(key) + 1;

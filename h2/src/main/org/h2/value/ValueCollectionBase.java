@@ -51,14 +51,14 @@ public abstract class ValueCollectionBase extends Value {
         ValueCollectionBase l = this;
         int leftType = l.getValueType();
         int rightType = v.getValueType();
-        if (rightType != ARRAY && rightType != ROW) {
+        if (rightType != leftType) {
             throw v.getDataConversionError(leftType);
         }
         ValueCollectionBase r = (ValueCollectionBase) v;
         Value[] leftArray = l.values, rightArray = r.values;
         int leftLength = leftArray.length, rightLength = rightArray.length;
         if (leftLength != rightLength) {
-            if (leftType == ROW || rightType == ROW) {
+            if (leftType == ROW) {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
             }
             if (forEquality) {
@@ -104,21 +104,11 @@ public abstract class ValueCollectionBase extends Value {
 
     @Override
     public int getMemory() {
-        int memory = 72;
+        int memory = 72 + values.length * Constants.MEMORY_POINTER;
         for (Value v : values) {
-            memory += v.getMemory() + Constants.MEMORY_POINTER;
+            memory += v.getMemory();
         }
         return memory;
-    }
-
-    @Override
-    public Object getObject() {
-        int len = values.length;
-        Object[] list = new Object[len];
-        for (int i = 0; i < len; i++) {
-            list[i] = values[i].getObject();
-        }
-        return list;
     }
 
 }

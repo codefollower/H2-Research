@@ -5,15 +5,14 @@
  */
 package org.h2.value;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.math.BigDecimal;
 
 import org.h2.engine.CastDataProvider;
 
 /**
  * Implementation of the BOOLEAN data type.
  */
-public class ValueBoolean extends Value {
+public final class ValueBoolean extends Value {
 
     /**
      * The precision in digits.
@@ -59,7 +58,7 @@ public class ValueBoolean extends Value {
     }
 
     @Override
-    public StringBuilder getSQL(StringBuilder builder) {
+    public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
         return builder.append(getString());
     }
 
@@ -69,13 +68,48 @@ public class ValueBoolean extends Value {
     }
 
     @Override
-    public Value negate() {
-        return value ? FALSE : TRUE;
+    public boolean getBoolean() {
+        return value;
     }
 
     @Override
-    public boolean getBoolean() {
-        return value;
+    public byte getByte() {
+        return value ? (byte) 1 : (byte) 0;
+    }
+
+    @Override
+    public short getShort() {
+        return value ? (short) 1 : (short) 0;
+    }
+
+    @Override
+    public int getInt() {
+        return value ? 1 : 0;
+    }
+
+    @Override
+    public long getLong() {
+        return value ? 1L : 0L;
+    }
+
+    @Override
+    public BigDecimal getBigDecimal() {
+        return value ? BigDecimal.ONE : BigDecimal.ZERO;
+    }
+
+    @Override
+    public float getFloat() {
+        return value ? 1f : 0f;
+    }
+
+    @Override
+    public double getDouble() {
+        return value ? 1d : 0d;
+    }
+
+    @Override
+    public Value negate() {
+        return value ? FALSE : TRUE;
     }
 
     @Override
@@ -86,17 +120,6 @@ public class ValueBoolean extends Value {
     @Override
     public int hashCode() {
         return value ? 1 : 0;
-    }
-
-    @Override
-    public Object getObject() {
-        return value;
-    }
-
-    @Override
-    public void set(PreparedStatement prep, int parameterIndex)
-            throws SQLException {
-        prep.setBoolean(parameterIndex, value);
     }
 
     /**

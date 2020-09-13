@@ -7,7 +7,7 @@ package org.h2.index;
 
 import java.util.ArrayList;
 
-import org.h2.engine.Session;
+import org.h2.engine.SessionLocal;
 import org.h2.expression.condition.Comparison;
 import org.h2.message.DbException;
 import org.h2.result.ResultInterface;
@@ -33,7 +33,7 @@ import org.h2.value.ValueNull;
 //比如where id>10 and id<20，就意味着要找(10，20)这个区间内的记录。
 public class IndexCursor implements Cursor {
 
-    private Session session;
+    private SessionLocal session;
     private Index index;
     private Table table;
     private IndexColumn[] indexColumns;
@@ -72,7 +72,7 @@ public class IndexCursor implements Cursor {
      * @param s Session.
      * @param indexConditions Index conditions.
      */
-    public void prepare(Session s, ArrayList<IndexCondition> indexConditions) {
+    public void prepare(SessionLocal s, ArrayList<IndexCondition> indexConditions) {
         session = s;
         alwaysFalse = false;
         start = end = null;
@@ -166,7 +166,7 @@ public class IndexCursor implements Cursor {
      * @param s the session
      * @param indexConditions the index conditions
      */
-    public void find(Session s, ArrayList<IndexCondition> indexConditions) {
+    public void find(SessionLocal s, ArrayList<IndexCondition> indexConditions) {
         prepare(s, indexConditions);
         if (inColumn != null) {
             return;
@@ -209,10 +209,8 @@ public class IndexCursor implements Cursor {
             // if an object needs to overlap with both a and b,
             // then it needs to overlap with the union of a and b
             // (not the intersection)
-            ValueGeometry vg = (ValueGeometry) row.getValue(columnId).
-                    convertTo(Value.GEOMETRY);
-            v = ((ValueGeometry) v.convertTo(Value.GEOMETRY)).
-                    getEnvelopeUnion(vg);
+            ValueGeometry vg = row.getValue(columnId).convertToGeometry(null);
+            v = v.convertToGeometry(null).getEnvelopeUnion(vg);
         }
         if (columnId == SearchRow.ROWID_INDEX) {
             row.setKey(v.getLong());
@@ -357,7 +355,7 @@ public class IndexCursor implements Cursor {
 
     @Override
     public boolean previous() {
-        throw DbException.throwInternalError(toString());
+        throw DbException.getInternalError(toString());
     }
 
 }

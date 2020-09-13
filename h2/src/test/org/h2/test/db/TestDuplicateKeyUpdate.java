@@ -26,7 +26,7 @@ public class TestDuplicateKeyUpdate extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
@@ -250,8 +250,7 @@ public class TestDuplicateKeyUpdate extends TestDb {
         stat.execute("drop table test");
     }
 
-    private void testPrimaryKeyAndUniqueKey(Connection conn) throws SQLException
-    {
+    private void testPrimaryKeyAndUniqueKey(Connection conn) throws SQLException {
         Statement stat = conn.createStatement();
         stat.execute("CREATE TABLE test (id INT, dup INT, " +
                 "counter INT, PRIMARY KEY(id), UNIQUE(dup))");

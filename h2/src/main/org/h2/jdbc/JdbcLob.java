@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.message.TraceObject;
+import org.h2.mvstore.DataUtils;
 import org.h2.util.IOUtils;
 import org.h2.util.Task;
 import org.h2.value.Value;
@@ -39,7 +40,7 @@ public abstract class JdbcLob extends TraceObject {
             try {
                 task.get();
             } catch (Exception e) {
-                throw DbException.convertToIOException(e);
+                throw DataUtils.convertToIOException(e);
             }
         }
     }
@@ -116,6 +117,9 @@ public abstract class JdbcLob extends TraceObject {
     /**
      * Check the state of the LOB and throws the exception when check failed
      * (the LOB must be set completely before read).
+     *
+     * @throws SQLException on SQL exception
+     * @throws IOException on I/O exception
      */
     void checkReadable() throws SQLException, IOException {
         checkClosed();

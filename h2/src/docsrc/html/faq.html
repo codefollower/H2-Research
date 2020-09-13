@@ -237,10 +237,9 @@ return <code>X</code>. What's wrong?
 This is not a bug. According the JDBC specification, the method
 <code>ResultSetMetaData.getColumnName()</code> should return the name of the column
 and not the alias name. If you need the alias name, use
-<a href="https://docs.oracle.com/javase/7/docs/api/java/sql/ResultSetMetaData.html#getColumnLabel(int)"><code>ResultSetMetaData.getColumnLabel()</code></a>.
+<a href="https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSetMetaData.html#getColumnName-int-"><code>ResultSetMetaData.getColumnLabel()</code></a>.
 Some other database don't work like this yet (they don't follow the JDBC specification).
-If you need compatibility with those databases, use the <a href="features.html#compatibility">Compatibility Mode</a>,
-or append <a href="https://h2database.com/javadoc/org/h2/engine/DbSettings.html#ALIAS_COLUMN_NAME"><code>;ALIAS_COLUMN_NAME=TRUE</code></a> to the database URL.
+If you need compatibility with those databases, use the <a href="features.html#compatibility">Compatibility Mode</a>.
 </p>
 <p>
 This also applies to DatabaseMetaData calls that return a result set.
@@ -277,7 +276,7 @@ Please start with small patches. That could be adding a test case to improve the
 <a href="build.html#automated">code coverage</a> (the target code coverage for this project is 90%, higher is better).
 You will have to <a href="build.html">develop, build and run the tests</a>.
 Once you are familiar with the code, you could implement missing features from the
-<a href="https://h2database.com/html/roadmap.html">feature request list</a>.
+<a href="https://github.com/h2database/h2database/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement">feature request list</a>.
 I suggest to start with very small features that are easy to implement.
 Keep in mind to provide test cases as well.
 </p>

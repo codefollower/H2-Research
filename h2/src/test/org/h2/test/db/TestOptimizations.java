@@ -34,12 +34,13 @@ public class TestOptimizations extends TestDb {
      * @param a ignored
      */
     public static void main(String... a) throws Exception {
-        TestBase.createCaller().init().test();
+        TestBase.createCaller().init().testFromMain();
     }
 
     @Override
     public void test() throws Exception {
         deleteDb("optimizations");
+        testConditionsStackOverflow();
         testIdentityIndexUsage();
         testFastRowIdCondition();
         testExplainRoundTrip();
@@ -113,8 +114,8 @@ public class TestOptimizations extends TestDb {
 
     private void testExplainRoundTrip() throws Exception {
         Connection conn = getConnection("optimizations");
-        assertExplainRoundTrip(conn,
-                "SELECT \"X\" FROM SYSTEM_RANGE(1, 1) WHERE \"X\" > ANY(SELECT \"X\" FROM SYSTEM_RANGE(1, 1))");
+        assertExplainRoundTrip(conn, "SELECT \"X\" FROM SYSTEM_RANGE(1, 1)"
+                + " WHERE \"X\" > ANY(SELECT DISTINCT \"X\" FROM SYSTEM_RANGE(1, 1))");
         conn.close();
     }
 
@@ -172,7 +173,7 @@ public class TestOptimizations extends TestDb {
     private void testAnalyzeLob() throws Exception {
         Connection conn = getConnection("optimizations");
         Statement stat = conn.createStatement();
-        stat.execute("create table test(v varchar, b binary, cl clob, bl blob) as " +
+        stat.execute("create table test(v varchar, b varbinary, cl clob, bl blob) as " +
                 "select ' ', '00', ' ', '00' from system_range(1, 100)");
         stat.execute("analyze");
         ResultSet rs = stat.executeQuery("select column_name, selectivity " +
@@ -286,7 +287,8 @@ public class TestOptimizations extends TestDb {
         stat.execute("insert into test(data) values('World')");
         stat.execute("insert into test(_rowid_, data) values(20, 'Hello')");
         stat.execute(
-                "merge into test(_rowid_, data) key(_rowid_) values(20, 'Hallo')");
+                "merge into test using (values(20, 'Hallo')) s(id, data) on test._rowid_ = s.id"
+                + " when matched then update set data = s.data");
         rs = stat.executeQuery(
                 "select _rowid_, data from test order by _rowid_");
         rs.next();
@@ -360,8 +362,8 @@ public class TestOptimizations extends TestDb {
         deleteDb("optimizations");
         Connection conn = getConnection("optimizations");
         Statement stat = conn.createStatement();
-        ResultSet rs = stat.executeQuery("select `value` " +
-                "from information_schema.settings where name='analyzeAuto'");
+        ResultSet rs = stat.executeQuery(
+                "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'analyzeAuto'");
         int auto = rs.next() ? rs.getInt(1) : 0;
         if (auto != 0) {
             stat.execute("create table test(id int)");
@@ -435,7 +437,7 @@ public class TestOptimizations extends TestDb {
         stat.execute("create table test(id int primary key, name varchar(255))");
         stat.execute("insert into test values(1, 'Hello'), (2, 'World')");
         assertSingleValue(stat,
-                "select count(*) from test where name in ('Hello', 'World', 1)", 2);
+                "select count(*) from test where name in ('Hello', 'World', '1')", 2);
         assertSingleValue(stat,
                 "select count(*) from test where name in ('Hello', 'World')", 2);
         assertSingleValue(stat,
@@ -578,9 +580,7 @@ public class TestOptimizations extends TestDb {
         Statement stat = conn.createStatement();
         stat.execute("create table item(id int primary key)");
         stat.execute("insert into item values(1)");
-        stat.execute("create alias opt for \"" +
-                getClass().getName() +
-                ".optimizeInJoinSelect\"");
+        stat.execute("create alias opt for '" + getClass().getName() + ".optimizeInJoinSelect'");
         PreparedStatement prep = conn.prepareStatement(
                 "select * from item where id in (select x from opt())");
         ResultSet rs = prep.executeQuery();
@@ -1141,8 +1141,9 @@ public class TestOptimizations extends TestDb {
                 "CONSTRAINT TABLE_A_UK UNIQUE (name) )");
         stat.execute("CREATE TABLE TABLE_B(id IDENTITY PRIMARY KEY NOT NULL,  " +
                 "TABLE_a_id BIGINT NOT NULL,  createDate TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
-                "CONSTRAINT TABLE_B_UK UNIQUE (table_a_id, createDate), " +
-                "FOREIGN KEY (table_a_id) REFERENCES TABLE_A(id) )");
+                "CONSTRAINT TABLE_B_UK UNIQUE (table_a_id, createDate))");
+        stat.execute("CREATE INDEX TABLE_B_IDX ON TABLE_B(TABLE_A_ID)");
+        stat.execute("ALTER TABLE TABLE_B ADD FOREIGN KEY (table_a_id) REFERENCES TABLE_A(id)");
         stat.execute("INSERT INTO TABLE_A (name)  SELECT 'package_' || CAST(X as VARCHAR) " +
                 "FROM SYSTEM_RANGE(1, 100)  WHERE X <= 100");
         int count = config.memory ? 30_000 : 50_000;
@@ -1151,7 +1152,6 @@ public class TestOptimizations extends TestDb {
                 "FROM ( SELECT ROUND((RAND() * 100)) AS table_a_id, " +
                 "DATEADD('SECOND', X, CURRENT_TIMESTAMP) as createDate FROM SYSTEM_RANGE(1, " + count + ") " +
                 "WHERE X < " + count + "  )");
-        stat.execute("CREATE INDEX table_b_idx ON table_b(table_a_id, id)");
         stat.execute("ANALYZE");
 
         ResultSet rs = stat.executeQuery("EXPLAIN ANALYZE SELECT MAX(b.id) as id " +
@@ -1189,6 +1189,20 @@ public class TestOptimizations extends TestDb {
                 "(age = 25 AND name = 'isuru') ");
         rs.next();
         assertTrue("engineer".equals(rs.getString("occupation")));
+        conn.close();
+    }
+
+    private void testConditionsStackOverflow() throws SQLException {
+        deleteDb("optimizations");
+        Connection conn = getConnection("optimizations");
+        Statement stat = conn.createStatement();
+        StringBuilder b = new StringBuilder("SELECT 1");
+        for (int i=0; i<10000; i++) {
+            b.append(" AND 1");
+        }
+        ResultSet rs = stat.executeQuery(b.toString());
+        rs.next();
+        assertTrue(rs.getBoolean(1));
         conn.close();
     }
 }
