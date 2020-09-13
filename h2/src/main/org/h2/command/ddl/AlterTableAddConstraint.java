@@ -152,19 +152,12 @@ public class AlterTableAddConstraint extends SchemaCommand {
                         throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);
                     }
                 }
-//<<<<<<< HEAD
-//            }
-//            if (index == null) {
-//                IndexType indexType = IndexType.createPrimaryKey(table.isPersistIndexes(), primaryKeyHash);
-//                String indexName = table.getSchema().getUniqueIndexName(session, table, Constants.PREFIX_PRIMARY_KEY);
-//                int id = getObjectId(); //会得到新的对象id，作为索引id
-//=======
             } else {
                 IndexType indexType = IndexType.createPrimaryKey(
                         table.isPersistIndexes(), primaryKeyHash);
                 String indexName = table.getSchema().getUniqueIndexName(
                         session, table, Constants.PREFIX_PRIMARY_KEY);
-                int indexId = session.getDatabase().allocateObjectId(); 
+                int indexId = session.getDatabase().allocateObjectId(); //会得到新的对象id，作为索引id
                 try {
                     index = table.addIndex(session, indexName, indexId,
                             indexColumns, indexType, true, null);
@@ -184,32 +177,6 @@ public class AlterTableAddConstraint extends SchemaCommand {
         }
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_UNIQUE:
             IndexColumn.mapColumns(indexColumns, table);
-//<<<<<<< HEAD
-//            boolean isOwner = false; //使用已存在的索引并且不显示加INDEX子句时isOwner为false，其他情况下为true
-//            
-//            //如果没有为约束字段指定索引，那么会自动为这些约束字段创建索引，此索引归属于约束对象，并不属于表，但是也加到表中
-//            //假设在f1和f2上建立了索引，并且是唯一索引，现在indexColumns列多加了一列f3，
-//            //因为f1和f2能保证唯一了，所以直接用此索引当成当前唯一约束的索引即可
-//            if (index != null && canUseUniqueIndex(index, table, indexColumns)) {
-//                isOwner = true;
-//                index.getIndexType().setBelongsToConstraint(true);
-//            } else {
-//            	//如果定义约束时没有指定index，但又能从当前表中得到一个满足indexColumns的唯一索引，
-//            	//此时isOwner就是false了，也就是说返回的索引不归属约束，而是归属表
-//                index = getUniqueIndex(table, indexColumns);
-//                if (index == null) {
-//                    index = createIndex(table, indexColumns, true); //用indexColumns创建一个唯一索引
-//                    isOwner = true;
-//                }
-//            }
-//            int id = getObjectId();
-//            String name = generateConstraintName(table);
-//            ConstraintUnique unique = new ConstraintUnique(getSchema(), id,
-//                    name, table, false);
-//            unique.setColumns(indexColumns);
-//            unique.setIndex(index, isOwner);
-//            constraint = unique;
-//=======
             constraint = createUniqueConstraint(table, index, indexColumns, false);
             break;
         case CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_CHECK: {
@@ -240,9 +207,8 @@ public class AlterTableAddConstraint extends SchemaCommand {
             }
             boolean isOwner = false;
             IndexColumn.mapColumns(indexColumns, table);
-            
-            //只要index不是Scan索引(即getCreateSQL()不为null)，且index所在表就是table，且索引字段包含所有的indexColumns
-            if (refIndexColumns == null) {
+
+            if (refIndexColumns == null) { //当主表存在主键时，引用表可以不指定主表的主键字段
                 refIndexColumns = refTable.getPrimaryKey().getIndexColumns();
             } else {
                 IndexColumn.mapColumns(refIndexColumns, refTable);
@@ -292,34 +258,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
                     isOwner = true;
                 }
             }
-//<<<<<<< HEAD
-//            if (refIndexColumns == null) { //当主表存在主键时，引用表可以不指定主表的主键字段
-//                Index refIdx = refTable.getPrimaryKey();
-//                refIndexColumns = refIdx.getIndexColumns();
-//            } else {
-//                IndexColumn.mapColumns(refIndexColumns, refTable);
-//            }
-//            if (refIndexColumns.length != indexColumns.length) {
-//                throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
-//            }
-//            boolean isRefOwner = false;
-//            //refIndex.getTable() == refTable是多于的，canUseIndex已经判断了
-//            if (refIndex != null && refIndex.getTable() == refTable &&
-//                    canUseIndex(refIndex, refTable, refIndexColumns, false)) {
-//                isRefOwner = true;
-//                refIndex.getIndexType().setBelongsToConstraint(true);
-//            } else {
-//                refIndex = null;
-//            }
-//            if (refIndex == null) {
-//                refIndex = getIndex(refTable, refIndexColumns, false);
-//                if (refIndex == null) {
-//                    refIndex = createIndex(refTable, refIndexColumns, true); //注意: 为引用字段建立了唯一索引
-//                    isRefOwner = true;
-//                }
-//            }
-//=======
-//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
+
             int id = getObjectId();
             String name = generateConstraintName(table);
             ConstraintReferential refConstraint = new ConstraintReferential(getSchema(),
@@ -330,6 +269,7 @@ public class AlterTableAddConstraint extends SchemaCommand {
             refConstraint.setRefColumns(refIndexColumns);
             ConstraintUnique unique = getUniqueConstraint(refTable, refIndexColumns);
             if (unique == null) {
+                //注意: 为引用字段建立了唯一索引
                 unique = createUniqueConstraint(refTable, refIndex, refIndexColumns, true);
                 addConstraintToTable(db, refTable, unique);
                 createdUniqueConstraint = unique;
@@ -355,14 +295,20 @@ public class AlterTableAddConstraint extends SchemaCommand {
 
     private ConstraintUnique createUniqueConstraint(Table table, Index index, IndexColumn[] indexColumns,
             boolean forForeignKey) {
-        boolean isOwner = false;
+        boolean isOwner = false; //使用已存在的索引并且不显示加INDEX子句时isOwner为false，其他情况下为true
+        
+        // 如果没有为约束字段指定索引，那么会自动为这些约束字段创建索引，此索引归属于约束对象，并不属于表，但是也加到表中
+        // 假设在f1和f2上建立了索引，并且是唯一索引，现在indexColumns列多加了一列f3，
+        // 因为f1和f2能保证唯一了，所以直接用此索引当成当前唯一约束的索引即可
         if (index != null && canUseIndex(index, table, indexColumns, true)) {
             isOwner = true;
             index.getIndexType().setBelongsToConstraint(true);
         } else {
+            // 如果定义约束时没有指定index，但又能从当前表中得到一个满足indexColumns的唯一索引，
+            // 此时isOwner就是false了，也就是说返回的索引不归属约束，而是归属表
             index = getIndex(table, indexColumns, true);
             if (index == null) {
-                index = createIndex(table, indexColumns, true);
+                index = createIndex(table, indexColumns, true); //用indexColumns创建一个唯一索引
                 isOwner = true;
             }
         }
@@ -452,44 +398,12 @@ public class AlterTableAddConstraint extends SchemaCommand {
     }
 
     private static boolean canUseIndex(Index index, Table table, IndexColumn[] cols, boolean unique) {
+        //只要index不是Scan索引(即getCreateSQL()不为null)，且index所在表就是table，且索引字段包含所有的indexColumns
         if (index.getTable() != table //
                 || (unique ? !index.getIndexType().isUnique() : index.getCreateSQL() == null) //
                 || index.getColumns().length != cols.length) {
             return false;
         }
-//<<<<<<< HEAD
-//        Column[] indexCols = idx.getColumns();
-//        HashSet<Column> indexColsSet = new HashSet<>();
-//        Collections.addAll(indexColsSet, indexCols);
-//        HashSet<Column> colsSet = new HashSet<>();
-//        for (IndexColumn c : cols) {
-//            colsSet.add(c.column);
-//        }
-////<<<<<<< HEAD
-////        //索引列要比约束列要少，索引列必须出现在所有约束列中
-////        for (Column c : indexCols) {
-////            // all columns of the index must be part of the list,
-////            // but not all columns of the list need to be part of the index
-////            if (!set.contains(c)) {
-////                return false;
-////            }
-////        }
-////        return true;
-////=======
-//        return colsSet.equals(indexColsSet);
-//    }
-//
-//    private static boolean canUseIndex(Index existingIndex, Table table,
-//            IndexColumn[] cols, boolean moreColumnsOk) {
-//        if (existingIndex.getTable() != table || existingIndex.getCreateSQL() == null) {
-//            // can't use the scan index or index of another table
-//            return false;
-//        }
-//        Column[] indexCols = existingIndex.getColumns();
-//
-//        if (moreColumnsOk) {
-//            if (indexCols.length < cols.length) {
-//=======
         for (IndexColumn col : cols) {
             // all columns of the list must be part of the index
             if (index.getColumnIndex(col.column) < 0) {

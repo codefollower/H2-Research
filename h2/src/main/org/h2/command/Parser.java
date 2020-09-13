@@ -9855,17 +9855,8 @@ public class Parser {
 
     private DefineCommand parseAlterTableAddConstraintIf(String tableName, Schema schema, boolean ifTableExists) {
         String constraintName = null, comment = null;
-        boolean ifNotExists = false;
-//<<<<<<< HEAD
-//        boolean allowIndexDefinition = database.getMode().indexDefinitionInCreateTable; //只有MySQL Mode是true
-//        boolean allowAffinityKey = database.getMode().allowAffinityKey;
-////<<<<<<< HEAD
-////        //定义约束名称
-////        if (readIf("CONSTRAINT")) {
-////=======
-//=======
-//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
-        if (readIf(CONSTRAINT)) {
+        boolean ifNotExists = false; 
+        if (readIf(CONSTRAINT)) { //定义约束名称
             ifNotExists = readIfNotExists();
             constraintName = readIdentifierWithSchema(schema.getName());
             //表名schema和约束schema必须一样
@@ -9894,38 +9885,10 @@ public class Parser {
             break;
         case UNIQUE:
             read();
-//<<<<<<< HEAD
-//            //例如
-//            //CREATE TABLE IF NOT EXISTS mytable (f1 int,CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha' INDEX int)
-//            //也是合法的，其中“INDEX int”被当成了字段
-//            //而“CONSTRAINT IF NOT EXISTS my_constraint COMMENT IS 'haha'”被忽视了
-//            if (DataType.getTypeByName(currentToken, database.getMode()) != null) {
-//                // known data type
-//                parseIndex = start; //重新从"INDEX"或"KEY"开始
-//                read();
-//                return null;
-//            }
-//            CreateIndex command = new CreateIndex(session, schema);
-//            command.setComment(comment);
-////<<<<<<< HEAD
-////            command.setTableName(tableName); 
-////            //或者不指定索引名INDEX(f1,f2)，当执行org.h2.command.ddl.CreateIndex.update()时会自动生成一个索引名(以"INDEX_"开头) 
-////            command.setIfTableExists(ifTableExists); 
-////            if (!readIf("(")) {
-////            	//指定索引名INDEX myindex(f1,f2)
-////=======
-//            command.setTableName(tableName);
-//            command.setIfTableExists(ifTableExists);
-//            if (!readIf(OPEN_PAREN)) {
-//                command.setIndexName(readUniqueIdentifier());
-//                read(OPEN_PAREN);
-//            }
-//            command.setIndexColumns(parseIndexColumnList());
-//=======
-//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
             // MySQL compatibility
-            boolean compatibility = database.getMode().indexDefinitionInCreateTable;
+            boolean compatibility = database.getMode().indexDefinitionInCreateTable; //只有MySQL Mode是true
             if (compatibility) {
+                //又可以制定约束名，如UNIQUE KEY INDEX myunique(f1,f2)，覆盖前面CONSTRAINT中定义的约束名
                 if (!readIf(KEY)) {
                     readIf("INDEX");
                 }
@@ -9934,27 +9897,6 @@ public class Parser {
                 }
             }
             read(OPEN_PAREN);
-//<<<<<<< HEAD
-//            CreateIndex command = createAffinityIndex(schema, tableName, parseIndexColumnList());
-//            command.setIfTableExists(ifTableExists);
-//            return command;
-//        }
-//        AlterTableAddConstraint command;
-//        if (readIf(CHECK)) {
-//            command = new AlterTableAddConstraint(session, schema, ifNotExists);
-//            command.setType(CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_CHECK);
-//            command.setCheckExpression(readExpression());
-//        } else if (readIf(UNIQUE)) {
-//            readIf("KEY");
-//            readIf("INDEX");
-//            command = new AlterTableAddConstraint(session, schema, ifNotExists);
-//            command.setType(CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_UNIQUE);
-//            //又可以制定约束名，如UNIQUE KEY INDEX myunique(f1,f2)，覆盖前面CONSTRAINT中定义的约束名
-//            if (!readIf(OPEN_PAREN)) {
-//                constraintName = readUniqueIdentifier();
-//                read(OPEN_PAREN);
-//            }
-//=======
             command = new AlterTableAddConstraint(session, schema, CommandInterface.ALTER_TABLE_ADD_CONSTRAINT_UNIQUE,
                     ifNotExists);
             command.setIndexColumns(parseIndexColumnList());
@@ -10001,7 +9943,13 @@ public class Parser {
                             createIndex.setComment(comment);
                             createIndex.setTableName(tableName);
                             createIndex.setIfTableExists(ifTableExists);
+
+                            // 如果不指定索引名，例如:
+                            // CREATE TABLE IF NOT EXISTS t (f1 int,CONSTRAINT IF NOT EXISTS my_constraint INDEX(f1))
+                            // 当执行CreateIndex.update()时会自动生成一个索引名(以"INDEX_"开头)
                             if (!readIf(OPEN_PAREN)) {
+                                // 指定索引名，例如:
+                                // CREATE TABLE IF NOT EXISTS t (f1 int,CONSTRAINT IF NOT EXISTS my_constraint INDEX my_index(f1))
                                 createIndex.setIndexName(readUniqueIdentifier());
                                 read(OPEN_PAREN);
                             }
@@ -10012,8 +9960,13 @@ public class Parser {
                             }
                             return createIndex;
                         } else {
+                            // MySQL的古怪语法， 例如:
+                            // CREATE TABLE IF NOT EXISTS t (f1 int,CONSTRAINT IF NOT EXISTS my_constraint INDEX int)
+                            // 也是合法的，其中“INDEX int”被当成了字段
+                            // 而“CONSTRAINT IF NOT EXISTS my_constraint”被忽视了
+                            
                             // known data type
-                            parseIndex = start;
+                            parseIndex = start; // 重新从"INDEX"或"KEY"开始
                             read();
                         }
                     }
@@ -10043,13 +9996,10 @@ public class Parser {
 
     private void parseReferences(AlterTableAddConstraint command,
             Schema schema, String tableName) {
-//<<<<<<< HEAD
-//        if (readIf("(")) {
-//        	//相同表中的字段互相引用，如:
-//        	//CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int REFERENCES(f1))
-//        	//f2引用f1
-//=======
         if (readIf(OPEN_PAREN)) {
+            // 相同表中的字段互相引用，如:
+            // CREATE TABLE IF NOT EXISTS mytable2 (f1 int PRIMARY KEY, f2 int REFERENCES(f1))
+            // f2引用f1
             command.setRefTableName(schema, tableName);
             command.setRefIndexColumns(parseIndexColumnList());
         } else {
@@ -10064,10 +10014,7 @@ public class Parser {
             String indexName = readIdentifierWithSchema();
             command.setRefIndex(getSchema().findIndex(session, indexName));
         }
-//<<<<<<< HEAD
-//        while (readIf("ON")) { //如果有多个ON DELETE或UPDATE，只有最后一个有效
-//=======
-        while (readIf(ON)) {
+        while (readIf(ON)) { //如果有多个ON DELETE或UPDATE，只有最后一个有效
             if (readIf("DELETE")) {
                 command.setDeleteAction(parseAction());
             } else {

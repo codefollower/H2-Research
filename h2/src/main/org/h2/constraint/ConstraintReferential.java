@@ -410,14 +410,10 @@ public class ConstraintReferential extends Constraint {
             if (deleteAction == ConstraintActionType.RESTRICT) {
                 checkRow(session, oldRow);
             } else {
-//<<<<<<< HEAD
-//            	//ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
-//                //ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
-//                int i = deleteAction == CASCADE ? 0 : columns.length;
-//                Prepared deleteCommand = getDelete(session); //如果不是CASCADE，在此方法中已设置了WHERE之前的参数(null或默认值)
-//=======
+                // ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
+                // ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
                 int i = deleteAction == ConstraintActionType.CASCADE ? 0 : columns.length;
-                Prepared deleteCommand = getDelete(session);
+                Prepared deleteCommand = getDelete(session); //如果不是CASCADE，在此方法中已设置了WHERE之前的参数(null或默认值)
                 setWhere(deleteCommand, i, oldRow);
                 updateWithSkipCheck(deleteCommand);
             }
@@ -429,10 +425,7 @@ public class ConstraintReferential extends Constraint {
             	//ON UPDATE CASCADE和ON UPDATE SET DEFAULT都是一样
                 //都是UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
                 Prepared updateCommand = getUpdate(session);
-//<<<<<<< HEAD
-//                if (updateAction == CASCADE) { //getUpdate(session)中会跳过CASCADE的情形，所以这里补上
-//=======
-                if (updateAction == ConstraintActionType.CASCADE) {
+                if (updateAction == ConstraintActionType.CASCADE) { //getUpdate(session)中会跳过CASCADE的情形，所以这里补上
                     ArrayList<Parameter> params = updateCommand.getParameters();
                     for (int i = 0, len = columns.length; i < len; i++) {
                         Parameter param = params.get(i);
@@ -512,17 +505,11 @@ public class ConstraintReferential extends Constraint {
             builder.append("DELETE FROM ");
             table.getSQL(builder, true);
         } else {
-//<<<<<<< HEAD
-//            appendUpdate(buff); //如UPDATE PUBLIC.MYTABLE SET F1=?
-//        }
-//        appendWhere(buff);
-//        //ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
-//        //ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
-//        deleteSQL = buff.toString();
-//=======
-            appendUpdate(builder);
+            appendUpdate(builder); //如UPDATE PUBLIC.MYTABLE SET F1=?
         }
         appendWhere(builder);
+        // ON DELETE CASCADE: 如DELETE FROM PUBLIC.MYTABLE WHERE F1=?
+        // ON DELETE SET DEFAULT: 如UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
         deleteSQL = builder.toString();
     }
 
@@ -558,17 +545,11 @@ public class ConstraintReferential extends Constraint {
         if (updateAction == ConstraintActionType.RESTRICT) {
             return;
         }
-//<<<<<<< HEAD
-//        StatementBuilder buff = new StatementBuilder();
-//        appendUpdate(buff);
-//        appendWhere(buff);
-//        //ON UPDATE CASCADE和ON UPDATE SET DEFAULT都是一样
-//        //都是UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
-//        updateSQL = buff.toString();
-//=======
         StringBuilder builder = new StringBuilder();
         appendUpdate(builder);
         appendWhere(builder);
+        // ON UPDATE CASCADE和ON UPDATE SET DEFAULT都是一样
+        // 都是UPDATE PUBLIC.MYTABLE SET F1=? WHERE F1=?
         updateSQL = builder.toString();
     }
 

@@ -1668,12 +1668,7 @@ public class Database implements DataHandler, CastDataProvider {
      *
      * @return the id
      */
-//<<<<<<< HEAD
-//    public synchronized int allocateObjectId() { //如果前面的对象id回收了，这里会重复利用前面已回收的id。
-//        int i = objectIds.nextClearBit(0);
-//        objectIds.set(i);
-//=======
-    public int allocateObjectId() {
+    public int allocateObjectId() { //如果前面的对象id回收了，这里会重复利用前面已回收的id。
         Object lock = isMVStore() ? objectIds : this;
         int i;
         synchronized (lock) {

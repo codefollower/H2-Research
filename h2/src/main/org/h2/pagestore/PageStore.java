@@ -232,11 +232,7 @@ public class PageStore implements CacheWriter {
     /**
      * Start collecting statistics.
      */
-//<<<<<<< HEAD
-//    public void statisticsStart() { //只在org.h2.command.dml.Explain中有应用
-//        statistics = New.hashMap();
-//=======
-    public void statisticsStart() {
+    public void statisticsStart() { //只在org.h2.command.dml.Explain中有应用
         statistics = new HashMap<>();
     }
 
