@@ -1,7 +1,6 @@
 package my.test;
 
 import org.h2.api.ErrorCode;
-import org.h2.api.JavaObjectSerializer;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
@@ -85,7 +84,6 @@ public class MyDataHandler implements DataHandler {
         // TODO Auto-generated method stub
         return null;
     }
- 
 
     @Override
     public CompareMode getCompareMode() {

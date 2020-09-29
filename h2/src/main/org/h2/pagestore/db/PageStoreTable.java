@@ -30,7 +30,7 @@ import org.h2.value.CompareMode;
  */
 public class PageStoreTable extends RegularTable {
 
-    private Index scanIndex;
+    private Index scanIndex; //要么是PageDataIndex，要么是ScanIndex
     private long rowCount;
 
     /**
@@ -40,14 +40,17 @@ public class PageStoreTable extends RegularTable {
     private final ArrayDeque<SessionLocal> waitingSessions = new ArrayDeque<>();
     private final Trace traceLock;
     private final ArrayList<Index> indexes = Utils.newSmallArrayList();
-    private long lastModificationId;
-    private final PageDataIndex mainIndex;
+    private long lastModificationId; //在addRow、commit、removeRow、truncate时改变
+    private final PageDataIndex mainIndex; //这个字段用来选主索引列时有用
     private int changesSinceAnalyze;
     private int nextAnalyze;
 
     public PageStoreTable(CreateTableData data) {
         super(data);
         nextAnalyze = database.getSettings().analyzeAuto;
+        // 如果database.isPersistent()是false，说明是内存数据库
+        // 如果data.persistData是false，说明是内存临时表
+        // 当是内存数据库时，不管data.persistData是false还是true都使用ScanIndex(也就是内存索引)
         if (data.persistData && database.isPersistent()) {
             mainIndex = new PageDataIndex(this, data.id,
                     IndexColumn.wrap(getColumns()),
@@ -60,7 +63,7 @@ public class PageStoreTable extends RegularTable {
                     IndexColumn.wrap(getColumns()), IndexType.createScan(data.persistData));
         }
         indexes.add(scanIndex);
-        traceLock = database.getTrace(Trace.LOCK);
+        traceLock = database.getTrace(Trace.LOCK); //在起用debug时，其实就是用来输出debug日志，在lock/unlock时记录debug日志
     }
 
     @Override
@@ -70,6 +73,7 @@ public class PageStoreTable extends RegularTable {
         }
     }
 
+    //从辅助索引那里过来的，索引那里记录了主表记录的key，按key获取主表的完整记录
     @Override
     public Row getRow(SessionLocal session, long key) {
         return scanIndex.getRow(session, key);
@@ -80,6 +84,7 @@ public class PageStoreTable extends RegularTable {
         lastModificationId = database.getNextModificationDataId();
         int i = 0;
         try {
+            //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
             for (int size = indexes.size(); i < size; i++) {
                 Index index = indexes.get(i);
                 index.add(session, row);
@@ -88,10 +93,11 @@ public class PageStoreTable extends RegularTable {
             rowCount++;
         } catch (Throwable e) {
             try {
+                //因为第i个index抛异常了，所以就没必要从i开始了，直接--i
                 while (--i >= 0) {
                     Index index = indexes.get(i);
                     index.remove(session, row);
-                    checkRowCount(session, index, 0);
+                    checkRowCount(session, index, 0); //rowCount+0等于index.getRowCoun
                 }
             } catch (DbException e2) {
                 // this could happen, for example on failure in the storage
@@ -119,7 +125,7 @@ public class PageStoreTable extends RegularTable {
 
     @Override
     public Index getScanIndex(SessionLocal session) {
-        return indexes.get(0);
+        return indexes.get(0); //ScanIndex总是在最前面
     }
 
     @Override
@@ -144,11 +150,14 @@ public class PageStoreTable extends RegularTable {
             throw DbException.getUnsupportedException("MV_STORE=FALSE && SPATIAL INDEX");
         }
         cols = prepareColumns(database, cols, indexType);
+        //如果是LOCAL TEMPORARY表，则只放到session的LocalTempTableIndex中，否则加到database的meta表
         boolean isSessionTemporary = isTemporary() && !isGlobalTemporary();
         if (!isSessionTemporary) {
             database.lockMeta(session);
         }
         Index index;
+        // PrimaryKey索引，并且只有一个字段，并且此字段是byte、short、int、long类型才能作为mainIndexColumn
+        // 且最初的mainIndex还没有加入记录
         if (isPersistIndexes() && indexType.isPersistent()) {
             int mainIndexColumn;
             if (database.isStarting() &&
@@ -162,6 +171,10 @@ public class PageStoreTable extends RegularTable {
             }
             if (mainIndexColumn != -1) {
                 mainIndex.setMainIndexColumn(mainIndexColumn);
+                // PageDelegateIndex在增加行时什么都不做，
+                // 满足这个条件的索引: "PrimaryKey索引，并且只有一个字段，并且此字段是byte、short、int、long类型"
+                // 实际上在增加行时只有最初的PageDataIndex起作用，
+                // PageDelegateIndex只在查询时有作用
                 index = new PageDelegateIndex(this, indexId, indexName,
                         indexType, mainIndex, create, session);
             } else {
@@ -169,6 +182,7 @@ public class PageStoreTable extends RegularTable {
                         indexType, create, session);
             }
         } else {
+            // hash索引最多只有一列
             if (indexType.isHash()) {
                 if (cols.length != 1) {
                     throw DbException.getUnsupportedException(
@@ -185,7 +199,7 @@ public class PageStoreTable extends RegularTable {
                 index = new TreeIndex(this, indexId, indexName, cols, indexType);
             }
         }
-        if (index.needRebuild() && rowCount > 0) {
+        if (index.needRebuild() && rowCount > 0) { //从ScanIndex中读出原始记录，新建或重建索引
             try {
                 Index scan = getScanIndex(session);
                 long remaining = scan.getRowCount(session);
@@ -254,7 +268,7 @@ public class PageStoreTable extends RegularTable {
             rowCount--;
         } catch (Throwable e) {
             try {
-                while (++i < indexes.size()) {
+                while (++i < indexes.size()) { //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
                     Index index = indexes.get(i);
                     index.add(session, row);
                     checkRowCount(session, index, 0);
@@ -275,6 +289,7 @@ public class PageStoreTable extends RegularTable {
     public long truncate(SessionLocal session) {
         lastModificationId = database.getNextModificationDataId();
         long result = rowCount;
+        //truncate、removeRow一样，都是从最后一个索引开始, 而addRow、commit是从第一个开始
         for (int i = indexes.size() - 1; i >= 0; i--) {
             Index index = indexes.get(i);
             index.truncate(session);
@@ -284,23 +299,29 @@ public class PageStoreTable extends RegularTable {
         return result;
     }
 
+    //默认插入2000行时，为每一字段调用SELECTIVITY聚合函数，然后修改字段的SELECTIVITY值，重新更新一下此表的meta信息
     private void analyzeIfRequired(SessionLocal session) {
         if (nextAnalyze == 0 || nextAnalyze > changesSinceAnalyze++) {
             return;
         }
         changesSinceAnalyze = 0;
-        int n = 2 * nextAnalyze;
+        int n = 2 * nextAnalyze; //每算完一次就翻倍，比如第一次是2000行算一次，下次是4000，再下次是8000...
         if (n > 0) {
             nextAnalyze = n;
         }
         session.markTableForAnalyze(this);
     }
 
+    // 直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
+    // Select没有锁表
+    // 比如DDL相关的SQL通常把force设为true，此时不管MVCC，META表都是把force设为true，
+    // Select的isForUpdate变种在非MVCC下也把force设为true，
+    // Insert、Update之类的才设为false
     @Override
     public boolean lock(SessionLocal session, boolean exclusive,
-            boolean forceLockEvenInMvcc) {
+            boolean forceLockEvenInMvcc) { //琐粒度太大，每insert一行都琐表
         int lockMode = database.getLockMode();
-        if (lockMode == Constants.LOCK_MODE_OFF) {
+        if (lockMode == Constants.LOCK_MODE_OFF) { //禁用锁
             return lockExclusiveSession != null;
         }
         if (lockExclusiveSession == session) {
@@ -389,6 +410,7 @@ public class PageStoreTable extends RegularTable {
                     return true;
                 } else if (lockSharedSessions.size() == 1 &&
                         lockSharedSessions.containsKey(session)) {
+                    //如果前面有一个读锁，并且是相同的session，那么insert之类的操作不须等待
                     traceLock(session, exclusive, "add (upgraded) for ");
                     lockExclusiveSession = session;
                     return true;
@@ -396,6 +418,8 @@ public class PageStoreTable extends RegularTable {
             }
         } else {
             if (lockExclusiveSession == null) {
+                // 如果lockExclusive不为null，说明前面有一个排它锁，不管当前操作是查询还是更新，都必须等待，
+                // 如果lockExclusive为null，那么当前操作可顺利进行
                 if (lockMode == Constants.LOCK_MODE_READ_COMMITTED) {
                     // PageStore is single-threaded, no lock is required
                     return true;
@@ -454,6 +478,8 @@ public class PageStoreTable extends RegularTable {
             database.getLobStorage().removeAllForTable(getId());
             database.lockMeta(session);
         }
+        // 里面删除约束时会把属于约束的索引也删了，此时indexes会变化
+        // 在org.h2.index.BaseIndex.removeChildrenAndResources(Session)中删除
         super.removeChildrenAndResources(session);
         // go backwards because database.removeIndex will call table.removeIndex
         while (indexes.size() > 1) {
@@ -479,11 +505,13 @@ public class PageStoreTable extends RegularTable {
 
     @Override
     public long getRowCountApproximation(SessionLocal session) {
-        return scanIndex.getRowCountApproximation(session);
+        return scanIndex.getRowCountApproximation(session); //ScanIndex和PageDataIndex都是返回rowCount
     }
 
     @Override
-    public long getDiskSpaceUsed() {
+    public long getDiskSpaceUsed() { //用于DISK_SPACE_USED函数
+        // 如果是ScanIndex，因为ScanIndex只是个内存索引，所以返回0，
+        // 如果么是PageDataIndex，那么就是leaf节点个数*pageSize。
         return scanIndex.getDiskSpaceUsed();
     }
 

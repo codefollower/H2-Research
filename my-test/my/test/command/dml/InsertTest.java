@@ -48,7 +48,7 @@ public class InsertTest extends TestBase {
         // stmt.executeUpdate("CREATE TABLE IF NOT EXISTS InsertTest(id int, name varchar(500) as '123')");
 
         stmt.executeUpdate("CREATE TRIGGER IF NOT EXISTS TriggerInsertTest BEFORE INSERT ON InsertTest "
-        // + "FOR EACH ROW CALL \"my.test.sql.InsertTest$MyInsertTrigger\"");
+                // + "FOR EACH ROW CALL \"my.test.sql.InsertTest$MyInsertTrigger\"");
                 + "CALL \"" + MyInsertTrigger.class.getName() + "\"");
 
         stmt.executeUpdate("DROP TABLE IF EXISTS tmpSelectTest");
@@ -90,14 +90,15 @@ public class InsertTest extends TestBase {
         //
         // sql = "INSERT INTO InsertTest(name) DIRECT FROM tmpSelectTest SELECT name"; //FROM开头先也是支持的
 
-        sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,'abc')"; // FROM开头先也是支持的
-        sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,DEFAULT)"; // FROM开头先也是支持的
+        sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,'abc')";
+        sql = "INSERT INTO InsertTest(id, name) SORTED VALUES(100,DEFAULT)";
 
         stmt.executeUpdate("CREATE SCHEMA IF NOT EXISTS myschema AUTHORIZATION sa");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS myschema.InsertTest2(id int, name varchar(500) as '123')");
         stmt.executeUpdate("SET SCHEMA_SEARCH_PATH INFORMATION_SCHEMA, PUBLIC, myschema");
 
-        sql = "INSERT INTO InsertTest2(id, name) SORTED VALUES(100,DEFAULT)"; // FROM开头先也是支持的
+        sql = "INSERT INTO InsertTest2(id, name) SORTED VALUES(100,DEFAULT)"; // h2新版本加SORTED后就不能用DEFAULT了
+        sql = "INSERT INTO InsertTest2(id, name) VALUES(100,DEFAULT)";
         stmt.executeUpdate(sql);
 
         // ps = conn.prepareStatement("INSERT INTO InsertTest(id, name) VALUES(?, ?)");

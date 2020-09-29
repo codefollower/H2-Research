@@ -72,7 +72,7 @@ public class DeleteTest extends TestBase {
         // sql = "delete from DeleteTest where id>2";
         //
         // sql = "delete from DeleteTest where id>2 and name='a1'";
-        sql = "delete from DeleteTest where id=200";
+        sql = "delete from DeleteTest where id=100";
         stmt.executeUpdate(sql);
 
         // sql = "delete top 3 from DeleteTest where name > ?";

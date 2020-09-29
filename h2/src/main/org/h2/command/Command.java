@@ -163,19 +163,10 @@ public abstract class Command implements CommandInterface {
         } else if (session.getAutoCommit()) { //如果是自动提交模式，那么执行完一条SQL时由系统自动提交，非自动提交模式由应用负责提交
             session.commit(false);
         }
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-//////<<<<<<< HEAD
-//////        //早期的版本就的是System.currentTimeMillis()，
-//////        //现在改成System.nanoTime()了，性能会好一点
-//////=======
-////        session.endStatement();
-////=======
-////>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
-//        if (trace.isInfoEnabled() && startTimeNanos > 0) {
-//            long timeMillis = (System.nanoTime() - startTimeNanos) / 1000 / 1000;
-//            //如果一条sql的执行时间大于100毫秒，记下它
-//=======
+
+        // 早期的版本就的是System.currentTimeMillis()，
+        // 现在改成System.nanoTime()了，性能会好一点
+        // 如果一条sql的执行时间大于100毫秒，记下它
         if (trace.isInfoEnabled() && startTimeNanos != 0L) {
             long timeMillis = (System.nanoTime() - startTimeNanos) / 1_000_000L;
             if (timeMillis > Constants.SLOW_QUERY_LIMIT_MS) {
@@ -257,7 +248,7 @@ public abstract class Command implements CommandInterface {
     public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
         long start = 0;
         Database database = session.getDatabase();
-//<<<<<<< HEAD
+//<<<<<<< 这是老版本的做法:
 //        //默认一个数据库只允许一个线程更新，通过SET MULTI_THREADED 1可变成多线程的，
 //        //这样同步对象是session，即不同的session之间可以并发使用数据库，但是同一个session内部是只允许一个线程。
 //        //通过使用database作为同步对象就相当于数据库是单线程的

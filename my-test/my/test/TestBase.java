@@ -43,6 +43,7 @@ public abstract class TestBase {
 
         // prop.setProperty("MODE", "DB2"); //支持SYSDUMMY1
         prop.setProperty("MULTI_THREADED", "true");
+        // prop.setProperty("MV_STORE", "false");
     }
 
     public Connection getConnection() throws Exception {
@@ -56,7 +57,7 @@ public abstract class TestBase {
         initDefaults();
         init();
         if (url == null)
-            url = "jdbc:h2:tcp://localhost:9092/mydb";
+            url = "jdbc:h2:tcp://localhost:9092/mydb3";
 
         conn = DriverManager.getConnection(url, prop);
         // conn.setAutoCommit(false);

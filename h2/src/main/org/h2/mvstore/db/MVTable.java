@@ -324,9 +324,6 @@ public class MVTable extends RegularTable {
                 mainIndexColumn = SearchRow.ROWID_INDEX;
             }
         } else if (primaryIndex.getRowCountMax() != 0) {
-//<<<<<<< HEAD
-//            mainIndexColumn = -1;mainIndexColumn = -1; //重复了
-//=======
             mainIndexColumn = SearchRow.ROWID_INDEX;
         }
 

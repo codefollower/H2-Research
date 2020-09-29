@@ -80,22 +80,14 @@ public final class Delete extends DataChangeStatement {
         }
         try (RowList rows = new RowList(session, table)) {
             setCurrentRowNumber(0);
-//<<<<<<< HEAD
-//            int count = 0;
-//            //比如delete from DeleteTest limit 0，
-//            //此时limitRows为0，不删除任何行
-//            while (limitRows != 0 && targetTableFilter.next()) {
-//                setCurrentRowNumber(rows.size() + 1);
-//                //condition.getBooleanValue(session)内部会取当前行与之比较，
-//                //比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
-//                //然后在从当前行中按列id取当前行value数组中对应元素
-//                if (condition == null || condition.getBooleanValue(session)
-//                        // the following is to support Oracle-style MERGE
-//                        || (keysFilter != null && table.isMVStore())) {
-//=======
             long count = 0;
+            // 比如delete from DeleteTest limit 0，
+            // 此时limitRows为0，不删除任何行
             while (limitRows != 0 && targetTableFilter.next()) {
                 setCurrentRowNumber(rows.size() + 1);
+                // condition.getBooleanValue(session)内部会取当前行与之比较，
+                // 比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
+                // 然后在从当前行中按列id取当前行value数组中对应元素
                 if (condition == null || condition.getBooleanValue(session)) {
                     Row row = targetTableFilter.get();
                     if (table.isMVStore()) {
@@ -170,22 +162,9 @@ public final class Delete extends DataChangeStatement {
                 condition.createIndexConditions(session, targetTableFilter);
             }
         }
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-//////<<<<<<< HEAD
-//////        //为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
-//////        PlanItem item = tableFilter.getBestPlanItem(session, 1);
-//////=======
-////        TableFilter[] filters = new TableFilter[] { tableFilter };
-////        PlanItem item = tableFilter.getBestPlanItem(session, filters, 0,
-////                ExpressionVisitor.allColumnsForTableFilters(filters));
-////        tableFilter.setPlanItem(item);
-////        tableFilter.prepare();
-////=======
-//        PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0,
-//                new AllColumnsForPlan(filters));
-//=======
         TableFilter[] filters = new TableFilter[] { targetTableFilter };
+        // 为什么不能像mapColumns把level设为0，因为getBestPlanItem内部会把level当被除数，所以不行。
+        //PlanItem item = tableFilter.getBestPlanItem(session, 1); //这是老版本的代码
         PlanItem item = targetTableFilter.getBestPlanItem(session, filters, 0, new AllColumnsForPlan(filters));
         targetTableFilter.setPlanItem(item);
         targetTableFilter.prepare();

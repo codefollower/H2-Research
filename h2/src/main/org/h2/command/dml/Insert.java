@@ -130,40 +130,11 @@ public final class Insert extends CommandWithValues implements ResultTarget {
         }
     }
 
-//<<<<<<< HEAD
-//    /**
-//     * Add a row to this merge statement.
-//     *
-//     * @param expr the list of values
-//     */
-//    public void addRow(Expression[] expr) { //一行的各字段值组成的数组
-//        list.add(expr);
-//=======
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
         Index index = null;
         this.deltaChangeCollector = deltaChangeCollector;
         this.deltaChangeCollectionMode = deltaChangeCollectionMode;
-//<<<<<<< HEAD
-//    }
-//
-//    @Override
-//    public int update() {
-//        Index index = null;
-//        if (sortedInsertMode) {
-//            if (!session.getDatabase().isMVStore()) {
-//                /*
-//                 * Take exclusive lock, otherwise two different inserts running at
-//                 * the same time, the second might accidentally get
-//                 * sorted-insert-mode.
-//                 */
-//                table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
-//            }
-//            index = table.getScanIndex(session);
-//            index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
-//        }
-//=======
-//>>>>>>> 5a91cf068195d0e613d30e0e7202a0b05f87f253
         try {
             if (sortedInsertMode) {
                 if (!session.getDatabase().isMVStore()) {
@@ -174,7 +145,7 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                      */
                     table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
                     index = table.getScanIndex(session);
-                    index.setSortedInsertMode(true);
+                    index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
                 }
             }
             return insertRows();
@@ -216,12 +187,8 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 if (deltaChangeCollectionMode == ResultOption.NEW) {
                     deltaChangeCollector.addRow(newRow.getValueList().clone());
                 }
-//<<<<<<< HEAD
-//                boolean done = table.fireBeforeRow(session, null, newRow); //INSTEAD OF触发器会返回true
-//                if (!done) {
-//                	//直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
-//=======
-                if (!table.fireBeforeRow(session, null, newRow)) {
+                if (!table.fireBeforeRow(session, null, newRow)) { //INSTEAD OF触发器会返回true
+                    //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
                     table.lock(session, true, false);
                     try {
                         table.addRow(session, newRow);
@@ -236,22 +203,12 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                         }
                         continue;
                     }
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-//////<<<<<<< HEAD
-//////                    //在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
-//////                    //也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
-//////                    //这里又记了一次UndoLog
-//////                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
-//////=======
-////                    generatedKeys.confirmRow(newRow);
-////=======
-//                    if (deltaChangeCollectionMode == ResultOption.FINAL) {
-//                        deltaChangeCollector.addRow(newRow.getValueList());
-//                    }
-//=======
                     DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
                             deltaChangeCollectionMode, newRow);
+                    // 在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
+                    // 也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
+                    // 这里又记了一次UndoLog
+                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
                     session.log(table, UndoLogRecord.INSERT, newRow);
                     table.fireAfterRow(session, null, newRow, false);
                 } else {

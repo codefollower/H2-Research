@@ -131,30 +131,7 @@ public class CommandContainer extends Command {
         return prepared.isQuery();
     }
 
-//<<<<<<< HEAD
-//    //重新解析并prepare
-//    @Override
-//    public void prepareJoinBatch() {
-//        if (session.isJoinBatchEnabled()) {
-//            prepareJoinBatch(prepared);
-//        }
-//    }
-//
-//    private static void prepareJoinBatch(Prepared prepared) {
-//        if (prepared.isQuery()) {
-//            int type = prepared.getType();
-//
-//            if (type == CommandInterface.SELECT) {
-//                ((Query) prepared).prepareJoinBatch();
-//            } else if (type == CommandInterface.EXPLAIN ||
-//                    type == CommandInterface.EXPLAIN_ANALYZE) {
-//                prepareJoinBatch(((Explain) prepared).getCommand());
-//            }
-//        }
-//    }
-//
-//=======
-//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
+    //重新解析并prepare
     private void recompileIfRequired() {
         if (prepared.needRecompile()) {
             // TODO test with 'always recompile'

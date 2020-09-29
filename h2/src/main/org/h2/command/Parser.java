@@ -1570,31 +1570,8 @@ public class Parser {
                     columns.add(readTableColumn(filter));
                 } while (readIfMore());
                 read(EQUAL);
-//<<<<<<< HEAD
-//                Expression expression = readExpression();
-//                int columnCount = columns.size();
-//                if (expression instanceof ExpressionList) {
-//                    ExpressionList list = (ExpressionList) expression;
-//                    if (list.getType().getValueType() != Value.ROW || columnCount != list.getSubexpressionCount()) {
-//                        throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
-//                    }
-//                    for (int i = 0; i < columnCount; i++) {
-//                        command.setAssignment(columns.get(i), list.getSubexpression(i));
-//                    }
-//                } else if (columnCount == 1) {
-//                    // Row value special case
-//                    command.setAssignment(columns.get(0), expression);
-//                } else {
-//                    for (int i = 0; i < columnCount; i++) {
-//                        command.setAssignment(columns.get(i),
-//                                Function.getFunctionWithArgs(database, Function.ARRAY_GET, expression,
-//                                        ValueExpression.get(ValueInt.get(i + 1))));
-//                    }
-//                }
-//            } else { //如: update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3
-//=======
                 list.addMultiple(columns, readExpression());
-            } else {
+            } else { //如: update UpdateTest set name = DEFAULT, id=10 where id>2 limit 3
                 Column column = readTableColumn(filter);
                 read(EQUAL);
                 list.addSingle(column, readExpressionOrDefault());
@@ -1603,24 +1580,7 @@ public class Parser {
         return list;
     }
 
-//<<<<<<< HEAD
-//    //orderInFrom目前传进来都是0
-//    //只用于Delete和Update，Delete和Update只允许单表 
-//    private TableFilter readSimpleTableFilter(int orderInFrom, Collection<String> excludeTokens) { 
-//        Table table = readTableOrView();
-//        String alias = null;
-//        if (readIf("AS")) {
-//            alias = readAliasIdentifier();
-//        } else if (currentTokenType == IDENTIFIER) {
-//            if (!equalsTokenIgnoreCase(currentToken, "SET")
-//                    && (excludeTokens == null || !isTokenInList(excludeTokens))) {
-//                // SET is not a keyword (PostgreSQL supports it as a table name)
-//                alias = readAliasIdentifier();
-//            }
-//        }
-//        return new TableFilter(session, table, alias, rightsChecked,
-//                currentSelect, orderInFrom, null);
-//=======
+    //只用于Delete和Update，Delete和Update只允许单表 
     private TableFilter readSimpleTableFilter() {
         return new TableFilter(session, readTableOrView(), readFromAlias(null), rightsChecked, currentSelect, 0, null);
     }

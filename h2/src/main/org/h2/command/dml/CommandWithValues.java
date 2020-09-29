@@ -37,7 +37,7 @@ public abstract class CommandWithValues extends DataChangeStatement {
      * @param expr
      *            the list of values
      */
-    public void addRow(Expression[] expr) {
+    public void addRow(Expression[] expr) { //一行的各字段值组成的数组
         valuesExpressionList.add(expr);
     }
 

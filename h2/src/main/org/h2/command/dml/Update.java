@@ -110,95 +110,6 @@ public final class Update extends DataChangeStatement {
                             }
                         }
                     }
-//<<<<<<< HEAD
-//                    Row newRow = table.getTemplateRow();
-//                    //以原表中的所有字段来遍历，而不是以update中的字段
-//                    boolean setOnUpdate = false;
-//                    for (int i = 0; i < columnCount; i++) {
-//                        Column column = columns[i];
-//                        Expression newExpr = setClauseMap.get(column);
-//                        Value newValue;
-//                        if (newExpr == null) { //说明不是更新字段，直接用原来的值
-//                            if (column.getOnUpdateExpression() != null) {
-//                                setOnUpdate = true;
-//                            }
-////<<<<<<< HEAD
-////                            newValue = oldRow.getValue(i);
-////                        } else if (newExpr == ValueExpression.getDefault()) { //是更新字段，但是取默认值
-////                            newValue = table.getDefaultValue(session, column);
-////                        } else { //是更新字段，并且取更新值
-////=======
-//                            newValue = column.getGenerated() ? null : oldRow.getValue(i);
-//                        } else if (newExpr == ValueExpression.DEFAULT) {
-//                            newValue = null;
-//                        } else {
-//                            newValue = newExpr.getValue(session);
-//                        }
-//                        newRow.setValue(i, newValue);
-//                    }
-//                    long key = oldRow.getKey();
-//                    newRow.setKey(key);
-//                    table.validateConvertUpdateSequence(session, newRow); //验证新记录(包括字段约束检查)
-//                    if (setOnUpdate || updateToCurrentValuesReturnsZero) {
-//                        setOnUpdate = false;
-//                        for (int i = 0; i < columnCount; i++) {
-//                            // Use equals here to detect changes from numeric 0 to 0.0 and similar
-//                            if (!Objects.equals(oldRow.getValue(i), newRow.getValue(i))) {
-//                                setOnUpdate = true;
-//                                break;
-//                            }
-//                        }
-//                        if (setOnUpdate) {
-//                            for (int i = 0; i < columnCount; i++) {
-//                                Column column = columns[i];
-//                                if (setClauseMap.get(column) == null) {
-//                                    Expression onUpdate = column.getOnUpdateExpression();
-//                                    if (onUpdate != null) {
-//                                        newRow.setValue(i, onUpdate.getValue(session));
-//                                    }
-//                                }
-//                            }
-//                            // Convert on update expressions and reevaluate
-//                            // generated columns
-//                            table.validateConvertUpdateSequence(session, newRow);
-//                        } else if (updateToCurrentValuesReturnsZero) {
-//                            count--;
-//                        }
-//                    }
-//                    if (deltaChangeCollectionMode == ResultOption.OLD) {
-//                        deltaChangeCollector.addRow(oldRow.getValueList());
-//                    } else if (deltaChangeCollectionMode == ResultOption.NEW) {
-//                        deltaChangeCollector.addRow(newRow.getValueList().clone());
-//                    }
-//                    if (!table.fireRow() || !table.fireBeforeRow(session, oldRow, newRow)) { //调用针对行级别的触发器 
-//                        rows.add(oldRow);
-//                        rows.add(newRow);
-//                        if (updatedKeysCollector != null) {
-//                            updatedKeysCollector.add(key);
-//                        }
-//                    }
-//                    if (deltaChangeCollectionMode == ResultOption.FINAL) {
-//                        deltaChangeCollector.addRow(newRow.getValueList());
-//                    }
-//                    count++;
-//                }
-//            }
-//            // TODO self referencing referential integrity constraints
-//            // don't work if update is multi-row and 'inversed' the condition!
-//            // probably need multi-row triggers with 'deleted' and 'inserted'
-//            // at the same time. anyway good for sql compatibility
-//            // TODO update in-place (but if the key changes,
-//            // we need to update all indexes) before row triggers
-//
-//            // the cached row is already updated - we need the old values
-//            //第二步更新记录(先删除记录，再增加记录)
-//            table.updateRows(this, session, rows);
-//            if (table.fireRow()) {
-//                for (rows.reset(); rows.hasNext();) {
-//                    Row o = rows.next();
-//                    Row n = rows.next();
-//                    table.fireAfterRow(session, o, n, false);
-//=======
                     if (setClauseList.prepareUpdate(table, session, deltaChangeCollector, deltaChangeCollectionMode,
                             rows, oldRow, onDuplicateKeyInsert != null)) {
                         count++;
@@ -220,7 +131,7 @@ public final class Update extends DataChangeStatement {
         // we need to update all indexes) before row triggers
 
         // the cached row is already updated - we need the old values
-        table.updateRows(prepared, session, rows);
+        table.updateRows(prepared, session, rows); //先删除记录，再增加记录
         if (table.fireRow()) {
             for (rows.reset(); rows.hasNext();) {
                 Row o = rows.next();
@@ -251,20 +162,10 @@ public final class Update extends DataChangeStatement {
     public void prepare() { //跟org.h2.command.dml.Delete.prepare()一样，只是多了中间的for
         if (condition != null) {
             condition.mapColumns(targetTableFilter, 0, Expression.MAP_INITIAL);
-//<<<<<<< HEAD
-//            condition = condition.optimize(session);
-//            //根据where条件建立相关的索引条件，这样可以由where条件中的字段选择合适的索引
-//            //如为字段name建立了索引，如果是where name>'124'，那么此时就用name的索引。
-//            condition.createIndexConditions(session, targetTableFilter);
-//        }
-//        for (Entry<Column, Expression> entry : setClauseMap.entrySet()) {
-//            Expression e = entry.getValue();
-//            e.mapColumns(targetTableFilter, 0, Expression.MAP_INITIAL);
-//            if (sourceTableFilter!=null){
-//                e.mapColumns(sourceTableFilter, 0, Expression.MAP_INITIAL);
-//=======
             condition = condition.optimizeCondition(session);
             if (condition != null) {
+                //根据where条件建立相关的索引条件，这样可以由where条件中的字段选择合适的索引
+                //如为字段name建立了索引，如果是where name>'124'，那么此时就用name的索引。
                 condition.createIndexConditions(session, targetTableFilter);
             }
         }

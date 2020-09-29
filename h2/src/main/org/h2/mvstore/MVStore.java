@@ -341,14 +341,6 @@ public class MVStore implements AutoCloseable {
     private long lastCommitTime; //存放与creationTime的差值
 
     /**
-<<<<<<< HEAD
-     * The earliest chunk to retain, if any.
-     */
-    //private Chunk retainChunk; //目前没有用处
-
-    /**
-=======
->>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
      * The version of the current store operation (if any).
      */
     private volatile long currentStoreVersion = INITIAL_VERSION;
@@ -874,9 +866,6 @@ public class MVStore implements AutoCloseable {
                     "and the file was not opened in read-only mode",
                     format, FORMAT_WRITE);
         }
-//<<<<<<< HEAD
-//        format = DataUtils.readHexLong(storeHeader, "formatRead", format); //"formatRead"目前未使用
-//=======
         format = DataUtils.readHexLong(storeHeader, HDR_FORMAT_READ, format);
         if (format > FORMAT_READ) {
             throw DataUtils.newMVStoreException(
@@ -1790,254 +1779,6 @@ public class MVStore implements AutoCloseable {
         return writeStoreHeader;
     }
 
-//<<<<<<< HEAD
-//     * Try to free unused chunks. This method doesn't directly write, but can
-//     * change the metadata, and therefore cause a background write.
-//     */
-//    private void freeUnusedIfNeeded(long time) {
-//        int freeDelay = retentionTime / 5;
-//        if (time >= lastFreeUnusedChunks + freeDelay) {
-//            // set early in case it fails (out of memory or so)
-//            lastFreeUnusedChunks = time;
-//            freeUnusedChunks();
-//            // set it here as well, to avoid calling it often if it was slow
-//            lastFreeUnusedChunks = getTimeSinceCreation();
-//        }
-//    }
-//
-//    private void freeUnusedChunks() {
-//        assert storeLock.isHeldByCurrentThread();
-//        if (lastChunk != null && reuseSpace) {
-//            Set<Integer> referenced = collectReferencedChunks();
-//            long time = getTimeSinceCreation();
-//
-//            for (Iterator<Chunk> iterator = chunks.values().iterator(); iterator.hasNext(); ) {
-//                Chunk c = iterator.next();
-//                if (c.block != Long.MAX_VALUE && !referenced.contains(c.id)) {
-//                    if (canOverwriteChunk(c, time)) {
-//                        iterator.remove();
-//                        if (meta.remove(Chunk.getMetaKey(c.id)) != null) {
-//                            markMetaChanged();
-//                        }
-//                        long start = c.block * BLOCK_SIZE;
-//                        int length = c.len * BLOCK_SIZE;
-//                        fileStore.free(start, length);
-//                        assert fileStore.getFileLengthInUse() == measureFileLengthInUse() :
-//                                fileStore.getFileLengthInUse() + " != " + measureFileLengthInUse();
-//                    } else {
-//                        if (c.unused == 0) {
-//                            c.unused = time;
-//                            meta.put(Chunk.getMetaKey(c.id), c.asString());
-//                            markMetaChanged();
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//
-//    private Set<Integer> collectReferencedChunks() {
-////<<<<<<< HEAD
-////        long testVersion = lastChunk.version;
-////        DataUtils.checkArgument(testVersion > 0, "Collect references on version 0");
-////        long readCount = getFileStore().readCount; //多于的
-////        Set<Integer> referenced = New.hashSet();
-////        for (Cursor<String, String> c = meta.cursor("root."); c.hasNext();) {
-////            String key = c.next();
-////            if (!key.startsWith("root.")) {
-////                break;
-////            }
-////            long pos = DataUtils.parseHexLong(c.getValue());
-////            if (pos == 0) {
-////                continue;
-////            }
-////            int mapId = DataUtils.parseHexInt(key.substring("root.".length()));
-////            collectReferencedChunks(referenced, mapId, pos, 0);
-////        }
-////        long pos = lastChunk.metaRootPos;
-////        collectReferencedChunks(referenced, 0, pos, 0);
-////        readCount = fileStore.readCount - readCount; //多于的
-////        return referenced;
-////    }
-////
-////    private void collectReferencedChunks(Set<Integer> targetChunkSet,
-////            int mapId, long pos, int level) { //level这个参数没用到
-////        int c = DataUtils.getPageChunkId(pos);
-////        targetChunkSet.add(c);
-////        if (DataUtils.getPageType(pos) == DataUtils.PAGE_TYPE_LEAF) {
-////            return;
-////=======
-//        final ThreadPoolExecutor executorService = new ThreadPoolExecutor(10, 10, 10L, TimeUnit.SECONDS,
-//                new ArrayBlockingQueue<Runnable>(keysPerPage + 1));
-//        final AtomicInteger executingThreadCounter = new AtomicInteger(0);
-//        try {
-//            ChunkIdsCollector collector = new ChunkIdsCollector(meta.getId());
-//            Set<Long> inspectedRoots = new HashSet<>();
-//            long pos = lastChunk.metaRootPos;
-//            inspectedRoots.add(pos);
-//            collector.visit(pos, executorService, executingThreadCounter);
-//            long oldestVersionToKeep = getOldestVersionToKeep();
-//            MVMap.RootReference rootReference = meta.getRoot();
-//            do {
-//                Page rootPage = rootReference.root;
-//                pos = rootPage.getPos();
-//                if (!rootPage.isSaved()) {
-//                    collector.setMapId(meta.getId());
-//                    collector.visit(rootPage, executorService, executingThreadCounter);
-//                } else if (inspectedRoots.add(pos)) {
-//                    collector.setMapId(meta.getId());
-//                    collector.visit(pos, executorService, executingThreadCounter);
-//                }
-//
-//                for (Cursor<String, String> c = new Cursor<>(rootPage, "root."); c.hasNext();) {
-//                    String key = c.next();
-//                    assert key != null;
-//                    if (!key.startsWith("root.")) {
-//                        break;
-//                    }
-//                    pos = DataUtils.parseHexLong(c.getValue());
-//                    if (DataUtils.isPageSaved(pos) && inspectedRoots.add(pos)) {
-//                        // to allow for something like "root.tmp.123" to be
-//                        // processed
-//                        int mapId = DataUtils.parseHexInt(key.substring(key.lastIndexOf('.') + 1));
-//                        collector.setMapId(mapId);
-//                        collector.visit(pos, executorService, executingThreadCounter);
-//                    }
-//                }
-//            } while (rootReference.version >= oldestVersionToKeep && (rootReference = rootReference.previous) != null);
-//            return collector.getReferenced();
-//        } finally {
-//            executorService.shutdownNow();
-//        }
-//    }
-//
-//    final class ChunkIdsCollector {
-//
-//        /** really a set */
-//        private final ConcurrentHashMap<Integer, Integer> referencedChunks = new ConcurrentHashMap<>();
-//        private final ChunkIdsCollector parent;
-//        private       int               mapId;
-//
-//        ChunkIdsCollector(int mapId) {
-//            this.parent = null;
-//            this.mapId = mapId;
-//        }
-//
-//        private ChunkIdsCollector(ChunkIdsCollector parent) {
-//            this.parent = parent;
-//            this.mapId = parent.mapId;
-//        }
-//
-//        public int getMapId() {
-//            return mapId;
-//        }
-//
-////<<<<<<< HEAD
-////    private PageChildren readPageChunkReferences(int mapId, long pos, int parentChunk) { //parentChunk这个参数目前都是-1
-////        if (DataUtils.getPageType(pos) == DataUtils.PAGE_TYPE_LEAF) { //多于的
-////            return null;
-////=======
-//        public void setMapId(int mapId) {
-//            this.mapId = mapId;
-//        }
-//
-//        public Set<Integer> getReferenced() {
-//            Set<Integer> set = new HashSet<>();
-//            set.addAll(referencedChunks.keySet());
-//            return set;
-//        }
-//
-//        public void visit(Page page, ThreadPoolExecutor executorService, AtomicInteger executingThreadCounter) {
-//            long pos = page.getPos();
-//            if (DataUtils.isPageSaved(pos)) {
-//                registerChunk(DataUtils.getPageChunkId(pos));
-//            }
-//            int count = page.map.getChildPageCount(page);
-//            if (count == 0) {
-//                return;
-//            }
-//            final ChunkIdsCollector childCollector = new ChunkIdsCollector(this);
-//            for (int i = 0; i < count; i++) {
-//                Page childPage = page.getChildPageIfLoaded(i);
-//                if (childPage != null) {
-//                    childCollector.visit(childPage, executorService, executingThreadCounter);
-//                } else {
-//                    childCollector.visit(page.getChildPagePos(i), executorService, executingThreadCounter);
-//                }
-//            }
-//            // and cache resulting set of chunk ids
-//            if (DataUtils.isPageSaved(pos) && cacheChunkRef != null) {
-//                int[] chunkIds = childCollector.getChunkIds();
-//                cacheChunkRef.put(pos, chunkIds, Constants.MEMORY_ARRAY + 4 * chunkIds.length);
-//            }
-//        }
-//
-//        public void visit(long pos, ThreadPoolExecutor executorService, AtomicInteger executingThreadCounter) {
-//            if (!DataUtils.isPageSaved(pos)) {
-//                return;
-//            }
-//            registerChunk(DataUtils.getPageChunkId(pos));
-//            if (DataUtils.getPageType(pos) == DataUtils.PAGE_TYPE_LEAF) {
-//                return;
-//            }
-//            int chunkIds[];
-//            if (cacheChunkRef != null && (chunkIds = cacheChunkRef.get(pos)) != null) {
-//                // there is a cached set of chunk ids for this position
-//                for (int chunkId : chunkIds) {
-//                    registerChunk(chunkId);
-//                }
-//            } else {
-//                final ChunkIdsCollector childCollector = new ChunkIdsCollector(this);
-//                Page page;
-//                if (cache != null && (page = cache.get(pos)) != null) {
-//                    // there is a full page in cache, use it
-//                    childCollector.visit(page, executorService, executingThreadCounter);
-//                } else {
-//                    // page was not cached: read the data
-//                    Chunk chunk = getChunk(pos);
-//                    long filePos = chunk.block * BLOCK_SIZE;
-//                    filePos += DataUtils.getPageOffset(pos);
-//                    if (filePos < 0) {
-//                        throw DataUtils.newIllegalStateException(DataUtils.ERROR_FILE_CORRUPT,
-//                                "Negative position {0}; p={1}, c={2}", filePos, pos, chunk.toString());
-//                    }
-//                    long maxPos = (chunk.block + chunk.len) * BLOCK_SIZE;
-//                    Page.readChildrenPositions(fileStore, pos, filePos, maxPos,
-//                            childCollector, executorService, executingThreadCounter);
-//                }
-//                // and cache resulting set of chunk ids
-//                if (cacheChunkRef != null) {
-//                    chunkIds = childCollector.getChunkIds();
-//                    cacheChunkRef.put(pos, chunkIds, Constants.MEMORY_ARRAY + 4 * chunkIds.length);
-//                }
-//            }
-//        }
-//
-//        private void registerChunk(int chunkId) {
-//            if (referencedChunks.put(chunkId, 1) == null && parent != null) {
-//                parent.registerChunk(chunkId);
-//            }
-//        }
-////<<<<<<< HEAD
-////        if (r.children.length == 0) {
-////            int chunk = DataUtils.getPageChunkId(pos);
-////            if (chunk == parentChunk) { //多于的，逻辑也不对，若是返回null，前面那句if (!refs.chunkList)就抛出NPE
-////                return null;
-////=======
-//
-//        private int[] getChunkIds() {
-//            int chunkIds[] = new int[referencedChunks.size()];
-//            int index = 0;
-//            for (Integer chunkId : referencedChunks.keySet()) {
-//                chunkIds[index++] = chunkId;
-//            }
-//            return chunkIds;
-//        }
-//    }
-//
-//    /**
-//=======
-//>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
     /**
      * Get a buffer for writing. This caller must synchronize on the store
      * before calling the method and until after using the buffer.
@@ -2601,19 +2342,6 @@ public class MVStore implements AutoCloseable {
         long maxLengthLiveSum = 1;
         long time = getTimeSinceCreation();
         for (Chunk c : chunks.values()) {
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-//////<<<<<<< HEAD
-//////            // ignore young chunks, because we don't optimize those
-//////            if (c.time + retentionTime > time) { //retentionTime默认是45秒钟，见FileStore.getDefaultRetentionTime
-//////                continue;
-//////=======
-////=======
-////            assert c.maxLen >= 0;
-////>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
-//            maxLengthSum += c.maxLen;
-//            maxLengthLiveSum += c.maxLenLive;
-//=======
             if (all || isRewritable(c, time)) {
                 assert c.maxLen >= 0;
                 maxLengthSum += c.maxLen;
@@ -2703,6 +2431,7 @@ public class MVStore implements AutoCloseable {
         // so most desirable chunks will stay at the tail
         PriorityQueue<Chunk> queue = new PriorityQueue<>(this.chunks.size() / 4 + 1,
                 (o1, o2) -> {
+                    //collectPriority小的排在最前面，并且对排在前面的Chunk进行compact
                     int comp = Integer.compare(o2.collectPriority, o1.collectPriority);
                     if (comp == 0) {
                         comp = Long.compare(o2.maxLenLive, o1.maxLenLive);
@@ -2718,6 +2447,7 @@ public class MVStore implements AutoCloseable {
             // now we don't do that)
             int fillRate = chunk.getFillRate();
             if (isRewritable(chunk, time) && fillRate <= targetFillRate) {
+                //年龄越小填充率越高优先级数字越大，移动collectPriority小的，也就是年龄大的填充率低的
                 long age = Math.max(1, latestVersion - chunk.version);
                 chunk.collectPriority = (int) (fillRate * 1000 / age);
                 totalSize += chunk.maxLenLive;
@@ -2730,29 +2460,7 @@ public class MVStore implements AutoCloseable {
                     totalSize -= removed.maxLenLive;
                 }
             }
-//<<<<<<< HEAD
-//            //年龄越小填充率越高优先级数字越大，移动collectPriority小的，也就是年龄大的填充率低的
-//            long age = last.version - c.version + 1;
-//            c.collectPriority = (int) (c.getFillRate() * 1000 / age);
-//            old.add(c);
-//=======
-//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
         }
-
-//<<<<<<< HEAD
-//        // sort the list, so the first entry should be collected first
-//        Collections.sort(old, new Comparator<Chunk>() {
-//            @Override
-////<<<<<<< HEAD
-////            public int compare(Chunk o1, Chunk o2) { //collectPriority小的排在最前面，并且对排在前面的Chunk进行compact
-////                int comp = new Integer(o1.collectPriority).
-////                        compareTo(o2.collectPriority);
-////=======
-//            public int compare(Chunk o1, Chunk o2) {
-//                int comp = Integer.compare(o1.collectPriority, o2.collectPriority);
-//                if (comp == 0) {
-//                    comp = Long.compare(o1.maxLenLive, o2.maxLenLive);
-//=======
         return queue.isEmpty() ? null : queue;
     }
 
@@ -3693,10 +3401,6 @@ public class MVStore implements AutoCloseable {
             BackgroundWriterThread t =
                     new BackgroundWriterThread(this, sleep,
                             fileStore.toString());
-//<<<<<<< HEAD
-//            t.start();
-//            backgroundWriterThread = t; //这行要放在t.start前，否则有可能t运行到run时，backgroundWriterThread还是null
-//=======
             if (backgroundWriterThread.compareAndSet(null, t)) {
                 t.start();
                 serializationExecutor = createSingleThreadExecutor("H2-serialization");
@@ -4045,12 +3749,7 @@ public class MVStore implements AutoCloseable {
             while (store.isBackgroundThread()) {
                 synchronized (sync) {
                     try {
-//<<<<<<< HEAD
-//                        sync.wait(sleep); //在MVStore.stopBackgroundThread()中通知
-//                    } catch (InterruptedException e) {
-//                        continue;
-//=======
-                        sync.wait(sleep);
+                        sync.wait(sleep); //在MVStore.stopBackgroundThread()中通知
                     } catch (InterruptedException ignore) {
                     }
                 }

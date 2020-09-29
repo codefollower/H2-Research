@@ -159,43 +159,6 @@ public final class Cursor<K,V> implements Iterator<K> {
      * @param page to start from as a root
      * @param key to search for, null means search for the first available key
      */
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////    private static CursorPos traverseDown(Page p, Object key) {
-//////<<<<<<< HEAD
-//////        CursorPos cursorPos = null;
-//////        while (!p.isLeaf()) {
-//////            assert p.getKeyCount() > 0;
-//////            int index = 0;
-//////            if(key != null) {
-//////                index = p.binarySearch(key) + 1;
-//////                if (index < 0) {
-//////                    index = -index;
-//////                }
-//////            }
-////////<<<<<<< HEAD
-////////            //遍历完当前leaf page后，就转到parent page，然后就到右边的第一个兄弟page，
-////////            //所以要x+1
-////////            pos = new CursorPos(p, x + 1, pos); 
-////////            p = p.getChildPage(x);
-////////=======
-//////            cursorPos = new CursorPos(p, index, cursorPos);
-//////            p = p.getChildPage(index);
-//////        }
-//////        int index = 0;
-//////        if(key != null) {
-//////            index = p.binarySearch(key);
-//////            if (index < 0) {
-//////                index = -index - 1;
-//////            }
-//////=======
-////        CursorPos cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
-////=======
-//    private static <K,V> CursorPos<K,V> traverseDown(Page<K,V> p, K key) {
-//        CursorPos<K,V> cursorPos = key == null ? p.getPrependCursorPos(null) : CursorPos.traverseDown(p, key);
-//        if (cursorPos.index < 0) {
-//            cursorPos.index = -cursorPos.index - 1; 
-//=======
     static <K,V> CursorPos<K,V> traverseDown(Page<K,V> page, K key, boolean reverse) {
         CursorPos<K,V> cursorPos = key != null ? CursorPos.traverseDown(page, key) :
                 reverse ? page.getAppendCursorPos(null) : page.getPrependCursorPos(null);

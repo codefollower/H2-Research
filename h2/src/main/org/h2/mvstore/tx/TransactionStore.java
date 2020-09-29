@@ -293,7 +293,7 @@ public class TransactionStore {
      * @param logId the log id
      * @return the operation id
      */
-    static long getOperationId(int transactionId, long logId) {
+    static long getOperationId(int transactionId, long logId) { //transactionId占前面24位，logId占后面40位
         DataUtils.checkArgument(transactionId >= 0 && transactionId < (1 << (64 - LOG_ID_BITS)),
                 "Transaction id out of range: {0}", transactionId);
         DataUtils.checkArgument(logId >= 0 && logId <= LOG_ID_MASK,

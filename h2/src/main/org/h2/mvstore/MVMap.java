@@ -153,89 +153,6 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     @Override
     public V put(K key, V value) {
         DataUtils.checkArgument(value != null, "The value may not be null");
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////        beforeWrite();
-////        long v = writeVersion;
-////        Page p = root.copy(v);
-////        p = splitRootIfNeeded(p, v);
-////        Object result = put(p, v, key, value);
-////        newRoot(p);
-////        return (V) result;
-////    }
-////
-////    /**
-////     * Split the root page if necessary.
-////     *
-////     * @param p the page
-////     * @param writeVersion the write version
-////     * @return the new sibling
-////     */
-////    protected Page splitRootIfNeeded(Page p, long writeVersion) {
-////        if (p.getMemory() <= store.getPageSplitSize() || p.getKeyCount() <= 1) {
-////            return p;
-////        }
-////        int at = p.getKeyCount() / 2;
-////        long totalCount = p.getTotalCount();
-////        Object k = p.getKey(at);
-////        Page split = p.split(at); //p把自己split后被当成左节点
-////        Object[] keys = { k };
-////        Page.PageReference[] children = {
-////                new Page.PageReference(p, p.getPos(), p.getTotalCount()),
-////                new Page.PageReference(split, split.getPos(), split.getTotalCount()),
-////        };
-////        p = Page.create(this, writeVersion,
-////                keys, null,
-////                children,
-////                totalCount, 0);
-////        return p;
-////=======
-//        return put(key, value, DecisionMaker.PUT);
-//    }
-//
-//    /**
-//     * Add or replace a key-value pair.
-//     *
-//     * @param key the key (may not be null)
-//     * @param value the value (may not be null)
-//     * @return the old value if the key existed, or null otherwise
-//     */
-////<<<<<<< HEAD
-////    protected Object put(Page p, long writeVersion, Object key, Object value) {
-////        int index = p.binarySearch(key);
-////        if (p.isLeaf()) {
-////            if (index < 0) {
-////                index = -index - 1;
-////                p.insertLeaf(index, key, value);
-////                return null;
-////            }
-////            return p.setValue(index, value);
-////        }
-////        // p is a node
-////        if (index < 0) {
-////            index = -index - 1;
-////        } else {
-////            index++; //大于等于split key的在右边节点，所以要加1
-////        }
-////        Page c = p.getChildPage(index).copy(writeVersion);
-////        //如果在这里发生split，可能是树叶也可能是非树叶节点
-////        if (c.getMemory() > store.getPageSplitSize() && c.getKeyCount() > 1) {
-////            // split on the way down
-////            int at = c.getKeyCount() / 2;
-////            Object k = c.getKey(at);
-////            Page split = c.split(at);
-////            p.setChild(index, split); //这里把右边节点替换原来的
-////            p.insertNode(index, k, c); //这里把左边节点插入，把前面的往右挪，同时在keys数组中加入新的k
-////            // now we are not sure where to add
-////            return put(p, writeVersion, key, value);
-////        }
-////        Object result = put(c, writeVersion, key, value);
-////        p.setChild(index, c);
-////        return result;
-////=======
-//    public final V put(K key, V value, DecisionMaker<? super V> decisionMaker) {
-//        return operate(key, value, decisionMaker);
-//=======
         return operate(key, value, DecisionMaker.PUT);
     }
 
@@ -986,24 +903,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
      * Forget those old versions that are no longer needed.
      * @param rootReference to inspect
      */
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////    void removeUnusedOldVersions() {
-////        //如果只保留3个版本，假设前面已经有5个版本了，版本号是1-5，
-////        //如果当前版本号是6，那么oldest的值就是4，版本号小于4的OldRoot都要删除
-////        long oldest = store.getOldestVersionToKeep();
-////        if (oldest == -1) {
-////            return;
-////        }
-////        Page last = oldRoots.peekLast(); //后面的是最近加入的
-////        while (true) {
-////            Page p = oldRoots.peekFirst();
-////            if (p == null || p.getVersion() >= oldest || p == last) {
-////                break;
-////=======
-//    private void removeUnusedOldVersions(RootReference rootReference) {
-//=======
     private void removeUnusedOldVersions(RootReference<K,V> rootReference) {
+        //如果只保留3个版本，假设前面已经有5个版本了，版本号是1-5，
+        //如果当前版本号是6，那么oldest的值就是4，版本号小于4的OldRoot都要删除
         rootReference.removeUnusedOldVersions(store.getOldestVersionToKeep());
     }
 
@@ -1918,7 +1820,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                                 long totalCount = p.getTotalCount();
                                 int at = keyCount >> 1;
                                 K k = p.getKey(at);
-                                Page<K,V> split = p.split(at);
+                                Page<K,V> split = p.split(at); //p把自己split后被当成左节点
                                 unsavedMemoryHolder.value += p.getMemory() + split.getMemory();
                                 if (pos == null) {
                                     K[] keys = p.createKeyStorage(1);
@@ -1934,8 +1836,8 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                                 index = pos.index;
                                 pos = pos.parent;
                                 p = p.copy();
-                                p.setChild(index, split);
-                                p.insertNode(index, k, c);
+                                p.setChild(index, split); //这里把右边节点替换原来的
+                                p.insertNode(index, k, c); //这里把左边节点插入，把前面的往右挪，同时在keys数组中加入新的k
                             }
                         } else {
                             p.setValue(index, value);

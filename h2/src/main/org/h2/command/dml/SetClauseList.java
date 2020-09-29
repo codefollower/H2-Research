@@ -117,15 +117,15 @@ public final class SetClauseList implements HasSQL {
         Column[] columns = table.getColumns();
         int columnCount = columns.length;
         Row newRow = table.getTemplateRow();
-        for (int i = 0; i < columnCount; i++) {
+        for (int i = 0; i < columnCount; i++) { //以原表中的所有字段来遍历，而不是以update中的字段
             UpdateAction action = actions[i];
             Column column = columns[i];
             Value newValue;
-            if (action == null || action == UpdateAction.ON_UPDATE) {
+            if (action == null || action == UpdateAction.ON_UPDATE) { //说明不是更新字段，直接用原来的值
                 newValue = column.isGenerated() ? null : oldRow.getValue(i);
-            } else if (action == UpdateAction.SET_DEFAULT) {
+            } else if (action == UpdateAction.SET_DEFAULT) { //是更新字段，但是取默认值
                 newValue = !column.isIdentity() ? null : oldRow.getValue(i);
-            } else {
+            } else { //是更新字段，并且取更新值
                 newValue = action.update(session);
                 if (newValue == ValueNull.INSTANCE && column.isDefaultOnNull()) {
                     newValue = !column.isIdentity() ? null : oldRow.getValue(i);
@@ -137,7 +137,7 @@ public final class SetClauseList implements HasSQL {
             newRow.setValue(i, newValue);
         }
         newRow.setKey(oldRow.getKey());
-        table.convertUpdateRow(session, newRow);
+        table.convertUpdateRow(session, newRow); //验证新记录(包括字段约束检查)
         boolean result = true;
         if (onUpdate) {
             if (!oldRow.hasSameValues(newRow)) {
@@ -162,7 +162,7 @@ public final class SetClauseList implements HasSQL {
         } else if (deltaChangeCollectionMode == ResultOption.NEW) {
             deltaChangeCollector.addRow(newRow.getValueList().clone());
         }
-        if (!table.fireRow() || !table.fireBeforeRow(session, oldRow, newRow)) {
+        if (!table.fireRow() || !table.fireBeforeRow(session, oldRow, newRow)) { //调用针对行级别的触发器 
             rows.add(oldRow);
             rows.add(newRow);
         }

@@ -1,6 +1,5 @@
 package my.test.store;
 
-import org.h2.api.JavaObjectSerializer;
 import org.h2.message.DbException;
 import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
@@ -23,8 +22,8 @@ public class FileStoreTest {
         String mode = null;
         mode = "rw";
         name = "E:\\H2\\tmp\\FileStoreTest\\my.txt";
-        //name = "file:E:\\H2\\tmp\\FileStoreTest\\my.txt";
-        //name = "cache:E:\\H2\\tmp\\FileStoreTest\\my.txt";
+        // name = "file:E:\\H2\\tmp\\FileStoreTest\\my.txt";
+        // name = "cache:E:\\H2\\tmp\\FileStoreTest\\my.txt";
 
         name = "memFS:E:\\H2\\tmp\\FileStoreTest\\my.txt";
 
@@ -33,7 +32,7 @@ public class FileStoreTest {
         name = "file:~/FileStoreTest/my.txt";
 
         store = getFileStore(dh, name, mode);
-        //store = getSecureFileStore(dh, name, mode);
+        // store = getSecureFileStore(dh, name, mode);
 
         store.setCheckedWriting(false);
         try {
