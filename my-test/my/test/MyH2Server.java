@@ -3,7 +3,7 @@ package my.test;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-public class MyServer {
+public class MyH2Server {
     public static void main(String[] args) throws SQLException {
         // System.setProperty("DATABASE_TO_UPPER", "false");
         System.setProperty("h2.lobInDatabase", "false");
@@ -31,6 +31,8 @@ public class MyServer {
         // list.add("-ifExists");
         list.add("-ifNotExists");
         list.add("-tcpAllowOthers");
+        list.add("-webAdminPassword");
+        list.add("aaa");
         org.h2.tools.Server.main(list.toArray(new String[list.size()]));
     }
 }

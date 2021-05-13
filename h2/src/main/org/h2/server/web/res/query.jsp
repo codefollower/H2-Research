@@ -209,7 +209,7 @@ function keyDown(event) {
         // shift + return
         submitSelected();
         return false;
-    } else if (key == 32 && (event.ctrlKey || event.altKey)) {
+    } else if (key == 32 && (event.shiftKey || event.altKey)) {
         // ctrl + space
         manualAutoComplete();
         return false;

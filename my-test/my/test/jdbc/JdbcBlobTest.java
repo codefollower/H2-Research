@@ -29,7 +29,7 @@ import my.test.TestBase;
 public class JdbcBlobTest extends TestBase {
 
     public static void main(String[] args) throws Exception {
-        System.setProperty("h2.lobClientMaxSizeMemory", "8192");
+        System.setProperty("h2.lobClientMaxSizeMemory", "2048");
         new JdbcBlobTest().crud();
     }
 
@@ -45,8 +45,10 @@ public class JdbcBlobTest extends TestBase {
 
         String blobStr = "blob test";
         StringBuilder buff = new StringBuilder(1000 * blobStr.length());
-        for (int i = 0; i < 1000; i++)
+        for (int i = 0; i < 1000; i++) {
             buff.append(blobStr);
+            // blobStr = "1blob test";
+        }
 
         blobStr = buff.toString();
         // 从1开始
@@ -61,7 +63,9 @@ public class JdbcBlobTest extends TestBase {
         System.out.println("f1=" + rs.getInt(1) + " f2=" + rs.getLong(2));
 
         blob = (JdbcBlob) rs.getBlob(3);
-        blobStr = new String(blob.getBytes(1, blobStr.length()));
+        String blobStr2 = new String(blob.getBytes(1, blobStr.length()));
+        if (!blobStr2.equals(blobStr))
+            throw new Error();
         System.out.println("f3=" + blobStr);
 
         ps.close();

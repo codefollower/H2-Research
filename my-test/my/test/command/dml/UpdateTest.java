@@ -45,6 +45,8 @@ public class UpdateTest extends TestBase {
         // stmt.executeUpdate("SET MAX_OPERATION_MEMORY 100"); //默认是10万
         // stmt.executeUpdate("SET UNDO_LOG 0"); //默认是1，也就是true，开启撤消日志
         // stmt.executeUpdate("SET MAX_MEMORY_UNDO 3"); //默认是5万
+        stmt.executeUpdate("insert into UpdateTest(id, name) values(99, 'b99')");
+        sql = "update UpdateTest set name = 'b999' where id=99";
         stmt.executeUpdate(sql);
 
         // sql = "update UpdateTest set(name, id) = (?,10)";
