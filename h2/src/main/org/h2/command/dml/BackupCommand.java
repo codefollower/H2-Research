@@ -57,59 +57,20 @@ public class BackupCommand extends Prepared {
         }
         try {
             Store store = db.getStore();
-//<<<<<<< HEAD
-//            String name = db.getName(); //返回E:/H2/baseDir/mydb
-//            name = FileUtils.getName(name); //返回mydb(也就是只取简单文件名
-//            //生成fileName表示的文件，如果已存在则覆盖原有的，也就是文件为空
-//            OutputStream zip = FileUtils.newOutputStream(fileName, false);
-//            ZipOutputStream out = new ZipOutputStream(zip);
-//            db.flush(); //里面又会对MVStore进行flush
-//
-//            if (db.getPageStore() != null) {
-//                String fn = db.getName() + Constants.SUFFIX_PAGE_FILE; //返回E:/H2/baseDir/mydb.h2.db
-//                backupPageStore(out, fn, db.getPageStore());
-//            }
-//            // synchronize on the database, to avoid concurrent temp file
-//            // creation / deletion / backup
-//            String base = FileUtils.getParent(db.getName());
-//            synchronized (db.getLobSyncObject()) {
-//                String prefix = db.getDatabasePath(); //返回E:/H2/baseDir/mydb
-//                String dir = FileUtils.getParent(prefix); //返回E:/H2/baseDir
-//                dir = FileLister.getDir(dir); //返回E:/H2/baseDir
-//                ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
-//                
-//                //".lob.db"和".mv.db"文件也备份到fileName表示的文件中，
-//                //也就是说BACKUP TO 'E:/H2/baseDir/myBackup.zip'这样的SQL除了把基本的“.h2.db”备份外，
-//                //还备份".lob.db"和".mv.db"文件
-//                for (String n : fileList) {
-//                    if (n.endsWith(Constants.SUFFIX_LOB_FILE)) { //备份".lob.db"文件
-//                        backupFile(out, base, n);
-//                    }
-//                    
-//                    //应该用else if
-//                    if (n.endsWith(Constants.SUFFIX_MV_FILE) && mvStore != null) { //备份".mv.db"文件
-//                        MVStore s = mvStore.getStore();
-//                        boolean before = s.getReuseSpace();
-//                        s.setReuseSpace(false);
-//                        try {
-//                            InputStream in = mvStore.getInputStream();
-//                            backupFile(out, base, n, in);
-//                        } finally {
-//                            s.setReuseSpace(before);
-//=======
             store.flush();
-            String name = db.getName();
-            name = FileUtils.getName(name);
+            String name = db.getName(); //返回E:/H2/baseDir/mydb
+            name = FileUtils.getName(name); //返回mydb(也就是只取简单文件名
+            //生成fileName表示的文件，如果已存在则覆盖原有的，也就是文件为空
             try (OutputStream zip = FileUtils.newOutputStream(fileName, false)) {
                 ZipOutputStream out = new ZipOutputStream(zip);
-                db.flush();
+                db.flush(); //里面又会对MVStore进行flush
                 // synchronize on the database, to avoid concurrent temp file
                 // creation / deletion / backup
                 String base = FileUtils.getParent(db.getName());
                 synchronized (db.getLobSyncObject()) {
-                    String prefix = db.getDatabasePath();
-                    String dir = FileUtils.getParent(prefix);
-                    dir = FileLister.getDir(dir);
+                    String prefix = db.getDatabasePath(); //返回E:/H2/baseDir/mydb
+                    String dir = FileUtils.getParent(prefix); //返回E:/H2/baseDir
+                    dir = FileLister.getDir(dir); //返回E:/H2/baseDir
                     ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
                     for (String n : fileList) {
                         if (n.endsWith(Constants.SUFFIX_MV_FILE)) {
@@ -132,31 +93,6 @@ public class BackupCommand extends Prepared {
         }
     }
 
-//<<<<<<< HEAD
-//    private void backupPageStore(ZipOutputStream out, String fileName,
-//            PageStore store) throws IOException {
-//        Database db = session.getDatabase();
-//        fileName = FileUtils.getName(fileName); //fileName = E:/H2/baseDir/mydb.h2.db，然后变成"mydb.h2.db"
-//        out.putNextEntry(new ZipEntry(fileName));
-//        int pos = 0;
-//        try {
-//            store.setBackup(true);
-//            while (true) {
-//                pos = store.copyDirect(pos, out); //一页一页的copy
-//                if (pos < 0) {
-//                    break;
-//                }
-//                int max = store.getPageCount();
-//                db.setProgress(DatabaseEventListener.STATE_BACKUP_FILE, fileName, pos, max);
-//            }
-//        } finally {
-//            store.setBackup(false);
-//        }
-//        out.closeEntry();
-//    }
-//
-//=======
-//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
     private static void backupFile(ZipOutputStream out, String base, String fn,
             InputStream in) throws IOException {
         String f = FileUtils.toRealPath(fn); //返回E:/H2/baseDir/mydb.mv.db

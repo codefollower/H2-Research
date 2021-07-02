@@ -85,7 +85,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
     }
 
     // constructor for cloneIt()
-    @SuppressWarnings("CopyConstructorMissesField")
+    // @SuppressWarnings("CopyConstructorMissesField")
     protected MVMap(MVMap<K, V> source) {
         this(source.store, source.keyType, source.valueType, source.id, source.createVersion,
                 new AtomicReference<>(source.root.get()), source.keysPerPage, source.singleWriter);

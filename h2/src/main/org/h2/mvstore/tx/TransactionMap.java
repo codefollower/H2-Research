@@ -320,7 +320,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K,V> {
      * @param value the value
      * @return the old value
      */
-    @SuppressWarnings("UnusedReturnValue")
+    //@SuppressWarnings("UnusedReturnValue")
     public V putCommitted(K key, V value) {
         DataUtils.checkArgument(value != null, "The value may not be null");
         VersionedValue<V> newValue = VersionedValueCommitted.getInstance(value);
@@ -334,6 +334,7 @@ public final class TransactionMap<K, V> extends AbstractMap<K,V> {
         return set(key, txDecisionMaker);
     }
 
+    @SuppressWarnings("unused")
     private V set(Object key, TxDecisionMaker<K,V> decisionMaker) {
         TransactionStore store = transaction.store;
         Transaction blockingTransaction;

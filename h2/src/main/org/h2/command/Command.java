@@ -107,11 +107,6 @@ public abstract class Command implements CommandInterface {
      * @return the update count and generated keys, if any
      * @throws DbException if the command is not an updating statement
      */
-//<<<<<<< HEAD
-//    public int update() { //子类要实现这个方法
-//        throw DbException.get(ErrorCode.METHOD_NOT_ALLOWED_FOR_QUERY);
-//    }
-//=======
     public abstract ResultWithGeneratedKeys update(Object generatedKeysRequest);
 
     /**
@@ -121,7 +116,7 @@ public abstract class Command implements CommandInterface {
      * @return the local result set
      * @throws DbException if the command is not a query
      */
-    public abstract ResultInterface query(long maxrows); //子类要实现这个方法 
+    public abstract ResultInterface query(long maxrows);
 
     @Override
     public final ResultInterface getMetaData() {

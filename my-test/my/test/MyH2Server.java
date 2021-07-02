@@ -27,7 +27,7 @@ public class MyH2Server {
 
         // list.add("-pg");
         list.add("-tcp");
-        list.add("-web");
+        // list.add("-web");
         // list.add("-ifExists");
         list.add("-ifNotExists");
         list.add("-tcpAllowOthers");

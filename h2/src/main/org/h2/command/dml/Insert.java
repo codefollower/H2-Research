@@ -132,21 +132,6 @@ public final class Insert extends CommandWithValues implements ResultTarget {
         this.deltaChangeCollector = deltaChangeCollector;
         this.deltaChangeCollectionMode = deltaChangeCollectionMode;
         try {
-//<<<<<<< HEAD
-//            if (sortedInsertMode) {
-//                if (!session.getDatabase().isMVStore()) {
-//                    /*
-//                     * Take exclusive lock, otherwise two different inserts running at
-//                     * the same time, the second might accidentally get
-//                     * sorted-insert-mode.
-//                     */
-//                    table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
-//                    index = table.getScanIndex(session);
-//                    index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
-//                }
-//            }
-//=======
-//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
             return insertRows();
         } finally {
             this.deltaChangeCollector = null;
@@ -201,14 +186,6 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                     }
                     DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
                             deltaChangeCollectionMode, newRow);
-//<<<<<<< HEAD
-//                    // 在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
-//                    // 也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
-//                    // 这里又记了一次UndoLog
-//                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
-//                    session.log(table, UndoLogRecord.INSERT, newRow);
-//=======
-//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
                     table.fireAfterRow(session, null, newRow, false);
                 } else {
                     DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,

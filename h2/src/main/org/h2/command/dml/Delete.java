@@ -36,7 +36,6 @@ public final class Delete extends FilteredDataChangeStatement {
         super(session);
     }
 
-
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
         targetTableFilter.startQuery(session);
@@ -56,20 +55,6 @@ public final class Delete extends FilteredDataChangeStatement {
         try (LocalResult rows = LocalResult.forTable(session, table)) {
             setCurrentRowNumber(0);
             long count = 0;
-//<<<<<<< HEAD
-//            // 比如delete from DeleteTest limit 0，
-//            // 此时limitRows为0，不删除任何行
-//            while (limitRows != 0 && targetTableFilter.next()) {
-//                setCurrentRowNumber(rows.size() + 1);
-//                // condition.getBooleanValue(session)内部会取当前行与之比较，
-//                // 比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
-//                // 然后在从当前行中按列id取当前行value数组中对应元素
-//                if (condition == null || condition.getBooleanValue(session)) {
-//                    Row row = targetTableFilter.get();
-//                    if (table.isMVStore()) {
-//                        Row lockedRow = table.lockRow(session, row);
-//                        if (lockedRow == null) {
-//=======
             while (nextRow(limitRows, count)) {
                 Row row = targetTableFilter.get();
                 if (table.isRowLockable()) {

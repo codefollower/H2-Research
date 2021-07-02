@@ -584,6 +584,7 @@ public class DateTimeUtils {
      * @return ISO day of week, Monday as 1 to Sunday as 7
      * @see #getSundayDayOfWeek(long)
      */
+    //这个就正常了，周1用数字1表示，跟DAY_OF_WEEK不一样
     public static int getIsoDayOfWeek(long dateValue) {
         return getDayOfWeek(dateValue, 1);
     }
@@ -622,6 +623,9 @@ public class DateTimeUtils {
      * @return day of week, Sunday as 1 to Monday as 7
      * @see #getIsoDayOfWeek(long)
      */
+    // 周日，周一............................................, 周六
+    // SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
+    // 数字是1, 2, 3... , 7，所以周一对应的数字是2
     public static int getSundayDayOfWeek(long dateValue) {
         return getDayOfWeek(dateValue, 0);
     }
@@ -741,6 +745,9 @@ public class DateTimeUtils {
      * @param x the date value
      * @return the month (1..12)
      */
+    // 第几个季度，用1、2、3、4表示
+    // 因为DateTimeUtils.getDatePart(v0.getDate(), Calendar.MONTH)返回的月份加了1，所以这里要减一
+    // 0, 1, 2, 3这4个数除以3都是0，所以要加1，同样其他的月份也类似
     public static int monthFromDateValue(long x) {
         return (int) (x >>> SHIFT_MONTH) & 15;
     }

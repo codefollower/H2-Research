@@ -855,6 +855,7 @@ public class FullText {
         private FullTextSettings          setting;
         private IndexInfo                 index;
         private int[]                     columnTypes;
+        @SuppressWarnings("unused")
         private final PreparedStatement[] prepStatements = new PreparedStatement[SQL.length];
 
         private static final int INSERT_WORD = 0;

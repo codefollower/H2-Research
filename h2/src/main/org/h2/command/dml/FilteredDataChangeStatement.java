@@ -67,9 +67,14 @@ abstract class FilteredDataChangeStatement extends DataChangeStatement {
     }
 
     final boolean nextRow(long limitRows, long count) {
+        // 比如delete from DeleteTest limit 0，此时limitRows为0，不删除任何行
         if (limitRows < 0 || count < limitRows) {
             while (targetTableFilter.next()) {
                 setCurrentRowNumber(count + 1);
+
+                // condition.getBooleanValue(session)内部会取当前行与之比较，
+                // 比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
+                // 然后在从当前行中按列id取当前行value数组中对应元素
                 if (condition == null || condition.getBooleanValue(session)) {
                     return true;
                 }

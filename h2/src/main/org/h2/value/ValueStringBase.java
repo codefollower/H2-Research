@@ -177,7 +177,7 @@ abstract class ValueStringBase extends Value {
          * Empty string: 88 bytes
          * 1 to 4 UTF-16 chars: 96 bytes
          */
-        return value.length() * 2 + 94;
+        return value.length() * 2 + 94; //一个字符占两个字节所以要乘以2
     }
 
     @Override

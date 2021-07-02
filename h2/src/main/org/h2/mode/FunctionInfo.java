@@ -5,8 +5,6 @@
  */
 package org.h2.mode;
 
-import org.h2.value.DataType;
-
 /**
  * This class contains information about a built-in function.
  */

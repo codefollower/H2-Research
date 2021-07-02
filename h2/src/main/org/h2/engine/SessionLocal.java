@@ -572,6 +572,8 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      *            for literals (only used if ALLOW_LITERALS NONE is set).
      * @return the prepared statement
      */
+    //rightsChecked参数用来传到org.h2.table.TableFilter的构造函数中，用于检查否有Right.SELECT权限
+    //如果是true，那么就不检查了
     public Prepared prepare(String sql, boolean rightsChecked, boolean literalsChecked) {
         Parser parser = new Parser(this);
         parser.setRightsChecked(rightsChecked);
@@ -592,6 +594,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
                     "session closed");
         }
         Command command;
+        //如果允许重用那么不再做SQL解析
         if (queryCacheSize > 0) {
             if (queryCache == null) {
                 queryCache = SmallLRUCache.newInstance(queryCacheSize);
@@ -603,6 +606,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
                     modificationMetaID = newModificationMetaID;
                 }
                 command = queryCache.get(sql);
+                //命令关闭后才可重用
                 if (command != null && command.canReuse()) {
                     command.reuse();
                     return command;
@@ -617,6 +621,10 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
             subQueryIndexCache = null;
         }
         if (queryCache != null) {
+            //只有DML并且是下面的这几类可缓存:
+            //Insert、Delete、Update、Merge、TransactionCommand这5个无条件可缓存
+            //Call这个当产生的结果不是结果集时可缓存，否则不可缓存
+            //Select这个当不是isForUpdate时可缓存，否则不可缓存
             if (command.isCacheable()) {
                 queryCache.put(sql, command);
             }
@@ -786,8 +794,11 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
      *
      * @param savepoint the savepoint to which should be rolled back
      */
-    public void rollbackTo(Savepoint savepoint) {
+    public void rollbackTo(Savepoint savepoint) { //"SET UNDO_LOG 0"禁用撤消日志，此时所有rollback都无效
         int index = savepoint == null ? 0 : savepoint.logIndex;
+        //这里的rollback是session级的，
+        //而org.h2.mvstore.db.TransactionStore.rollbackTo(Transaction, long, long)是表级的，在MVTable的addRow和removeRow调用
+        //事务有可能更新了多个表，只要其中之一提前 rollback了，此时就需要rollback其他的
         if (hasTransaction()) {
             markUsedTablesAsUpdated();
             if (savepoint == null) {

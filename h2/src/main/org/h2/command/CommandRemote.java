@@ -274,15 +274,9 @@ public class CommandRemote implements CommandInterface {
                     session.removeServer(e, i--, ++count);
                 }
             }
-//<<<<<<< HEAD
-//            session.setAutoCommitFromServer(autoCommit); //如果是集群环境，设为false
-//            session.autoCommitIfCluster(); //如果是集群环境，通知所有server提交事务
-//            session.readSessionState();//当session状态发生改变时，提取INFORMATION_SCHEMA.SESSION_STATE信息，下次可重建session
-//            return updateCount;
-//=======
-            session.setAutoCommitFromServer(autoCommit);
-            session.autoCommitIfCluster();
-            session.readSessionState();
+            session.setAutoCommitFromServer(autoCommit); //如果是集群环境，设为false
+            session.autoCommitIfCluster(); //如果是集群环境，通知所有server提交事务
+            session.readSessionState();//当session状态发生改变时，提取INFORMATION_SCHEMA.SESSION_STATE信息，下次可重建session
             if (generatedKeys != null) {
                 return new ResultWithGeneratedKeys.WithKeys(updateCount, generatedKeys);
             }
@@ -334,11 +328,7 @@ public class CommandRemote implements CommandInterface {
         try {
             for (ParameterInterface p : parameters) {
                 Value v = p.getParamValue();
-//<<<<<<< HEAD
-//                if (v != null) {
-//                    v.remove(); //只对ValueLob、ValueLobDb有用
-//=======
-                if (v instanceof ValueLob) {
+                if (v instanceof ValueLob) { //只对ValueLob、ValueLobDb有用
                     ((ValueLob) v).remove();
                 }
             }

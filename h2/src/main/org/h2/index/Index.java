@@ -389,6 +389,7 @@ public abstract class Index extends SchemaObject {
             int index = columnIds[i];
             Value v1 = rowData.getValue(index);
             Value v2 = compare.getValue(index);
+            //只要compare中有null值就认为无法比较，直接认为rowData和compare相等(通常在查询时在where中再比较)
             if (v1 == null || v2 == null) {
                 // can't compare further
                 return 0;
@@ -410,7 +411,7 @@ public abstract class Index extends SchemaObject {
             return table.getDatabase().getDefaultNullOrdering().compareNull(aNull, sortType);
         }
         int comp = table.compareValues(database, a, b);
-        if ((sortType & SortOrder.DESCENDING) != 0) {
+        if ((sortType & SortOrder.DESCENDING) != 0) { //降序时，把比较结果反过来
             comp = -comp;
         }
         return comp;
@@ -424,7 +425,6 @@ public abstract class Index extends SchemaObject {
      */
     //并不是返回列id，而是索引字段列表中的位置，
     //PageDataIndex、MVPrimaryIndex直接返回-1，因为这两个类严格说不是索引，而是存放主表的原始记录的
-
     public int getColumnIndex(Column col) {
         for (int i = 0, len = columns.length; i < len; i++) {
             if (columns[i].equals(col)) {
@@ -537,7 +537,6 @@ public abstract class Index extends SchemaObject {
     }
 
     /**
-<<<<<<< HEAD
      * Enable or disable the 'sorted insert' optimizations (rows are inserted in
      * ascending or descending order) if applicable for this index
      * implementation.
@@ -552,8 +551,6 @@ public abstract class Index extends SchemaObject {
     }
 
     /**
-=======
->>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
      * Create a duplicate key exception with a message that contains the index
      * name.
      *

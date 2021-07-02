@@ -175,16 +175,7 @@ public final class Merge extends CommandWithValues {
             }
             count = update.update(deltaChangeCollector, deltaChangeCollectionMode);
         }
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////        //先更新，如果没有记录被更新，说明是一条新的记录，接着再插入
-////=======
-//
-//        // try an update
-//        int count = update.update();
-//
-//=======
-//>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
+        //先更新，如果没有记录被更新，说明是一条新的记录，接着再插入
         // if update fails try an insert
         if (count == 0) {
             try {
@@ -272,16 +263,9 @@ public final class Merge extends CommandWithValues {
     @Override
     public void prepare() {
         if (columns == null) {
-//<<<<<<< HEAD
-//        	//例如: MERGE INTO MergeTest VALUES()
-//        	//这种情况没用的，应该抛异常才对，否则下面生成update语句时会出错，像这样:
-//        	//UPDATE PUBLIC.MERGETEST SET  WHERE ID=?
-//            if (list.size() > 0 && list.get(0).length == 0) {
-//                // special case where table is used as a sequence
-//                columns = new Column[0];
-//            } else {
-//                columns = table.getColumns(); //如: MERGE INTO MergeTest(SELECT * FROM tmpSelectTest)
-//=======
+        	//例如: MERGE INTO MergeTest VALUES()
+        	//这种情况没用的，应该抛异常才对，否则下面生成update语句时会出错，像这样:
+        	//UPDATE PUBLIC.MERGETEST SET  WHERE ID=?
             if (!valuesExpressionList.isEmpty() && valuesExpressionList.get(0).length == 0) {
                 // special case where table is used as a sequence
                 columns = new Column[0];
@@ -307,33 +291,13 @@ public final class Merge extends CommandWithValues {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
             }
         }
-//<<<<<<< HEAD
-//        if (keys == null) { //如果没有指定key，表里必须有主键字段
-//            Index idx = table.getPrimaryKey();
-//            if (idx == null) { //org.h2.table.Table.getPrimaryKey()里已处理null的情况了，除非有字类覆盖它
-//=======
-        if (keys == null) {
+        if (keys == null) { //如果没有指定key，表里必须有主键字段
             Index idx = table.getPrimaryKey();
-            if (idx == null) {
+            if (idx == null) { //org.h2.table.Table.getPrimaryKey()里已处理null的情况了，除非有字类覆盖它
                 throw DbException.get(ErrorCode.CONSTRAINT_NOT_FOUND_1, "PRIMARY KEY");
             }
             keys = idx.getColumns();
         }
-//<<<<<<< HEAD
-//        //例如: UPDATE PUBLIC.MERGETEST SET ID=?, NAME=? WHERE ID=?
-//        //columns就是要更新的字段，keys当成where条件且用and拼装
-//        StatementBuilder buff = new StatementBuilder("UPDATE ");
-//        buff.append(targetTable.getSQL()).append(" SET ");
-//        for (Column c : columns) {
-//            buff.appendExceptFirst(", ");
-//            buff.append(c.getSQL()).append("=?");
-//        }
-//        buff.append(" WHERE ");
-//        buff.resetCount();
-//        for (Column c : keys) {
-//            buff.appendExceptFirst(" AND ");
-//            buff.append(c.getSQL()).append("=?");
-//=======
         if (isReplace) {
             // if there is no valid primary key,
             // the REPLACE statement degenerates to an INSERT
@@ -350,6 +314,8 @@ public final class Merge extends CommandWithValues {
                 }
             }
         }
+        //例如: UPDATE PUBLIC.MERGETEST SET ID=?, NAME=? WHERE ID=?
+        //columns就是要更新的字段，keys当成where条件且用and拼装
         StringBuilder builder = table.getSQL(new StringBuilder("UPDATE "), HasSQL.DEFAULT_SQL_FLAGS).append(" SET ");
         boolean hasColumn = false;
         for (int i = 0, l = columns.length; i < l; i++) {

@@ -836,6 +836,7 @@ public class TransactionStore {
     private static final class TxMapBuilder<K,V> extends MVMap.Builder<K,V> {
 
         private final MVMap<String, DataType<?>> typeRegistry;
+        @SuppressWarnings("rawtypes")
         private final DataType defaultDataType;
 
         TxMapBuilder(MVMap<String, DataType<?>> typeRegistry, DataType<?> defaultDataType) {

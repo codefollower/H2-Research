@@ -31,6 +31,7 @@ import org.h2.util.Tool;
  * The database must be closed before using this tool.
  * @h2.resource
  */
+@SuppressWarnings("unused")
 public class ChangeFileEncryption extends Tool {
 
     private String directory;
