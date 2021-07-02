@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,14 +8,13 @@ package org.h2.message;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 
-import org.h2.engine.SysProperties;
 import org.h2.expression.ParameterInterface;
 import org.h2.util.StringUtils;
 
 /**
  * This class represents a trace module.
  */
-public class Trace {
+public final class Trace {
 
     /**
      * The trace module id for commands.
@@ -88,14 +87,9 @@ public class Trace {
     public static final int USER = 13;
 
     /**
-     * The trace module id for the page store.
-     */
-    public static final int PAGE_STORE = 14;
-
-    /**
      * The trace module id for the JDBCX API
      */
-    public static final int JDBCX = 15;
+    public static final int JDBCX = 14;
 
     /**
      * Module names by their ids as array indexes.
@@ -115,7 +109,6 @@ public class Trace {
         "table",
         "trigger",
         "user",
-        "pageStore",
         "JDBCX"
     };
 
@@ -131,7 +124,7 @@ public class Trace {
     Trace(TraceWriter traceWriter, String module) {
         this.traceWriter = traceWriter;
         this.module = module;
-        this.lineSeparator = SysProperties.LINE_SEPARATOR;
+        this.lineSeparator = System.lineSeparator();
     }
 
     /**

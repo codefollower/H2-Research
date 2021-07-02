@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -86,7 +86,7 @@ public final class ConditionInConstantSet extends Condition {
         if (!whenOperand) {
             return super.getWhenValue(session, left);
         }
-        return getValue(left, session).getBoolean();
+        return getValue(left, session).isTrue();
     }
 
     private Value getValue(Value left, SessionLocal session) {
@@ -134,7 +134,10 @@ public final class ConditionInConstantSet extends Condition {
             return;
         }
         if (session.getDatabase().getSettings().optimizeInList) {
-            filter.addIndexCondition(IndexCondition.getInList(l, valueList));
+            TypeInfo colType = l.getType();
+            if (TypeInfo.haveSameOrdering(colType, TypeInfo.getHigherType(colType, type))) {
+                filter.addIndexCondition(IndexCondition.getInList(l, valueList));
+            }
         }
     }
 
@@ -203,7 +206,7 @@ public final class ConditionInConstantSet extends Condition {
      * @return null if the condition was not added, or the new condition
      */
     Expression getAdditional(SessionLocal session, Comparison other) {
-        if (!not && !whenOperand) {
+        if (!not && !whenOperand && left.isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR)) {
             Expression add = other.getIfEquals(left);
             if (add != null) {
                 if (add.isConstant()) {

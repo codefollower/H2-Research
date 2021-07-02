@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -57,10 +57,8 @@ public final class ValueTime extends Value {
      */
     public static ValueTime fromNanos(long nanos) {
         if (nanos < 0L || nanos >= DateTimeUtils.NANOS_PER_DAY) {
-            StringBuilder builder = new StringBuilder();
-            DateTimeUtils.appendTime(builder, nanos);
-            throw DbException.get(ErrorCode.INVALID_DATETIME_CONSTANT_2,
-                    "TIME", builder.toString());
+            throw DbException.get(ErrorCode.INVALID_DATETIME_CONSTANT_2, "TIME",
+                    DateTimeUtils.appendTime(new StringBuilder(), nanos).toString());
         }
         return (ValueTime) Value.cache(new ValueTime(nanos));
     }
@@ -99,15 +97,12 @@ public final class ValueTime extends Value {
 
     @Override
     public String getString() {
-        StringBuilder builder = new StringBuilder(MAXIMUM_PRECISION);
-        DateTimeUtils.appendTime(builder, nanos);
-        return builder.toString();
+        return DateTimeUtils.appendTime(new StringBuilder(MAXIMUM_PRECISION), nanos).toString();
     }
 
     @Override
     public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
-        DateTimeUtils.appendTime(builder.append("TIME '"), nanos);
-        return builder.append('\'');
+        return DateTimeUtils.appendTime(builder.append("TIME '"), nanos).append('\'');
     }
 
     @Override
@@ -117,10 +112,7 @@ public final class ValueTime extends Value {
 
     @Override
     public boolean equals(Object other) {
-        if (this == other) {
-            return true;
-        }
-        return other instanceof ValueTime && nanos == (((ValueTime) other).nanos);
+        return this == other || other instanceof ValueTime && nanos == (((ValueTime) other).nanos);
     }
 
     @Override
@@ -146,7 +138,7 @@ public final class ValueTime extends Value {
     }
 
     @Override
-    public Value divide(Value v, long divisorPrecision) {
+    public Value divide(Value v, TypeInfo quotientType) {
         return ValueTime.fromNanos((long) (nanos / v.getDouble()));
     }
 

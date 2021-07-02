@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -413,9 +413,8 @@ public class TableView extends Table {
     }
 
     @Override
-    public Index addIndex(SessionLocal session, String indexName, int indexId,
-            IndexColumn[] cols, IndexType indexType, boolean create,
-            String indexComment) {
+    public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
+            int uniqueColumnCount, IndexType indexType, boolean create, String indexComment) {
         throw DbException.getUnsupportedException("VIEW");
     }
 
@@ -544,11 +543,6 @@ public class TableView extends Table {
             lastModificationCheck = dbMod;
         }
         return maxDataModificationId;
-    }
-
-    @Override
-    public Index getUniqueIndex() {
-        return null;
     }
 
     private void removeCurrentViewFromOtherTables() {
@@ -866,7 +860,6 @@ public class TableView extends Table {
         recursiveTableData.temporary = isTemporary;
         recursiveTableData.persistData = true;
         recursiveTableData.persistIndexes = !isTemporary;
-        recursiveTableData.create = true;
         recursiveTableData.session = targetSession;
 
         // this gets a meta table lock that is not released

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: Alessandro Ventura
  */
@@ -10,7 +10,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.Properties;
 import java.util.UUID;
 
 import javax.security.auth.login.AppConfigurationEntry;
@@ -126,9 +125,7 @@ public class TestAuthentication extends TestBase {
         Configuration oldConfiguration = Configuration.getConfiguration();
         try {
             configureJaas();
-            Properties properties = new Properties();
-            properties.setProperty("USER", "dba");
-            ConnectionInfo connectionInfo = new ConnectionInfo(getDatabaseURL(), properties);
+            ConnectionInfo connectionInfo = new ConnectionInfo(getDatabaseURL(), null, "dba", null);
             session = Engine.createSession(connectionInfo);
             database = session.getDatabase();
             configureAuthentication(database);

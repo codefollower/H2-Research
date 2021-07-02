@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -81,7 +81,6 @@ public class Analyze extends DefineCommand {
 
     @Override
     public long update() {
-        session.commit(true);
         session.getUser().checkAdmin();
         Database db = session.getDatabase();
         if (table != null) {
@@ -112,7 +111,7 @@ public class Analyze extends DefineCommand {
                 || table.isTemporary() && !table.isGlobalTemporary() //
                         && session.findLocalTempTable(table.getName()) == null //
                 || table.isLockedExclusively() && !table.isLockedExclusivelyBy(session)
-                || !session.getUser().hasRight(table, Right.SELECT) //
+                || !session.getUser().hasTableRight(table, Right.SELECT) //
                 // if the connection is closed and there is something to undo
                 || session.getCancel() != 0) {
             return;

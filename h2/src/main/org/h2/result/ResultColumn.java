@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -42,9 +42,9 @@ public class ResultColumn {
     final TypeInfo columnType;
 
     /**
-     * True if this is an autoincrement column.
+     * True if this is an identity column.
      */
-    final boolean autoIncrement;
+    final boolean identity;
 
     /**
      * True if this column is nullable.
@@ -65,7 +65,7 @@ public class ResultColumn {
         if (in.getVersion() < Constants.TCP_PROTOCOL_VERSION_20) {
             in.readInt();
         }
-        autoIncrement = in.readBoolean();
+        identity = in.readBoolean();
         nullable = in.readInt();
     }
 
@@ -87,7 +87,7 @@ public class ResultColumn {
         if (out.getVersion() < Constants.TCP_PROTOCOL_VERSION_20) {
             out.writeInt(type.getDisplaySize());
         }
-        out.writeBoolean(result.isAutoIncrement(i));
+        out.writeBoolean(result.isIdentity(i));
         out.writeInt(result.getNullable(i));
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -888,6 +888,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
 
     /**
      * Use the new root page from now on.
+     *
+     * @param <K> the key class
+     * @param <V> the value class
      * @param expectedRootReference expected current root reference
      * @param newRootPage the new root page
      * @param attemptUpdateCounter how many attempt (including current)
@@ -1257,11 +1260,15 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                             K[] keys = p.createKeyStorage(keyCount);
                             V[] values = p.createValueStorage(keyCount);
                             System.arraycopy(keysBuffer, available, keys, 0, keyCount);
-                            System.arraycopy(valuesBuffer, available, values, 0, keyCount);
+                            if (valuesBuffer != null) {
+                                System.arraycopy(valuesBuffer, available, values, 0, keyCount);
+                            }
                             page = Page.createLeaf(this, keys, values, 0);
                         } else {
                             System.arraycopy(keysBuffer, available, keysBuffer, 0, keyCount);
-                            System.arraycopy(valuesBuffer, available, valuesBuffer, 0, keyCount);
+                            if (valuesBuffer != null) {
+                                System.arraycopy(valuesBuffer, available, valuesBuffer, 0, keyCount);
+                            }
                             remainingBuffer = keyCount;
                         }
                     }
@@ -1269,7 +1276,7 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     tip = tip.parent;
                     page = Page.createLeaf(this,
                             Arrays.copyOf(keysBuffer, keyCount),
-                            Arrays.copyOf(valuesBuffer, keyCount),
+                            valuesBuffer == null ? null : Arrays.copyOf(valuesBuffer, keyCount),
                             0);
                 }
 
@@ -1373,7 +1380,9 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                     assert appendCounter < keysPerPage;
                 }
                 keysBuffer[appendCounter] = key;
-                valuesBuffer[appendCounter] = value;
+                if (valuesBuffer != null) {
+                    valuesBuffer[appendCounter] = value;
+                }
                 ++appendCounter;
             } finally {
                 unlockRoot(appendCounter);
@@ -1966,6 +1975,10 @@ public class MVMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V
                 lock.notify();
             }
         }
+    }
+
+    final boolean isMemoryEstimationAllowed() {
+        return avgKeySize != null || avgValSize != null;
     }
 
     final int evaluateMemoryForKeys(K[] storage, int count) {

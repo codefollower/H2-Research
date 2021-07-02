@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -39,8 +39,8 @@ public class TestEncryptedDb extends TestDb {
     @Override
     public void test() throws SQLException {
         deleteDb("encrypted");
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, this).
-                getConnection("encrypted;CIPHER=AES;PAGE_SIZE=2048", "sa", "1234 1234");
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1,
+                () -> getConnection("encrypted;CIPHER=AES;PAGE_SIZE=2048", "sa", "1234 1234"));
         try (Connection conn = getConnection("encrypted;CIPHER=AES", "sa", "123 123")) {
             Statement stat = conn.createStatement();
             stat.execute("CREATE TABLE TEST(ID INT)");
@@ -50,8 +50,8 @@ public class TestEncryptedDb extends TestDb {
             stat.execute("SHUTDOWN IMMEDIATELY");
         }
 
-        assertThrows(ErrorCode.FILE_ENCRYPTION_ERROR_1, this).
-                getConnection("encrypted;CIPHER=AES", "sa", "1234 1234");
+        assertThrows(ErrorCode.FILE_ENCRYPTION_ERROR_1, //
+                () -> getConnection("encrypted;CIPHER=AES", "sa", "1234 1234"));
 
         try (Connection conn = getConnection("encrypted;CIPHER=AES", "sa", "123 123")) {
             Statement stat = conn.createStatement();

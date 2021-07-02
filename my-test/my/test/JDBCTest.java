@@ -102,7 +102,7 @@ public class JDBCTest {
         // prop.setProperty("CIPHER", "my_cipher");
         // prop.setProperty("password", "my_password1 my_password2");
 
-        JdbcConnection conn = new JdbcConnection(url, prop);
+        JdbcConnection conn = new JdbcConnection(url, prop, null, null);
 
         PreparedStatement ps = conn.prepareStatement("insert into t values(?,?)");
         ps.setInt(2, 20);
@@ -144,7 +144,7 @@ public class JDBCTest {
         // prop.setProperty("CIPHER", "my_cipher");
         // prop.setProperty("password", "my_password1 my_password2");
 
-        JdbcConnection conn = new JdbcConnection(url, prop);
+        JdbcConnection conn = new JdbcConnection(url, prop, null, null);
 
         Statement stmt = conn.createStatement();
         // stmt.executeUpdate("update t set(name, age)=('123',10)");
@@ -171,7 +171,7 @@ public class JDBCTest {
         System.setProperty("h2.lobClientMaxSizeMemory", "1024");
         System.setProperty("java.io.tmpdir", "E:\\H2\\tmp");
 
-        JdbcConnection conn = new JdbcConnection(url, prop);
+        JdbcConnection conn = new JdbcConnection(url, prop, null, null);
         Statement stmt = conn.createStatement();
         ResultSet rs;
 

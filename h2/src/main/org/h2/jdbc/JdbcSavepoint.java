@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -19,7 +19,7 @@ import org.h2.util.StringUtils;
  * rolled back. The tasks that where done before the savepoint are not rolled
  * back in this case.
  */
-public class JdbcSavepoint extends TraceObject implements Savepoint {
+public final class JdbcSavepoint extends TraceObject implements Savepoint {
 
     private static final String SYSTEM_SAVEPOINT_PREFIX = "SYSTEM_SAVEPOINT_";
 

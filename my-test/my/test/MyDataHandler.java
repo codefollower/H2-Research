@@ -52,11 +52,6 @@ public class MyDataHandler implements DataHandler {
     }
 
     @Override
-    public String getLobCompressionAlgorithm(int type) {
-        return "LZF";
-    }
-
-    @Override
     public TempFileDeleter getTempFileDeleter() {
         return TempFileDeleter.getInstance();
     }

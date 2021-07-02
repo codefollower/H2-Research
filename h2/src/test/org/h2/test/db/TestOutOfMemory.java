@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -53,7 +53,7 @@ public class TestOutOfMemory extends TestDb {
     @Override
     public void test() throws Exception {
         try {
-            if (!config.travis) {
+            if (!config.ci) {
                 System.gc();
                 testMVStoreUsingInMemoryFileSystem();
                 System.gc();
@@ -115,7 +115,7 @@ public class TestOutOfMemory extends TestDb {
         try {
             Connection conn = DriverManager.getConnection(url);
             Statement stat = conn.createStatement();
-            int memoryFree = Utils.getMemoryFree();
+            long memoryFree = Utils.getMemoryFree();
             try {
                 stat.execute("create table test(id int, name varchar) as " +
                         "select x, space(1000000+x) from system_range(1, 10000)");
@@ -149,7 +149,7 @@ public class TestOutOfMemory extends TestDb {
         }
     }
 
-    private static void recoverAfterOOM(int expectedFreeMemory) throws InterruptedException {
+    private static void recoverAfterOOM(long expectedFreeMemory) throws InterruptedException {
         for (int i = 0; i < 50; i++) {
             if (Utils.getMemoryFree() > expectedFreeMemory) {
                 break;

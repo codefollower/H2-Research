@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -42,9 +42,13 @@ public final class TruncateValueFunction extends FunctionN {
         if (DataType.getDataType(valueType).supportsPrecision) {
             if (precision < t.getPrecision()) {
                 switch (valueType) {
-                case Value.NUMERIC:
-                    return ValueNumeric
-                            .get(v1.getBigDecimal().round(new MathContext(MathUtils.convertLongToInt(precision))));
+                case Value.NUMERIC: {
+                    BigDecimal bd = v1.getBigDecimal().round(new MathContext(MathUtils.convertLongToInt(precision)));
+                    if (bd.scale() < 0) {
+                        bd = bd.setScale(0);
+                    }
+                    return ValueNumeric.get(bd);
+                }
                 case Value.DECFLOAT:
                     return ValueDecfloat
                             .get(v1.getBigDecimal().round(new MathContext(MathUtils.convertLongToInt(precision))));
@@ -72,6 +76,12 @@ public final class TruncateValueFunction extends FunctionN {
                 return v1;
             }
             bd = bd.round(new MathContext(MathUtils.convertLongToInt(precision)));
+            if (valueType == Value.DECFLOAT) {
+                return ValueDecfloat.get(bd);
+            }
+            if (bd.scale() < 0) {
+                bd = bd.setScale(0);
+            }
             return ValueNumeric.get(bd).convertTo(valueType);
         }
         return v1;

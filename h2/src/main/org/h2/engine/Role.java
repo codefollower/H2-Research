@@ -1,12 +1,15 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
+import java.util.ArrayList;
+
 import org.h2.message.DbException;
 import org.h2.message.Trace;
+import org.h2.schema.Schema;
 import org.h2.table.Table;
 
 /**
@@ -64,18 +67,34 @@ public final class Role extends RightOwner {
 
     // 此role被授予给哪些user了，那们这些user要把此权限删了
     @Override
-    public void removeChildrenAndResources(SessionLocal session) {
-        for (User user : database.getAllUsers()) {
-            Right right = user.getRightForRole(this);
-            if (right != null) {
-            	//此方法内部会调用Right的removeChildrenAndResources，然后会触发User的revokeRole
-                database.removeDatabaseObject(session, right);
+//<<<<<<< HEAD
+//    public void removeChildrenAndResources(SessionLocal session) {
+//        for (User user : database.getAllUsers()) {
+//            Right right = user.getRightForRole(this);
+//            if (right != null) {
+//            	//此方法内部会调用Right的removeChildrenAndResources，然后会触发User的revokeRole
+//                database.removeDatabaseObject(session, right);
+//            }
+//        }
+//        
+//        //此role被授予给哪些Role了，那们这些Role要把此权限删了
+//        for (Role r2 : database.getAllRoles()) {
+//            Right right = r2.getRightForRole(this);
+//=======
+    public ArrayList<DbObject> getChildren() {
+        ArrayList<DbObject> children = new ArrayList<>();
+        for (Schema schema : database.getAllSchemas()) {
+            if (schema.getOwner() == this) {
+                children.add(schema);
             }
         }
-        
-        //此role被授予给哪些Role了，那们这些Role要把此权限删了
-        for (Role r2 : database.getAllRoles()) {
-            Right right = r2.getRightForRole(this);
+        return children;
+    }
+
+    @Override
+    public void removeChildrenAndResources(SessionLocal session) {
+        for (RightOwner rightOwner : database.getAllUsersAndRoles()) {
+            Right right = rightOwner.getRightForRole(this);
             if (right != null) {
             	//此方法内部会调用Right的removeChildrenAndResources，然后会触发Role的revokeRole
                 database.removeDatabaseObject(session, right);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -35,7 +35,7 @@ public final class ExpressionList extends Expression {
         for (int i = 0; i < list.length; i++) {
             v[i] = list[i].getValue(session);
         }
-        return isArray ? ValueArray.get((TypeInfo) type.getExtTypeInfo(), v, session) : ValueRow.get(v);
+        return isArray ? ValueArray.get((TypeInfo) type.getExtTypeInfo(), v, session) : ValueRow.get(type, v);
     }
 
     @Override
@@ -61,12 +61,16 @@ public final class ExpressionList extends Expression {
             }
             list[i] = e;
         }
-        type = isArray ? TypeInfo.getTypeInfo(Value.ARRAY, list.length, 0, TypeInfo.getHigherType(list))
-                : TypeInfo.getTypeInfo(Value.ROW, 0, 0, new ExtTypeInfoRow(list));
+        initializeType();
         if (allConst) {
             return ValueExpression.get(getValue(session));
         }
         return this;
+    }
+
+    void initializeType() {
+        type = isArray ? TypeInfo.getTypeInfo(Value.ARRAY, list.length, 0, TypeInfo.getHigherType(list))
+                : TypeInfo.getTypeInfo(Value.ROW, 0, 0, new ExtTypeInfoRow(list));
     }
 
     @Override

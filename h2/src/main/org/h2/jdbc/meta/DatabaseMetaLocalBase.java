@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -150,9 +150,7 @@ abstract class DatabaseMetaLocalBase extends DatabaseMeta {
         return result;
     }
 
-    @Override
-    public final ResultInterface getPseudoColumns(String catalog, String schemaPattern, String tableNamePattern,
-            String columnNamePattern) {
+    final SimpleResult getPseudoColumnsResult() {
         checkClosed();
         SimpleResult result = new SimpleResult();
         result.addColumn("TABLE_CAT", TypeInfo.TYPE_VARCHAR);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,8 +13,8 @@ import org.h2.util.StringUtils;
 /**
  * Base implementation of the ENUM data type.
  *
- * Currently, this class is used primarily for
- * client-server communication.
+ * This base implementation is only used in 2.0.* clients when they work with
+ * 1.4.* servers.
  */
 public class ValueEnumBase extends Value {
 
@@ -38,9 +38,9 @@ public class ValueEnumBase extends Value {
     }
 
     @Override
-    public Value divide(Value v, long divisorPrecision) {
+    public Value divide(Value v, TypeInfo quotientType) {
         ValueInteger iv = v.convertToInt(null);
-        return convertToInt(null).divide(iv, divisorPrecision);
+        return convertToInt(null).divide(iv, quotientType);
     }
 
     @Override

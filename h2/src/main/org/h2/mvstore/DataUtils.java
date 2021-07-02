@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -166,13 +166,21 @@ public final class DataUtils {
      */
     public static final int PAGE_LARGE = 2 * 1024 * 1024;
 
-    // The following are key prefixes used in meta map
+    // The following are key prefixes used in layout map
 
     /**
      * The prefix for chunks ("chunk."). This, plus the chunk id (hex encoded)
      * is the key, and the serialized chunk metadata is the value.
      */
     public static final String META_CHUNK = "chunk.";
+
+    /**
+     * The prefix for root positions of maps ("root."). This, plus the map id
+     * (hex encoded) is the key, and the position (hex encoded) is the value.
+     */
+    public static final String META_ROOT = "root.";
+
+    // The following are key prefixes used in meta map
 
     /**
      * The prefix for names ("name."). This, plus the name of the map, is the
@@ -185,12 +193,6 @@ public final class DataUtils {
      * key, and the serialized in the map metadata is the value.
      */
     public static final String META_MAP = "map.";
-
-    /**
-     * The prefix for root positions of maps ("root."). This, plus the map id
-     * (hex encoded) is the key, and the position (hex encoded) is the value.
-     */
-    public static final String META_ROOT = "root.";
 
     /**
      * Get the length of the variable size int.

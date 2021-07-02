@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -37,9 +37,8 @@ public class LinkedIndex extends Index {
 
     private final int sqlFlags = QUOTE_ONLY_WHEN_REQUIRED;
 
-    public LinkedIndex(TableLink table, int id, IndexColumn[] columns,
-            IndexType indexType) {
-        super(table, id, null, columns, indexType);
+    public LinkedIndex(TableLink table, int id, IndexColumn[] columns, int uniqueColumnCount, IndexType indexType) {
+        super(table, id, null, columns, uniqueColumnCount, indexType);
         link = table;
         targetTableName = link.getQualifiedTable();
     }

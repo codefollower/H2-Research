@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -115,7 +115,7 @@ $$<rdf:RDF xmlns="http://usefulinc.com/ns/doap#" xmlns:rdf="http://www.w3.org/19
             <location rdf:resource="https://github.com/h2database/h2database"/>
         </SVNRepository>
     </repository>
-    <mailing-list rdf:resource="https://groups.google.com/forum/#!forum/h2-database"/>
+    <mailing-list rdf:resource="https://groups.google.com/g/h2-database"/>
 $$ ||
     GROUP_CONCAT(
         XMLNODE('release', NULL,

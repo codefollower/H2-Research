@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -213,9 +213,8 @@ public class IntervalOperation extends Operation2 {
                     opType == IntervalOpType.INTERVAL_PLUS_INTERVAL ? a1.add(a2) : a1.subtract(a2));
         }
         case INTERVAL_DIVIDE_INTERVAL:
-            return ValueNumeric.get(IntervalUtils.intervalToAbsolute((ValueInterval) l)).divide(
-                    ValueNumeric.get(IntervalUtils.intervalToAbsolute((ValueInterval) r)),
-                    DataType.isYearMonthIntervalType(l.getValueType()) ? INTERVAL_YEAR_DIGITS : INTERVAL_DAY_DIGITS);
+            return ValueNumeric.get(IntervalUtils.intervalToAbsolute((ValueInterval) l))
+                    .divide(ValueNumeric.get(IntervalUtils.intervalToAbsolute((ValueInterval) r)), type);
         case DATETIME_PLUS_INTERVAL:
         case DATETIME_MINUS_INTERVAL:
             return getDateTimeWithInterval(session, l, r, lType, rType);
@@ -246,6 +245,34 @@ public class IntervalOperation extends Operation2 {
                 }
                 result = ValueInterval.from(IntervalQualifier.HOUR_TO_SECOND, negative, diff / NANOS_PER_HOUR,
                         diff % NANOS_PER_HOUR);
+            } else if (forcedType != null && DataType.isYearMonthIntervalType(forcedType.getValueType())) {
+                long[] dt1 = dateAndTimeFromValue(l, session), dt2 = dateAndTimeFromValue(r, session);
+                long dateValue1 = lType == Value.TIME || lType == Value.TIME_TZ
+                        ? session.currentTimestamp().getDateValue()
+                        : dt1[0];
+                long dateValue2 = rType == Value.TIME || rType == Value.TIME_TZ
+                        ? session.currentTimestamp().getDateValue()
+                        : dt2[0];
+                long leading = 12L
+                        * (DateTimeUtils.yearFromDateValue(dateValue1) - DateTimeUtils.yearFromDateValue(dateValue2))
+                        + DateTimeUtils.monthFromDateValue(dateValue1) - DateTimeUtils.monthFromDateValue(dateValue2);
+                int d1 = DateTimeUtils.dayFromDateValue(dateValue1);
+                int d2 = DateTimeUtils.dayFromDateValue(dateValue2);
+                if (leading >= 0) {
+                    if (d1 < d2 || d1 == d2 && dt1[1] < dt2[1]) {
+                        leading--;
+                    }
+                } else if (d1 > d2 || d1 == d2 && dt1[1] > dt2[1]) {
+                    leading++;
+                }
+                boolean negative;
+                if (leading < 0) {
+                    negative = true;
+                    leading = -leading;
+                } else {
+                    negative = false;
+                }
+                result = ValueInterval.from(IntervalQualifier.MONTH, negative, leading, 0L);
             } else if (lType == Value.DATE && rType == Value.DATE) {
                 long diff = absoluteDayFromDateValue(((ValueDate) l).getDateValue())
                         - absoluteDayFromDateValue(((ValueDate) r).getDateValue());

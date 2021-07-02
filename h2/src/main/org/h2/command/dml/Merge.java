@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,7 +15,6 @@ import org.h2.command.query.Query;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.SessionLocal;
-import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
 import org.h2.expression.Parameter;
 import org.h2.expression.ValueExpression;
@@ -87,8 +86,8 @@ public final class Merge extends CommandWithValues {
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
         long count = 0;
-        session.getUser().checkRight(table, Right.INSERT);
-        session.getUser().checkRight(table, Right.UPDATE);
+        session.getUser().checkTableRight(table, Right.INSERT);
+        session.getUser().checkTableRight(table, Right.UPDATE);
         setCurrentRowNumber(0);
         if (!valuesExpressionList.isEmpty()) {
             // process values in list
@@ -198,7 +197,6 @@ public final class Merge extends CommandWithValues {
                     table.addRow(session, row);
                     DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
                             deltaChangeCollectionMode, row);
-                    session.log(table, UndoLogRecord.INSERT, row);
                     table.fireAfterRow(session, null, row, false);
                 } else {
                     DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
@@ -373,16 +371,6 @@ public final class Merge extends CommandWithValues {
     }
 
     @Override
-    public boolean isTransactional() {
-        return true;
-    }
-
-    @Override
-    public ResultInterface queryMeta() {
-        return null;
-    }
-
-    @Override
     public int getType() {
         return isReplace ? CommandInterface.REPLACE : CommandInterface.MERGE;
     }
@@ -390,11 +378,6 @@ public final class Merge extends CommandWithValues {
     @Override
     public String getStatementName() {
         return isReplace ? "REPLACE" : "MERGE";
-    }
-
-    @Override
-    public boolean isCacheable() {
-        return true;
     }
 
     @Override

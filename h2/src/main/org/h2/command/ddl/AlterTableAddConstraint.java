@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -36,11 +36,10 @@ import org.h2.value.DataType;
  */
 //AlterTableAlterColumn只有执行alter命令时会产生此类的实例，
 //而AlterTableAddConstraint实例在alter和create table命令中都会产生
-public class AlterTableAddConstraint extends SchemaCommand {
+public class AlterTableAddConstraint extends AlterTable {
 
     private final int type;
     private String constraintName;
-    private String tableName;
     private IndexColumn[] indexColumns;
     private ConstraintActionType deleteAction = ConstraintActionType.RESTRICT;
     private ConstraintActionType updateAction = ConstraintActionType.RESTRICT;
@@ -52,7 +51,6 @@ public class AlterTableAddConstraint extends SchemaCommand {
     private String comment;
     private boolean checkExisting;
     private boolean primaryKeyHash;
-    private boolean ifTableExists;
     private final boolean ifNotExists;
     private final ArrayList<Index> createdIndexes = new ArrayList<>();
     private ConstraintUnique createdUniqueConstraint;
@@ -63,10 +61,6 @@ public class AlterTableAddConstraint extends SchemaCommand {
         this.type = type;
     }
 
-    public void setIfTableExists(boolean b) {
-        ifTableExists = b;
-    }
-
     private String generateConstraintName(Table table) {
         if (constraintName == null) {
             constraintName = getSchema().getUniqueConstraintName(session, table);
@@ -75,9 +69,9 @@ public class AlterTableAddConstraint extends SchemaCommand {
     }
 
     @Override
-    public long update() {
+    public long update(Table table) {
         try {
-            return tryUpdate();
+            return tryUpdate(table);
         } catch (DbException e) {
             try {
                 if (createdUniqueConstraint != null) {
@@ -102,26 +96,37 @@ public class AlterTableAddConstraint extends SchemaCommand {
      *
      * @return the update count
      */
-    private int tryUpdate() {
-        if (!transactional) { //在org.h2.command.ddl.CreateTable.update()中设置transactional
-            session.commit(true); //如果是非事务的，那么就得自动提交
-        }
-        Database db = session.getDatabase();
-        Table table = getSchema().findTableOrView(session, tableName);
-        if (table == null) {
-            if (ifTableExists) {
-                return 0;
-            }
-            throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
-        }
+//<<<<<<< HEAD
+//    private int tryUpdate() {
+//        if (!transactional) { //在org.h2.command.ddl.CreateTable.update()中设置transactional
+//            session.commit(true); //如果是非事务的，那么就得自动提交
+//        }
+//        Database db = session.getDatabase();
+//        Table table = getSchema().findTableOrView(session, tableName);
+//        if (table == null) {
+//            if (ifTableExists) {
+//                return 0;
+//            }
+//            throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, tableName);
+//        }
+//=======
+    private int tryUpdate(Table table) {
         if (constraintName != null && getSchema().findConstraint(session, constraintName) != null) {
             if (ifNotExists) {
                 return 0;
             }
-            throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1,
-                    constraintName);
+            /**
+             * 1.4.200 and older databases don't always have a unique constraint
+             * for each referential constraint, so these constraints are created
+             * and they may use the same generated name as some other not yet
+             * initialized constraint that may lead to a name conflict.
+             */
+            if (!session.isQuirksMode()) {
+                throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, constraintName);
+            }
+            constraintName = null;
         }
-        session.getUser().checkRight(table, Right.ALL);
+        Database db = session.getDatabase();
         db.lockMeta(session);
         table.lock(session, true, true);
         Constraint constraint;
@@ -160,8 +165,8 @@ public class AlterTableAddConstraint extends SchemaCommand {
                         session, table, Constants.PREFIX_PRIMARY_KEY);
                 int indexId = session.getDatabase().allocateObjectId(); //会得到新的对象id，作为索引id
                 try {
-                    index = table.addIndex(session, indexName, indexId,
-                            indexColumns, indexType, true, null);
+                    index = table.addIndex(session, indexName, indexId, indexColumns, indexColumns.length, indexType,
+                            true, null);
                 } finally {
                     getSchema().freeUniqueName(indexName);
                 }
@@ -200,7 +205,9 @@ public class AlterTableAddConstraint extends SchemaCommand {
             if (refTable == null) {
                 throw DbException.get(ErrorCode.TABLE_OR_VIEW_NOT_FOUND_1, refTableName);
             }
-            session.getUser().checkRight(refTable, Right.ALL);
+            if (refTable != table) {
+                session.getUser().checkTableRight(refTable, Right.SCHEMA_OWNER);
+            }
             if (!refTable.canReference()) {
                 StringBuilder builder = new StringBuilder("Reference ");
                 refTable.getSQL(builder, HasSQL.TRACE_SQL_FLAGS);
@@ -249,6 +256,13 @@ public class AlterTableAddConstraint extends SchemaCommand {
                             column2.getCreateSQL());
                 }
             }
+            ConstraintUnique unique = getUniqueConstraint(refTable, refIndexColumns);
+            if (unique == null && !session.isQuirksMode()
+                    && !session.getMode().createUniqueConstraintForReferencedColumns) {
+                throw DbException.get(ErrorCode.CONSTRAINT_NOT_FOUND_1, IndexColumn.writeColumns(
+                        new StringBuilder("PRIMARY KEY | UNIQUE ("), refIndexColumns, HasSQL.TRACE_SQL_FLAGS)
+                        .append(')').toString());
+            }
             if (index != null && canUseIndex(index, table, indexColumns, false)) {
                 isOwner = true;
                 index.getIndexType().setBelongsToConstraint(true);
@@ -268,7 +282,6 @@ public class AlterTableAddConstraint extends SchemaCommand {
             refConstraint.setIndex(index, isOwner);
             refConstraint.setRefTable(refTable);
             refConstraint.setRefColumns(refIndexColumns);
-            ConstraintUnique unique = getUniqueConstraint(refTable, refIndexColumns);
             if (unique == null) {
                 //注意: 为引用字段建立了唯一索引
                 unique = createUniqueConstraint(refTable, refIndex, refIndexColumns, true);
@@ -318,7 +331,12 @@ public class AlterTableAddConstraint extends SchemaCommand {
         Schema tableSchema = table.getSchema();
         if (forForeignKey) {
             id = session.getDatabase().allocateObjectId();
-            name = tableSchema.getUniqueConstraintName(session, table);
+            try {
+                tableSchema.reserveUniqueName(constraintName);
+                name = tableSchema.getUniqueConstraintName(session, table);
+            } finally {
+                tableSchema.freeUniqueName(constraintName);
+            }
         } else {
             id = getObjectId();
             name = generateConstraintName(table);
@@ -353,8 +371,8 @@ public class AlterTableAddConstraint extends SchemaCommand {
         String indexName = t.getSchema().getUniqueIndexName(session, t,
                 prefix + "_INDEX_");
         try {
-            Index index = t.addIndex(session, indexName, indexId, cols,
-                    indexType, true, null);
+            Index index = t.addIndex(session, indexName, indexId, cols, unique ? cols.length : 0, indexType, true,
+                    null);
             createdIndexes.add(index);
             return index;
         } finally {
@@ -389,26 +407,44 @@ public class AlterTableAddConstraint extends SchemaCommand {
 
     private static Index getIndex(Table t, IndexColumn[] cols, boolean unique) {
         ArrayList<Index> indexes = t.getIndexes();
+        Index index = null;
         if (indexes != null) {
             for (Index idx : indexes) {
                 if (canUseIndex(idx, t, cols, unique)) {
-                    return idx;
+                    if (index == null || idx.getIndexColumns().length < index.getIndexColumns().length) {
+                        index = idx;
+                    }
                 }
             }
         }
-        return null;
+        return index;
     }
 
     private static boolean canUseIndex(Index index, Table table, IndexColumn[] cols, boolean unique) {
-        //只要index不是Scan索引(即getCreateSQL()不为null)，且index所在表就是table，且索引字段包含所有的indexColumns
-        if (index.getTable() != table //
-                || (unique ? !index.getIndexType().isUnique() : index.getCreateSQL() == null) //
-                || index.getColumns().length != cols.length) {
+//<<<<<<< HEAD
+//        //只要index不是Scan索引(即getCreateSQL()不为null)，且index所在表就是table，且索引字段包含所有的indexColumns
+//        if (index.getTable() != table //
+//                || (unique ? !index.getIndexType().isUnique() : index.getCreateSQL() == null) //
+//                || index.getColumns().length != cols.length) {
+//=======
+        if (index.getTable() != table) {
             return false;
+        }
+        int allowedColumns;
+        if (unique) {
+            allowedColumns = index.getUniqueColumnCount();
+            if (allowedColumns != cols.length) {
+                return false;
+            }
+        } else {
+            if (index.getCreateSQL() == null || (allowedColumns = index.getColumns().length) != cols.length) {
+                return false;
+            }
         }
         for (IndexColumn col : cols) {
             // all columns of the list must be part of the index
-            if (index.getColumnIndex(col.column) < 0) {
+            int i = index.getColumnIndex(col.column);
+            if (i < 0 || i >= allowedColumns) {
                 return false;
             }
         }
@@ -430,10 +466,6 @@ public class AlterTableAddConstraint extends SchemaCommand {
 
     public void setCheckExpression(Expression expression) {
         this.checkExpression = expression;
-    }
-
-    public void setTableName(String tableName) {
-        this.tableName = tableName;
     }
 
     public void setIndexColumns(IndexColumn[] indexColumns) {

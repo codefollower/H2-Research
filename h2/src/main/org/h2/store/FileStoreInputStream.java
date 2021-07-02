@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -24,8 +24,7 @@ public class FileStoreInputStream extends InputStream {
     private boolean endOfFile;
     private final boolean alwaysClose;
 
-    public FileStoreInputStream(FileStore store, DataHandler handler,
-            boolean compression, boolean alwaysClose) {
+    public FileStoreInputStream(FileStore store, boolean compression, boolean alwaysClose) {
         this.store = store;
         this.alwaysClose = alwaysClose;
         if (compression) {
@@ -33,7 +32,7 @@ public class FileStoreInputStream extends InputStream {
         } else {
             compress = null;
         }
-        page = Data.create(handler, Constants.FILE_BLOCK_SIZE, true);
+        page = Data.create(Constants.FILE_BLOCK_SIZE);
         try {
             if (store.length() <= FileStore.HEADER_LENGTH) {
                 close();
@@ -104,7 +103,7 @@ public class FileStoreInputStream extends InputStream {
         page.checkCapacity(remainingInBuffer);
         // get the length to read
         if (compress != null) {
-            page.checkCapacity(Data.LENGTH_INT);
+            page.checkCapacity(Integer.BYTES);
             page.readInt();
         }
         page.setPos(page.length() + remainingInBuffer);

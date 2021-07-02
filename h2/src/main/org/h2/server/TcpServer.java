@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -9,28 +9,24 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.h2.Driver;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
+import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
-import org.h2.util.JdbcUtils;
 import org.h2.util.MathUtils;
 import org.h2.util.NetUtils;
-import org.h2.util.NetUtils2;
 import org.h2.util.StringUtils;
 import org.h2.util.Tool;
+import org.h2.util.Utils10;
 
 /**
  * The TCP server implements the native H2 database server protocol.
@@ -69,7 +65,7 @@ public class TcpServer implements Service {
     private boolean allowOthers;
     private boolean isDaemon;
     private boolean ifExists = true;
-    private Connection managementDb;
+    private JdbcConnection managementDb;
     private PreparedStatement managementDbAdd;
     private PreparedStatement managementDbRemove;
     private String managementPassword = "";
@@ -92,14 +88,11 @@ public class TcpServer implements Service {
         if (managementPassword.isEmpty()) {
             managementPassword = StringUtils.convertBytesToHex(MathUtils.secureRandomBytes(32));
         }
-        Properties prop = new Properties();
-        prop.setProperty("user", "");
-        prop.setProperty("password", managementPassword);
         // avoid using the driver manager
         // url如: jdbc:h2:mem:management_db_9092
         //内存数据库不走TCP，执行到这里时TcpServer的listenerThread还没启动，
         //所以下面的sql语句不会在TcpServerThread这个类中收到请求
-        Connection conn = Driver.load().connect("jdbc:h2:" + getManagementDbName(port), prop);
+        JdbcConnection conn = new JdbcConnection("jdbc:h2:" + getManagementDbName(port), null, "", managementPassword);
         managementDb = conn;
         // 建立了一个自定义的函数STOP_SERVER，
         // 通过类似这样CALL STOP_SERVER(9092, '', 0)就能关闭H2数据库
@@ -208,7 +201,6 @@ public class TcpServer implements Service {
                 ifExists = false;
             }
         }
-        org.h2.Driver.load();
     }
 
     @Override
@@ -277,7 +269,7 @@ public class TcpServer implements Service {
             while (!stop) {
                 Socket s = serverSocket.accept();
                 //s.setSoTimeout(2000); //我加上的
-                NetUtils2.setTcpQuickack(s, true);
+                Utils10.setTcpQuickack(s, true);
                 int id = nextThreadId++;
                 TcpServerThread c = new TcpServerThread(s, this, id);
                 running.add(c);
@@ -475,17 +467,9 @@ public class TcpServer implements Service {
                 }
             }
             String db = getManagementDbName(port);
-            try {
-                org.h2.Driver.load();
-            } catch (Throwable e) {
-                throw DbException.convert(e);
-            }
             for (int i = 0; i < 2; i++) {
-                Connection conn = null;
-                PreparedStatement prep = null;
-                try {
-                    conn = DriverManager.getConnection("jdbc:h2:" + url + "/" + db, "", password);
-                    prep = conn.prepareStatement("CALL STOP_SERVER(?, ?, ?)");
+                try (JdbcConnection conn = new JdbcConnection("jdbc:h2:" + url + '/' + db, null, "", password)) {
+                    PreparedStatement prep = conn.prepareStatement("CALL STOP_SERVER(?, ?, ?)");
                     prep.setInt(1, all ? 0 : port);
                     prep.setString(2, password);
                     prep.setInt(3, force ? SHUTDOWN_FORCE : SHUTDOWN_NORMAL);
@@ -505,9 +489,6 @@ public class TcpServer implements Service {
                     if (i == 1) {
                         throw e;
                     }
-                } finally {
-                    JdbcUtils.closeSilently(prep);
-                    JdbcUtils.closeSilently(conn);
                 }
             }
         } catch (Exception e) {

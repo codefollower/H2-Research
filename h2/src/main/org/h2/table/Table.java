@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -16,21 +16,21 @@ import org.h2.api.ErrorCode;
 import org.h2.command.Prepared;
 import org.h2.command.query.AllColumnsForPlan;
 import org.h2.constraint.Constraint;
+import org.h2.constraint.Constraint.Type;
 import org.h2.engine.CastDataProvider;
 import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.SessionLocal;
-import org.h2.engine.UndoLogRecord;
 import org.h2.expression.ExpressionVisitor;
 import org.h2.index.Index;
 import org.h2.index.IndexType;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
 import org.h2.result.DefaultRow;
+import org.h2.result.LocalResult;
 import org.h2.result.Row;
 import org.h2.result.RowFactory;
-import org.h2.result.RowList;
 import org.h2.result.SearchRow;
 import org.h2.result.SimpleRowValue;
 import org.h2.result.SortOrder;
@@ -159,14 +159,14 @@ public abstract class Table extends SchemaObject {
      * @param indexName the name of the index
      * @param indexId the id
      * @param cols the index columns
+     * @param uniqueColumnCount the count of unique columns
      * @param indexType the index type
      * @param create whether this is a new index
      * @param indexComment the comment
      * @return the index
      */
-    public abstract Index addIndex(SessionLocal session, String indexName,
-            int indexId, IndexColumn[] cols, IndexType indexType,
-            boolean create, String indexComment);
+    public abstract Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
+            int uniqueColumnCount, IndexType indexType, boolean create, String indexComment);
 
     /**
      * Get the given row.
@@ -293,13 +293,6 @@ public abstract class Table extends SchemaObject {
             AllColumnsForPlan allColumnsSet) {
         return getScanIndex(session);
     }
-
-    /**
-     * Get any unique index for this table if one exists.
-     *
-     * @return a unique index
-     */
-    public abstract Index getUniqueIndex();
 
     /**
      * Get all indexes for this table.
@@ -496,8 +489,8 @@ public abstract class Table extends SchemaObject {
                 throw DbException.get(ErrorCode.DUPLICATE_COLUMN_NAME_1, columnName);
             }
         }
-        rowFactory = database.getRowFactory().createRowFactory(database, database.getCompareMode(),
-                database.getMode(), database, columns, null);
+        rowFactory = database.getRowFactory().createRowFactory(database, database.getCompareMode(), database, columns,
+                null, false);
     }
 
     /**
@@ -539,17 +532,17 @@ public abstract class Table extends SchemaObject {
      * @param rows a list of row pairs of the form old row, new row, old row,
      *            new row,...
      */
-    public void updateRows(Prepared prepared, SessionLocal session, RowList rows) {
+    public void updateRows(Prepared prepared, SessionLocal session, LocalResult rows) {
         // in case we need to undo the update
         SessionLocal.Savepoint rollback = session.setSavepoint();
         // remove the old rows
         int rowScanCount = 0;
-        for (rows.reset(); rows.hasNext();) {
+        while (rows.next()) {
             if ((++rowScanCount & 127) == 0) {
                 prepared.checkCanceled();
             }
-            Row o = rows.next();
-            rows.next(); 
+            Row o = rows.currentRowForTable();
+            rows.next();
             try {
                 //为什么不是先记撤消日志再删除行呢？因为如果这样的话假设删除行不成功，但是日志记成功了，当rollback时又按日志做insert操作
                 //此时就多了一条记录了，
@@ -564,17 +557,16 @@ public abstract class Table extends SchemaObject {
                 }
                 throw e;
             }
-            session.log(this, UndoLogRecord.DELETE, o);
         }
         //int c=0;
         // add the new rows
-        for (rows.reset(); rows.hasNext();) {
-            //if(c++>2) throw DbException.get(ErrorCode.CANNOT_DROP_2);
+        rows.reset();
+        while (rows.next()) {
             if ((++rowScanCount & 127) == 0) {
                 prepared.checkCanceled();
             }
             rows.next();
-            Row n = rows.next();
+            Row n = rows.currentRowForTable();
             try {
                 addRow(session, n);
             } catch (DbException e) {
@@ -583,7 +575,6 @@ public abstract class Table extends SchemaObject {
                 }
                 throw e;
             }
-            session.log(this, UndoLogRecord.INSERT, n);
         }
     }
 
@@ -697,7 +688,7 @@ public abstract class Table extends SchemaObject {
      * Create a new row for this table.
      *
      * @param data the values
-     * @param memory whether the row is in memory
+     * @param memory the estimated memory usage in bytes
      * @return the created row
      */
     public Row createRow(Value[] data, int memory) {
@@ -708,7 +699,7 @@ public abstract class Table extends SchemaObject {
      * Create a new row for this table.
      *
      * @param data the values
-     * @param memory whether the row is in memory
+     * @param memory the estimated memory usage in bytes
      * @param key the key
      * @return the created row
      */
@@ -1251,12 +1242,13 @@ public abstract class Table extends SchemaObject {
      * @param checkExisting true if existing rows must be checked during this
      *            call
      */
-    public void setCheckForeignKeyConstraints(SessionLocal session, boolean enabled,
-            boolean checkExisting) {
+    public void setCheckForeignKeyConstraints(SessionLocal session, boolean enabled, boolean checkExisting) {
         if (enabled && checkExisting) {
             if (constraints != null) {
                 for (Constraint c : constraints) {
-                    c.checkExistingData(session);
+                    if (c.getConstraintType() == Type.REFERENTIAL) {
+                        c.checkExistingData(session);
+                    }
                 }
             }
         }
@@ -1424,7 +1416,10 @@ public abstract class Table extends SchemaObject {
         this.isHidden = hidden;
     }
 
-    public boolean isMVStore() {
+    /**
+     * Views, function tables, links, etc. do not support locks
+     */
+    public boolean isRowLockable() {
         return false;
     }
 

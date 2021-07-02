@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -248,12 +248,7 @@ public class TestCallableStatement extends TestDb {
         call.registerOutParameter(1, Types.INTEGER);
         call.registerOutParameter("B", Types.VARCHAR);
         call.executeUpdate();
-        try {
-            call.getTimestamp("C");
-            fail("not registered out parameter accessible");
-        } catch (SQLException e) {
-            // expected exception
-        }
+        assertThrows(ErrorCode.INVALID_VALUE_2, call).getTimestamp("C");
         call.registerOutParameter(3, Types.TIMESTAMP);
         call.registerOutParameter(4, Types.TIMESTAMP);
         call.executeUpdate();
@@ -306,24 +301,9 @@ public class TestCallableStatement extends TestDb {
         assertEquals("ABC", call.getSQLXML(2).getString());
         assertEquals("ABC", call.getSQLXML("B").getString());
 
-        try {
-            call.getString(100);
-            fail("incorrect parameter index value");
-        } catch (SQLException e) {
-            // expected exception
-        }
-        try {
-            call.getString(0);
-            fail("incorrect parameter index value");
-        } catch (SQLException e) {
-            // expected exception
-        }
-        try {
-            call.getBoolean("X");
-            fail("incorrect parameter name value");
-        } catch (SQLException e) {
-            // expected exception
-        }
+        assertThrows(ErrorCode.INVALID_VALUE_2, call).getString(100);
+        assertThrows(ErrorCode.INVALID_VALUE_2, call).getString(0);
+        assertThrows(ErrorCode.INVALID_VALUE_2, call).getBoolean("X");
 
         call.setCharacterStream("B",
                 new StringReader("xyz"));

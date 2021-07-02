@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -130,8 +130,8 @@ public final class SessionRemote extends Session implements DataHandler {
 
     private Transfer initTransfer(ConnectionInfo ci, String db, String server)
             throws IOException {
-        Socket socket = NetUtils.createSocket(server,
-                Constants.DEFAULT_TCP_PORT, ci.isSSL(), ci.getProperty("NETWORK_TIMEOUT",0 ));
+        Socket socket = NetUtils.createSocket(server, Constants.DEFAULT_TCP_PORT, ci.isSSL(),
+                ci.getProperty("NETWORK_TIMEOUT", 0));
         Transfer trans = new Transfer(this, socket);
         trans.setSSL(ci.isSSL());
         trans.init();
@@ -156,6 +156,13 @@ public final class SessionRemote extends Session implements DataHandler {
             }
             trans.writeInt(SessionRemote.SESSION_SET_ID);
             trans.writeString(sessionId);
+            if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_20) {
+                TimeZoneProvider timeZone = ci.getTimeZone();
+                if (timeZone == null) {
+                    timeZone = DateTimeUtils.getTimeZone();
+                }
+                trans.writeString(timeZone.getId());
+            }
             done(trans);
             if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_15) {
                 autoCommit = trans.readBoolean();
@@ -230,7 +237,11 @@ public final class SessionRemote extends Session implements DataHandler {
         }
     }
 
-    @Override
+    /**
+     * Returns the TCP protocol version of remote connection.
+     *
+     * @return the TCP protocol version
+     */
     public int getClientVersion() {
         return clientVersion;
     }
@@ -706,11 +717,6 @@ public final class SessionRemote extends Session implements DataHandler {
     }
 
     @Override
-    public String getLobCompressionAlgorithm(int type) {
-        return null;
-    }
-
-    @Override
     public int getMaxLengthInplaceLob() {
         return SysProperties.LOB_CLIENT_MAX_SIZE_MEMORY;
     }
@@ -901,7 +907,7 @@ public final class SessionRemote extends Session implements DataHandler {
                 parameters.get(0).setValue(ValueVarchar.get("DATABASE_TO_UPPER"), false);
                 parameters.get(1).setValue(ValueVarchar.get("DATABASE_TO_LOWER"), false);
                 parameters.get(2).setValue(ValueVarchar.get("CASE_INSENSITIVE_IDENTIFIERS"), false);
-                try (ResultInterface result = command.executeQuery(Integer.MAX_VALUE, false)) {
+                try (ResultInterface result = command.executeQuery(0, false)) {
                     while (result.next()) {
                         Value[] row = result.currentRow();
                         String value = row[1].getString();
@@ -939,7 +945,7 @@ public final class SessionRemote extends Session implements DataHandler {
                 parameters.get(0).setValue(ValueVarchar.get("MODE"), false);
                 parameters.get(1).setValue(ValueVarchar.get("TIME ZONE"), false);
                 parameters.get(2).setValue(ValueVarchar.get("JAVA_OBJECT_SERIALIZER"), false);
-                try (ResultInterface result = command.executeQuery(Integer.MAX_VALUE, false)) {
+                try (ResultInterface result = command.executeQuery(0, false)) {
                     while (result.next()) {
                         Value[] row = result.currentRow();
                         String value = row[1].getString();

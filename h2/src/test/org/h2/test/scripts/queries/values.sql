@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -104,3 +104,6 @@ DROP TABLE TEST;
 
 EXECUTE IMMEDIATE 'CREATE TABLE TEST AS SELECT C1 FROM (VALUES (' || (SELECT LISTAGG('1') FROM SYSTEM_RANGE(1, 16385)) || '))';
 > exception TOO_MANY_COLUMNS_1
+
+VALUES (1), (1, 2);
+> exception COLUMN_COUNT_DOES_NOT_MATCH

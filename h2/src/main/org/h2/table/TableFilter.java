@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -101,11 +101,6 @@ public class TableFilter implements ColumnResolver {
     private final ArrayList<IndexCondition> indexConditions = Utils.newSmallArrayList();
 
     /**
-     * Whether new window conditions should not be accepted.
-     */
-    private boolean doneWithIndexConditions;
-
-    /**
      * Additional conditions that can't be used for index lookup, but for row
      * filter for this table (ID=ID, NAME LIKE '%X%')
      */
@@ -181,7 +176,7 @@ public class TableFilter implements ColumnResolver {
         this.select = select;
         this.cursor = new IndexCursor();
         if (!rightsChecked) {
-            session.getUser().checkRight(table, Right.SELECT);
+            session.getUser().checkTableRight(table, Right.SELECT);
         }
         hashCode = session.nextObjectId();
         this.orderInFrom = orderInFrom;
@@ -215,13 +210,11 @@ public class TableFilter implements ColumnResolver {
      * Lock the table. This will also lock joined tables.
      *
      * @param s the session
-     * @param exclusive true if an exclusive lock is required
-     * @param forceLockEvenInMvcc lock even in the MVCC mode
      */
-    public void lock(SessionLocal s, boolean exclusive, boolean forceLockEvenInMvcc) {
-        table.lock(s, exclusive, forceLockEvenInMvcc);
+    public void lock(SessionLocal s) {
+        table.lock(s, false, false);
         if (join != null) {
-            join.lock(s, exclusive, forceLockEvenInMvcc);
+            join.lock(s);
         }
     }
 
@@ -673,16 +666,7 @@ public class TableFilter implements ColumnResolver {
      * @param condition the index condition
      */
     public void addIndexCondition(IndexCondition condition) {
-        if (!doneWithIndexConditions) {
-            indexConditions.add(condition);
-        }
-    }
-
-    /**
-     * Used to reject all additional index conditions.
-     */
-    public void doneWithIndexConditions() {
-        this.doneWithIndexConditions = true;
+        indexConditions.add(condition);
     }
 
     /**
@@ -991,7 +975,7 @@ public class TableFilter implements ColumnResolver {
         // the indexConditions list may be modified here
         for (int i = 0; i < indexConditions.size(); i++) {
             IndexCondition cond = indexConditions.get(i);
-            if (!cond.isEvaluatable()) {
+            if (cond.getMask(indexConditions) == 0 || !cond.isEvaluatable()) {
                 indexConditions.remove(i--);
             }
         }
@@ -1020,15 +1004,6 @@ public class TableFilter implements ColumnResolver {
 
     public boolean isUsed() {
         return used;
-    }
-
-    /**
-     * Set the session of this table filter.
-     *
-     * @param session the new session
-     */
-    void setSession(SessionLocal session) {
-        this.session = session;
     }
 
     /**
@@ -1384,17 +1359,6 @@ public class TableFilter implements ColumnResolver {
             }
         }
         return false;
-    }
-
-    /**
-     * Add the current row to the array, if there is a current row.
-     *
-     * @param rows the rows to lock
-     */
-    public void lockRowAdd(ArrayList<Row> rows) {
-        if (state == FOUND) {
-            rows.add(get());
-        }
     }
 
     public TableFilter getNestedJoin() {

@@ -1,11 +1,11 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: Noah Fontes <nfontes@invectorate.com>
  */
 package org.h2.test.unit;
 
-import org.h2.message.DbException;
+import org.h2.api.ErrorCode;
 import org.h2.test.TestBase;
 import org.h2.util.JdbcUtils;
 import org.h2.util.StringUtils;
@@ -44,12 +44,8 @@ public class TestObjectDeserialization extends TestBase {
     private void testThreadContextClassLoader() {
         usesThreadContextClassLoader = false;
         Thread.currentThread().setContextClassLoader(new TestClassLoader());
-        try {
-            JdbcUtils.deserialize(StringUtils.convertHexToBytes(OBJECT), null);
-            fail();
-        } catch (DbException e) {
-            // expected
-        }
+        assertThrows(ErrorCode.DESERIALIZATION_FAILED_1,
+                () -> JdbcUtils.deserialize(StringUtils.convertHexToBytes(OBJECT), null));
         assertTrue(usesThreadContextClassLoader);
     }
 

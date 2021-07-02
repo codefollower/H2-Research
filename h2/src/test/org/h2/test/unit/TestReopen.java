@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -7,7 +7,6 @@ package org.h2.test.unit;
 
 import java.sql.SQLException;
 import java.util.HashSet;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.h2.api.ErrorCode;
@@ -72,8 +71,7 @@ public class TestReopen extends TestBase implements Recorder {
         if (op != Recorder.WRITE && op != Recorder.TRUNCATE) {
             return;
         }
-        if (!fileName.endsWith(Constants.SUFFIX_PAGE_FILE) &&
-                !fileName.endsWith(Constants.SUFFIX_MV_FILE)) {
+        if (!fileName.endsWith(Constants.SUFFIX_MV_FILE)) {
             return;
         }
         if (testing) {
@@ -100,22 +98,13 @@ public class TestReopen extends TestBase implements Recorder {
         System.out.println("+ write #" + writeCount + " verify #" + verifyCount);
 
         try {
-            if (fileName.endsWith(Constants.SUFFIX_PAGE_FILE)) {
-                IOUtils.copyFiles(fileName, testDatabase +
-                        Constants.SUFFIX_PAGE_FILE);
-            } else {
-                IOUtils.copyFiles(fileName, testDatabase +
-                        Constants.SUFFIX_MV_FILE);
-            }
+            IOUtils.copyFiles(fileName, testDatabase +
+                    Constants.SUFFIX_MV_FILE);
             verifyCount++;
             // avoid using the Engine class to avoid deadlocks
-            Properties p = new Properties();
-            String userName =  getUser();
-            p.setProperty("user", userName);
-            p.setProperty("password", getPassword());
             String url = "jdbc:h2:" + testDatabase +
                     ";FILE_LOCK=NO;TRACE_LEVEL_FILE=0";
-            ConnectionInfo ci = new ConnectionInfo(url, p);
+            ConnectionInfo ci = new ConnectionInfo(url, null, getUser(), getPassword());
             Database database = new Database(ci, null);
             // close the database
             SessionLocal session = database.getSystemSession();
@@ -156,17 +145,11 @@ public class TestReopen extends TestBase implements Recorder {
         }
         testDatabase += "X";
         try {
-            if (fileName.endsWith(Constants.SUFFIX_PAGE_FILE)) {
-                IOUtils.copyFiles(fileName, testDatabase +
-                        Constants.SUFFIX_PAGE_FILE);
-            } else {
-                IOUtils.copyFiles(fileName, testDatabase +
-                        Constants.SUFFIX_MV_FILE);
-            }
+            IOUtils.copyFiles(fileName, testDatabase +
+                    Constants.SUFFIX_MV_FILE);
             // avoid using the Engine class to avoid deadlocks
-            Properties p = new Properties();
             String url = "jdbc:h2:" + testDatabase + ";FILE_LOCK=NO";
-            ConnectionInfo ci = new ConnectionInfo(url, p);
+            ConnectionInfo ci = new ConnectionInfo(url, null, null, null);
             Database database = new Database(ci, null);
             // close the database
             database.removeSession(null);

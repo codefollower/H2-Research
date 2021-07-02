@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -62,15 +62,15 @@ INSERT INTO TEST VALUES 1;
 INSERT INTO TEST VALUES -1;
 > exception CHECK_CONSTRAINT_VIOLATED_1
 
-SCRIPT NOPASSWORDS NOSETTINGS TABLE TEST;
+SCRIPT NOPASSWORDS NOSETTINGS NOVERSION TABLE TEST;
 > SCRIPT
 > ------------------------------------------------------------------------------------------
-> -- 2 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
-> ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_2" CHECK("C" > 0) NOCHECK;
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "C" INTEGER );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "C" INTEGER );
+> -- 2 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
 > INSERT INTO "PUBLIC"."TEST" VALUES (1), (1);
-> rows: 5
+> ALTER TABLE "PUBLIC"."TEST" ADD CONSTRAINT "PUBLIC"."CONSTRAINT_2" CHECK("C" > 0) NOCHECK;
+> rows (ordered): 5
 
 DROP TABLE TEST;
 > ok

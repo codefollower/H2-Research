@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,7 +25,6 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.h2.api.ErrorCode;
-import org.h2.engine.SysProperties;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
@@ -182,7 +181,7 @@ public class TestCsv extends TestDb {
     private void testOptions() {
         Csv csv = new Csv();
         assertEquals(",", csv.getFieldSeparatorWrite());
-        assertEquals(SysProperties.LINE_SEPARATOR, csv.getLineSeparator());
+        assertEquals(System.lineSeparator(), csv.getLineSeparator());
         assertEquals("", csv.getNullString());
         assertEquals('\"', csv.getEscapeCharacter());
         assertEquals('"', csv.getFieldDelimiter());
@@ -231,9 +230,7 @@ public class TestCsv extends TestDb {
         assertEquals("\0", csv.getNullString());
         assertEquals("", charset);
 
-        createClassProxy(Csv.class);
-        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, csv).
-            setOptions("escape=a error=b");
+        assertThrows(ErrorCode.FEATURE_NOT_SUPPORTED_1, () -> csv.setOptions("escape=a error=b"));
         assertEquals('a', csv.getEscapeCharacter());
     }
 

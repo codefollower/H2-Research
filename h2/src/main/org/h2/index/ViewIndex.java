@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -62,7 +62,7 @@ public class ViewIndex extends Index implements SpatialIndex {
      */
     public ViewIndex(TableView view, String querySQL,
             ArrayList<Parameter> originalParameters, boolean recursive) {
-        super(view, 0, null, null, IndexType.createNonUnique(false));
+        super(view, 0, null, null, 0, IndexType.createNonUnique(false));
         this.view = view;
         this.querySQL = querySQL;
         this.originalParameters = originalParameters;
@@ -89,7 +89,7 @@ public class ViewIndex extends Index implements SpatialIndex {
      */
     public ViewIndex(TableView view, ViewIndex index, SessionLocal session,
             int[] masks, TableFilter[] filters, int filter, SortOrder sortOrder) {
-        super(view, 0, null, null, IndexType.createNonUnique(false));
+        super(view, 0, null, null, 0, IndexType.createNonUnique(false));
         this.view = view;
         this.querySQL = index.querySQL;
         this.originalParameters = index.originalParameters;

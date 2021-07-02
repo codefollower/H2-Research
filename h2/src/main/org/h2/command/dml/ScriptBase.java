@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,24 +18,19 @@ import org.h2.engine.SessionLocal;
 import org.h2.engine.SysProperties;
 import org.h2.expression.Expression;
 import org.h2.message.DbException;
-import org.h2.pagestore.db.LobStorageBackend;
 import org.h2.security.SHA256;
-import org.h2.store.DataHandler;
 import org.h2.store.FileStore;
 import org.h2.store.FileStoreInputStream;
 import org.h2.store.FileStoreOutputStream;
 import org.h2.store.fs.FileUtils;
 import org.h2.tools.CompressTool;
 import org.h2.util.IOUtils;
-import org.h2.util.SmallLRUCache;
 import org.h2.util.StringUtils;
-import org.h2.util.TempFileDeleter;
-import org.h2.value.CompareMode;
 
 /**
  * This class is the base for RunScriptCommand and ScriptCommand.
  */
-abstract class ScriptBase extends Prepared implements DataHandler {
+abstract class ScriptBase extends Prepared {
 
     /**
      * The default name of the script file if .zip compression is used.
@@ -135,7 +130,7 @@ abstract class ScriptBase extends Prepared implements DataHandler {
         }
         if (isEncrypted()) {
             initStore();
-            out = new FileStoreOutputStream(store, this, compressionAlgorithm);
+            out = new FileStoreOutputStream(store, compressionAlgorithm);
             // always use a big buffer, otherwise end-of-block is written a lot
             out = new BufferedOutputStream(out, Constants.IO_BUFFER_SIZE_COMPRESS); //128K
         } else {
@@ -160,7 +155,7 @@ abstract class ScriptBase extends Prepared implements DataHandler {
         }
         if (isEncrypted()) {
             initStore();
-            in = new FileStoreInputStream(store, this, compressionAlgorithm != null, false);
+            in = new FileStoreInputStream(store, compressionAlgorithm != null, false);
         } else {
             InputStream inStream;
             try {
@@ -195,67 +190,8 @@ abstract class ScriptBase extends Prepared implements DataHandler {
         return false;
     }
 
-    @Override
-    public String getDatabasePath() {
-        return null;
-    }
-
-    @Override
-    public FileStore openFile(String name, String mode, boolean mustExist) {
-        return null;
-    }
-
-    @Override
-    public void checkPowerOff() {
-        session.getDatabase().checkPowerOff();
-    }
-
-    @Override
-    public void checkWritingAllowed() {
-        session.getDatabase().checkWritingAllowed();
-    }
-
-    @Override
-    public int getMaxLengthInplaceLob() {
-        return session.getDatabase().getMaxLengthInplaceLob();
-    }
-
-    @Override
-    public TempFileDeleter getTempFileDeleter() {
-        return session.getDatabase().getTempFileDeleter();
-    }
-
-    @Override
-    public String getLobCompressionAlgorithm(int type) {
-        return session.getDatabase().getLobCompressionAlgorithm(type);
-    }
-
     public void setCompressionAlgorithm(String algorithm) {
         this.compressionAlgorithm = algorithm;
     }
 
-    @Override
-    public Object getLobSyncObject() {
-        return this;
-    }
-
-    @Override
-    public SmallLRUCache<String, String[]> getLobFileListCache() {
-        return null;
-    }
-
-    @Override
-    public LobStorageBackend getLobStorage() {
-        return null;
-    }
-
-    @Override
-    public int readLob(long lobId, byte[] hmac, long offset, byte[] buff, int off, int length) {
-        throw DbException.getInternalError();
-    }
-
-    @Override
-    public CompareMode getCompareMode() {
-        return session.getDataHandler().getCompareMode();
-    }
 }

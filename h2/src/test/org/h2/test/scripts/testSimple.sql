@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -12,16 +12,16 @@ select 1 from(select 2 from(select 1) a right join dual b) c;
 >> 1
 
 select 1.00 / 3 * 0.00;
->> 0E-24
+>> 0.000000000000000000000000
 
 select 1.00000 / 3 * 0.0000;
->> 0E-29
+>> 0.00000000000000000000000000000
 
 select 1.0000000 / 3 * 0.00000;
->> 0E-32
+>> 0.00000000000000000000000000000000
 
 select 1.0000000 / 3 * 0.000000;
->> 0E-33
+>> 0.000000000000000000000000000000000
 
 create table test(id null);
 > ok
@@ -62,7 +62,7 @@ select N'test';
 select E'test\\test';
 >> test\test
 
-create table a(id int) as select null;
+create table a(id int unique) as select null;
 > ok
 
 create table b(id int references a(id)) as select null;
@@ -217,30 +217,6 @@ drop table test;
 select count(*)from((select 1 from dual limit 1)union(select 2 from dual limit 1));
 >> 2
 
-select sum(cast(x as int)) from system_range(2147483547, 2147483637);
->> 195421006872
-
-select sum(x) from system_range(9223372036854775707, 9223372036854775797);
->> 839326855353784593432
-
-select sum(cast(100 as tinyint)) from system_range(1, 1000);
->> 100000
-
-select sum(cast(100 as smallint)) from system_range(1, 1000);
->> 100000
-
-select avg(cast(x as int)) from system_range(2147483547, 2147483637);
->> 2147483592
-
-select avg(x) from system_range(9223372036854775707, 9223372036854775797);
->> 9223372036854775752
-
-select avg(cast(100 as tinyint)) from system_range(1, 1000);
->> 100
-
-select avg(cast(100 as smallint)) from system_range(1, 1000);
->> 100
-
 select datediff(yyyy, now(), now());
 >> 0
 
@@ -304,7 +280,7 @@ drop table master, detail;
 drop all objects;
 > ok
 
-create table test(id int, parent int references test(id) on delete cascade);
+create table test(id int primary key, parent int references test(id) on delete cascade);
 > ok
 
 insert into test values(0, 0);
@@ -454,10 +430,10 @@ DROP SEQUENCE TEST_SEQ;
 create schema Contact;
 > ok
 
-CREATE TABLE Account (id BIGINT);
+CREATE TABLE Account (id BIGINT PRIMARY KEY);
 > ok
 
-CREATE TABLE Person (id BIGINT, FOREIGN KEY (id) REFERENCES Account(id));
+CREATE TABLE Person (id BIGINT PRIMARY KEY, FOREIGN KEY (id) REFERENCES Account(id));
 > ok
 
 CREATE TABLE Contact.Contact (id BIGINT, FOREIGN KEY (id) REFERENCES public.Person(id));

@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -222,3 +222,14 @@ SELECT * FROM SYSTEM_RANGE(8, 1, -2) WHERE X BETWEEN 3 AND 7 ORDER BY 1 DESC;
 
 SELECT COUNT(*) FROM SYSTEM_RANGE(8, 1, -2) WHERE X BETWEEN 3 AND 7;
 >> 2
+
+SELECT X FROM SYSTEM_RANGE(1, 2, ?);
+{
+1
+> X
+> -
+> 1
+> 2
+> rows: 2
+};
+> update count: 0

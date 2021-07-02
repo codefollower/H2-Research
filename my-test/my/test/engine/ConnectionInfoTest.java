@@ -49,7 +49,7 @@ public class ConnectionInfoTest extends TestBase {
         //有异常: org.h2.message.DbException: Duplicate property "USER" [90066-169]
         //如果值相同就不会报错
         //url = "jdbc:h2:tcp://localhost:9092/test9;optimize_distinct=true;early_filter=true;nested_joins=false;user=sa2";
-        ConnectionInfo info = new ConnectionInfo(url, prop);
+        ConnectionInfo info = new ConnectionInfo(url, prop, null, null);
 
         System.out.println(info.getName());
 
@@ -80,7 +80,7 @@ public class ConnectionInfoTest extends TestBase {
 
         String url = "jdbc:h2:test";
 
-        ConnectionInfo info = new ConnectionInfo(url, prop);
+        ConnectionInfo info = new ConnectionInfo(url, prop, "", "");
 
         System.out.println(info.getName());
     }

@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -152,3 +152,17 @@ SELECT ROW(1) = ROW(ROW(TIME '00:00:00'));
 
 CREATE TABLE TEST(C1 BOOLEAN GENERATED ALWAYS AS (NOT C2), C2 BOOLEAN GENERATED ALWAYS AS (C1));
 > exception COLUMN_NOT_FOUND_1
+
+CREATE TABLE TEST(A INTEGER, B INTEGER, C INTEGER, D INTEGER) AS VALUES (1, 2, 3, 4);
+> ok
+
+EXPLAIN SELECT A = B OR A = C C1, B = A OR A = C C2, A = B OR C = A C3, B = A OR C = A C4 FROM TEST;
+>> SELECT "A" IN("B", "C") AS "C1", "A" IN("B", "C") AS "C2", "A" IN("B", "C") AS "C3", "A" IN("B", "C") AS "C4" FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+EXPLAIN SELECT A = B OR A = C OR A = D C1, B = A OR A = C OR A = D C2, A = B OR C = A OR A = D C3,
+    B = A OR C = A OR A = D C4, A = B OR A = C OR D = A C5, B = A OR A = C OR D = A C6, A = B OR C = A OR D = A C7,
+    B = A OR C = A OR D = A C8 FROM TEST;
+>> SELECT "A" IN("B", "C", "D") AS "C1", "A" IN("B", "C", "D") AS "C2", "A" IN("B", "C", "D") AS "C3", "A" IN("B", "C", "D") AS "C4", "A" IN("B", "C", "D") AS "C5", "A" IN("B", "C", "D") AS "C6", "A" IN("B", "C", "D") AS "C7", "A" IN("B", "C", "D") AS "C8" FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+DROP TABLE TEST;
+> ok

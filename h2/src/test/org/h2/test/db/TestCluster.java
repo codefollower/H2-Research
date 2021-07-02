@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -428,10 +428,10 @@ public class TestCluster extends TestDb {
 
         // try to connect in standalone mode - should fail
         // should not be able to connect in standalone mode
-        assertThrows(ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1, this).
-                getConnection("jdbc:h2:tcp://localhost:"+port1+"/test", user, password);
-        assertThrows(ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1, this).
-                getConnection("jdbc:h2:tcp://localhost:"+port2+"/test", user, password);
+        assertThrows(ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1,
+                () -> getConnection("jdbc:h2:tcp://localhost:" + port1 + "/test", user, password));
+        assertThrows(ErrorCode.CLUSTER_ERROR_DATABASE_RUNS_CLUSTERED_1,
+                () -> getConnection("jdbc:h2:tcp://localhost:" + port2 + "/test", user, password));
 
         // test a cluster connection
         conn = getConnection("jdbc:h2:tcp://" + serverList + "/test", user, password);

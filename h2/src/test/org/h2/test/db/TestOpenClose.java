@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -63,8 +63,8 @@ public class TestOpenClose extends TestDb {
         deleteDb("openClose");
         Connection conn;
         conn = getConnection("jdbc:h2:" + getBaseDir() + "/openClose;FILE_LOCK=FS");
-        assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, this).getConnection(
-                "jdbc:h2:" + getBaseDir() + "/openClose;FILE_LOCK=FS;OPEN_NEW=TRUE");
+        assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1,
+                () -> getConnection("jdbc:h2:" + getBaseDir() + "/openClose;FILE_LOCK=FS;OPEN_NEW=TRUE"));
         conn.close();
     }
 
@@ -72,16 +72,10 @@ public class TestOpenClose extends TestDb {
         if (config.memory || config.reopen) {
             return;
         }
-        String fn = getBaseDir() + "/openClose2";
-        if (config.mvStore) {
-            fn += Constants.SUFFIX_MV_FILE;
-        } else {
-            fn += Constants.SUFFIX_PAGE_FILE;
-        }
+        String fn = getBaseDir() + "/openClose2" + Constants.SUFFIX_MV_FILE;
         FileUtils.delete("split:" + fn);
         Connection conn;
-        String url = "jdbc:h2:split:18:" + getBaseDir() + "/openClose2";
-        url = getURL(url, true);
+        String url = getURL("jdbc:h2:split:18:" + getBaseDir() + "/openClose2", true);
         conn = DriverManager.getConnection(url);
         conn.createStatement().execute("create table test(id int, name varchar) " +
                 "as select 1, space(1000000)");
@@ -90,11 +84,7 @@ public class TestOpenClose extends TestDb {
         c.position(c.size() * 2 - 1);
         c.write(ByteBuffer.wrap(new byte[1]));
         c.close();
-        if (config.mvStore) {
-            assertThrows(ErrorCode.IO_EXCEPTION_1, this).getConnection(url);
-        } else {
-            assertThrows(ErrorCode.IO_EXCEPTION_2, this).getConnection(url);
-        }
+        assertThrows(ErrorCode.IO_EXCEPTION_1, () -> getConnection(url));
         FileUtils.delete("split:" + fn);
     }
 
@@ -232,13 +222,8 @@ public class TestOpenClose extends TestDb {
         Path old = Paths.get(getBaseDir()).resolve("db" + Constants.SUFFIX_OLD_DATABASE_FILE);
         Files.createFile(old);
         try {
-            try {
-                DriverManager.getConnection("jdbc:h2:" + getBaseDir() + "/db");
-            } catch (SQLException e) {
-                assertEquals(ErrorCode.FILE_VERSION_ERROR_1, e.getErrorCode());
-                return;
-            }
-            fail("Old 1.1 database isn't detected");
+            assertThrows(ErrorCode.FILE_VERSION_ERROR_1,
+                    () -> DriverManager.getConnection("jdbc:h2:" + getBaseDir() + "/db"));
         } finally {
             Files.deleteIfExists(old);
         }

@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -317,6 +317,27 @@ ALTER DOMAIN D1 ADD CHECK (VALUE > 1) NOCHECK;
 
 DROP TABLE TEST;
 > ok
+
+ALTER DOMAIN D1 ADD CONSTRAINT T CHECK (VALUE < 100);
+> ok
+
+ALTER DOMAIN D3 RENAME CONSTRAINT T TO T1;
+> exception DOMAIN_NOT_FOUND_1
+
+ALTER DOMAIN IF EXISTS D3 RENAME CONSTRAINT T TO T1;
+> ok
+
+ALTER DOMAIN D2 RENAME CONSTRAINT T TO T2;
+> exception CONSTRAINT_NOT_FOUND_1
+
+ALTER DOMAIN D1 RENAME CONSTRAINT T TO T3;
+> ok
+
+SELECT CONSTRAINT_NAME, DOMAIN_NAME FROM INFORMATION_SCHEMA.DOMAIN_CONSTRAINTS WHERE CONSTRAINT_NAME LIKE 'T%';
+> CONSTRAINT_NAME DOMAIN_NAME
+> --------------- -----------
+> T3              D1
+> rows: 1
 
 DROP DOMAIN D2;
 > ok

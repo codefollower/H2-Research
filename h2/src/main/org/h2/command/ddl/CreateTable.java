@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -34,7 +34,6 @@ public class CreateTable extends CommandWithColumns {
     private boolean onCommitTruncate;
     private Query asQuery;
     private String comment;
-    private boolean sortedInsertMode;
     private boolean withNoData;
 
     public CreateTable(SessionLocal session, Schema schema) {
@@ -70,18 +69,23 @@ public class CreateTable extends CommandWithColumns {
 
     @Override
     public long update() {
-        if (!transactional) {  //只有临时表TRANSACTIONAL才会为true
-            session.commit(true);
+//<<<<<<< HEAD
+//        if (!transactional) {  //只有临时表TRANSACTIONAL才会为true
+//            session.commit(true);
+//=======
+        Schema schema = getSchema();
+        boolean isSessionTemporary = data.temporary && !data.globalTemporary;
+        if (!isSessionTemporary) {
+            session.getUser().checkSchemaOwner(schema);
         }
         Database db = session.getDatabase();
         if (!db.isPersistent()) {
             data.persistIndexes = false;
         }
-        boolean isSessionTemporary = data.temporary && !data.globalTemporary;
         if (!isSessionTemporary) {
             db.lockMeta(session);
         }
-        if (getSchema().resolveTableOrView(session, data.tableName) != null) {
+        if (schema.resolveTableOrView(session, data.tableName) != null) {
             if (ifNotExists) {
                 return 0;
             }
@@ -104,10 +108,13 @@ public class CreateTable extends CommandWithColumns {
             }
         }
         changePrimaryKeysToNotNull(data.columns);
+//<<<<<<< HEAD
+//        data.id = getObjectId(); //第一次新建时会分配一个id
+//        data.create = create; //只有在打开数据库通过MetaRecord的方式执行时create才为false，会调用Prepared.setObjectId(int)
+//=======
         data.id = getObjectId(); //第一次新建时会分配一个id
-        data.create = create; //只有在打开数据库通过MetaRecord的方式执行时create才为false，会调用Prepared.setObjectId(int)
         data.session = session;
-        Table table = getSchema().createTable(data);
+        Table table = schema.createTable(data);
         ArrayList<Sequence> sequences = generateSequences(data.columns, data.temporary);
         table.setComment(comment);
         if (isSessionTemporary) {
@@ -130,23 +137,6 @@ public class CreateTable extends CommandWithColumns {
                 table.addSequence(sequence);
             }
             createConstraints();
-            if (asQuery != null && !withNoData) {
-                boolean old = session.isUndoLogEnabled();
-                try {
-                    session.setUndoLogEnabled(false);
-                    session.startStatementWithinTransaction(null);
-                    Insert insert = new Insert(session);
-                    insert.setSortedInsertMode(sortedInsertMode);
-                    insert.setQuery(asQuery);
-                    insert.setTable(table);
-                    insert.setInsertFromSelect(true);
-                    insert.prepare();
-                    insert.update();
-                } finally {
-                    session.endStatement();
-                    session.setUndoLogEnabled(old);
-                }
-            }
             HashSet<DbObject> set = new HashSet<>();
             table.addDependencies(set);
             for (DbObject obj : set) {
@@ -164,6 +154,43 @@ public class CreateTable extends CommandWithColumns {
                                     ", this is currently not supported, " +
                                     "as it would prevent the database from " +
                                     "being re-opened");
+                        }
+                    }
+                }
+            }
+            if (asQuery != null && !withNoData) {
+                boolean flushSequences = false;
+                if (!isSessionTemporary) {
+                    db.unlockMeta(session);
+                    for (Column c : table.getColumns()) {
+                        Sequence s = c.getSequence();
+                        if (s != null) {
+                            flushSequences = true;
+                            s.setTemporary(true);
+                        }
+                    }
+                }
+                boolean old = session.isUndoLogEnabled();
+                try {
+                    session.setUndoLogEnabled(false);
+                    session.startStatementWithinTransaction(null);
+                    Insert insert = new Insert(session);
+                    insert.setQuery(asQuery);
+                    insert.setTable(table);
+                    insert.setInsertFromSelect(true);
+                    insert.prepare();
+                    insert.update();
+                } finally {
+                    session.endStatement();
+                    session.setUndoLogEnabled(old);
+                }
+                if (flushSequences) {
+                    db.lockMeta(session);
+                    for (Column c : table.getColumns()) {
+                        Sequence s = c.getSequence();
+                        if (s != null) {
+                            s.setTemporary(false);
+                            s.flush(session);
                         }
                     }
                 }
@@ -252,10 +279,6 @@ public class CreateTable extends CommandWithColumns {
         if (!persistData) {
             data.persistIndexes = false;
         }
-    }
-
-    public void setSortedInsertMode(boolean sortedInsertMode) {
-        this.sortedInsertMode = sortedInsertMode;
     }
 
     public void setWithNoData(boolean withNoData) {

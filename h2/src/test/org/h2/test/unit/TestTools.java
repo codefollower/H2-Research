@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -45,7 +45,6 @@ import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
 import org.h2.test.trace.Player;
-import org.h2.test.utils.AssertThrows;
 import org.h2.tools.Backup;
 import org.h2.tools.ChangeFileEncryption;
 import org.h2.tools.Console;
@@ -61,6 +60,7 @@ import org.h2.tools.SimpleResultSet;
 import org.h2.tools.SimpleResultSet.SimpleArray;
 import org.h2.util.JdbcUtils;
 import org.h2.util.Task;
+import org.h2.util.Utils10;
 import org.h2.value.ValueUuid;
 
 /**
@@ -101,7 +101,6 @@ public class TestTools extends TestDb {
         testDeleteFiles();
         testScriptRunscriptLob();
         testServerMain();
-        testRemove();
         testConvertTraceFile();
         testManagementDb();
         testChangeFileEncryption(false);
@@ -126,9 +125,7 @@ public class TestTools extends TestDb {
         s2.stop();
         s1 = Server.createTcpServer("-tcpPort", "9123").start();
         assertEquals(9123, s1.getPort());
-        createClassProxy(Server.class);
-        assertThrows(ErrorCode.EXCEPTION_OPENING_PORT_2,
-                Server.createTcpServer("-tcpPort", "9123")).start();
+        assertThrows(ErrorCode.EXCEPTION_OPENING_PORT_2, () -> Server.createTcpServer("-tcpPort", "9123").start());
         s1.stop();
     }
 
@@ -179,9 +176,8 @@ public class TestTools extends TestDb {
 
             // trying to use the same port for two services should fail,
             // but also stop the first service
-            createClassProxy(c.getClass());
-            assertThrows(ErrorCode.EXCEPTION_OPENING_PORT_2, c).runTool("-web",
-                    "-webPort", "9002", "-tcp", "-tcpPort", "9002");
+            assertThrows(ErrorCode.EXCEPTION_OPENING_PORT_2,
+                    () -> c.runTool("-web", "-webPort", "9002", "-tcp", "-tcpPort", "9002"));
             c.runTool("-web", "-webPort", "9002");
 
         } finally {
@@ -216,14 +212,12 @@ public class TestTools extends TestDb {
     }
 
     private void testSimpleResultSet() throws Exception {
-
         SimpleResultSet rs;
         rs = new SimpleResultSet();
         rs.addColumn(null, 0, 0, 0);
         rs.addRow(1);
-        createClassProxy(rs.getClass());
-        assertThrows(IllegalStateException.class, rs).
-                addColumn(null, 0, 0, 0);
+        SimpleResultSet r = rs;
+        assertThrows(IllegalStateException.class, () -> r.addColumn(null, 0, 0, 0));
         assertEquals(ResultSet.TYPE_FORWARD_ONLY, rs.getType());
 
         rs.next();
@@ -515,6 +509,16 @@ public class TestTools extends TestDb {
         rs.next();
         assertEquals(uuid, rs.getObject(1));
         assertEquals(uuid, ValueUuid.get(rs.getBytes(1)).getUuid());
+
+        assertTrue(rs.isWrapperFor(Object.class));
+        assertTrue(rs.isWrapperFor(ResultSet.class));
+        assertTrue(rs.isWrapperFor(rs.getClass()));
+        assertFalse(rs.isWrapperFor(Integer.class));
+        assertTrue(rs == rs.unwrap(Object.class));
+        assertTrue(rs == rs.unwrap(ResultSet.class));
+        assertTrue(rs == rs.unwrap(rs.getClass()));
+        SimpleResultSet rs2 = rs;
+        assertThrows(ErrorCode.INVALID_VALUE_2, () -> rs2.unwrap(Integer.class));
     }
 
     private void testJdbcDriverUtils() {
@@ -531,8 +535,7 @@ public class TestTools extends TestDb {
 
     private void testWrongServer() throws Exception {
         // try to connect when the server is not running
-        assertThrows(ErrorCode.CONNECTION_BROKEN_1, this).
-                getConnection("jdbc:h2:tcp://localhost:9001/test");
+        assertThrows(ErrorCode.CONNECTION_BROKEN_1, () -> getConnection("jdbc:h2:tcp://localhost:9001/test"));
         final ServerSocket serverSocket = new ServerSocket(9001);
         Task task = new Task() {
             @Override
@@ -551,12 +554,7 @@ public class TestTools extends TestDb {
         try {
             task.execute();
             Thread.sleep(100);
-            try {
-                getConnection("jdbc:h2:tcp://localhost:9001/test");
-                fail();
-            } catch (SQLException e) {
-                assertEquals(ErrorCode.CONNECTION_BROKEN_1, e.getErrorCode());
-            }
+            assertThrows(ErrorCode.CONNECTION_BROKEN_1, () -> getConnection("jdbc:h2:tcp://localhost:9001/test"));
         } finally {
             serverSocket.close();
             task.getException();
@@ -584,14 +582,14 @@ public class TestTools extends TestDb {
         deleteDb("testDeleteFiles");
     }
 
-    private void testServerMain() throws SQLException {
+    private void testServerMain() throws Exception {
         testNonSSL();
-        if (!config.travis) {
+        if (!config.ci) {
             testSSL();
         }
     }
 
-    private void testNonSSL() throws SQLException {
+    private void testNonSSL() throws Exception {
         String result;
         Connection conn;
 
@@ -619,7 +617,7 @@ public class TestTools extends TestDb {
         }
     }
 
-    private void testSSL() throws SQLException {
+    private void testSSL() throws Exception {
         String result;
         Connection conn;
 
@@ -636,8 +634,8 @@ public class TestTools extends TestDb {
             result = runServer(0, new String[]{"-tcpShutdown",
                     "ssl://localhost:9001", "-tcpPassword", "abcdef"});
             assertContains(result, "Shutting down");
-            assertThrows(ErrorCode.CONNECTION_BROKEN_1, this).
-            getConnection("jdbc:h2:ssl://localhost:9001/mem:", "sa", "sa");
+            assertThrows(ErrorCode.CONNECTION_BROKEN_1,
+                    () -> getConnection("jdbc:h2:ssl://localhost:9001/mem:", "sa", "sa"));
 
             result = runServer(0, new String[]{
                     "-ifNotExists", "-web", "-webPort", "9002", "-webAllowOthers", "-webSSL",
@@ -660,16 +658,16 @@ public class TestTools extends TestDb {
                     "tcp://localhost:9006", "-tcpPassword", "abc", "-tcpShutdownForce"});
             assertContains(result, "Shutting down");
             stop.shutdown();
-            assertThrows(ErrorCode.CONNECTION_BROKEN_1, this).
-            getConnection("jdbc:h2:tcp://localhost:9006/mem:", "sa", "sa");
+            assertThrows(ErrorCode.CONNECTION_BROKEN_1,
+                    () -> getConnection("jdbc:h2:tcp://localhost:9006/mem:", "sa", "sa"));
         } finally {
             shutdownServers();
         }
     }
 
-    private String runServer(int exitCode, String... args) {
+    private String runServer(int exitCode, String... args) throws Exception {
         ByteArrayOutputStream buff = new ByteArrayOutputStream();
-        PrintStream ps = new PrintStream(buff);
+        PrintStream ps = new PrintStream(buff, false, "UTF-8");
         if (server != null) {
             remainingServers.add(server);
         }
@@ -684,8 +682,7 @@ public class TestTools extends TestDb {
         }
         assertEquals(exitCode, result);
         ps.flush();
-        String s = new String(buff.toByteArray());
-        return s;
+        return Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8);
     }
 
     private void shutdownServers() {
@@ -760,8 +757,7 @@ public class TestTools extends TestDb {
 
     private void testTraceFile(String url) throws SQLException {
         Connection conn;
-        Recover.main("-removePassword", "-dir", getBaseDir(), "-db",
-                "toolsConvertTraceFile");
+        Recover.main("-dir", getBaseDir(), "-db", "toolsConvertTraceFile");
         conn = getConnection(url, "sa", "");
         Statement stat = conn.createStatement();
         ResultSet rs;
@@ -784,32 +780,6 @@ public class TestTools extends TestDb {
         assertEquals("2007-12-31 23:59:59", rs.getString("i"));
         assertFalse(rs.next());
         conn.close();
-    }
-
-    private void testRemove() throws SQLException {
-        if (config.mvStore) {
-            return;
-        }
-        deleteDb("toolsRemove");
-        org.h2.Driver.load();
-        String url = "jdbc:h2:" + getBaseDir() + "/toolsRemove";
-        Connection conn = getConnection(url, "sa", "sa");
-        Statement stat = conn.createStatement();
-        stat.execute("create table test(id int primary key, name varchar)");
-        stat.execute("insert into test values(1, 'Hello')");
-        conn.close();
-        Recover.main("-dir", getBaseDir(), "-db", "toolsRemove",
-                "-removePassword");
-        conn = getConnection(url, "sa", "");
-        stat = conn.createStatement();
-        ResultSet rs;
-        rs = stat.executeQuery("select * from test");
-        rs.next();
-        assertEquals(1, rs.getInt(1));
-        assertEquals("Hello", rs.getString(2));
-        conn.close();
-        deleteDb("toolsRemove");
-        FileUtils.delete(getBaseDir() + "/toolsRemove.h2.sql");
     }
 
     private void testRecover() throws SQLException {
@@ -884,7 +854,6 @@ public class TestTools extends TestDb {
     }
 
     private void testScriptRunscriptLob() throws Exception {
-        org.h2.Driver.load();
         String url = getURL("jdbc:h2:" + getBaseDir() +
                 "/testScriptRunscriptLob", true);
         String user = "sa", password = "abc";
@@ -945,8 +914,7 @@ public class TestTools extends TestDb {
 
     }
 
-    private void testScriptRunscript() throws SQLException {
-        org.h2.Driver.load();
+    private void testScriptRunscript() throws Exception {
         String url = getURL("jdbc:h2:" + getBaseDir() + "/testScriptRunscript",
                 true);
         String user = "sa", password = "abc";
@@ -983,10 +951,10 @@ public class TestTools extends TestDb {
                 "-quiet");
         RunScript tool = new RunScript();
         ByteArrayOutputStream buff = new ByteArrayOutputStream();
-        tool.setOut(new PrintStream(buff));
+        tool.setOut(new PrintStream(buff, false, "UTF-8"));
         tool.runTool("-url", url, "-user", user, "-password", password,
                 "-script", fileName + ".txt", "-showResults");
-        assertContains(buff.toString(), "Hello");
+        assertContains(Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8), "Hello");
 
 
         // test parsing of BLOCKSIZE option
@@ -1025,14 +993,9 @@ public class TestTools extends TestDb {
                 .executeQuery("SELECT * FROM TEST");
         assertTrue(rs.next());
         assertFalse(rs.next());
-        new AssertThrows(ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1) {
-            @Override
-            public void test() throws SQLException {
-                // must fail when the database is in use
-                Backup.main("-file", fileName, "-dir", getBaseDir(), "-db",
-                        "testBackupRestore");
-            }
-        };
+        // must fail when the database is in use
+        assertThrows(ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1,
+                () -> Backup.main("-file", fileName, "-dir", getBaseDir(), "-db", "testBackupRestore"));
         conn.close();
         DeleteDbFiles.main("-dir", getBaseDir(), "-db", "testBackupRestore",
                 "-quiet");
@@ -1057,14 +1020,9 @@ public class TestTools extends TestDb {
         conn = getConnection(url, "sa", "def 123");
         stat = conn.createStatement();
         stat.execute("SELECT * FROM TEST");
-        new AssertThrows(ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1) {
-            @Override
-            public void test() throws SQLException {
-                new ChangeFileEncryption().runTool(new String[] { "-dir", dir,
-                        "-db", "testChangeFileEncryption", "-cipher", "AES",
-                        "-decrypt", "def", "-quiet" });
-            }
-        };
+        assertThrows(ErrorCode.CANNOT_CHANGE_SETTING_WHEN_OPEN_1,
+                () -> new ChangeFileEncryption().runTool(new String[] { "-dir", dir, "-db", "testChangeFileEncryption",
+                        "-cipher", "AES", "-decrypt", "def", "-quiet" }));
         conn.close();
         args = new String[] { "-dir", dir, "-db", "testChangeFileEncryption",
                 "-quiet" };
@@ -1083,14 +1041,8 @@ public class TestTools extends TestDb {
         conn.close();
         // try with wrong password, this used to have a bug where it kept the
         // file handle open
-        new AssertThrows(SQLException.class) {
-            @Override
-            public void test() throws SQLException {
-                ChangeFileEncryption.execute(dir, "testChangeFileEncryption",
-                        "AES", "wrong".toCharArray(),
-                        "def".toCharArray(), true);
-            }
-        };
+        assertThrows(SQLException.class, () -> ChangeFileEncryption.execute(dir, "testChangeFileEncryption", "AES",
+                "wrong".toCharArray(), "def".toCharArray(), true));
         ChangeFileEncryption.execute(dir, "testChangeFileEncryption",
                 "AES", "abc".toCharArray(), "def".toCharArray(),
                 true);
@@ -1112,24 +1064,15 @@ public class TestTools extends TestDb {
                             "-tcpAllowOthers").start();
             remainingServers.add(tcpServer);
             final int port = tcpServer.getPort();
-            conn = getConnection("jdbc:h2:tcp://localhost:"+ port +"/test", "sa", "");
+            conn = getConnection("jdbc:h2:tcp://localhost:" + port + "/test", "sa", "");
             conn.close();
             // must not be able to use a different base dir
-            new AssertThrows(ErrorCode.IO_EXCEPTION_1) {
-                @Override
-                public void test() throws SQLException {
-                    getConnection("jdbc:h2:tcp://localhost:"+ port +"/../test", "sa", "");
-            }};
-            new AssertThrows(ErrorCode.IO_EXCEPTION_1) {
-                @Override
-                public void test() throws SQLException {
-                    getConnection("jdbc:h2:tcp://localhost:"+port+"/../test2/test", "sa", "");
-            }};
-            new AssertThrows(ErrorCode.WRONG_USER_OR_PASSWORD) {
-                @Override
-                public void test() throws SQLException {
-                    Server.shutdownTcpServer("tcp://localhost:"+port, "", true, false);
-            }};
+            assertThrows(ErrorCode.IO_EXCEPTION_1,
+                    () -> getConnection("jdbc:h2:tcp://localhost:" + port + "/../test", "sa", ""));
+            assertThrows(ErrorCode.IO_EXCEPTION_1,
+                    () -> getConnection("jdbc:h2:tcp://localhost:" + port + "/../test2/test", "sa", ""));
+            assertThrows(ErrorCode.WRONG_USER_OR_PASSWORD,
+                    () -> Server.shutdownTcpServer("tcp://localhost:" + port, "", true, false));
             tcpServer.stop();
             Server tcpServerWithPassword = Server.createTcpServer(
                             "-ifExists",
@@ -1138,31 +1081,22 @@ public class TestTools extends TestDb {
             final int prt = tcpServerWithPassword.getPort();
             remainingServers.add(tcpServerWithPassword);
             // must not be able to create new db
-            new AssertThrows(ErrorCode.REMOTE_DATABASE_NOT_FOUND_1) {
-                @Override
-                public void test() throws SQLException {
-                    getConnection("jdbc:h2:tcp://localhost:"+prt+"/test2", "sa", "");
-            }};
-            new AssertThrows(ErrorCode.REMOTE_DATABASE_NOT_FOUND_1) {
-                @Override
-                public void test() throws SQLException {
-                    getConnection("jdbc:h2:tcp://localhost:"+prt+"/test2;ifexists=false", "sa", "");
-            }};
-            conn = getConnection("jdbc:h2:tcp://localhost:"+prt+"/test", "sa", "");
+            assertThrows(ErrorCode.REMOTE_DATABASE_NOT_FOUND_1,
+                    () -> getConnection("jdbc:h2:tcp://localhost:" + prt + "/test2", "sa", ""));
+            assertThrows(ErrorCode.REMOTE_DATABASE_NOT_FOUND_1,
+                    () -> getConnection("jdbc:h2:tcp://localhost:" + prt + "/test2;ifexists=false", "sa", ""));
+            conn = getConnection("jdbc:h2:tcp://localhost:" + prt + "/test", "sa", "");
             conn.close();
-            new AssertThrows(ErrorCode.WRONG_USER_OR_PASSWORD) {
-                @Override
-                public void test() throws SQLException {
-                    Server.shutdownTcpServer("tcp://localhost:"+prt, "", true, false);
-            }};
-            conn = getConnection("jdbc:h2:tcp://localhost:"+prt+"/test", "sa", "");
+            assertThrows(ErrorCode.WRONG_USER_OR_PASSWORD,
+                    () -> Server.shutdownTcpServer("tcp://localhost:" + prt, "", true, false));
+            conn = getConnection("jdbc:h2:tcp://localhost:" + prt + "/test", "sa", "");
             // conn.close();
-            Server.shutdownTcpServer("tcp://localhost:"+prt, "abc", true, false);
+            Server.shutdownTcpServer("tcp://localhost:" + prt, "abc", true, false);
             // check that the database is closed
             deleteDb("test");
             // server must have been closed
-            assertThrows(ErrorCode.CONNECTION_BROKEN_1, this).
-                    getConnection("jdbc:h2:tcp://localhost:"+prt+"/test", "sa", "");
+            assertThrows(ErrorCode.CONNECTION_BROKEN_1,
+                    () -> getConnection("jdbc:h2:tcp://localhost:" + prt + "/test", "sa", ""));
             JdbcUtils.closeSilently(conn);
             // Test filesystem prefix and escape from baseDir
             deleteDb("testSplit");
@@ -1170,11 +1104,11 @@ public class TestTools extends TestDb {
                             "-baseDir", getBaseDir(),
                             "-tcpAllowOthers").start();
             final int p = server.getPort();
-            conn = getConnection("jdbc:h2:tcp://localhost:"+p+"/split:testSplit", "sa", "");
+            conn = getConnection("jdbc:h2:tcp://localhost:" + p + "/split:testSplit", "sa", "");
             conn.close();
 
-            assertThrows(ErrorCode.IO_EXCEPTION_1, this).
-                    getConnection("jdbc:h2:tcp://localhost:"+p+"/../test", "sa", "");
+            assertThrows(ErrorCode.IO_EXCEPTION_1,
+                    () -> getConnection("jdbc:h2:tcp://localhost:" + p + "/../test", "sa", ""));
 
             server.stop();
             deleteDb("testSplit");
@@ -1186,7 +1120,7 @@ public class TestTools extends TestDb {
     /**
      * A simple Clob implementation.
      */
-    class SimpleClob implements Clob {
+    static class SimpleClob implements Clob {
 
         private final String data;
 
@@ -1276,7 +1210,7 @@ public class TestTools extends TestDb {
     /**
      * A simple Blob implementation.
      */
-    class SimpleBlob implements Blob {
+    static class SimpleBlob implements Blob {
 
         private final byte[] data;
 

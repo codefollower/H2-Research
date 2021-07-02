@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -232,8 +232,7 @@ public final class ValueToObjectConverter extends TraceObject {
             if (rs.next()) {
                 throw DbException.get(ErrorCode.DATA_CONVERSION_ERROR_1, "Multi-row ResultSet to ROW value");
             }
-            // TODO use column types
-            return ValueRow.get(list);
+            return ValueRow.get(new ExtTypeInfoRow(columns), list);
         } catch (SQLException e) {
             throw DbException.convert(e);
         }
@@ -619,7 +618,7 @@ public final class ValueToObjectConverter extends TraceObject {
      * @return the value
      */
     public static Value readValue(Session session, JdbcResultSet rs, int columnIndex) {
-        Value value = rs.get(columnIndex);
+        Value value = rs.getInternal(columnIndex);
         switch (value.getValueType()) {
         case Value.CLOB:
             value = session.addTemporaryLob(

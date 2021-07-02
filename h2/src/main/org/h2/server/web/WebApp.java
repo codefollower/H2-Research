@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -63,6 +63,7 @@ import org.h2.util.SortedProperties;
 import org.h2.util.StringUtils;
 import org.h2.util.Tool;
 import org.h2.util.Utils;
+import org.h2.util.Utils10;
 import org.h2.value.DataType;
 
 /**
@@ -455,7 +456,7 @@ public class WebApp {
             try {
                 tool.runTool(argList);
                 out.flush();
-                String o = new String(outBuff.toByteArray(), StandardCharsets.UTF_8);
+                String o = Utils10.byteArrayOutputStreamToString(outBuff, StandardCharsets.UTF_8);
                 String result = PageParser.escapeHtml(o);
                 session.put("toolResult", result);
             } catch (Exception e) {

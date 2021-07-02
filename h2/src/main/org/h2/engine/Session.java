@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -156,14 +156,6 @@ public abstract class Session implements CastDataProvider, AutoCloseable {
      * Cancel the current or next command (called when closing a connection).
      */
     public abstract void cancel();
-
-    /**
-     * Returns the TCP protocol version of remote connection, or the latest
-     * supported TCP protocol version for local session.
-     *
-     * @return the TCP protocol version
-     */
-    public abstract int getClientVersion();
 
     /**
      * Check if this session is in auto-commit mode.

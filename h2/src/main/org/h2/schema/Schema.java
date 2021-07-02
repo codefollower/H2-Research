@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -19,13 +19,12 @@ import org.h2.engine.Database;
 import org.h2.engine.DbObject;
 import org.h2.engine.DbSettings;
 import org.h2.engine.Right;
+import org.h2.engine.RightOwner;
 import org.h2.engine.SessionLocal;
 import org.h2.engine.SysProperties;
-import org.h2.engine.User;
 import org.h2.index.Index;
 import org.h2.message.DbException;
 import org.h2.message.Trace;
-import org.h2.pagestore.db.PageStoreTable;
 import org.h2.table.MetaTable;
 import org.h2.table.Table;
 import org.h2.table.TableLink;
@@ -38,7 +37,7 @@ import org.h2.util.Utils;
  */
 public class Schema extends DbObject {
 
-    private User owner;
+    private RightOwner owner;
     private final boolean system;
     private ArrayList<String> tableEngineParams;
 
@@ -50,8 +49,7 @@ public class Schema extends DbObject {
     private final ConcurrentHashMap<String, TriggerObject> triggers;
     private final ConcurrentHashMap<String, Constraint> constraints;
     private final ConcurrentHashMap<String, Constant> constants;
-    private final ConcurrentHashMap<String, FunctionAlias> functions;
-    private final ConcurrentHashMap<String, UserAggregate> aggregates;
+    private final ConcurrentHashMap<String, UserDefinedFunction> functionsAndAggregates;
 
     /**
      * The set of returned unique names that are not yet stored. It is used to
@@ -70,8 +68,7 @@ public class Schema extends DbObject {
      * @param system if this is a system schema (such a schema can not be
      *            dropped)
      */
-    public Schema(Database database, int id, String schemaName, User owner,
-            boolean system) {
+    public Schema(Database database, int id, String schemaName, RightOwner owner, boolean system) {
         super(database, id, schemaName, Trace.SCHEMA);
         tablesAndViews = database.newConcurrentStringMap();
         domains = database.newConcurrentStringMap();
@@ -81,8 +78,7 @@ public class Schema extends DbObject {
         triggers = database.newConcurrentStringMap();
         constraints = database.newConcurrentStringMap();
         constants = database.newConcurrentStringMap();
-        functions = database.newConcurrentStringMap();
-        aggregates = database.newConcurrentStringMap();
+        functionsAndAggregates = database.newConcurrentStringMap();
         this.owner = owner;
         this.system = system;
     }
@@ -125,7 +121,7 @@ public class Schema extends DbObject {
     public boolean isEmpty() {
         return tablesAndViews.isEmpty() && domains.isEmpty() && synonyms.isEmpty() && indexes.isEmpty()
                 && sequences.isEmpty() && triggers.isEmpty() && constraints.isEmpty() && constants.isEmpty()
-                && functions.isEmpty() && aggregates.isEmpty();
+                && functionsAndAggregates.isEmpty();
     }
 
     @Override
@@ -188,8 +184,7 @@ public class Schema extends DbObject {
         removeChildrenFromMap(session, indexes);
         removeChildrenFromMap(session, sequences);
         removeChildrenFromMap(session, constants);
-        removeChildrenFromMap(session, functions);
-        removeChildrenFromMap(session, aggregates);
+        removeChildrenFromMap(session, functionsAndAggregates);
         for (Right right : database.getAllRights()) {
             if (right.getGrantedObject() == this) {
                 database.removeDatabaseObject(session, right);
@@ -203,9 +198,16 @@ public class Schema extends DbObject {
     private void removeChildrenFromMap(SessionLocal session, ConcurrentHashMap<String, ? extends SchemaObject> map) {
         if (!map.isEmpty()) {
             for (SchemaObject obj : map.values()) {
-                // Database.removeSchemaObject() removes the object from
-                // the map too, but it is safe for ConcurrentHashMap.
-                database.removeSchemaObject(session, obj);
+                /*
+                 * Referential constraints are dropped when unique or PK
+                 * constraint is dropped, but iterator may return already
+                 * removed objects in some cases.
+                 */
+                if (obj.isValid()) {
+                    // Database.removeSchemaObject() removes the object from
+                    // the map too, but it is safe for ConcurrentHashMap.
+                    database.removeSchemaObject(session, obj);
+                }
             }
         }
     }
@@ -215,7 +217,7 @@ public class Schema extends DbObject {
      *
      * @return the owner
      */
-    public User getOwner() {
+    public RightOwner getOwner() {
         return owner;
     }
 
@@ -265,10 +267,8 @@ public class Schema extends DbObject {
             result = constants;
             break;
         case DbObject.FUNCTION_ALIAS:
-            result = functions;
-            break;
         case DbObject.AGGREGATE:
-            result = aggregates;
+            result = functionsAndAggregates;
             break;
         default:
             throw DbException.getInternalError("type=" + type);
@@ -371,19 +371,6 @@ public class Schema extends DbObject {
     }
 
     /**
-     * Get objects of the given type.
-     *
-     * @param type
-     *                  the object type
-     * @param name
-     *                  the name of the object
-     * @return the object, or null
-     */
-    public SchemaObject find(int type, String name) {
-        return getMap(type).get(name);
-    }
-
-    /**
      * Get the domain if it exists, or null if not.
      *
      * @param name the name of the domain
@@ -466,7 +453,8 @@ public class Schema extends DbObject {
      * @return the object or null
      */
     public FunctionAlias findFunction(String functionAlias) {
-        return functions.get(functionAlias);
+        UserDefinedFunction userDefinedFunction = findFunctionOrAggregate(functionAlias);
+        return userDefinedFunction instanceof FunctionAlias ? (FunctionAlias) userDefinedFunction : null;
     }
 
     /**
@@ -477,7 +465,34 @@ public class Schema extends DbObject {
      * @return the aggregate function or null
      */
     public UserAggregate findAggregate(String name) {
-        return aggregates.get(name);
+        UserDefinedFunction userDefinedFunction = findFunctionOrAggregate(name);
+        return userDefinedFunction instanceof UserAggregate ? (UserAggregate) userDefinedFunction : null;
+    }
+
+    /**
+     * Try to find a user defined function or aggregate function with the
+     * specified name. This method returns null if no object with this name
+     * exists.
+     *
+     * @param name
+     *            the object name
+     * @return the object or null
+     */
+    public UserDefinedFunction findFunctionOrAggregate(String name) {
+        return functionsAndAggregates.get(name);
+    }
+
+    /**
+     * Reserve a unique object name.
+     *
+     * @param name the object name
+     */
+    public void reserveUniqueName(String name) {
+        if (name != null) {
+            synchronized (temporaryUniqueNames) {
+                temporaryUniqueNames.add(name);
+            }
+        }
     }
 
     /**
@@ -680,8 +695,7 @@ public class Schema extends DbObject {
         addTo.addAll(triggers.values());
         addTo.addAll(constraints.values());
         addTo.addAll(constants.values());
-        addTo.addAll(functions.values());
-        addTo.addAll(aggregates.values());
+        addTo.addAll(functionsAndAggregates.values());
         return addTo;
     }
 
@@ -735,12 +749,8 @@ public class Schema extends DbObject {
         return synonyms.values();
     }
 
-    public Collection<FunctionAlias> getAllFunctionAliases() {
-        return functions.values();
-    }
-
-    public Collection<UserAggregate> getAllAggregates() {
-        return aggregates.values();
+    public Collection<UserDefinedFunction> getAllFunctionsAndAggregates() {
+        return functionsAndAggregates.values();
     }
 
     /**
@@ -785,11 +795,7 @@ public class Schema extends DbObject {
                 DbSettings s = database.getSettings();
                 tableEngine = s.defaultTableEngine;
                 if (tableEngine == null) {
-                    if (s.mvStore) {
-                        return database.getStore().createTable(data);
-                    } else {
-                        return new PageStoreTable(data);
-                    }
+                    return database.getStore().createTable(data);
                 }
                 data.tableEngine = tableEngine;
             }

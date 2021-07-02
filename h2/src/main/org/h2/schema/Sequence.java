@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -361,6 +361,7 @@ public final class Sequence extends SchemaObject {
         if (dataType.getValueType() != Value.BIGINT) {
             dataType.getSQL(builder.append(" AS "), DEFAULT_SQL_FLAGS);
         }
+        builder.append(' ');
         synchronized (this) {
             getSequenceOptionsSQL(builder, writeWithMargin ? margin : baseValue);
         }
@@ -381,7 +382,7 @@ public final class Sequence extends SchemaObject {
     }
 
     private StringBuilder getSequenceOptionsSQL(StringBuilder builder, long value) {
-        builder.append(" START WITH ").append(startValue);
+        builder.append("START WITH ").append(startValue);
         if (value != startValue && cycle != Cycle.EXHAUSTED) {
             builder.append(" RESTART WITH ").append(value);
         }
@@ -521,12 +522,12 @@ public final class Sequence extends SchemaObject {
             // locked it) because it must be committed immediately, otherwise
             // other threads can not access the sys table.
             SessionLocal sysSession = database.getSystemSession();
-            synchronized (database.isMVStore() ? sysSession : database) {
+            synchronized (sysSession) {
                 flushInternal(sysSession);
                 sysSession.commit(false);
             }
         } else {
-            synchronized (database.isMVStore() ? session : database) {
+            synchronized (session) {
                 flushInternal(session);
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -51,6 +51,7 @@ public class TestMetaData extends TestDb {
         testColumnPrecision();
         testColumnDefault();
         testColumnGenerated();
+        testHiddenColumn();
         testCrossReferences();
         testProcedureColumns();
         testTypeInfo();
@@ -60,7 +61,6 @@ public class TestMetaData extends TestDb {
         testGeneral();
         testAllowLiteralsNone();
         testClientInfo();
-        testSessionsUncommitted();
         testQueryStatistics();
         testQueryStatisticsLimit();
     }
@@ -208,6 +208,28 @@ public class TestMetaData extends TestDb {
         conn.close();
     }
 
+    private void testHiddenColumn() throws SQLException {
+        Connection conn = getConnection("metaData");
+        DatabaseMetaData meta = conn.getMetaData();
+        ResultSet rs;
+        Statement stat = conn.createStatement();
+        stat.execute("CREATE TABLE TEST(A INT, B INT INVISIBLE)");
+        rs = meta.getColumns(null, null, "TEST", null);
+        assertTrue(rs.next());
+        assertEquals("A", rs.getString("COLUMN_NAME"));
+        assertFalse(rs.next());
+        rs = meta.getPseudoColumns(null, null, "TEST", null);
+        assertTrue(rs.next());
+        assertEquals("B", rs.getString("COLUMN_NAME"));
+        assertEquals("YES", rs.getString("IS_NULLABLE"));
+        assertTrue(rs.next());
+        assertEquals("_ROWID_", rs.getString("COLUMN_NAME"));
+        assertEquals("NO", rs.getString("IS_NULLABLE"));
+        assertFalse(rs.next());
+        stat.execute("DROP TABLE TEST");
+        conn.close();
+    }
+
     private void testProcedureColumns() throws SQLException {
         Connection conn = getConnection("metaData");
         DatabaseMetaData meta = conn.getMetaData();
@@ -287,7 +309,7 @@ public class TestMetaData extends TestDb {
         testTypeInfo(rs, "CHARACTER", Types.CHAR, MAX_STRING_LENGTH, "'", "'", "LENGTH", true, false, (short) 0,
                 (short) 0, 0);
         testTypeInfo(rs, "NUMERIC", Types.NUMERIC, MAX_NUMERIC_PRECISION, null, null, "PRECISION,SCALE", false, true,
-                Short.MIN_VALUE, Short.MAX_VALUE, 10);
+                (short) 0, Short.MAX_VALUE, 10);
         testTypeInfo(rs, "DECFLOAT", Types.NUMERIC, MAX_NUMERIC_PRECISION, null, null, "PRECISION", false, false,
                 (short) 0, (short) 0, 10);
         testTypeInfo(rs, "INTEGER", Types.INTEGER, 32, null, null, null, false, false, (short) 0,
@@ -544,19 +566,6 @@ public class TestMetaData extends TestDb {
 
         assertEquals("schema", meta.getSchemaTerm());
         assertEquals("\\", meta.getSearchStringEscape());
-        assertEquals("CURRENT_CATALOG," //
-                + "CURRENT_SCHEMA," //
-                + "GROUPS," //
-                + "IF,ILIKE,INTERSECTS," //
-                + "LIMIT," //
-                + "MINUS," //
-                + "OFFSET," //
-                + "QUALIFY," //
-                + "REGEXP,ROWNUM," //
-                + "SYSDATE,SYSTIME,SYSTIMESTAMP," //
-                + "TODAY,TOP,"//
-                + "_ROWID_", //
-                meta.getSQLKeywords());
 
         assertTrue(meta.getURL().startsWith("jdbc:h2:"));
         assertTrue(meta.getUserName().length() > 1);
@@ -1248,8 +1257,8 @@ public class TestMetaData extends TestDb {
                 pageStoreSettingsCount++;
             }
         }
-        assertEquals(config.mvStore ? 2 : 0, mvStoreSettingsCount);
-        assertEquals(config.mvStore ? 0 : 3, pageStoreSettingsCount);
+        assertEquals(2, mvStoreSettingsCount);
+        assertEquals(0, pageStoreSettingsCount);
 
         testMore();
 
@@ -1323,32 +1332,6 @@ public class TestMetaData extends TestDb {
             assertEquals(1, count);
         }
         rs.close();
-        conn.close();
-        deleteDb("metaData");
-    }
-
-    private void testSessionsUncommitted() throws SQLException {
-        if (config.mvStore || config.memory) {
-            return;
-        }
-        Connection conn = getConnection("metaData");
-        conn.setAutoCommit(false);
-        Statement stat = conn.createStatement();
-        stat.execute("create table test(id int)");
-        stat.execute("begin transaction");
-        for (int i = 0; i < 6; i++) {
-            stat.execute("insert into test values (1)");
-        }
-        ResultSet rs = stat.executeQuery("select contains_uncommitted " +
-                "from INFORMATION_SCHEMA.SESSIONS");
-        rs.next();
-        assertEquals(true, rs.getBoolean(1));
-        rs.close();
-        stat.execute("commit");
-        rs = stat.executeQuery("select contains_uncommitted " +
-                "from INFORMATION_SCHEMA.SESSIONS");
-        rs.next();
-        assertEquals(false, rs.getBoolean(1));
         conn.close();
         deleteDb("metaData");
     }

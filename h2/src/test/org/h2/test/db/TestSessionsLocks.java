@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,9 +30,6 @@ public class TestSessionsLocks extends TestDb {
 
     @Override
     public boolean isEnabled() {
-        if (!config.mvStore) {
-            return false;
-        }
         return true;
     }
 
@@ -63,24 +60,13 @@ public class TestSessionsLocks extends TestDb {
         assertEquals("PUBLIC", rs.getString("TABLE_SCHEMA"));
         assertEquals("TEST", rs.getString("TABLE_NAME"));
         rs.getString("SESSION_ID");
-        if (config.mvStore) {
-            assertEquals("READ", rs.getString("LOCK_TYPE"));
-        } else {
-            assertEquals("WRITE", rs.getString("LOCK_TYPE"));
-        }
+        assertEquals("READ", rs.getString("LOCK_TYPE"));
         assertFalse(rs.next());
         conn2.commit();
         conn2.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
         stat2.execute("SELECT * FROM TEST");
         rs = stat.executeQuery("select * from information_schema.locks " +
                 "order by session_id");
-        if (!config.mvStore) {
-            rs.next();
-            assertEquals("PUBLIC", rs.getString("TABLE_SCHEMA"));
-            assertEquals("TEST", rs.getString("TABLE_NAME"));
-            rs.getString("SESSION_ID");
-            assertEquals("READ", rs.getString("LOCK_TYPE"));
-        }
         assertFalse(rs.next());
         conn2.commit();
         rs = stat.executeQuery("select * from information_schema.locks " +

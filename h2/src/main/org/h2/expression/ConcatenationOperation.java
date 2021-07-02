@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -85,7 +85,7 @@ public final class ConcatenationOperation extends OperationN {
             int leftLength = leftValues.length, rightLength = rightValues.length;
             Value[] values = Arrays.copyOf(leftValues, leftLength + rightLength);
             System.arraycopy(rightValues, 0, values, leftLength, rightLength);
-            return ValueArray.get(values, session);
+            return ValueArray.get((TypeInfo) type.getExtTypeInfo(), values, session);
         }
     }
 
@@ -132,7 +132,7 @@ public final class ConcatenationOperation extends OperationN {
                 System.arraycopy(a, 0, v, offset, length);
                 offset += length;
             }
-            return ValueArray.get(v, session);
+            return ValueArray.get((TypeInfo) type.getExtTypeInfo(), v, session);
         }
     }
 

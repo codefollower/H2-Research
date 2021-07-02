@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 and the EPL 1.0 (https://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
@@ -146,18 +146,6 @@ than reading from separate files, but slows down the performance of operations
 that don't involve this column.
 </p>
 
-<h3>Large Object Compression</h3>
-<p>
-The following feature is only available for the PageStore storage engine.
-For the MVStore engine (the default for H2 version 1.4.x),
-append <code>;COMPRESS=TRUE</code> to the database URL instead.
-CLOB and BLOB values can be compressed by using
-<a href="commands.html#set_compress_lob" class="notranslate" >SET COMPRESS_LOB</a>.
-The LZF algorithm is faster but needs more disk space. By default compression is disabled, which usually speeds up write
-operations. If you store many large compressible values such as XML, HTML, text, and uncompressed binary files,
-then compressing can save a lot of disk space (sometimes more than 50%), and read operations may even be faster.
-</p>
-
 <h2 id="linked_tables">Linked Tables</h2>
 <p>
 This database supports linked tables, which means tables that don't exist in the current database but
@@ -226,7 +214,7 @@ See the <a href="commands.html">Commands</a> for details.
 Transaction isolation is provided for all data manipulation language (DML) statements.
 </p>
 <p>
-The default MVStore engine supports read uncommitted, read committed, repeatable read, snapshot,
+H2 supports read uncommitted, read committed, repeatable read, snapshot,
 and serializable (partially, see below) isolation levels:
 </p>
 <ul>
@@ -261,30 +249,6 @@ and serializable (partially, see below) isolation levels:
     <code>SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE</code>
 </li>
 </ul>
-<p>
-The PageStore engine supports read uncommitted, read committed, and serializable isolation levels:
-</p>
-<ul>
-<li><b>Read uncommitted</b><br />
-    This level means that transaction isolation is disabled.
-    This level is not supported by PageStore engine if multi-threaded mode is enabled.
-    To enable, execute the SQL statement
-    <code>SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ UNCOMMITTED</code>
-</li>
-<li><b>Read committed</b><br />
-    This is the default level.
-    Read locks are released immediately after executing the statement, but write locks are kept until the transaction commits.
-    To enable, execute the SQL statement
-    <code>SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED</code>
-</li>
-<li><b>Serializable</b><br />
-    Both read locks and write locks are kept until the transaction commits.
-    To enable, execute the SQL statement
-    <code>SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE</code>
-</li>
-</ul>
-<p>If repeatable read isolation level is requested when using a PageStore engine it is replaced
-with serializable isolation level.</p>
 <ul>
 <li><b>Dirty reads</b><br />
     Means a connection can read uncommitted changes made by another connection.<br />
@@ -303,29 +267,13 @@ with serializable isolation level.</p>
 
 <h3 id="mvcc">Multi-Version Concurrency Control (MVCC)</h3>
 <p>
-With default MVStore engine delete, insert and update operations only issue a shared lock on the table.
+Insert and update operations only issue a shared lock on the table.
 An exclusive lock is still used when adding or removing columns or when dropping the table.
 Connections only 'see' committed data, and own changes. That means, if connection A updates
 a row but doesn't commit this change yet, connection B will see the old value.
 Only when the change is committed, the new value is visible by other connections
 (read committed). If multiple connections concurrently try to lock or update the same row, the
 database waits until it can apply the change, but at most until the lock timeout expires.
-</p>
-
-<h3>Table Level Locking (PageStore engine)</h3>
-<p>
-With PageStore engine to make sure all connections only see consistent data, table level locking is used.
-This mechanism does not allow high concurrency, but is very fast.
-Shared locks and exclusive locks are supported.
-Before reading from a table, the database tries to add a shared lock to the table
-(this is only possible if there is no exclusive lock on the object by another connection).
-If the shared lock is added successfully, the table can be read. It is allowed that
-other connections also have a shared lock on the same object. If a connection wants
-to write to a table (update or delete a row), an exclusive lock is required. To get the
-exclusive lock, other connection must not have any locks on the object. After the
-connection commits, all locks are released.
-This database keeps all locks in memory.
-When a lock is released, and multiple connections are waiting for it, one of them is picked at random.
 </p>
 
 <h3>Lock Timeout</h3>
@@ -520,12 +468,16 @@ The following tokens are keywords in H2:
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>AND</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
+<tr><td>ANY</td>
+<td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>ARRAY</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td></td></tr>
 <tr><td>AS</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>ASYMMETRIC</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>NR</td><td></td></tr>
+<tr><td>AUTHORIZATION</td>
+<td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>BETWEEN</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>NR</td><td>+</td></tr>
 <tr><td>BOTH</td>
@@ -672,28 +624,24 @@ The following tokens are keywords in H2:
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td></td></tr>
 <tr><td>SET</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
+<tr><td>SOME</td>
+<td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>SYMMETRIC</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>NR</td><td></td></tr>
 <tr><td>SYSTEM_USER</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
-<tr><td>SYSDATE</td>
-<td>CS</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><td>SYSTIME</td>
-<td>CS</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><td>SYSTIMESTAMP</td>
-<td>CS</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>TABLE</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>TO</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
-<tr><td>TODAY</td>
-<td>CS</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>TOP</td>
 <td>CS</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>TRAILING</td>
 <td>CS</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>TRUE</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
+<tr><td>UESCAPE</td>
+<td>+</td><td></td><td></td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>UNION</td>
 <td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>
 <tr><td>UNIQUE</td>
@@ -1077,7 +1025,8 @@ java -cp h2*.jar org.h2.tools.Recover
 For each database in the current directory, a text file will be created.
 This file contains raw insert statements (for the data) and data definition (DDL) statements to recreate
 the schema of the database. This file can be executed using the <code>RunScript</code> tool or a
-<code>RUNSCRIPT FROM</code> SQL statement. The script includes at least one
+<a href="https://h2database.com/html/commands.html#runscript"><code>RUNSCRIPT</code></a> SQL statement.
+The script includes at least one
 <code>CREATE USER</code> statement. If you run the script against a database that was created with the same
 user, or if there are conflicting users, running the script will fail. Consider running the script
 against a database that was created with a user name that is not in the script.

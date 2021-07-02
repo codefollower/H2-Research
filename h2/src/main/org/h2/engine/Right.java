@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -43,6 +43,12 @@ public final class Right extends DbObject {
     public static final int ALTER_ANY_SCHEMA = 16;
 
     /**
+     * The right bit mask that means: user is a schema owner. This mask isn't
+     * used in GRANT / REVOKE statements.
+     */
+    public static final int SCHEMA_OWNER = 32;
+
+    /**
      * The right bit mask that means: select, insert, update, delete, and update
      * for this object is allowed.
      */
@@ -80,16 +86,14 @@ public final class Right extends DbObject {
     //将权限 授予RightOwner
     //也就是将grantedRightOnTable表的grantedRight权限 授grantee
     //对应GRANT RIGHT语句
-    public Right(Database db, int id, RightOwner grantee, int grantedRight,
-            DbObject grantedObject) {
+    public Right(Database db, int id, RightOwner grantee, int grantedRight, DbObject grantedObject) {
         super(db, id, Integer.toString(id), Trace.USER);
         this.grantee = grantee;
         this.grantedRight = grantedRight;
         this.grantedObject = grantedObject;
     }
 
-    private static boolean appendRight(StringBuilder buff, int right, int mask,
-            String name, boolean comma) {
+    private static boolean appendRight(StringBuilder buff, int right, int mask, String name, boolean comma) {
         if ((right & mask) != 0) {
             if (comma) {
                 buff.append(", ");
@@ -109,8 +113,8 @@ public final class Right extends DbObject {
             comma = appendRight(buff, grantedRight, SELECT, "SELECT", comma);
             comma = appendRight(buff, grantedRight, DELETE, "DELETE", comma);
             comma = appendRight(buff, grantedRight, INSERT, "INSERT", comma);
-            comma = appendRight(buff, grantedRight, ALTER_ANY_SCHEMA, "ALTER ANY SCHEMA", comma);
-            appendRight(buff, grantedRight, UPDATE, "UPDATE", comma);
+            comma = appendRight(buff, grantedRight, UPDATE, "UPDATE", comma);
+            appendRight(buff, grantedRight, ALTER_ANY_SCHEMA, "ALTER ANY SCHEMA", comma);
         }
         return buff.toString();
     }

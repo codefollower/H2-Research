@@ -84,12 +84,6 @@ public class FileStoreTest {
         }
 
         @Override
-        public String getLobCompressionAlgorithm(int type) {
-
-            return null;
-        }
-
-        @Override
         public TempFileDeleter getTempFileDeleter() {
             return TempFileDeleter.getInstance();
         }

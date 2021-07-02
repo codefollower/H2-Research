@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -376,7 +376,7 @@ public class SourceCompiler {
             copyInThread(p.getInputStream(), buff);
             copyInThread(p.getErrorStream(), buff);
             p.waitFor();
-            String output = new String(buff.toByteArray(), StandardCharsets.UTF_8);
+            String output = Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8);
             handleSyntaxError(output, p.exitValue());
             return p.exitValue();
         } catch (Exception e) {
@@ -396,9 +396,8 @@ public class SourceCompiler {
     private static synchronized void javacSun(Path javaFile) {
         PrintStream old = System.err;
         ByteArrayOutputStream buff = new ByteArrayOutputStream();
-        PrintStream temp = new PrintStream(buff);
         try {
-            System.setErr(temp);
+            System.setErr(new PrintStream(buff, false, "UTF-8"));
             Method compile;
             compile = JAVAC_SUN.getMethod("compile", String[].class);
             Object javac = JAVAC_SUN.getDeclaredConstructor().newInstance();
@@ -411,7 +410,7 @@ public class SourceCompiler {
                     "-d", COMPILE_DIR,
                     "-encoding", "UTF-8",
                     javaFile.toAbsolutePath().toString() });
-            String output = new String(buff.toByteArray(), StandardCharsets.UTF_8);
+            String output = Utils10.byteArrayOutputStreamToString(buff, StandardCharsets.UTF_8);
             handleSyntaxError(output, status);
         } catch (Exception e) {
             throw DbException.convert(e);

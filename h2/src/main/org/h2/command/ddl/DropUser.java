@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,6 +8,7 @@ package org.h2.command.ddl;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.engine.Database;
+import org.h2.engine.RightOwner;
 import org.h2.engine.SessionLocal;
 import org.h2.engine.User;
 import org.h2.message.DbException;
@@ -36,7 +37,6 @@ public class DropUser extends DefineCommand {
     @Override
     public long update() {
         session.getUser().checkAdmin();
-        session.commit(true);
         Database db = session.getDatabase();
         User user = db.findUser(userName);
         if (user == null) {
@@ -46,8 +46,8 @@ public class DropUser extends DefineCommand {
         } else {
             if (user == session.getUser()) {
                 int adminUserCount = 0;
-                for (User u : db.getAllUsers()) {
-                    if (u.isAdmin()) {
+                for (RightOwner rightOwner : db.getAllUsersAndRoles()) {
+                    if (rightOwner instanceof User && ((User) rightOwner).isAdmin()) {
                         adminUserCount++;
                     }
                 }

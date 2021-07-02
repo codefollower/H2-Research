@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,7 +17,7 @@ import org.h2.table.TableSynonym;
  * This class represents the statement
  * CREATE SYNONYM
  */
-public class CreateSynonym extends SchemaCommand {
+public class CreateSynonym extends SchemaOwnerCommand {
 
     private final CreateSynonymData data = new CreateSynonymData();
     private boolean ifNotExists;
@@ -47,16 +47,12 @@ public class CreateSynonym extends SchemaCommand {
     public void setOrReplace(boolean orReplace) { this.orReplace = orReplace; }
 
     @Override
-    public long update() {
-        if (!transactional) {
-            session.commit(true);
-        }
-        session.getUser().checkAdmin();
+    long update(Schema schema) {
         Database db = session.getDatabase();
         data.session = session;
         db.lockMeta(session);
 
-        if (getSchema().findTableOrView(session, data.synonymName) != null) {
+        if (schema.findTableOrView(session, data.synonymName) != null) {
             throw DbException.get(ErrorCode.TABLE_OR_VIEW_ALREADY_EXISTS_1, data.synonymName);
         }
 

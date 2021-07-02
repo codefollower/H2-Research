@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -69,14 +69,14 @@ CREATE MEMORY TABLE TEST AS (VALUES SUBSTRING(X'0011' FROM 2));
 SELECT SUBSTRING(X'00', 0, 1);
 >> X'00'
 
-SCRIPT NOPASSWORDS NOSETTINGS TABLE TEST;
+SCRIPT NOPASSWORDS NOSETTINGS NOVERSION TABLE TEST;
 > SCRIPT
 > --------------------------------------------------------------
-> -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "C1" BINARY VARYING(1) );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "C1" BINARY VARYING(1) );
+> -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
 > INSERT INTO "PUBLIC"."TEST" VALUES (X'11');
-> rows: 4
+> rows (ordered): 4
 
 DROP TABLE TEST;
 > ok

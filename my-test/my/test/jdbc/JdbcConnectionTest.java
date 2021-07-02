@@ -44,7 +44,7 @@ public class JdbcConnectionTest {
 		//prop.setProperty("password", "my_password1 my_password2");
 		
 		
-		JdbcConnection conn = new JdbcConnection(url, prop);
+		JdbcConnection conn = new JdbcConnection(url, prop, null, null);
 		
 		PreparedStatement ps = conn.prepareStatement("insert into t values(?,?)");
 		ps.setInt(2, 20);

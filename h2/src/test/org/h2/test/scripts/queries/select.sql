@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -726,8 +726,7 @@ EXPLAIN SELECT * FROM TEST ORDER BY V;
 >> SELECT "PUBLIC"."TEST"."ID", "PUBLIC"."TEST"."V" FROM "PUBLIC"."TEST" /* PUBLIC.CONSTRAINT_INDEX_2 */ ORDER BY 2 /* index sorted */
 
 EXPLAIN SELECT * FROM TEST ORDER BY V FOR UPDATE;
-#+mvStore#>> SELECT "PUBLIC"."TEST"."ID", "PUBLIC"."TEST"."V" FROM "PUBLIC"."TEST" /* PUBLIC.CONSTRAINT_INDEX_2 */ ORDER BY 2 FOR UPDATE
-#-mvStore#>> SELECT "PUBLIC"."TEST"."ID", "PUBLIC"."TEST"."V" FROM "PUBLIC"."TEST" /* PUBLIC.CONSTRAINT_INDEX_2 */ ORDER BY 2 FOR UPDATE /* index sorted */
+>> SELECT "PUBLIC"."TEST"."ID", "PUBLIC"."TEST"."V" FROM "PUBLIC"."TEST" /* PUBLIC.CONSTRAINT_INDEX_2 */ ORDER BY 2 FOR UPDATE
 
 DROP TABLE TEST;
 > ok
@@ -1148,3 +1147,34 @@ DROP TABLE TEST;
 
 EXECUTE IMMEDIATE 'CREATE TABLE TEST AS SELECT C1 FROM (SELECT ' || (SELECT LISTAGG('1 C' || X) FROM SYSTEM_RANGE(1, 16385)) || ')';
 > exception TOO_MANY_COLUMNS_1
+
+CREATE TABLE TEST(A INT, B INT);
+> ok
+
+CREATE INDEX TEST_IDX ON TEST(A, B);
+> ok
+
+INSERT INTO TEST VALUES (1, 1), (1, 2), (2, 1), (2, 2);
+> update count: 4
+
+SELECT A, 1 AS X, B FROM TEST ORDER BY A, X, B DESC;
+> A X B
+> - - -
+> 1 1 2
+> 1 1 1
+> 2 1 2
+> 2 1 1
+> rows (ordered): 4
+
+EXPLAIN SELECT A, 1 AS X, B FROM TEST ORDER BY A, X, B DESC;
+>> SELECT "A", 1 AS "X", "B" FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ ORDER BY 1, 2, 3 DESC
+
+DROP TABLE TEST;
+> ok
+
+SELECT X FROM SYSTEM_RANGE(1, 2) ORDER BY X DESC FETCH FIRST 0xFFFFFFFF ROWS ONLY;
+> X
+> -
+> 2
+> 1
+> rows (ordered): 2

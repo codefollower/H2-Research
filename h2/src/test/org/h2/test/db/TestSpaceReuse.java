@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -50,12 +50,7 @@ public class TestSpaceReuse extends TestDb {
             conn = getConnection("spaceReuse");
             conn.createStatement().execute("delete from t");
             conn.close();
-            String fileName = getBaseDir() + "/spaceReuse";
-            if (config.mvStore) {
-                fileName += Constants.SUFFIX_MV_FILE;
-            } else {
-                fileName += Constants.SUFFIX_PAGE_FILE;
-            }
+            String fileName = getBaseDir() + "/spaceReuse" + Constants.SUFFIX_MV_FILE;
             now = FileUtils.size(fileName);
             assertTrue(now > 0);
             if (i < 10) {

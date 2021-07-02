@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -22,8 +22,7 @@ import org.h2.value.ValueToObjectConverter;
 /**
  * Information about the parameters of a prepared statement.
  */
-public class JdbcParameterMetaData extends TraceObject implements
-        ParameterMetaData {
+public final class JdbcParameterMetaData extends TraceObject implements ParameterMetaData {
 
     private final JdbcPreparedStatement prep;
     private final int paramCount;
@@ -253,13 +252,6 @@ public class JdbcParameterMetaData extends TraceObject implements
     @Override
     public String toString() {
         return getTraceObjectName() + ": parameterCount=" + paramCount;
-    }
-
-    /**
-     * INTERNAL
-     */
-    public TypeInfo getParameterInternalType(int param) {
-        return getParameter(param).getType();
     }
 
 }

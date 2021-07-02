@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import org.h2.command.CommandContainer;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
 import org.h2.engine.SessionLocal;
@@ -33,9 +34,11 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
 
     private Charset charset = StandardCharsets.UTF_8;
 
-    private boolean truncateLargeLength;
+    private boolean quirksMode;
 
     private boolean variableBinary;
+
+    private boolean from1X;
 
     public RunScriptCommand(SessionLocal session) {
         super(session);
@@ -45,7 +48,7 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
     public long update() {
         session.getUser().checkAdmin();
         int count = 0;
-        boolean oldTruncateLargeLength = session.isTruncateLargeLength();
+        boolean oldQuirksMode = session.isQuirksMode();
         boolean oldVariableBinary = session.isVariableBinary();
         try {
             openInput();
@@ -55,8 +58,8 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
             if (reader.read() != UTF8_BOM) {
                 reader.reset();
             }
-            if (truncateLargeLength) {
-                session.setTruncateLargeLength(true);
+            if (quirksMode) {
+                session.setQuirksMode(true);
             }
             if (variableBinary) {
                 session.setVariableBinary(true);
@@ -77,8 +80,8 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
         } catch (IOException e) {
             throw DbException.convertIOException(e, null);
         } finally {
-            if (truncateLargeLength) {
-                session.setTruncateLargeLength(oldTruncateLargeLength);
+            if (quirksMode) {
+                session.setQuirksMode(oldQuirksMode);
             }
             if (variableBinary) {
                 session.setVariableBinary(oldVariableBinary);
@@ -89,15 +92,23 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
     }
 
     private void execute(String sql) {
+        if (from1X) {
+            sql = sql.trim();
+            if (sql.startsWith("INSERT INTO SYSTEM_LOB_STREAM VALUES(")) {
+                int idx = sql.indexOf(", NULL, '");
+                if (idx >= 0) {
+                    sql = new StringBuilder(sql.length() + 1).append(sql, 0, idx + 8).append("X'")
+                            .append(sql, idx + 9, sql.length()).toString();
+                }
+            }
+        }
         try {
             Prepared command = session.prepare(sql);
-            if (command.isQuery()) {
-                command.query(0);
+            CommandContainer commandContainer = new CommandContainer(session, sql, command);
+            if (commandContainer.isQuery()) {
+                commandContainer.executeQuery(0, false);
             } else {
-                command.update();
-            }
-            if (session.getAutoCommit()) {
-                session.commit(false);
+                commandContainer.executeUpdate(null);
             }
         } catch (DbException e) {
             throw e.addSQL(sql);
@@ -109,13 +120,13 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
     }
 
     /**
-     * Changes parsing of a too large lengths of data types.
+     * Enables or disables the quirks mode.
      *
-     * @param truncateLargeLength
-     *            {@code true} to truncate length in definitions of data types
+     * @param quirksMode
+     *            whether quirks mode should be enabled
      */
-    public void setTruncateLargeLength(boolean truncateLargeLength) {
-        this.truncateLargeLength = truncateLargeLength;
+    public void setQuirksMode(boolean quirksMode) {
+        this.quirksMode = quirksMode;
     }
 
     /**
@@ -127,6 +138,13 @@ public class RunScriptCommand extends ScriptBase { //执行SQL脚本文件
      */
     public void setVariableBinary(boolean variableBinary) {
         this.variableBinary = variableBinary;
+    }
+
+    /**
+     * Enables quirks for parsing scripts from H2 1.*.*.
+     */
+    public void setFrom1X() {
+        variableBinary = quirksMode = from1X = true;
     }
 
     @Override

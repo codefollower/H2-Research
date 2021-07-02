@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -1081,19 +1081,12 @@ public class ErrorCode {
     // 90051 was removed
 
     /**
-     * The error with code <code>90052</code> is thrown when
-     * a subquery that is used as a value contains more than one column.
-     * Example of wrong usage:
+     * The error with code <code>90052</code> is thrown when a single-column
+     * subquery is expected but a subquery with other number of columns was
+     * specified.
+     * Example:
      * <pre>
-     * CREATE TABLE TEST(ID INT);
-     * INSERT INTO TEST VALUES(1), (2);
-     * SELECT * FROM TEST WHERE ID IN (SELECT 1, 2 FROM DUAL);
-     * </pre>
-     * Correct:
-     * <pre>
-     * CREATE TABLE TEST(ID INT);
-     * INSERT INTO TEST VALUES(1), (2);
-     * SELECT * FROM TEST WHERE ID IN (1, 2);
+     * VALUES ARRAY(SELECT A, B FROM TEST)
      * </pre>
      */
     public static final int SUBQUERY_IS_NOT_SINGLE_COLUMN = 90052;
@@ -2241,7 +2234,13 @@ public class ErrorCode {
      */
     public static final int COLUMN_ALIAS_IS_NOT_SPECIFIED_1 = 90156;
 
-    // next is 90157
+    /**
+     * The error with code <code>90157</code> is thrown when the integer
+     * index that is used in the GROUP BY is not in the SELECT list
+     */
+    public static final int GROUP_BY_NOT_IN_THE_RESULT = 90157;
+
+    // next is 90158
 
     private ErrorCode() {
         // utility class

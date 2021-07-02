@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -65,21 +65,17 @@ public class TestAutoReconnect extends TestDb {
         deleteDb(getTestName());
         Server tcp = Server.createTcpServer().start();
         try {
-            conn = getConnection("jdbc:h2:" + getBaseDir() +
-                    "/" + getTestName() + ";AUTO_SERVER=TRUE");
-            assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, this).
-                    getConnection("jdbc:h2:" + getBaseDir() +
-                            "/" + getTestName() + ";OPEN_NEW=TRUE");
-            assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, this).
-                    getConnection("jdbc:h2:" + getBaseDir() +
-                            "/" + getTestName() + ";OPEN_NEW=TRUE");
+            conn = getConnection("jdbc:h2:" + getBaseDir() + '/' + getTestName() + ";AUTO_SERVER=TRUE");
+            assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1,
+                    () -> getConnection("jdbc:h2:" + getBaseDir() + '/' + getTestName() + ";OPEN_NEW=TRUE"));
+            assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1,
+                    () -> getConnection("jdbc:h2:" + getBaseDir() + '/' + getTestName() + ";OPEN_NEW=TRUE"));
             conn.close();
 
-            conn = getConnection("jdbc:h2:tcp://localhost:" + tcp.getPort() +
-                                        "/" + getBaseDir() + "/" + getTestName());
-            assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, this).
-                    getConnection("jdbc:h2:" + getBaseDir() +
-                            "/" + getTestName() + ";AUTO_SERVER=TRUE;OPEN_NEW=TRUE");
+            conn = getConnection("jdbc:h2:tcp://localhost:" + tcp.getPort() + '/' + getBaseDir() + '/' //
+                    + getTestName());
+            assertThrows(ErrorCode.DATABASE_ALREADY_OPEN_1, () -> getConnection(
+                    "jdbc:h2:" + getBaseDir() + '/' + getTestName() + ";AUTO_SERVER=TRUE;OPEN_NEW=TRUE"));
             conn.close();
         } finally {
             tcp.stop();

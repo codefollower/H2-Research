@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -111,7 +111,7 @@ public class CreateScriptFile {
                 FileUtils.delete(fileName);
                 FileStore store = FileStore.open(null, fileName, "rw", cipher, key);
                 store.init();
-                out = new FileStoreOutputStream(store, null, compressionAlgorithm);
+                out = new FileStoreOutputStream(store, compressionAlgorithm);
                 out = new BufferedOutputStream(out, Constants.IO_BUFFER_SIZE_COMPRESS);
             } else {
                 out = FileUtils.newOutputStream(fileName, false);
@@ -145,8 +145,7 @@ public class CreateScriptFile {
                 byte[] key = SHA256.getKeyPasswordHash("script", password.toCharArray());
                 FileStore store = FileStore.open(null, fileName, "rw", cipher, key);
                 store.init();
-                in = new FileStoreInputStream(store, null,
-                        compressionAlgorithm != null, false);
+                in = new FileStoreInputStream(store, compressionAlgorithm != null, false);
                 in = new BufferedInputStream(in, Constants.IO_BUFFER_SIZE_COMPRESS);
             } else {
                 in = FileUtils.newInputStream(fileName);

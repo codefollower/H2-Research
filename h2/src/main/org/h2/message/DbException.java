@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -109,12 +109,35 @@ public class DbException extends RuntimeException {
             for (int i = 0; i < params.length; i++) {
                 String s = params[i];
                 if (s != null && s.length() > 0) {
-                    params[i] = StringUtils.quoteIdentifier(s);
+                    params[i] = quote(s);
                 }
             }
             message = MessageFormat.format(message, (Object[]) params);
         }
         return message;
+    }
+
+    private static String quote(String s) {
+        int l = s.length();
+        StringBuilder builder = new StringBuilder(l + 2).append('"');
+        for (int i = 0; i < l;) {
+            int cp = s.codePointAt(i);
+            i += Character.charCount(cp);
+            int t = Character.getType(cp);
+            if (t == 0 || t >= Character.SPACE_SEPARATOR && t <= Character.SURROGATE && cp != ' ') {
+                if (cp <= 0xffff) {
+                    StringUtils.appendHex(builder.append('\\'), cp, 2);
+                } else {
+                    StringUtils.appendHex(builder.append("\\+"), cp, 3);
+                }
+            } else {
+                if (cp == '"' || cp == '\\') {
+                    builder.append((char) cp);
+                }
+                builder.appendCodePoint(cp);
+            }
+        }
+        return builder.append('"').toString();
     }
 
     /**
@@ -605,6 +628,7 @@ public class DbException extends RuntimeException {
         case GENERATED_COLUMN_CANNOT_BE_ASSIGNED_1:
         case GENERATED_COLUMN_CANNOT_BE_UPDATABLE_BY_CONSTRAINT_2:
         case COLUMN_ALIAS_IS_NOT_SPECIFIED_1:
+        case GROUP_BY_NOT_IN_THE_RESULT:
             return new JdbcSQLSyntaxErrorException(message, sql, state, errorCode, cause, stackTrace);
         case HEX_STRING_ODD_1:
         case HEX_STRING_WRONG_1:

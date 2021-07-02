@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -24,14 +24,14 @@ DROP TABLE TEST;
 CREATE MEMORY TABLE TEST AS (VALUES X'11' || X'25');
 > ok
 
-SCRIPT NOPASSWORDS NOSETTINGS TABLE TEST;
+SCRIPT NOPASSWORDS NOSETTINGS NOVERSION TABLE TEST;
 > SCRIPT
 > --------------------------------------------------------------
-> -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "C1" BINARY VARYING(2) );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "C1" BINARY VARYING(2) );
+> -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
 > INSERT INTO "PUBLIC"."TEST" VALUES (X'1125');
-> rows: 4
+> rows (ordered): 4
 
 EXPLAIN SELECT C1 || X'10' FROM TEST;
 >> SELECT "C1" || X'10' FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
@@ -138,3 +138,6 @@ SET TRUNCATE_LARGE_LENGTH FALSE;
 
 DROP TABLE T1, T2;
 > ok
+
+SELECT X'ab''cd';
+> exception SYNTAX_ERROR_1

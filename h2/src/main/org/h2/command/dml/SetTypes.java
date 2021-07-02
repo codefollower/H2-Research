@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -103,14 +103,9 @@ public class SetTypes {
     public static final int DB_CLOSE_DELAY = LOCK_MODE + 1;
 
     /**
-     * The type of a SET LOG statement.
-     */
-    public static final int LOG = DB_CLOSE_DELAY + 1;
-
-    /**
      * The type of a SET THROTTLE statement.
      */
-    public static final int THROTTLE = LOG + 1;
+    public static final int THROTTLE = DB_CLOSE_DELAY + 1;
 
     /**
      * The type of a SET MAX_MEMORY_UNDO statement.
@@ -123,14 +118,9 @@ public class SetTypes {
     public static final int MAX_LENGTH_INPLACE_LOB = MAX_MEMORY_UNDO + 1;
 
     /**
-     * The type of a SET COMPRESS_LOB statement.
-     */
-    public static final int COMPRESS_LOB = MAX_LENGTH_INPLACE_LOB + 1;
-
-    /**
      * The type of a SET ALLOW_LITERALS statement.
      */
-    public static final int ALLOW_LITERALS = COMPRESS_LOB + 1;
+    public static final int ALLOW_LITERALS = MAX_LENGTH_INPLACE_LOB + 1;
 
     /**
      * The type of a SET SCHEMA statement.
@@ -290,11 +280,9 @@ public class SetTypes {
         list.add("MAX_MEMORY_ROWS");
         list.add("LOCK_MODE");
         list.add("DB_CLOSE_DELAY");
-        list.add("LOG");
         list.add("THROTTLE");
         list.add("MAX_MEMORY_UNDO");
         list.add("MAX_LENGTH_INPLACE_LOB");
-        list.add("COMPRESS_LOB");
         list.add("ALLOW_LITERALS");
         list.add("SCHEMA");
         list.add("OPTIMIZE_REUSE_RESULTS");
@@ -323,6 +311,7 @@ public class SetTypes {
         list.add("DEFAULT_NULL_ORDERING");
         list.add("TRUNCATE_LARGE_LENGTH");
         TYPES = list;
+        assert(list.size() == COUNT);
     }
 
     /**

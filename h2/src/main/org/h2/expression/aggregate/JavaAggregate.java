@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,7 @@ import org.h2.command.query.Select;
 import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
+import org.h2.expression.aggregate.AggregateDataCollecting.NullCollectionMode;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.message.DbException;
 import org.h2.schema.UserAggregate;
@@ -223,14 +224,14 @@ public class JavaAggregate extends AbstractAggregate {
 
     @Override
     protected void updateFromExpressions(SessionLocal session, Object aggregateData, Value[] array) {
-        if (filterCondition == null || array[getNumExpressions() - 1].getBoolean()) {
+        if (filterCondition == null || array[getNumExpressions() - 1].isTrue()) {
             updateData(session, aggregateData, array);
         }
     }
 
     @Override
     protected Object createAggregateData() {
-        return distinct ? new AggregateDataCollecting(true, false) : getInstance();
+        return distinct ? new AggregateDataCollecting(true, false, NullCollectionMode.IGNORED) : getInstance();
     }
 
 }

@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -73,3 +73,54 @@ SET TRUNCATE_LARGE_LENGTH FALSE;
 
 DROP TABLE T1, T2;
 > ok
+
+SELECT U&'a\0030a\+000025a';
+>> a0a%a
+
+SELECT U&'az0030az+000025a' UESCAPE 'z';
+>> a0a%a
+
+EXPLAIN SELECT U&'\fffd\+100000';
+>> SELECT U&'\fffd\+100000'
+
+SELECT U&'\';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\0';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\00';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\003';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\0030';
+>> 0
+
+SELECT U&'\zzzz';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\+0';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\+00';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\+000';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\+0000';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\+00003';
+> exception STRING_FORMAT_ERROR_1
+
+SELECT U&'\+000030';
+>> 0
+
+SELECT U&'\+zzzzzz';
+> exception STRING_FORMAT_ERROR_1
+
+EXPLAIN SELECT U&'''\\', U&'''\\\fffd';
+>> SELECT '''\', U&'''\\\fffd'

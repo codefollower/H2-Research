@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,7 +25,7 @@ import org.h2.value.TypeInfo;
  * This class represents the statement
  * CREATE VIEW
  */
-public class CreateView extends SchemaCommand {
+public class CreateView extends SchemaOwnerCommand {
 
     private Query select;
     private String viewName;
@@ -78,12 +78,10 @@ public class CreateView extends SchemaCommand {
     }
 
     @Override
-    public long update() {
-        session.commit(true);
-        session.getUser().checkAdmin();
+    long update(Schema schema) {
         Database db = session.getDatabase();
         TableView view = null;
-        Table old = getSchema().findTableOrView(session, viewName);
+        Table old = schema.findTableOrView(session, viewName);
         if (old != null) {
             if (ifNotExists) {
                 return 0;
@@ -156,11 +154,11 @@ public class CreateView extends SchemaCommand {
         }
         if (view == null) {
             if (isTableExpression) {
-                view = TableView.createTableViewMaybeRecursive(getSchema(), id, viewName, querySQL, null,
+                view = TableView.createTableViewMaybeRecursive(schema, id, viewName, querySQL, null,
                         columnTemplatesAsStrings, session, false /* literalsChecked */, isTableExpression,
                         false/*isTemporary*/, db);
             } else {
-                view = new TableView(getSchema(), id, viewName, querySQL, null, columnTemplatesAsUnknowns, session,
+                view = new TableView(schema, id, viewName, querySQL, null, columnTemplatesAsUnknowns, session,
                         false/* allow recursive */, false/* literalsChecked */, isTableExpression, false/*temporary*/);
             }
         } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,7 +17,7 @@ import org.h2.schema.Schema;
  * This class represents the statement
  * DROP ALIAS
  */
-public class DropFunctionAlias extends SchemaCommand {
+public class DropFunctionAlias extends SchemaOwnerCommand {
 
     private String aliasName;
     private boolean ifExists;
@@ -27,11 +27,9 @@ public class DropFunctionAlias extends SchemaCommand {
     }
 
     @Override
-    public long update() {
-        session.getUser().checkAdmin();
-        session.commit(true);
+    long update(Schema schema) {
         Database db = session.getDatabase();
-        FunctionAlias functionAlias = getSchema().findFunction(aliasName);
+        FunctionAlias functionAlias = schema.findFunction(aliasName);
         if (functionAlias == null) {
             if (!ifExists) {
                 throw DbException.get(ErrorCode.FUNCTION_ALIAS_NOT_FOUND_1, aliasName);

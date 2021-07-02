@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -31,9 +31,9 @@ import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.IOException;
-import java.sql.DriverManager;
 import java.util.Locale;
 
+import org.h2.jdbc.JdbcConnection;
 import org.h2.util.Utils;
 
 /**
@@ -464,7 +464,7 @@ public class GUIConsole extends Console implements ActionListener, MouseListener
         }
         String url = "jdbc:h2:" + path;
         try {
-            DriverManager.getConnection(url, user, password).close();
+            new JdbcConnection(url, null, user, password).close();
             errorArea.setForeground(new Color(0, 0x99, 0));
             errorArea.setText("Database was created successfully.\n\n"
                     + "JDBC URL for H2 Console:\n"

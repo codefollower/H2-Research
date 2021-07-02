@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,7 +17,6 @@ import org.h2.engine.SessionLocal;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.mvstore.db.Store;
-import org.h2.pagestore.PageStore;
 import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
 import org.h2.table.Column;
@@ -79,17 +78,9 @@ public class Explain extends Prepared {
             String plan;
             if (executeCommand) {
                 Store store = null;
-                PageStore pageStore = null;
                 if (db.isPersistent()) {
                     store = db.getStore();
-                    if (store != null) {
-                        store.statisticsStart();
-                    } else {
-                        pageStore = db.getPageStore();
-                        if (pageStore != null) {
-                            pageStore.statisticsStart();
-                        }
-                    }
+                    store.statisticsStart();
                 }
                 if (command.isQuery()) {
                     command.query(maxrows);
@@ -100,8 +91,6 @@ public class Explain extends Prepared {
                 Map<String, Integer> statistics = null;
                 if (store != null) {
                     statistics = store.statisticsEnd();
-                } else if (pageStore != null) {
-                    statistics = pageStore.statisticsEnd();
                 }
                 //输出格式类似这样:
                 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -58,9 +58,8 @@ public final class ValueTimeTimeZone extends Value {
      */
     public static ValueTimeTimeZone fromNanos(long nanos, int timeZoneOffsetSeconds) {
         if (nanos < 0L || nanos >= DateTimeUtils.NANOS_PER_DAY) {
-            StringBuilder builder = new StringBuilder();
-            DateTimeUtils.appendTime(builder, nanos);
-            throw DbException.get(ErrorCode.INVALID_DATETIME_CONSTANT_2, "TIME WITH TIME ZONE", builder.toString());
+            throw DbException.get(ErrorCode.INVALID_DATETIME_CONSTANT_2, "TIME WITH TIME ZONE",
+                    DateTimeUtils.appendTime(new StringBuilder(), nanos).toString());
         }
         /*
          * Some current and historic time zones have offsets larger than 12
@@ -130,9 +129,7 @@ public final class ValueTimeTimeZone extends Value {
     }
 
     private StringBuilder toString(StringBuilder builder) {
-        DateTimeUtils.appendTime(builder, nanos);
-        DateTimeUtils.appendTimeZone(builder, timeZoneOffsetSeconds);
-        return builder;
+        return DateTimeUtils.appendTimeZone(DateTimeUtils.appendTime(builder, nanos), timeZoneOffsetSeconds);
     }
 
     @Override

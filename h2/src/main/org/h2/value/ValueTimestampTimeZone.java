@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -145,20 +145,27 @@ public final class ValueTimestampTimeZone extends Value {
 
     @Override
     public String getString() {
-        return toString(new StringBuilder(ValueTimestampTimeZone.MAXIMUM_PRECISION)).toString();
+        return toString(new StringBuilder(MAXIMUM_PRECISION), false).toString();
+    }
+
+    /**
+     * Returns value as string in ISO format.
+     *
+     * @return value as string in ISO format
+     */
+    public String getISOString() {
+        return toString(new StringBuilder(MAXIMUM_PRECISION), true).toString();
     }
 
     @Override
     public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
-        return toString(builder.append("TIMESTAMP WITH TIME ZONE '")).append('\'');
+        return toString(builder.append("TIMESTAMP WITH TIME ZONE '"), false).append('\'');
     }
 
-    private StringBuilder toString(StringBuilder builder) {
-        DateTimeUtils.appendDate(builder, dateValue);
-        builder.append(' ');
+    private StringBuilder toString(StringBuilder builder, boolean iso) {
+        DateTimeUtils.appendDate(builder, dateValue).append(iso ? 'T' : ' ');
         DateTimeUtils.appendTime(builder, timeNanos);
-        DateTimeUtils.appendTimeZone(builder, timeZoneOffsetSeconds);
-        return builder;
+        return DateTimeUtils.appendTimeZone(builder, timeZoneOffsetSeconds);
     }
 
     @Override

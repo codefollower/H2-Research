@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -24,6 +24,7 @@ import static org.h2.util.geometry.GeometryUtils.Z;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 
+import org.h2.util.StringUtils;
 import org.h2.util.geometry.EWKBUtils.EWKBTarget;
 import org.h2.util.geometry.GeometryUtils.DimensionSystemTarget;
 import org.h2.util.geometry.GeometryUtils.Target;
@@ -255,7 +256,7 @@ public final class EWKTUtils {
                 while (ewkt.charAt(end - 1) <= ' ') {
                     end--;
                 }
-                srid = Integer.parseInt(ewkt.substring(offset, end).trim());
+                srid = Integer.parseInt(StringUtils.trimSubstring(ewkt, offset, end));
                 offset = idx + 1;
             } else {
                 srid = 0;

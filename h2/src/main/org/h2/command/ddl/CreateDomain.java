@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,7 +25,7 @@ import org.h2.value.Value;
  * CREATE DOMAIN
  */
 //CREATE DOMAIN、CREATE TYPE、CREATE DATATYPE都是一样的
-public class CreateDomain extends SchemaCommand {
+public class CreateDomain extends SchemaOwnerCommand {
 
     private String typeName;
     private boolean ifNotExists;
@@ -75,11 +75,7 @@ public class CreateDomain extends SchemaCommand {
     }
 
     @Override
-    public long update() {
-        session.getUser().checkAdmin();
-        session.commit(true);
-        session.getUser().checkAdmin();
-        Schema schema = getSchema();
+    long update(Schema schema) {
         if (schema.findDomain(typeName) != null) {
             if (ifNotExists) {
                 return 0;

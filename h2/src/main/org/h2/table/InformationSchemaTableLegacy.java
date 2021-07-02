@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -31,6 +31,7 @@ import org.h2.engine.Constants;
 import org.h2.engine.DbObject;
 import org.h2.engine.QueryStatisticsData;
 import org.h2.engine.Right;
+import org.h2.engine.RightOwner;
 import org.h2.engine.Role;
 import org.h2.engine.SessionLocal;
 import org.h2.engine.SessionLocal.State;
@@ -45,7 +46,6 @@ import org.h2.message.DbException;
 import org.h2.mvstore.FileStore;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.db.Store;
-import org.h2.pagestore.PageStore;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
@@ -56,7 +56,7 @@ import org.h2.schema.Schema;
 import org.h2.schema.SchemaObject;
 import org.h2.schema.Sequence;
 import org.h2.schema.TriggerObject;
-import org.h2.schema.UserAggregate;
+import org.h2.schema.UserDefinedFunction;
 import org.h2.schema.FunctionAlias.JavaMethod;
 import org.h2.store.InDoubtTransaction;
 import org.h2.tools.Csv;
@@ -967,6 +967,7 @@ public final class InformationSchemaTableLegacy extends MetaTable {
                         }
                     }
                     IndexColumn[] cols = index.getIndexColumns();
+                    int uniqueColumnCount = index.getUniqueColumnCount();
                     String indexClass = index.getClass().getName();
                     for (int k = 0; k < cols.length; k++) {
                         IndexColumn idxCol = cols[k];
@@ -980,7 +981,7 @@ public final class InformationSchemaTableLegacy extends MetaTable {
                                 // TABLE_NAME
                                 tableName,
                                 // NON_UNIQUE
-                                ValueBoolean.get(!index.getIndexType().isUnique()),
+                                ValueBoolean.get(k >= uniqueColumnCount),
                                 // INDEX_NAME
                                 index.getName(),
                                 // ORDINAL_POSITION
@@ -1114,66 +1115,49 @@ public final class InformationSchemaTableLegacy extends MetaTable {
             for (Map.Entry<String, String> entry : database.getSettings().getSortedSettings()) {
                 add(session, rows, entry.getKey(), entry.getValue());
             }
-            if (database.isPersistent()) {
-                Store store = database.getStore();
-                if (store != null) {
-                    MVStore mvStore = store.getMvStore();
-                    FileStore fs = mvStore.getFileStore();
-                    if (fs != null) {
-                        add(session, rows,
-                                "info.FILE_WRITE", Long.toString(fs.getWriteCount()));
-                        add(session, rows,
-                                "info.FILE_WRITE_BYTES", Long.toString(fs.getWriteBytes()));
-                        add(session, rows,
-                                "info.FILE_READ", Long.toString(fs.getReadCount()));
-                        add(session, rows,
-                                "info.FILE_READ_BYTES", Long.toString(fs.getReadBytes()));
-                        add(session, rows,
-                                "info.UPDATE_FAILURE_PERCENT",
-                                String.format(Locale.ENGLISH, "%.2f%%", 100 * mvStore.getUpdateFailureRatio()));
-                        add(session, rows,
-                                "info.FILL_RATE", Integer.toString(mvStore.getFillRate()));
-                        add(session, rows,
-                                "info.CHUNKS_FILL_RATE", Integer.toString(mvStore.getChunksFillRate()));
-                        add(session, rows,
-                                "info.CHUNKS_FILL_RATE_RW", Integer.toString(mvStore.getRewritableChunksFillRate()));
-                        try {
-                            add(session, rows,
-                                    "info.FILE_SIZE", Long.toString(fs.getFile().size()));
-                        } catch (IOException ignore) {/**/}
-                        add(session, rows,
-                                "info.CHUNK_COUNT", Long.toString(mvStore.getChunkCount()));
-                        add(session, rows,
-                                "info.PAGE_COUNT", Long.toString(mvStore.getPageCount()));
-                        add(session, rows,
-                                "info.PAGE_COUNT_LIVE", Long.toString(mvStore.getLivePageCount()));
-                        add(session, rows,
-                                "info.PAGE_SIZE", Integer.toString(mvStore.getPageSplitSize()));
-                        add(session, rows,
-                                "info.CACHE_MAX_SIZE", Integer.toString(mvStore.getCacheSize()));
-                        add(session, rows,
-                                "info.CACHE_SIZE", Integer.toString(mvStore.getCacheSizeUsed()));
-                        add(session, rows,
-                                "info.CACHE_HIT_RATIO", Integer.toString(mvStore.getCacheHitRatio()));
-                        add(session, rows, "info.TOC_CACHE_HIT_RATIO",
-                                Integer.toString(mvStore.getTocCacheHitRatio()));
-                        add(session, rows,
-                                "info.LEAF_RATIO", Integer.toString(mvStore.getLeafRatio()));
-                    }
-                } else {
-                    PageStore pageStore = database.getPageStore();
-                    if (pageStore != null) {
-                        add(session, rows, "LOG", Integer.toString(pageStore.getLogMode()));
-                        add(session, rows, "info.FILE_WRITE_TOTAL", Long.toString(pageStore.getWriteCountTotal()));
-                        add(session, rows, "info.FILE_WRITE", Long.toString(pageStore.getWriteCount()));
-                        add(session, rows, "info.FILE_READ", Long.toString(pageStore.getReadCount()));
-                        add(session, rows, "info.PAGE_COUNT", Integer.toString(pageStore.getPageCount()));
-                        add(session, rows, "info.PAGE_SIZE", Integer.toString(pageStore.getPageSize()));
-                        add(session, rows, "info.CACHE_MAX_SIZE",
-                                Integer.toString(pageStore.getCache().getMaxMemory()));
-                        add(session, rows, "info.CACHE_SIZE", Integer.toString(pageStore.getCache().getMemory()));
-                    }
-                }
+            Store store = database.getStore();
+            MVStore mvStore = store.getMvStore();
+            FileStore fs = mvStore.getFileStore();
+            if (fs != null) {
+                add(session, rows,
+                        "info.FILE_WRITE", Long.toString(fs.getWriteCount()));
+                add(session, rows,
+                        "info.FILE_WRITE_BYTES", Long.toString(fs.getWriteBytes()));
+                add(session, rows,
+                        "info.FILE_READ", Long.toString(fs.getReadCount()));
+                add(session, rows,
+                        "info.FILE_READ_BYTES", Long.toString(fs.getReadBytes()));
+                add(session, rows,
+                        "info.UPDATE_FAILURE_PERCENT",
+                        String.format(Locale.ENGLISH, "%.2f%%", 100 * mvStore.getUpdateFailureRatio()));
+                add(session, rows,
+                        "info.FILL_RATE", Integer.toString(mvStore.getFillRate()));
+                add(session, rows,
+                        "info.CHUNKS_FILL_RATE", Integer.toString(mvStore.getChunksFillRate()));
+                add(session, rows,
+                        "info.CHUNKS_FILL_RATE_RW", Integer.toString(mvStore.getRewritableChunksFillRate()));
+                try {
+                    add(session, rows,
+                            "info.FILE_SIZE", Long.toString(fs.getFile().size()));
+                } catch (IOException ignore) {/**/}
+                add(session, rows,
+                        "info.CHUNK_COUNT", Long.toString(mvStore.getChunkCount()));
+                add(session, rows,
+                        "info.PAGE_COUNT", Long.toString(mvStore.getPageCount()));
+                add(session, rows,
+                        "info.PAGE_COUNT_LIVE", Long.toString(mvStore.getLivePageCount()));
+                add(session, rows,
+                        "info.PAGE_SIZE", Integer.toString(mvStore.getPageSplitSize()));
+                add(session, rows,
+                        "info.CACHE_MAX_SIZE", Integer.toString(mvStore.getCacheSize()));
+                add(session, rows,
+                        "info.CACHE_SIZE", Integer.toString(mvStore.getCacheSizeUsed()));
+                add(session, rows,
+                        "info.CACHE_HIT_RATIO", Integer.toString(mvStore.getCacheHitRatio()));
+                add(session, rows, "info.TOC_CACHE_HIT_RATIO",
+                        Integer.toString(mvStore.getTocCacheHitRatio()));
+                add(session, rows,
+                        "info.LEAF_RATIO", Integer.toString(mvStore.getLeafRatio()));
             }
             break;
         }
@@ -1265,35 +1249,41 @@ public final class InformationSchemaTableLegacy extends MetaTable {
             break;
         }
         case USERS: {
-            for (User u : database.getAllUsers()) {
-                if (admin || session.getUser() == u) {
-                    add(session,
-                            rows,
-                            // NAME
-                            identifier(u.getName()),
-                            // ADMIN
-                            String.valueOf(u.isAdmin()),
-                            // REMARKS
-                            replaceNullWithEmpty(u.getComment()),
-                            // ID
-                            ValueInteger.get(u.getId())
-                    );
+            for (RightOwner rightOwner : database.getAllUsersAndRoles()) {
+                if (rightOwner instanceof User) {
+                    User u = (User) rightOwner;
+                    if (admin || session.getUser() == u) {
+                        add(session,
+                                rows,
+                                // NAME
+                                identifier(u.getName()),
+                                // ADMIN
+                                String.valueOf(u.isAdmin()),
+                                // REMARKS
+                                replaceNullWithEmpty(u.getComment()),
+                                // ID
+                                ValueInteger.get(u.getId())
+                        );
+                    }
                 }
             }
             break;
         }
         case ROLES: {
-            for (Role r : database.getAllRoles()) {
-                if (admin || session.getUser().isRoleGranted(r)) {
-                    add(session,
-                            rows,
-                            // NAME
-                            identifier(r.getName()),
-                            // REMARKS
-                            replaceNullWithEmpty(r.getComment()),
-                            // ID
-                            ValueInteger.get(r.getId())
-                    );
+            for (RightOwner rightOwner : database.getAllUsersAndRoles()) {
+                if (rightOwner instanceof Role) {
+                    Role r = (Role) rightOwner;
+                    if (admin || session.getUser().isRoleGranted(r)) {
+                        add(session,
+                                rows,
+                                // NAME
+                                identifier(r.getName()),
+                                // REMARKS
+                                replaceNullWithEmpty(r.getComment()),
+                                // ID
+                                ValueInteger.get(r.getId())
+                        );
+                    }
                 }
             }
             break;
@@ -1361,188 +1351,193 @@ public final class InformationSchemaTableLegacy extends MetaTable {
             }
             break;
         }
-        case FUNCTION_ALIASES: {
-            for (SchemaObject aliasAsSchemaObject :
-                    getAllSchemaObjects(DbObject.FUNCTION_ALIAS)) {
-                FunctionAlias alias = (FunctionAlias) aliasAsSchemaObject;
-                JavaMethod[] methods;
-                try {
-                    methods = alias.getJavaMethods();
-                } catch (DbException e) {
-                    methods = new JavaMethod[0];
-                }
-                for (FunctionAlias.JavaMethod method : methods) {
-                    TypeInfo typeInfo = method.getDataType();
-                    add(session,
-                            rows,
-                            // ALIAS_CATALOG
-                            catalog,
-                            // ALIAS_SCHEMA
-                            alias.getSchema().getName(),
-                            // ALIAS_NAME
-                            alias.getName(),
-                            // JAVA_CLASS
-                            alias.getJavaClassName(),
-                            // JAVA_METHOD
-                            alias.getJavaMethodName(),
-                            // DATA_TYPE
-                            ValueInteger.get(DataType.convertTypeToSQLType(typeInfo)),
-                            // TYPE_NAME
-                            getDataTypeName(typeInfo),
-                            // COLUMN_COUNT
-                            ValueInteger.get(method.getParameterCount()),
-                            // RETURNS_RESULT
-                            ValueSmallint.get(typeInfo.getValueType() == Value.NULL
-                                    ? (short) DatabaseMetaData.procedureNoResult
-                                    : (short) DatabaseMetaData.procedureReturnsResult),
-                            // REMARKS
-                            replaceNullWithEmpty(alias.getComment()),
-                            // ID
-                            ValueInteger.get(alias.getId()),
-                            // SOURCE
-                            alias.getSource()
-                            // when adding more columns, see also below
-                    );
-                }
-            }
-            for (SchemaObject aggregateAsSchemaObject : getAllSchemaObjects(DbObject.AGGREGATE)) {
-                UserAggregate agg = (UserAggregate) aggregateAsSchemaObject;
-                add(session,
-                        rows,
-                        // ALIAS_CATALOG
-                        catalog,
-                        // ALIAS_SCHEMA
-                        database.getMainSchema().getName(),
-                        // ALIAS_NAME
-                        agg.getName(),
-                        // JAVA_CLASS
-                        agg.getJavaClassName(),
-                        // JAVA_METHOD
-                        "",
-                        // DATA_TYPE
-                        ValueInteger.get(Types.NULL),
-                        // TYPE_NAME
-                        "NULL",
-                        // COLUMN_COUNT
-                        ValueInteger.get(1),
-                        // RETURNS_RESULT
-                        ValueSmallint.get((short) DatabaseMetaData.procedureReturnsResult),
-                        // REMARKS
-                        replaceNullWithEmpty(agg.getComment()),
-                        // ID
-                        ValueInteger.get(agg.getId()),
-                        // SOURCE
-                        ""
-                        // when adding more columns, see also below
-                );
-            }
-            break;
-        }
-        case FUNCTION_COLUMNS: {
-            for (SchemaObject aliasAsSchemaObject :
-                    getAllSchemaObjects(DbObject.FUNCTION_ALIAS)) {
-                FunctionAlias alias = (FunctionAlias) aliasAsSchemaObject;
-                JavaMethod[] methods;
-                try {
-                    methods = alias.getJavaMethods();
-                } catch (DbException e) {
-                    methods = new JavaMethod[0];
-                }
-                for (FunctionAlias.JavaMethod method : methods) {
-                    // Add return column index 0
-                    TypeInfo typeInfo = method.getDataType();
-                    if (typeInfo.getValueType() != Value.NULL) {
-                        DataType dt = DataType.getDataType(typeInfo.getValueType());
-                        add(session,
-                                rows,
-                                // ALIAS_CATALOG
-                                catalog,
-                                // ALIAS_SCHEMA
-                                alias.getSchema().getName(),
-                                // ALIAS_NAME
-                                alias.getName(),
-                                // JAVA_CLASS
-                                alias.getJavaClassName(),
-                                // JAVA_METHOD
-                                alias.getJavaMethodName(),
-                                // COLUMN_COUNT
-                                ValueInteger.get(method.getParameterCount()),
-                                // POS
-                                ValueInteger.get(0),
-                                // COLUMN_NAME
-                                "P0",
-                                // DATA_TYPE
-                                ValueInteger.get(DataType.convertTypeToSQLType(typeInfo)),
-                                // TYPE_NAME
-                                getDataTypeName(typeInfo),
-                                // PRECISION
-                                ValueInteger.get(MathUtils.convertLongToInt(dt.defaultPrecision)),
-                                // SCALE
-                                ValueSmallint.get(MathUtils.convertIntToShort(dt.defaultScale)),
-                                // RADIX
-                                ValueSmallint.get((short) 10),
-                                // NULLABLE
-                                ValueSmallint.get((short) DatabaseMetaData.columnNullableUnknown),
-                                // COLUMN_TYPE
-                                ValueSmallint.get((short) DatabaseMetaData.procedureColumnReturn),
-                                // REMARKS
-                                "",
-                                // COLUMN_DEFAULT
-                                null
-                        );
-                    }
-                    Class<?>[] columnList = method.getColumnClasses();
-                    for (int k = 0; k < columnList.length; k++) {
-                        if (method.hasConnectionParam() && k == 0) {
+        case FUNCTION_ALIASES:
+            for (Schema schema : database.getAllSchemas()) {
+                for (UserDefinedFunction userDefinedFunction : schema.getAllFunctionsAndAggregates()) {
+                    if (userDefinedFunction instanceof FunctionAlias) {
+                        FunctionAlias alias = (FunctionAlias) userDefinedFunction;
+                        JavaMethod[] methods;
+                        try {
+                            methods = alias.getJavaMethods();
+                        } catch (DbException e) {
                             continue;
                         }
-                        Class<?> clazz = columnList[k];
-                        TypeInfo columnTypeInfo = ValueToObjectConverter2.classToType(clazz);
-                        DataType dt = DataType.getDataType(columnTypeInfo.getValueType());
+                        for (FunctionAlias.JavaMethod method : methods) {
+                            TypeInfo typeInfo = method.getDataType();
+                            if (typeInfo == null) {
+                                typeInfo = TypeInfo.TYPE_NULL;
+                            }
+                            add(session,
+                                    rows,
+                                    // ALIAS_CATALOG
+                                    catalog,
+                                    // ALIAS_SCHEMA
+                                    alias.getSchema().getName(),
+                                    // ALIAS_NAME
+                                    alias.getName(),
+                                    // JAVA_CLASS
+                                    alias.getJavaClassName(),
+                                    // JAVA_METHOD
+                                    alias.getJavaMethodName(),
+                                    // DATA_TYPE
+                                    ValueInteger.get(DataType.convertTypeToSQLType(typeInfo)),
+                                    // TYPE_NAME
+                                    getDataTypeName(typeInfo),
+                                    // COLUMN_COUNT
+                                    ValueInteger.get(method.getParameterCount()),
+                                    // RETURNS_RESULT
+                                    ValueSmallint.get(typeInfo.getValueType() == Value.NULL
+                                            ? (short) DatabaseMetaData.procedureNoResult
+                                            : (short) DatabaseMetaData.procedureReturnsResult),
+                                    // REMARKS
+                                    replaceNullWithEmpty(alias.getComment()),
+                                    // ID
+                                    ValueInteger.get(alias.getId()),
+                                    // SOURCE
+                                    alias.getSource()
+                                    // when adding more columns, see also below
+                            );
+                        }
+                    } else {
                         add(session,
                                 rows,
                                 // ALIAS_CATALOG
                                 catalog,
                                 // ALIAS_SCHEMA
-                                alias.getSchema().getName(),
+                                database.getMainSchema().getName(),
                                 // ALIAS_NAME
-                                alias.getName(),
+                                userDefinedFunction.getName(),
                                 // JAVA_CLASS
-                                alias.getJavaClassName(),
+                                userDefinedFunction.getJavaClassName(),
                                 // JAVA_METHOD
-                                alias.getJavaMethodName(),
-                                // COLUMN_COUNT
-                                ValueInteger.get(method.getParameterCount()),
-                                // POS
-                                ValueInteger.get(k + (method.hasConnectionParam() ? 0 : 1)),
-                                // COLUMN_NAME
-                                "P" + (k + 1),
-                                // DATA_TYPE
-                                ValueInteger.get(DataType.convertTypeToSQLType(columnTypeInfo)),
-                                // TYPE_NAME
-                                getDataTypeName(columnTypeInfo),
-                                // PRECISION
-                                ValueInteger.get(MathUtils.convertLongToInt(dt.defaultPrecision)),
-                                // SCALE
-                                ValueSmallint.get(MathUtils.convertIntToShort(dt.defaultScale)),
-                                // RADIX
-                                ValueSmallint.get((short) 10),
-                                // NULLABLE
-                                ValueSmallint.get(clazz.isPrimitive()
-                                        ? (short) DatabaseMetaData.columnNoNulls
-                                        : (short) DatabaseMetaData.columnNullable),
-                                // COLUMN_TYPE
-                                ValueSmallint.get((short) DatabaseMetaData.procedureColumnIn),
-                                // REMARKS
                                 "",
-                                // COLUMN_DEFAULT
-                                null
+                                // DATA_TYPE
+                                ValueInteger.get(Types.NULL),
+                                // TYPE_NAME
+                                "NULL",
+                                // COLUMN_COUNT
+                                ValueInteger.get(1),
+                                // RETURNS_RESULT
+                                ValueSmallint.get((short) DatabaseMetaData.procedureReturnsResult),
+                                // REMARKS
+                                replaceNullWithEmpty(userDefinedFunction.getComment()),
+                                // ID
+                                ValueInteger.get(userDefinedFunction.getId()),
+                                // SOURCE
+                                ""
+                                // when adding more columns, see also below
                         );
                     }
                 }
             }
             break;
-        }
+        case FUNCTION_COLUMNS:
+            for (Schema schema : database.getAllSchemas()) {
+                for (UserDefinedFunction userDefinedFunction : schema.getAllFunctionsAndAggregates()) {
+                    if (userDefinedFunction instanceof FunctionAlias) {
+                        FunctionAlias alias = (FunctionAlias) userDefinedFunction;
+                        JavaMethod[] methods;
+                        try {
+                            methods = alias.getJavaMethods();
+                        } catch (DbException e) {
+                            continue;
+                        }
+                        for (FunctionAlias.JavaMethod method : methods) {
+                            // Add return column index 0
+                            TypeInfo typeInfo = method.getDataType();
+                            if (typeInfo != null && typeInfo.getValueType() != Value.NULL) {
+                                DataType dt = DataType.getDataType(typeInfo.getValueType());
+                                add(session,
+                                        rows,
+                                        // ALIAS_CATALOG
+                                        catalog,
+                                        // ALIAS_SCHEMA
+                                        alias.getSchema().getName(),
+                                        // ALIAS_NAME
+                                        alias.getName(),
+                                        // JAVA_CLASS
+                                        alias.getJavaClassName(),
+                                        // JAVA_METHOD
+                                        alias.getJavaMethodName(),
+                                        // COLUMN_COUNT
+                                        ValueInteger.get(method.getParameterCount()),
+                                        // POS
+                                        ValueInteger.get(0),
+                                        // COLUMN_NAME
+                                        "P0",
+                                        // DATA_TYPE
+                                        ValueInteger.get(DataType.convertTypeToSQLType(typeInfo)),
+                                        // TYPE_NAME
+                                        getDataTypeName(typeInfo),
+                                        // PRECISION
+                                        ValueInteger.get(MathUtils.convertLongToInt(dt.defaultPrecision)),
+                                        // SCALE
+                                        ValueSmallint.get(MathUtils.convertIntToShort(dt.defaultScale)),
+                                        // RADIX
+                                        ValueSmallint.get((short) 10),
+                                        // NULLABLE
+                                        ValueSmallint.get((short) DatabaseMetaData.columnNullableUnknown),
+                                        // COLUMN_TYPE
+                                        ValueSmallint.get((short) DatabaseMetaData.procedureColumnReturn),
+                                        // REMARKS
+                                        "",
+                                        // COLUMN_DEFAULT
+                                        null
+                                );
+                            }
+                            Class<?>[] columnList = method.getColumnClasses();
+                            for (int k = 0; k < columnList.length; k++) {
+                                if (method.hasConnectionParam() && k == 0) {
+                                    continue;
+                                }
+                                Class<?> clazz = columnList[k];
+                                TypeInfo columnTypeInfo = ValueToObjectConverter2.classToType(clazz);
+                                DataType dt = DataType.getDataType(columnTypeInfo.getValueType());
+                                add(session,
+                                        rows,
+                                        // ALIAS_CATALOG
+                                        catalog,
+                                        // ALIAS_SCHEMA
+                                        alias.getSchema().getName(),
+                                        // ALIAS_NAME
+                                        alias.getName(),
+                                        // JAVA_CLASS
+                                        alias.getJavaClassName(),
+                                        // JAVA_METHOD
+                                        alias.getJavaMethodName(),
+                                        // COLUMN_COUNT
+                                        ValueInteger.get(method.getParameterCount()),
+                                        // POS
+                                        ValueInteger.get(k + (method.hasConnectionParam() ? 0 : 1)),
+                                        // COLUMN_NAME
+                                        "P" + (k + 1),
+                                        // DATA_TYPE
+                                        ValueInteger.get(DataType.convertTypeToSQLType(columnTypeInfo)),
+                                        // TYPE_NAME
+                                        getDataTypeName(columnTypeInfo),
+                                        // PRECISION
+                                        ValueInteger.get(MathUtils.convertLongToInt(dt.defaultPrecision)),
+                                        // SCALE
+                                        ValueSmallint.get(MathUtils.convertIntToShort(dt.defaultScale)),
+                                        // RADIX
+                                        ValueSmallint.get((short) 10),
+                                        // NULLABLE
+                                        ValueSmallint.get(clazz.isPrimitive()
+                                                ? (short) DatabaseMetaData.columnNoNulls
+                                                : (short) DatabaseMetaData.columnNullable),
+                                        // COLUMN_TYPE
+                                        ValueSmallint.get((short) DatabaseMetaData.procedureColumnIn),
+                                        // REMARKS
+                                        "",
+                                        // COLUMN_DEFAULT
+                                        null
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            break;
         case SCHEMATA: {
             String collation = database.getCompareMode().getName();
             for (Schema schema : database.getAllSchemas()) {
@@ -1933,7 +1928,7 @@ public final class InformationSchemaTableLegacy extends MetaTable {
                             // STATEMENT_START
                             command == null ? null : s.getCommandStartOrEnd(),
                             // CONTAINS_UNCOMMITTED
-                            ValueBoolean.get(s.containsUncommitted()),
+                            ValueBoolean.get(s.hasPendingTransaction()),
                             // STATE
                             String.valueOf(s.getState()),
                             // BLOCKER_ID

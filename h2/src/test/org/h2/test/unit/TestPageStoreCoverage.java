@@ -1,17 +1,14 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.test.unit;
 
-import java.nio.channels.FileChannel;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
-import org.h2.engine.Constants;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
@@ -49,7 +46,6 @@ public class TestPageStoreCoverage extends TestDb {
         testMoveRoot();
         testBasic();
         testReadOnly();
-        testIncompleteCreate();
         testBackupRestore();
         testTrim();
         testLongTransaction();
@@ -242,27 +238,6 @@ public class TestPageStoreCoverage extends TestDb {
         conn.close();
         FileUtils.delete(getBaseDir() + "/backup.zip");
         deleteDb("pageStore2");
-    }
-
-    private void testIncompleteCreate() throws Exception {
-        deleteDb("pageStoreCoverage");
-        Connection conn;
-        String fileName = getBaseDir() + "/pageStore" + Constants.SUFFIX_PAGE_FILE;
-        conn = getConnection("pageStoreCoverage");
-        Statement stat = conn.createStatement();
-        stat.execute("drop table if exists INFORMATION_SCHEMA.LOB_DATA");
-        stat.execute("drop table if exists INFORMATION_SCHEMA.LOB_MAP");
-        conn.close();
-        FileChannel f = FileUtils.open(fileName, "rw");
-        // create a new database
-        conn = getConnection("pageStoreCoverage");
-        conn.close();
-        f = FileUtils.open(fileName, "rw");
-        f.truncate(16);
-        // create a new database
-        conn = getConnection("pageStoreCoverage");
-        conn.close();
-        deleteDb("pageStoreCoverage");
     }
 
 }

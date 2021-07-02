@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,7 +11,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import org.h2.api.DatabaseEventListener;
 import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.command.Prepared;
@@ -22,7 +21,6 @@ import org.h2.expression.Expression;
 import org.h2.message.DbException;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.db.Store;
-import org.h2.pagestore.PageStore;
 import org.h2.result.ResultInterface;
 import org.h2.store.FileLister;
 import org.h2.store.fs.FileUtils;
@@ -59,9 +57,6 @@ public class BackupCommand extends Prepared {
         }
         try {
             Store store = db.getStore();
-            if (store != null) {
-                store.flush();
-            }
 //<<<<<<< HEAD
 //            String name = db.getName(); //返回E:/H2/baseDir/mydb
 //            name = FileUtils.getName(name); //返回mydb(也就是只取简单文件名
@@ -102,15 +97,12 @@ public class BackupCommand extends Prepared {
 //                        } finally {
 //                            s.setReuseSpace(before);
 //=======
+            store.flush();
             String name = db.getName();
             name = FileUtils.getName(name);
             try (OutputStream zip = FileUtils.newOutputStream(fileName, false)) {
                 ZipOutputStream out = new ZipOutputStream(zip);
                 db.flush();
-                if (db.getPageStore() != null) {
-                    String fn = db.getName() + Constants.SUFFIX_PAGE_FILE;
-                    backupPageStore(out, fn, db.getPageStore());
-                }
                 // synchronize on the database, to avoid concurrent temp file
                 // creation / deletion / backup
                 String base = FileUtils.getParent(db.getName());
@@ -120,7 +112,7 @@ public class BackupCommand extends Prepared {
                     dir = FileLister.getDir(dir);
                     ArrayList<String> fileList = FileLister.getDatabaseFiles(dir, name, true);
                     for (String n : fileList) {
-                        if (n.endsWith(Constants.SUFFIX_MV_FILE) && store != null) {
+                        if (n.endsWith(Constants.SUFFIX_MV_FILE)) {
                             MVStore s = store.getMvStore();
                             boolean before = s.getReuseSpace();
                             s.setReuseSpace(false);
@@ -140,28 +132,31 @@ public class BackupCommand extends Prepared {
         }
     }
 
-    private void backupPageStore(ZipOutputStream out, String fileName,
-            PageStore store) throws IOException {
-        Database db = session.getDatabase();
-        fileName = FileUtils.getName(fileName); //fileName = E:/H2/baseDir/mydb.h2.db，然后变成"mydb.h2.db"
-        out.putNextEntry(new ZipEntry(fileName));
-        int pos = 0;
-        try {
-            store.setBackup(true);
-            while (true) {
-                pos = store.copyDirect(pos, out); //一页一页的copy
-                if (pos < 0) {
-                    break;
-                }
-                int max = store.getPageCount();
-                db.setProgress(DatabaseEventListener.STATE_BACKUP_FILE, fileName, pos, max);
-            }
-        } finally {
-            store.setBackup(false);
-        }
-        out.closeEntry();
-    }
-
+//<<<<<<< HEAD
+//    private void backupPageStore(ZipOutputStream out, String fileName,
+//            PageStore store) throws IOException {
+//        Database db = session.getDatabase();
+//        fileName = FileUtils.getName(fileName); //fileName = E:/H2/baseDir/mydb.h2.db，然后变成"mydb.h2.db"
+//        out.putNextEntry(new ZipEntry(fileName));
+//        int pos = 0;
+//        try {
+//            store.setBackup(true);
+//            while (true) {
+//                pos = store.copyDirect(pos, out); //一页一页的copy
+//                if (pos < 0) {
+//                    break;
+//                }
+//                int max = store.getPageCount();
+//                db.setProgress(DatabaseEventListener.STATE_BACKUP_FILE, fileName, pos, max);
+//            }
+//        } finally {
+//            store.setBackup(false);
+//        }
+//        out.closeEntry();
+//    }
+//
+//=======
+//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
     private static void backupFile(ZipOutputStream out, String base, String fn,
             InputStream in) throws IOException {
         String f = FileUtils.toRealPath(fn); //返回E:/H2/baseDir/mydb.mv.db

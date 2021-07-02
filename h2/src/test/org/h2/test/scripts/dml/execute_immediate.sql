@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -20,14 +20,14 @@ EXECUTE IMMEDIATE 'ALTER TABLE TEST DROP CONSTRAINT ' ||
         WHERE TABLE_SCHEMA = 'PUBLIC' AND TABLE_NAME = 'TEST' AND CONSTRAINT_TYPE = 'UNIQUE'));
 > ok
 
-SCRIPT NOPASSWORDS NOSETTINGS;
+SCRIPT NOPASSWORDS NOSETTINGS NOVERSION;
 > SCRIPT
 > ----------------------------------------------------
-> -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
-> CREATE MEMORY TABLE "PUBLIC"."TEST"( "ID" INTEGER );
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
+> CREATE MEMORY TABLE "PUBLIC"."TEST"( "ID" INTEGER );
+> -- 1 +/- SELECT COUNT(*) FROM PUBLIC.TEST;
 > INSERT INTO "PUBLIC"."TEST" VALUES (1);
-> rows: 4
+> rows (ordered): 4
 
 DROP TABLE TEST;
 > ok

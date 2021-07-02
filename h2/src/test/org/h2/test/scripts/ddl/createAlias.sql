@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -33,12 +33,12 @@ SELECT MY_SQRT(-1.0) MS, SQRT(NULL) S;
 > NaN null
 > rows: 1
 
-SCRIPT NOPASSWORDS NOSETTINGS;
+SCRIPT NOPASSWORDS NOSETTINGS NOVERSION;
 > SCRIPT
 > ----------------------------------------------------------------
-> CREATE FORCE ALIAS "PUBLIC"."MY_SQRT" FOR 'java.lang.Math.sqrt';
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
-> rows: 2
+> CREATE FORCE ALIAS "PUBLIC"."MY_SQRT" FOR 'java.lang.Math.sqrt';
+> rows (ordered): 2
 
 SELECT SPECIFIC_NAME, ROUTINE_NAME, ROUTINE_TYPE, DATA_TYPE, ROUTINE_BODY, EXTERNAL_NAME, EXTERNAL_LANGUAGE,
     IS_DETERMINISTIC, REMARKS FROM INFORMATION_SCHEMA.ROUTINES;

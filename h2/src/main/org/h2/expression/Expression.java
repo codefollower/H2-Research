@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -8,11 +8,9 @@ package org.h2.expression;
 import java.util.List;
 
 import org.h2.api.ErrorCode;
-import org.h2.engine.Database;
 import org.h2.engine.SessionLocal;
 import org.h2.expression.function.NamedExpression;
 import org.h2.message.DbException;
-import org.h2.result.ResultInterface;
 import org.h2.table.Column;
 import org.h2.table.ColumnResolver;
 import org.h2.table.TableFilter;
@@ -21,7 +19,6 @@ import org.h2.util.StringUtils;
 import org.h2.value.TypeInfo;
 import org.h2.value.Typed;
 import org.h2.value.Value;
-import org.h2.value.ValueRow;
 
 /**
  * An expression is a operation, a value, or a function in a query.
@@ -323,11 +320,14 @@ public abstract class Expression implements HasSQL, Typed {
     }
 
     /**
-     * Check if this is an auto-increment column.
+     * Check if this is an identity column.
      *
-     * @return true if it is an auto-increment column
+     * @return true if it is an identity column
      */
-    public boolean isAutoIncrement() { //只有子类Alias和ExpressionColumn覆盖了此方法
+//<<<<<<< HEAD
+//    public boolean isAutoIncrement() { //只有子类Alias和ExpressionColumn覆盖了此方法
+//=======
+    public boolean isIdentity() {
         return false;
     }
 
@@ -340,7 +340,7 @@ public abstract class Expression implements HasSQL, Typed {
      * @return the result
      */
     public boolean getBooleanValue(SessionLocal session) { //没有字类覆盖
-        return getValue(session).getBoolean();
+        return getValue(session).isTrue();
     }
 
     /**
@@ -485,43 +485,6 @@ public abstract class Expression implements HasSQL, Typed {
     @Override
     public String toString() {
         return getTraceSQL();
-    }
-
-    /**
-     * Extracts expression columns from ValueArray
-     *
-     * @param session the current session
-     * @param value the value to extract columns from
-     * @return array of expression columns
-     */
-    protected static Expression[] getExpressionColumns(SessionLocal session, ValueRow value) {
-        Value[] list = value.getList();
-        ExpressionColumn[] expr = new ExpressionColumn[list.length];
-        for (int i = 0, len = list.length; i < len; i++) {
-            Value v = list[i];
-            Column col = new Column("C" + (i + 1), v.getType());
-            expr[i] = new ExpressionColumn(session.getDatabase(), col);
-        }
-        return expr;
-    }
-
-    /**
-     * Extracts expression columns from the given result set.
-     *
-     * @param session the session
-     * @param result the result
-     * @return an array of expression columns
-     */
-    public static Expression[] getExpressionColumns(SessionLocal session, ResultInterface result) {
-        int columnCount = result.getVisibleColumnCount();
-        Expression[] expressions = new Expression[columnCount];
-        Database db = session == null ? null : session.getDatabase();
-        for (int i = 0; i < columnCount; i++) {
-            String name = result.getColumnName(i);
-            TypeInfo type = result.getColumnType(i);
-            expressions[i] = new ExpressionColumn(db, new Column(name, type));
-        }
-        return expressions;
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -69,7 +69,6 @@ import org.h2.test.db.TestRecursiveQueries;
 import org.h2.test.db.TestRights;
 import org.h2.test.db.TestRunscript;
 import org.h2.test.db.TestSQLInjection;
-import org.h2.test.db.TestSelectCountNonNullColumn;
 import org.h2.test.db.TestSelectTableNotFound;
 import org.h2.test.db.TestSequence;
 import org.h2.test.db.TestSessionsLocks;
@@ -96,7 +95,6 @@ import org.h2.test.jdbc.TestDatabaseEventListener;
 import org.h2.test.jdbc.TestDriver;
 import org.h2.test.jdbc.TestGetGeneratedKeys;
 import org.h2.test.jdbc.TestJavaObjectSerializer;
-import org.h2.test.jdbc.TestLimitUpdates;
 import org.h2.test.jdbc.TestLobApi;
 import org.h2.test.jdbc.TestManyJdbcObjects;
 import org.h2.test.jdbc.TestMetaData;
@@ -177,7 +175,6 @@ import org.h2.test.unit.TestCollation;
 import org.h2.test.unit.TestCompress;
 import org.h2.test.unit.TestConcurrentJdbc;
 import org.h2.test.unit.TestConnectionInfo;
-import org.h2.test.unit.TestDataPage;
 import org.h2.test.unit.TestDate;
 import org.h2.test.unit.TestDateIso8601;
 import org.h2.test.unit.TestDateTimeUtils;
@@ -203,9 +200,7 @@ import org.h2.test.unit.TestMemoryUnmapper;
 import org.h2.test.unit.TestMode;
 import org.h2.test.unit.TestNetUtils;
 import org.h2.test.unit.TestObjectDeserialization;
-import org.h2.test.unit.TestOldVersion;
 import org.h2.test.unit.TestOverflow;
-import org.h2.test.unit.TestPageStore;
 import org.h2.test.unit.TestPageStoreCoverage;
 import org.h2.test.unit.TestPattern;
 import org.h2.test.unit.TestPerfectHash;
@@ -224,6 +219,7 @@ import org.h2.test.unit.TestStringUtils;
 import org.h2.test.unit.TestTimeStampWithTimeZone;
 import org.h2.test.unit.TestTools;
 import org.h2.test.unit.TestTraceSystem;
+import org.h2.test.unit.TestUpgrade;
 import org.h2.test.unit.TestUtils;
 import org.h2.test.unit.TestValue;
 import org.h2.test.unit.TestValueMemory;
@@ -281,11 +277,6 @@ java org.h2.test.TestAll timer
      * the whole program.
      */
     static boolean atLeastOneTestFailed;
-
-    /**
-     * Whether the MVStore storage is used.
-     */
-    public boolean mvStore = true;
 
     /**
      * If the test should run with many rows.
@@ -348,9 +339,9 @@ java org.h2.test.TestAll timer
     public boolean splitFileSystem;
 
     /**
-     * If only fast/CI/Jenkins/Travis tests should be run.
+     * If only fast CI tests should be run.
      */
-    public boolean travis;
+    public boolean ci;
 
     /**
      * the vmlens.com race condition tool
@@ -493,8 +484,8 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
 */
         TestAll test = new TestAll();
         if (args.length > 0) {
-            if ("travis".equals(args[0])) {
-                test.travis = true;
+            if ("ci".equals(args[0])) {
+                test.ci = true;
                 test.testAll(args, 1);
             } else if ("vmlens".equals(args[0])) {
                 test.vmlens = true;
@@ -555,7 +546,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             }
         }
         runTests();
-        if (!travis && !vmlens) {
+        if (!ci && !vmlens) {
             Profiler prof = new Profiler();
             prof.depth = 16;
             prof.interval = 1;
@@ -601,7 +592,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             abbaLockingDetector = new AbbaLockingDetector().startCollecting();
         }
 
-        mvStore = true;
         smallLog = big = networked = memory = lazy = ssl = false;
         diskResult = traceSystemOut = diskUndo = false;
         traceTest = stopOnError = false;
@@ -618,7 +608,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         testAdditional();
 
         // test utilities
-        big = !travis;
+        big = !ci;
         testUtils();
         big = false;
 
@@ -632,13 +622,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         memory = false;
         test();
         testAdditional();
-
-        // basic pagestore testing
-        memory = false;
-        mvStore = false;
-        test();
-        testAdditional();
-        mvStore = true;
 
         networked = true;
 
@@ -667,7 +650,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         cacheType = null;
         cipher = null;
 
-        if (!travis) {
+        if (!ci) {
             traceLevelFile = 0;
             smallLog = true;
             networked = true;
@@ -708,7 +691,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         testAdditional();
         testUtils();
 
-        mvStore = false;
         test();
         // testUnit();
     }
@@ -772,7 +754,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             addTest(new TestRunscript());
             addTest(new TestSQLInjection());
             addTest(new TestSessionsLocks());
-            addTest(new TestSelectCountNonNullColumn());
             addTest(new TestSequence());
             addTest(new TestSpaceReuse());
             addTest(new TestSpatial());
@@ -794,7 +775,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
             addTest(new TestConcurrentConnectionUsage());
             addTest(new TestConnection());
             addTest(new TestDatabaseEventListener());
-            addTest(new TestLimitUpdates());
             addTest(new TestLobApi());
             addTest(new TestSQLXML());
             addTest(new TestManyJdbcObjects());
@@ -889,9 +869,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestExit());
         addTest(new TestFileLock());
         addTest(new TestJmx());
-        addTest(new TestOldVersion());
         addTest(new TestMultiThreadedKernel());
-        addTest(new TestPageStore());
         addTest(new TestPageStoreCoverage());
         addTest(new TestPgServer());
         addTest(new TestRecovery());
@@ -945,7 +923,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestBinaryOperation());
         addTest(new TestBitStream());
         addTest(new TestCharsetCollator());
-        addTest(new TestDataPage());
         addTest(new TestDateIso8601());
         addTest(new TestDbException());
         addTest(new TestFile());
@@ -973,6 +950,7 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
         addTest(new TestStringUtils());
         addTest(new TestTraceSystem());
         addTest(new TestUtils());
+        addTest(new TestUpgrade());
 
         runAddedTests();
 
@@ -1133,11 +1111,6 @@ kill -9 `jps -l | grep "org.h2.test." | cut -d " " -f 1`
     public String toString() {
         StringBuilder buff = new StringBuilder();
         appendIf(buff, lazy, "lazy");
-        if (mvStore) {
-            buff.append("mvStore ");
-        } else {
-            buff.append("pageStore ");
-        }
         appendIf(buff, big, "big");
         appendIf(buff, networked, "net");
         appendIf(buff, memory, "memory");

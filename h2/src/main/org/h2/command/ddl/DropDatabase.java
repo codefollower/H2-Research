@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,6 +11,8 @@ import java.util.Collection;
 import org.h2.command.CommandInterface;
 import org.h2.engine.Database;
 import org.h2.engine.DbObject;
+import org.h2.engine.Right;
+import org.h2.engine.RightOwner;
 import org.h2.engine.Role;
 import org.h2.engine.SessionLocal;
 import org.h2.engine.User;
@@ -46,8 +48,8 @@ public class DropDatabase extends DefineCommand {
     }
 
     private void dropAllObjects() {
-        session.getUser().checkAdmin();
-        session.commit(true);
+        User user = session.getUser();
+        user.checkAdmin();
         Database db = session.getDatabase();
         db.lockMeta(session);
 
@@ -118,8 +120,8 @@ public class DropDatabase extends DefineCommand {
         addAll(schemas, DbObject.CONSTRAINT, list);
         addAll(schemas, DbObject.TRIGGER, list);
         addAll(schemas, DbObject.CONSTANT, list);
+        // Function aliases and aggregates are stored together
         addAll(schemas, DbObject.FUNCTION_ALIAS, list);
-        addAll(schemas, DbObject.AGGREGATE, list);
         addAll(schemas, DbObject.DOMAIN, list);
         for (SchemaObject obj : list) {
             if (!obj.getSchema().isValid() || obj.isHidden()) {
@@ -127,26 +129,14 @@ public class DropDatabase extends DefineCommand {
             }
             db.removeSchemaObject(session, obj);
         }
-        for (User user : db.getAllUsers()) {
-            if (user != session.getUser()) {
-                db.removeDatabaseObject(session, user);
+        Role publicRole = db.getPublicRole();
+        for (RightOwner rightOwner : db.getAllUsersAndRoles()) {
+            if (rightOwner != user && rightOwner != publicRole) {
+                db.removeDatabaseObject(session, rightOwner);
             }
         }
-        for (Role role : db.getAllRoles()) {
-            String sql = role.getCreateSQL();
-            // the role PUBLIC must not be dropped
-            if (sql != null) {
-                db.removeDatabaseObject(session, role);
-            }
-        }
-        ArrayList<DbObject> dbObjects = new ArrayList<>();
-        dbObjects.addAll(db.getAllRights());
-        for (DbObject obj : dbObjects) {
-            String sql = obj.getCreateSQL();
-            // the role PUBLIC must not be dropped
-            if (sql != null) {
-                db.removeDatabaseObject(session, obj);
-            }
+        for (Right right : db.getAllRights()) {
+            db.removeDatabaseObject(session, right);
         }
         for (SessionLocal s : db.getSessions(false)) {
             s.setLastIdentity(ValueNull.INSTANCE);

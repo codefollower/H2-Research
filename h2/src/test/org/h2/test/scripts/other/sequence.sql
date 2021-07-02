@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -116,8 +116,7 @@ TABLE TEST;
 DROP TABLE TEST;
 > ok
 
--- MariaDB
-SET MODE MySQL;
+SET MODE MariaDB;
 > ok
 
 SELECT NEXT VALUE FOR S1 A, NEXT VALUE FOR S2 B, NEXT VALUE FOR S1 C, NEXT VALUE FOR S2 D FROM SYSTEM_RANGE(1, 2);
@@ -190,14 +189,14 @@ create sequence s.seq cache 0;
 alter sequence s.seq restart with 10;
 > ok
 
-script NOPASSWORDS NOSETTINGS drop;
+SCRIPT NOPASSWORDS NOSETTINGS NOVERSION DROP;
 > SCRIPT
 > ----------------------------------------------------------------------------------
-> CREATE SCHEMA IF NOT EXISTS "S" AUTHORIZATION "SA";
-> CREATE SEQUENCE "S"."SEQ" AS NUMERIC(19, 0) START WITH 1 RESTART WITH 10 NO CACHE;
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
+> CREATE SCHEMA IF NOT EXISTS "S" AUTHORIZATION "SA";
 > DROP SEQUENCE IF EXISTS "S"."SEQ";
-> rows: 4
+> CREATE SEQUENCE "S"."SEQ" AS NUMERIC(19, 0) START WITH 1 RESTART WITH 10 NO CACHE;
+> rows (ordered): 4
 
 drop schema s cascade;
 > ok
@@ -355,12 +354,12 @@ SELECT NEXT VALUE FOR SEQ;
 SELECT CACHE FROM INFORMATION_SCHEMA.SEQUENCES WHERE SEQUENCE_NAME = 'SEQ';
 >> 2
 
-SCRIPT NODATA NOPASSWORDS NOSETTINGS;
+SCRIPT NODATA NOPASSWORDS NOSETTINGS NOVERSION;
 > SCRIPT
 > -----------------------------------------------------------------
-> CREATE SEQUENCE "PUBLIC"."SEQ" START WITH 1 MAXVALUE 2 EXHAUSTED;
 > CREATE USER IF NOT EXISTS "SA" PASSWORD '' ADMIN;
-> rows: 2
+> CREATE SEQUENCE "PUBLIC"."SEQ" START WITH 1 MAXVALUE 2 EXHAUSTED;
+> rows (ordered): 2
 
 @reconnect
 

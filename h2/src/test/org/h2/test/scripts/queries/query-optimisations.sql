@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -76,4 +76,46 @@ SELECT _ROWID_, A FROM TEST WHERE B = 4;
 > rows: 1
 
 DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(V VARCHAR(2)) AS VALUES -1, -2;
+> ok
+
+CREATE INDEX TEST_INDEX ON TEST(V);
+> ok
+
+SELECT * FROM TEST WHERE V >= -1;
+>> -1
+
+-- H2 may use the index for a table scan, but may not create index conditions due to incompatible type
+EXPLAIN SELECT * FROM TEST WHERE V >= -1;
+>> SELECT "PUBLIC"."TEST"."V" FROM "PUBLIC"."TEST" /* PUBLIC.TEST_INDEX */ WHERE "V" >= -1
+
+EXPLAIN SELECT * FROM TEST WHERE V IN (-1, -3);
+>> SELECT "PUBLIC"."TEST"."V" FROM "PUBLIC"."TEST" /* PUBLIC.TEST_INDEX */ WHERE "V" IN(-1, -3)
+
+SELECT * FROM TEST WHERE V < -1;
+>> -2
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE T(ID INT, V INT) AS VALUES (1, 1), (1, 2), (2, 1), (2, 2);
+> ok
+
+SELECT T1.ID, T2.V AS LV FROM (SELECT ID, MAX(V) AS LV FROM T GROUP BY ID) AS T1
+    INNER JOIN T AS T2 ON T2.ID = T1.ID AND T2.V = T1.LV
+    WHERE T1.ID IN (1, 2) ORDER BY ID;
+> ID LV
+> -- --
+> 1  2
+> 2  2
+> rows (ordered): 2
+
+EXPLAIN SELECT T1.ID, T2.V AS LV FROM (SELECT ID, MAX(V) AS LV FROM T GROUP BY ID) AS T1
+    INNER JOIN T AS T2 ON T2.ID = T1.ID AND T2.V = T1.LV
+    WHERE T1.ID IN (1, 2) ORDER BY ID;
+>> SELECT "T1"."ID", "T2"."V" AS "LV" FROM "PUBLIC"."T" "T2" /* PUBLIC.T.tableScan */ INNER JOIN ( SELECT "ID", MAX("V") AS "LV" FROM "PUBLIC"."T" GROUP BY "ID" ) "T1" /* SELECT ID, MAX(V) AS LV FROM PUBLIC.T /* PUBLIC.T.tableScan */ WHERE ID IS NOT DISTINCT FROM ?1 GROUP BY ID HAVING MAX(V) IS NOT DISTINCT FROM ?2: ID = T2.ID AND LV = T2.V */ ON 1=1 WHERE ("T1"."ID" IN(1, 2)) AND ("T2"."ID" = "T1"."ID") AND ("T2"."V" = "T1"."LV") ORDER BY 1
+
+DROP TABLE T;
 > ok

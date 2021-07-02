@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -37,8 +37,6 @@ public class DropSchema extends DefineCommand {
 
     @Override
     public long update() {
-        session.getUser().checkSchemaAdmin();
-        session.commit(true);
         Database db = session.getDatabase();
         Schema schema = db.findSchema(schemaName);
         if (schema == null) {
@@ -46,6 +44,7 @@ public class DropSchema extends DefineCommand {
                 throw DbException.get(ErrorCode.SCHEMA_NOT_FOUND_1, schemaName);
             }
         } else {
+            session.getUser().checkSchemaOwner(schema);
             if (!schema.canDrop()) { //比如public模式不能drop
                 throw DbException.get(ErrorCode.SCHEMA_CAN_NOT_BE_DROPPED_1, schemaName);
             }

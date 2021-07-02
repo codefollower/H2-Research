@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -153,7 +153,7 @@ public class Select extends Query {
     boolean isGroupQuery;
     private boolean isGroupSortedQuery;
     private boolean isWindowQuery;
-    private boolean isForUpdate, isForUpdateMvcc;
+    private boolean isForUpdate;
     private double cost;
     //isQuickAggregateQuery是针对min、max、count三个聚合函数的特别优化
     private boolean isQuickAggregateQuery, isDistinctQuery;
@@ -388,7 +388,7 @@ public class Select extends Query {
     }
 
     private boolean isHavingNullOrFalse(Value[] row) {
-        return havingIndex >= 0 && !row[havingIndex].getBoolean();
+        return havingIndex >= 0 && !row[havingIndex].isTrue();
     }
 
     private Index getGroupSortedIndex() {
@@ -483,7 +483,7 @@ public class Select extends Query {
                     Row row = tableFilter.get();
                     Table table = tableFilter.getTable();
                     // Views, function tables, links, etc. do not support locks
-                    if (table.isMVStore()) {
+                    if (table.isRowLockable()) {
                         Row lockedRow = table.lockRow(session, row);
                         if (lockedRow == null) {
                             return false;
@@ -572,7 +572,7 @@ public class Select extends Query {
         setCurrentRowNumber(0);
         while (topTableFilter.next()) {
             setCurrentRowNumber(rowNumber + 1);
-            if (isForUpdateMvcc ? isConditionMetForUpdate() : isConditionMet()) {
+            if (isForUpdate ? isConditionMetForUpdate() : isConditionMet()) {
                 rowNumber++;
                 groupData.nextSource();
                 updateAgg(columnCount, stage);
@@ -642,7 +642,7 @@ public class Select extends Query {
             if (withHaving && isHavingNullOrFalse(row)) {
                 continue;
             }
-            if (qualifyIndex >= 0 && !row[qualifyIndex].getBoolean()) {
+            if (qualifyIndex >= 0 && !row[qualifyIndex].isTrue()) {
                 continue;
             }
             if (quickOffset && offset > 0) {
@@ -690,7 +690,11 @@ public class Select extends Query {
         }
         //生成orderby字段列表
         ArrayList<Column> sortColumns = Utils.newSmallArrayList();
-        for (int idx : sort.getQueryColumnIndexes()) {
+        int[] queryColumnIndexes = sort.getQueryColumnIndexes();
+        int queryIndexesLength = queryColumnIndexes.length;
+        int[] sortIndex = new int[queryIndexesLength];
+        for (int i = 0, j = 0; i < queryIndexesLength; i++) {
+            int idx = queryColumnIndexes[i];
             if (idx < 0 || idx >= expressions.size()) {
                 throw DbException.getInvalidValueException("ORDER BY", idx + 1);
             }
@@ -707,6 +711,7 @@ public class Select extends Query {
                 return null;
             }
             sortColumns.add(exprCol.getColumn());
+            sortIndex[j++] = i;
         }
         //如果没有orderby字段直接用scan index
         Column[] sortCols = sortColumns.toArray(new Column[0]);
@@ -746,9 +751,10 @@ public class Select extends Query {
                     if (idxCol.column != sortCol) {
                         continue loop;
                     }
+                    int sortType = sortTypes[sortIndex[j]];
                     if (sortCol.isNullable()
-                            ? defaultNullOrdering.addExplicitNullOrdering(idxCol.sortType) != sortTypes[j]
-                            : (idxCol.sortType & SortOrder.DESCENDING) != (sortTypes[j] & SortOrder.DESCENDING)) {
+                            ? defaultNullOrdering.addExplicitNullOrdering(idxCol.sortType) != sortType
+                            : (idxCol.sortType & SortOrder.DESCENDING) != (sortType & SortOrder.DESCENDING)) {
                         continue loop;
                     }
                 }
@@ -818,7 +824,7 @@ public class Select extends Query {
                 limitRows = Long.MAX_VALUE;
             }
         }
-        LazyResultQueryFlat lazyResult = new LazyResultQueryFlat(expressionArray, columnCount, isForUpdateMvcc);
+        LazyResultQueryFlat lazyResult = new LazyResultQueryFlat(expressionArray, columnCount, isForUpdate);
         skipOffset(lazyResult, offset, quickOffset);
         if (result == null) {
             return lazyResult;
@@ -912,8 +918,7 @@ public class Select extends Query {
         }
         topTableFilter.startQuery(session);
         topTableFilter.reset();
-        boolean exclusive = isForUpdate && !isForUpdateMvcc; //见setForUpdate(boolean)
-        topTableFilter.lock(session, exclusive, exclusive);
+        topTableFilter.lock(session);
         ResultTarget to = result != null ? result : target;
         lazy &= to == null;
         LazyResult lazyResult = null;
@@ -1486,7 +1491,7 @@ public class Select extends Query {
                     }
                 }
             }
-            if (sortUsingIndex && isForUpdateMvcc && !topTableFilter.getIndex().isRowIdIndex()) {
+            if (sortUsingIndex && isForUpdate && !topTableFilter.getIndex().isRowIdIndex()) {
                 sortUsingIndex = false;
             }
         }
@@ -1776,9 +1781,6 @@ public class Select extends Query {
             throw DbException.get(ErrorCode.FOR_UPDATE_IS_NOT_ALLOWED_IN_DISTINCT_OR_GROUPED_SELECT);
         }
         this.isForUpdate = b;
-        if (session.getDatabase().isMVStore()) {
-            isForUpdateMvcc = b;
-        }
     }
 
     @Override

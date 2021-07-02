@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -53,15 +53,6 @@ SELECT X, CASE X WHEN 1 THEN 10 WHEN 2, 3 THEN 25 WHEN 4, 5, 6 THEN 50 ELSE 90 E
 
 SELECT CASE WHEN TRUE THEN 1 END CASE;
 > exception SYNTAX_ERROR_1
-
-SET MODE MySQL;
-> ok
-
-SELECT CASE WHEN TRUE THEN 1 END CASE;
->> 1
-
-SET MODE Regular;
-> ok
 
 SELECT S, CASE S
     WHEN IS NULL THEN 1

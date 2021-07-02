@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -165,8 +165,10 @@ public class MVStore implements AutoCloseable {
      */
     static final int BLOCK_SIZE = 4 * 1024;
 
-    private static final int FORMAT_WRITE = 2;
-    private static final int FORMAT_READ = 2;
+    private static final int FORMAT_WRITE_MIN = 2;
+    private static final int FORMAT_WRITE_MAX = 2;
+    private static final int FORMAT_READ_MIN = 2;
+    private static final int FORMAT_READ_MAX = 2;
 
     /**
      * Store is open.
@@ -276,7 +278,7 @@ public class MVStore implements AutoCloseable {
 
     private final HashMap<String, Object> storeHeader = new HashMap<>();
 
-    private Queue<WriteBuffer> writeBufferPool = new ArrayBlockingQueue<>(PIPE_LENGTH + 1);
+    private final Queue<WriteBuffer> writeBufferPool = new ArrayBlockingQueue<>(PIPE_LENGTH + 1);
 
     private final AtomicInteger lastMapId = new AtomicInteger();
 
@@ -376,9 +378,16 @@ public class MVStore implements AutoCloseable {
         compressionLevel = DataUtils.getConfigParam(config, "compress", 0);
         String fileName = (String) config.get("fileName");
         FileStore fileStore = (FileStore) config.get("fileStore");
-        fileStoreIsProvided = fileStore != null;
-        if(fileStore == null && fileName != null) {
-            fileStore = new FileStore();
+        if (fileStore == null) {
+            fileStoreIsProvided = false;
+            if (fileName != null) {
+                fileStore = new FileStore();
+            }
+        } else {
+            if (fileName != null) {
+                throw new IllegalArgumentException("fileName && fileStore");
+            }
+            fileStoreIsProvided = true;
         }
         this.fileStore = fileStore;
 
@@ -438,7 +447,7 @@ public class MVStore implements AutoCloseable {
                         creationTime = getTimeAbsolute();
                         storeHeader.put(HDR_H, 2);
                         storeHeader.put(HDR_BLOCK_SIZE, BLOCK_SIZE);
-                        storeHeader.put(HDR_FORMAT, FORMAT_WRITE);
+                        storeHeader.put(HDR_FORMAT, FORMAT_WRITE_MAX);
                         storeHeader.put(HDR_CREATED, creationTime);
                         setLastChunk(null);
                         writeStoreHeader();
@@ -643,7 +652,12 @@ public class MVStore implements AutoCloseable {
             M map = builder.create(this, c);
             String x = Integer.toHexString(id);
             meta.put(MVMap.getMapKey(id), map.asString(name));
-            meta.put(DataUtils.META_NAME + name, x);
+            String existing = meta.putIfAbsent(DataUtils.META_NAME + name, x);
+            if (existing != null) {
+                // looks like map was created concurrently, cleanup and re-start
+                meta.remove(MVMap.getMapKey(id));
+                return openMap(name, builder);
+            }
             long lastStoredVersion = currentVersion - 1;
             map.setRootPos(0, lastStoredVersion);
             markMetaChanged();
@@ -666,26 +680,24 @@ public class MVStore implements AutoCloseable {
      * @param builder the map builder
      * @return the map
      */
+    @SuppressWarnings("unchecked")
     public <M extends MVMap<K, V>, K, V> M openMap(int id, MVMap.MapBuilder<M, K, V> builder) {
-        storeLock.lock();
-        try {
-            @SuppressWarnings("unchecked")
-            M map = (M) getMap(id);
-            if (map == null) {
-                String configAsString = meta.get(MVMap.getMapKey(id));
-                DataUtils.checkArgument(configAsString != null, "Missing map with id {0}", id);
-                HashMap<String, Object> config = new HashMap<>(DataUtils.parseMap(configAsString));
-                config.put("id", id);
-                map = builder.create(this, config);
-                long root = getRootPos(id);
-                long lastStoredVersion = currentVersion - 1;
-                map.setRootPos(root, lastStoredVersion);
-                maps.put(id, map);
+        M map;
+        while ((map = (M)getMap(id)) == null) {
+            String configAsString = meta.get(MVMap.getMapKey(id));
+            DataUtils.checkArgument(configAsString != null, "Missing map with id {0}", id);
+            HashMap<String, Object> config = new HashMap<>(DataUtils.parseMap(configAsString));
+            config.put("id", id);
+            map = builder.create(this, config);
+            long root = getRootPos(id);
+            long lastStoredVersion = currentVersion - 1;
+            map.setRootPos(root, lastStoredVersion);
+            if (maps.putIfAbsent(id, map) == null) {
+                break;
             }
-            return map;
-        } finally {
-            storeLock.unlock();
+            // looks like map has been concurrently created already, re-start
         }
+        return map;
     }
 
     /**
@@ -858,21 +870,26 @@ public class MVStore implements AutoCloseable {
                     blockSize);
         }
         long format = DataUtils.readHexLong(storeHeader, HDR_FORMAT, 1);
-        if (format > FORMAT_WRITE && !fileStore.isReadOnly()) {
-            throw DataUtils.newMVStoreException(
-                    DataUtils.ERROR_UNSUPPORTED_FORMAT,
-                    "The write format {0} is larger " +
-                    "than the supported format {1}, " +
-                    "and the file was not opened in read-only mode",
-                    format, FORMAT_WRITE);
+        if (!fileStore.isReadOnly()) {
+            if (format > FORMAT_WRITE_MAX) {
+                throw getUnsupportedWriteFormatException(format, FORMAT_WRITE_MAX,
+                        "The write format {0} is larger than the supported format {1}");
+            } else if (format < FORMAT_WRITE_MIN) {
+                throw getUnsupportedWriteFormatException(format, FORMAT_WRITE_MIN,
+                        "The write format {0} is smaller than the supported format {1}");
+            }
         }
         format = DataUtils.readHexLong(storeHeader, HDR_FORMAT_READ, format);
-        if (format > FORMAT_READ) {
+        if (format > FORMAT_READ_MAX) {
             throw DataUtils.newMVStoreException(
                     DataUtils.ERROR_UNSUPPORTED_FORMAT,
-                    "The read format {0} is larger " +
-                    "than the supported format {1}",
-                    format, FORMAT_READ);
+                    "The read format {0} is larger than the supported format {1}",
+                    format, FORMAT_READ_MAX);
+        } else if (format < FORMAT_READ_MIN) {
+            throw DataUtils.newMVStoreException(
+                    DataUtils.ERROR_UNSUPPORTED_FORMAT,
+                    "The read format {0} is smaller than the supported format {1}",
+                    format, FORMAT_READ_MIN);
         }
 
         assumeCleanShutdown = assumeCleanShutdown && newest != null && !recoveryMode;
@@ -910,6 +927,7 @@ public class MVStore implements AutoCloseable {
             return result;
         };
 
+        Map<Long, Chunk> validChunksByLocation = new HashMap<>();
         if (!assumeCleanShutdown) {
             Chunk tailChunk = discoverChunk(blocksInStore);
             if (tailChunk != null) {
@@ -918,25 +936,24 @@ public class MVStore implements AutoCloseable {
                     newest = tailChunk;
                 }
             }
-        }
 
-        Map<Long, Chunk> validChunksByLocation = new HashMap<>();
-        if (newest != null) {
-            // read the chunk header and footer,
-            // and follow the chain of next chunks
-            while (true) {
-                validChunksByLocation.put(newest.block, newest);
-                if (newest.next == 0 || newest.next >= blocksInStore) {
-                    // no (valid) next
-                    break;
+            if (newest != null) {
+                // read the chunk header and footer,
+                // and follow the chain of next chunks
+                while (true) {
+                    validChunksByLocation.put(newest.block, newest);
+                    if (newest.next == 0 || newest.next >= blocksInStore) {
+                        // no (valid) next
+                        break;
+                    }
+                    Chunk test = readChunkHeaderAndFooter(newest.next, newest.id + 1);
+                    if (test == null || test.version <= newest.version) {
+                        break;
+                    }
+                    // if shutdown was really clean then chain should be empty
+                    assumeCleanShutdown = false;
+                    newest = test;
                 }
-                Chunk test = readChunkHeaderAndFooter(newest.next, newest.id + 1);
-                if (test == null || test.version <= newest.version) {
-                    break;
-                }
-                // if shutdown was really clean then chain should be empty
-                assumeCleanShutdown = false;
-                newest = test;
             }
         }
 
@@ -1032,6 +1049,14 @@ public class MVStore implements AutoCloseable {
             }
         }
         assert validateFileLength("on open");
+    }
+
+    private MVStoreException getUnsupportedWriteFormatException(long format, int expectedFormat, String s) {
+        format = DataUtils.readHexLong(storeHeader, HDR_FORMAT_READ, format);
+        if (format >= FORMAT_READ_MIN && format <= FORMAT_READ_MAX) {
+            s += ", and the file was not opened in read-only mode";
+        }
+        return DataUtils.newMVStoreException(DataUtils.ERROR_UNSUPPORTED_FORMAT, s, format, expectedFormat);
     }
 
     private boolean findLastChunkWithCompleteValidChunkSet(Chunk[] lastChunkCandidates,
@@ -1206,12 +1231,13 @@ public class MVStore implements AutoCloseable {
     }
 
     private void writeStoreHeader() {
-        StringBuilder buff = new StringBuilder(112);
+        Chunk lastChunk = this.lastChunk;
         if (lastChunk != null) {
             storeHeader.put(HDR_BLOCK, lastChunk.block);
             storeHeader.put(HDR_CHUNK, lastChunk.id);
             storeHeader.put(HDR_VERSION, lastChunk.version);
         }
+        StringBuilder buff = new StringBuilder(112);
         DataUtils.appendMap(buff, storeHeader);
         byte[] bytes = buff.toString().getBytes(StandardCharsets.ISO_8859_1);
         int checksum = DataUtils.getFletcher32(bytes, 0, bytes.length);
@@ -2539,9 +2565,6 @@ public class MVStore implements AutoCloseable {
                 try {
                     ByteBuffer buff = chunk.readBufferForPage(fileStore, pageOffset, pos);
                     p = Page.read(buff, pos, map);
-                    if (p.pageNo < 0) {
-                        p.pageNo = calculatePageNo(pos);
-                    }
                 } catch (MVStoreException e) {
                     throw e;
                 } catch (Exception e) {
@@ -2910,10 +2933,12 @@ public class MVStore implements AutoCloseable {
         storeLock.lock();
         try {
             checkOpen();
+            currentVersion = version;
             if (version == 0) {
                 // special case: remove all data
                 layout.setInitialRoot(layout.createEmptyLeaf(), INITIAL_VERSION);
                 meta.setInitialRoot(meta.createEmptyLeaf(), INITIAL_VERSION);
+                layout.put(META_ID_KEY, Integer.toHexString(meta.getId()));
                 deadChunks.clear();
                 removedPages.clear();
                 chunks.clear();
@@ -2928,7 +2953,6 @@ public class MVStore implements AutoCloseable {
                 }
                 lastChunk = null;
                 versions.clear();
-                currentVersion = version;
                 setWriteVersion(version);
                 metaChanged = false;
                 for (MVMap<?, ?> m : maps.values()) {
@@ -2946,68 +2970,15 @@ public class MVStore implements AutoCloseable {
             }
             currentTxCounter = new TxCounter(version);
 
-            layout.rollbackTo(version);
-            meta.rollbackTo(version);
-            metaChanged = false;
-            // find out which chunks to remove,
-            // and which is the newest chunk to keep
-            // (the chunk list can have gaps)
-            ArrayList<Integer> remove = new ArrayList<>();
-            Chunk keep = null;
-            serializationLock.lock();
-            try {
-                for (Chunk c : chunks.values()) {
-                    if (c.version > version) {
-                        remove.add(c.id);
-                    } else if (keep == null || keep.version < c.version) {
-                        keep = c;
-                    }
-                }
-                if (!remove.isEmpty()) {
-                    // remove the youngest first, so we don't create gaps
-                    // (in case we remove many chunks)
-                    remove.sort(Collections.reverseOrder());
-                    saveChunkLock.lock();
-                    try {
-
-                        for (int id : remove) {
-                            Chunk c = chunks.remove(id);
-                            if (c != null) {
-                                long start = c.block * BLOCK_SIZE;
-                                int length = c.len * BLOCK_SIZE;
-                                freeFileSpace(start, length);
-                                // overwrite the chunk,
-                                // so it is not be used later on
-                                WriteBuffer buff = getWriteBuffer();
-                                try {
-                                    buff.limit(length);
-                                    // buff.clear() does not set the data
-                                    Arrays.fill(buff.getBuffer().array(), (byte) 0);
-                                    write(start, buff.getBuffer());
-                                } finally {
-                                    releaseWriteBuffer(buff);
-                                }
-                                // only really needed if we remove many chunks, when writes are
-                                // re-ordered - but we do it always, because rollback is not
-                                // performance critical
-                                sync();
-                            }
-                        }
-                        lastChunk = keep;
-                        writeStoreHeader();
-                        readStoreHeader();
-                    } finally {
-                        saveChunkLock.unlock();
-                    }
-                }
-            } finally {
-                serializationLock.unlock();
+            if (!layout.rollbackRoot(version)) {
+                MVMap<String, String> layoutMap = getLayoutMap(version);
+                layout.setInitialRoot(layoutMap.getRootPage(), version);
             }
-            deadChunks.clear();
-            removedPages.clear();
-            clearCaches();
-            currentVersion = version;
-            onVersionChange(currentVersion);
+            if (!meta.rollbackRoot(version)) {
+                meta.setRootPos(getRootPos(meta.getId()), version - 1);
+            }
+            metaChanged = false;
+
             for (MVMap<?, ?> m : new ArrayList<>(maps.values())) {
                 int id = m.getId();
                 if (m.getCreateVersion() >= version) {
@@ -3019,6 +2990,29 @@ public class MVStore implements AutoCloseable {
                     }
                 }
             }
+
+            deadChunks.clear();
+            removedPages.clear();
+            clearCaches();
+
+            serializationLock.lock();
+            try {
+                Chunk keep = getChunkForVersion(version);
+                if (keep != null) {
+                    saveChunkLock.lock();
+                    try {
+                        setLastChunk(keep);
+                        storeHeader.put(HDR_CLEAN, 1);
+                        writeStoreHeader();
+                        readStoreHeader();
+                    } finally {
+                        saveChunkLock.unlock();
+                    }
+                }
+            } finally {
+                serializationLock.unlock();
+            }
+            onVersionChange(currentVersion);
             assert !hasUnsavedChanges();
         } finally {
             unlockAndCheckPanicCondition();
@@ -3169,7 +3163,6 @@ public class MVStore implements AutoCloseable {
      * @return the name, or null if not found
      */
     public String getMapName(int id) {
-//        checkOpen();
         String m = meta.get(MVMap.getMapKey(id));
         return m == null ? null : DataUtils.getMapName(m);
     }

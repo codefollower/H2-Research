@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -18,23 +18,17 @@ import org.h2.schema.Schema;
 /**
  * This class represents the statement ALTER DOMAIN ADD CONSTRAINT
  */
-public class AlterDomainAddConstraint extends SchemaCommand {
+public class AlterDomainAddConstraint extends AlterDomain {
 
     private String constraintName;
-    private String domainName;
     private Expression checkExpression;
     private String comment;
     private boolean checkExisting;
-    private boolean ifDomainExists;
     private final boolean ifNotExists;
 
     public AlterDomainAddConstraint(SessionLocal session, Schema schema, boolean ifNotExists) {
         super(session, schema);
         this.ifNotExists = ifNotExists;
-    }
-
-    public void setIfDomainExists(boolean b) {
-        ifDomainExists = b;
     }
 
     private String generateConstraintName(Domain domain) {
@@ -45,9 +39,9 @@ public class AlterDomainAddConstraint extends SchemaCommand {
     }
 
     @Override
-    public long update() {
+    long update(Schema schema, Domain domain) {
         try {
-            return tryUpdate();
+            return tryUpdate(schema, domain);
         } finally {
             getSchema().freeUniqueName(constraintName);
         }
@@ -56,30 +50,23 @@ public class AlterDomainAddConstraint extends SchemaCommand {
     /**
      * Try to execute the statement.
      *
+     * @param schema the schema
+     * @param domain the domain
      * @return the update count
      */
-    private int tryUpdate() {
-        session.commit(true);
-        Domain domain = getSchema().findDomain(domainName);
-        if (domain == null) {
-            if (ifDomainExists) {
-                return 0;
-            }
-            throw DbException.get(ErrorCode.DOMAIN_NOT_FOUND_1, domainName);
-        }
-        if (constraintName != null && getSchema().findConstraint(session, constraintName) != null) {
+    private int tryUpdate(Schema schema, Domain domain) {
+        if (constraintName != null && schema.findConstraint(session, constraintName) != null) {
             if (ifNotExists) {
                 return 0;
             }
             throw DbException.get(ErrorCode.CONSTRAINT_ALREADY_EXISTS_1, constraintName);
         }
-        session.getUser().checkAdmin();
         Database db = session.getDatabase();
         db.lockMeta(session);
 
         int id = getObjectId();
         String name = generateConstraintName(domain);
-        ConstraintDomain constraint = new ConstraintDomain(getSchema(), id, name, domain);
+        ConstraintDomain constraint = new ConstraintDomain(schema, id, name, domain);
         constraint.setExpression(session, checkExpression);
         if (checkExisting) {
             constraint.checkExistingData(session);
@@ -105,10 +92,6 @@ public class AlterDomainAddConstraint extends SchemaCommand {
 
     public void setCheckExpression(Expression expression) {
         this.checkExpression = expression;
-    }
-
-    public void setDomainName(String domainName) {
-        this.domainName = domainName;
     }
 
     public void setComment(String comment) {

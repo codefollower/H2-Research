@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -12,11 +12,14 @@ import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import java.util.TimeZone;
+
 import org.h2.api.ErrorCode;
 import org.h2.engine.Constants;
 import org.h2.engine.SysProperties;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
+import org.h2.util.DateTimeUtils;
 
 /**
  * Tests the client info
@@ -48,6 +51,7 @@ public class TestConnection extends TestDb {
         testChangeTransactionLevelCommitRunner();
         testLockTimeout();
         testIgnoreUnknownSettings();
+        testTimeZone();
     }
 
     private void testSetInternalProperty() throws SQLException {
@@ -127,10 +131,10 @@ public class TestConnection extends TestDb {
             conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
             assertEquals(Connection.TRANSACTION_READ_UNCOMMITTED, conn.getTransactionIsolation());
             conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-            assertEquals(config.mvStore ? Connection.TRANSACTION_REPEATABLE_READ : Connection.TRANSACTION_SERIALIZABLE,
+            assertEquals(Connection.TRANSACTION_REPEATABLE_READ,
                     conn.getTransactionIsolation());
             conn.setTransactionIsolation(Constants.TRANSACTION_SNAPSHOT);
-            assertEquals(config.mvStore ? Constants.TRANSACTION_SNAPSHOT : Connection.TRANSACTION_SERIALIZABLE,
+            assertEquals(Constants.TRANSACTION_SNAPSHOT,
                     conn.getTransactionIsolation());
             conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             assertEquals(Connection.TRANSACTION_SERIALIZABLE, conn.getTransactionIsolation());
@@ -329,9 +333,6 @@ public class TestConnection extends TestDb {
     }
 
     private void testLockTimeout() throws SQLException {
-        if (!config.mvStore) {
-            return;
-        }
         deleteDb("lockTimeout");
         try (Connection conn1 = getConnection("lockTimeout");
                 Connection conn2 = getConnection("lockTimeout;LOCK_TIMEOUT=6000")) {
@@ -356,16 +357,46 @@ public class TestConnection extends TestDb {
 
     private void testIgnoreUnknownSettings() throws SQLException {
         deleteDb("ignoreUnknownSettings");
-        try {
-            getConnection("ignoreUnknownSettings;A=1");
-            fail("UNSUPPORTED_SETTING_1 expected");
-        } catch (SQLException e) {
-            assertEquals(ErrorCode.UNSUPPORTED_SETTING_1, e.getErrorCode());
-        }
-        try (Connection c = getConnection("ignoreUnknownSettings;IGNORE_UNKNOWN_SETTINGS=TRUE;A=1")){
+        assertThrows(ErrorCode.UNSUPPORTED_SETTING_1, () -> getConnection("ignoreUnknownSettings;A=1"));
+        try (Connection c = getConnection("ignoreUnknownSettings;IGNORE_UNKNOWN_SETTINGS=TRUE;A=1")) {
         } finally {
             deleteDb("ignoreUnknownSettings");
         }
+    }
+
+    private void testTimeZone() throws SQLException {
+        deleteDb("timeZone");
+        String tz1 = "Europe/London", tz2 = "Europe/Paris", tz3 = "Asia/Tokyo";
+        try (Connection c = getConnection("timeZone")) {
+            TimeZone tz = TimeZone.getDefault();
+            try {
+                TimeZone.setDefault(TimeZone.getTimeZone(tz1));
+                DateTimeUtils.resetCalendar();
+                try (Connection c1 = getConnection("timeZone")) {
+                    TimeZone.setDefault(TimeZone.getTimeZone(tz2));
+                    DateTimeUtils.resetCalendar();
+                    try (Connection c2 = getConnection("timeZone");
+                            Connection c3 = getConnection("timeZone;TIME ZONE=" + tz3)) {
+                        checkTimeZone(tz1, c1);
+                        checkTimeZone(tz2, c2);
+                        checkTimeZone(tz3, c3);
+                    }
+                }
+            } finally {
+                TimeZone.setDefault(tz);
+                DateTimeUtils.resetCalendar();
+            }
+        } finally {
+            deleteDb("timeZone");
+        }
+    }
+
+    private void checkTimeZone(String expected, Connection conn) throws SQLException {
+        Statement stat = conn.createStatement();
+        ResultSet rs = stat.executeQuery(
+                "SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'TIME ZONE'");
+        rs.next();
+        assertEquals(expected, rs.getString(1));
     }
 
 }

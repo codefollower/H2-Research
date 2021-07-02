@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -14,9 +14,11 @@ import java.io.Reader;
 import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
 import org.h2.api.ErrorCode;
 import org.h2.api.IntervalQualifier;
@@ -33,6 +35,9 @@ import org.h2.util.MathUtils;
 import org.h2.util.NetUtils;
 import org.h2.util.StringUtils;
 import org.h2.util.Utils;
+import org.h2.value.lob.LobData;
+import org.h2.value.lob.LobDataDatabase;
+import org.h2.value.lob.LobDataFetchOnDemand;
 
 /**
  * The transfer class is used to send and receive Value objects.
@@ -867,23 +872,24 @@ public final class Transfer {
             break;
         case Value.BLOB: {
             writeInt(BLOB);
-            ValueLob lob = (ValueLob) v;
-            if (lob instanceof ValueLobDatabase) {
-                ValueLobDatabase lobDb = (ValueLobDatabase) lob;
+            ValueBlob lob = (ValueBlob) v;
+            LobData lobData = lob.getLobData();
+            long length = lob.octetLength();
+            if (lobData instanceof LobDataDatabase) {
+                LobDataDatabase lobDataDatabase = (LobDataDatabase) lobData;
                 writeLong(-1);
-                writeInt(lobDb.getTableId());
-                writeLong(lobDb.getLobId());
-                writeBytes(calculateLobMac(lobDb.getLobId()));
-                writeLong(lob.getType().getPrecision());
+                writeInt(lobDataDatabase.getTableId());
+                writeLong(lobDataDatabase.getLobId());
+                writeBytes(calculateLobMac(lobDataDatabase.getLobId()));
+                writeLong(length);
                 break;
             }
-            long length = v.getType().getPrecision();
             if (length < 0) {
                 throw DbException.get(
                         ErrorCode.CONNECTION_BROKEN_1, "length=" + length);
             }
             writeLong(length);
-            long written = IOUtils.copyAndCloseInput(v.getInputStream(), out);
+            long written = IOUtils.copyAndCloseInput(lob.getInputStream(), out);
             if (written != length) {
                 throw DbException.get(
                         ErrorCode.CONNECTION_BROKEN_1, "length:" + length + " written:" + written);
@@ -893,23 +899,27 @@ public final class Transfer {
         }
         case Value.CLOB: {
             writeInt(CLOB);
-            ValueLob lob = (ValueLob) v;
-            if (lob instanceof ValueLobDatabase) {
-                ValueLobDatabase lobDb = (ValueLobDatabase) lob;
+            ValueClob lob = (ValueClob) v;
+            LobData lobData = lob.getLobData();
+            long charLength = lob.charLength();
+            if (lobData instanceof LobDataDatabase) {
+                LobDataDatabase lobDataDatabase = (LobDataDatabase) lobData;
                 writeLong(-1);
-                writeInt(lobDb.getTableId());
-                writeLong(lobDb.getLobId());
-                writeBytes(calculateLobMac(lobDb.getLobId()));
-                writeLong(lob.getType().getPrecision());
+                writeInt(lobDataDatabase.getTableId());
+                writeLong(lobDataDatabase.getLobId());
+                writeBytes(calculateLobMac(lobDataDatabase.getLobId()));
+                if (version >= Constants.TCP_PROTOCOL_VERSION_20) {
+                    writeLong(lob.octetLength());
+                }
+                writeLong(charLength);
                 break;
             }
-            long length = v.getType().getPrecision();
-            if (length < 0) {
+            if (charLength < 0) {
                 throw DbException.get(
-                        ErrorCode.CONNECTION_BROKEN_1, "length=" + length);
+                        ErrorCode.CONNECTION_BROKEN_1, "length=" + charLength);
             }
-            writeLong(length);
-            Reader reader = v.getReader();
+            writeLong(charLength);
+            Reader reader = lob.getReader();
             Data.copyString(reader, out);
             writeInt(LOB_MAGIC);
             break;
@@ -939,7 +949,9 @@ public final class Transfer {
         case Value.ENUM: {
             writeInt(ENUM);
             writeInt(v.getInt());
-            writeString(v.getString());
+            if (version < Constants.TCP_PROTOCOL_VERSION_20) {
+                writeString(v.getString());
+            }
             break;
         }
         case Value.GEOMETRY:
@@ -1001,9 +1013,10 @@ public final class Transfer {
     /**
      * Read a value.
      *
+     * @param columnType the data type of value, or {@code null}
      * @return the value
      */
-    public Value readValue() throws IOException {
+    public Value readValue(TypeInfo columnType) throws IOException {
         int type = readInt();
         switch (type) {
         case NULL:
@@ -1042,6 +1055,9 @@ public final class Transfer {
             return ValueReal.get(readFloat());
         case ENUM: {
             int ordinal = readInt();
+            if (version >= Constants.TCP_PROTOCOL_VERSION_20) {
+                return ((ExtTypeInfoEnum) columnType.getExtTypeInfo()).getValue(ordinal, session);
+            }
             return ValueEnumBase.get(readString(), ordinal);
         }
         case INTEGER:
@@ -1086,8 +1102,7 @@ public final class Transfer {
                 long id = readLong();
                 byte[] hmac = readBytes();
                 long precision = readLong();
-                return ValueLobFetchOnDemand.create(Value.BLOB, session.getDataHandler(), tableId, id, hmac, //
-                        precision);
+                return new ValueBlob(new LobDataFetchOnDemand(session.getDataHandler(), tableId, id, hmac), precision);
             }
             Value v = session.getDataHandler().getLobStorage().createBlob(in, length);
             int magic = readInt();
@@ -1098,22 +1113,23 @@ public final class Transfer {
             return v;
         }
         case CLOB: {
-            long length = readLong();
-            if (length == -1) {
+            long charLength = readLong();
+            if (charLength == -1) {
                 // fetch-on-demand LOB
                 int tableId = readInt();
                 long id = readLong();
                 byte[] hmac = readBytes();
-                long precision = readLong();
-                return ValueLobFetchOnDemand.create(Value.CLOB, session.getDataHandler(), tableId, id, hmac, //
-                        precision);
+                long octetLength = version >= Constants.TCP_PROTOCOL_VERSION_20 ? readLong() : -1L;
+                charLength = readLong();
+                return new ValueClob(new LobDataFetchOnDemand(session.getDataHandler(), tableId, id, hmac),
+                        octetLength, charLength);
             }
-            if (length < 0) {
+            if (charLength < 0) {
                 throw DbException.get(
-                        ErrorCode.CONNECTION_BROKEN_1, "length="+ length);
+                        ErrorCode.CONNECTION_BROKEN_1, "length="+ charLength);
             }
             Value v = session.getDataHandler().getLobStorage().
-                    createClob(new DataReader(in), length);
+                    createClob(new DataReader(in), charLength);
             int magic = readInt();
             if (magic != LOB_MAGIC) {
                 throw DbException.get(
@@ -1128,17 +1144,25 @@ public final class Transfer {
                 len = ~len;
                 readString();
             }
-            Value[] list = new Value[len];
-            for (int i = 0; i < len; i++) {
-                list[i] = readValue();
+            if (columnType != null) {
+                TypeInfo elementType = (TypeInfo) columnType.getExtTypeInfo();
+                return ValueArray.get(elementType, readArrayElements(len, elementType), session);
             }
-            return ValueArray.get(list, session);
+            return ValueArray.get(readArrayElements(len, null), session);
         }
         case ROW: {
             int len = readInt();
             Value[] list = new Value[len];
+            if (columnType != null) {
+                ExtTypeInfoRow extTypeInfoRow = (ExtTypeInfoRow) columnType.getExtTypeInfo();
+                Iterator<Entry<String, TypeInfo>> fields = extTypeInfoRow.getFields().iterator();
+                for (int i = 0; i < len; i++) {
+                    list[i] = readValue(fields.next().getValue());
+                }
+                return ValueRow.get(columnType, list);
+            }
             for (int i = 0; i < len; i++) {
-                list[i] = readValue();
+                list[i] = readValue(null);
             }
             return ValueRow.get(list);
         }
@@ -1156,11 +1180,30 @@ public final class Transfer {
         case JSON:
             // Do not trust the value
             return ValueJson.fromJson(readBytes());
-        case DECFLOAT:
-            return ValueDecfloat.get(new BigDecimal(readString()));
+        case DECFLOAT: {
+            String s = readString();
+            switch (s) {
+            case "-Infinity":
+                return ValueDecfloat.NEGATIVE_INFINITY;
+            case "Infinity":
+                return ValueDecfloat.POSITIVE_INFINITY;
+            case "NaN":
+                return ValueDecfloat.NAN;
+            default:
+                return ValueDecfloat.get(new BigDecimal(s));
+            }
+        }
         default:
             throw DbException.get(ErrorCode.CONNECTION_BROKEN_1, "type=" + type);
         }
+    }
+
+    private Value[] readArrayElements(int len, TypeInfo elementType) throws IOException {
+        Value[] list = new Value[len];
+        for (int i = 0; i < len; i++) {
+            list[i] = readValue(elementType);
+        }
+        return list;
     }
 
     /**

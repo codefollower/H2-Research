@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -89,27 +89,27 @@ public final class ValueNull extends Value {
 
     @Override
     public boolean getBoolean() {
-        return false;
+        throw DbException.getInternalError();
     }
 
     @Override
     public byte getByte() {
-        return 0;
+        throw DbException.getInternalError();
     }
 
     @Override
     public short getShort() {
-        return 0;
+        throw DbException.getInternalError();
     }
 
     @Override
     public int getInt() {
-        return 0;
+        throw DbException.getInternalError();
     }
 
     @Override
     public long getLong() {
-        return 0;
+        throw DbException.getInternalError();
     }
 
     @Override
@@ -119,12 +119,12 @@ public final class ValueNull extends Value {
 
     @Override
     public float getFloat() {
-        return 0.0F;
+        throw DbException.getInternalError();
     }
 
     @Override
     public double getDouble() {
-        return 0.0;
+        throw DbException.getInternalError();
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -60,12 +60,8 @@ public class ConditionLocalAndGlobal extends Condition {
         if (local == null) {
             return global.getValue(session);
         }
-        Value l = local.getValue(session);
-        if (l != ValueNull.INSTANCE && !l.getBoolean()) {
-            return ValueBoolean.FALSE;
-        }
-        Value r = global.getValue(session);
-        if (r != ValueNull.INSTANCE && !r.getBoolean()) {
+        Value l = local.getValue(session), r;
+        if (l.isFalse() || (r = global.getValue(session)).isFalse()) {
             return ValueBoolean.FALSE;
         }
         if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {

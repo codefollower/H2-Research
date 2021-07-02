@@ -1,29 +1,29 @@
-### é¡¹ç›®ç”¨é€”
+### ÏîÄ¿ÓÃÍ¾
 
-* [H2æ•°æ®åº“](http://www.h2database.com/html/main.html) æºä»£ç å­¦ä¹ ç ”ç©¶(åŒ…æ‹¬ä»£ç æ³¨é‡Šã€æ–‡æ¡£ã€ç”¨äºä»£ç åˆ†æçš„æµ‹è¯•ç”¨ä¾‹)
-
-
-### ç›®å½•ç»“æ„
-
-* my-docs: ç»¼åˆæ–‡æ¡£
-
-* my-test: ç”¨äºä»£ç åˆ†æçš„æµ‹è¯•ç”¨ä¾‹
-
-* h2: H2æ•°æ®åº“çš„æœ€æ–°æºä»£ç ï¼Œåœ¨æºä»£ç ä¸­é™„åŠ äº†ä¾¿äºåˆ†æç†è§£ä»£ç çš„æ³¨é‡Š
+* [H2Êı¾İ¿â](http://www.h2database.com/html/main.html) Ô´´úÂëÑ§Ï°ÑĞ¾¿(°üÀ¨´úÂë×¢ÊÍ¡¢ÎÄµµ¡¢ÓÃÓÚ´úÂë·ÖÎöµÄ²âÊÔÓÃÀı)
 
 
-### æŠŠä»£ç å¯¼å…¥Eclipse
+### Ä¿Â¼½á¹¹
 
-* è¿è¡Œ mvn eclipse:eclipse ç”ŸæˆEclipseé¡¹ç›®ï¼Œæ‰“å¼€Eclipseï¼Œé€‰æ‹©File -> Import -> Existing Projects into Workspace
+* my-docs: ×ÛºÏÎÄµµ
 
+* my-test: ÓÃÓÚ´úÂë·ÖÎöµÄ²âÊÔÓÃÀı
 
-### è¿è¡Œæˆ–è°ƒè¯•H2
-
-* å³å‡» /h2-research/my-test/my/test/MyServer.java æ–‡ä»¶ï¼Œç‚¹Run Asæˆ–Debug As -> Java Application
-
-* å¦‚æœå‡ºç°"TCP server running ..."è¿™æ ·çš„æç¤ºå°±okå•¦
+* h2: H2Êı¾İ¿âµÄ×îĞÂÔ´´úÂë£¬ÔÚÔ´´úÂëÖĞ¸½¼ÓÁË±ãÓÚ·ÖÎöÀí½â´úÂëµÄ×¢ÊÍ
 
 
-### æµ‹è¯•
+### °Ñ´úÂëµ¼ÈëEclipse
 
-* my.test åŒ…ä¸­çš„ç±»å‡ ä¹éƒ½å¯ç›´æ¥è¿è¡Œ
+* ÔËĞĞ mvn eclipse:eclipse Éú³ÉEclipseÏîÄ¿£¬´ò¿ªEclipse£¬Ñ¡ÔñFile -> Import -> Existing Projects into Workspace
+
+
+### ÔËĞĞ»òµ÷ÊÔH2
+
+* ÓÒ»÷ /h2-research/my-test/my/test/MyServer.java ÎÄ¼ş£¬µãRun As»òDebug As -> Java Application
+
+* Èç¹û³öÏÖ"TCP server running ..."ÕâÑùµÄÌáÊ¾¾ÍokÀ²
+
+
+### ²âÊÔ
+
+* my.test °üÖĞµÄÀà¼¸ºõ¶¼¿ÉÖ±½ÓÔËĞĞ

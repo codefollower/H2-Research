@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 and the EPL 1.0 (https://h2database.com/html/license.html).
 Initial Developer: H2 Group
 -->
@@ -21,6 +21,162 @@ Change Log
 
 <h2>Next Version (unreleased)</h2>
 <ul>
+<li>Issue #3130: Precision of NUMERIC values isn't verified in the Oracle compatibility mode
+</li>
+<li>Issue #3122: Documentation: Syntax diagram for RENAME CONSTRAINT incorrect
+</li>
+<li>PR #3129: remove LOB compression
+</li>
+<li>PR #3127: Cleanups post PageStore removal
+</li>
+<li>PR #3126: Change nested classes to static nested classes where possible
+</li>
+<li>PR #3125: Strongly typed LobStorageMap
+</li>
+<li>PR #3124: Remove PageStore engine
+</li>
+<li>Issue #3118: SHUTDOWN COMPACT causes 2PC to corrupt database in a simulated crash
+</li>
+<li>Issue #3115: Infinite loop then OOM in org.h2.mvstore.tx.Transaction.waitFor() when deadlock occurs
+</li>
+<li>Issue #3113: Data lost when 2 threads read/write TransactionStore and close it normally even if MVStore autoCommit
+disabled
+</li>
+<li>PR #3110: Fix possible int overflow and minor doc change
+</li>
+<li>Issue #3036: A database that contains BLOBs might grow without being able to be compacted
+</li>
+<li>Issue #3097: Possible MVStore compaction issue
+</li>
+<li>PR #3096: Add separate LOB data layer for values
+</li>
+<li>Issue #3093: ROWNUM filter doesn't work with more than one table
+</li>
+<li>PR #3087: Add "CONVERT TO CHARACTER SET" to compatibility modes
+</li>
+<li>Issue #3080: Complex Query returns different results depending on the number of arguments in the IN clause
+</li>
+<li>Issue #3066: Very high DB opening/closing times
+</li>
+<li>PR #3077: Add CREATE UNIQUE INDEX ... INCLUDE
+</li>
+<li>Issue #3061 / PR #3074: GROUP BY using column index for MySQL/MariaDB/PostgreSQL compatibility modes
+</li>
+<li>PR #3067: Restrict identity data types and result limitation clauses to compatibility modes
+</li>
+<li>PR #3065: Remove duplicate method IOUtils.getBufferedReader
+</li>
+<li>Issue #3055: Phantom table leftover after INSERT .. WITH
+</li>
+<li>PR #3062: Add ALTER DOMAIN RENAME CONSTRAINT command
+</li>
+<li>Issue #3059: ALTER TABLE DROP CONSTRAINT doesn't check owner of constraint
+</li>
+<li>Issue #3054: Add binary set aggregate functions
+</li>
+<li>Issue #3049: Java value getters of ValueNull should throw exceptions
+</li>
+<li>Issue #3046: SYSTEM_RANGE can't handle bind variable as step size and produces wrong error message
+</li>
+<li>Issue #3033: NPE during BLOB read after 2PC rollback
+</li>
+<li>PR #3034: Don't evaluate ValueTimestampTimeZone at begin and end of each command
+</li>
+<li>PR #3029: Optimize row storage in MVStore and other changes
+</li>
+<li>PR #3028: Remove back compatibility
+</li>
+<li>PR #3025: Switch from Travis CI to GitHub Workflows
+</li>
+<li>PR #3024: Add initial version of upgrade utility
+</li>
+<li>Issue #3017: ROUND() does not set correct precision and scale of result
+</li>
+<li>Issue #3003: CREATE TABLE ... AS SELECT ... FROM creates invalid column definition when aggregate functions are used
+</li>
+<li>Issue #3008: TestCrashAPI: Exception in Arrays.sort() called by LocalResult.done()
+</li>
+<li>Issue #3006 / PR #3007: Unlock meta during query execution in CREATE TABLE AS query
+</li>
+<li>PR #3001: PostgreSQL compatibility: UPDATE with FROM
+</li>
+<li>PR #2998: Fix off-by-one error with -webAdminPassword in Server
+</li>
+<li>PR #2995: Add FETCH_SIZE clause to CREATE LINKED TABLE
+</li>
+<li>Issue #2907 / PR #2994: Prevent "Chunk not found" on LOB operations
+</li>
+<li>PR #2993: Update copyright years
+</li>
+<li>Issue #2991: TestCrashAPI: NPE in ScriptCommand.dumpDomains()
+</li>
+<li>Issue #2950 / PR #2987: Issue commit() right before "non-transactional" DDL command starts
+</li>
+<li>PR #2980: Assorted minor changes
+</li>
+<li>PR #2966: H2 2.0.201: Linked Tables freeze the Database and freeze the Server Process
+</li>
+<li>Issue #2972: Memory leak due to negative Page memory in the MVStore
+</li>
+<li>PR #2971: create skeleton of migration to V2 document
+</li>
+<li>Issue #2967: MVStore: averageSize int overflow in the class ObjectDataType
+</li>
+<li>Issue #2963: Syntax error for large hexadecimal constants with DATABASE_TO_UPPER=false
+</li>
+<li>Issue #2961: Accept CREATE PRIMARY KEY only in metadata or in quirks mode
+</li>
+<li>Issue #2960: Reject invalid CREATE { UNIQUE | HASH } SPATIAL INDEX
+</li>
+<li>Issue #2958: TableLink is broken for Oracle database after pull request #2903
+</li>
+<li>PR #2955: Prevent incorrect index sorting
+</li>
+<li>PR #2951: Add documentation for INFORMATION_SCHEMA
+</li>
+<li>PR #2943: some small prep for next release
+</li>
+<li>PR #2948: Add support of Infinity, -Infinity, and NaN to DECFLOAT data type
+</li>
+<li>Issue #2947: Encoding of Unicode and special characters in error messages
+</li>
+<li>Issue #2891: Fix import of unnamed referential constraints from SQL scripts generated by older versions of H2
+</li>
+<li>Issue #2812: Unexpected result for query that compares an integer with a string
+</li>
+<li>Issue #2936: Add data type conversion code from datetime and UUID values to JSON
+</li>
+<li>Issue #2935: ENUM ARRAY isn't read properly from persisted data
+</li>
+<li>Issue #2923: Combination of fileName() with fileStore() should throw an exception
+</li>
+<li>Issue #2928: JSON_ARRAYAGG and all NULL values
+</li>
+<li>PR #2918: Removal of unnecessary lock
+</li>
+<li>Issue #2911: org.h2.mvstore.MVStoreException: Transaction was illegally transitioned from ROLLING_BACK to
+ROLLED_BACK
+</li>
+<li>Issue #1022: JdbcDatabaseMetaData.getPseudoColumns() should be implemented
+</li>
+<li>Issue #2914: (T1.A = T2.B) OR (T1.A = T2.C) should be optimized to T1.A IN(T2.B, T2.C) to allow index conditions
+</li>
+<li>PR #2903: Assorted changes
+</li>
+<li>Issue #2901: PgServer returns less rows when fetchSize is set
+</li>
+<li>Issue #2894: NPE in DROP SCHEMA when unique constraint is removed before linked referential constraint
+</li>
+<li>Issue #2888: H2 should pass time zone of client to the server
+</li>
+<li>PR #2890: Fixed possible eternal wait(0)
+</li>
+<li>Issue #2846: GRANT SELECT, INSERT, UPDATE, DELETE incorrectly gives privileges to drop a table
+</li>
+<li>Issue #2882: NPE in UPDATE with SELECT UNION
+</li>
+<li>PR #2881: Store users and roles together and user-defined functions and aggregates together
+</li>
 <li>Issue #2878: Disallow spatial indexes in PageStore databases
 </li>
 <li>PR #2874: Use 64-bit row counts in results and other changes

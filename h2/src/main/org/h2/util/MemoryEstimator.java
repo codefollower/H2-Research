@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -69,7 +69,7 @@ public final class MemoryEstimator {
         if (initialized == 0 || counter-- == 0) {
             cnt = 1;
             mem = data == null ? 0 : dataType.getMemory(data);
-            long delta = (mem << WINDOW_SHIFT) - sum;
+            long delta = ((long) mem << WINDOW_SHIFT) - sum;
             if (initialized == 0) {
                 if (++counter == WINDOW_SIZE) {
                     initialized = INIT_BIT;
@@ -114,7 +114,7 @@ public final class MemoryEstimator {
                 T data = storage[index++];
                 int mem = data == null ? 0 : dataType.getMemory(data);
                 memSum += mem;
-                long delta = (mem << WINDOW_SHIFT) - sum;
+                long delta = ((long) mem << WINDOW_SHIFT) - sum;
                 if (initialized == 0) {
                     if (++counter == WINDOW_SIZE) {
                         initialized = INIT_BIT;
@@ -127,7 +127,7 @@ public final class MemoryEstimator {
                     sum += ((delta >> (MAGNITUDE_LIMIT - magnitude)) + 1) >> 1;
                     counter += ((1 << magnitude) - 1) & COUNTER_MASK;
 
-                    delta = (counter << WINDOW_SHIFT) - skipSum;
+                    delta = ((long) counter << WINDOW_SHIFT) - skipSum;
                     skipSum += (delta + WINDOW_HALF_SIZE) >> WINDOW_SHIFT;
                 }
             }
@@ -165,7 +165,7 @@ public final class MemoryEstimator {
     }
 
     private static long constructStatsData(long sum, long initialized, int skipSum, int counter) {
-        return (sum << SUM_SHIFT) | initialized | (skipSum << SKIP_SUM_SHIFT) | counter;
+        return (sum << SUM_SHIFT) | initialized | ((long) skipSum << SKIP_SUM_SHIFT) | counter;
     }
 
     private static long updateStatsData(AtomicLong stats, long statsData, long updatedStatsData,

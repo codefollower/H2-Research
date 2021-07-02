@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -286,8 +286,8 @@ public final class WindowFrame {
 
     private static int getIntOffset(WindowFrameBound bound, Value[] values, SessionLocal session) {
         Value v = bound.isVariable() ? values[bound.getExpressionIndex()] : bound.getValue().getValue(session);
-        int value = v.getInt();
-        if (v == ValueNull.INSTANCE || value < 0) {
+        int value;
+        if (v == ValueNull.INSTANCE || (value = v.getInt()) < 0) {
             throw DbException.get(ErrorCode.INVALID_PRECEDING_OR_FOLLOWING_1, v.getTraceSQL());
         }
         return value;

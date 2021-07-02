@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,6 +25,7 @@ import org.h2.mvstore.tx.Transaction;
 import org.h2.mvstore.tx.TransactionMap;
 import org.h2.mvstore.type.DataType;
 import org.h2.result.Row;
+import org.h2.result.RowFactory;
 import org.h2.result.SearchRow;
 import org.h2.result.SortOrder;
 import org.h2.table.IndexColumn;
@@ -48,27 +49,19 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
     private final TransactionMap<SearchRow,Value> dataMap;
 
     public MVSecondaryIndex(Database db, MVTable table, int id, String indexName,
-                IndexColumn[] columns, IndexType indexType) {
-        super(table, id, indexName, columns, indexType);
+                IndexColumn[] columns, int uniqueColumnCount, IndexType indexType) {
+        super(table, id, indexName, columns, uniqueColumnCount, indexType);
         this.mvTable = table;
         if (!database.isStarting()) {
             checkIndexColumnTypes(columns);
         }
         String mapName = "index." + getId();
         RowDataType keyType = getRowFactory().getRowDataType();
-        ValueDataType valueType = new ValueDataType();
         Transaction t = mvTable.getTransactionBegin();
-        dataMap = t.openMap(mapName, keyType, valueType);
+        dataMap = t.openMap(mapName, keyType, NullValueDataType.INSTANCE);
         dataMap.map.setVolatile(!table.isPersistData() || !indexType.isPersistent());
         if (!db.isStarting()) {
             dataMap.clear();
-        } else if (database.upgradeTo2_0()) {
-            for (IndexColumn c : columns) {
-                if (org.h2.value.DataType.rebuildIndexOnUpgradeTo2_0(c.column.getType().getValueType())) {
-                    dataMap.clear();
-                    break;
-                }
-            }
         }
         t.commit();
         if (!keyType.equals(dataMap.getKeyType())) {
@@ -144,7 +137,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
                 Source s = queue.poll();
                 SearchRow row = s.next();
 
-                if (indexType.isUnique() && !mayHaveNullDuplicates(row)) {
+                if (uniqueColumnColumn > 0 && !mayHaveNullDuplicates(row)) {
                     checkUnique(true, dataMap, row, Long.MIN_VALUE);
                 }
 
@@ -164,11 +157,10 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
 
     private MVMap<SearchRow,Value> openMap(String mapName) {
         RowDataType keyType = getRowFactory().getRowDataType();
-        ValueDataType valueType = new ValueDataType();
         MVMap.Builder<SearchRow,Value> builder = new MVMap.Builder<SearchRow,Value>()
                                                 .singleWriter()
                                                 .keyType(keyType)
-                                                .valueType(valueType);
+                                                .valueType(NullValueDataType.INSTANCE);
         MVMap<SearchRow, Value> map = database.getStore().getMvStore()
                 .openMap(mapName, builder);
         if (!keyType.equals(map.getKeyType())) {
@@ -190,7 +182,7 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
         TransactionMap<SearchRow,Value> map = getMap(session);
         SearchRow key = convertToKey(row, null);
         boolean checkRequired, allowNonRepeatableRead;
-        if (indexType.isUnique() && !mayHaveNullDuplicates(row)) {
+        if (uniqueColumnColumn > 0 && !mayHaveNullDuplicates(row)) {
             checkRequired = true;
             allowNonRepeatableRead = session.getTransaction().allowNonRepeatableRead();
         } else {
@@ -214,8 +206,13 @@ public final class MVSecondaryIndex extends MVIndex<SearchRow, Value> {
 
     private void checkUnique(boolean allowNonRepeatableRead, TransactionMap<SearchRow,Value> map, SearchRow row,
             long newKey) {
-        SearchRow from = convertToKey(row, Boolean.FALSE);
-        SearchRow to = convertToKey(row, Boolean.TRUE);
+        RowFactory uniqueRowFactory = getUniqueRowFactory();
+        SearchRow from = uniqueRowFactory.createRow();
+        from.copyFrom(row);
+        from.setKey(Long.MIN_VALUE);
+        SearchRow to = uniqueRowFactory.createRow();
+        to.copyFrom(row);
+        to.setKey(Long.MAX_VALUE);
         if (!allowNonRepeatableRead) {
             Iterator<SearchRow> it = map.keyIterator(from, to);
             while (it.hasNext()) {

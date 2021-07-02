@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -360,6 +360,29 @@ SELECT * FROM INFORMATION_SCHEMA.ENUM_VALUES WHERE OBJECT_NAME = 'TEST';
 > SCRIPT         PUBLIC        TEST        TABLE       3_1             x          1
 > SCRIPT         PUBLIC        TEST        TABLE       3_1             y          2
 > rows: 6
+
+DROP TABLE TEST;
+> ok
+
+CREATE TABLE TEST(A ENUM('A', 'B') ARRAY, B ROW(V ENUM('C', 'D')));
+> ok
+
+INSERT INTO TEST VALUES (ARRAY['A', 'B'], ROW('C'));
+> update count: 1
+
+TABLE TEST;
+> A      B
+> ------ -------
+> [A, B] ROW (C)
+> rows: 1
+
+@reconnect
+
+TABLE TEST;
+> A      B
+> ------ -------
+> [A, B] ROW (C)
+> rows: 1
 
 DROP TABLE TEST;
 > ok

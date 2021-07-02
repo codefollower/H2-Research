@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -100,11 +100,11 @@ public final class Subquery extends Expression {
         return list;
     }
 
-    private static Value readRow(ResultInterface result) {
+    private Value readRow(ResultInterface result) {
         Value[] values = result.currentRow();
         int visible = result.getVisibleColumnCount();
         return visible == 1 ? values[0]
-                : ValueRow.get(visible == values.length ? values : Arrays.copyOf(values, visible));
+                : ValueRow.get(getType(), visible == values.length ? values : Arrays.copyOf(values, visible));
     }
 
     @Override
@@ -121,12 +121,18 @@ public final class Subquery extends Expression {
     public Expression optimize(SessionLocal session) {
         query.prepare();
         if (query.isConstantQuery()) {
+            setType();
             return ValueExpression.get(getValue(session));
         }
         Expression e = query.getIfSingleRow();
         if (e != null) {
             return e.optimize(session);
         }
+        setType();
+        return this;
+    }
+
+    private void setType() {
         ArrayList<Expression> expressions = query.getExpressions();
         int columnCount = query.getColumnCount();
         if (columnCount == 1) {
@@ -136,9 +142,10 @@ public final class Subquery extends Expression {
             for (int i = 0; i < columnCount; i++) {
                 list[i] = expressions.get(i);
             }
-            expression = new ExpressionList(list, false).optimize(session);
+            ExpressionList expressionList = new ExpressionList(list, false);
+            expressionList.initializeType();
+            expression = expressionList;
         }
-        return this;
     }
 
     @Override

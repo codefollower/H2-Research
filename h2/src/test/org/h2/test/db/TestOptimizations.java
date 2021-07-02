@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -659,10 +659,6 @@ public class TestOptimizations extends TestDb {
             ResultSet rs = stat.executeQuery(
                     "explain select min(x), max(x) from test");
             rs.next();
-            if (!config.mvStore) {
-                String plan = rs.getString(1);
-                assertContains(plan, "direct");
-            }
             rs = stat.executeQuery("select min(x), max(x) from test");
             rs.next();
             int min = rs.getInt(1);

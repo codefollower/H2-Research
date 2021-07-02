@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -11,7 +11,9 @@ import org.h2.message.DbException;
 import org.h2.mvstore.Cursor;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVMap.Builder;
+import org.h2.mvstore.type.LongDataType;
 import org.h2.result.ResultExternal;
+import org.h2.result.RowFactory.DefaultRowFactory;
 import org.h2.value.Value;
 import org.h2.value.ValueRow;
 
@@ -66,8 +68,10 @@ class MVPlainTempResult extends MVTempResult {
     MVPlainTempResult(Database database, Expression[] expressions, int visibleColumnCount, int resultColumnCount) {
         super(database, expressions, visibleColumnCount, resultColumnCount);
         ValueDataType valueType = new ValueDataType(database, new int[resultColumnCount]);
-        Builder<Long, ValueRow> builder = new MVMap.Builder<Long, ValueRow>()
-                                                .valueType(valueType).singleWriter();
+        valueType.setRowFactory(DefaultRowFactory.INSTANCE.createRowFactory(database, database.getCompareMode(),
+                database, expressions, null, false));
+        Builder<Long, ValueRow> builder = new MVMap.Builder<Long, ValueRow>().keyType(LongDataType.INSTANCE)
+                .valueType(valueType).singleWriter();
         map = store.openMap("tmp", builder);
     }
 
@@ -104,11 +108,7 @@ class MVPlainTempResult extends MVTempResult {
             return null;
         }
         cursor.next();
-        Value[] currentRow = cursor.getValue().getList();
-        if (hasEnum) {
-            fixEnum(currentRow);
-        }
-        return currentRow;
+        return cursor.getValue().getList();
     }
 
     @Override

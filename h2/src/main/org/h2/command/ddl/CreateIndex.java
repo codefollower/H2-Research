@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -26,7 +26,8 @@ public class CreateIndex extends SchemaCommand {
     private String tableName;
     private String indexName;
     private IndexColumn[] indexColumns;
-    private boolean primaryKey, unique, hash, spatial;
+    private int uniqueColumnCount;
+    private boolean primaryKey, hash, spatial;
     private boolean ifTableExists;
     private boolean ifNotExists;
     private String comment;
@@ -66,9 +67,6 @@ public class CreateIndex extends SchemaCommand {
 //    	if (!transactional) {
 //=======
     public long update() {
-        if (!transactional) {
-            session.commit(true);
-        }
         Database db = session.getDatabase();
         boolean persistent = db.isPersistent();
         Table table = getSchema().findTableOrView(session, tableName);
@@ -84,7 +82,7 @@ public class CreateIndex extends SchemaCommand {
             }
             throw DbException.get(ErrorCode.INDEX_ALREADY_EXISTS_1, indexName);
         }
-        session.getUser().checkRight(table, Right.ALL);
+        session.getUser().checkTableRight(table, Right.SCHEMA_OWNER);
         table.lock(session, true, true);
         if (!table.isPersistIndexes()) {
             persistent = false;
@@ -105,14 +103,13 @@ public class CreateIndex extends SchemaCommand {
                 throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);
             }
             indexType = IndexType.createPrimaryKey(persistent, hash);
-        } else if (unique) {
+        } else if (uniqueColumnCount > 0) {
             indexType = IndexType.createUnique(persistent, hash);
         } else {
             indexType = IndexType.createNonUnique(persistent, hash, spatial);
         }
         IndexColumn.mapColumns(indexColumns, table);
-        table.addIndex(session, indexName, id, indexColumns, indexType, create,
-                comment);
+        table.addIndex(session, indexName, id, indexColumns, uniqueColumnCount, indexType, create, comment);
         return 0;
     }
 
@@ -120,8 +117,8 @@ public class CreateIndex extends SchemaCommand {
         this.primaryKey = b;
     }
 
-    public void setUnique(boolean b) {
-        this.unique = b;
+    public void setUniqueColumnCount(int uniqueColumnCount) {
+        this.uniqueColumnCount = uniqueColumnCount;
     }
 
     public void setHash(boolean b) {

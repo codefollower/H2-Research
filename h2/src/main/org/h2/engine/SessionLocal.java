@@ -1,10 +1,11 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -18,7 +19,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
 import org.h2.command.Command;
@@ -49,7 +49,6 @@ import org.h2.store.DataHandler;
 import org.h2.store.InDoubtTransaction;
 import org.h2.store.LobStorageFrontend;
 import org.h2.table.Table;
-import org.h2.table.TableType;
 import org.h2.util.DateTimeUtils;
 import org.h2.util.HasSQL;
 import org.h2.util.NetworkConnectionInfo;
@@ -57,21 +56,21 @@ import org.h2.util.SmallLRUCache;
 import org.h2.util.TimeZoneProvider;
 import org.h2.util.Utils;
 import org.h2.value.Value;
-import org.h2.value.ValueArray;
 import org.h2.value.ValueLob;
-import org.h2.value.ValueLobDatabase;
-import org.h2.value.ValueLobInMemory;
 import org.h2.value.ValueNull;
 import org.h2.value.ValueTimestampTimeZone;
 import org.h2.value.ValueVarchar;
 import org.h2.value.VersionedValue;
+import org.h2.value.lob.LobData;
+import org.h2.value.lob.LobDataDatabase;
+import org.h2.value.lob.LobDataInMemory;
 
 /**
  * A session represents an embedded database connection. When using the server
  * mode, this object resides on the server side and communicates with a
  * SessionRemote object on the client side.
  */
-public class SessionLocal extends Session implements TransactionStore.RollbackListener {
+public final class SessionLocal extends Session implements TransactionStore.RollbackListener {
 
     public enum State { INIT, RUNNING, BLOCKED, SLEEP, THROTTLED, SUSPENDED, CLOSED }
 
@@ -133,7 +132,6 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     private NetworkConnectionInfo networkConnectionInfo;
 
     private final ArrayList<Table> locks = Utils.newSmallArrayList();
-    protected UndoLog undoLog;
     private boolean autoCommit = true;
     private Random random;
     private int lockTimeout;
@@ -161,8 +159,8 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     private String currentTransactionName;
     private volatile long cancelAtNs;
     private final ValueTimestampTimeZone sessionStart;
-    private ValueTimestampTimeZone transactionStart;
-    private ValueTimestampTimeZone commandStartOrEnd;
+    private Instant commandStartOrEnd;
+    private ValueTimestampTimeZone currentTimestamp;
     private HashMap<String, Value> variables;
     private HashSet<ResultInterface> temporaryResults;
     private int queryTimeout;
@@ -210,9 +208,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     private long startStatement = -1;
 
     /**
-     * Isolation level. Used only with MVStore engine, with PageStore engine the
-     * value of this field shouldn't be changed or used to get the real
-     * isolation level.
+     * Isolation level.
      */
     private IsolationLevel isolationLevel = IsolationLevel.READ_COMMITTED;
 
@@ -245,6 +241,11 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      */
     private boolean oldInformationSchema;
 
+    /**
+     * Whether commands are executed in quirks mode to support scripts from older versions of H2.
+     */
+    private boolean quirksMode;
+
     public SessionLocal(Database database, User user, int id) {
         this.database = database;
         this.queryTimeout = database.getSettings().maxQueryTimeout;
@@ -252,12 +253,11 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
         this.user = user;
         this.id = id;
         this.lockTimeout = database.getLockTimeout();
-        // PageStore creates a system session before initialization of the main schema
         Schema mainSchema = database.getMainSchema();
         this.currentSchemaName = mainSchema != null ? mainSchema.getName()
                 : database.sysIdentifier(Constants.SCHEMA_MAIN);
         timeZone = DateTimeUtils.getTimeZone();
-        sessionStart = DateTimeUtils.currentTimestamp(timeZone);
+        sessionStart = DateTimeUtils.currentTimestamp(timeZone, commandStartOrEnd = Instant.now());
     }
 
     public void setLazyQueryExecution(boolean lazyQueryExecution) {
@@ -405,21 +405,12 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      * @param table the table
      */
     public void removeLocalTempTable(Table table) {
-        // Exception thrown in org.h2.engine.Database.removeMeta if line below
-        // is missing with TestGeneralCommonTableQueries
-        boolean wasLocked = database.lockMeta(this);
-        try {
-            modificationId++;
-            if (localTempTables != null) {
-                localTempTables.remove(table.getName());
-            }
-            synchronized (database) {
-                table.removeChildrenAndResources(this);
-            }
-        } finally {
-            if (!wasLocked) {
-                database.unlockMeta(this);
-            }
+        modificationId++;
+        if (localTempTables != null) {
+            localTempTables.remove(table.getName());
+        }
+        synchronized (database) {
+            table.removeChildrenAndResources(this);
         }
     }
 
@@ -531,11 +522,6 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     }
 
     @Override
-    public int getClientVersion() {
-        return Constants.TCP_PROTOCOL_VERSION_MAX_SUPPORTED;
-    }
-
-    @Override
     public boolean getAutoCommit() {
         return autoCommit;
     }
@@ -555,7 +541,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
 
     public void setLockTimeout(int lockTimeout) {
         this.lockTimeout = lockTimeout;
-        if (transaction != null) {
+        if (hasTransaction()) {
             transaction.setTimeoutMillis(lockTimeout);
         }
     }
@@ -662,39 +648,27 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      * @param ddl if the statement was a data definition statement
      */
     public void commit(boolean ddl) {
-        checkCommitRollback();
-
-        currentTransactionName = null;
-        transactionStart = null;
-        boolean forRepeatableRead = false;
-        if (transaction != null) {
-            forRepeatableRead = !transaction.allowNonRepeatableRead();
+        beforeCommitOrRollback();
+        if (hasTransaction()) {
             try {
                 markUsedTablesAsUpdated();
                 transaction.commit();
+                removeTemporaryLobs(true);
+                endTransaction();
             } finally {
                 transaction = null;
             }
-        } else if (containsUncommitted()) {
-            // need to commit even if rollback is not possible
-            // (create/drop table and so on)
-            database.commit(this);
-        }
-        removeTemporaryLobs(true);
-        if (undoLog != null && undoLog.size() > 0) {
-            undoLog.clear();
-        }
-        if (!ddl) {
-            // do not clean the temp tables if the last command was a
-            // create/drop
-            cleanTempTables(false);
-            if (autoCommitAtTransactionEnd) {
-                autoCommit = true;
-                autoCommitAtTransactionEnd = false;
+            if (!ddl) {
+                // do not clean the temp tables if the last command was a
+                // create/drop
+                cleanTempTables(false);
+                if (autoCommitAtTransactionEnd) {
+                    autoCommit = true;
+                    autoCommitAtTransactionEnd = false;
+                }
             }
+            analyzeTables();
         }
-        analyzeTables();
-        endTransaction(forRepeatableRead);
     }
 
     private void markUsedTablesAsUpdated() {
@@ -713,7 +687,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
         // without proper locking, but instead of oversynchronizing
         // we just skip this optional operation in such case
         if (tablesToAnalyze != null &&
-                Thread.holdsLock(database.isMVStore() ? this : database)) {
+                Thread.holdsLock(this)) {
             // take a local copy and clear because in rare cases we can call
             // back into markTableForAnalyze while iterating here
             HashSet<Table> tablesToAnalyzeLocal = tablesToAnalyze;
@@ -724,16 +698,13 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
             }
             // analyze can lock the meta
             database.unlockMeta(this);
-            if (database.isMVStore()) {
-                // table analysis opens a new transaction(s),
-                // so we need to commit afterwards whatever leftovers might be
-                commit(true);
-            }
+            // table analysis opens a new transaction(s),
+            // so we need to commit afterwards whatever leftovers might be
+            commit(true);
         }
     }
 
     private void removeTemporaryLobs(boolean onTimeout) {
-        assert this != database.getLobSession() || Thread.holdsLock(this) || Thread.holdsLock(database);
         if (temporaryLobs != null) {
             for (ValueLob v : temporaryLobs) {
                 if (!v.isLinkedToTable()) {
@@ -757,19 +728,17 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
         }
     }
 
-    private void checkCommitRollback() {
+    private void beforeCommitOrRollback() {
         if (commitOrRollbackDisabled && !locks.isEmpty()) {
             throw DbException.get(ErrorCode.COMMIT_ROLLBACK_NOT_ALLOWED);
         }
+        currentTransactionName = null;
+        currentTimestamp = null;
+        database.throwLastBackgroundException();
     }
 
-    private void endTransaction(boolean forRepeatableRead) {
-        if (removeLobMap != null && removeLobMap.size() > 0) {
-            if (database.getStore() == null) {
-                // need to flush the transaction log, because we can't unlink
-                // lobs if the commit record is not written
-                database.flush();
-            }
+    private void endTransaction() {
+        if (removeLobMap != null && !removeLobMap.isEmpty()) {
             for (ValueLob v : removeLobMap.values()) {
                 v.remove();
             }
@@ -780,7 +749,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
             database.releaseDatabaseObjectIds(idsToRelease);
             idsToRelease = null;
         }
-        if (forRepeatableRead) {
+        if (hasTransaction() && !transaction.allowNonRepeatableRead()) {
             snapshotDataModificationId = database.getNextModificationDataId();
         }
     }
@@ -799,15 +768,9 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      * Fully roll back the current transaction.
      */
     public void rollback() {
-        checkCommitRollback();
-        currentTransactionName = null;
-        transactionStart = null;
-        boolean needCommit = undoLog != null && undoLog.size() > 0 || transaction != null;
-        if (needCommit) {
+        beforeCommitOrRollback();
+        if (hasTransaction()) {
             rollbackTo(null);
-        }
-        if (!locks.isEmpty() || needCommit) {
-            database.commit(this);
         }
         idsToRelease = null;
         cleanTempTables(false);
@@ -815,7 +778,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
             autoCommit = true;
             autoCommitAtTransactionEnd = false;
         }
-        endTransaction(transaction != null && !transaction.allowNonRepeatableRead());
+        endTransaction();
     }
 
     /**
@@ -825,14 +788,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      */
     public void rollbackTo(Savepoint savepoint) {
         int index = savepoint == null ? 0 : savepoint.logIndex;
-        if (undoLog != null) {
-            while (undoLog.size() > index) {
-                UndoLogRecord entry = undoLog.getLast();
-                entry.undo(this);
-                undoLog.removeLast();
-            }
-        }
-        if (transaction != null) {
+        if (hasTransaction()) {
             markUsedTablesAsUpdated();
             if (savepoint == null) {
                 transaction.rollback();
@@ -862,7 +818,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
 
     @Override
     public boolean hasPendingTransaction() {
-        return undoLog != null && undoLog.size() > 0;
+        return hasTransaction() && transaction.hasChanges() && transaction.getStatus() != Transaction.STATUS_PREPARED;
     }
 
     /**
@@ -872,12 +828,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      */
     public Savepoint setSavepoint() {
         Savepoint sp = new Savepoint();
-        if (undoLog != null) {
-            sp.logIndex = undoLog.size();
-        }
-        if (database.getStore() != null) {
-            sp.transactionSavepoint = getStatementSavepoint();
-        }
+        sp.transactionSavepoint = getStatementSavepoint();
         return sp;
     }
 
@@ -912,15 +863,15 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
 
                 // release any open table locks
                 if (hasPreparedTransaction()) {
-                    endTransaction(transaction != null && !transaction.allowNonRepeatableRead());
+                    if (currentTransactionName != null) {
+                        removeLobMap = null;
+                    }
+                    endTransaction();
                 } else {
                     rollback();
                     removeTemporaryLobs(false);
                     cleanTempTables(true);
                     commit(true);       // temp table removal may have opened new transaction
-                    if (undoLog != null) {
-                        undoLog.clear();
-                    }
                 }
 
                 // Table#removeChildrenAndResources can take the meta lock,
@@ -962,46 +913,17 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     }
 
     /**
-     * Add an undo log entry to this session.
-     *
-     * @param table the table
-     * @param operation the operation type (see {@link UndoLogRecord})
-     * @param row the row
-     */
-    public void log(Table table, short operation, Row row) {
-        if (table.isMVStore()) {
-            return;
-        }
-        if (undoLogEnabled) {
-            UndoLogRecord log = new UndoLogRecord(table, operation, row);
-            // called _after_ the row was inserted successfully into the table,
-            // otherwise rollback will try to rollback a not-inserted row
-            if (SysProperties.CHECK) {
-                int lockMode = database.getLockMode();
-                if (lockMode != Constants.LOCK_MODE_OFF &&
-                        !database.isMVStore()) {
-                    TableType tableType = log.getTable().getTableType();
-                    if (!locks.contains(log.getTable())
-                            && TableType.TABLE_LINK != tableType
-                            && TableType.EXTERNAL_TABLE_ENGINE != tableType) {
-                        throw DbException.getInternalError(String.valueOf(tableType));
-                    }
-                }
-            }
-            if (undoLog == null) {
-                undoLog = new UndoLog(database);
-            }
-            undoLog.add(log);
-        }
-    }
-
-    /**
      * Unlock just this table.
      *
      * @param t the table to unlock
      */
     void unlock(Table t) {
         locks.remove(t);
+    }
+
+
+    private boolean hasTransaction() {
+        return transaction != null;
     }
 
     private void unlockAll() {
@@ -1014,49 +936,30 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
             }
             locks.clear();
         }
-        if (!database.isMVStore() && database.getLockMode() == Constants.LOCK_MODE_READ_COMMITTED) {
-            // PageStoreTable.doLock2() doesn't register a table lock in this setup
-            // but waiting threads still need to be awoken from their sleep
-            synchronized (database) {
-                database.notifyAll();
-            }
-        }
-        database.unlockMetaDebug(this);
+        Database.unlockMetaDebug(this);
         savepoints = null;
         sessionStateChanged = true;
     }
 
     private void cleanTempTables(boolean closeSession) {
-        if (localTempTables != null && localTempTables.size() > 0) {
-            if (database.isMVStore()) {
-                _cleanTempTables(closeSession);
-            } else {
-                synchronized (database) {
-                    _cleanTempTables(closeSession);
+        if (localTempTables != null && !localTempTables.isEmpty()) {
+            Iterator<Table> it = localTempTables.values().iterator();
+            while (it.hasNext()) {
+                Table table = it.next();
+                if (closeSession || table.getOnCommitDrop()) {
+                    modificationId++;
+                    table.setModified();
+                    it.remove();
+                    // Exception thrown in org.h2.engine.Database.removeMeta
+                    // if line below is missing with TestDeadlock
+                    database.lockMeta(this);
+                    table.removeChildrenAndResources(this);
+                    if (closeSession) {
+                        database.throwLastBackgroundException();
+                    }
+                } else if (table.getOnCommitTruncate()) {
+                    table.truncate(this);
                 }
-            }
-        }
-    }
-
-    private void _cleanTempTables(boolean closeSession) {
-        Iterator<Table> it = localTempTables.values().iterator();
-        while (it.hasNext()) {
-            Table table = it.next();
-            if (closeSession || table.getOnCommitDrop()) {
-                modificationId++;
-                table.setModified();
-                it.remove();
-                // Exception thrown in org.h2.engine.Database.removeMeta
-                // if line below is missing with TestDeadlock
-                database.lockMeta(this);
-                table.removeChildrenAndResources(this);
-                if (closeSession) {
-                    // need to commit, otherwise recovery might
-                    // ignore the table removal
-                    database.commit(this);
-                }
-            } else if (table.getOnCommitTruncate()) {
-                table.truncate(this);
             }
         }
     }
@@ -1180,14 +1083,9 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      * @param name the savepoint name
      */
     public void rollbackToSavepoint(String name) {
-        checkCommitRollback();
-        currentTransactionName = null;
-        transactionStart = null;
-        if (savepoints == null) {
-            throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, name);
-        }
-        Savepoint savepoint = savepoints.get(name);
-        if (savepoint == null) {
+        beforeCommitOrRollback();
+        Savepoint savepoint;
+        if (savepoints == null || (savepoint = savepoints.get(name)) == null) {
             throw DbException.get(ErrorCode.SAVEPOINT_IS_INVALID_1, name);
         }
         rollbackTo(savepoint);
@@ -1199,7 +1097,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      * @param transactionName the name of the transaction
      */
     public void prepareCommit(String transactionName) {
-        if (containsUncommitted()) {
+        if (hasPendingTransaction()) {
             // need to commit even if rollback is not possible (create/drop
             // table and so on)
             database.prepareCommit(this, transactionName);
@@ -1231,18 +1129,14 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
                 rollback();
             }
         } else {
-            ArrayList<InDoubtTransaction> list = database
-                    .getInDoubtTransactions();
-            int state = commit ? InDoubtTransaction.COMMIT
-                    : InDoubtTransaction.ROLLBACK;
+            ArrayList<InDoubtTransaction> list = database.getInDoubtTransactions();
+            int state = commit ? InDoubtTransaction.COMMIT : InDoubtTransaction.ROLLBACK;
             boolean found = false;
-            if (list != null) {
-                for (InDoubtTransaction p: list) {
-                    if (p.getTransactionName().equals(transactionName)) {
-                        p.setState(state);
-                        found = true;
-                        break;
-                    }
+            for (InDoubtTransaction p: list) {
+                if (p.getTransactionName().equals(transactionName)) {
+                    p.setState(state);
+                    found = true;
+                    break;
                 }
             }
             if (!found) {
@@ -1271,9 +1165,6 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      * Wait for some time if this session is throttled (slowed down).
      */
     public void throttle() {
-        if (commandStartOrEnd == null) {
-            commandStartOrEnd = DateTimeUtils.currentTimestamp(timeZone);
-        }
         if (throttleMs == 0) {
             return;
         }
@@ -1302,13 +1193,18 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
         transitionToState(targetState, true);
         if (isOpen()) {
             currentCommand = command;
-            commandStartOrEnd = DateTimeUtils.currentTimestamp(timeZone);
+            commandStartOrEnd = Instant.now();
             if (command != null) {
                 if (queryTimeout > 0) {
                     cancelAtNs = Utils.currentNanoTimePlusMillis(queryTimeout);
                 }
-            } else if (nextValueFor != null) {
-                nextValueFor.clear();
+            } else {
+                if (currentTimestamp != null && !database.getMode().dateTimeValueWithinTransaction) {
+                    currentTimestamp = null;
+                }
+                if (nextValueFor != null) {
+                    nextValueFor.clear();
+                }
             }
         }
     }
@@ -1361,10 +1257,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     }
 
     public ValueTimestampTimeZone getCommandStartOrEnd() {
-        if (commandStartOrEnd == null) {
-            commandStartOrEnd = DateTimeUtils.currentTimestamp(timeZone);
-        }
-        return commandStartOrEnd;
+        return DateTimeUtils.currentTimestamp(timeZone, commandStartOrEnd);
     }
 
     public boolean getAllowLiterals() {
@@ -1530,13 +1423,6 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
 
     public ValueTimestampTimeZone getSessionStart() {
         return sessionStart;
-    }
-
-    public ValueTimestampTimeZone getTransactionStart() {
-        if (transactionStart == null) {
-            transactionStart = DateTimeUtils.currentTimestamp(timeZone);
-        }
-        return transactionStart;
     }
 
     public Set<Table> getLocks() {
@@ -1723,14 +1609,12 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     public Transaction getTransaction() {
         if (transaction == null) {
             Store store = database.getStore();
-            if (store != null) {
-                if (store.getMvStore().isClosed()) {
-                    Throwable backgroundException = database.getBackgroundException();
-                    database.shutdownImmediately();
-                    throw DbException.get(ErrorCode.DATABASE_IS_CLOSED, backgroundException);
-                }
-                transaction = store.getTransactionStore().begin(this, this.lockTimeout, id, isolationLevel);
+            if (store.getMvStore().isClosed()) {
+                Throwable backgroundException = database.getBackgroundException();
+                database.shutdownImmediately();
+                throw DbException.get(ErrorCode.DATABASE_IS_CLOSED, backgroundException);
             }
+            transaction = store.getTransactionStore().begin(this, this.lockTimeout, id, isolationLevel);
             startStatement = -1;
         }
         return transaction;
@@ -1826,7 +1710,7 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
      */
     public void endStatement() {
         setCurrentCommand(null);
-        if (transaction != null) {
+        if (hasTransaction()) {
             transaction.markStatementEnd();
         }
         startStatement = -1;
@@ -1842,10 +1726,11 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
 
     @Override
     public ValueLob addTemporaryLob(ValueLob v) {
-        if (v instanceof ValueLobInMemory) {
+        LobData lobData = v.getLobData();
+        if (lobData instanceof LobDataInMemory) {
             return v;
         }
-        int tableId = ((ValueLobDatabase) v).getTableId();
+        int tableId = ((LobDataDatabase) lobData).getTableId();
         if (tableId == LobStorageFrontend.TABLE_RESULT || tableId == LobStorageFrontend.TABLE_TEMP) {
             if (temporaryResultLobs == null) {
                 temporaryResultLobs = new LinkedList<>();
@@ -1892,52 +1777,32 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
         // Here we are relying on the fact that map which backs table's primary index
         // has the same name as the table itself
         Store store = database.getStore();
-        if (store != null) {
-            MVTable table = store.getTable(map.getName());
-            if (table != null) {
-                long recKey = (Long)key;
-                Row oldRow = getRowFromVersionedValue(table, recKey, existingValue);
-                Row newRow = getRowFromVersionedValue(table, recKey, restoredValue);
-                table.fireAfterRow(this, oldRow, newRow, true);
+        MVTable table = store.getTable(map.getName());
+        if (table != null) {
+            Row oldRow = existingValue == null ? null : (Row) existingValue.getCurrentValue();
+            Row newRow = restoredValue == null ? null : (Row) restoredValue.getCurrentValue();
+            table.fireAfterRow(this, oldRow, newRow, true);
 
-                if (table.getContainsLargeObject()) {
-                    if (oldRow != null) {
-                        for (int i = 0, len = oldRow.getColumnCount(); i < len; i++) {
-                            Value v = oldRow.getValue(i);
-                            if (v instanceof ValueLob) {
-                                removeAtCommit((ValueLob) v);
-                            }
+            if (table.getContainsLargeObject()) {
+                if (oldRow != null) {
+                    for (int i = 0, len = oldRow.getColumnCount(); i < len; i++) {
+                        Value v = oldRow.getValue(i);
+                        if (v instanceof ValueLob) {
+                            removeAtCommit((ValueLob) v);
                         }
                     }
-                    if (newRow != null) {
-                        for (int i = 0, len = newRow.getColumnCount(); i < len; i++) {
-                            Value v = newRow.getValue(i);
-                            if (v instanceof ValueLob) {
-                                removeAtCommitStop((ValueLob) v);
-                            }
+                }
+                if (newRow != null) {
+                    for (int i = 0, len = newRow.getColumnCount(); i < len; i++) {
+                        Value v = newRow.getValue(i);
+                        if (v instanceof ValueLob) {
+                            removeAtCommitStop((ValueLob) v);
                         }
                     }
                 }
             }
         }
     }
-
-    private static Row getRowFromVersionedValue(MVTable table, long recKey,
-                                                VersionedValue<Object> versionedValue) {
-        Object value = versionedValue == null ? null : versionedValue.getCurrentValue();
-        if (value == null) {
-            return null;
-        }
-        Row result;
-        if(value instanceof Row) {
-            result = (Row) value;
-            assert result.getKey() == recKey : result.getKey() + " != " + recKey;
-        } else {
-            result = table.createRow(((ValueArray) value).getList(), 0, recKey);
-        }
-        return result;
-    }
-
 
     /**
      * Represents a savepoint (a position in a transaction to where one can roll
@@ -1998,7 +1863,11 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
 
     @Override
     public ValueTimestampTimeZone currentTimestamp() {
-        return database.getMode().dateTimeValueWithinTransaction ? getTransactionStart() : getCommandStartOrEnd();
+        ValueTimestampTimeZone ts = currentTimestamp;
+        if (ts == null) {
+            currentTimestamp = ts = DateTimeUtils.currentTimestamp(timeZone, commandStartOrEnd);
+        }
+        return ts;
     }
 
     @Override
@@ -2069,24 +1938,17 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     public void setTimeZone(TimeZoneProvider timeZone) {
         if (!timeZone.equals(this.timeZone)) {
             this.timeZone = timeZone;
-            ValueTimestampTimeZone ts = transactionStart;
+            ValueTimestampTimeZone ts = currentTimestamp;
             if (ts != null) {
-                transactionStart = moveTimestamp(ts, timeZone);
-            }
-            ts = commandStartOrEnd;
-            if (ts != null) {
-                commandStartOrEnd = moveTimestamp(ts, timeZone);
+                long dateValue = ts.getDateValue();
+                long timeNanos = ts.getTimeNanos();
+                int offsetSeconds = ts.getTimeZoneOffsetSeconds();
+                currentTimestamp = DateTimeUtils.timestampTimeZoneAtOffset(dateValue, timeNanos, offsetSeconds, //
+                        timeZone.getTimeZoneOffsetUTC(
+                                DateTimeUtils.getEpochSeconds(dateValue, timeNanos, offsetSeconds)));
             }
             modificationId++;
         }
-    }
-
-    private static ValueTimestampTimeZone moveTimestamp(ValueTimestampTimeZone timestamp, TimeZoneProvider timeZone) {
-        long dateValue = timestamp.getDateValue();
-        long timeNanos = timestamp.getTimeNanos();
-        int offsetSeconds = timestamp.getTimeZoneOffsetSeconds();
-        return DateTimeUtils.timestampTimeZoneAtOffset(dateValue, timeNanos, offsetSeconds,
-                timeZone.getTimeZoneOffsetUTC(DateTimeUtils.getEpochSeconds(dateValue, timeNanos, offsetSeconds)));
     }
 
     /**
@@ -2208,6 +2070,26 @@ public class SessionLocal extends Session implements TransactionStore.RollbackLi
     @Override
     public boolean zeroBasedEnums() {
         return database.zeroBasedEnums();
+    }
+
+    /**
+     * Enables or disables the quirks mode.
+     *
+     * @param quirksMode
+     *            whether quirks mode should be enabled
+     */
+    public void setQuirksMode(boolean quirksMode) {
+        this.quirksMode = quirksMode;
+    }
+
+    /**
+     * Returns whether quirks mode is enabled explicitly or implicitly.
+     *
+     * @return {@code true} if database is starting or quirks mode was enabled
+     *         explicitly, {@code false} otherwise
+     */
+    public boolean isQuirksMode() {
+        return quirksMode || database.isStarting();
     }
 
 }

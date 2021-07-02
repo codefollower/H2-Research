@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,7 +30,6 @@ import org.h2.message.Trace;
 import org.h2.result.LocalResult;
 import org.h2.result.ResultInterface;
 import org.h2.table.Column;
-import org.h2.table.Table;
 import org.h2.util.JdbcUtils;
 import org.h2.util.SourceCompiler;
 import org.h2.util.StringUtils;
@@ -48,9 +47,8 @@ import org.h2.value.ValueToObjectConverter2;
  * @author Thomas Mueller
  * @author Gary Tong
  */
-public final class FunctionAlias extends SchemaObject {
+public final class FunctionAlias extends UserDefinedFunction {
 
-    private String className;
     private String methodName;
     private String source;
     private JavaMethod[] javaMethods;
@@ -202,11 +200,6 @@ public final class FunctionAlias extends SchemaObject {
     }
 
     @Override
-    public String getCreateSQLForCopy(Table table, String quotedName) {
-        throw DbException.getInternalError(toString());
-    }
-
-    @Override
     public String getDropSQL() {
         return getSQL(new StringBuilder("DROP ALIAS IF EXISTS "), DEFAULT_SQL_FLAGS).toString();
     }
@@ -240,11 +233,6 @@ public final class FunctionAlias extends SchemaObject {
         invalidate();
     }
 
-    @Override
-    public void checkRename() {
-        throw DbException.getUnsupportedException("RENAME");
-    }
-
     /**
      * Find the Java method that matches the arguments.
      *
@@ -264,10 +252,6 @@ public final class FunctionAlias extends SchemaObject {
         }
         throw DbException.get(ErrorCode.METHOD_NOT_FOUND_1, getName() + " (" +
                 className + ", parameter count: " + parameterCount + ")");
-    }
-
-    public String getJavaClassName() {
-        return this.className;
     }
 
     public String getJavaMethodName() {

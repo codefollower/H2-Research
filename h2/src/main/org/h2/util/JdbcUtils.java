@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -28,10 +28,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Properties;
+
 import javax.naming.Context;
 import javax.sql.DataSource;
 import org.h2.api.ErrorCode;
 import org.h2.api.JavaObjectSerializer;
+import org.h2.engine.Constants;
 import org.h2.engine.SysProperties;
 import org.h2.jdbc.JdbcConnection;
 import org.h2.jdbc.JdbcPreparedStatement;
@@ -262,14 +264,7 @@ public class JdbcUtils {
      */
     public static Connection getConnection(String driver, String url,
             String user, String password) throws SQLException {
-        Properties prop = new Properties();
-        if (user != null) {
-            prop.setProperty("user", user);
-        }
-        if (password != null) {
-            prop.setProperty("password", password);
-        }
-        return getConnection(driver, url, prop, null);
+        return getConnection(driver, url, user, password, null);
     }
 
     /**
@@ -277,20 +272,20 @@ public class JdbcUtils {
      *
      * @param driver the driver class name
      * @param url the database URL
-     * @param prop the properties containing at least the user name and password
+     * @param user the user name or {@code null}
+     * @param password the password or {@code null}
      * @param networkConnectionInfo the network connection information, or {@code null}
      * @return the database connection
      */
-    public static Connection getConnection(String driver, String url, Properties prop,
+    public static Connection getConnection(String driver, String url, String user, String password,
             NetworkConnectionInfo networkConnectionInfo) throws SQLException {
-        Connection connection = getConnection(driver, url, prop);
-        if (networkConnectionInfo != null && connection instanceof JdbcConnection) {
-            ((JdbcConnection) connection).getSession().setNetworkConnectionInfo(networkConnectionInfo);
+        if (url.startsWith(Constants.START_URL)) {
+            JdbcConnection connection = new JdbcConnection(url, null, user, password);
+            if (networkConnectionInfo != null) {
+                connection.getSession().setNetworkConnectionInfo(networkConnectionInfo);
+            }
+            return connection;
         }
-        return connection;
-    }
-
-    private static Connection getConnection(String driver, String url, Properties prop) throws SQLException {
         if (StringUtils.isNullOrEmpty(driver)) {
             JdbcUtils.load(url);
         } else {
@@ -298,6 +293,13 @@ public class JdbcUtils {
             try {
                 if (java.sql.Driver.class.isAssignableFrom(d)) {
                     Driver driverInstance = (Driver) d.getDeclaredConstructor().newInstance();
+                    Properties prop = new Properties();
+                    if (user != null) {
+                        prop.setProperty("user", user);
+                    }
+                    if (password != null) {
+                        prop.setProperty("password", password);
+                    }
                     /*
                      * fix issue #695 with drivers with the same jdbc
                      * subprotocol in classpath of jdbc drivers (as example
@@ -312,8 +314,6 @@ public class JdbcUtils {
                     // JNDI context
                     Context context = (Context) d.getDeclaredConstructor().newInstance();
                     DataSource ds = (DataSource) context.lookup(url);
-                    String user = prop.getProperty("user");
-                    String password = prop.getProperty("password");
                     if (StringUtils.isNullOrEmpty(user) && StringUtils.isNullOrEmpty(password)) {
                         return ds.getConnection();
                     }
@@ -324,7 +324,7 @@ public class JdbcUtils {
             }
             // don't know, but maybe it loaded a JDBC Driver
         }
-        return DriverManager.getConnection(url, prop);
+        return DriverManager.getConnection(url, user, password);
     }
 
     /**
@@ -596,14 +596,12 @@ public class JdbcUtils {
     }
 
     private static void setLob(PreparedStatement prep, int parameterIndex, ValueLob value) throws SQLException {
-        long p = value.getPrecision();
-        if (p > Integer.MAX_VALUE) {
-            p = -1;
-        }
         if (value.getValueType() == Value.BLOB) {
-            prep.setBinaryStream(parameterIndex, value.getInputStream(), (int) p);
+            long p = value.octetLength();
+            prep.setBinaryStream(parameterIndex, value.getInputStream(), p > Integer.MAX_VALUE ? -1 : (int) p);
         } else {
-            prep.setCharacterStream(parameterIndex, value.getReader(), (int) p);
+            long p = value.charLength();
+            prep.setCharacterStream(parameterIndex, value.getReader(), p > Integer.MAX_VALUE ? -1 : (int) p);
         }
     }
 
@@ -686,8 +684,8 @@ public class JdbcUtils {
             SimpleResultSet rs = new SimpleResultSet();
             rs.addColumn("Type", Types.VARCHAR, 0, 0);
             rs.addColumn("KB", Types.VARCHAR, 0, 0);
-            rs.addRow("Used Memory", Integer.toString(Utils.getMemoryUsed()));
-            rs.addRow("Free Memory", Integer.toString(Utils.getMemoryFree()));
+            rs.addRow("Used Memory", Long.toString(Utils.getMemoryUsed()));
+            rs.addRow("Free Memory", Long.toString(Utils.getMemoryFree()));
             return rs;
         } else if (isBuiltIn(sql, "@info")) {
             SimpleResultSet rs = new SimpleResultSet();
@@ -717,6 +715,9 @@ public class JdbcUtils {
         } else if (isBuiltIn(sql, "@super_types")) {
             String[] p = split(sql);
             return meta.getSuperTypes(p[1], p[2], p[3]);
+        } else if (isBuiltIn(sql, "@pseudo_columns")) {
+            String[] p = split(sql);
+            return meta.getPseudoColumns(p[1], p[2], p[3], p[4]);
         }
         return null;
     }

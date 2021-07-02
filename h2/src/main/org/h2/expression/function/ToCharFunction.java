@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: Daniel Gredler
  */
@@ -281,15 +281,15 @@ public final class ToCharFunction extends FunctionN {
                     output.insert(0, localGrouping);
                 }
             } else if (c == 'C' || c == 'c') {
-                Currency currency = Currency.getInstance(Locale.getDefault());
+                Currency currency = getCurrency();
                 output.insert(0, currency.getCurrencyCode());
                 maxLength += 6;
             } else if (c == 'L' || c == 'l' || c == 'U' || c == 'u') {
-                Currency currency = Currency.getInstance(Locale.getDefault());
+                Currency currency = getCurrency();
                 output.insert(0, currency.getSymbol());
                 maxLength += 9;
             } else if (c == '$') {
-                Currency currency = Currency.getInstance(Locale.getDefault());
+                Currency currency = getCurrency();
                 String cs = currency.getSymbol();
                 output.insert(0, cs);
             } else {
@@ -360,6 +360,11 @@ public final class ToCharFunction extends FunctionN {
         }
 
         return output.toString();
+    }
+
+    private static Currency getCurrency() {
+        Locale locale = Locale.getDefault();
+        return Currency.getInstance(locale.getCountry().length() == 2 ? locale : Locale.US);
     }
 
     private static String zeroesAfterDecimalSeparator(BigDecimal number) {

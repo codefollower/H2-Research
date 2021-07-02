@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -85,14 +85,19 @@ public final class SubstringFunction extends FunctionN {
         }
         TypeInfo argType = args[0].getType();
         long p = argType.getPrecision();
-        if (args[1].isConstant()) {
+        Expression arg = args[1];
+        Value v;
+        if (arg.isConstant() && (v = arg.getValue(session)) != ValueNull.INSTANCE) {
             // if only two arguments are used,
             // subtract offset from first argument length
-            p -= args[1].getValue(session).getLong() - 1;
+            p -= v.getLong() - 1;
         }
-        if (args.length == 3 && args[2].isConstant()) {
-            // if the third argument is constant it is at most this value
-            p = Math.min(p, args[2].getValue(session).getLong());
+        if (args.length == 3) {
+            arg = args[2];
+            if (arg.isConstant() && (v = arg.getValue(session)) != ValueNull.INSTANCE) {
+                // if the third argument is constant it is at most this value
+                p = Math.min(p, v.getLong());
+            }
         }
         p = Math.max(0, p);
         type = TypeInfo.getTypeInfo(

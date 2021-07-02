@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -25,7 +25,7 @@ import org.h2.value.ValueRow;
 /**
  * A sort order represents an ORDER BY clause in a query.
  */
-public class SortOrder implements Comparator<Value[]> {
+public final class SortOrder implements Comparator<Value[]> {
 
     /**
      * This bit mask means the values should be sorted in ascending order.
@@ -176,25 +176,17 @@ public class SortOrder implements Comparator<Value[]> {
      * Sort a list of rows using offset and limit.
      *
      * @param rows the list of rows
-     * @param offset the offset
-     * @param limit the limit
+     * @param fromInclusive the start index, inclusive
+     * @param toExclusive the end index, exclusive
      */
-    public void sort(ArrayList<Value[]> rows, int offset, int limit) {
-        int rowsSize = rows.size();
-        if (rowsSize == 0 || offset >= rowsSize || limit == 0) {
-            return;
-        }
-        if (offset < 0) {
-            offset = 0;
-        }
-        limit = Math.min(limit, rowsSize - offset);
-        if (limit == 1 && offset == 0) {
+    public void sort(ArrayList<Value[]> rows, int fromInclusive, int toExclusive) {
+        if (toExclusive == 1 && fromInclusive == 0) {
             rows.set(0, Collections.min(rows, this));
             return;
         }
         Value[][] arr = rows.toArray(new Value[0][]);
-        Utils.sortTopN(arr, offset, limit, this);
-        for (int i = 0, end = Math.min(offset + limit, rowsSize); i < end; i++) {
+        Utils.sortTopN(arr, fromInclusive, toExclusive, this);
+        for (int i = fromInclusive; i < toExclusive; i++) {
             rows.set(i, arr[i]);
         }
     }

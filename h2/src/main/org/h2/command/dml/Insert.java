@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -17,7 +17,6 @@ import org.h2.command.query.Query;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.SessionLocal;
-import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionColumn;
 import org.h2.expression.ExpressionVisitor;
@@ -28,7 +27,6 @@ import org.h2.expression.condition.ConditionAndOr;
 import org.h2.index.Index;
 import org.h2.message.DbException;
 import org.h2.mvstore.db.MVPrimaryIndex;
-import org.h2.pagestore.db.PageDataIndex;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultTarget;
 import org.h2.result.Row;
@@ -48,7 +46,6 @@ public final class Insert extends CommandWithValues implements ResultTarget {
     private Table table;
     private Column[] columns;
     private Query query;
-    private boolean sortedInsertMode;
     private long rowNumber;
     private boolean insertFromSelect;
 
@@ -132,34 +129,33 @@ public final class Insert extends CommandWithValues implements ResultTarget {
 
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
-        Index index = null;
         this.deltaChangeCollector = deltaChangeCollector;
         this.deltaChangeCollectionMode = deltaChangeCollectionMode;
         try {
-            if (sortedInsertMode) {
-                if (!session.getDatabase().isMVStore()) {
-                    /*
-                     * Take exclusive lock, otherwise two different inserts running at
-                     * the same time, the second might accidentally get
-                     * sorted-insert-mode.
-                     */
-                    table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
-                    index = table.getScanIndex(session);
-                    index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
-                }
-            }
+//<<<<<<< HEAD
+//            if (sortedInsertMode) {
+//                if (!session.getDatabase().isMVStore()) {
+//                    /*
+//                     * Take exclusive lock, otherwise two different inserts running at
+//                     * the same time, the second might accidentally get
+//                     * sorted-insert-mode.
+//                     */
+//                    table.lock(session, /* exclusive */true, /* forceLockEvenInMvcc */true);
+//                    index = table.getScanIndex(session);
+//                    index.setSortedInsertMode(true); //在org.h2.index.PageDataLeaf.addRowTry(Row)中有用到
+//                }
+//            }
+//=======
+//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
             return insertRows();
         } finally {
             this.deltaChangeCollector = null;
             this.deltaChangeCollectionMode = null;
-            if (index != null) {
-                index.setSortedInsertMode(false);
-            }
         }
     }
 
     private long insertRows() {
-        session.getUser().checkRight(table, Right.INSERT);
+        session.getUser().checkTableRight(table, Right.INSERT);
         setCurrentRowNumber(0);
         table.fire(session, Trigger.INSERT, true);
         rowNumber = 0;
@@ -205,11 +201,14 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                     }
                     DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
                             deltaChangeCollectionMode, newRow);
-                    // 在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
-                    // 也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
-                    // 这里又记了一次UndoLog
-                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
-                    session.log(table, UndoLogRecord.INSERT, newRow);
+//<<<<<<< HEAD
+//                    // 在org.h2.index.PageDataIndex.addTry(Session, Row)中事先记了一次PageLog
+//                    // 也就是org.h2.store.PageStore.logAddOrRemoveRow(Session, int, Row, boolean)
+//                    // 这里又记了一次UndoLog
+//                    //UndoLog在org.h2.engine.Session.commit(boolean)时就清除了
+//                    session.log(table, UndoLogRecord.INSERT, newRow);
+//=======
+//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
                     table.fireAfterRow(session, null, newRow, false);
                 } else {
                     DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
@@ -260,7 +259,6 @@ public final class Insert extends CommandWithValues implements ResultTarget {
             table.addRow(session, newRow);
             DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
                     deltaChangeCollectionMode, newRow);
-            session.log(table, UndoLogRecord.INSERT, newRow);
             table.fireAfterRow(session, null, newRow, false);
         } else {
             DataChangeDeltaTable.collectInsertedFinalRow(session, table, deltaChangeCollector,
@@ -287,9 +285,6 @@ public final class Insert extends CommandWithValues implements ResultTarget {
         builder.append(")\n");
         if (insertFromSelect) {
             builder.append("DIRECT ");
-        }
-        if (sortedInsertMode) {
-            builder.append("SORTED ");
         }
         if (!valuesExpressionList.isEmpty()) {
             builder.append("VALUES ");
@@ -338,28 +333,11 @@ public final class Insert extends CommandWithValues implements ResultTarget {
                 }
             }
         } else {
-            if (!session.getDatabase().isMVStore()) {
-                query.setNeverLazy(true);
-            }
             query.prepare();
             if (query.getColumnCount() != columns.length) {
                 throw DbException.get(ErrorCode.COLUMN_COUNT_DOES_NOT_MATCH);
             }
         }
-    }
-
-    @Override
-    public boolean isTransactional() {
-        return true;
-    }
-
-    @Override
-    public ResultInterface queryMeta() {
-        return null;
-    }
-
-    public void setSortedInsertMode(boolean sortedInsertMode) {
-        this.sortedInsertMode = sortedInsertMode;
     }
 
     @Override
@@ -454,12 +432,6 @@ public final class Insert extends CommandWithValues implements ResultTarget {
             MVPrimaryIndex foundMV = (MVPrimaryIndex) foundIndex;
             indexedColumns = new Column[] { foundMV.getIndexColumns()[foundMV
                     .getMainIndexColumn()].column };
-        } else if (foundIndex instanceof PageDataIndex) {
-            PageDataIndex foundPD = (PageDataIndex) foundIndex;
-            int mainIndexColumn = foundPD.getMainIndexColumn();
-            indexedColumns = mainIndexColumn >= 0
-                    ? new Column[] { foundPD.getIndexColumns()[mainIndexColumn].column }
-                    : foundIndex.getColumns();
         } else {
             indexedColumns = foundIndex.getColumns();
         }

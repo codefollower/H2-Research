@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -57,14 +57,12 @@ public final class ValueReal extends Value {
 
     @Override
     public Value add(Value v) {
-        ValueReal v2 = (ValueReal) v;
-        return get(value + v2.value);
+        return get(value + ((ValueReal) v).value);
     }
 
     @Override
     public Value subtract(Value v) {
-        ValueReal v2 = (ValueReal) v;
-        return get(value - v2.value);
+        return get(value - ((ValueReal) v).value);
     }
 
     @Override
@@ -74,12 +72,11 @@ public final class ValueReal extends Value {
 
     @Override
     public Value multiply(Value v) {
-        ValueReal v2 = (ValueReal) v;
-        return get(value * v2.value);
+        return get(value * ((ValueReal) v).value);
     }
 
     @Override
-    public Value divide(Value v, long divisorPrecision) {
+    public Value divide(Value v, TypeInfo quotientType) {
         ValueReal v2 = (ValueReal) v;
         if (v2.value == 0.0) {
             throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getTraceSQL());
@@ -106,15 +103,14 @@ public final class ValueReal extends Value {
 
     private StringBuilder getSQL(StringBuilder builder) {
         if (value == Float.POSITIVE_INFINITY) {
-            builder.append("POWER(0, -1)");
+            return builder.append("'Infinity'");
         } else if (value == Float.NEGATIVE_INFINITY) {
-            builder.append("(-POWER(0, -1))");
+            return builder.append("'-Infinity'");
         } else if (Float.isNaN(value)) {
-            builder.append("SQRT(-1)");
+            return builder.append("'NaN'");
         } else {
-            builder.append(value);
+            return builder.append(value);
         }
-        return builder;
     }
 
     @Override
@@ -134,12 +130,12 @@ public final class ValueReal extends Value {
 
     @Override
     public int getSignum() {
-        return value == 0 ? 0 : (value < 0 ? -1 : 1);
+        return value == 0 || Float.isNaN(value) ? 0 : value < 0 ? -1 : 1;
     }
 
     @Override
     public BigDecimal getBigDecimal() {
-        if (Math.abs(value) <= Float.MAX_VALUE) {
+        if (Float.isFinite(value)) {
             // better rounding behavior than BigDecimal.valueOf(f)
             return new BigDecimal(Float.toString(value));
         }

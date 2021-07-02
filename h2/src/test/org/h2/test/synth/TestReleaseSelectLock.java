@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -27,7 +27,6 @@ public class TestReleaseSelectLock extends TestDb {
      */
     public static void main(String... a) throws Exception {
         TestBase test = TestBase.createCaller().init();
-        test.config.mvStore = false;
         test.testFromMain();
     }
 

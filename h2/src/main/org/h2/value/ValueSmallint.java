@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -24,7 +24,7 @@ public final class ValueSmallint extends Value {
     /**
      * The approximate precision in decimal digits.
      */
-    static final int DECIMAL_PRECISION = 5;
+    public static final int DECIMAL_PRECISION = 5;
 
     /**
      * The maximum display size of a SMALLINT.
@@ -75,7 +75,7 @@ public final class ValueSmallint extends Value {
     }
 
     @Override
-    public Value divide(Value v, long divisorPrecision) {
+    public Value divide(Value v, TypeInfo quotientType) {
         ValueSmallint other = (ValueSmallint) v;
         if (other.value == 0) {
             throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getTraceSQL());

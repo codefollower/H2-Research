@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -40,6 +40,7 @@ import org.h2.util.NetUtils;
 import org.h2.util.NetworkConnectionInfo;
 import org.h2.util.SmallLRUCache;
 import org.h2.util.SmallMap;
+import org.h2.util.TimeZoneProvider;
 import org.h2.value.Transfer;
 import org.h2.value.Value;
 import org.h2.value.ValueLob;
@@ -192,6 +193,7 @@ public class TcpServerThread implements Runnable {
                 transfer.setSession(session);
                 server.addConnection(threadId, originalURL, ci.getUserName());
                 trace("Connected");
+                lastRemoteSettingsId = session.getDatabase().getRemoteSettingsId();
             } catch (OutOfMemoryError e) {
                 // catch this separately otherwise such errors will never hit the console
                 server.traceError(e);
@@ -202,7 +204,6 @@ public class TcpServerThread implements Runnable {
                 sendError(e,true);
                 stop = true;
             }
-            lastRemoteSettingsId = session.getDatabase().getRemoteSettingsId();
             while (!stop) {
                 try {
                     process();
@@ -290,7 +291,7 @@ public class TcpServerThread implements Runnable {
         ArrayList<? extends ParameterInterface> params = command.getParameters();
         for (int i = 0; i < len; i++) {
             Parameter p = (Parameter) params.get(i);
-            p.setValue(transfer.readValue());
+            p.setValue(transfer.readValue(null));
         }
     }
     
@@ -507,6 +508,9 @@ public class TcpServerThread implements Runnable {
         }
         case SessionRemote.SESSION_SET_ID: {
             sessionId = transfer.readString();
+            if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_20) {
+                session.setTimeZone(TimeZoneProvider.ofId(transfer.readString()));
+            }
             transfer.writeInt(SessionRemote.STATUS_OK);
             if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_15) {
                 transfer.writeBoolean(session.getAutoCommit());
@@ -555,7 +559,7 @@ public class TcpServerThread implements Runnable {
             int length = transfer.readInt();
             Value[] args = new Value[length];
             for (int i = 0; i < length; i++) {
-                args[i] = transfer.readValue();
+                args[i] = transfer.readValue(null);
             }
             int old = session.getModificationId();
             ResultInterface result;

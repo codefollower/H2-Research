@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -107,11 +107,7 @@ public class ConditionAndOr extends Condition {
         Value r;
         switch (andOrType) {
         case AND: {
-            if (l != ValueNull.INSTANCE && !l.getBoolean()) {
-                return ValueBoolean.FALSE;
-            }
-            r = right.getValue(session);
-            if (r != ValueNull.INSTANCE && !r.getBoolean()) {
+            if (l.isFalse() || (r = right.getValue(session)).isFalse()) {
                 return ValueBoolean.FALSE;
             }
             if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {
@@ -120,11 +116,7 @@ public class ConditionAndOr extends Condition {
             return ValueBoolean.TRUE;
         }
         case OR: {
-            if (l.getBoolean()) {
-                return ValueBoolean.TRUE;
-            }
-            r = right.getValue(session);
-            if (r.getBoolean()) {
+            if (l.isTrue() || (r = right.getValue(session)).isTrue()) {
                 return ValueBoolean.TRUE;
             }
             if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {
@@ -247,7 +239,7 @@ public class ConditionAndOr extends Condition {
         Value r = right.getValue(session);
         switch (andOrType) {
         case AND: {
-            if (l != ValueNull.INSTANCE && !l.getBoolean() || r != ValueNull.INSTANCE && !r.getBoolean()) {
+            if (l.isFalse() || r.isFalse()) {
                 return ValueExpression.FALSE;
             }
             if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {
@@ -256,7 +248,7 @@ public class ConditionAndOr extends Condition {
             return ValueExpression.TRUE;
         }
         case OR: {
-            if (l.getBoolean() || r.getBoolean()) {
+            if (l.isTrue() || r.isTrue()) {
                 return ValueExpression.TRUE;
             }
             if (l == ValueNull.INSTANCE || r == ValueNull.INSTANCE) {
@@ -270,23 +262,15 @@ public class ConditionAndOr extends Condition {
     }
 
     private static Expression optimizeConstant(SessionLocal session, int andOrType, Value l, Expression right) {
-        switch (andOrType) {
-        case AND:
-            if (l != ValueNull.INSTANCE && !l.getBoolean()) {
-                return ValueExpression.FALSE;
-            } else if (l.getBoolean()) {
-                return castToBoolean(session, right);
+        if (l != ValueNull.INSTANCE) {
+            switch (andOrType) {
+            case AND:
+                return l.getBoolean() ? castToBoolean(session, right) : ValueExpression.FALSE;
+            case OR:
+                return l.getBoolean() ? ValueExpression.TRUE : castToBoolean(session, right);
+            default:
+                throw DbException.getInternalError("type=" + andOrType);
             }
-            break;
-        case OR:
-            if (l.getBoolean()) {
-                return ValueExpression.TRUE;
-            } else if (l != ValueNull.INSTANCE) {
-                return castToBoolean(session, right);
-            }
-            break;
-        default:
-            throw DbException.getInternalError("type=" + andOrType);
         }
         return null;
     }
@@ -360,24 +344,24 @@ public class ConditionAndOr extends Condition {
         }
         Expression leftLeft = left.getSubexpression(0), leftRight = left.getSubexpression(1);
         Expression rightLeft = right.getSubexpression(0), rightRight = right.getSubexpression(1);
-        String leftLeftSQL = leftLeft.getSQL(DEFAULT_SQL_FLAGS), rightLeftSQL = rightLeft.getSQL(DEFAULT_SQL_FLAGS);
-        Expression combinedExpression;
-        if (leftLeftSQL.equals(rightLeftSQL)) {
-            combinedExpression = new ConditionAndOr(OR, leftRight, rightRight);
-            return new ConditionAndOr(AND, leftLeft, combinedExpression);
-        }
+        String rightLeftSQL = rightLeft.getSQL(DEFAULT_SQL_FLAGS);
         String rightRightSQL = rightRight.getSQL(DEFAULT_SQL_FLAGS);
-        if (leftLeftSQL.equals(rightRightSQL)) {
-            combinedExpression = new ConditionAndOr(OR, leftRight, rightLeft);
-            return new ConditionAndOr(AND, leftLeft, combinedExpression);
+        if (leftLeft.isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR)) {
+            String leftLeftSQL = leftLeft.getSQL(DEFAULT_SQL_FLAGS);
+            if (leftLeftSQL.equals(rightLeftSQL)) {
+                return new ConditionAndOr(AND, leftLeft, new ConditionAndOr(OR, leftRight, rightRight));
+            }
+            if (leftLeftSQL.equals(rightRightSQL)) {
+                return new ConditionAndOr(AND, leftLeft, new ConditionAndOr(OR, leftRight, rightLeft));
+            }
         }
-        String leftRightSQL = leftRight.getSQL(DEFAULT_SQL_FLAGS);
-        if (leftRightSQL.equals(rightLeftSQL)) {
-            combinedExpression = new ConditionAndOr(OR, leftLeft, rightRight);
-            return new ConditionAndOr(AND, leftRight, combinedExpression);
-        } else if (leftRightSQL.equals(rightRightSQL)) {
-            combinedExpression = new ConditionAndOr(OR, leftLeft, rightLeft);
-            return new ConditionAndOr(AND, leftRight, combinedExpression);
+        if (leftRight.isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR)) {
+            String leftRightSQL = leftRight.getSQL(DEFAULT_SQL_FLAGS);
+            if (leftRightSQL.equals(rightLeftSQL)) {
+                return new ConditionAndOr(AND, leftRight, new ConditionAndOr(OR, leftLeft, rightRight));
+            } else if (leftRightSQL.equals(rightRightSQL)) {
+                return new ConditionAndOr(AND, leftRight, new ConditionAndOr(OR, leftLeft, rightLeft));
+            }
         }
         return null;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -107,7 +107,7 @@ public class ConvertTraceFile extends Tool {
     private void convertFile(String traceFileName, String javaClassName,
             String script) throws IOException {
         LineNumberReader reader = new LineNumberReader(
-                IOUtils.getBufferedReader(
+                IOUtils.getReader(
                 FileUtils.newInputStream(traceFileName)));
         PrintWriter javaWriter = new PrintWriter(
                 IOUtils.getBufferedWriter(

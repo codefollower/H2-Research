@@ -1,10 +1,11 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.engine;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -18,9 +19,11 @@ import org.h2.security.SHA256;
 import org.h2.store.fs.FileUtils;
 import org.h2.store.fs.encrypt.FilePathEncrypt;
 import org.h2.store.fs.rec.FilePathRec;
+import org.h2.util.IOUtils;
 import org.h2.util.NetworkConnectionInfo;
 import org.h2.util.SortedProperties;
 import org.h2.util.StringUtils;
+import org.h2.util.TimeZoneProvider;
 import org.h2.util.Utils;
 
 /**
@@ -39,6 +42,8 @@ public class ConnectionInfo implements Cloneable {
     private byte[] filePasswordHash;
     private byte[] fileEncryptionKey;
     private byte[] userPasswordHash;
+
+    private TimeZoneProvider timeZone;
 
     /**
      * The database name
@@ -68,17 +73,40 @@ public class ConnectionInfo implements Cloneable {
      * Create a connection info object.
      *
      * @param u the database URL (must start with jdbc:h2:)
-     * @param info the connection properties
+     * @param info the connection properties or {@code null}
+     * @param user the user name or {@code null}
+     * @param password
+     *            the password as {@code String} or {@code char[]}, or
+     *            {@code null}
      */
-    public ConnectionInfo(String u, Properties info) {
+    public ConnectionInfo(String u, Properties info, String user, Object password) {
         u = remapURL(u);
-        this.originalURL = u; //originalURL不会再变
+//<<<<<<< HEAD
+//        this.originalURL = u; //originalURL不会再变
+//        if (!u.startsWith(Constants.START_URL)) { //"jdbc:h2:"
+//            throw DbException.getInvalidValueException("url", u);
+//        }
+//        this.url = u; //url在接下来的代码中会再变，去掉参数
+//        readProperties(info);
+//=======
+        originalURL = url = u; //originalURL不会再变
         if (!u.startsWith(Constants.START_URL)) { //"jdbc:h2:"
-            throw DbException.getInvalidValueException("url", u);
+            throw getFormatException();
         }
-        this.url = u; //url在接下来的代码中会再变，去掉参数
-        readProperties(info);
+        if (info != null) {
+            readProperties(info);
+        }
+        if (user != null) {
+            prop.put("USER", user);
+        }
+        if (password != null) {
+            prop.put("PASSWORD", password);
+        }
         readSettingsFromURL();
+        Object timeZoneName = prop.remove("TIME ZONE");
+        if (timeZoneName != null) {
+            timeZone = TimeZoneProvider.ofId(timeZoneName.toString());
+        }
         setUserName(removeProperty("USER", ""));
 //<<<<<<< HEAD
 //        convertPasswords();
@@ -202,11 +230,7 @@ public class ConnectionInfo implements Cloneable {
             persistent = true; //等同于"file:name"，在ConnectionInfo(String name)传过来时就是数据库名，没有前缀，在client端是tcp
         }
         if (persistent && !remote) {
-            if ("/".equals(SysProperties.FILE_SEPARATOR)) {
-                name = name.replace('\\', '/');
-            } else {
-                name = name.replace('/', '\\');
-            }
+            name = IOUtils.nameSeparatorsToNative(name);
         }
     }
 
@@ -222,7 +246,7 @@ public class ConnectionInfo implements Cloneable {
             boolean absolute = FileUtils.isAbsolute(name);
             String n;
             String prefix = null;
-            if (dir.endsWith(SysProperties.FILE_SEPARATOR)) {
+            if (dir.endsWith(File.separator)) {
                 dir = dir.substring(0, dir.length() - 1);
             }
             if (absolute) {
@@ -230,7 +254,7 @@ public class ConnectionInfo implements Cloneable {
             } else {
                 n  = FileUtils.unwrap(name);
                 prefix = name.substring(0, name.length() - n.length()); //比如nio:./test，此时prefix就是"nio:"
-                n = dir + SysProperties.FILE_SEPARATOR + n;
+                n = dir + File.separatorChar + n;
             }
             String normalizedName = FileUtils.unwrap(FileUtils.toRealPath(n));
             if (normalizedName.equals(absDir) || !normalizedName.startsWith(absDir)) {
@@ -252,7 +276,7 @@ public class ConnectionInfo implements Cloneable {
                 //可能是个bug，应该用absDir替换dir，
                 //否则当设置了baseDir时，还是不能用没有jdbc:h2:mydb这样的url，
                 //但是在getName()中还是抛错，并且错误信息提示设置baseDir
-                name = prefix + dir + SysProperties.FILE_SEPARATOR + FileUtils.unwrap(name);
+                name = prefix + dir + File.separatorChar + FileUtils.unwrap(name);
             }
         }
     }
@@ -479,31 +503,17 @@ public class ConnectionInfo implements Cloneable {
             return name;
         }
         if (nameNormalized == null) {
-            if (!SysProperties.IMPLICIT_RELATIVE_PATH) {
-                if (!FileUtils.isAbsolute(name)) {
-                    if (!name.contains("./") &&
-                            !name.contains(".\\") &&
-                            !name.contains(":/") &&
-                            !name.contains(":\\")) {
-                        // the name could start with "./", or
-                        // it could start with a prefix such as "nioMapped:./"
-                        // for Windows, the path "\test" is not considered
-                        // absolute as the drive letter is missing,
-                        // but we consider it absolute
-                        throw DbException.get(
-                                ErrorCode.URL_RELATIVE_TO_CWD,
-                                originalURL);
-                    }
-                }
+            if (!FileUtils.isAbsolute(name) && !name.contains("./") && !name.contains(".\\") && !name.contains(":/")
+                    && !name.contains(":\\")) {
+                // the name could start with "./", or
+                // it could start with a prefix such as "nioMapped:./"
+                // for Windows, the path "\test" is not considered
+                // absolute as the drive letter is missing,
+                // but we consider it absolute
+                throw DbException.get(ErrorCode.URL_RELATIVE_TO_CWD, originalURL);
             }
-            String suffix = Constants.SUFFIX_PAGE_FILE;
-            String n;
-            if (FileUtils.exists(name + suffix)) {
-                n = FileUtils.toRealPath(name + suffix);
-            } else {
-                suffix = Constants.SUFFIX_MV_FILE;
-                n = FileUtils.toRealPath(name + suffix);
-            }
+            String suffix = Constants.SUFFIX_MV_FILE;
+            String n = FileUtils.toRealPath(name + suffix);
             String fileName = FileUtils.getName(n);
             if (fileName.length() < suffix.length() + 1) { // 例如: 没有设置baseDir且dbName="./"时
                 throw DbException.get(ErrorCode.INVALID_DATABASE_NAME_1, name);
@@ -709,13 +719,21 @@ public class ConnectionInfo implements Cloneable {
     }
 
     /**
+     * Returns the time zone.
+     *
+     * @return the time zone
+     */
+    public TimeZoneProvider getTimeZone() {
+        return timeZone;
+    }
+
+    /**
      * Generate a URL format exception.
      *
      * @return the exception
      */
     DbException getFormatException() {
-        String format = Constants.URL_FORMAT;
-        return DbException.get(ErrorCode.URL_FORMAT_ERROR_2, format, url);
+        return DbException.get(ErrorCode.URL_FORMAT_ERROR_2, Constants.URL_FORMAT, url);
     }
 
     /**

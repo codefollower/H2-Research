@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -10,7 +10,6 @@ import org.h2.api.ErrorCode;
 import org.h2.command.CommandInterface;
 import org.h2.constraint.ConstraintActionType;
 import org.h2.engine.DbObject;
-import org.h2.engine.Right;
 import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
@@ -49,7 +48,6 @@ public class DropView extends SchemaCommand {
 
     @Override
     public long update() {
-        session.commit(true);
         Table view = getSchema().findTableOrView(session, viewName);
         if (view == null) {
             if (!ifExists) {
@@ -59,7 +57,7 @@ public class DropView extends SchemaCommand {
             if (TableType.VIEW != view.getTableType()) {
                 throw DbException.get(ErrorCode.VIEW_NOT_FOUND_1, viewName);
             }
-            session.getUser().checkRight(view, Right.ALL);
+            session.getUser().checkSchemaOwner(view.getSchema());
 
             if (dropAction == ConstraintActionType.RESTRICT) {
                 for (DbObject child : view.getChildren()) {

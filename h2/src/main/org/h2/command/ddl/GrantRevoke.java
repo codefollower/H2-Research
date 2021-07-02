@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -15,6 +15,7 @@ import org.h2.engine.Right;
 import org.h2.engine.RightOwner;
 import org.h2.engine.Role;
 import org.h2.engine.SessionLocal;
+import org.h2.engine.User;
 import org.h2.message.DbException;
 import org.h2.schema.Schema;
 import org.h2.table.Table;
@@ -67,21 +68,18 @@ public class GrantRevoke extends DefineCommand {
 
     public void setGranteeName(String granteeName) {
         Database db = session.getDatabase();
-        grantee = db.findUser(granteeName);
+        grantee = db.findUserOrRole(granteeName);
         if (grantee == null) {
-            grantee = db.findRole(granteeName);
-            if (grantee == null) {
-                throw DbException.get(ErrorCode.USER_OR_ROLE_NOT_FOUND_1, granteeName);
-            }
+            throw DbException.get(ErrorCode.USER_OR_ROLE_NOT_FOUND_1, granteeName);
         }
     }
 
     @Override
     public long update() {
-        session.getUser().checkAdmin();
-        session.commit(true);
         Database db = session.getDatabase();
+        User user = session.getUser();
         if (roleNames != null) {
+            user.checkAdmin();
             for (String name : roleNames) {
                 Role grantedRole = db.findRole(name);
                 if (grantedRole == null) {
@@ -96,6 +94,16 @@ public class GrantRevoke extends DefineCommand {
                 }
             }
         } else {
+            if ((rightMask & Right.ALTER_ANY_SCHEMA) != 0) {
+                user.checkAdmin();
+            } else {
+                if (schema != null) {
+                    user.checkSchemaOwner(schema);
+                }
+                for (Table table : tables) {
+                    user.checkSchemaOwner(table.getSchema());
+                }
+            }
             if (operationType == CommandInterface.GRANT) {
                 grantRight();
             } else if (operationType == CommandInterface.REVOKE) {

@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: Alex Nordlund
 --
@@ -652,6 +652,9 @@ SELECT ID, "VALUE",
 
 INSERT INTO TEST VALUES (9, NULL);
 > update count: 1
+
+SELECT ARRAY_AGG("VALUE") FROM TEST;
+>> [1, 1, 2, 2, 3, 3, 4, 4, null]
 
 SELECT ARRAY_AGG("VALUE" ORDER BY ID) FROM TEST;
 >> [1, 1, 2, 2, 3, 3, 4, 4, null]

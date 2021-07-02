@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -206,6 +206,30 @@ EXPLAIN SELECT COUNT(NULL) FROM TEST;
 
 EXPLAIN SELECT COUNT(DISTINCT NULL) FROM TEST;
 >> SELECT CAST(0 AS BIGINT) FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ GROUP BY () /* direct lookup */
+
+SELECT COUNT(X) FROM TEST;
+>> 2
+
+EXPLAIN SELECT COUNT(X) FROM TEST;
+>> SELECT COUNT("X") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
+
+DELETE FROM TEST WHERE X IS NULL;
+> update count: 1
+
+ALTER TABLE TEST ALTER COLUMN X SET NOT NULL;
+> ok
+
+SELECT COUNT(X) FROM TEST;
+>> 2
+
+EXPLAIN SELECT COUNT(X) FROM TEST;
+>> SELECT COUNT("X") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */ /* direct lookup */
+
+SELECT COUNT(DISTINCT X) FROM TEST;
+>> 2
+
+EXPLAIN SELECT COUNT(DISTINCT X) FROM TEST;
+>> SELECT COUNT(DISTINCT "X") FROM "PUBLIC"."TEST" /* PUBLIC.TEST.tableScan */
 
 DROP TABLE TEST;
 > ok

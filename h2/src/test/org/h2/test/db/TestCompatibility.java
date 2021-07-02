@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -58,6 +58,7 @@ public class TestCompatibility extends TestDb {
         conn.close();
         testIdentifiers();
         testIdentifiersCaseInResultSet();
+        testDatabaseToLowerParser();
         testOldInformationSchema();
         deleteDb("compatibility");
 
@@ -213,13 +214,6 @@ public class TestCompatibility extends TestDb {
         stat.execute("CALL TODAY");
 
         stat.execute("DROP TABLE TEST IF EXISTS");
-        stat.execute("CREATE TABLE TEST(ID INT)");
-        stat.execute("INSERT INTO TEST VALUES(1)");
-        PreparedStatement prep = conn.prepareStatement(
-                "SELECT LIMIT ? 1 ID FROM TEST");
-        prep.setInt(1, 2);
-        prep.executeQuery();
-        stat.execute("DROP TABLE TEST IF EXISTS");
     }
 
     private void testLog(double expected, Statement stat) throws SQLException {
@@ -277,12 +271,7 @@ public class TestCompatibility extends TestDb {
         String[] DISALLOWED_TYPES = {"NUMBER", "IDENTITY", "TINYINT", "BLOB"};
         for (String type : DISALLOWED_TYPES) {
             stat.execute("DROP TABLE IF EXISTS TEST");
-            try {
-                stat.execute("CREATE TABLE TEST(COL " + type + ")");
-                fail("Expect type " + type + " to not exist in PostgreSQL mode");
-            } catch (SQLException e) {
-                /* Expected! */
-            }
+            assertThrows(ErrorCode.UNKNOWN_DATA_TYPE_1, stat).execute("CREATE TABLE TEST(COL " + type + ")");
         }
 
         /* Test MONEY data type */
@@ -425,6 +414,7 @@ public class TestCompatibility extends TestDb {
         stat.execute("CREATE TABLE TEST_12(ID INT) DEFAULT COLLATE UTF8");
         stat.execute("CREATE TABLE TEST_13(a VARCHAR(10) COLLATE UTF8MB4)");
         stat.execute("CREATE TABLE TEST_14(a VARCHAR(10) NULL CHARACTER SET UTF8MB4 COLLATE UTF8MB4_BIN)");
+        stat.execute("ALTER TABLE TEST_14 CONVERT TO CHARACTER SET UTF8MB4 COLLATE UTF8MB4_UNICODE_CI");
         stat.execute("ALTER TABLE TEST_14 MODIFY a VARCHAR(10) NOT NULL CHARACTER SET UTF8MB4 COLLATE UTF8");
         assertThrows(ErrorCode.SYNTAX_ERROR_2, stat).execute("CREATE TABLE TEST_99" +
                 "(ID INT PRIMARY KEY) CHARSET UTF8,");
@@ -748,14 +738,10 @@ public class TestCompatibility extends TestDb {
     }
 
     private void testUnknownURL() {
-        try {
+        assertThrows(ErrorCode.UNKNOWN_MODE_1, () -> {
             getConnection("compatibility;MODE=Unknown").close();
             deleteDb("compatibility");
-        } catch (SQLException ex) {
-            assertEquals(ErrorCode.UNKNOWN_MODE_1, ex.getErrorCode());
-            return;
-        }
-        fail();
+        });
     }
 
     private void testIdentifiersCaseInResultSet() throws SQLException {
@@ -769,6 +755,17 @@ public class TestCompatibility extends TestDb {
             rs = stat.executeQuery("SELECT a FROM (SELECT 1) t(A)");
             md = rs.getMetaData();
             assertEquals("A", md.getColumnName(1));
+        } finally {
+            deleteDb("compatibility");
+        }
+    }
+
+    private void testDatabaseToLowerParser() throws SQLException {
+        try (Connection conn = getConnection("compatibility;DATABASE_TO_LOWER=TRUE")) {
+            Statement stat = conn.createStatement();
+            ResultSet rs = stat.executeQuery("SELECT 0x1234567890AbCdEf");
+            rs.next();
+            assertEquals(0x1234567890ABCDEFL, rs.getLong(1));
         } finally {
             deleteDb("compatibility");
         }

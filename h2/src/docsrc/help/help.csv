@@ -1,12 +1,11 @@
-# Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+# Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 # and the EPL 1.0 (https://h2database.com/html/license.html).
 # Initial Developer: H2 Group
 
 "SECTION","TOPIC","SYNTAX","TEXT","EXAMPLE"
 
 "Commands (DML)","SELECT","
-SELECT @c@ [ TOP term [ PERCENT ] [ WITH TIES ] ]
-[ DISTINCT @h2@ [ ON ( expression [,...] ) ] | ALL ]
+SELECT [ DISTINCT @h2@ [ ON ( expression [,...] ) ] | ALL ]
 selectExpression [,...]
 [ FROM tableExpression [,...] ]
 [ WHERE expression ]
@@ -18,7 +17,6 @@ selectExpression [,...]
 [ OFFSET expression { ROW | ROWS } ]
 [ FETCH { FIRST | NEXT } [ expression [ PERCENT ] ] { ROW | ROWS }
     { ONLY | WITH TIES } ]
-@c@ [ LIMIT expression [ OFFSET expression ] ]
 @h2@ [ FOR UPDATE ]
 ","
 Selects data from a table or multiple tables.
@@ -56,12 +54,10 @@ For compatibility with other databases and future versions of H2 please use pare
 
 10. ORDER BY sorts the result by the given column(s) or expression(s).
 
-11. Number of rows in output can be limited either with standard OFFSET / FETCH,
-with non-standard LIMIT / OFFSET, or with non-standard TOP clauses.
-Different clauses cannot be used together.
+11. Number of rows in output can be limited with OFFSET and FETCH clauses.
 OFFSET specifies how many rows to skip.
 Please note that queries with high offset values can be slow.
-FETCH FIRST/NEXT, LIMIT or TOP limits the number of rows returned by the query (no limit if null or smaller than zero).
+FETCH FIRST/NEXT limits the number of rows returned by the query (no limit if null or smaller than zero).
 If PERCENT is specified number of rows is specified as a percent of the total number of rows
 and should be an integer value between 0 and 100 inclusive.
 WITH TIES can be used only together with ORDER BY and means that all additional rows that have the same sorting position
@@ -72,7 +68,7 @@ This clause can be used to reuse the same definition in multiple functions.
 
 If FOR UPDATE is specified, the tables or rows are locked for writing.
 This clause is not allowed in DISTINCT queries and in queries with non-window aggregates, GROUP BY, or HAVING clauses.
-When using default MVStore engine only the selected rows are locked as in an UPDATE statement.
+Only the selected rows are locked as in an UPDATE statement.
 Rows from the right side of a left join and from the left side of a right join, including nested joins, aren't locked.
 Locking behavior for rows that were excluded from result using OFFSET / FETCH / LIMIT / TOP or QUALIFY is undefined,
 to avoid possible locking of excessive rows try to filter out unneeded rows with the WHERE criteria when possible.
@@ -82,8 +78,6 @@ Note that new uncommitted rows from other transactions are not visible unless re
 and therefore cannot be selected and locked.
 Modified uncommitted rows from other transactions that satisfy the WHERE criteria cause this SELECT to wait for
 commit or rollback of those transactions.
-With PageStore engine the whole tables are locked;
-to avoid deadlocks with this engine always lock the tables in the same order in all transactions.
 ","
 SELECT * FROM TEST;
 SELECT * FROM TEST ORDER BY NAME;
@@ -101,36 +95,36 @@ SELECT DISTINCT ON(C1) C1, C2 FROM TEST ORDER BY C1;
 
 "Commands (DML)","INSERT","
 INSERT INTO [schemaName.]tableName [ ( columnName [,...] ) ]
-{ [ overrideClause ] { insertValues | @h2@ [ DIRECT ] @c@ [ SORTED ] query } }
+{ [ overrideClause ] { insertValues | @h2@ [ DIRECT ] query } }
     | DEFAULT VALUES
 ","
 Inserts a new row / new rows into a table.
 
 When using DIRECT, then the results from the query are directly applied in the target table without any intermediate step.
-
-When using SORTED, b-tree pages are split at the insertion point. This can improve performance and reduce disk usage.
-This clause in only supported by legacy PageStore engine.
 ","
 INSERT INTO TEST VALUES(1, 'Hello')
 "
 
 "Commands (DML)","UPDATE","
 UPDATE [schemaName.]tableName [ [ AS ] newTableAlias ] SET setClauseList
-[ WHERE expression ] @c@ [ ORDER BY sortSpecificationList ] @h2@ [ LIMIT expression ]
+[ WHERE expression ] @c@ [ ORDER BY sortSpecificationList ]
+@h2@ FETCH { FIRST | NEXT } [ expression ] { ROW | ROWS } ONLY
 ","
 Updates data in a table.
 ORDER BY is supported for MySQL compatibility, but it is ignored.
+If FETCH is specified, at most the specified number of rows are updated (no limit if null or smaller than zero).
 ","
 UPDATE TEST SET NAME='Hi' WHERE ID=1;
 UPDATE PERSON P SET NAME=(SELECT A.NAME FROM ADDRESS A WHERE A.ID=P.ID);
 "
 
 "Commands (DML)","DELETE","
-DELETE @c@ [ TOP term ] FROM [schemaName.]tableName
-[ WHERE expression ] @h2@ [ LIMIT term ]
+DELETE FROM [schemaName.]tableName
+[ WHERE expression ]
+@h2@ FETCH { FIRST | NEXT } [ expression ] { ROW | ROWS } ONLY
 ","
 Deletes rows form a table.
-If TOP or LIMIT is specified, at most the specified number of rows are deleted (no limit if null or smaller than zero).
+If FETCH is specified, at most the specified number of rows are deleted (no limit if null or smaller than zero).
 ","
 DELETE FROM TEST WHERE ID=2
 "
@@ -233,7 +227,8 @@ MERGE INTO TARGET_TABLE USING DUAL ON ID = 1
 
 "Commands (DML)","RUNSCRIPT","
 @h2@ RUNSCRIPT FROM fileNameString scriptCompressionEncryption
-@h2@ [ CHARSET charsetString ] [ TRUNCATE_LARGE_LENGTH ] [ VARIABLE_BINARY ]
+@h2@ [ CHARSET charsetString ]
+@h2@ { [ QUIRKS_MODE ] [ VARIABLE_BINARY ] | FROM_1X }
 ","
 Runs a SQL script from a file. The script is a text file containing SQL
 statements; each statement must end with ';'. This command can be used to
@@ -247,18 +242,21 @@ See the [Pluggable File System](https://h2database.com/html/advanced.html#file_s
 The compression algorithm must match the one used when creating the script.
 Instead of a file, a URL may be used.
 
-If ""TRUNCATE_LARGE_LENGTH"" is specified, the ""CHARACTER"", ""CHARACTER VARYING"", ""VARCHAR_IGNORECASE"",
-""BINARY"", "BINARY_VARYING", "JAVA_OBJECT"" and ""JSON"" data types with too large length will be treated
-as these data types with maximum allowed length.
+If ""QUIRKS_MODE"" is specified, the various compatibility quirks for scripts from older versions of H2 are enabled.
 Use this clause when you import script that was generated by H2 1.4.200 or an older version into more recent version.
 
 If ""VARIABLE_BINARY"" is specified, the ""BINARY"" data type will be parsed as ""VARBINARY"".
 Use this clause when you import script that was generated by H2 1.4.200 or an older version into more recent version.
 
+If ""FROM_1X"" is specified, quirks for scripts exported from H2 1.*.* are enabled.
+Use this flag to populate a new database with the data exported from 1.*.* versions of H2.
+This flag also enables ""QUIRKS_MODE"" and ""VARIABLE_BINARY"" implicitly.
+
 Admin rights are required to execute this command.
 ","
 RUNSCRIPT FROM 'backup.sql'
 RUNSCRIPT FROM 'classpath:/com/acme/test.sql'
+RUNSCRIPT FROM 'dump_from_1_4_200.sql' FROM_1X
 "
 
 "Commands (DML)","SCRIPT","
@@ -377,6 +375,7 @@ ALTER DOMAIN @h2@ [ IF EXISTS ] [schemaName.]domainName
     | @h2@ { DROP ON UPDATE }
 ","
 Changes the default or on update expression of a domain.
+Schema owner rights are required to execute this command.
 
 SET DEFAULT changes the default expression of a domain.
 
@@ -403,6 +402,7 @@ ADD [ constraintNameDefinition ]
 CHECK (condition) @h2@ [ CHECK | NOCHECK ]
 ","
 Adds a constraint to a domain.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 ALTER DOMAIN D ADD CONSTRAINT D_POSITIVE CHECK (VALUE > 0)
@@ -413,6 +413,7 @@ ALTER DOMAIN @h2@ [ IF EXISTS ] [schemaName.]domainName
 DROP CONSTRAINT @h2@ [ IF EXISTS ] [schemaName.]constraintName
 ","
 Removes a constraint from a domain.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 ALTER DOMAIN D DROP CONSTRAINT D_POSITIVE
@@ -422,9 +423,21 @@ ALTER DOMAIN D DROP CONSTRAINT D_POSITIVE
 @h2@ ALTER DOMAIN [ IF EXISTS ] [schemaName.]domainName RENAME TO newName
 ","
 Renames a domain.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 ALTER DOMAIN TEST RENAME TO MY_TYPE
+"
+
+"Commands (DDL)","ALTER DOMAIN RENAME CONSTRAINT","
+@h2@ ALTER DOMAIN [ IF EXISTS ] [schemaName.]domainName
+@h2@ RENAME CONSTRAINT [schemaName.]oldConstraintName
+@h2@ TO newConstraintName
+","
+Renames a constraint.
+This command commits an open transaction in this connection.
+","
+ALTER DOMAIN D RENAME CONSTRAINT FOO TO BAR
 "
 
 "Commands (DDL)","ALTER INDEX RENAME","
@@ -440,6 +453,7 @@ ALTER INDEX IDXNAME RENAME TO IDX_TEST_NAME
 @h2@ ALTER SCHEMA [ IF EXISTS ] schemaName RENAME TO newSchemaName
 ","
 Renames a schema.
+Schema admin rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 ALTER SCHEMA TEST RENAME TO PRODUCTION
@@ -449,6 +463,7 @@ ALTER SCHEMA TEST RENAME TO PRODUCTION
 ALTER SEQUENCE @h2@ [ IF EXISTS ] [schemaName.]sequenceName alterSequenceOption [...]
 ","
 Changes the parameters of a sequence.
+Schema owner rights are required to execute this command.
 This command does not commit the current transaction; however the new value is used by other
 transactions immediately, and rolling back this command has no effect.
 ","
@@ -486,7 +501,7 @@ ALTER TABLE TEST ADD CONSTRAINT NAME_UNIQUE UNIQUE(NAME)
 
 "Commands (DDL)","ALTER TABLE RENAME CONSTRAINT","
 @h2@ ALTER TABLE [ IF EXISTS ] [schemaName.]tableName
-RENAME [schemaName.]oldConstraintName
+@h2@ RENAME CONSTRAINT [schemaName.]oldConstraintName
 @h2@ TO newConstraintName
 ","
 Renames a constraint.
@@ -664,6 +679,7 @@ ALTER USER SA SET PASSWORD 'rioyxlgt'
 @h2@ ALTER VIEW [ IF EXISTS ] [schemaName.]viewName RECOMPILE
 ","
 Recompiles a view after the underlying tables have been changed or created.
+Schema owner rights are required to execute this command.
 This command is used for views created using CREATE FORCE VIEW.
 This command commits an open transaction in this connection.
 ","
@@ -674,6 +690,7 @@ ALTER VIEW ADDRESS_VIEW RECOMPILE
 @h2@ ALTER VIEW [ IF EXISTS ] [schemaName.]viewName RENAME TO newName
 ","
 Renames a view.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 ALTER VIEW TEST RENAME TO MY_VIEW
@@ -705,7 +722,8 @@ ANALYZE SAMPLE_SIZE 1000
 ","
 Sets the comment of a database object. Use NULL or empty string to remove the comment.
 
-Admin rights are required to execute this command.
+Admin rights are required to execute this command if object is a USER or ROLE.
+Schema owner rights are required to execute this command for all other types of objects.
 This command commits an open transaction in this connection.
 ","
 COMMENT ON TABLE TEST IS 'Table used for testing'
@@ -780,6 +798,7 @@ CREATE ALIAS tr AS '@groovy.transform.CompileStatic
 VALUE expression
 ","
 Creates a new constant.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 CREATE CONSTANT ONE VALUE 1
@@ -794,6 +813,7 @@ CREATE DOMAIN @h2@ [ IF NOT EXISTS ] [schemaName.]domainName
 [ CHECK (condition) ] [...]
 ","
 Creates a new domain to define a set of permissible values.
+Schema owner rights are required to execute this command.
 Domains can be used as data types.
 The domain constraints must evaluate to TRUE or to UNKNOWN.
 In the conditions, the term VALUE refers to the value being tested.
@@ -804,21 +824,20 @@ CREATE DOMAIN EMAIL AS VARCHAR(255) CHECK (POSITION('@', VALUE) > 1)
 "
 
 "Commands (DDL)","CREATE INDEX","
-@h2@ CREATE
-@h2@ { [ UNIQUE ] [ HASH | SPATIAL] INDEX [ [ IF NOT EXISTS ] [schemaName.]indexName ]
-    | PRIMARY KEY [ HASH ] }
+@h2@ CREATE [ UNIQUE | SPATIAL ] INDEX
+@h2@ [ [ IF NOT EXISTS ] [schemaName.]indexName ]
 @h2@ ON [schemaName.]tableName ( indexColumn [,...] )
+@h2@ [ INCLUDE ( indexColumn [,...] ) ]
 ","
 Creates a new index.
 This command commits an open transaction in this connection.
 
-Hash indexes are meant for in-memory databases and memory tables (CREATE MEMORY TABLE) when PageStore engine is used.
-For other tables, or if the index contains multiple columns, the HASH keyword is ignored.
-Hash indexes can only test for equality, do not support range queries (similar to a hash table), use more memory,
-but can perform lookups faster.
-Non-unique keys are supported.
+INCLUDE clause may only be specified for UNIQUE indexes.
+With this clause additional columns are included into index, but aren't used in unique checks.
 
-Spatial indexes are supported only on GEOMETRY columns and only by default MVStore engine.
+Spatial indexes are supported only on GEOMETRY columns.
+They may contain only one column and are used by the
+[spatial overlapping operator](https://h2database.com/html/grammar.html#compare).
 ","
 CREATE INDEX IDXNAME ON TEST(NAME)
 "
@@ -827,7 +846,8 @@ CREATE INDEX IDXNAME ON TEST(NAME)
 @h2@ CREATE [ FORCE ] [ [ GLOBAL | LOCAL ] TEMPORARY ]
 @h2@ LINKED TABLE [ IF NOT EXISTS ]
 @h2@ [schemaName.]tableName ( driverString, urlString, userString, passwordString,
-@h2@ [ originalSchemaString, ] @h2@ originalTableString ) [ EMIT UPDATES | READONLY ]
+@h2@ [ originalSchemaString, ] @h2@ originalTableString )
+@h2@ [ EMIT UPDATES | READONLY ] [ FETCH_SIZE sizeInt ]
 ","
 Creates a table link to an external table. The driver name may be empty if the
 driver is already loaded. If the schema name is not set, only one table with
@@ -841,6 +861,10 @@ rollback), however in this case multi-row unique key updates may not always
 work. Linked tables to the same database share one connection.
 
 READONLY - is set, the remote table may not be updated. This is enforced by H2.
+
+FETCH_SIZE - the number of rows fetched, a hint with non-negative number of rows to fetch from the external table
+at once, may be ignored by the driver of external database. 0 is default and means no hint.
+The value is passed to ""java.sql.Statement.setFetchSize()"" method.
 
 If the connection to the source database is lost, the connection is re-opened
 (this is a workaround for MySQL that disconnects after 8 hours of inactivity by default).
@@ -874,13 +898,21 @@ CREATE ROLE READONLY
 "
 
 "Commands (DDL)","CREATE SCHEMA","
-CREATE SCHEMA @h2@ [ IF NOT EXISTS ] name
-[ AUTHORIZATION ownerUserName ]
+CREATE SCHEMA @h2@ [ IF NOT EXISTS ]
+{ name [ AUTHORIZATION ownerName ] | [ AUTHORIZATION ownerName ] }
 @h2@ [ WITH tableEngineParamName [,...] ]
 ","
-Creates a new schema. If no owner is specified, the current user is used. The
-user that executes the command must have admin rights, as well as the owner.
-Specifying the owner currently has no effect.
+Creates a new schema.
+Schema admin rights are required to execute this command.
+
+If schema name is not specified, the owner name is used as a schema name.
+If schema name is specified, but no owner is specified, the current user is used as an owner.
+
+Schema owners can create, rename, and drop objects in the schema.
+Schema owners can drop the schema itself, but cannot rename it.
+Some objects may still require admin rights for their creation,
+see documentation of their CREATE statements for details.
+
 Optional table engine parameters are used when CREATE TABLE command
 is run on this schema without having its engine params set.
 
@@ -894,6 +926,7 @@ CREATE SEQUENCE @h2@ [ IF NOT EXISTS ] [schemaName.]sequenceName
 [ { AS dataType | sequenceOption } [...] ]
 ","
 Creates a new sequence.
+Schema owner rights are required to execute this command.
 
 The data type of a sequence must be a numeric type, the default is BIGINT.
 Sequence can produce only integer values.
@@ -966,6 +999,8 @@ CREATE TRIGGER @h2@ [ IF NOT EXISTS ] [schemaName.]triggerName
 @h2@ { CALL triggeredClassNameString | AS sourceCodeString }
 ","
 Creates a new trigger.
+Admin rights are required to execute this command.
+
 The trigger class must be public and implement ""org.h2.api.Trigger"".
 Inner classes are not supported.
 The class must be available in the classpath of the database engine
@@ -1044,6 +1079,7 @@ VIEW @h2@ [ IF NOT EXISTS ] [schemaName.]viewName
 ","
 Creates a new view. If the force option is used, then the view is created even
 if the underlying table(s) don't exist.
+Schema owner rights are required to execute this command.
 
 If the OR REPLACE clause is used an existing view will be replaced, and any
 dependent views will not need to be recreated. If dependent views will become
@@ -1052,7 +1088,6 @@ can be ignored if the FORCE clause is also used.
 
 Views are not updatable except when using 'instead of' triggers.
 
-Admin rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 CREATE VIEW TEST_VIEW AS SELECT * FROM TEST WHERE ID < 100
@@ -1062,8 +1097,8 @@ CREATE VIEW TEST_VIEW AS SELECT * FROM TEST WHERE ID < 100
 @h2@ DROP AGGREGATE [ IF EXISTS ] aggregateName
 ","
 Drops an existing user-defined aggregate function.
+Schema owner rights are required to execute this command.
 
-Admin rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 DROP AGGREGATE SIMPLE_MEDIAN
@@ -1073,8 +1108,8 @@ DROP AGGREGATE SIMPLE_MEDIAN
 @h2@ DROP ALIAS [ IF EXISTS ] [schemaName.]aliasName
 ","
 Drops an existing function alias.
+Schema owner rights are required to execute this command.
 
-Admin rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 DROP ALIAS MY_SQRT
@@ -1098,6 +1133,7 @@ DROP ALL OBJECTS
 @h2@ DROP CONSTANT [ IF EXISTS ] [schemaName.]constantName
 ","
 Drops a constant.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 DROP CONSTANT ONE
@@ -1107,6 +1143,8 @@ DROP CONSTANT ONE
 DROP DOMAIN @h2@ [ IF EXISTS ] [schemaName.]domainName [ RESTRICT | CASCADE ]
 ","
 Drops a data type (domain).
+Schema owner rights are required to execute this command.
+
 The command will fail if it is referenced by a column or another domain (the default).
 Column descriptors are replaced with original definition of specified domain if the CASCADE clause is used.
 Default and on update expressions are copied into domains and columns that use this domain and don't have own
@@ -1130,6 +1168,7 @@ DROP INDEX IF EXISTS IDXNAME
 DROP ROLE @h2@ [ IF EXISTS ] roleName
 ","
 Drops a role.
+Admin rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 DROP ROLE READONLY
@@ -1139,6 +1178,7 @@ DROP ROLE READONLY
 DROP SCHEMA @h2@ [ IF EXISTS ] schemaName [ RESTRICT | CASCADE ]
 ","
 Drops a schema.
+Schema owner rights are required to execute this command.
 The command will fail if objects in this schema exist and the RESTRICT clause is used (the default).
 All objects in this schema are dropped as well if the CASCADE clause is used.
 This command commits an open transaction in this connection.
@@ -1150,6 +1190,7 @@ DROP SCHEMA TEST_SCHEMA
 DROP SEQUENCE @h2@ [ IF EXISTS ] [schemaName.]sequenceName
 ","
 Drops a sequence.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 DROP SEQUENCE SEQ_ID
@@ -1192,6 +1233,7 @@ DROP USER TOM
 DROP VIEW @h2@ [ IF EXISTS ] [schemaName.]viewName [ RESTRICT | CASCADE ]
 ","
 Drops an existing view.
+Schema owner rights are required to execute this command.
 All dependent views are dropped as well if the CASCADE clause is used (the default).
 The command will fail if dependent views exist and the RESTRICT clause is used.
 This command commits an open transaction in this connection.
@@ -1262,7 +1304,7 @@ TO { PUBLIC | userName | roleName }
 ","
 Grants rights for a table to a user or role.
 
-Admin rights are required to execute this command.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 GRANT SELECT ON TEST TO READONLY
@@ -1271,7 +1313,9 @@ GRANT SELECT ON TEST TO READONLY
 "Commands (Other)","GRANT ALTER ANY SCHEMA","
 @h2@ GRANT ALTER ANY SCHEMA TO userName
 ","
-Grant schema altering rights to a user.
+Grant schema admin rights to a user.
+
+Schema admin can create, rename, or drop schemas and also has schema owner rights in every schema.
 
 Admin rights are required to execute this command.
 This command commits an open transaction in this connection.
@@ -1314,10 +1358,21 @@ FROM { PUBLIC | userName | roleName }
 ","
 Removes rights for a table from a user or role.
 
-Admin rights are required to execute this command.
+Schema owner rights are required to execute this command.
 This command commits an open transaction in this connection.
 ","
 REVOKE SELECT ON TEST FROM READONLY
+"
+
+"Commands (Other)","REVOKE ALTER ANY SCHEMA","
+@h2@ REVOKE ALTER ANY SCHEMA FROM userName
+","
+Removes schema admin rights from a user.
+
+Admin rights are required to execute this command.
+This command commits an open transaction in this connection.
+","
+GRANT ALTER ANY SCHEMA TO Bob
 "
 
 "Commands (Other)","REVOKE ROLE","
@@ -1493,23 +1548,6 @@ SET COLLATION ENGLISH
 SET COLLATION CHARSET_CP500
 "
 
-"Commands (Other)","SET COMPRESS_LOB","
-@h2@ SET COMPRESS_LOB { NO | LZF | DEFLATE }
-","
-This feature is only available for the PageStore storage engine.
-For the MVStore engine (the default for H2 version 1.4.x),
-append "";COMPRESS=TRUE"" to the database URL instead.
-
-Sets the compression algorithm for BLOB and CLOB data. Compression is usually
-slower, but needs less disk space. LZF is faster but uses more space.
-
-Admin rights are required to execute this command, as it affects all connections.
-This command commits an open transaction in this connection.
-This setting is persistent.
-","
-SET COMPRESS_LOB LZF
-"
-
 "Commands (Other)","SET DATABASE_EVENT_LISTENER","
 @h2@ SET DATABASE_EVENT_LISTENER classNameString
 ","
@@ -1680,33 +1718,6 @@ This setting can be appended to the database URL: ""jdbc:h2:./test;LAZY_QUERY_EX
 SET LAZY_QUERY_EXECUTION 1
 "
 
-"Commands (Other)","SET LOG","
-@h2@ SET LOG int
-","
-Sets the transaction log mode. The values 0, 1, and 2 are supported, the default is 2.
-This setting is only supported by the PageStore engine. This setting affects all connections.
-
-LOG 0 means the transaction log is disabled completely. It is the fastest mode,
-but also the most dangerous: if the process is killed while the database is open in this mode,
-the data might be lost. It must only be used if this is not a problem, for example when
-initially loading a database, or when running tests.
-
-LOG 1 means the transaction log is enabled, but FileDescriptor.sync is disabled.
-This setting is about half as fast as with LOG 0. This setting is useful if no protection
-against power failure is required, but the data must be protected against killing the process.
-
-LOG 2 (the default) means the transaction log is enabled, and FileDescriptor.sync is called
-for each checkpoint. This setting is about half as fast as LOG 1. Depending on the
-file system, this will also protect against power failure in the majority if cases.
-
-Admin rights are required to execute this command, as it affects all connections.
-This command commits an open transaction in this connection.
-This setting is not persistent.
-This setting can be appended to the database URL: ""jdbc:h2:./test;LOG=0""
-","
-SET LOG 1
-"
-
 "Commands (Other)","SET LOCK_MODE","
 @h2@ SET LOCK_MODE int
 ","
@@ -1717,22 +1728,16 @@ The value 0 means no locking (should only be used for testing).
 Please note that using SET LOCK_MODE 0 while at the same time
 using multiple connections may result in inconsistent transactions.
 
-The value 1 means table level locking for PageStore engine,
-for default MVStore engine it is the same as default 3.
+The value 3 means row-level locking for write operations.
 
-The value 2 means table level locking with garbage collection
-(if the application does not close all connections) for PageStore engine,
-for default MVStore engine it is the same as default 3.
-
-The value 3 means table level locking, but read locks are released immediately for PageStore engine,
-for default MVStore engine it means row-level locking for write operations.
+The values 1 and 2 have the same effect as 3.
 
 Admin rights are required to execute this command, as it affects all connections.
 This command commits an open transaction in this connection.
 This setting is persistent.
-This setting can be appended to the database URL: ""jdbc:h2:./test;LOCK_MODE=3""
+This setting can be appended to the database URL: ""jdbc:h2:./test;LOCK_MODE=0""
 ","
-SET LOCK_MODE 1
+SET LOCK_MODE 0
 "
 
 "Commands (Other)","SET LOCK_TIMEOUT","
@@ -1932,7 +1937,6 @@ SET REFERENTIAL_INTEGRITY FALSE
 "Commands (Other)","SET RETENTION_TIME","
 @h2@ SET RETENTION_TIME int
 ","
-This property is only used when using the MVStore storage engine.
 How long to retain old, persisted data, in milliseconds.
 The default is 45000 (45 seconds), 0 means overwrite data as early as possible.
 It is assumed that a file system and hard disk will flush all write buffers within this time.
@@ -2129,7 +2133,7 @@ but only for at most the time defined by the database setting ""h2.maxCompactTim
 
 SHUTDOWN IMMEDIATELY closes the database files without any cleanup and without compacting.
 
-SHUTDOWN DEFRAG re-orders the pages when closing the database so that table scans are faster. In case of MVStore it is currently equivalent to COMPACT.
+SHUTDOWN DEFRAG is currently equivalent to COMPACT.
 
 Admin rights are required to execute this command.
 ","
@@ -2143,6 +2147,25 @@ string | @h2@ { dollarQuotedString } | numeric | dateAndTime | boolean | bytes
 A literal value of any data type, or null.
 ","
 10
+"
+
+"Literals","Approximate numeric","
+[ + | - ] { { number [ . number ] } | { . number } }
+E [ + | - ] expNumber
+","
+An approximate numeric value.
+Approximate numeric values have [DECFLOAT](https://h2database.com/html/datatypes.html#decfloat_type) data type.
+To define a [DOUBLE PRECISION](https://h2database.com/html/datatypes.html#double_precision_type) value, use
+""CAST(X AS DOUBLE PRECISION)"".
+To define a [REAL](https://h2database.com/html/datatypes.html#real_type) value, use ""CAST(X AS REAL)"".
+There are some special REAL, DOUBLE PRECISION, and DECFLOAT values:
+to represent positive infinity, use ""CAST('Infinity' AS dataType)"";
+for negative infinity, use ""CAST('-Infinity' AS dataType)"";
+for ""NaN"" (not a number), use ""CAST('NaN' AS dataType)"".
+","
+-1.4e-10
+CAST(1e2 AS REAL)
+CAST('NaN' AS DOUBLE PRECISION)
 "
 
 "Literals","Array","
@@ -2167,7 +2190,8 @@ TRUE
 "Literals","Bytes","
 X'hex' [ 'hex' [...] ]
 ","
-A binary value. The hex value is not case sensitive and may contain space characters.
+A binary string value. The hex value is not case sensitive and may contain space characters as separators.
+If there are more than one group of quoted hex values, groups must be separated with whitespace.
 ","
 X''
 X'01FF'
@@ -2191,22 +2215,6 @@ A literal value of any date-time data type.
 TIMESTAMP '1999-01-31 10:00:00'
 "
 
-"Literals","Decimal","
-[ + | - ] { { number [ . number ] } | { . number } }
-[ E [ + | - ] expNumber [...] ] ]
-","
-A decimal number with fixed precision and scale.
-Internally, ""java.lang.BigDecimal"" is used.
-To ensure the floating point representation is used, use CAST(X AS DOUBLE PRECISION).
-There are some special decimal values: to represent positive infinity, use ""POWER(0, -1)"";
-for negative infinity, use ""(-POWER(0, -1))""; for -0.0, use ""(-CAST(0 AS DOUBLE PRECISION))"";
-for ""NaN"" (not a number), use ""SQRT(-1)"".
-","
--1600.05
-CAST(0 AS DOUBLE PRECISION)
--1.4e-10
-"
-
 "Literals","Dollar Quoted String","
 @h2@ $$anythingExceptTwoDollarSigns$$
 ","
@@ -2215,6 +2223,18 @@ within the text. A whitespace is required before the first set of dollar signs.
 No escaping is required within the text.
 ","
 $$John's car$$
+"
+
+"Literals","Exact numeric","
+[ + | - ] { { number [ . number ] } | { . number } }
+","
+An exact numeric value.
+Exact numeric values with dot have [NUMERIC](https://h2database.com/html/datatypes.html#numeric_type) data type, values
+without dot small enough to fit into [INTEGER](https://h2database.com/html/datatypes.html#integer_type) data type have
+this type, larger values small enough to fit into [BIGINT](https://h2database.com/html/datatypes.html#bigint_type) data
+type have this type, others also have NUMERIC data type.
+","
+-1600.05
 "
 
 "Literals","Hex Number","
@@ -2289,10 +2309,10 @@ The maximum length of the number depends on the data type used.
 "
 
 "Literals","Numeric","
-decimal | int | long | @h2@ { hexNumber }
+exactNumeric | approximateNumeric | int | long | @h2@ { hexNumber }
 ","
-The data type of a numeric literal is the NUMERIC if the number contains a dot;
-otherwise it is is always the lowest possible from INTEGER, BIGINT, or NUMERIC.
+The data type of a numeric literal is the one of numeric data types, such as NUMERIC, DECFLOAT, BIGINT, or INTEGER
+depending on format and value.
 
 An explicit CAST can be used to change the data type.
 ","
@@ -2302,13 +2322,28 @@ CAST(0 AS DOUBLE PRECISION)
 "
 
 "Literals","String","
-'anythingExceptSingleQuote' [ 'anythingExceptSingleQuote' [...] ]
+[N]'anythingExceptSingleQuote' [...]
+    | U&{'anythingExceptSingleQuote' [...]} [ UESCAPE 'singleCharacter' ]
 ","
-A string starts and ends with a single quote. Two single quotes can be used to
-create a single quote inside a string.
+A character string literal starts and ends with a single quote.
+Two single quotes can be used to create a single quote inside a string.
+Prefix ""N"" means a national character string literal;
+H2 does not distinguish regular and national character string literals in any way, this prefix has no effect in H2.
+
+String literals staring with ""U&"" are Unicode character string literals.
+All character string literals in H2 may have Unicode characters,
+but Unicode character string literals may contain Unicode escape sequences ""\0000"" or ""\+000000"",
+where \ is an escape character, ""0000"" and ""000000"" are Unicode character codes in hexadecimal notation.
+Optional ""UESCAPE"" clause may be used to specify another escape character,
+with exception for single quote, double quote, plus sign, and hexadecimal digits (0-9, a-f, and A-F).
+By default the backslash is used.
+Two escape characters can be used to include a single character inside a string.
+Two single quotes can be used to create a single quote inside a string.
 ","
 'John''s car'
 'A' 'B' 'C'
+U&'W\00f6rter ' '\\ \+01f600 /'
+U&'|00a1' UESCAPE '|'
 "
 
 "Literals","UUID","
@@ -2782,7 +2817,6 @@ When converting a number to a boolean, 0 is false and every other value is true.
 When converting a boolean to a number, false is 0 and true is 1.
 When converting a number to a number of another type, the value is checked for overflow.
 When converting a string to binary, UTF-8 encoding is used.
-If a direct conversion is not possible, the value is first converted to a string.
 Note that some data types may need explicitly specified precision to avoid overflow or rounding.
 ","
 CAST(NAME AS INT);
@@ -2801,10 +2835,8 @@ AES
 dataTypeOrDomain @h2@ [ VISIBLE | INVISIBLE ]
 [ { DEFAULT expression
     | GENERATED ALWAYS AS (generatedColumnExpression)
-    | @c@ { AS (generatedColumnExpression) }
     | GENERATED {ALWAYS | BY DEFAULT} AS IDENTITY [(sequenceOption [...])]} ]
-@h2@ [ ON UPDATE expression ] @c@ [ [ NOT ] NULL ]
-@c@ [ { AUTO_INCREMENT | IDENTITY } [ ( startInt [, incrementInt ] ) ] ]
+@h2@ [ ON UPDATE expression ]
 @h2@ [ DEFAULT ON NULL ]
 @h2@ [ SELECTIVITY selectivityInt ] @h2@ [ COMMENT expression ]
 [ columnConstraintDefinition ] [...]
@@ -2840,14 +2872,16 @@ Otherwise, it works as normal column.
 
 Column constraint definitions are not supported for ALTER statements.
 ","
-CREATE TABLE TEST(ID INT PRIMARY KEY, NAME VARCHAR(255) DEFAULT '');
-CREATE TABLE TEST(ID BIGINT IDENTITY);
-CREATE TABLE TEST(QUANTITY INT, PRICE DECIMAL, AMOUNT DECIMAL AS QUANTITY*PRICE);
+CREATE TABLE TEST(ID INT PRIMARY KEY,
+    NAME VARCHAR(255) DEFAULT '' NOT NULL);
+CREATE TABLE TEST(ID BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    QUANTITY INT, PRICE NUMERIC(10, 2),
+    AMOUNT NUMERIC(20, 2) GENERATED ALWAYS AS (QUANTITY * PRICE));
 "
 
 "Other Grammar","Column Constraint Definition","
 [ constraintNameDefinition ]
-NOT NULL | @c@ { NULL } | PRIMARY KEY @c@ [ HASH ] | UNIQUE | referencesSpecification | CHECK (condition)
+NOT NULL | PRIMARY KEY | UNIQUE | referencesSpecification | CHECK (condition)
 ","
 NOT NULL disallows NULL value for a column.
 
@@ -2915,7 +2949,7 @@ Rows with ""NULL"" value in any column are ignored.
 ""INTERSECTS"" checks whether 2D bounding boxes of specified geometries intersect with each other
 and returns ""TRUE"" or ""FALSE"".
 ","
-ID<>2
+ID <> 2
 NOT(A OR B)
 EXISTS (SELECT NULL FROM TEST T WHERE T.GROUP_ID = P.ID)
 UNIQUE (SELECT A, B FROM TEST T WHERE T.CATEGORY = CAT)
@@ -3342,7 +3376,7 @@ UPDATE SET setClauseList | DELETE
 ","
 WHEN MATCHED clause for MERGE USING command.
 ","
-WHEN MATCHED THEN UPDATE SET VALUE = S.VALUE
+WHEN MATCHED THEN UPDATE SET NAME = S.NAME
 WHEN MATCHED THEN DELETE
 "
 
@@ -3419,13 +3453,26 @@ VALUES (1, 2), (3, 4);
 
 "Other Grammar","Quoted Name","
 ""anythingExceptDoubleQuote""
+    | U&""anythingExceptDoubleQuote"" [ UESCAPE 'singleCharacter' ]
 ","
 Case of characters in quoted names is preserved as is. Such names can contain spaces.
 The maximum name length is 256 characters.
 Two double quotes can be used to create a single double quote inside an identifier.
 With default settings identifiers in H2 are case sensitive.
+
+Identifiers staring with ""U&"" are Unicode identifiers.
+All identifiers in H2 may have Unicode characters,
+but Unicode identifiers may contain Unicode escape sequences ""\0000"" or ""\+000000"",
+where \ is an escape character, ""0000"" and ""000000"" are Unicode character codes in hexadecimal notation.
+Optional ""UESCAPE"" clause may be used to specify another escape character,
+with exception for single quote, double quote, plus sign, and hexadecimal digits (0-9, a-f, and A-F).
+By default the backslash is used.
+Two escape characters can be used to include a single character inside an Unicode identifier.
+Two double quotes can be used to create a single double quote inside an Unicode identifier.
 ","
 ""FirstName""
+U&""\00d6ffnungszeit""
+U&""/00d6ffnungszeit"" UESCAPE '/'
 "
 
 "Other Grammar","Referential Constraint","
@@ -3444,7 +3491,8 @@ Defines a referential specification of a referential constraint.
 If the table name is not specified, then the same table is referenced.
 RESTRICT is the default action.
 If the referenced columns are not specified, then the primary key columns are used.
-The required indexes are automatically created if required.
+Referential constraint requires an existing unique or primary key constraint on referenced columns,
+this constraint must include all referenced columns in any order and must not include any other columns.
 Some tables may not be referenced, such as metadata tables.
 ","
 REFERENCES TEST(ID)
@@ -3500,7 +3548,7 @@ wildcardExpression | expression [ [ AS ] columnAlias ]
 ","
 An expression in a SELECT statement.
 ","
-ID AS VALUE
+ID AS DOCUMENT_ID
 "
 
 "Other Grammar","Sequence value expression","
@@ -3608,7 +3656,7 @@ NO CACHE
 ","
 List of SET clauses.
 ","
-NAME = 'Test', VALUE = 2
+NAME = 'Test', PRICE = 2
 (A, B) = (1, 2)
 (A, B) = (1, 2), C = 3
 (A, B) = (SELECT X, Y FROM OTHER T2 WHERE T1.ID = T2.ID)
@@ -4065,8 +4113,8 @@ BIGINT
 Data type with fixed decimal precision and scale.
 This data type is recommended for storing currency values.
 
-If precision is specified, it must be positive.
-If scale is specified, it must be from -100000 to 100000, 0 is default.
+If precision is specified, it must be from 1 to 100000.
+If scale is specified, it must be from 0 to 100000, 0 is default.
 
 See also [numeric](https://h2database.com/html/grammar.html#numeric) literal grammar.
 Mapped to ""java.math.BigDecimal"".
@@ -4106,10 +4154,13 @@ DECFLOAT [ ( precisionInt ) ]
 Decimal floating point number.
 This data type is not recommended to represent currency values, because of variable scale.
 
-If precision is specified, it must be positive.
+If precision is specified, it must be from 1 to 100000.
 
 See also [numeric](https://h2database.com/html/grammar.html#numeric) literal grammar.
 Mapped to ""java.math.BigDecimal"".
+There are three special values: 'Infinity', '-Infinity', and 'NaN'.
+These special values can't be read or set as ""BigDecimal"" values,
+but they can be read or set using ""java.lang.String"", float, or double.
 ","
 DECFLOAT
 DECFLOAT(20)
@@ -4589,8 +4640,8 @@ ABS(-2147483648) should be 2147483648, but this value is not allowed for this da
 It leads to an exception.
 To avoid it cast argument of this function to a higher data type.
 ","
-ABS(VALUE)
-ABS(CAST(VALUE AS BIGINT))
+ABS(I)
+ABS(CAST(I AS BIGINT))
 "
 
 "Functions (Numeric)","ACOS","
@@ -4911,7 +4962,7 @@ MOD(A, B)
 { CEIL | CEILING } (numeric)
 ","
 Returns the smallest integer value that is greater than or equal to the argument.
-This method returns value of the same type as argument, but with scale set to 0, if applicable.
+This method returns value of the same type as argument, but with scale set to 0 and adjusted precision, if applicable.
 ","
 CEIL(A)
 "
@@ -4938,7 +4989,7 @@ EXP(A)
 FLOOR(numeric)
 ","
 Returns the largest integer value that is less than or equal to the argument.
-This method returns value of the same type as argument, but with scale set to 0, if applicable.
+This method returns value of the same type as argument, but with scale set to 0 and adjusted precision, if applicable.
 ","
 FLOOR(A)
 "
@@ -5053,9 +5104,9 @@ RANDOM_UUID()
 @h2@ ROUND(numeric [, digitsInt])
 ","
 Rounds to a number of fractional digits.
-This method returns a double, float, or numeric value depending on type of the argument.
+This method returns value of the same type as argument, but with adjusted precision and scale, if applicable.
 ","
-ROUND(VALUE, 2)
+ROUND(N, 2)
 "
 
 "Functions (Numeric)","ROUNDMAGIC","
@@ -5068,7 +5119,7 @@ The value is converted to a String internally, and then the last 4 characters ar
 '000x' becomes '0000' and '999x' becomes '999999', which is rounded automatically.
 This method returns a double.
 ","
-ROUNDMAGIC(VALUE/3*3)
+ROUNDMAGIC(N/3*3)
 "
 
 "Functions (Numeric)","SECURE_RAND","
@@ -5083,9 +5134,9 @@ CALL SECURE_RAND(16)
 "Functions (Numeric)","SIGN","
 @h2@ SIGN( { numeric | interval } )
 ","
-Returns -1 if the value is smaller than 0, 0 if zero, and otherwise 1.
+Returns -1 if the value is smaller than 0, 0 if zero or NaN, and otherwise 1.
 ","
-SIGN(VALUE)
+SIGN(N)
 "
 
 "Functions (Numeric)","ENCRYPT","
@@ -5137,7 +5188,7 @@ CALL HASH('SHA3-256', X'0102')
     | @c@ { timestamp | timestampWithTimeZone | date | timestampString } } )
 ","
 When a numeric argument is specified, truncates it to a number of digits (to the next value closer to 0)
-and returns a double, float, or numeric value depending on type of the argument.
+and returns value of the same type as argument, but with adjusted precision and scale, if applicable.
 
 This function with datetime or string argument is deprecated, use
 [DATE_TRUNC](https://h2database.com/html/functions.html#date_trunc) instead.
@@ -5147,7 +5198,7 @@ When used with a date, returns a timestamp at start of this date.
 When used with a timestamp as string, truncates the timestamp to a date (day) value
 and returns a timestamp without time zone.
 ","
-TRUNCATE(VALUE, 2)
+TRUNCATE(N, 2)
 "
 
 "Functions (Numeric)","COMPRESS","
@@ -5534,7 +5585,6 @@ The length is optional.
 ","
 CALL SUBSTRING('[Hello]' FROM 2 FOR 5);
 CALL SUBSTRING('hour' FROM 2);
-CALL SUBSTR('Hello World', -5);
 "
 
 "Functions (String)","UTF8TOSTRING","
@@ -5959,7 +6009,6 @@ ISO_YEAR(CREATED)
 @h2@ ABORT_SESSION(sessionInt)
 ","
 Cancels the currently executing statement of another session. Closes the session and releases the allocated resources.
-The method only works with default MVStore engine.
 Returns true if the session was closed, false if no session with the given id was found.
 
 If a client was connected while its session was aborted it will see an error.
@@ -6065,7 +6114,6 @@ AUTOCOMMIT()
 @h2@ CANCEL_SESSION(sessionInt)
 ","
 Cancels the currently executing statement of another session.
-The method only works with default MVStore engine.
 Returns true if the statement was canceled, false if the session is closed or no statement is currently executing.
 
 Admin rights are required to execute this command.
@@ -6266,7 +6314,6 @@ CALL SIGNAL('23505', 'Duplicate user ID: ' || user_id);
 Returns the estimated minimum bounding box that encloses all specified GEOMETRY values.
 Only 2D coordinate plane is supported.
 NULL values are ignored.
-This function is only supported by MVStore engine.
 Column must have a spatial index.
 This function is fast, but estimation may include uncommitted data (including data from other transactions),
 may return approximate bounds, or be different with actual value due to other reasons.
@@ -6341,7 +6388,7 @@ LOCK_TIMEOUT()
 @h2@ MEMORY_FREE()
 ","
 Returns the free memory in KB (where 1024 bytes is a KB).
-This method returns an int.
+This method returns a long.
 The garbage is run before returning the value.
 Admin rights are required to execute this command.
 ","
@@ -6352,7 +6399,7 @@ MEMORY_FREE()
 @h2@ MEMORY_USED()
 ","
 Returns the used memory in KB (where 1024 bytes is a KB).
-This method returns an int.
+This method returns a long.
 The garbage is run before returning the value.
 Admin rights are required to execute this command.
 ","
@@ -6593,7 +6640,7 @@ SELECT * FROM LINK_SCHEMA('TEST2', '', 'jdbc:h2:./test2', 'sa', 'sa', 'PUBLIC');
 ","
 Returns the result set. TABLE_DISTINCT removes duplicate rows.
 ","
-SELECT * FROM TABLE(VALUE INT = ARRAY[1, 2]);
+SELECT * FROM TABLE(V INT = ARRAY[1, 2]);
 SELECT * FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World'));
 "
 
@@ -6610,13 +6657,18 @@ SELECT * FROM UNNEST(ARRAY['a', 'b', 'c']);
 "
 
 "Aggregate Functions (General)","AVG","
-AVG ( [ DISTINCT|ALL ] { numeric } )
+AVG ( [ DISTINCT|ALL ] { numeric | interval } )
 [FILTER (WHERE expression)] [OVER windowNameOrSpecification]
 ","
 The average (mean) value.
 If no rows are selected, the result is NULL.
 Aggregates are only allowed in select statements.
-The returned value is of the same data type as the parameter.
+
+The data type of result is DOUBLE PRECISION for TINYINT, SMALLINT, INTEGER, and REAL arguments,
+NUMERIC with additional 10 decimal digits of precision and scale for BIGINT and NUMERIC arguments;
+DECFLOAT with additional 10 decimal digits of precision for DOUBLE PRECISION and DECFLOAT arguments;
+INTERVAL with the same leading field precision, all additional smaller datetime units in interval qualifier,
+and the maximum scale for INTERVAL arguments.
 ","
 AVG(X)
 "
@@ -6646,14 +6698,18 @@ MIN(NAME)
 "
 
 "Aggregate Functions (General)","SUM","
-SUM( [ DISTINCT|ALL ] { numeric } )
+SUM( [ DISTINCT|ALL ] { numeric | interval | @h2@ { boolean } } )
 [FILTER (WHERE expression)] [OVER windowNameOrSpecification]
 ","
 The sum of all values.
 If no rows are selected, the result is NULL.
 Aggregates are only allowed in select statements.
-The data type of the returned value depends on the parameter data type like this:
-""BOOLEAN, TINYINT, SMALLINT, INT -> BIGINT, BIGINT -> DECIMAL, REAL -> DOUBLE PRECISION""
+
+The data type of result is BIGINT for BOOLEAN, TINYINT, SMALLINT, and INTEGER arguments;
+NUMERIC with additional 10 decimal digits of precision for BIGINT and NUMERIC arguments;
+DOUBLE PRECISION for REAL arguments,
+DECFLOAT with additional 10 decimal digits of precision for DOUBLE PRECISION and DECFLOAT arguments;
+INTERVAL with maximum precision and the same interval qualifier and scale for INTERVAL arguments.
 ","
 SUM(X)
 "
@@ -6715,7 +6771,7 @@ STDDEV_SAMP( [ DISTINCT|ALL ] numeric )
 ","
 The sample standard deviation.
 This method returns a double.
-If no rows are selected, the result is NULL.
+If less than two rows are selected, the result is NULL.
 Aggregates are only allowed in select statements.
 ","
 STDDEV(X)
@@ -6739,7 +6795,7 @@ VAR_SAMP( [ DISTINCT|ALL ] numeric )
 ","
 The sample variance (square of the sample standard deviation).
 This method returns a double.
-If no rows are selected, the result is NULL.
+If less than two rows are selected, the result is NULL.
 Aggregates are only allowed in select statements.
 ","
 VAR_SAMP(X)
@@ -6834,6 +6890,159 @@ If no rows are selected, the result is NULL.
 Aggregates are only allowed in select statements.
 ","
 ENVELOPE(X)
+"
+
+"Aggregate Functions (Binary Set)","COVAR_POP","
+COVAR_POP(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The population covariance.
+This method returns a double.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+COVAR_POP(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","COVAR_SAMP","
+COVAR_SAMP(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The sample covariance.
+This method returns a double.
+Rows in which either argument is NULL are ignored in the calculation.
+If less than two rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+COVAR_SAMP(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","CORR","
+CORR(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+Pearson's correlation coefficient.
+This method returns a double.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+CORR(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_SLOPE","
+REGR_SLOPE(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The slope of the line.
+This method returns a double.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+REGR_SLOPE(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_INTERCEPT","
+REGR_INTERCEPT(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The y-intercept of the regression line.
+This method returns a double.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+REGR_INTERCEPT(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_COUNT","
+REGR_COUNT(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+Returns the number of rows in the group.
+This method returns a long.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is 0.
+Aggregates are only allowed in select statements.
+","
+REGR_COUNT(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_R2","
+REGR_R2(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The coefficient of determination.
+This method returns a double.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+REGR_R2(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_AVGX","
+REGR_AVGX(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The average (mean) value of dependent expression.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+For details about the data type see [AVG](https://h2database.com/html/functions-aggregate.html#avg).
+Aggregates are only allowed in select statements.
+","
+REGR_AVGX(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_AVGY","
+REGR_AVGY(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The average (mean) value of independent expression.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+For details about the data type see [AVG](https://h2database.com/html/functions-aggregate.html#avg).
+Aggregates are only allowed in select statements.
+","
+REGR_AVGY(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_SXX","
+REGR_SXX(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The the sum of squares of independent expression.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+REGR_SXX(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_SYY","
+REGR_SYY(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The the sum of squares of dependent expression.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+REGR_SYY(Y, X)
+"
+
+"Aggregate Functions (Binary Set)","REGR_SXY","
+REGR_SXY(dependentExpression, independentExpression)
+[FILTER (WHERE expression)] [OVER windowNameOrSpecification]
+","
+The the sum of products independent expression times dependent expression.
+Rows in which either argument is NULL are ignored in the calculation.
+If no rows are selected, the result is NULL.
+Aggregates are only allowed in select statements.
+","
+REGR_SXY(Y, X)
 "
 
 "Aggregate Functions (Ordered)","LISTAGG","
@@ -7024,7 +7233,8 @@ JSON_OBJECTAGG(KEY NAME VALUE VAL);
 "
 
 "Aggregate Functions (JSON)","JSON_ARRAYAGG","
-JSON_ARRAYAGG(expression [ ORDER BY sortSpecificationList ]
+JSON_ARRAYAGG( @h2@ [ DISTINCT|ALL ] expression
+[ ORDER BY sortSpecificationList ]
 [ { NULL | ABSENT } ON NULL ] )
 [FILTER (WHERE expression)] [OVER windowNameOrSpecification]
 ","

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -30,21 +30,20 @@ import org.h2.api.H2Type;
 import org.h2.engine.Database;
 import org.h2.engine.SessionLocal;
 import org.h2.jdbc.JdbcConnection;
-import org.h2.message.DbException;
 import org.h2.store.DataHandler;
 import org.h2.test.TestBase;
 import org.h2.test.TestDb;
-import org.h2.test.utils.AssertThrows;
 import org.h2.util.Bits;
 import org.h2.util.JdbcUtils;
 import org.h2.util.LegacyDateTimeUtils;
 import org.h2.value.TypeInfo;
 import org.h2.value.Value;
 import org.h2.value.ValueArray;
+import org.h2.value.ValueBlob;
+import org.h2.value.ValueClob;
 import org.h2.value.ValueDouble;
 import org.h2.value.ValueInterval;
 import org.h2.value.ValueJavaObject;
-import org.h2.value.ValueLobInMemory;
 import org.h2.value.ValueNumeric;
 import org.h2.value.ValueReal;
 import org.h2.value.ValueTimestamp;
@@ -134,7 +133,7 @@ public class TestValue extends TestDb {
         assertEquals(32, v.castTo(typeInfo, null).getBytes()[9]);
         assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
 
-        v = ValueLobInMemory.createSmallLob(Value.CLOB, spaces.getBytes(), 100);
+        v = ValueClob.createSmall(spaces.getBytes(), 100);
         typeInfo = TypeInfo.getTypeInfo(Value.CLOB, 10L, 0, null);
         assertEquals(100, v.getType().getPrecision());
         assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
@@ -142,7 +141,7 @@ public class TestValue extends TestDb {
         assertEquals("          ", v.castTo(typeInfo, null).getString());
         assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
 
-        v = ValueLobInMemory.createSmallLob(Value.BLOB, spaces.getBytes(), 100);
+        v = ValueBlob.createSmall(spaces.getBytes());
         typeInfo = TypeInfo.getTypeInfo(Value.BLOB, 10L, 0, null);
         assertEquals(100, v.getType().getPrecision());
         assertEquals(10, v.castTo(typeInfo, null).getType().getPrecision());
@@ -175,7 +174,7 @@ public class TestValue extends TestDb {
         testDataType(TypeInfo.TYPE_VARBINARY, byte[].class);
         testDataType(TypeInfo.TYPE_UUID, UUID.class);
         testDataType(TypeInfo.TYPE_NULL, Void.class);
-        testDataType(TypeInfo.TYPE_NUMERIC, BigDecimal.class);
+        testDataType(TypeInfo.TYPE_NUMERIC_FLOATING_POINT, BigDecimal.class);
         testDataType(TypeInfo.TYPE_DATE, Date.class);
         testDataType(TypeInfo.TYPE_TIME, Time.class);
         testDataType(TypeInfo.TYPE_TIMESTAMP, Timestamp.class);
@@ -202,6 +201,14 @@ public class TestValue extends TestDb {
                 Double.POSITIVE_INFINITY,
                 Double.NaN
         };
+        int[] signum = {
+                -1,
+                -1,
+                0,
+                1,
+                1,
+                0
+        };
         Value[] values = new Value[d.length];
         for (int i = 0; i < d.length; i++) {
             Value v = useFloat ? (Value) ValueReal.get((float) d[i])
@@ -209,7 +216,7 @@ public class TestValue extends TestDb {
             values[i] = v;
             assertTrue(values[i].compareTypeSafe(values[i], null, null) == 0);
             assertTrue(v.equals(v));
-            assertEquals(Integer.compare(i, 2), v.getSignum());
+            assertEquals(signum[i], v.getSignum());
         }
         for (int i = 0; i < d.length - 1; i++) {
             assertTrue(values[i].compareTypeSafe(values[i+1], null, null) < 0);
@@ -287,19 +294,12 @@ public class TestValue extends TestDb {
 
         ValueJavaObject voString = ValueJavaObject.getNoCopy(JdbcUtils.serialize(
                 new String("This is not a ValueUuid object"), null));
-        try {
-            voString.convertToUuid();
-            fail();
-        } catch (DbException expected) {
-        }
+        assertThrows(ErrorCode.DESERIALIZATION_FAILED_1, () -> voString.convertToUuid());
     }
 
     private void testModulusDouble() {
         final ValueDouble vd1 = ValueDouble.get(12);
-        new AssertThrows(ErrorCode.DIVISION_BY_ZERO_1) { @Override
-        public void test() {
-            vd1.modulus(ValueDouble.get(0));
-        }};
+        assertThrows(ErrorCode.DIVISION_BY_ZERO_1, () -> vd1.modulus(ValueDouble.ZERO));
         ValueDouble vd2 = ValueDouble.get(10);
         ValueDouble vd3 = vd1.modulus(vd2);
         assertEquals(2, vd3.getDouble());
@@ -307,10 +307,7 @@ public class TestValue extends TestDb {
 
     private void testModulusDecimal() {
         final ValueNumeric vd1 = ValueNumeric.get(new BigDecimal(12));
-        new AssertThrows(ErrorCode.DIVISION_BY_ZERO_1) { @Override
-        public void test() {
-            vd1.modulus(ValueNumeric.get(new BigDecimal(0)));
-        }};
+        assertThrows(ErrorCode.DIVISION_BY_ZERO_1, () -> vd1.modulus(ValueNumeric.ZERO));
         ValueNumeric vd2 = ValueNumeric.get(new BigDecimal(10));
         Value vd3 = vd1.modulus(vd2);
         assertEquals(2, vd3.getDouble());
@@ -365,7 +362,7 @@ public class TestValue extends TestDb {
 
     private static Value createLob(DataHandler dh, int type, byte[] bytes) {
         if (dh == null) {
-            return ValueLobInMemory.createSmallLob(type, bytes);
+            return type == Value.BLOB ? ValueBlob.createSmall(bytes) : ValueClob.createSmall(bytes);
         }
         ByteArrayInputStream in = new ByteArrayInputStream(bytes);
         if (type == Value.BLOB) {
@@ -377,12 +374,7 @@ public class TestValue extends TestDb {
 
     private void testTypeInfo() {
         testTypeInfoCheck(Value.UNKNOWN, -1, -1, -1, TypeInfo.TYPE_UNKNOWN);
-        try {
-            TypeInfo.getTypeInfo(Value.UNKNOWN);
-            fail();
-        } catch (DbException ex) {
-            assertEquals(ErrorCode.UNKNOWN_DATA_TYPE_1, ex.getErrorCode());
-        }
+        assertThrows(ErrorCode.UNKNOWN_DATA_TYPE_1, () -> TypeInfo.getTypeInfo(Value.UNKNOWN));
 
         testTypeInfoCheck(Value.NULL, 1, 0, 4, TypeInfo.TYPE_NULL, TypeInfo.getTypeInfo(Value.NULL));
 
@@ -395,8 +387,6 @@ public class TestValue extends TestDb {
 
         testTypeInfoCheck(Value.REAL, 24, 0, 15, TypeInfo.TYPE_REAL, TypeInfo.getTypeInfo(Value.REAL));
         testTypeInfoCheck(Value.DOUBLE, 53, 0, 24, TypeInfo.TYPE_DOUBLE, TypeInfo.getTypeInfo(Value.DOUBLE));
-        testTypeInfoCheck(Value.NUMERIC, MAX_NUMERIC_PRECISION, ValueNumeric.MAXIMUM_SCALE, MAX_NUMERIC_PRECISION + 2,
-                TypeInfo.TYPE_NUMERIC, TypeInfo.getTypeInfo(Value.NUMERIC));
         testTypeInfoCheck(Value.NUMERIC, MAX_NUMERIC_PRECISION, MAX_NUMERIC_PRECISION / 2, MAX_NUMERIC_PRECISION + 2,
                 TypeInfo.TYPE_NUMERIC_FLOATING_POINT);
 

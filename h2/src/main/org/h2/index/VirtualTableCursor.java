@@ -1,11 +1,10 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.index;
 
-import org.h2.engine.SessionLocal;
 import org.h2.message.DbException;
 import org.h2.result.ResultInterface;
 import org.h2.result.Row;
@@ -25,8 +24,6 @@ class VirtualTableCursor implements Cursor {
 
     private final SearchRow last;
 
-    final SessionLocal session;
-
     private final ResultInterface result;
 
     Value[] values;
@@ -45,12 +42,11 @@ class VirtualTableCursor implements Cursor {
      * @param result
      *            the result
      */
-    VirtualTableCursor(VirtualTableIndex index, SearchRow first, SearchRow last, SessionLocal session,
+    VirtualTableCursor(VirtualTableIndex index, SearchRow first, SearchRow last,
             ResultInterface result) {
         this.index = index;
         this.first = first;
         this.last = last;
-        this.session = session;
         this.result = result;
     }
 

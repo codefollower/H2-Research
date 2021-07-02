@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -125,19 +125,26 @@ public final class ValueTimestamp extends Value {
 
     @Override
     public String getString() {
-        return toString(new StringBuilder(MAXIMUM_PRECISION)).toString();
+        return toString(new StringBuilder(MAXIMUM_PRECISION), false).toString();
+    }
+
+    /**
+     * Returns value as string in ISO format.
+     *
+     * @return value as string in ISO format
+     */
+    public String getISOString() {
+        return toString(new StringBuilder(MAXIMUM_PRECISION), true).toString();
     }
 
     @Override
     public StringBuilder getSQL(StringBuilder builder, int sqlFlags) {
-        return toString(builder.append("TIMESTAMP '")).append('\'');
+        return toString(builder.append("TIMESTAMP '"), false).append('\'');
     }
 
-    private StringBuilder toString(StringBuilder builder) {
-        DateTimeUtils.appendDate(builder, dateValue);
-        builder.append(' ');
-        DateTimeUtils.appendTime(builder, timeNanos);
-        return builder;
+    private StringBuilder toString(StringBuilder builder, boolean iso) {
+        DateTimeUtils.appendDate(builder, dateValue).append(iso ? 'T' : ' ');
+        return DateTimeUtils.appendTime(builder, timeNanos);
     }
 
     @Override

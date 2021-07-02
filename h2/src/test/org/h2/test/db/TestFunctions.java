@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -55,7 +55,6 @@ import org.h2.engine.SessionLocal;
 import org.h2.expression.function.ToCharFunction;
 import org.h2.expression.function.ToCharFunction.Capitalization;
 import org.h2.jdbc.JdbcConnection;
-import org.h2.message.DbException;
 import org.h2.mode.ToDateParser;
 import org.h2.store.fs.FileUtils;
 import org.h2.test.TestBase;
@@ -481,8 +480,8 @@ public class TestFunctions extends TestDb implements AggregateFunction {
         stat.execute("create aggregate agg_sum for '" + getClass().getName() + '\'');
         rs = stat.executeQuery("select agg_sum(1), sum(1.6) from dual");
         rs.next();
-        assertEquals(ValueNumeric.MAXIMUM_SCALE, rs.getMetaData().getScale(2));
-        assertEquals(ValueNumeric.MAXIMUM_SCALE, rs.getMetaData().getScale(1));
+        assertEquals(1, rs.getMetaData().getScale(2));
+        assertEquals(ValueNumeric.MAXIMUM_SCALE / 2, rs.getMetaData().getScale(1));
         stat.executeQuery("select * from information_schema.routines");
         conn.close();
     }
@@ -1160,18 +1159,10 @@ public class TestFunctions extends TestDb implements AggregateFunction {
     }
 
     private void testToDateException(SessionLocal session) {
-        try {
-            ToDateParser.toDate(session, "1979-ThisWillFail-12", "YYYY-MM-DD");
-        } catch (Exception e) {
-            assertEquals(DbException.class.getSimpleName(), e.getClass().getSimpleName());
-        }
-
-        try {
-            ToDateParser.toDate(session, "1-DEC-0000", "DD-MON-RRRR");
-            fail("Oracle to_date should reject year 0 (ORA-01841)");
-        } catch (Exception e) {
-            // expected
-        }
+        assertThrows(ErrorCode.INVALID_TO_DATE_FORMAT,
+                () -> ToDateParser.toDate(session, "1979-ThisWillFail-12", "YYYY-MM-DD"));
+        assertThrows(ErrorCode.INVALID_TO_DATE_FORMAT, //
+                () -> ToDateParser.toDate(session, "1-DEC-0000", "DD-MON-RRRR"));
     }
 
     private void testToDate(SessionLocal session) {
@@ -1331,6 +1322,9 @@ public class TestFunctions extends TestDb implements AggregateFunction {
         boolean daylight = tz.inDaylightTime(timestamp1979);
         String tzShortName = tz.getDisplayName(daylight, TimeZone.SHORT);
         String tzLongName = tz.getID();
+        if (tzLongName.equals("Etc/UTC")) {
+            tzLongName = "UTC";
+        }
 
         stat.executeUpdate("CREATE TABLE T (X TIMESTAMP(6))");
         stat.executeUpdate("INSERT INTO T VALUES " +
@@ -1569,8 +1563,10 @@ public class TestFunctions extends TestDb implements AggregateFunction {
         deleteDb("functions");
         Connection conn = getConnection("functions");
         Statement stat = conn.createStatement();
+        Locale.setDefault(new Locale("en"));
 
-        Currency currency = Currency.getInstance(Locale.getDefault());
+        Locale locale = Locale.getDefault();
+        Currency currency = Currency.getInstance(locale.getCountry().length() == 2 ? locale : Locale.US);
         String cc = currency.getCurrencyCode();
         String cs = currency.getSymbol();
 
@@ -1607,7 +1603,7 @@ public class TestFunctions extends TestDb implements AggregateFunction {
         assertResult("######", stat,
                 "SELECT TO_CHAR(12345, '$9999') FROM DUAL");
         String expected = String.format("%,d", 12345);
-        if (Locale.getDefault() == Locale.ENGLISH) {
+        if (locale == Locale.ENGLISH) {
             assertResult(String.format("%5s12345", cs), stat,
                     "SELECT TO_CHAR(12345, '$99999999') FROM DUAL");
             assertResult(String.format("%6s12,345.35", cs), stat,

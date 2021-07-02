@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -519,14 +519,10 @@ public class Build extends BuildBase {
 
     /**
      * Add META-INF/versions for Java 9+.
-     *
-     * @param addNetUtils include NetUtils2 implementation
      */
-    private void addVersions(boolean addNetUtils) {
+    private void addVersions() {
         copy("temp/META-INF/versions/9", files("src/java9/precompiled"), "src/java9/precompiled");
-        if (addNetUtils) {
-            copy("temp/META-INF/versions/10", files("src/java10/precompiled"), "src/java10/precompiled");
-        }
+        copy("temp/META-INF/versions/10", files("src/java10/precompiled"), "src/java10/precompiled");
     }
 
     /**
@@ -535,7 +531,7 @@ public class Build extends BuildBase {
     @Description(summary = "Create the regular h2.jar file.")
     public void jar() {
         compile();
-        addVersions(true);
+        addVersions();
         manifest("src/main/META-INF/MANIFEST.MF");
         FileList files = files("temp").
             exclude("temp/org/h2/build/*").
@@ -563,7 +559,7 @@ public class Build extends BuildBase {
     @Description(summary = "Create h2mvstore.jar containing only the MVStore.")
     public void jarMVStore() {
         compileMVStore(true);
-        addVersions(false);
+        addVersions();
         manifest("src/installer/mvstore/MANIFEST.MF");
         FileList files = files("temp");
         files.exclude("*.DS_Store");
@@ -863,12 +859,12 @@ public class Build extends BuildBase {
     /**
      * Compile and run all fast tests. This does not include the compile step.
      */
-    @Description(summary = "Compile and run all tests for Travis (excl. the compile step).")
-    public void testTravis() {
+    @Description(summary = "Compile and run all tests for CI (excl. the compile step).")
+    public void testCI() {
         test(true);
     }
 
-    private void test(boolean travis) {
+    private void test(boolean ci) {
         downloadTest();
         String cp = "temp" + File.pathSeparator + "bin" +
                 File.pathSeparator + "ext/postgresql-" + PGJDBC_VERSION + ".jar" +
@@ -891,13 +887,13 @@ public class Build extends BuildBase {
             }
         }
         int ret;
-        if (travis) {
+        if (ci) {
             ret = execJava(args(
                     "-ea",
                     "-Xmx128m",
                     "-XX:MaxDirectMemorySize=2g",
                     "-cp", cp,
-                    "org.h2.test.TestAll", "travis"));
+                    "org.h2.test.TestAll", "ci"));
         } else {
             ret = execJava(args(
                     "-ea",
@@ -905,7 +901,7 @@ public class Build extends BuildBase {
                     "-cp", cp,
                     "org.h2.test.TestAll"));
         }
-        // return a failure code for Jenkins/Travis/CI builds
+        // return a failure code for CI builds
         if (ret != 0) {
             System.exit(ret);
         }

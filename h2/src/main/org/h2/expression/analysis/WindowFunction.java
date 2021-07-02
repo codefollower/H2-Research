@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -405,7 +405,7 @@ public class WindowFunction extends DataAnalysisOperation {
             } else {
                 v = row[0];
                 if (v != ValueNull.INSTANCE) {
-                    v = v.convertToDouble().divide(value, ValueDouble.DECIMAL_PRECISION);
+                    v = v.convertToDouble().divide(value, TypeInfo.TYPE_DOUBLE);
                 }
             }
             result.put(row[rowIdColumn].getInt(), v);

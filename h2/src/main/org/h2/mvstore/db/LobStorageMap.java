@@ -1,18 +1,21 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.mvstore.db;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Map.Entry;
-
+import java.util.concurrent.atomic.AtomicLong;
 import org.h2.api.ErrorCode;
 import org.h2.engine.Database;
 import org.h2.message.DbException;
@@ -20,6 +23,11 @@ import org.h2.mvstore.DataUtils;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.StreamStore;
+import org.h2.mvstore.WriteBuffer;
+import org.h2.mvstore.tx.TransactionStore;
+import org.h2.mvstore.type.BasicDataType;
+import org.h2.mvstore.type.ByteArrayDataType;
+import org.h2.mvstore.type.LongDataType;
 import org.h2.store.CountingReaderInputStream;
 import org.h2.store.LobStorageFrontend;
 import org.h2.store.LobStorageInterface;
@@ -27,125 +35,102 @@ import org.h2.store.RangeInputStream;
 import org.h2.util.IOUtils;
 import org.h2.util.StringUtils;
 import org.h2.value.Value;
+import org.h2.value.ValueBlob;
+import org.h2.value.ValueClob;
 import org.h2.value.ValueLob;
-import org.h2.value.ValueLobDatabase;
-import org.h2.value.ValueLobInMemory;
+import org.h2.value.ValueNull;
+import org.h2.value.lob.LobData;
+import org.h2.value.lob.LobDataDatabase;
 
 /**
  * This class stores LOB objects in the database, in maps. This is the back-end
  * i.e. the server side of the LOB storage.
  */
-public class LobStorageMap implements LobStorageInterface {
-
+public final class LobStorageMap implements LobStorageInterface
+{
     private static final boolean TRACE = false;
 
     private final Database database;
-
-    private boolean init;
-
-    private final Object nextLobIdSync = new Object();
-    private long nextLobId;
+    final MVStore mvStore;
+    private final AtomicLong nextLobId = new AtomicLong(0);
 
     /**
      * The lob metadata map. It contains the mapping from the lob id
+     * (which is a long) to the blob metadata, including stream store id (which is a byte array).
+     */
+    private final MVMap<Long, BlobMeta> lobMap;
+
+    /**
+     * The lob metadata map for temporary lobs. It contains the mapping from the lob id
      * (which is a long) to the stream store id (which is a byte array).
      *
      * Key: lobId (long)
-     * Value: { streamStoreId (byte[]), tableId (int),
-     * byteCount (long), hash (long) }.
+     * Value: streamStoreId (byte[])
      */
-    private MVMap<Long, Object[]> lobMap;
+    private final MVMap<Long, byte[]> tempLobMap;
 
     /**
      * The reference map. It is used to remove data from the stream store: if no
      * more entries for the given streamStoreId exist, the data is removed from
      * the stream store.
-     *
-     * Key: { streamStoreId (byte[]), lobId (long) }.
-     * Value: true (boolean).
      */
-    private MVMap<Object[], Boolean> refMap;
+    private final MVMap<BlobReference,Value> refMap;
 
-    private StreamStore streamStore;
+    private final StreamStore streamStore;
+
+
+    public static MVMap<Long, LobStorageMap.BlobMeta> openLobMap(TransactionStore txStore) {
+        return txStore.openMap("lobMap", LongDataType.INSTANCE, LobStorageMap.BlobMeta.Type.INSTANCE);
+    }
+
+    public static MVMap<Long, byte[]> openLobDataMap(TransactionStore txStore) {
+        return txStore.openMap("lobData", LongDataType.INSTANCE, ByteArrayDataType.INSTANCE);
+    }
 
     public LobStorageMap(Database database) {
         this.database = database;
-    }
-
-    @Override
-    public void init() {
-        if (init) {
-            return;
-        }
-        init = true;
         Store s = database.getStore();
-        MVStore mvStore;
-        if (s == null) {
-            // in-memory database
-            mvStore = MVStore.open(null);
-        } else {
-            mvStore = s.getMvStore();
-        }
-        lobMap = mvStore.openMap("lobMap");
-        refMap = mvStore.openMap("lobRef");
-
-        /* The stream store data map.
-         *
-         * Key: stream store block id (long).
-         * Value: data (byte[]).
-         */
-        MVMap<Long, byte[]> dataMap = mvStore.openMap("lobData");
-        streamStore = new StreamStore(dataMap);
-        // garbage collection of the last blocks
-        if (database.isReadOnly()) {
-            return;
-        }
-        if (dataMap.isEmpty()) {
-            return;
-        }
-        // search for the last block
-        // (in theory, only the latest lob can have unreferenced blocks,
-        // but the latest lob could be a copy of another one, and
-        // we don't know that, so we iterate over all lobs)
-        long lastUsedKey = -1;
-        for (Entry<Long, Object[]> e : lobMap.entrySet()) {
-            long lobId = e.getKey();
-            Object[] v = e.getValue();
-            byte[] id = (byte[]) v[0];
-            long max = streamStore.getMaxBlockKey(id);
-            // a lob may not have a referenced blocks if data is kept inline
-            if (max != -1 && max > lastUsedKey) {
-                lastUsedKey = max;
-                if (TRACE) {
-                    trace("lob " + lobId + " lastUsedKey=" + lastUsedKey);
+        TransactionStore txStore = s.getTransactionStore();
+        mvStore = s.getMvStore();
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+        try {
+            lobMap = openLobMap(txStore);
+            tempLobMap = txStore.openMap("tempLobMap", LongDataType.INSTANCE, ByteArrayDataType.INSTANCE);
+            refMap = txStore.openMap("lobRef", BlobReference.Type.INSTANCE, NullValueDataType.INSTANCE);
+            /* The stream store data map.
+             *
+             * Key: stream store block id (long).
+             * Value: data (byte[]).
+             */
+            MVMap<Long, byte[]> dataMap = openLobDataMap(txStore);
+            streamStore = new StreamStore(dataMap);
+            // garbage collection of the last blocks
+            if (!database.isReadOnly()) {
+                // don't re-use block ids, except at the very end
+                Long last = dataMap.lastKey();
+                if (last != null) {
+                    streamStore.setNextKey(last + 1);
                 }
+                // find the latest lob ID
+                Long id1 = lobMap.lastKey();
+                Long id2 = tempLobMap.lastKey(); // just in case we had unclean shutdown
+                long next = 1;
+                if (id1 != null) {
+                    next = id1 + 1;
+                }
+                if (id2 != null) {
+                    next = Math.max(next, id2 + 1);
+                }
+                nextLobId.set( next );
             }
-        }
-        if (TRACE) {
-            trace("lastUsedKey=" + lastUsedKey);
-        }
-        // delete all blocks that are newer
-        while (true) {
-            Long last = dataMap.lastKey();
-            if (last == null || last <= lastUsedKey) {
-                break;
-            }
-            if (TRACE) {
-                trace("gc " + last);
-            }
-            dataMap.remove(last);
-        }
-        // don't re-use block ids, except at the very end
-        Long last = dataMap.lastKey();
-        if (last != null) {
-            streamStore.setNextKey(last + 1);
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
         }
     }
 
     @Override
-    public ValueLob createBlob(InputStream in, long maxLength) {
-        init();
-        int type = Value.BLOB;
+    public ValueBlob createBlob(InputStream in, long maxLength) {
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
         try {
             if (maxLength != -1
                     && maxLength <= database.getMaxLengthInplaceLob()) {
@@ -158,23 +143,24 @@ public class LobStorageMap implements LobStorageInterface {
                 if (len < small.length) {
                     small = Arrays.copyOf(small, len);
                 }
-                return ValueLobInMemory.createSmallLob(type, small);
+                return ValueBlob.createSmall(small);
             }
             if (maxLength != -1) {
                 in = new RangeInputStream(in, 0L, maxLength);
             }
-            return createLob(in, type);
+            return createBlob(in);
         } catch (IllegalStateException e) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         } catch (IOException e) {
             throw DbException.convertIOException(e, null);
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
         }
     }
 
     @Override
-    public ValueLob createClob(Reader reader, long maxLength) {
-        init();
-        int type = Value.CLOB;
+    public ValueClob createClob(Reader reader, long maxLength) {
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
         try {
             // we multiple by 3 here to get the worst-case size in bytes
             if (maxLength != -1
@@ -192,26 +178,25 @@ public class LobStorageMap implements LobStorageInterface {
                             "len > maxinplace, " + utf8.length + " > "
                                     + database.getMaxLengthInplaceLob());
                 }
-                return ValueLobInMemory.createSmallLob(type, utf8);
+                return ValueClob.createSmall(utf8, len);
             }
             if (maxLength < 0) {
                 maxLength = Long.MAX_VALUE;
             }
-            CountingReaderInputStream in = new CountingReaderInputStream(reader,
-                    maxLength);
-            ValueLobDatabase lob = createLob(in, type);
-            // the length is not correct
-            lob = ValueLobDatabase.create(type, database, lob.getTableId(),
-                    lob.getLobId(), in.getLength());
-            return lob;
+            CountingReaderInputStream in = new CountingReaderInputStream(reader, maxLength);
+            ValueBlob blob = createBlob(in);
+            LobData lobData = blob.getLobData();
+            return new ValueClob(lobData, blob.octetLength(), in.getLength());
         } catch (IllegalStateException e) {
             throw DbException.get(ErrorCode.OBJECT_CLOSED, e);
         } catch (IOException e) {
             throw DbException.convertIOException(e, null);
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
         }
     }
 
-    private ValueLobDatabase createLob(InputStream in, int type) throws IOException {
+    private ValueBlob createBlob(InputStream in) throws IOException {
         byte[] streamStoreId;
         try {
             streamStoreId = streamStore.put(in);
@@ -220,13 +205,11 @@ public class LobStorageMap implements LobStorageInterface {
         }
         long lobId = generateLobId();
         long length = streamStore.length(streamStoreId);
-        int tableId = LobStorageFrontend.TABLE_TEMP;
-        Object[] value = { streamStoreId, tableId, length, 0 };
-        lobMap.put(lobId, value);
-        Object[] key = { streamStoreId, lobId };
-        refMap.put(key, Boolean.TRUE);
-        ValueLobDatabase lob = ValueLobDatabase.create(
-                type, database, tableId, lobId, length);
+        final int tableId = LobStorageFrontend.TABLE_TEMP;
+        tempLobMap.put(lobId, streamStoreId);
+        BlobReference key = new BlobReference(streamStoreId, lobId);
+        refMap.put(key, ValueNull.INSTANCE);
+        ValueBlob lob =  new ValueBlob(new LobDataDatabase(database, tableId, lobId), length);
         if (TRACE) {
             trace("create " + tableId + "/" + lobId);
         }
@@ -234,13 +217,7 @@ public class LobStorageMap implements LobStorageInterface {
     }
 
     private long generateLobId() {
-        synchronized (nextLobIdSync) {
-            if (nextLobId == 0) {
-                Long id = lobMap.lastKey();
-                nextLobId = id == null ? 1 : id + 1;
-            }
-            return nextLobId++;
-        }
+        return nextLobId.getAndIncrement();
     }
 
     @Override
@@ -249,99 +226,192 @@ public class LobStorageMap implements LobStorageInterface {
     }
 
     @Override
-    public ValueLob copyLob(ValueLob old_, int tableId, long length) {
-        init();
-        ValueLobDatabase old = (ValueLobDatabase) old_;
-        int type = old.getValueType();
-        long oldLobId = old.getLobId();
-        long oldLength = old.getType().getPrecision();
-        if (oldLength != length) {
-            throw DbException.getInternalError("Length is different");
+    public ValueLob copyLob(ValueLob old, int tableId) {
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+        try {
+            final LobDataDatabase lobData = (LobDataDatabase) old.getLobData();
+            final int type = old.getValueType();
+            final long oldLobId = lobData.getLobId();
+            long octetLength = old.octetLength();
+            // get source lob
+            final byte[] streamStoreId;
+            if (isTemporaryLob(lobData.getTableId())) {
+                streamStoreId = tempLobMap.get(oldLobId);
+            } else {
+                BlobMeta value = lobMap.get(oldLobId);
+                streamStoreId = value.streamStoreId;
+            }
+            // create destination lob
+            final long newLobId = generateLobId();
+            if (isTemporaryLob(tableId)) {
+                tempLobMap.put(newLobId, streamStoreId);
+            } else {
+                BlobMeta value = new BlobMeta(streamStoreId, tableId,
+                        type == Value.CLOB ? old.charLength() : octetLength, 0);
+                lobMap.put(newLobId, value);
+            }
+            BlobReference refMapKey = new BlobReference(streamStoreId, newLobId);
+            refMap.put(refMapKey, ValueNull.INSTANCE);
+            LobDataDatabase newLobData = new LobDataDatabase(database, tableId, newLobId);
+            ValueLob lob = type == Value.BLOB ? new ValueBlob(newLobData, octetLength)
+                    : new ValueClob(newLobData, octetLength, old.charLength());
+            if (TRACE) {
+                trace("copy " + lobData.getTableId() + "/" + lobData.getLobId() +
+                        " > " + tableId + "/" + newLobId);
+            }
+            return lob;
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
         }
-        Object[] value = lobMap.get(oldLobId);
-        value = value.clone();
-        byte[] streamStoreId = (byte[]) value[0];
-        long lobId = generateLobId();
-        value[1] = tableId;
-        lobMap.put(lobId, value);
-        Object[] key = { streamStoreId, lobId };
-        refMap.put(key, Boolean.TRUE);
-        ValueLob lob = ValueLobDatabase.create(
-                type, database, tableId, lobId, length);
-        if (TRACE) {
-            trace("copy " + old.getTableId() + "/" + old.getLobId() +
-                    " > " + tableId + "/" + lobId);
-        }
-        return lob;
     }
 
     @Override
     public InputStream getInputStream(long lobId, long byteCount)
             throws IOException {
-        init();
-        Object[] value = lobMap.get(lobId);
-        if (value == null) {
-            throw DbException.get(ErrorCode.LOB_CLOSED_ON_TIMEOUT_1, "" + lobId);
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+        try {
+            byte[] streamStoreId = tempLobMap.get(lobId);
+            if (streamStoreId == null) {
+                BlobMeta value = lobMap.get(lobId);
+                streamStoreId = value.streamStoreId;
+            }
+            if (streamStoreId == null) {
+                throw DbException.get(ErrorCode.LOB_CLOSED_ON_TIMEOUT_1, "" + lobId);
+            }
+            InputStream inputStream = streamStore.get(streamStoreId);
+            return new LobInputStream(inputStream);
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
         }
-        byte[] streamStoreId = (byte[]) value[0];
-        return streamStore.get(streamStoreId);
+    }
+
+    @Override
+    public InputStream getInputStream(long lobId, int tableId, long byteCount)
+            throws IOException {
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+        try {
+            byte[] streamStoreId;
+            if (isTemporaryLob(tableId)) {
+                streamStoreId = tempLobMap.get(lobId);
+            } else {
+                BlobMeta value = lobMap.get(lobId);
+                streamStoreId = value.streamStoreId;
+            }
+            if (streamStoreId == null) {
+                throw DbException.get(ErrorCode.LOB_CLOSED_ON_TIMEOUT_1, "" + lobId);
+            }
+            InputStream inputStream = streamStore.get(streamStoreId);
+            return new LobInputStream(inputStream);
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
+        }
+    }
+
+    private final class LobInputStream extends FilterInputStream {
+
+        public LobInputStream(InputStream in) {
+            super(in);
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+            try {
+                return super.read(b, off, len);
+            } finally {
+                mvStore.deregisterVersionUsage(txCounter);
+            }
+        }
+
+        @Override
+        public int read() throws IOException {
+            MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+            try {
+                return super.read();
+            } finally {
+                mvStore.deregisterVersionUsage(txCounter);
+            }
+        }
     }
 
     @Override
     public void removeAllForTable(int tableId) {
-        init();
-        if (database.getStore().getMvStore().isClosed()) {
+        if (mvStore.isClosed()) {
             return;
         }
-        // this might not be very efficient -
-        // to speed it up, we would need yet another map
-        ArrayList<Long> list = new ArrayList<>();
-        for (Entry<Long, Object[]> e : lobMap.entrySet()) {
-            Object[] value = e.getValue();
-            int t = (Integer) value[1];
-            if (t == tableId) {
-                list.add(e.getKey());
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+        try {
+            if (isTemporaryLob(tableId)) {
+                final Iterator<Long> iter = tempLobMap.keyIterator(0L);
+                while (iter.hasNext()) {
+                    long lobId = iter.next();
+                    removeLob(tableId, lobId);
+                }
+                tempLobMap.clear();
+            } else {
+                final ArrayList<Long> list = new ArrayList<>();
+                // This might not be very efficient, but should only happen
+                // on DROP TABLE.
+                // To speed it up, we would need yet another map.
+                for (Entry<Long, BlobMeta> e : lobMap.entrySet()) {
+                    BlobMeta value = e.getValue();
+                    if (value.tableId == tableId) {
+                        list.add(e.getKey());
+                    }
+                }
+                for (long lobId : list) {
+                    removeLob(tableId, lobId);
+                }
             }
-        }
-        for (long lobId : list) {
-            removeLob(tableId, lobId);
-        }
-        if (tableId == LobStorageFrontend.TABLE_ID_SESSION_VARIABLE) {
-            removeAllForTable(LobStorageFrontend.TABLE_TEMP);
-            removeAllForTable(LobStorageFrontend.TABLE_RESULT);
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
         }
     }
 
     @Override
-    public void removeLob(ValueLob lob_) {
-        init();
-        ValueLobDatabase lob = (ValueLobDatabase) lob_;
-        int tableId = lob.getTableId();
-        long lobId = lob.getLobId();
-        removeLob(tableId, lobId);
+    public void removeLob(ValueLob lob) {
+        MVStore.TxCounter txCounter = mvStore.registerVersionUsage();
+        try {
+            LobDataDatabase lobData = (LobDataDatabase) lob.getLobData();
+            int tableId = lobData.getTableId();
+            long lobId = lobData.getLobId();
+            removeLob(tableId, lobId);
+        } finally {
+            mvStore.deregisterVersionUsage(txCounter);
+        }
     }
 
     private void removeLob(int tableId, long lobId) {
         if (TRACE) {
             trace("remove " + tableId + "/" + lobId);
         }
-        Object[] value = lobMap.remove(lobId);
-        if (value == null) {
-            // already removed
-            return;
+        byte[] streamStoreId;
+        if (isTemporaryLob(tableId)) {
+            streamStoreId = tempLobMap.remove(lobId);
+            if (streamStoreId == null) {
+                // already removed
+                return;
+            }
+        } else {
+            BlobMeta value = lobMap.remove(lobId);
+            if (value == null) {
+                // already removed
+                return;
+            }
+            streamStoreId = value.streamStoreId;
         }
-        byte[] streamStoreId = (byte[]) value[0];
-        Object[] key = {streamStoreId, lobId };
-        refMap.remove(key);
+        BlobReference key = new BlobReference(streamStoreId, lobId);
+        Value existing = refMap.remove(key);
+        assert existing != null;
         // check if there are more entries for this streamStoreId
-        key = new Object[] {streamStoreId, 0L };
-        value = refMap.ceilingKey(key);
+        key = new BlobReference(streamStoreId, 0L);
+        BlobReference value = refMap.ceilingKey(key);
         boolean hasMoreEntries = false;
         if (value != null) {
-            byte[] s2 = (byte[]) value[0];
+            byte[] s2 = value.streamStoreId;
             if (Arrays.equals(streamStoreId, s2)) {
                 if (TRACE) {
-                    trace("  stream still needed in lob " + value[1]);
+                    trace("  stream still needed in lob " + value.lobId);
                 }
                 hasMoreEntries = true;
             }
@@ -354,8 +424,127 @@ public class LobStorageMap implements LobStorageInterface {
         }
     }
 
+    private static boolean isTemporaryLob(int tableId) {
+        return tableId == LobStorageFrontend.TABLE_ID_SESSION_VARIABLE || tableId == LobStorageFrontend.TABLE_TEMP
+                || tableId == LobStorageFrontend.TABLE_RESULT;
+    }
+
     private static void trace(String op) {
         System.out.println("[" + Thread.currentThread().getName() + "] LOB " + op);
     }
 
+
+    public static final class BlobReference implements Comparable<BlobReference>
+    {
+        public final byte[] streamStoreId;
+        public final long lobId;
+
+        public BlobReference(byte[] streamStoreId, long lobId) {
+            this.streamStoreId = streamStoreId;
+            this.lobId = lobId;
+        }
+
+        @Override
+        public int compareTo(BlobReference other) {
+            int res = Integer.compare(streamStoreId.length, other.streamStoreId.length);
+            if (res == 0) {
+                for (int i = 0; res == 0 && i < streamStoreId.length; i++) {
+                    res = Byte.compare(streamStoreId[i], other.streamStoreId[i]);
+                }
+                if (res == 0) {
+                    res = Long.compare(lobId, other.lobId);
+                }
+            }
+            return res;
+        }
+
+        public static final class Type extends BasicDataType<BlobReference> {
+            public static final Type INSTANCE = new Type();
+
+            private Type() {}
+
+            @Override
+            public int getMemory(BlobReference blobReference) {
+                return blobReference.streamStoreId.length + 8;
+            }
+
+            @Override
+            public int compare(BlobReference one, BlobReference two) {
+                return one == two ? 0 : one == null ? 1 : two == null ? -1 : one.compareTo(two);
+            }
+
+            @Override
+            public void write(WriteBuffer buff, BlobReference blobReference) {
+                buff.putVarInt(blobReference.streamStoreId.length);
+                buff.put(blobReference.streamStoreId);
+                buff.putVarLong(blobReference.lobId);
+            }
+
+            @Override
+            public BlobReference read(ByteBuffer buff) {
+                int len = DataUtils.readVarInt(buff);
+                byte[] streamStoreId = new byte[len];
+                buff.get(streamStoreId);
+                long blobId = DataUtils.readVarLong(buff);
+                return new BlobReference(streamStoreId, blobId);
+            }
+
+            @Override
+            public BlobReference[] createStorage(int size) {
+                return new BlobReference[size];
+            }
+        }
+    }
+
+    public static final class BlobMeta
+    {
+        public final byte[] streamStoreId;
+        public final int tableId;
+        public final long byteCount;
+        public final long hash;
+
+        public BlobMeta(byte[] streamStoreId, int tableId, long byteCount, long hash) {
+            this.streamStoreId = streamStoreId;
+            this.tableId = tableId;
+            this.byteCount = byteCount;
+            this.hash = hash;
+        }
+
+        public static final class Type extends BasicDataType<BlobMeta> {
+            public static final Type INSTANCE = new Type();
+
+            private Type() {
+            }
+
+            @Override
+            public int getMemory(BlobMeta blobMeta) {
+                return blobMeta.streamStoreId.length + 20;
+            }
+
+            @Override
+            public void write(WriteBuffer buff, BlobMeta blobMeta) {
+                buff.putVarInt(blobMeta.streamStoreId.length);
+                buff.put(blobMeta.streamStoreId);
+                buff.putVarInt(blobMeta.tableId);
+                buff.putVarLong(blobMeta.byteCount);
+                buff.putLong(blobMeta.hash);
+            }
+
+            @Override
+            public BlobMeta read(ByteBuffer buff) {
+                int len = DataUtils.readVarInt(buff);
+                byte[] streamStoreId = new byte[len];
+                buff.get(streamStoreId);
+                int tableId = DataUtils.readVarInt(buff);
+                long byteCount = DataUtils.readVarLong(buff);
+                long hash = buff.getLong();
+                return new BlobMeta(streamStoreId, tableId, byteCount, hash);
+            }
+
+            @Override
+            public BlobMeta[] createStorage(int size) {
+                return new BlobMeta[size];
+            }
+        }
+    }
 }

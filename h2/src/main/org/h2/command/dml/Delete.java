@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -13,13 +13,12 @@ import org.h2.command.query.AllColumnsForPlan;
 import org.h2.engine.DbObject;
 import org.h2.engine.Right;
 import org.h2.engine.SessionLocal;
-import org.h2.engine.UndoLogRecord;
 import org.h2.expression.Expression;
 import org.h2.expression.ExpressionVisitor;
-import org.h2.result.ResultInterface;
+import org.h2.message.DbException;
+import org.h2.result.LocalResult;
 import org.h2.result.ResultTarget;
 import org.h2.result.Row;
-import org.h2.result.RowList;
 import org.h2.table.DataChangeDeltaTable.ResultOption;
 import org.h2.table.PlanItem;
 import org.h2.table.Table;
@@ -31,103 +30,81 @@ import org.h2.value.ValueNull;
  * This class represents the statement
  * DELETE
  */
-public final class Delete extends DataChangeStatement {
-
-    private Expression condition;
-    private TableFilter targetTableFilter;
-
-    /**
-     * The limit expression as specified in the LIMIT or TOP clause.
-     */
-    private Expression limitExpr;
+public final class Delete extends FilteredDataChangeStatement {
 
     public Delete(SessionLocal session) {
         super(session);
     }
 
-    @Override
-    public Table getTable() {
-        return targetTableFilter.getTable();
-    }
-
-    public void setTableFilter(TableFilter tableFilter) {
-        this.targetTableFilter = tableFilter;
-    }
-
-    public void setCondition(Expression condition) {
-        this.condition = condition;
-    }
-
-    public Expression getCondition() {
-        return this.condition;
-    }
 
     @Override
     public long update(ResultTarget deltaChangeCollector, ResultOption deltaChangeCollectionMode) {
         targetTableFilter.startQuery(session);
         targetTableFilter.reset();
         Table table = targetTableFilter.getTable();
-        session.getUser().checkRight(table, Right.DELETE);
+        session.getUser().checkTableRight(table, Right.DELETE);
         table.fire(session, Trigger.DELETE, true);
         //直到事务commit或rollback时才解琐，见org.h2.engine.Session.unlockAll()
         table.lock(session, true, false);
-        int limitRows = -1;
-        if (limitExpr != null) {
-            Value v = limitExpr.getValue(session);
-            if (v != ValueNull.INSTANCE) {
-                limitRows = v.getInt();
+        long limitRows = -1;
+        if (fetchExpr != null) {
+            Value v = fetchExpr.getValue(session);
+            if (v == ValueNull.INSTANCE || (limitRows = v.getLong()) < 0) {
+                throw DbException.getInvalidValueException("FETCH", v);
             }
         }
-        try (RowList rows = new RowList(session, table)) {
+        try (LocalResult rows = LocalResult.forTable(session, table)) {
             setCurrentRowNumber(0);
             long count = 0;
-            // 比如delete from DeleteTest limit 0，
-            // 此时limitRows为0，不删除任何行
-            while (limitRows != 0 && targetTableFilter.next()) {
-                setCurrentRowNumber(rows.size() + 1);
-                // condition.getBooleanValue(session)内部会取当前行与之比较，
-                // 比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
-                // 然后在从当前行中按列id取当前行value数组中对应元素
-                if (condition == null || condition.getBooleanValue(session)) {
-                    Row row = targetTableFilter.get();
-                    if (table.isMVStore()) {
-                        Row lockedRow = table.lockRow(session, row);
-                        if (lockedRow == null) {
+//<<<<<<< HEAD
+//            // 比如delete from DeleteTest limit 0，
+//            // 此时limitRows为0，不删除任何行
+//            while (limitRows != 0 && targetTableFilter.next()) {
+//                setCurrentRowNumber(rows.size() + 1);
+//                // condition.getBooleanValue(session)内部会取当前行与之比较，
+//                // 比如，如果是ExpressionColumn，那么就由它对应的列，取得列id，
+//                // 然后在从当前行中按列id取当前行value数组中对应元素
+//                if (condition == null || condition.getBooleanValue(session)) {
+//                    Row row = targetTableFilter.get();
+//                    if (table.isMVStore()) {
+//                        Row lockedRow = table.lockRow(session, row);
+//                        if (lockedRow == null) {
+//=======
+            while (nextRow(limitRows, count)) {
+                Row row = targetTableFilter.get();
+                if (table.isRowLockable()) {
+                    Row lockedRow = table.lockRow(session, row);
+                    if (lockedRow == null) {
+                        continue;
+                    }
+                    if (!row.hasSharedData(lockedRow)) {
+                        row = lockedRow;
+                        targetTableFilter.set(row);
+                        if (condition != null && !condition.getBooleanValue(session)) {
                             continue;
                         }
-                        if (!row.hasSharedData(lockedRow)) {
-                            row = lockedRow;
-                            targetTableFilter.set(row);
-                            if (condition != null && !condition.getBooleanValue(session)) {
-                                continue;
-                            }
-                        }
-                    }
-                    if (deltaChangeCollectionMode == ResultOption.OLD) {
-                        deltaChangeCollector.addRow(row.getValueList());
-                    }
-                    if (!table.fireRow() || !table.fireBeforeRow(session, row, null)) {
-                        rows.add(row);
-                    }
-                    count++;
-                    if (limitRows >= 0 && count >= limitRows) {
-                        break;
                     }
                 }
+                if (deltaChangeCollectionMode == ResultOption.OLD) {
+                    deltaChangeCollector.addRow(row.getValueList());
+                }
+                if (!table.fireRow() || !table.fireBeforeRow(session, row, null)) {
+                    rows.addRowForTable(row);
+                }
+                count++;
             }
-            int rowScanCount = 0;
-            for (rows.reset(); rows.hasNext();) {
+            rows.done();
+            long rowScanCount = 0;
+            while (rows.next()) {
                 if ((++rowScanCount & 127) == 0) {
                     checkCanceled();
                 }
-                Row row = rows.next();
+                Row row = rows.currentRowForTable();
                 table.removeRow(session, row);
-                session.log(table, UndoLogRecord.DELETE, row);
             }
             if (table.fireRow()) {
-                for (rows.reset(); rows.hasNext();) {
-                    Row row = rows.next();
-                    table.fireAfterRow(session, row, null, false);
+                for (rows.reset(); rows.next();) {
+                    table.fireAfterRow(session, rows.currentRowForTable(), null, false);
                 }
             }
             table.fire(session, Trigger.DELETE, false);
@@ -137,18 +114,10 @@ public final class Delete extends DataChangeStatement {
 
     @Override
     public String getPlanSQL(int sqlFlags) {
-        StringBuilder buff = new StringBuilder();
-        buff.append("DELETE FROM ");
-        targetTableFilter.getPlanSQL(buff, false, sqlFlags);
-        if (condition != null) {
-            buff.append("\nWHERE ");
-            condition.getUnenclosedSQL(buff, sqlFlags);
-        }
-        if (limitExpr != null) {
-            buff.append("\nLIMIT ");
-            limitExpr.getUnenclosedSQL(buff, sqlFlags);
-        }
-        return buff.toString();
+        StringBuilder builder = new StringBuilder("DELETE FROM ");
+        targetTableFilter.getPlanSQL(builder, false, sqlFlags);
+        appendFilterCondition(builder, sqlFlags);
+        return builder.toString();
     }
     
     //limitExpr在org.h2.command.Parser.parseDelete()中调用过optimize了，所以在这里不用再调用
@@ -171,16 +140,6 @@ public final class Delete extends DataChangeStatement {
     }
 
     @Override
-    public boolean isTransactional() {
-        return true;
-    }
-
-    @Override
-    public ResultInterface queryMeta() {
-        return null;
-    }
-
-    @Override
     public int getType() {
         return CommandInterface.DELETE;
     }
@@ -188,19 +147,6 @@ public final class Delete extends DataChangeStatement {
     @Override
     public String getStatementName() {
         return "DELETE";
-    }
-
-    public void setLimit(Expression limit) {
-        this.limitExpr = limit;
-    }
-
-    @Override
-    public boolean isCacheable() {
-        return true;
-    }
-
-    public TableFilter getTableFilter() {
-        return targetTableFilter;
     }
 
     @Override

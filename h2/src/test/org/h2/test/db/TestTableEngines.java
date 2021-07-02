@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -232,7 +232,7 @@ public class TestTableEngines extends TestDb {
         checkPlan(stat, "select * from t where a = 0", "scan");
         checkPlan(stat, "select * from t where a > 0 order by c, b", "IDX_C_B_A");
         checkPlan(stat, "select * from t where a = 0 and c > 0", "IDX_C_B_A");
-        checkPlan(stat, "select * from t where a = 0 and b < 0", "IDX_B_A");
+        checkPlan(stat, "select * from t where a = 0 and b < '0'", "IDX_B_A");
 
         assertEquals(6, ((Number) query(stat, "select count(*) from t").get(0).get(0)).intValue());
 
@@ -518,7 +518,7 @@ public class TestTableEngines extends TestDb {
 
                 Scan(Table table) {
                     super(table, table.getId(), table.getName() + "_SCAN",
-                            IndexColumn.wrap(table.getColumns()), IndexType.createScan(false));
+                            IndexColumn.wrap(table.getColumns()), 0, IndexType.createScan(false));
                 }
 
                 @Override
@@ -599,9 +599,8 @@ public class TestTableEngines extends TestDb {
             }
 
             @Override
-            public Index addIndex(SessionLocal session, String indexName,
-                    int indexId, IndexColumn[] cols, IndexType indexType,
-                    boolean create, String indexComment) {
+            public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
+                    int uniqueColumnCount, IndexType indexType, boolean create, String indexComment) {
                 return null;
             }
 
@@ -658,11 +657,6 @@ public class TestTableEngines extends TestDb {
             @Override
             public TableType getTableType() {
                 return TableType.EXTERNAL_TABLE_ENGINE;
-            }
-
-            @Override
-            public Index getUniqueIndex() {
-                return null;
             }
 
             @Override
@@ -823,7 +817,7 @@ public class TestTableEngines extends TestDb {
 
         @Override
         public Index addIndex(SessionLocal session, String indexName, int indexId, IndexColumn[] cols,
-                IndexType indexType, boolean create, String indexComment) {
+                int uniqueColumnCount, IndexType indexType, boolean create, String indexComment) {
             if (indexes == null) {
                 indexes = new ArrayList<>(2);
                 // Scan must be always at 0.
@@ -842,11 +836,6 @@ public class TestTableEngines extends TestDb {
         @Override
         public boolean isDeterministic() {
             return false;
-        }
-
-        @Override
-        public Index getUniqueIndex() {
-            return null;
         }
 
         @Override
@@ -908,7 +897,7 @@ public class TestTableEngines extends TestDb {
         final TreeSet<SearchRow> set = new TreeSet<>(this);
 
         TreeSetIndex(Table t, String name, IndexColumn[] cols, IndexType type) {
-            super(t, 0, name, cols, type);
+            super(t, 0, name, cols, 0, type);
         }
 
         @Override

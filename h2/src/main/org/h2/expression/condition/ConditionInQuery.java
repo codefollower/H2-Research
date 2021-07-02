@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -60,7 +60,7 @@ public final class ConditionInQuery extends PredicateWithSubquery {
         if (!whenOperand) {
             return super.getWhenValue(session, left);
         }
-        return getValue(session, left).getBoolean();
+        return getValue(session, left).isTrue();
     }
 
     private Value getValue(SessionLocal session, Value left) {
@@ -269,12 +269,16 @@ public final class ConditionInQuery extends PredicateWithSubquery {
         if (query.getColumnCount() != 1) {
             return;
         }
-        int leftType = left.getType().getValueType();
-        if (!DataType.hasTotalOrdering(leftType)
-                && leftType != query.getExpressions().get(0).getType().getValueType()) {
+        if (!(left instanceof ExpressionColumn)) {
             return;
         }
-        if (!(left instanceof ExpressionColumn)) {
+        TypeInfo colType = left.getType();
+        TypeInfo queryType = query.getExpressions().get(0).getType();
+        if (!TypeInfo.haveSameOrdering(colType, TypeInfo.getHigherType(colType, queryType))) {
+            return;
+        }
+        int leftType = colType.getValueType();
+        if (!DataType.hasTotalOrdering(leftType) && leftType != queryType.getValueType()) {
             return;
         }
         ExpressionColumn l = (ExpressionColumn) left;

@@ -1,4 +1,4 @@
--- Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+-- Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
 -- and the EPL 1.0 (https://h2database.com/html/license.html).
 -- Initial Developer: H2 Group
 --
@@ -73,8 +73,7 @@ SELECT G FROM TEST WHERE P_S = 'GEOMETRYCOLLECTION Z EMPTY';
 > exception DATA_CONVERSION_ERROR_1
 
 CREATE SPATIAL INDEX IDX ON TEST(GC);
-#+mvStore#> ok
-#-mvStore#> exception FEATURE_NOT_SUPPORTED_1
+> ok
 
 SELECT P FROM TEST WHERE GC = 'SRID=8;GEOMETRYCOLLECTION (POINT (1 1))';
 >> POINT EMPTY

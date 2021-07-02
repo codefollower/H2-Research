@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0, and the
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0, and the
  * EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  * Iso8601: Initial Developer: Robert Rathsack (firstName dot lastName at gmx
@@ -127,17 +127,29 @@ public class DateTimeUtils {
      * @return current timestamp
      */
     public static ValueTimestampTimeZone currentTimestamp(TimeZoneProvider timeZone) {
-        Instant now = Instant.now();
-        long second = now.getEpochSecond();
-        int nano = now.getNano();
+        return currentTimestamp(timeZone, Instant.now());
+    }
+
+    /**
+     * Returns current timestamp using the specified instant for its value.
+     *
+     * @param timeZone
+     *            the time zone
+     * @param now
+     *            timestamp source, must be greater than or equal to
+     *            1970-01-01T00:00:00Z
+     * @return current timestamp
+     */
+    public static ValueTimestampTimeZone currentTimestamp(TimeZoneProvider timeZone, Instant now) {
         /*
          * This code intentionally does not support properly dates before UNIX
          * epoch because such support is not required for current dates.
          */
+        long second = now.getEpochSecond();
         int offset = timeZone.getTimeZoneOffsetUTC(second);
         second += offset;
         return ValueTimestampTimeZone.fromDateValueAndNanos(dateValueFromAbsoluteDay(second / SECONDS_PER_DAY),
-                second % SECONDS_PER_DAY * 1_000_000_000 + nano, offset);
+                second % SECONDS_PER_DAY * 1_000_000_000 + now.getNano(), offset);
     }
 
     /**
@@ -981,8 +993,9 @@ public class DateTimeUtils {
      *
      * @param builder the target string builder
      * @param nanos the time in nanoseconds
+     * @return the specified string builder
      */
-    public static void appendTime(StringBuilder builder, long nanos) {
+    public static StringBuilder appendTime(StringBuilder builder, long nanos) {
         if (nanos < 0) {
             builder.append('-');
             nanos = -nanos;
@@ -1002,7 +1015,7 @@ public class DateTimeUtils {
         StringUtils.appendTwoDigits(builder, h).append(':');
         StringUtils.appendTwoDigits(builder, m).append(':');
         StringUtils.appendTwoDigits(builder, (int) s);
-        appendNanos(builder, (int) nanos);
+        return appendNanos(builder, (int) nanos);
     }
 
     /**
@@ -1010,8 +1023,9 @@ public class DateTimeUtils {
      *
      * @param builder string builder to append to
      * @param nanos nanoseconds of second
+     * @return the specified string builder
      */
-    static void appendNanos(StringBuilder builder, int nanos) {
+    static StringBuilder appendNanos(StringBuilder builder, int nanos) {
         if (nanos > 0) {
             builder.append('.');
             for (int i = 1; nanos < FRACTIONAL_SECONDS_TABLE[i]; i++) {
@@ -1031,34 +1045,35 @@ public class DateTimeUtils {
             }
             builder.append(nanos);
         }
+        return builder;
     }
 
     /**
      * Append a time zone to the string builder.
      *
-     * @param buff the target string builder
+     * @param builder the target string builder
      * @param tz the time zone offset in seconds
+     * @return the specified string builder
      */
-    public static void appendTimeZone(StringBuilder buff, int tz) {
+    public static StringBuilder appendTimeZone(StringBuilder builder, int tz) {
         if (tz < 0) {
-            buff.append('-');
+            builder.append('-');
             tz = -tz;
         } else {
-            buff.append('+');
+            builder.append('+');
         }
         int rem = tz / 3_600;
-        StringUtils.appendTwoDigits(buff, rem);
+        StringUtils.appendTwoDigits(builder, rem);
         tz -= rem * 3_600;
         if (tz != 0) {
             rem = tz / 60;
-            buff.append(':');
-            StringUtils.appendTwoDigits(buff, rem);
+            StringUtils.appendTwoDigits(builder.append(':'), rem);
             tz -= rem * 60;
             if (tz != 0) {
-                buff.append(':');
-                StringUtils.appendTwoDigits(buff, tz);
+                StringUtils.appendTwoDigits(builder.append(':'), tz);
             }
         }
+        return builder;
     }
 
     /**

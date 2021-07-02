@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -20,7 +20,6 @@ import org.h2.message.Trace;
 import org.h2.result.ResultInterface;
 import org.h2.result.ResultWithGeneratedKeys;
 import org.h2.result.ResultWithPaddedStrings;
-import org.h2.util.MathUtils;
 import org.h2.util.Utils;
 
 /**
@@ -157,10 +156,9 @@ public abstract class Command implements CommandInterface {
     @Override
     public void stop() {
         //DDL的isTransactional默认都是false，相当于每执行完一条DDL都默认提交事务
-        //session.setCurrentCommand(null);
-        if (!isTransactional()) {
-            session.commit(true);
-        } else if (session.getAutoCommit()) { //如果是自动提交模式，那么执行完一条SQL时由系统自动提交，非自动提交模式由应用负责提交
+        //如果是自动提交模式，那么执行完一条SQL时由系统自动提交，非自动提交模式由应用负责提交
+        commitIfNonTransactional();
+        if (isTransactional() && session.getAutoCommit()) {
             session.commit(false);
         }
 
@@ -178,7 +176,7 @@ public abstract class Command implements CommandInterface {
 
     /**
      * Execute a query and return the result.
-     * This method prepares everything and calls {@link #query(int)} finally.
+     * This method prepares everything and calls {@link #query(long)} finally.
      *
      * @param maxrows the maximum number of rows to return
      * @param scrollable if the result set must be scrollable (ignored)
@@ -189,12 +187,15 @@ public abstract class Command implements CommandInterface {
         startTimeNanos = 0L;
         long start = 0L;
         Database database = session.getDatabase();
-        //也跟executeUpdate()的情型一样，就算是查询也不例外 
-        Object sync = database.isMVStore() ? session : database;
+//<<<<<<< HEAD
+//        //也跟executeUpdate()的情型一样，就算是查询也不例外 
+//        Object sync = database.isMVStore() ? session : database;
+//=======
+//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
         session.waitIfExclusiveModeEnabled();
         boolean callStop = true;
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (sync) {
+        synchronized (session) {
             session.startStatementWithinTransaction(this);
             try {
                 while (true) {
@@ -248,17 +249,21 @@ public abstract class Command implements CommandInterface {
     public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
         long start = 0;
         Database database = session.getDatabase();
-//<<<<<<< 这是老版本的做法:
-//        //默认一个数据库只允许一个线程更新，通过SET MULTI_THREADED 1可变成多线程的，
-//        //这样同步对象是session，即不同的session之间可以并发使用数据库，但是同一个session内部是只允许一个线程。
-//        //通过使用database作为同步对象就相当于数据库是单线程的
-//        Object sync = database.isMultiThreaded() || database.getStore() != null ? session : database;
+//<<<<<<< HEAD
+////<<<<<<< 这是老版本的做法:
+////        //默认一个数据库只允许一个线程更新，通过SET MULTI_THREADED 1可变成多线程的，
+////        //这样同步对象是session，即不同的session之间可以并发使用数据库，但是同一个session内部是只允许一个线程。
+////        //通过使用database作为同步对象就相当于数据库是单线程的
+////        Object sync = database.isMultiThreaded() || database.getStore() != null ? session : database;
+////=======
+//        Object sync = database.isMVStore() ? session : database;
 //=======
-        Object sync = database.isMVStore() ? session : database;
+//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
         session.waitIfExclusiveModeEnabled();
         boolean callStop = true;
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (sync) {
+        synchronized (session) {
+            commitIfNonTransactional();
             SessionLocal.Savepoint rollback = session.setSavepoint();
             session.startStatementWithinTransaction(this);
             DbException ex = null;
@@ -319,6 +324,16 @@ public abstract class Command implements CommandInterface {
         }
     }
 
+    private void commitIfNonTransactional() {
+        if (!isTransactional()) {
+            boolean autoCommit = session.getAutoCommit();
+            session.commit(true);
+            if (!autoCommit && session.getAutoCommit()) {
+                session.begin();
+            }
+        }
+    }
+
     private long filterConcurrentUpdate(DbException e, long start) {
         int errorCode = e.getErrorCode();
         if (errorCode != ErrorCode.CONCURRENT_UPDATE_1 && errorCode != ErrorCode.ROW_NOT_FOUND_IN_PRIMARY_INDEX
@@ -328,23 +343,6 @@ public abstract class Command implements CommandInterface {
         long now = Utils.currentNanoTime();
         if (start != 0L && now - start > session.getLockTimeout() * 1_000_000L) {
             throw DbException.get(ErrorCode.LOCK_TIMEOUT_1, e);
-        }
-        // Only in PageStore mode we need to sleep here to avoid busy wait loop
-        Database database = session.getDatabase();
-        if (!database.isMVStore()) {
-            int sleep = 1 + MathUtils.randomInt(10);
-            while (true) {
-                try {
-                    // although nobody going to notify us
-                    // it is vital to give up lock on a database
-                    database.wait(sleep);
-                } catch (InterruptedException e1) {
-                    // ignore
-                }
-                if (System.nanoTime() - now >= sleep * 1_000_000L) {
-                    break;
-                }
-            }
         }
         return start == 0L ? now : start;
     }
@@ -356,7 +354,7 @@ public abstract class Command implements CommandInterface {
 
     @Override
     public void cancel() {
-        this.cancel = true;
+        cancel = true;
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -38,47 +38,6 @@ public interface DatabaseInfoMBean {
      * @return the database mode
      */
     String getMode();
-
-    /**
-     * Is multi-threading enabled?
-     * @h2.resource
-     *
-     * @return true if multi-threading is enabled, false otherwise
-     */
-    @Deprecated
-    boolean isMultiThreaded();
-
-    /**
-     * Is MVCC (multi version concurrency) enabled?
-     * @h2.resource
-     *
-     * @return true if MVCC is enabled, false otherwise
-     */
-    @Deprecated
-    boolean isMvcc();
-
-    /**
-     * The transaction log mode (0 disabled, 1 without sync, 2 enabled).
-     * @h2.resource
-     *
-     * @return the transaction log mode
-     */
-    int getLogMode();
-
-    /**
-     * Set the transaction log mode.
-     *
-     * @param value the new log mode
-     */
-    void setLogMode(int value);
-
-    /**
-     * The number of write operations since the database was created.
-     * @h2.resource
-     *
-     * @return the total write count
-     */
-    long getFileWriteCountTotal();
 
     /**
      * The number of write operations since the database was opened.

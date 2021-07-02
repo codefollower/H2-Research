@@ -1,12 +1,11 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
 package org.h2.tools;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.h2.util.JdbcUtils;
@@ -110,15 +109,10 @@ public class Script extends Tool {
      * @param options1 the options before the file name (may be an empty string)
      * @param options2 the options after the file name (may be an empty string)
      */
-    public static void process(String url, String user, String password,
-            String fileName, String options1, String options2) throws SQLException {
-        Connection conn = null;
-        try {
-            org.h2.Driver.load();
-            conn = DriverManager.getConnection(url, user, password);
+    public static void process(String url, String user, String password, String fileName, String options1,
+            String options2) throws SQLException {
+        try (Connection conn = JdbcUtils.getConnection(null, url, user, password)) {
             process(conn, fileName, options1, options2);
-        } finally {
-            JdbcUtils.closeSilently(conn);
         }
     }
 

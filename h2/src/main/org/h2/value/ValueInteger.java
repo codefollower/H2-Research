@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2020 H2 Group. Multiple-Licensed under the MPL 2.0,
+ * Copyright 2004-2021 H2 Group. Multiple-Licensed under the MPL 2.0,
  * and the EPL 1.0 (https://h2database.com/html/license.html).
  * Initial Developer: H2 Group
  */
@@ -29,7 +29,7 @@ public final class ValueInteger extends Value {
 =======
      * The approximate precision in decimal digits.
      */
-    static final int DECIMAL_PRECISION = 10;
+    public static final int DECIMAL_PRECISION = 10;
 
     /**
      * The maximum display size of an INT.
@@ -112,7 +112,7 @@ public final class ValueInteger extends Value {
     }
 
     @Override
-    public Value divide(Value v, long divisorPrecision) {
+    public Value divide(Value v, TypeInfo quotientType) {
         int y = ((ValueInteger) v).value;
         if (y == 0) {
             throw DbException.get(ErrorCode.DIVISION_BY_ZERO_1, getTraceSQL());
