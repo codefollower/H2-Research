@@ -182,15 +182,10 @@ public abstract class Command implements CommandInterface {
         startTimeNanos = 0L;
         long start = 0L;
         Database database = session.getDatabase();
-//<<<<<<< HEAD
-//        //也跟executeUpdate()的情型一样，就算是查询也不例外 
-//        Object sync = database.isMVStore() ? session : database;
-//=======
-//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
         session.waitIfExclusiveModeEnabled();
         boolean callStop = true;
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (session) {
+        synchronized (session) { //同一个session内部是只允许一个线程查询
             session.startStatementWithinTransaction(this);
             try {
                 while (true) {
@@ -244,22 +239,12 @@ public abstract class Command implements CommandInterface {
     public ResultWithGeneratedKeys executeUpdate(Object generatedKeysRequest) {
         long start = 0;
         Database database = session.getDatabase();
-//<<<<<<< HEAD
-////<<<<<<< 这是老版本的做法:
-////        //默认一个数据库只允许一个线程更新，通过SET MULTI_THREADED 1可变成多线程的，
-////        //这样同步对象是session，即不同的session之间可以并发使用数据库，但是同一个session内部是只允许一个线程。
-////        //通过使用database作为同步对象就相当于数据库是单线程的
-////        Object sync = database.isMultiThreaded() || database.getStore() != null ? session : database;
-////=======
-//        Object sync = database.isMVStore() ? session : database;
-//=======
-//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
         session.waitIfExclusiveModeEnabled();
         boolean callStop = true;
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (session) {
-            commitIfNonTransactional();
-            SessionLocal.Savepoint rollback = session.setSavepoint();
+        synchronized (session) { //同一个session内部是只允许一个线程更新
+            commitIfNonTransactional(); //事务中有DDL语句会先提交事务然后再开启一个新事务
+            SessionLocal.Savepoint rollback = session.setSavepoint(); //在这一步开启一个新事务
             session.startStatementWithinTransaction(this);
             DbException ex = null;
             try {

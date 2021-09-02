@@ -170,14 +170,6 @@ public final class ValueDataType extends BasicDataType<Value> implements Statefu
             int al = ax.length;
             int bl = bx.length;
             int len = Math.min(al, bl);
-//<<<<<<< HEAD
-//            for (int i = 0; i < len; i++) {int sortType;
-//                // if(sortTypes==null)
-//                //    sortType = 0;
-//                // else sortType = sortTypes[i];
-//                sortType = sortTypes[i];
-//                int comp = compareValues(ax[i], bx[i], sortType);
-//=======
             for (int i = 0; i < len; i++) {
                 int sortType = sortTypes == null ? SortOrder.ASCENDING : sortTypes[i];
                 Value one = ax[i];

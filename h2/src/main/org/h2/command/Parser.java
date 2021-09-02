@@ -994,9 +994,7 @@ public class Parser {
         try {
             ArrayList<Prepared> list = Utils.newSmallArrayList();
             do {
-//<<<<<<< HEAD
-//                if (stop) { //在它的executeRemaining中会继续调用这里的代码
-//=======
+                //在它的executeRemaining中会继续调用这里的代码
                 if (p instanceof DefineCommand) {
                     // Next commands may depend on results of this command.
                     return new CommandList(session, sql, command, list, parameters, remaining);

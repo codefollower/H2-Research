@@ -402,75 +402,6 @@ public abstract class Page<K,V> implements Cloneable {
      * @param at the split index
      * @return the page with the entries after the split index
      */
-//<<<<<<< HEAD
-//    Page split(int at) {
-//        Page page = isLeaf() ? splitLeaf(at) : splitNode(at);
-//        if(isPersistent()) {
-//            recalculateMemory();
-//        }
-//        return page;
-//    }
-//
-//    private Page splitLeaf(int at) { //小于split key的放在左边，大于等于split key放在右边
-//        int a = at, b = keys.length - a;
-//        Object[] aKeys = new Object[a];
-//        Object[] bKeys = new Object[b];
-//        System.arraycopy(keys, 0, aKeys, 0, a);
-//        System.arraycopy(keys, a, bKeys, 0, b);
-//        keys = aKeys;
-//        Object[] aValues = new Object[a];
-//        Object[] bValues = new Object[b];
-//        bValues = new Object[b]; //多于的
-//        System.arraycopy(values, 0, aValues, 0, a);
-//        System.arraycopy(values, a, bValues, 0, b);
-//        values = aValues;
-//        totalCount = a;
-//        Page newPage = create(map, version,
-//                bKeys, bValues,
-//                null,
-////<<<<<<< HEAD
-////                bKeys.length, 0);
-////        recalculateMemory();
-////        //newPage.recalculateMemory(); //create中已经计算过一次了，这里是多于的
-////=======
-//                b, 0);
-//        return newPage;
-//    }
-//
-//    private Page splitNode(int at) {
-//        int a = at, b = keys.length - a;
-//
-//        Object[] aKeys = new Object[a];
-//        Object[] bKeys = new Object[b - 1];
-//        System.arraycopy(keys, 0, aKeys, 0, a);
-//        System.arraycopy(keys, a + 1, bKeys, 0, b - 1);
-//        keys = aKeys;
-//
-//        PageReference[] aChildren = new PageReference[a + 1];
-//        PageReference[] bChildren = new PageReference[b];
-//        System.arraycopy(children, 0, aChildren, 0, a + 1);
-//        System.arraycopy(children, a + 1, bChildren, 0, b);
-//        children = aChildren;
-//
-//        long t = 0;
-//        for (PageReference x : aChildren) {
-//            t += x.count;
-//        }
-//        totalCount = t;
-//        t = 0;
-//        for (PageReference x : bChildren) {
-//            t += x.count;
-//        }
-//        Page newPage = create(map, version,
-//                bKeys, null,
-//                bChildren,
-//                t, 0);
-////<<<<<<< HEAD
-////        recalculateMemory();
-////        //newPage.recalculateMemory(); //create中已经计算过一次了，这里是多于的
-////=======
-////>>>>>>> b5fb4c3839adf5eb3ccd310fa5d5ab099fa3e82d
-//        return newPage;
     abstract Page<K,V> split(int at);
 
     /**
@@ -565,46 +496,6 @@ public abstract class Page<K,V> implements Cloneable {
      * @param value the new value
      * @return the old value
      */
-//<<<<<<< HEAD
-//    public Object setValue(int index, Object value) {
-//        Object old = values[index];
-//        // this is slightly slower:
-//        // values = Arrays.copyOf(values, values.length); //只copy引用
-//        values = values.clone();
-//        DataType valueType = map.getValueType();
-//        if(isPersistent()) {
-//            addMemory(valueType.getMemory(value) -
-//                    valueType.getMemory(old));
-//        }
-//        values[index] = value;
-//        return old;
-//    }
-//
-//    /**
-//     * Remove this page and all child pages.
-//     */
-//    void removeAllRecursive() {
-//        if (children != null) {
-//            //不能直接使用getRawChildPageCount， RTreeMap这样的子类会返回getRawChildPageCount() - 1
-//            for (int i = 0, size = map.getChildPageCount(this); i < size; i++) {
-//                PageReference ref = children[i];
-//                if (ref.page != null) {
-//                    ref.page.removeAllRecursive();
-//                } else {
-//                    long c = children[i].pos;
-//                    int type = DataUtils.getPageType(c);
-//                    if (type == DataUtils.PAGE_TYPE_LEAF) {
-//                        int mem = DataUtils.getPageMaxLength(c);
-//                        map.removePage(c, mem);
-//                    } else {
-//                        map.readPage(c).removeAllRecursive();
-//                    }
-//                }
-//            }
-//        }
-//        removePage();
-//    }
-//=======
     public abstract V setValue(int index, V value);
 
     /**
@@ -933,32 +824,6 @@ public abstract class Page<K,V> implements Cloneable {
      * @param buff the target buffer
      * @param toc prospective table of content
      */
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////    void writeUnsavedRecursive(Chunk chunk, WriteBuffer buff) {
-////        if (pos != 0) {
-////            // already stored before
-////            return;
-////        }
-////        int patch = write(chunk, buff);
-////        if (!isLeaf()) {
-////            int len = children.length;
-////            for (int i = 0; i < len; i++) {
-////                Page p = children[i].page;
-////                if (p != null) {
-////                    p.writeUnsavedRecursive(chunk, buff);
-////                    children[i] = new PageReference(p, p.getPos(), p.totalCount);
-////                }
-////            }
-////            int old = buff.position();
-////            buff.position(patch);
-////            writeChildren(buff); //write(chunk, buff)中的writeChildren可能为0，在这回填一次
-////            buff.position(old);
-////        }
-////    }
-////=======
-//    abstract void writeUnsavedRecursive(Chunk chunk, WriteBuffer buff);
-//=======
     abstract void writeUnsavedRecursive(Chunk chunk, WriteBuffer buff, List<Long> toc);
 
     /**
@@ -1400,6 +1265,7 @@ public abstract class Page<K,V> implements Cloneable {
         public int removeAllRecursive(long version) {
             int unsavedMemory = removePage(version);
             if (isPersistent()) {
+                //不能直接使用getRawChildPageCount， RTreeMap这样的子类会返回getRawChildPageCount() - 1
                 for (int i = 0, size = map.getChildPageCount(this); i < size; i++) {
                     PageReference<K,V> ref = children[i];
                     Page<K,V> page = ref.getPage();
@@ -1620,7 +1486,7 @@ public abstract class Page<K,V> implements Cloneable {
         }
 
         @Override
-        public Page<K,V> split(int at) {
+        public Page<K,V> split(int at) { //小于split key的放在左边，大于等于split key放在右边
             assert !isSaved();
             int b = getKeyCount() - at;
             K[] bKeys = splitKeys(at, b);

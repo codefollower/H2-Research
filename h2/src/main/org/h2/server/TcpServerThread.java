@@ -158,22 +158,14 @@ public class TcpServerThread implements Runnable {
                     ci.setBaseDir(baseDir);
                 }
                 if (server.getIfExists()) {
-//<<<<<<< HEAD
-//                	//启动TcpServer时加"-ifExists"，限制只有数据库存在时客户端才能连接，也就是不允许在客户端创建数据库
-//                    ci.setProperty("IFEXISTS", "TRUE");
-//=======
+                	//启动TcpServer时加"-ifExists"，限制只有数据库存在时客户端才能连接，也就是不允许在客户端创建数据库
+                    //ci.setProperty("IFEXISTS", "TRUE"); //老版本有这个参数
+
                     ci.setProperty("FORBID_CREATION", "TRUE");
                 }
                 transfer.writeInt(SessionRemote.STATUS_OK);
                 transfer.writeInt(clientVersion);
                 transfer.flush();
-//<<<<<<< HEAD
-//                //每建立一个新的Session对象时，把它保存到内存数据库management_db_9092的SESSIONS表
-//                if (clientVersion >= Constants.TCP_PROTOCOL_VERSION_13) {
-//                    if (ci.getFilePasswordHash() != null) {
-//                        ci.setFileEncryptionKey(transfer.readBytes());
-//                    }
-//=======
                 if (ci.getFilePasswordHash() != null) {
                     ci.setFileEncryptionKey(transfer.readBytes());
                 }
@@ -191,6 +183,7 @@ public class TcpServerThread implements Runnable {
                 }
                 session = Engine.createSession(ci);
                 transfer.setSession(session);
+                //每建立一个新的Session对象时，把它保存到内存数据库management_db_9092的SESSIONS表
                 server.addConnection(threadId, originalURL, ci.getUserName());
                 trace("Connected");
                 lastRemoteSettingsId = session.getDatabase().getRemoteSettingsId();

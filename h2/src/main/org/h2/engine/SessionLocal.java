@@ -615,7 +615,7 @@ public final class SessionLocal extends Session implements TransactionStore.Roll
         }
         Parser parser = new Parser(this);
         try {
-            command = parser.prepareCommand(sql);
+            command = parser.prepareCommand(sql); //在这一步已经完成parse和prepare
         } finally {
             // we can't reuse sub-query indexes, so just drop the whole cache
             subQueryIndexCache = null;

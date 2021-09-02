@@ -219,35 +219,6 @@ public class CreateTable extends CommandWithColumns {
         }
     }
 
-//<<<<<<< HEAD
-//    /**
-//     * Sets the primary key columns, but also check if a primary key
-//     * with different columns is already defined.
-//     *
-//     * @param columns the primary key columns
-//     * @return true if the same primary key columns where already set
-//     */
-//    private boolean setPrimaryKeyColumns(IndexColumn[] columns) {
-//        if (pkColumns != null) {
-//            int len = columns.length;
-//            if (len != pkColumns.length) {
-//                throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);
-//            }
-//            for (int i = 0; i < len; i++) {
-//            	//如CREATE TABLE IF NOT EXISTS mytable3 
-//            	//(f1 int, CONSTRAINT c1 PRIMARY KEY(f1), f2 int, CONSTRAINT c2 PRIMARY KEY(f2))
-//                if (!columns[i].columnName.equals(pkColumns[i].columnName)) {
-//                    throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);
-//                }
-//            }
-//            return true;
-//        }
-//        this.pkColumns = columns;
-//        return false;
-//    }
-//
-//=======
-//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
     public void setPersistIndexes(boolean persistIndexes) {
         data.persistIndexes = persistIndexes;
     }

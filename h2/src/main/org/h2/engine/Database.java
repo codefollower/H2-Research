@@ -2506,42 +2506,6 @@ public final class Database implements DataHandler, CastDataProvider {
         return tempFileDeleter;
     }
 
-//<<<<<<< HEAD
-//    private void createPageStore(ConnectionInfo ci) {
-//        int logMode = ci.getProperty("LOG", PageStore.LOG_MODE_SYNC);
-//        pageStore = new PageStore(this, databaseName + Constants.SUFFIX_PAGE_FILE, accessModeData, cacheSize);
-//        if (pageSize != Constants.DEFAULT_PAGE_SIZE) {
-//            pageStore.setPageSize(pageSize);
-//        }
-////<<<<<<< HEAD
-////        synchronized (this) {
-////            if (pageStore == null) {
-////                pageStore = new PageStore(this, databaseName +
-////                        Constants.SUFFIX_PAGE_FILE, accessModeData, cacheSize);
-////                if (pageSize != Constants.DEFAULT_PAGE_SIZE) {
-////                    pageStore.setPageSize(pageSize);
-////                }
-////                if (!readOnly && fileLockMethod == FileLockMethod.FS) {
-////                    pageStore.setLockFile(true);
-////                }
-////                pageStore.setLogMode(logMode); //默认是LOG_MODE_SYNC
-////                pageStore.open();
-////            }
-////            return pageStore;
-////=======
-//        if (!readOnly && fileLockMethod == FileLockMethod.FS) {
-//            pageStore.setLockFile(true);
-//        }
-//        pageStore.setLogMode(logMode);
-//        pageStore.open();
-//    }
-//
-//    public PageStore getPageStore() {
-//        return pageStore;
-//    }
-//
-//=======
-//>>>>>>> 9ce943870f251bc84170f8fbb59f245e7b788805
     /**
      * Get the first user defined table, excluding the LOB_BLOCKS table that the
      * Recover tool creates.

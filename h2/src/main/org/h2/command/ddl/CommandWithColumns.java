@@ -146,6 +146,8 @@ public abstract class CommandWithColumns extends SchemaCommand {
                 throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);
             }
             for (int i = 0; i < len; i++) {
+                //如CREATE TABLE IF NOT EXISTS mytable3 
+                //(f1 int, CONSTRAINT c1 PRIMARY KEY(f1), f2 int, CONSTRAINT c2 PRIMARY KEY(f2))
                 if (!newColumns[i].columnName.equals(oldColumns[i].columnName)) {
                     throw DbException.get(ErrorCode.SECOND_PRIMARY_KEY);
                 }
