@@ -335,12 +335,7 @@ public final class SessionRemote extends Session implements DataHandler {
             connectServer(ci);
             return this;
         }
-//<<<<<<< HEAD
-//        //下面的代码是用于嵌入式或内存数据库的场景
-//        // create the session using reflection,
-//        // so that the JDBC layer can be compiled without it
-//=======
-//>>>>>>> 5a91cf068195d0e613d30e0e7202a0b05f87f253
+        //下面的代码是用于嵌入式或内存数据库的场景
         boolean autoServerMode = ci.getProperty("AUTO_SERVER", false);
         ConnectionInfo backup = null;
         try {

@@ -553,138 +553,6 @@ public final class Database implements DataHandler, CastDataProvider {
                 Constants.MAX_IDENTIFIER_LENGTH);
     }
 
-//<<<<<<< HEAD
-//    private void initTraceSystem(int traceLevelFile, int traceLevelSystemOut)  {
-//        traceSystem.setLevelFile(traceLevelFile);
-//        traceSystem.setLevelSystemOut(traceLevelSystemOut);
-//        trace = traceSystem.getTrace(Trace.DATABASE);
-//        trace.info("opening {0} (build {1})", databaseName, Constants.BUILD_ID);
-//    }
-//
-//    private synchronized void open(int traceLevelFile, int traceLevelSystemOut) {
-//        if (persistent) {
-//			//databaseName = E:/H2/baseDir/mydb
-//			//dataFileName = E:/H2/baseDir/mydb.data.db
-//			//pageFileName = E:/H2/baseDir/mydb.h2.db
-//            String dataFileName = databaseName + Constants.SUFFIX_OLD_DATABASE_FILE;
-//            boolean existsData = FileUtils.exists(dataFileName);
-//            String pageFileName = databaseName + Constants.SUFFIX_PAGE_FILE;
-//            String mvFileName = databaseName + Constants.SUFFIX_MV_FILE;
-//            boolean existsPage = FileUtils.exists(pageFileName);
-//            boolean existsMv = FileUtils.exists(mvFileName);
-//            if (existsData && (!existsPage && !existsMv)) {
-//                throw DbException.get(
-//                        ErrorCode.FILE_VERSION_ERROR_1, "Old database: " +
-//                        dataFileName +
-//                        " - please convert the database " +
-//                        "to a SQL script and re-create it.");
-//            }
-//            if (existsPage && !FileUtils.canWrite(pageFileName)) {
-//                readOnly = true;
-//            }
-//            if (existsMv && !FileUtils.canWrite(mvFileName)) {
-//                readOnly = true;
-//            }
-//            if (existsPage && !existsMv) {
-//                dbSettings.setMvStore(false);
-//            }
-//            if (readOnly) {
-//                if (traceLevelFile >= TraceSystem.DEBUG) {
-//                    String traceFile = Utils.getProperty("java.io.tmpdir", ".") +
-//                            "/" + "h2_" + System.currentTimeMillis();
-//                    traceSystem = new TraceSystem(traceFile +
-//                            Constants.SUFFIX_TRACE_FILE);
-//                } else {
-//                    traceSystem = new TraceSystem(null);
-//                }
-//            } else {
-//				//E:/H2/baseDir/mydb.trace.db
-//                traceSystem = new TraceSystem(databaseName + Constants.SUFFIX_TRACE_FILE);
-//            }
-//            initTraceSystem(traceLevelFile, traceLevelSystemOut);
-//            if (autoServerMode) {
-//                if (readOnly ||
-//                        fileLockMethod == FileLockMethod.NO ||
-//                        fileLockMethod == FileLockMethod.FS) {
-//                    throw DbException.getUnsupportedException(
-//                            "autoServerMode && (readOnly || " +
-//                            "fileLockMethod == NO || " +
-//                            "fileLockMethod == FS || " +
-//                            "inMemory)");
-//                }
-//            }
-//			//E:/H2/baseDir/mydb.lock.db
-//            String lockFileName = databaseName + Constants.SUFFIX_LOCK_FILE;
-//            if (readOnly) {
-//                if (FileUtils.exists(lockFileName)) {
-//                    throw DbException.get(ErrorCode.DATABASE_ALREADY_OPEN_1,
-//                            "Lock file exists: " + lockFileName);
-//                }
-//            }
-//            if (!readOnly && fileLockMethod != FileLockMethod.NO) {
-//                if (fileLockMethod != FileLockMethod.FS) {
-//                    lock = new FileLock(traceSystem, lockFileName, Constants.LOCK_SLEEP);
-//                    lock.lock(fileLockMethod);
-//                    if (autoServerMode) {
-//                        startServer(lock.getUniqueId());
-//                    }
-//                }
-//            }
-//            deleteOldTempFiles();
-//            starting = true;
-//            if (SysProperties.MODIFY_ON_WRITE) {
-//                try {
-//                    getPageStore();
-//                } catch (DbException e) {
-//                    if (e.getErrorCode() != ErrorCode.DATABASE_IS_READ_ONLY) {
-//                        throw e;
-//                    }
-//                    pageStore = null;
-//                    getPageStore();
-//                }
-//            } else {
-//                getPageStore();
-//            }
-//            starting = false;
-//        } else {
-//            traceSystem = new TraceSystem(null);
-//            initTraceSystem(traceLevelFile, traceLevelSystemOut);
-//            if (autoServerMode) {
-//                throw DbException.getUnsupportedException(
-//                        "autoServerMode && inMemory");
-//            }
-//            if (dbSettings.mvStore) {
-//                getPageStore();
-//            }
-//        }
-////<<<<<<< HEAD
-////        systemUser = new User(this, 0, SYSTEM_USER_NAME, true); //DBA
-////        mainSchema = new Schema(this, 0, Constants.SCHEMA_MAIN, systemUser, true); //PUBLIC 不明确指定Schema时，默认就是它
-////=======
-//        if (store != null) {
-//            store.getTransactionStore().init();
-//        }
-//        Set<String> settingKeys = dbSettings.getSettings().keySet();
-//        if (dbSettings.mvStore) {
-//            // MVStore
-//            settingKeys.removeIf(name -> name.startsWith("PAGE_STORE_"));
-//        } else if (store == null) {
-//            // PageStore without additional MVStore for spatial features
-//            settingKeys.removeIf(name -> "COMPRESS".equals(name) || "REUSE_SPACE".equals(name));
-//        }
-//        systemUser = new User(this, 0, SYSTEM_USER_NAME, true);
-//        mainSchema = new Schema(this, Constants.MAIN_SCHEMA_ID, sysIdentifier(Constants.SCHEMA_MAIN), systemUser,
-//                true);
-//        infoSchema = new Schema(this, Constants.INFORMATION_SCHEMA_ID, sysIdentifier("INFORMATION_SCHEMA"), systemUser,
-//                true);
-//        schemas.put(mainSchema.getName(), mainSchema);
-//        schemas.put(infoSchema.getName(), infoSchema);
-//        publicRole = new Role(this, 0, sysIdentifier(Constants.PUBLIC_ROLE_NAME), true); //PUBLIC
-//        roles.put(publicRole.getName(), publicRole);
-//        systemUser.setAdmin(true);
-//        systemSession = new Session(this, systemUser, ++nextSessionId);
-//        lobSession = new Session(this, systemUser, ++nextSessionId);
-//=======
     private CreateTableData createSysTableData() {
         CreateTableData data = new CreateTableData();
         ArrayList<Column> cols = data.columns;
@@ -701,71 +569,6 @@ public final class Database implements DataHandler, CastDataProvider {
         data.persistIndexes = persistent;
         data.isHidden = true;
         data.session = systemSession;
-//<<<<<<< HEAD
-//        starting = true;
-//        meta = mainSchema.createTable(data);
-//        handleUpgradeIssues();
-//        IndexColumn[] pkCols = IndexColumn.wrap(new Column[] { columnId });
-//        //是TreeIndex，因为createPrimaryKey使用了persistent=false, hash=false
-//        metaIdIndex = meta.addIndex(systemSession, "SYS_ID", 0, pkCols, IndexType.createPrimaryKey(
-//                false, false), true, null);
-//        systemSession.commit(true);
-//        objectIds.set(0);
-////<<<<<<< HEAD
-//////<<<<<<< HEAD
-//////        
-//////        //读整个SYS表，取出所有的DDL语句，然后重新执行一遍
-//////        starting = true;
-//////=======
-////        Cursor cursor = metaIdIndex.find(systemSession, null, null);
-////        ArrayList<MetaRecord> records = new ArrayList<>((int) metaIdIndex.getRowCountApproximation());
-////        while (cursor.next()) {
-////            MetaRecord rec = new MetaRecord(cursor.get());
-////            objectIds.set(rec.getId());
-////            records.add(rec);
-////        }
-////        Collections.sort(records); //按升序排，算法见org.h2.engine.MetaRecord.compareTo(MetaRecord)
-////        synchronized (systemSession) {
-////            for (MetaRecord rec : records) {
-////                rec.execute(this, systemSession, eventListener);
-////            }
-////        }
-////=======
-//        executeMeta();
-//        systemSession.commit(true);
-//        if (store != null) {
-//            store.getTransactionStore().endLeftoverTransactions();
-//            store.removeTemporaryMaps(objectIds);
-//        }
-//        recompileInvalidViews(systemSession);
-//        starting = false;
-//        if (!readOnly) {
-//            // set CREATE_BUILD in a new database
-//            String name = SetTypes.getTypeName(SetTypes.CREATE_BUILD);
-//            if (settings.get(name) == null) {
-//                Setting setting = new Setting(this, allocateObjectId(), name);
-//                setting.setIntValue(Constants.BUILD_ID);
-//                lockMeta(systemSession);
-//                addDatabaseObject(systemSession, setting);
-//            }
-//            setSortSetting(SetTypes.BINARY_COLLATION, SysProperties.SORT_BINARY_UNSIGNED, true);
-//            setSortSetting(SetTypes.UUID_COLLATION, SysProperties.SORT_UUID_UNSIGNED, false);
-//            // mark all ids used in the page store
-//            if (pageStore != null) {
-//                BitSet f = pageStore.getObjectIds();
-//                for (int i = 0, len = f.length(); i < len; i++) {
-//                    if (f.get(i) && !objectIds.get(i)) {
-//                        trace.info("unused object id: " + i);
-//                        objectIds.set(i);
-//                    }
-//                }
-//            }
-//        }
-//        getLobStorage().init();
-//
-//        addSchemaObject(systemSession, meta); //我加上的，加上这个能调试SYS表
-//        systemSession.commit(true);
-//=======
         return data;
     }
 
@@ -904,42 +707,7 @@ public final class Database implements DataHandler, CastDataProvider {
                     }
                 }
             }
-//<<<<<<< HEAD
-//        } while (recompileSuccessful);
-////<<<<<<< HEAD
-////        // when opening a database, views are initialized before indexes,
-////        // so they may not have the optimal plan yet
-////        // this is not a problem, it is just nice to see the newest plan
-////        for (Table obj : getAllTablesAndViews(false)) {
-////            if (obj instanceof TableView) {
-////                TableView view = (TableView) obj;
-////                if (!view.isInvalid()) {
-////                    view.recompile(systemSession, true); //session就是systemSession
-////                }
-////            }
-////        }
-////=======
-//=======
         } while (atLeastOneRecompiledSuccessfully);
-//<<<<<<< HEAD
-//        TableView.clearIndexCaches(session.getDatabase());
-//    }
-//
-//    private void initMetaTables() {
-//        if (metaTablesInitialized) {
-//            return;
-//        }
-//        synchronized (infoSchema) {
-//            if (!metaTablesInitialized) {
-//            	//将所有的MetaTable放入INFORMATION_SCHEMA
-//                for (int type = 0, count = MetaTable.getMetaTableTypeCount(); type < count; type++) {
-//                    MetaTable m = new MetaTable(infoSchema, -1 - type, type);
-//                    infoSchema.add(m);
-//                }
-//                metaTablesInitialized = true;
-//            }
-//        }
-//=======
         TableView.clearIndexCaches(this);
     }
 
@@ -1057,23 +825,13 @@ public final class Database implements DataHandler, CastDataProvider {
      * @param session the session
      * @param id the id of the object to remove
      */
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////    public synchronized void removeMeta(Session session, int id) {
-////    	//比如SYS表的id是0
-////        if (id > 0 && !starting) { //如果starting为true，说明数据库是在open过程中，比如在执行MetaRecord
-////=======
-//    public void removeMeta(Session session, int id) {
-//        if (id > 0 && !starting) {
-//            SearchRow r = meta.getRowFactory().createRow();
-//            r.setValue(0, ValueInt.get(id));
-//            //在调用removeMeta前必须调用过lockMeta了，如果wasLocked为false
-//            //说明当前meta表没有调用lockMeta或者被其他session锁住了
-//=======
     public void removeMeta(SessionLocal session, int id) {
-        if (id > 0 && !starting) {
+        //比如SYS表的id是0
+        if (id > 0 && !starting) { //如果starting为true，说明数据库是在open过程中，比如在执行MetaRecord
             SearchRow r = meta.getRowFactory().createRow();
             r.setValue(0, ValueInteger.get(id));
+            //在调用removeMeta前必须调用过lockMeta了，如果wasLocked为false
+            //说明当前meta表没有调用lockMeta或者被其他session锁住了
             boolean wasLocked = lockMeta(session);
             try {
                 Cursor cursor = metaIdIndex.find(session, r, r);
@@ -1781,11 +1539,6 @@ public final class Database implements DataHandler, CastDataProvider {
             }
         }
         obj.checkRename();
-//<<<<<<< HEAD
-//        int id = obj.getId();
-//        lockMeta(session);
-//        removeMeta(session, id); //调用了两次，updateWithChildren=>update=>removeMeta
-//=======
         map.remove(obj.getName());
         obj.rename(newName);
         map.put(newName, obj);
@@ -2347,43 +2100,6 @@ public final class Database implements DataHandler, CastDataProvider {
         return mode;
     }
 
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////    public boolean isMultiThreaded() {
-////        return multiThreaded;
-////    }
-////
-////    public void setMultiThreaded(boolean multiThreaded) {
-////        if (multiThreaded && this.multiThreaded != multiThreaded) {
-//////<<<<<<< HEAD
-//////        	//不允许类似这样同时设置MULTI_THREADED和MVCC为true
-//////        	//prop.setProperty("MULTI_THREADED", "true");
-//////    		//prop.setProperty("MVCC", "true");
-//////            if (multiVersion && mvStore == null) {
-//////                // currently the combination of MVCC and MULTI_THREADED is not
-//////                // supported
-//////                throw DbException.get(
-//////                        ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
-//////                        "MVCC & MULTI_THREADED");
-//////            }
-//////            if (lockMode == 0) {
-//////                // currently the combination of LOCK_MODE=0 and MULTI_THREADED
-//////                // is not supported
-//////=======
-////            if (lockMode == Constants.LOCK_MODE_OFF && !isMVStore()) {
-////                // Currently the combination of MV_STORE=FALSE, LOCK_MODE=0 and
-////                // MULTI_THREADED=TRUE is not supported.
-////                throw DbException.get(
-////                        ErrorCode.UNSUPPORTED_SETTING_COMBINATION,
-////                        "MV_STORE=FALSE & LOCK_MODE=0 & MULTI_THREADED=TRUE");
-////            }
-////        }
-////        this.multiThreaded = multiThreaded;
-////    }
-////
-////=======
-////>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
-//=======
     public void setDefaultNullOrdering(DefaultNullOrdering defaultNullOrdering) {
         this.defaultNullOrdering = defaultNullOrdering;
     }

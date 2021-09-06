@@ -207,13 +207,6 @@ public class JdbcStatement extends TraceObject implements Statement, JdbcStateme
             } finally {
                 setExecutingStatement(null);
             }
-//<<<<<<< HEAD
-//            command.close();
-//            return updateCount;
-//        } finally {
-//            afterWriting(); //因为在checkClosedForWrite中有可能触发org.h2.engine.Database.beforeWriting()
-//=======
-//>>>>>>> c39744852e76bb33dd714d90c9bf0bbb9aab31f9
         }
         command.close();
         return updateCount;

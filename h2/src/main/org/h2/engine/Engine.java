@@ -30,7 +30,6 @@ import org.h2.util.Utils;
  * It is also responsible for opening and creating new databases.
  * This is a singleton class.
  */
-//先调用getInstance()，再调用createSession
 public final class Engine {
 
     private static final Map<String, DatabaseHolder> DATABASES = new HashMap<>();
@@ -44,13 +43,7 @@ public final class Engine {
             ThreadDeadlockDetector.init();
         }
     }
-    
-    //调用顺序: 1 (如果是内存数据库，这一步不调用，直接到2)
 
-    //调用顺序: 5
-    //验证用户名和密码，如果是第一个用户则设为admin
-    	//如果设置了h2.baseDir，如:System.setProperty("h2.baseDir", "E:\\H2\\baseDir");
-    	//那么name就包含了h2.baseDir，否则就是当前工作目录
     private static SessionLocal openSession(ConnectionInfo ci, boolean ifExists, boolean forbidCreation,
             String cipher) {
         String name = ci.getName();
@@ -98,10 +91,6 @@ public final class Engine {
                 }
                 database = new Database(ci, cipher);
                 opened = true;
-//<<<<<<< HEAD
-//                //如果数据库不存在，那么当前连接server的用户肯定也不存在，所以直接把此用户当成admin，并创建它。
-//                if (database.getAllUsers().isEmpty()) {
-//=======
                 boolean found = false;
                 for (RightOwner rightOwner : database.getAllUsersAndRoles()) {
                     if (rightOwner instanceof User) {
@@ -109,6 +98,7 @@ public final class Engine {
                         break;
                     }
                 }
+                //如果数据库不存在，那么当前连接server的用户肯定也不存在，所以直接把此用户当成admin，并创建它。
                 if (!found) {
                     // users is the last thing we add, so if no user is around,
                     // the database is new (or not initialized correctly)
@@ -208,38 +198,6 @@ public final class Engine {
      * @param ci the connection information
      * @return the session
      */
-//<<<<<<< HEAD
-//    //调用顺序: 2
-//    @Override
-//    public Session createSession(ConnectionInfo ci) {
-//        return INSTANCE.createSessionAndValidate(ci);
-//    }
-//    
-//    //调用顺序: 3
-//    private Session createSessionAndValidate(ConnectionInfo ci) {
-//        try {
-////<<<<<<< HEAD
-////            ConnectionInfo backup = null;
-////            String lockMethodName = ci.getProperty("FILE_LOCK", null);
-////            //默认是FileLock.LOCK_FILE
-////            FileLockMethod fileLockMethod = FileLock.getFileLockMethod(lockMethodName);
-////            if (fileLockMethod == FileLockMethod.SERIALIZED) {
-////                // In serialized mode, database instance sharing is not possible
-////                ci.setProperty("OPEN_NEW", "TRUE");
-////                try {
-////                    backup = ci.clone();
-////                } catch (CloneNotSupportedException e) {
-////                    throw DbException.convert(e);
-////                }
-////            }
-////            Session session = openSession(ci); //ci的内部会变化
-////            validateUserAndPassword(true);
-////            if (backup != null) {
-////                session.setConnectionInfo(backup); //使用最初的ci
-////            }
-////=======
-//            Session session = openSession(ci);
-//=======
     public static SessionLocal createSession(ConnectionInfo ci) {
         try {
             SessionLocal session = openSession(ci);
@@ -253,7 +211,6 @@ public final class Engine {
         }
     }
 
-    //调用顺序: 4
     //执行SET和INIT参数中指定的SQL
     private static SessionLocal openSession(ConnectionInfo ci) {
         boolean ifExists = ci.removeProperty("IFEXISTS", false);
@@ -338,7 +295,6 @@ public final class Engine {
         return session;
     }
 
-    //调用顺序: 6
     private static void checkClustering(ConnectionInfo ci, Database database) {
         String clusterSession = ci.getProperty(SetTypes.CLUSTER, null);
         if (Constants.CLUSTERING_DISABLED.equals(clusterSession)) {
@@ -368,7 +324,6 @@ public final class Engine {
      *
      * @param name the database name
      */
-    //调用顺序: 8
     static void close(String name) {
         if (JMX) {
             try {
@@ -399,7 +354,6 @@ public final class Engine {
      * @param correct if the user name or the password was correct
      * @throws DbException the exception 'wrong user or password'
      */
-    //调用顺序: 7
     //为了防止攻击，不管用户名和密码是否正确都要调用
     private static void validateUserAndPassword(boolean correct) {
         int min = SysProperties.DELAY_WRONG_PASSWORD_MIN;

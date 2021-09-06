@@ -3041,17 +3041,7 @@ public class Parser {
         }
     }
 
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////    private TableFilter getNested(TableFilter n) {
-////        String joinTable = Constants.PREFIX_JOIN + parseIndex; //如：SYSTEM_JOIN_25
-////        TableFilter top = new TableFilter(session, getDualTable(true),
-////                joinTable, rightsChecked, currentSelect, n.getOrderInFrom(),
-////                null);
-////        top.addJoin(n, false, true, null);
-////        return top;
-////=======
-//=======
+
     private Expression readJoinSpecification(TableFilter filter1, TableFilter filter2, boolean rightJoin) {
         Expression on = null;
         if (readIf(ON)) {
@@ -3101,7 +3091,7 @@ public class Parser {
      */
     private void addJoin(TableFilter top, TableFilter join, boolean outer, Expression on) {
         if (join.getJoin() != null) {
-            String joinTable = Constants.PREFIX_JOIN + parseIndex;
+            String joinTable = Constants.PREFIX_JOIN + parseIndex; //如：SYSTEM_JOIN_25
             TableFilter n = new TableFilter(session, new DualTable(database),
                     joinTable, rightsChecked, currentSelect, join.getOrderInFrom(),
                     null);
@@ -3482,16 +3472,8 @@ public class Parser {
             TableFilter n = top.getNestedJoin();
             //n是null
             if (n != null) {
-//<<<<<<< HEAD
-//                //此时Select的filters会有三个：TableFilter(JoinTest1)、TableFilter(SYSTEM_JOIN_xxx)、TableFilter(JoinTest2)
-//                //而topFilters只有TableFilter(JoinTest1)
-//                n.visit(new TableFilterVisitor() {
-//                    @Override
-//                    public void accept(TableFilter f) {
-//                        command.addTableFilter(f, false);
-//                    }
-//                });
-//=======
+                //此时Select的filters会有三个：TableFilter(JoinTest1)、TableFilter(SYSTEM_JOIN_xxx)、TableFilter(JoinTest2)
+                //而topFilters只有TableFilter(JoinTest1)
                 n.visit(f -> command.addTableFilter(f, false));
             }
             //join是TableFilter(SYSTEM_JOIN_xxx)
@@ -3905,20 +3887,8 @@ public class Parser {
             // special case: NOT NULL is not part of an expression (as in CREATE
             // TABLE TEST(ID INT DEFAULT 0 NOT NULL))
             int backup = parseIndex;
-//<<<<<<< HEAD
-//            boolean not = false;
-//            if (readIf(NOT)) {
-//                not = true;
-//                //这样不合法: delete from mytable where name not null
-//                //这样才合法: delete from mytable where name is null
-//                if (isToken(NULL)) {
-//                    // this really only works for NOT NULL!
-//                    parseIndex = backup;
-//                    currentToken = "NOT";
-//                    currentTokenType = NOT;
-//                    break;
-//                }
-//=======
+            //这样不合法: delete from mytable where name not null
+            //这样才合法: delete from mytable where name is null
             boolean not = readIf(NOT);
             if (not && isToken(NULL)) {
                 // this really only works for NOT NULL!
@@ -6716,13 +6686,10 @@ public class Parser {
         }
         read();
     }
-//<<<<<<< HEAD
-//    
-//    //read与readIf的差别
-//	//read: expected与currentToken必须一样，不一样则报语法错误，如是没有语法错误预读下一个token
-//	//readIf: 只有token与currentToken一样时才预读下一个token，不相同不会报语法错误
-//=======
-
+    
+    //read与readIf的差别
+	//read: expected与currentToken必须一样，不一样则报语法错误，如是没有语法错误预读下一个token
+	//readIf: 只有token与currentToken一样时才预读下一个token，不相同不会报语法错误
     private void read(int tokenType) {
         if (tokenType != currentTokenType) {
             addExpected(tokenType);
@@ -6739,9 +6706,6 @@ public class Parser {
         addExpected(token);
         return false;
     }
-//<<<<<<< HEAD
-//    //与readIf(String token)大部份相同，唯一差别是isToken不会预读下一个token
-//=======
 
     private boolean readIf(int tokenType) {
         if (tokenType == currentTokenType) {
@@ -6751,7 +6715,8 @@ public class Parser {
         addExpected(tokenType);
         return false;
     }
-
+    
+    //与readIf(String token)大部份相同，唯一差别是isToken不会预读下一个token
     private boolean isToken(String token) {
         if (!currentTokenQuoted && equalsToken(token, currentToken)) {
             return true;
@@ -6759,16 +6724,6 @@ public class Parser {
         addExpected(token);
         return false;
     }
-//<<<<<<< HEAD
-//    
-//    //如果identifiersToUpper为false时，比较a、b会忽略大小写
-//    private boolean equalsToken(String a, String b) {
-//        if (a == null) {
-//            return b == null;
-//        } else if (a.equals(b)) {
-//            return true;
-//        } else if (!identifiersToUpper && a.equalsIgnoreCase(b)) {
-//=======
 
     private boolean isToken(int tokenType) {
         if (tokenType == currentTokenType) {
@@ -6778,6 +6733,7 @@ public class Parser {
         return false;
     }
 
+    //如果identifiersToUpper为false时，比较a、b会忽略大小写
     private boolean equalsToken(String a, String b) {
         if (a == null) {
             return b == null;
@@ -8121,38 +8077,6 @@ public class Parser {
             throw DbException.get(ErrorCode.UNKNOWN_MODE_1,
                     "Internal Error - unhandled case: " + nullConstraint.name());
         }
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////        if (readIf("AS")) { //与DEFAULT有点相似
-////            if (isIdentity) { //无用，没有被设为true，一直是false
-////                getSyntaxError();
-////            }
-////            Expression expr = readExpression();
-////            column.setComputedExpression(expr);
-////=======
-//        if (!isIdentity && readIf(AS)) {
-//            column.setGeneratedExpression(readExpression());
-//        } else if (readIf("DEFAULT")) {
-//            column.setDefaultExpression(session, readExpression());
-//        } else if (readIf("GENERATED")) {
-//            boolean always = readIf("ALWAYS");
-//            if (!always) {
-//                read("BY");
-//                read("DEFAULT");
-//            }
-//            read(AS);
-//            if (readIf("IDENTITY")) {
-//                SequenceOptions options = new SequenceOptions();
-//                if (readIf(OPEN_PAREN)) {
-//                    parseSequenceOptions(options, null, true);
-//                    read(CLOSE_PAREN);
-//                }
-//                column.setAutoIncrementOptions(options);
-//            } else if (!always || isIdentity) {
-//                throw getSyntaxError();
-//            } else {
-//                column.setGeneratedExpression(readExpression());
-//=======
         if (!defaultOnNull) {
             if (readIf(DEFAULT)) {
                 read(ON);
@@ -11713,13 +11637,8 @@ public class Parser {
         command.setIfNotExists(ifNotExists);
         command.setTableName(tableName);
         command.setComment(readCommentIf());
-//<<<<<<< HEAD
-//        read("(");
-//        command.setDriver(readString()); //readString()要加单引号，如'com.mysql.jdbc.Driver'
-//        read(",");
-//=======
         read(OPEN_PAREN);
-        command.setDriver(readString());
+        command.setDriver(readString()); //readString()要加单引号，如'com.mysql.jdbc.Driver'
         read(COMMA);
         command.setUrl(readString());
         read(COMMA);

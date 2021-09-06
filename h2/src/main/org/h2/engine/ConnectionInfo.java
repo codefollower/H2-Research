@@ -81,15 +81,7 @@ public class ConnectionInfo implements Cloneable {
      */
     public ConnectionInfo(String u, Properties info, String user, Object password) {
         u = remapURL(u);
-//<<<<<<< HEAD
-//        this.originalURL = u; //originalURL不会再变
-//        if (!u.startsWith(Constants.START_URL)) { //"jdbc:h2:"
-//            throw DbException.getInvalidValueException("url", u);
-//        }
-//        this.url = u; //url在接下来的代码中会再变，去掉参数
-//        readProperties(info);
-//=======
-        originalURL = url = u; //originalURL不会再变
+        originalURL = url = u; //originalURL不会再变，url在接下来的代码中会再变，去掉参数
         if (!u.startsWith(Constants.START_URL)) { //"jdbc:h2:"
             throw getFormatException();
         }
@@ -108,12 +100,8 @@ public class ConnectionInfo implements Cloneable {
             timeZone = TimeZoneProvider.ofId(timeZoneName.toString());
         }
         setUserName(removeProperty("USER", ""));
-//<<<<<<< HEAD
-//        convertPasswords();
-//
-//		//去掉"jdbc:h2:"，比如jdbc:h2:tcp://localhost:9092/test9
-//		//name = tcp://localhost:9092/test9
-//=======
+  		//去掉"jdbc:h2:"，比如jdbc:h2:tcp://localhost:9092/test9
+  		//name = tcp://localhost:9092/test9
         name = url.substring(Constants.START_URL.length());
         parseName();
         convertPasswords();

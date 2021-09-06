@@ -23,7 +23,7 @@ public class TcpServerTest extends TestBase {
 		//SHUTDOWN_FORCE = 1;
 
 		//正常关闭H2数据库
-		stmt.executeUpdate("CALL STOP_SERVER(9092, '', 0)");
+		stmt.executeUpdate("CALL STOP_SERVER(9092, 'aaa', 0)");
 
 		//强制关闭H2数据库
 		//stmt.executeUpdate("CALL STOP_SERVER(9092, '', 1)");

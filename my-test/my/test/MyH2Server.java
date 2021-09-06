@@ -15,6 +15,10 @@ public class MyH2Server {
         // list.add("-tcp");
         // //list.add("-tool");
         // org.h2.tools.Server.main(list.toArray(new String[list.size()]));
+
+        //list.add("-help");
+        //list.add("-webXXXX"); //测试showUsageAndThrowUnsupportedOption
+
         //
         // list.add("-tcp");
         // list.add("-tcpPort");
@@ -25,12 +29,17 @@ public class MyH2Server {
         // list.add("mydb");
         // list.add("mydatabase");
 
+
+        // list.add("-browser");
+        
         // list.add("-pg");
         list.add("-tcp");
         // list.add("-web");
         // list.add("-ifExists");
         list.add("-ifNotExists");
         list.add("-tcpAllowOthers");
+        list.add("-tcpPassword");
+        list.add("aaa");
         list.add("-webAdminPassword");
         list.add("aaa");
         org.h2.tools.Server.main(list.toArray(new String[list.size()]));
