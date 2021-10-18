@@ -88,16 +88,13 @@ public class TableFilter implements ColumnResolver {
     /**
      * The index conditions used for direct index lookup (start or end).
      */
-//<<<<<<< HEAD
-//    //由where条件生成，见org.h2.command.dml.Select.prepare()的condition.createIndexConditions(session, f);
-//    //索引条件是用来快速定位索引的开始和结束位置的，比如有一个id的索引字段，值从1到10，
-//    //现在有一个where id>3 and id<7的条件，那么在查找前，索引就事先定位到3和7的位置了
-//    //见org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)
-//    //这8种类型的表达式能建立索引条件
-//    //Comparison、CompareLike、ConditionIn、ConditionInSelect、ConditionInConstantSet、
-//    //ConditionAndOr、ExpressionColumn、ValueExpression
-//    private final ArrayList<IndexCondition> indexConditions = New.arrayList();
-//=======
+    //由where条件生成，见org.h2.command.dml.Select.prepare()的condition.createIndexConditions(session, f);
+    //索引条件是用来快速定位索引的开始和结束位置的，比如有一个id的索引字段，值从1到10，
+    //现在有一个where id>3 and id<7的条件，那么在查找前，索引就事先定位到3和7的位置了
+    //见org.h2.index.IndexCursor.find(Session, ArrayList<IndexCondition>)
+    //这8种类型的表达式能建立索引条件
+    //Comparison、CompareLike、ConditionIn、ConditionInSelect、ConditionInConstantSet、
+    //ConditionAndOr、ExpressionColumn、ValueExpression
     private final ArrayList<IndexCondition> indexConditions = Utils.newSmallArrayList();
 
     /**
@@ -228,55 +225,8 @@ public class TableFilter implements ColumnResolver {
      * @param allColumnsSet the set of all columns
      * @return the best plan item
      */
-//<<<<<<< HEAD
-//    //对于Delete、Update是在prepare()时直接进来，
-//    //而Select要prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
-//    public PlanItem getBestPlanItem(Session s, int level) {
-//        PlanItem item;
-//        //没有索引条件时直接走扫描索引(RegularTable是PageDataIndex或ScanIndex(内存)，而MVTable是MVPrimaryIndex)
-//        if (indexConditions.size() == 0) {
-//            item = new PlanItem();
-//            item.setIndex(table.getScanIndex(s));
-//            item.cost = item.getIndex().getCost(s, null, null, null);
-//        } else {
-//            int len = table.getColumns().length;
-//            int[] masks = new int[len]; //对应表的所有字段，只有其中的索引字段才有值，其他的不设置，默认为0
-//            for (IndexCondition condition : indexConditions) {
-//            	//如果IndexCondition是expression或expressionList，只有ExpressionColumn类型有可能返回false
-//            	//如果IndexCondition是expressionQuery，expressionQuery是Select、SelectUnion类型有可能返回false
-//            	//其他都返回true
-//                if (condition.isEvaluatable()) {
-//                    //H2数据库目前不支持在or表达式上面建立索引条件，例如id> 40 or name<'b3'，就算id和name字段各自有索引也不会选择它们
-//                	//对于ConditionAndOr的场景才会出现indexConditions.size>1
-//                	//而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
-//                	//所以当多个indexCondition通过AND组合时，只要其中一个是false，显然就没有必要再管其他的indexCondition
-//                	//这时把masks设为null
-//                    if (condition.isAlwaysFalse()) { //如where id>40 AND 3<2(在condition.optimize时被优化成false了)
-//                        masks = null;
-//                        break;
-//                    }
-//                    //condition.getColumn()不可能为null，因为目的是要选合适的索引，而索引建立在字段之上
-//                    //所以IndexCondition中的column变量不可能是null
-//                    int id = condition.getColumn().getColumnId();
-//                    if (id >= 0) {
-//                    	//多个IndexCondition可能是同一个字段
-//                    	//如id>1 and id <10，这样masks[id]最后就变成IndexCondition.RANGE了
-//                        masks[id] |= condition.getMask(indexConditions);
-//                    }
-//                }
-//            }
-//            SortOrder sortOrder = null;
-//            if (select != null) {
-//                sortOrder = select.getSortOrder();
-//            }
-//            item = table.getBestPlanItem(s, masks, this, sortOrder);
-//            // The more index conditions, the earlier the table.
-//            // This is to ensure joins without indexes run quickly:
-//            // x (x.a=10); y (x.b=y.b) - see issue 113
-//            //level越大，item.cost就减去一个越小的值，所以join的cost越大
-//            //索引条件越多，cost越小
-//            item.cost -= item.cost * indexConditions.size() / 100 / level;
-//=======
+    // 对于Delete、Update是在prepare()时直接进来，
+    // 而Select要prepare()=>preparePlan()=>Optimizer.optimize()=>Plan.calculateCost(Session)
     public PlanItem getBestPlanItem(SessionLocal s, TableFilter[] filters, int filter,
             AllColumnsForPlan allColumnsSet) {
         PlanItem item1 = null;
@@ -284,6 +234,7 @@ public class TableFilter implements ColumnResolver {
         if (select != null) {
             sortOrder = select.getSortOrder();
         }
+        //没有索引条件时直接走扫描索引(MVTable是MVPrimaryIndex)
         if (indexConditions.isEmpty()) {
             item1 = new PlanItem();
             item1.setIndex(table.getScanIndex(s, null, filters, filter,
@@ -292,15 +243,27 @@ public class TableFilter implements ColumnResolver {
                     sortOrder, allColumnsSet);
         }
         int len = table.getColumns().length;
-        int[] masks = new int[len];
+        int[] masks = new int[len]; //对应表的所有字段，只有其中的索引字段才有值，其他的不设置，默认为0
         for (IndexCondition condition : indexConditions) {
+            // 如果IndexCondition是expression或expressionList，只有ExpressionColumn类型有可能返回false
+            // 如果IndexCondition是expressionQuery，expressionQuery是Select、SelectUnion类型有可能返回false
+            // 其他都返回true
             if (condition.isEvaluatable()) {
-                if (condition.isAlwaysFalse()) {
+                // H2数据库目前不支持在or表达式上面建立索引条件，例如id> 40 or name<'b3'，就算id和name字段各自有索引也不会选择它们
+                // 对于ConditionAndOr的场景才会出现indexConditions.size>1
+                // 而ConditionAndOr只处理“AND”的场景而不管"OR"的场景
+                // 所以当多个indexCondition通过AND组合时，只要其中一个是false，显然就没有必要再管其他的indexCondition
+                // 这时把masks设为null
+                if (condition.isAlwaysFalse()) { //如where id>40 AND 3<2(在condition.optimize时被优化成false了)
                     masks = null;
                     break;
                 }
+                //condition.getColumn()不可能为null，因为目的是要选合适的索引，而索引建立在字段之上
+                //所以IndexCondition中的column变量不可能是null
                 int id = condition.getColumn().getColumnId();
                 if (id >= 0) {
+                    //多个IndexCondition可能是同一个字段
+                    //如id>1 and id <10，这样masks[id]最后就变成IndexCondition.RANGE了
                     masks[id] |= condition.getMask(indexConditions);
                 }
             }
@@ -310,6 +273,8 @@ public class TableFilter implements ColumnResolver {
         // The more index conditions, the earlier the table.
         // This is to ensure joins without indexes run quickly:
         // x (x.a=10); y (x.b=y.b) - see issue 113
+        //filter越大，item.cost就减去一个越小的值，所以join的cost越大
+        //索引条件越多，cost越小
         item.cost -= item.cost * indexConditions.size() / 100 / (filter + 1);
 
         if (item1 != null && item1.cost < item.cost) {
@@ -700,14 +665,11 @@ public class TableFilter implements ColumnResolver {
      * @param outer if this is an outer join
      * @param on the join condition
      */
-//<<<<<<< HEAD
-//    //没有发现outer、nested同时为true的
-//    //on这个joinCondition是加到filter参数对应的TableFilter中，也就是右表，而不是左表
-//    public void addJoin(TableFilter filter, boolean outer, boolean nested, final Expression on) {
-//    	//给on中的ExpressionColumn设置columnResolver，
-//    	//TableFilter实现了ColumnResolver接口，所以ExpressionColumn的columnResolver实际上就是TableFilter对象
-//    	//另外，下面的两个visit能查出多个Table之间的列是否同名
-//=======
+
+    // on这个joinCondition是加到filter参数对应的TableFilter中，也就是右表，而不是左表
+    // 给on中的ExpressionColumn设置columnResolver，
+    // TableFilter实现了ColumnResolver接口，所以ExpressionColumn的columnResolver实际上就是TableFilter对象
+    // 另外，下面的两个visit能查出多个Table之间的列是否同名
     public void addJoin(TableFilter filter, boolean outer, Expression on) {
         if (on != null) {
             on.mapColumns(this, 0, Expression.MAP_INITIAL);
@@ -715,17 +677,6 @@ public class TableFilter implements ColumnResolver {
             visit(visitor);
             filter.visit(visitor);
         }
-//<<<<<<< HEAD
-//        if (nested && session.getDatabase().getSettings().nestedJoins) {
-//            if (nestedJoin != null) {
-//                throw DbException.throwInternalError();
-//            }
-//            //很少有嵌套join，只在org.h2.command.Parser.getNested(TableFilter)看到有
-//            //被一个DualTable(一个min和max都为1的RangeTable)嵌套
-//            //还有一种情况是先LEFT OUTER JOIN再NATURAL JOIN
-//            //如from JoinTest1 LEFT OUTER JOIN JoinTest3 NATURAL JOIN JoinTest2
-//            nestedJoin = filter;
-//=======
         if (join == null) {
             join = filter;
             filter.joinOuter = outer;
@@ -736,39 +687,6 @@ public class TableFilter implements ColumnResolver {
                 filter.mapAndAddFilter(on);
             }
         } else {
-//<<<<<<< HEAD
-//            if (join == null) {
-//                join = filter;
-//                filter.joinOuter = outer;
-//                if (session.getDatabase().getSettings().nestedJoins) {
-//                    if (outer) {
-//                    	//filter自身和filter的nestedJoin和join字段对应的filter的joinOuterIndirect都为true
-//                    	//nestedJoin和join字段对应的filter继续递归所有的nestedJoin和join字段
-//                        filter.visit(new TableFilterVisitor() {
-//                            @Override
-//                            public void accept(TableFilter f) {
-//                                f.joinOuterIndirect = true;
-//                            }
-//                        });
-//                    }
-//                } else {
-//                    if (outer) {
-//                        //当nestedJoins为false时，nestedJoin字段不会有值，都是join字段有值，
-//                        // convert all inner joins on the right hand side to outer joins
-//                        TableFilter f = filter.join;
-//                        while (f != null) {
-//                            f.joinOuter = true;
-//                            f = f.join;
-//                        }
-//                    }
-//                }
-//                if (on != null) {
-//                    filter.mapAndAddFilter(on);
-//                }
-//            } else {
-//                join.addJoin(filter, outer, nested, on);
-//            }
-//=======
             join.addJoin(filter, outer, on);
         }
     }

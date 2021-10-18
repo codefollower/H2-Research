@@ -56,18 +56,6 @@ public final class Subquery extends Expression {
             if (!result.next()) {
                 v = ValueNull.INSTANCE;
             } else {
-//<<<<<<< HEAD
-//                Value[] values = result.currentRow();
-//                if (result.getVisibleColumnCount() == 1) {
-//                    v = values[0];
-//                } else {
-//                	//对于id > (select id, name from ConditionInSelectTest where id=1 and name='a1')
-//                	//此时由id, name得到一个ValueArray
-//                	//但进行比较时，左边的id也会转换成一个String数组，最后与ValueArray比较
-//                	//所以如果子查询只需要一个列时，就不应该多写一个列，这样性能更高。
-//                    v = ValueArray.get(values);
-//                }
-//=======
                 v = readRow(result);
                 if (result.hasNext()) {
                     throw DbException.get(ErrorCode.SCALAR_SUBQUERY_CONTAINS_MORE_THAN_ONE_ROW);
@@ -101,6 +89,10 @@ public final class Subquery extends Expression {
     }
 
     private Value readRow(ResultInterface result) {
+        // 对于id > (select id, name from ConditionInSelectTest where id=1 and name='a1')
+        // 此时由id, name得到一个ValueArray
+        // 但进行比较时，左边的id也会转换成一个String数组，最后与ValueArray比较
+        // 所以如果子查询只需要一个列时，就不应该多写一个列，这样性能更高。
         Value[] values = result.currentRow();
         int visible = result.getVisibleColumnCount();
         return visible == 1 ? values[0]

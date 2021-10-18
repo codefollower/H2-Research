@@ -388,7 +388,6 @@ public class TcpServerThread implements Runnable {
         case SessionRemote.COMMAND_EXECUTE_UPDATE: {
             int id = transfer.readInt();
             Command command = (Command) cache.getObject(id, false);
-            //if(command!=null)throw new Error();
             setParameters(command);
             boolean supportsGeneratedKeys = clientVersion >= Constants.TCP_PROTOCOL_VERSION_17;
             boolean writeGeneratedKeys = supportsGeneratedKeys;

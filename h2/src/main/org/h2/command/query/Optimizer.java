@@ -24,14 +24,11 @@ class Optimizer {
     private static final int MAX_BRUTE_FORCE = 2000;
     private static final int MAX_GENETIC = 500;
     private long startNs;
-//<<<<<<< HEAD
-//    private BitField switched;
-//    
-//    //后面的plan个数等于前面的plan个数乘以后面的filter数
-//    //比如第三行是6，等于第三行的filter 3 * 2 = 6
-//=======
     private BitSet switched;
 
+    //后面的plan个数等于前面的plan个数乘以后面的filter数
+    //比如第三行是6，等于第三行的filter 3 * 2 = 6
+    
     //  possible plans for filters, if using brute force:
     //  1 filter 1 plan
     //  2 filters 2 plans

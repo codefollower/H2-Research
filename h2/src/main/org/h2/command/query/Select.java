@@ -340,36 +340,14 @@ public class Select extends Query {
      * @return the row
      */
     Value[] createGroupSortedRow(Value[] keyValues, int columnCount) {
-//<<<<<<< HEAD
-//        Value[] row = new Value[columnCount];
-//        //先填充group by字段
-//        //groupIndex字段是不会为null的
-//        for (int j = 0; groupIndex != null && j < groupIndex.length; j++) {
-//            row[groupIndex[j]] = keyValues[j];
-//        }
-//        //再填充非group by字段
-//        for (int j = 0; j < columnCount; j++) {
-//            //groupByExpression字段不可能为null，因为isGroupSortedQuery为true时，getGroupByExpressionCount() > 0
-//            if (groupByExpression != null && groupByExpression[j]) {
-//                continue;
-//            }
-//            Expression expr = expressions.get(j);
-//            row[j] = expr.getValue(session);
-//        }
-//=======
         Value[] row = constructGroupResultRow(keyValues, columnCount);
         if (isHavingNullOrFalse(row)) {
             return null;
         }
+        // 例如:select id,count(id) from mytable where id>2 group by id having id=3 order by id
+        // having id=3也加到expressions中了，此时columnCount是3，但是distinctColumnCount是2，所以要去掉一列
         return rowForResult(row, columnCount);
     }
-//<<<<<<< HEAD
-//    
-//    //例如:select id,count(id) from mytable where id>2 group by id having id=3 order by id
-//    //having id=3也加到expressions中了，此时columnCount是3，但是distinctColumnCount是2，所以要去掉一列
-//    private Value[] keepOnlyDistinct(Value[] row, int columnCount) {
-//        if (columnCount == distinctColumnCount) {
-//=======
 
     /**
      * Removes HAVING and QUALIFY columns from the row.
@@ -463,16 +441,6 @@ public class Select extends Query {
         return true;
     }
 
-//<<<<<<< HEAD
-//    private int getGroupByExpressionCount() {
-//        if (groupByExpression == null) {
-//            return 0;
-//        }
-//        int count = 0;
-//        for (boolean b : groupByExpression) {
-//            if (b) {
-//                ++count; //只要找到一个其实就可以退出了
-//=======
     boolean isConditionMetForUpdate() {
         if (isConditionMet()) {
             int count = filters.size();
@@ -613,32 +581,9 @@ public class Select extends Query {
     private void processGroupResult(int columnCount, LocalResult result, long offset, boolean quickOffset,
             boolean withHaving) {
         for (ValueRow currentGroupsKey; (currentGroupsKey = groupData.next()) != null;) {
-//<<<<<<< HEAD
-//            Value[] keyValues = currentGroupsKey.getList();
-//            Value[] row = new Value[columnCount];
-//            //先填充group by字段
-//            for (int j = 0; groupIndex != null && j < groupIndex.length; j++) {
-//                row[groupIndex[j]] = keyValues[j];
-//            }
-//            //再填充非group by字段
-//            for (int j = 0; j < columnCount; j++) {
-//                if (groupByExpression != null && groupByExpression[j]) {
-//                    continue;
-//                }
-//                if (groupByCopies != null) {
-//                    int original = groupByCopies[j];
-//                    if (original >= 0) {
-//                        row[j] = row[original];
-//                        continue;
-//                    }
-//                }
-//                Expression expr = expressions.get(j);
-//                row[j] = expr.getValue(session);
-//            }
-//            //根据having条件过滤，having条件也会加入expressions中，
-//            //所以在上面row[j] = expr.getValue(session)时已经算好了true或false
-//=======
             Value[] row = constructGroupResultRow(currentGroupsKey.getList(), columnCount);
+            //根据having条件过滤，having条件也会加入expressions中，
+            //所以在上面row[j] = expr.getValue(session)时已经算好了true或false
             if (withHaving && isHavingNullOrFalse(row)) {
                 continue;
             }
@@ -656,11 +601,14 @@ public class Select extends Query {
     private Value[] constructGroupResultRow(Value[] keyValues, int columnCount) {
         Value[] row = new Value[columnCount];
         if (groupIndex != null) {
+            //先填充group by字段
             for (int i = 0, l = groupIndex.length; i < l; i++) {
                 row[groupIndex[i]] = keyValues[i];
             }
         }
+        //再填充非group by字段
         for (int i = 0; i < columnCount; i++) {
+            //groupByExpression字段不可能为null，因为isGroupSortedQuery为true时，getGroupByExpressionCount() > 0
             if (groupByExpression != null && groupByExpression[i]) {
                 continue;
             }
@@ -721,12 +669,8 @@ public class Select extends Query {
         }
         ArrayList<Index> list = topTableFilter.getTable().getIndexes();
         if (list != null) {
-//<<<<<<< HEAD:h2/src/main/org/h2/command/dml/Select.java
-//         	//循环遍历当前表的所有索引，对比每个索引的字段是否是orderby字段(可能会有多个)和排序类型是否一样，
-//        	//如果都一样，那么返回此索引
-//            int[] sortTypes = sort.getSortTypesWithNullPosition();
-//            for (Index index : list) {
-//=======
+         	//循环遍历当前表的所有索引，对比每个索引的字段是否是orderby字段(可能会有多个)和排序类型是否一样，
+        	//如果都一样，那么返回此索引
             int[] sortTypes = sort.getSortTypesWithNullOrdering();
             DefaultNullOrdering defaultNullOrdering = session.getDatabase().getDefaultNullOrdering();
             loop: for (Index index : list) {
@@ -1292,11 +1236,7 @@ public class Select extends Query {
         for (TableFilter f : filters) {
             mapColumns(f, 0);
         }
-//<<<<<<< HEAD
-//
-//        if (havingIndex >= 0) { //在对expressions进行mapColumns时map过了
-//            Expression expr = expressions.get(havingIndex);
-//=======
+
         mapCondition(havingIndex);
         mapCondition(qualifyIndex);
         checkInit = true;
@@ -1404,25 +1344,17 @@ public class Select extends Query {
                 }
             }
         }
-//<<<<<<< HEAD
-//        
-//        //这里是针对min、max、count三个聚合函数的特别优化，见org.h2.expression.Aggregate.getValue(Session)
-//        //有group by或having或聚合函数时isGroupQuery=true
-//        //同时满足下面5个条件时isQuickAggregateQuery为true
-//        //isGroupQuery=true、groupIndex=null(即没有group by子句)、没有having、单表、无where
-//        //测试下面代码用select count(id) from mytable
-//        if (isGroupQuery && groupIndex == null && havingIndex < 0 && filters.size() == 1) {
-//            if (condition == null) {
-//                Table t = filters.get(0).getTable();
-//                //返回OPTIMIZABLE_MIN_MAX_COUNT_ALL类型
-//                ExpressionVisitor optimizable = ExpressionVisitor.getOptimizableVisitor(t);
-//                //isEverything里再判断所有的select字段表达式对于OPTIMIZABLE_MIN_MAX_COUNT_ALL是否可优化
-//                //可参考org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
-//                isQuickAggregateQuery = isEverything(optimizable);
-//            }
-//=======
+
+        //这里是针对min、max、count三个聚合函数的特别优化，见org.h2.expression.Aggregate.getValue(Session)
+        //有group by或having或聚合函数时isGroupQuery=true
+        //同时满足下面5个条件时isQuickAggregateQuery为true
+        //isGroupQuery=true、groupIndex=null(即没有group by子句)、没有having、单表、无where
+        //测试下面代码用select count(id) from mytable
         if (isGroupQuery && groupIndex == null && havingIndex < 0 && qualifyIndex < 0 && condition == null
                 && filters.size() == 1) {
+            //返回OPTIMIZABLE_MIN_MAX_COUNT_ALL类型
+            //isEverything里再判断所有的select字段表达式对于OPTIMIZABLE_MIN_MAX_COUNT_ALL是否可优化
+            //可参考org.h2.expression.Aggregate.isEverything(ExpressionVisitor)
             isQuickAggregateQuery = isEverything(ExpressionVisitor.getOptimizableVisitor(filters.get(0).getTable()));
         }
         // 这一步里头会为topTableFilter选择最合适的索引，只不过下面3个if如果碰到特殊情况再调整索引
@@ -1495,13 +1427,11 @@ public class Select extends Query {
                 sortUsingIndex = false;
             }
         }
-//<<<<<<< HEAD
-//        //没有快速聚合函数，有group by的情型
-//        //其实不需要调用getGroupByExpressionCount()的，
-//        //只要判断groupByExpression!=null即可，此时getGroupByExpressionCount()必定>0
-//        //因为在调用init时，如果groupByExpression不为null，必定包含true值的
-//        if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) {
-//=======
+        //没有快速聚合函数，有group by的情型
+        //其实不需要调用getGroupByExpressionCount()的，
+        //只要判断groupByExpression!=null即可，此时getGroupByExpressionCount()必定>0
+        //因为在调用init时，如果groupByExpression不为null，必定包含true值的
+        //if (!isQuickAggregateQuery && isGroupQuery && getGroupByExpressionCount() > 0) { //老代码
         if (!isQuickAggregateQuery && isGroupQuery) {
             Index index = getGroupSortedIndex();
             if (index != null) {

@@ -55,8 +55,17 @@ public class JoinTest extends TestBase {
 
     @Override
     public void startInternal() throws Exception {
-        executeUpdate("SET BATCH_JOINS 1");
+        // executeUpdate("SET BATCH_JOINS 1");
         insert();
+        sql = "select rownum, * from JoinTest1 RIGHT OUTER JOIN JoinTest2 RIGHT OUTER JOIN JoinTest3";
+        executeQuery();
+
+        sql = "select rownum, * from JoinTest1 LEFT OUTER JOIN JoinTest2 LEFT OUTER JOIN JoinTest3";
+        executeQuery();
+
+        sql = "select rownum, * from JoinTest1 INNER JOIN JoinTest2 INNER JOIN JoinTest3";
+        executeQuery();
+
         sql = "select rownum, * from (JoinTest1 RIGHT OUTER JOIN (JoinTest2))";
         executeQuery();
 
@@ -124,6 +133,12 @@ public class JoinTest extends TestBase {
         sql = "SELECT rownum, * FROM JoinTest1 JOIN JoinTest2 on id2>80 WHERE id=20";
         executeQuery();
         sql = "SELECT rownum, * FROM JoinTest1 WHERE id in (SELECT id2 from JoinTest2)";
+        executeQuery();
+
+        stmt.executeUpdate("set LAZY_QUERY_EXECUTION 1");
+        sql = "SELECT rownum, * EXCEPT(id2) FROM JoinTest1 JOIN JoinTest2 on id2>80 WHERE id=20";
+        executeQuery();
+        sql = "SELECT rownum, * EXCEPT(id2) FROM JoinTest1 JOIN JoinTest2 on id2>80 WHERE id=20";
         executeQuery();
     }
 }

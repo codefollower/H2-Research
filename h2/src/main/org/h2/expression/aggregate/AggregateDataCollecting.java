@@ -29,6 +29,9 @@ import org.h2.value.ValueRow;
  * instead.
  * </p>
  */
+//比如 sum(distinct f1) 先用此类收集记录，
+//然后调用Aggregate.getValue(SessionLocal)->Aggregate.getAggregatedValue(SessionLocal, Object)
+//得到AggregateDataDefault再计算。
 final class AggregateDataCollecting extends AggregateData implements Iterable<Value> {
 
     /**

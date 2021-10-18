@@ -1289,19 +1289,12 @@ public class Aggregate extends AbstractAggregate implements ExpressionWithFlags 
         if (visitor.getType() == ExpressionVisitor.OPTIMIZABLE_AGGREGATE) {
             switch (aggregateType) {
             case COUNT:
-//<<<<<<< HEAD
-//                //count(指定字段)的情况，这种场景如果是DISTINCT或字段为null，那么不能使用OPTIMIZABLE_MIN_MAX_COUNT_ALL优化
-//                if (!distinct && args[0].getNullable() == Column.NOT_NULLABLE) {
-//                    return visitor.getTable().canGetRowCount(select.getSession());
-//                }
-//                return false;
-//            case COUNT_ALL: //count(*)的情况
-//=======
+                //count(指定字段)的情况，这种场景如果是DISTINCT或字段为null，那么不能使用OPTIMIZABLE_MIN_MAX_COUNT_ALL优化
                 if (distinct || args[0].getNullable() != Column.NOT_NULLABLE) {
                     return false;
                 }
                 //$FALL-THROUGH$
-            case COUNT_ALL:
+            case COUNT_ALL: //count(*)的情况
                 return visitor.getTable().canGetRowCount(select.getSession());
             case MIN:
             case MAX:

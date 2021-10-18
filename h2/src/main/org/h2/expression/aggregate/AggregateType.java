@@ -8,6 +8,7 @@ package org.h2.expression.aggregate;
 /**
  * The type of an aggregate function.
  */
+//已经不支持SELECTIVITY了
 public enum AggregateType {
 
     /**

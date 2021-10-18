@@ -23,21 +23,17 @@ import org.h2.value.Value;
  * This object is only used temporarily during the parsing phase, and later
  * replaced by column expressions.
  */
-//<<<<<<< HEAD
-////Wildcard表达式即*号表达式在org.h2.command.dml.Select.expandColumnList()中会被替换成字段列表
-////所以此类很多方法是不能调用的，非法的
-//public class Wildcard extends Expression {
-//	//对于下面三条sql:
-//	//sql = "select * from WildcardTest";
-//	//sql = "select WildcardTest.* from WildcardTest";
-//	//sql = "select public.WildcardTest.* from WildcardTest";
-//	//字段schema、table分别是
-//	//null, null
-//	//null, WildcardTest
-//	//public, WildcardTest
-//=======
+// Wildcard表达式即*号表达式在org.h2.command.dml.Select.expandColumnList()中会被替换成字段列表
+// 所以此类很多方法是不能调用的，非法的
 public final class Wildcard extends Expression {
-
+    // 对于下面三条sql:
+    // sql = "select * from WildcardTest";
+    // sql = "select WildcardTest.* from WildcardTest";
+    // sql = "select public.WildcardTest.* from WildcardTest";
+    // 字段schema、table分别是
+    // null, null
+    // null, WildcardTest
+    // public, WildcardTest
     private final String schema;
     private final String table;
 

@@ -435,17 +435,7 @@ public abstract class Query extends Prepared {
                 return false;
             }
         }
-//<<<<<<< HEAD
-//        if (!isEverything(ExpressionVisitor.DETERMINISTIC_VISITOR) ||
-//                !isEverything(ExpressionVisitor.INDEPENDENT_VISITOR)) {
-//            return false;
-//        }
-//        //数据有变时不使用缓存
-//        if (db.getModificationDataId() > lastEval && getMaxDataModificationId() > lastEval) {
-//            return false;
-//        }
-//        return true;
-//=======
+        //数据有变时不使用缓存
         return getMaxDataModificationId() <= lastEval;
     }
 
@@ -524,19 +514,9 @@ public abstract class Query extends Prepared {
      * @return {@code true} if ORDER BY clause is preserved, {@code false}
      *         otherwise
      */
-//<<<<<<< HEAD:h2/src/main/org/h2/command/dml/Query.java
-//    static void initOrder(Session session,
-//            ArrayList<Expression> expressions,
-//            ArrayList<String> expressionSQL,
-//            List<SelectOrderBy> orderList,
-//            int visible,
-//            boolean mustBeInResult,
-//            ArrayList<TableFilter> filters) {
-//        for (SelectOrderBy o : orderList) {
-//        	//类似这样的sql时:select name,id from mytable order by 1 desc
-//        	//o.expression为null，“order by 1”表示使用select字段列表中的第一个(就是name)来排序
-//        	//此时o.columnIndexExpr是1
-//=======
+    // 类似这样的sql时:select name,id from mytable order by 1 desc
+    // o.expression为null，“order by 1”表示使用select字段列表中的第一个(就是name)来排序
+    // 此时o.columnIndexExpr是1
     boolean initOrder(ArrayList<String> expressionSQL, boolean mustBeInResult, ArrayList<TableFilter> filters) {
         for (Iterator<QueryOrderBy> i = orderList.iterator(); i.hasNext();) {
             QueryOrderBy o = i.next();

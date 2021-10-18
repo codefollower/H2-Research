@@ -212,8 +212,6 @@ public class DbSettings extends SettingsBase {
     public final boolean optimizeIsNull = get("OPTIMIZE_IS_NULL", true);
 
     /**
-=======
->>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
      * Database setting <code>OPTIMIZE_OR</code> (default: true).<br />
      * Convert (C=? OR C=?) to (C IN(?, ?)).
      */
@@ -237,7 +235,7 @@ public class DbSettings extends SettingsBase {
      * transactional statements such as COMMIT. This works for both statements
      * and prepared statement.
      */
-    public final int queryCacheSize = get("QUERY_CACHE_SIZE", 8);
+    public final int queryCacheSize = get("QUERY_CACHE_SIZE", 0);
 
     /**
      * Database setting <code>RECOMPILE_ALWAYS</code> (default: false).<br />

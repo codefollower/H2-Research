@@ -1862,12 +1862,9 @@ public class Parser {
         }
         return prep;
     }
-//<<<<<<< HEAD
-//    
-//    //isSelect有回溯,读完所有左括号，然后看下一个token是否是select、from
-//	//然后再从调用isSelect前的lastParseIndex开始解析，当前token是调用isSelect前的token.
-//    private boolean isSelect() {
-//=======
+
+    //isQuery有回溯,读完所有左括号，然后看下一个token是否是select、from
+	//然后再从调用isQuery前的lastParseIndex开始解析，当前token是调用isQuery前的token.
     private boolean isQuery() {
         int start = lastParseIndex;
         while (readIf(OPEN_PAREN)) {
@@ -2175,18 +2172,6 @@ public class Parser {
         return command;
     }
 
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////    private TableFilter readTableFilter(boolean fromOuter) { //最开始是从parseSelectSimpleFromPart方法触发
-////        Table table;
-////        String alias = null;
-////        if (readIf("(")) { //在from后直接跟左括号，如"from (select 1)"
-////        	//isSelect有回溯,读完所有左括号，然后看下一个token是否是select、from
-////        	//然后再从调用isSelect前的lastParseIndex开始解析，当前token是调用isSelect前的token.
-////            if (isSelect()) { //如"FROM ((select 1) union (select 1))";
-////=======
-//    private Expression[] parseValuesForInsert() {
-//=======
     private void parseValuesForCommand(CommandWithValues command) {
         ArrayList<Expression> values = Utils.newSmallArrayList();
         do {
@@ -2214,15 +2199,8 @@ public class Parser {
     private TableFilter readTableFilter() {
         Table table;
         String alias = null;
-        label: if (readIf(OPEN_PAREN)) {
-            if (isQuery()) {
-//<<<<<<< HEAD
-//                Query query = parseSelectUnion();
-//                read(CLOSE_PAREN);
-//                alias = session.getNextSystemIdentifier(sqlCommand); //类似“_0”这样的名字
-//                //用临时视图表示
-//                table = query.toTable(alias, parameters, createView != null, currentSelect);
-//=======
+        label: if (readIf(OPEN_PAREN)) { //在from后直接跟左括号，如"from (select 1)"
+            if (isQuery()) { //如"FROM ((select 1) union (select 1))";
                 return readQueryTableFilter();
             } else {
             	//如"FROM (mytable) SELECT * "
@@ -2241,22 +2219,10 @@ public class Parser {
                 }
                 return top;
             }
-//<<<<<<< HEAD
-//        } else if (readIf("VALUES")) {
-//            table = parseValuesTable(0).getTable(); //如"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
-//        } else {
-//            String tableName = readIdentifierWithSchema(null);
-////<<<<<<< HEAD
-////            Schema schema = getSchema();
-////            boolean foundLeftBracket = readIf("(");
-////            //例如："FROM mytable(index mytable_age_index) SELECT * "
-////            //但是并没用实现，仅仅是把index mytable_age_index解析出来，然后就忽略了
-////=======
-//=======
-        } else if (readIf(VALUES)) {
+        } else if (readIf(VALUES)) { //如"SELECT * FROM VALUES(1, 'Hello'), (2, 'World')"
             TableValueConstructor query = parseValues();
-            alias = session.getNextSystemIdentifier(sqlCommand);
-            table = query.toTable(alias, null, parameters, createView != null, currentSelect);
+            alias = session.getNextSystemIdentifier(sqlCommand); //类似“_0”这样的名字
+            table = query.toTable(alias, null, parameters, createView != null, currentSelect); //用临时视图表示
         } else if (readIf(TABLE)) {
             read(OPEN_PAREN);
             ArrayTableFunction function = readTableFunction(ArrayTableFunction.TABLE);
@@ -2278,13 +2244,16 @@ public class Parser {
             } else {
                 schema = findSchema(schemaName);
                 if (schema == null) {
-                    if (isDualTable(tableName)) {
+                    if (isDualTable(tableName)) { // 如"FROM DUAL SELECT * "
                         table = new DualTable(database);
                         break label;
                     }
                     throw DbException.get(ErrorCode.SCHEMA_NOT_FOUND_1, schemaName);
                 }
             }
+
+            // 例如："FROM mytable(index mytable_age_index) SELECT * "
+            // 但是并没用实现，仅仅是把index mytable_age_index解析出来，然后就忽略了
             boolean foundLeftParen = readIf(OPEN_PAREN);
             if (foundLeftParen && readIf("INDEX")) {
                 // Sybase compatibility with
@@ -2310,33 +2279,11 @@ public class Parser {
                         table = new RangeTable(mainSchema, min, max);
                     }
                 } else {
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////                	//如"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
-////                	//这个不合法，在FunctionTable中会抛错sql = "FROM USER() SELECT * "; //函数返回值类型必须是RESULT_SET
-////                	//只有CSVREAD、LINK_SCHEMA、TABLE、TABLE_DISTINCT这4个函数的返回值类型是RESULT_SET
-////                    Expression expr = readFunction(schema, tableName);
-////                    if (!(expr instanceof FunctionCall)) {
-////                        throw getSyntaxError();
-////                    }
-////                    FunctionCall call = (FunctionCall) expr;
-////                    if (!call.isDeterministic()) {
-////                        recompileAlways = true;
-////                    }
-////                    table = new FunctionTable(mainSchema, session, expr, call);
-////=======
-//                    table = readTableFunction(tableName, schema, mainSchema);
-//=======
+                	//如"FROM TABLE(ID INT=(1, 2), NAME VARCHAR=('Hello', 'World')) SELECT * "
+                	//这个不合法，在FunctionTable中会抛错sql = "FROM USER() SELECT * "; //函数返回值类型必须是RESULT_SET
+                	//只有CSVREAD、LINK_SCHEMA、TABLE、TABLE_DISTINCT这4个函数的返回值类型是RESULT_SET
                     table = new FunctionTable(mainSchema, session, readTableFunction(tableName, schema));
                 }
-//<<<<<<< HEAD
-//            } else if (equalsToken("DUAL", tableName)) {
-//                table = getDualTable(false); //如"FROM DUAL SELECT * "
-//            } else if (database.getMode().sysDummy1 &&
-//                    equalsToken("SYSDUMMY1", tableName)) {
-//                table = getDualTable(false);//如"FROM SYSDUMMY1 SELECT * "，要适当设置MODE参数
-//            } else { //正常的 from tableName语法
-//=======
             } else {
                 table = readTableOrView(tableName);
             }
@@ -2813,31 +2760,22 @@ public class Parser {
         command.setIfExists(ifExists);
         return command;
     }
-//<<<<<<< HEAD
-//    //共支持5种join:
-//    //RIGHT OUTER JOIN(或RIGHT JOIN)
-//    //LEFT OUTER JOIN(或LEFT JOIN)
-//    //INNER JOIN(或JOIN)
-//    //CROSS JOIN
-//    //NATURAL JOIN
-//    
-//    //FULL JOIN不支持，直接抛错
-//    
-//    //如果RIGHT、LEFT、INNER JOIN/JOIN这3种JOIN后面没有直接接ON就会出现递归调用readJoin的情况，
-//    //如: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
-//    //加ON的话虽然也会递归调用readJoin，但因为紧接着的token是ON，所以实际上readJoin什么都不做
-//    //参见<<数据库系统基础教程>>p24、p25、p26、p129、p163
-//    private TableFilter readJoin(TableFilter top, Select command,
-//            boolean nested, boolean fromOuter) { //嵌套、外部
-//    //fromOuter这个参数只有从LEFT/RIGHT OUTER进入readJoin为true
-//    //nested这个参数只有从LEFT OUTER进入readJoin为true
-//        boolean joined = false;
-//        TableFilter last = top; //last只对NATURAL JOIN有用
-//        //NESTED_JOINS参数默认是true
-//        boolean nestedJoins = database.getSettings().nestedJoins;
-//=======
 
+    //共支持5种join:
+    //RIGHT OUTER JOIN(或RIGHT JOIN)
+    //LEFT OUTER JOIN(或LEFT JOIN)
+    //INNER JOIN(或JOIN)
+    //CROSS JOIN
+    //NATURAL JOIN
+    
+    //FULL JOIN不支持，直接抛错
+    
+    //如果RIGHT、LEFT、INNER JOIN/JOIN这3种JOIN后面没有直接接ON就会出现递归调用readJoin的情况，
+    //如: SELECT * FROM t1 RIGHT OUTER JOIN t2 LEFT OUTER JOIN t3 INNER JOIN t4 JOIN t5 CROSS JOIN t6 NATURAL JOIN t7
+    //加ON的话虽然也会递归调用readJoin，但因为紧接着的token是ON，所以实际上readJoin什么都不做
+    //参见<<数据库系统基础教程>>p24、p25、p26、p129、p163
     private TableFilter readJoin(TableFilter top) {
+        //只有NATURAL JOIN用到last
         for (TableFilter last = top, join;; last = join) {
             switch (currentTokenType) {
             case RIGHT: {
@@ -2847,39 +2785,8 @@ public class Parser {
                 // the right hand side is the 'inner' table usually
                 join = readTableFilter();
                 join = readJoin(join);
-//<<<<<<< HEAD
-//                Expression on = null;
-//                if (readIf(ON)) {
-//                    on = readExpression();
-//                }
-////<<<<<<< HEAD
-////                //当t1 RIGHT OUTER JOIN t2时，t2放在前面，t1嵌套在一个DualTable中，然后t2去join这个DualTable
-////                if (nestedJoins) {
-////                    top = getNested(top);
-////                    //RIGHT OUTER和LEFT OUTER时，addJoin的第二个参数都是true
-////                    newTop.addJoin(top, true, false, on); //外部、嵌套(addJoin和readJoin的顺序刚好相反)
-////                } else {
-////                    newTop.addJoin(top, true, false, on);
-////                }
-////                top = newTop;
-////                last = newTop;
-////            } else if (readIf("LEFT")) {
-////                readIf("OUTER");
-////                read("JOIN");
-////                joined = true;
-////                TableFilter join = readTableFilter(true);
-////                if (nestedJoins) {
-////                    join = readJoin(join, command, true, true);
-////                } else {
-////                    //当nestedJoins为false时,
-////                    //对于SELECT * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 LEFT OUTER JOIN JoinTest3
-////                    //实际上是JoinTest1.join => JoinTest3.join => JoinTest2
-////                    top = readJoin(top, command, false, true);
-////                }
-////=======
-//=======
                 Expression on = readJoinSpecification(top, join, true);
-                addJoin(join, top, true, on);
+                addJoin(join, top, true, on); //RIGHT OUTER和LEFT OUTER时，addJoin的第3个参数都是true
                 top = join;
                 break;
             }
@@ -2896,118 +2803,39 @@ public class Parser {
             case FULL:
                 read();
                 throw getSyntaxError();
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////            } else if (readIf("INNER")) { //INNER JOIN或JOIN就是θ连接(在笛卡儿积之上加过滤条件)
-////                read("JOIN");
-////                joined = true;
-////                TableFilter join = readTableFilter(fromOuter);
-////                top = readJoin(top, command, false, false);
-////=======
-//            } else if (readIf(INNER)) {
-//=======
-            case INNER: {
+            case INNER: { //INNER JOIN或JOIN就是θ连接(在笛卡儿积之上加过滤条件)
                 read();
                 read(JOIN);
                 join = readTableFilter();
                 top = readJoin(top);
-//<<<<<<< HEAD
-//                Expression on = null;
-//                if (readIf(ON)) {
-//                    on = readExpression();
-//                }
-////<<<<<<< HEAD
-////                if (nestedJoins) {
-////                    top.addJoin(join, false, false, on);
-////                } else {
-////                    top.addJoin(join, fromOuter, false, on);
-////                }
-////                last = join;
-////            } else if (readIf("JOIN")) { //跟INNER JOIN一样
-////                joined = true;
-////                TableFilter join = readTableFilter(fromOuter);
-////                top = readJoin(top, command, false, false);
-////=======
-//=======
                 Expression on = readJoinSpecification(top, join, false);
                 addJoin(top, join, false, on);
                 break;
             }
-            case JOIN: {
+            case JOIN: { //跟INNER JOIN一样
                 read();
                 join = readTableFilter();
                 top = readJoin(top);
-//<<<<<<< HEAD
-//                Expression on = null;
-//                if (readIf(ON)) {
-//                    on = readExpression();
-//                }
-////<<<<<<< HEAD
-////                if (nestedJoins) {
-////                    top.addJoin(join, false, false, on);
-////                } else {
-////                    top.addJoin(join, fromOuter, false, on);
-////                }
-////                last = join;
-////            } else if (readIf("CROSS")) { //CROSS JOIN和NATURAL JOIN后面不能再readJoin，因为没有ON子句，但是可以接其他JOIN
-////                read("JOIN"); //CROSS JOIN就是求笛卡儿积
-////                joined = true;
-////                TableFilter join = readTableFilter(fromOuter);
-////                if (nestedJoins) {
-////                    top.addJoin(join, false, false, null);
-////                } else {
-////                    top.addJoin(join, fromOuter, false, null);
-////                }
-////                last = join;
-////            } else if (readIf("NATURAL")) { //CROSS JOIN和NATURAL JOIN后面不能再readJoin，因为没有ON子句，但是可以接其他JOIN
-////                read("JOIN");
-////                joined = true;
-////                TableFilter join = readTableFilter(fromOuter);
-////=======
-//=======
                 Expression on = readJoinSpecification(top, join, false);
                 addJoin(top, join, false, on);
                 break;
             }
-            case CROSS: {
+            case CROSS: { //CROSS JOIN和NATURAL JOIN后面不能再readJoin，因为没有ON子句，但是可以接其他JOIN
                 read();
-                read(JOIN);
+                read(JOIN); //CROSS JOIN就是求笛卡儿积
                 join = readTableFilter();
                 addJoin(top, join, false, null);
                 break;
             }
-            case NATURAL: {
+            case NATURAL: { //CROSS JOIN和NATURAL JOIN后面不能再readJoin，因为没有ON子句，但是可以接其他JOIN
                 read();
                 read(JOIN);
                 join = readTableFilter();
                 Expression on = null;
-//<<<<<<< HEAD
-//                //取左边和右边列名相同的列来作为on条件，用等于关系表达式来表示，如果有多个这样的相同列，则用AND拼装
-//                //如: SELECT t1.id, t1.b FROM JoinTest1 t1 NATURAL JOIN JoinTest4 t2
-//                //则: on = ((PUBLIC.T1.ID = PUBLIC.T2.ID) AND (PUBLIC.T1.NAME = PUBLIC.T2.NAME))
-//                for (Column tc : tableCols) { //从左边的表开始
-//                    String tableColumnName = tc.getName();
-//                    for (Column c : joinCols) {
-//                        String joinColumnName = c.getName();
-//                        if (equalsToken(tableColumnName, joinColumnName)) {
-//                            join.addNaturalJoinColumn(c);
-//                            Expression tableExpr = new ExpressionColumn(
-//                                    database, tableSchema,
-//                                    last.getTableAlias(), tableColumnName);
-//                            Expression joinExpr = new ExpressionColumn(
-//                                    database, joinSchema, join.getTableAlias(),
-//                                    joinColumnName);
-//                            Expression equal = new Comparison(session,
-//                                    Comparison.EQUAL, tableExpr, joinExpr);
-//                            if (on == null) {
-//                                on = equal;
-//                            } else {
-//                                on = new ConditionAndOr(ConditionAndOr.AND, on,
-//                                        equal);
-//                            }
-//                        }
-//=======
-                for (Column column1 : last.getTable().getColumns()) {
+                //取左边和右边列名相同的列来作为on条件，用等于关系表达式来表示，如果有多个这样的相同列，则用AND拼装
+                //如: SELECT t1.id, t1.b FROM JoinTest1 t1 NATURAL JOIN JoinTest4 t2
+                //则: on = ((PUBLIC.T1.ID = PUBLIC.T2.ID) AND (PUBLIC.T1.NAME = PUBLIC.T2.NAME))
+                for (Column column1 : last.getTable().getColumns()) { //从左边的表开始
                     Column column2 = join.getColumn(last.getColumnName(column1), true);
                     if (column2 != null) {
                         on = addJoinColumn(on, last, join, column1, column2, false);
@@ -3016,21 +2844,6 @@ public class Parser {
                 addJoin(top, join, false, on);
                 break;
             }
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////        }
-////        //当NESTED_JOINS参数为true时下面这条sql的JoinTest2 JOIN JoinTest3就满足这个if条件
-////        //SELECT rownum, * FROM JoinTest1 LEFT OUTER JOIN JoinTest2 JOIN JoinTest3
-////        //因为JoinTest1 LEFT OUTER JOIN JoinTest2会使得nested为true
-////        //相当于:
-////        //JoinTest1.join => TableFilter(SYSTEM_JOIN_xxx).nestedJoin => TableFilter(JoinTest2).join => TableFilter(JoinTest3)
-////        //也就是先算JoinTest2 JOIN JoinTest3(假设结果是R)
-////        //然后JoinTest1再与R进行LEFT OUTER JOIN
-////        if (nested && joined) {
-////            top = getNested(top);
-////=======
-//            last = join;
-//=======
             default:
                 if (expectedList != null) {
                     // FULL is intentionally excluded
@@ -3040,7 +2853,6 @@ public class Parser {
             }
         }
     }
-
 
     private Expression readJoinSpecification(TableFilter filter1, TableFilter filter2, boolean rightJoin) {
         Expression on = null;
@@ -3546,15 +3358,6 @@ public class Parser {
             if (readIf(ASTERISK)) {
                 expressions.add(parseWildcard(null, null));
             } else {
-//<<<<<<< HEAD
-//                Expression expr = readExpression();
-//                //name n1, name as n2都可以
-//                if (readIf("AS") || currentTokenType == IDENTIFIER) {
-//                    String alias = readAliasIdentifier();
-//                    boolean aliasColumnName = database.getSettings().aliasColumnName;
-//                    aliasColumnName |= database.getMode().aliasColumnName;
-//                    expr = new Alias(expr, alias, aliasColumnName);
-//=======
                 switch (currentTokenType) {
                 case FROM:
                 case WHERE:
@@ -3571,7 +3374,7 @@ public class Parser {
                     break;
                 default:
                     Expression expr = readExpression();
-                    if (readIf(AS) || isIdentifier()) {
+                    if (readIf(AS) || isIdentifier()) { //name n1, name as n2都可以
                         expr = new Alias(expr, readIdentifier(), database.getMode().aliasColumnName);
                     }
                     expressions.add(expr);
@@ -4641,9 +4444,7 @@ public class Parser {
     }
 
     private Expression readFunction(Schema schema, String name) {
-//<<<<<<< HEAD
-//    	//只有FunctionAlias也就是JavaFunction才有schema
-//=======
+      	//只有FunctionAlias也就是JavaFunction才有schema
         String upperName = upperName(name);
         if (schema != null) {
             return readFunctionWithSchema(schema, name, upperName);

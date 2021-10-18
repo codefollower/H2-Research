@@ -10,7 +10,7 @@ public class ConditionInSelectTest extends TestBase {
 	//测试org.h2.expression.ConditionInSelect
 	@Override
 	public void startInternal() throws Exception {
-	    stmt.executeUpdate("set BATCH_JOINS true");
+	    //stmt.executeUpdate("set BATCH_JOINS true");
 		stmt.executeUpdate("drop table IF EXISTS ConditionInSelectTest");
 		stmt.executeUpdate("create table IF NOT EXISTS ConditionInSelectTest(id int, name varchar(500))");
 		stmt.executeUpdate("CREATE INDEX IF NOT EXISTS ConditionInSelectTestIndex ON ConditionInSelectTest(name)");
@@ -24,9 +24,10 @@ public class ConditionInSelectTest extends TestBase {
 
 		sql = "delete top 3 from ConditionInSelectTest where id in(select id from ConditionInSelectTest where id=3)";
 		//子查询不能多于1个列
-		//sql = "delete from ConditionInSelectTest where id in(select id,name from ConditionInSelectTest where id=3)";
+		sql = "delete from ConditionInSelectTest where (id,name) in(select id,name from ConditionInSelectTest where id=3)";
+		executeUpdate();
 		sql = "delete from ConditionInSelectTest where id in(select id from ConditionInSelectTest where id>2)";
-
+		executeUpdate();
 		//sql = "delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)";
 		//ANY和SOME一样
 		//sql = "delete from ConditionInSelectTest where id > ANY(select id from ConditionInSelectTest where id>1)";

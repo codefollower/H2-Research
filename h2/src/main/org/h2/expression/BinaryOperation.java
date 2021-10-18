@@ -19,6 +19,7 @@ import org.h2.value.ValueNumeric;
 /**
  * A mathematical expression, or string concatenation.
  */
+// a%2 像这样的取模操作使用MathFunction中的MOD
 public class BinaryOperation extends Operation2 {
 
     public enum OpType {

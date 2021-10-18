@@ -30,10 +30,10 @@ public class SelectTest extends TestBase {
         // parseSelectSimpleFromPart();
         //
 
-        queryFlat();
+        // queryFlat();
         // select_init();
-        queryGroup();
-        // queryGroupSorted();
+        // queryGroup();
+        queryGroupSorted();
         //
         // queryQuick();
         //

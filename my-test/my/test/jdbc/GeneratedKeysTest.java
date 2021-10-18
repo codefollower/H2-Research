@@ -34,7 +34,7 @@ public class GeneratedKeysTest extends TestBase {
         while (rs.next())
             System.out.println(rs.getString(1));
 
-        rs = stmt.executeQuery("SELECT age FROM GeneratedKeysTest");
+        rs = stmt.executeQuery("SELECT age FROM GeneratedKeysTest where age%2=0");
         while (rs.next())
             System.out.println(rs.getString(1));
         rs.close();

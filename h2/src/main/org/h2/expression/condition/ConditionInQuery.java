@@ -65,31 +65,20 @@ public final class ConditionInQuery extends PredicateWithSubquery {
 
     private Value getValue(SessionLocal session, Value left) {
         query.setSession(session);
-//<<<<<<< HEAD
-//        // We need a LocalResult
-//        query.setNeverLazy(true);
-//        // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
-//        // 否则为false，
-//        // 假设表中字段id的值是1到6，这条语句
-//        // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
-//        // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
-//        // 如果改成ANY，那么什么记录都不删
-//        query.setDistinctIfPossible();
-//=======
-//>>>>>>> 5a91cf068195d0e613d30e0e7202a0b05f87f253
+        // 子查询没有记录时，如果是ALL类型的子查询，那么认为条件为true，
+        // 否则为false，
+        // 假设表中字段id的值是1到6，这条语句
+        // delete from ConditionInSelectTest where id > ALL(select id from ConditionInSelectTest where id>10)
+        // 里面的子查询没有值，所以where id<ALL()时都为true，实际上是删除所有记录
+        // 如果改成ANY，那么什么记录都不删
         LocalResult rows = (LocalResult) query.query(0);
         if (!rows.hasNext()) {
-//<<<<<<< HEAD
-//            return ValueBoolean.get(all);
-//        } else if (l.containsNull()) { //如果left是null，那么返回null
-//            return ValueNull.INSTANCE;
-//=======
             return ValueBoolean.get(not ^ all);
         }
         if ((compareType & ~1) == Comparison.EQUAL_NULL_SAFE) {
             return getNullSafeValueSlow(session, rows, left);
         }
-        if (left.containsNull()) {
+        if (left.containsNull()) { //如果left是null，那么返回null
             return ValueNull.INSTANCE;
         }
         if (all || compareType != Comparison.EQUAL || !session.getDatabase().getSettings().optimizeInSelect) {
@@ -112,12 +101,7 @@ public final class ConditionInQuery extends PredicateWithSubquery {
             if (left.getValueType() == Value.ROW) {
                 left = ((ValueRow) left).getList()[0];
             }
-//<<<<<<< HEAD
-//            //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
-//            l = l.convertTo(colType, session, null);
-//            if (rows.containsDistinct(new Value[] { l })) {
-//                return ValueBoolean.TRUE;
-//=======
+            //把left的值转成结果集中第一列的类型，然后判断结果集中是否包含它，返回true
             if (rows.containsDistinct(new Value[] { left })) {
                 return ValueBoolean.get(!not);
             }
@@ -186,9 +170,6 @@ public final class ConditionInQuery extends PredicateWithSubquery {
     public Expression optimize(SessionLocal session) {
         super.optimize(session);
         left = left.optimize(session);
-//<<<<<<< HEAD
-//        return super.optimize(session);
-//
 ////早期的版本ConditionInSelect有下面这个判断
 ////      //如where id in(select id,name from ConditionInSelectTest where id=3)
 ////      //org.h2.jdbc.JdbcSQLException: Subquery is not a single column query
@@ -197,7 +178,6 @@ public final class ConditionInQuery extends PredicateWithSubquery {
 ////      if (query.getColumnCount() != 1) {
 ////          throw DbException.get(ErrorCode.SUBQUERY_IS_NOT_SINGLE_COLUMN);
 ////      }
-//=======
         TypeInfo.checkComparable(left.getType(), query.getRowDataType());
         return this;
     }

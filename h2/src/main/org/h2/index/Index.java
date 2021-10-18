@@ -304,7 +304,7 @@ public abstract class Index extends SchemaObject {
      *
      * @return true if it can
      */
-    public boolean canFindNext() { //只有PageBtreeIndex返回true
+    public boolean canFindNext() { //只有MVSecondaryIndex返回true
         return false;
     }
 
@@ -317,12 +317,9 @@ public abstract class Index extends SchemaObject {
      * @param last the last row, or null for no limit
      * @return the cursor
      */
-//<<<<<<< HEAD
-//    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化(2015-05-06更新: MVSecondaryIndex已支持)
-//    //比如这样的SQL: select distinct name from test
-//    //就算为name字段建立了索引也不行
-//    Cursor findNext(Session session, SearchRow higherThan, SearchRow last); //只有org.h2.index.PageBtreeIndex实现了
-//=======
+    //MVSecondaryIndex还不支持这个方法，所以在Select类中还无法支持DistinctQuery优化(2015-05-06更新: MVSecondaryIndex已支持)
+    //比如这样的SQL: select distinct name from test
+    //就算为name字段建立了索引也不行
     public Cursor findNext(SessionLocal session, SearchRow higherThan, SearchRow last) {
         throw DbException.getInternalError(toString());
     }
@@ -601,39 +598,54 @@ public abstract class Index extends SchemaObject {
      * @param allColumnsSet the set of all columns
      * @return the estimated cost
      */
+    //代价的计算总体上是围绕行数进行的
     protected final long getCostRangeIndex(int[] masks, long rowCount, TableFilter[] filters, int filter,
             SortOrder sortOrder, boolean isScanIndex, AllColumnsForPlan allColumnsSet) {
-        rowCount += Constants.COST_ROW_OFFSET;
+        rowCount += Constants.COST_ROW_OFFSET; //为什么加1000，见MVPrimaryIndex.getCost中的注释或COST_ROW_OFFSET的注释
         int totalSelectivity = 0;
         long rowsCost = rowCount;
         if (masks != null) {
             int i = 0, len = columns.length;
             boolean tryAdditional = false;
+            // masks代表基表所有字段中的那一些用于查询条件了，0表示没有用到
+            // columns是索引字段
             while (i < len) {
                 Column column = columns[i++];
                 int index = column.getColumnId();
                 int mask = masks[index];
+                // 代价比较:
+                // EQUALITY < RANGE < END < START
+                // 如果索引字段列表的第一个字段在Where中是RANGE、START、END，那么索引字段列表中的其他字段就不需要再计算cost了，
+                // 如果是EQUALITY，则还可以继续计算cost，rows变量的值会变小，cost也会变小
+                // 这里为什么不直接用(mask == IndexCondition.EQUALITY)？
+                // 因为id=40 AND id>30会生成两个索引条件，
+                //在org.h2.table.TableFilter.getBestPlanItem中合成一个mask为3(IndexCondition.EQUALITY|IndexCondition.START)
                 if ((mask & IndexCondition.EQUALITY) == IndexCondition.EQUALITY) {
+                    // 索引字段列表中的最后一个在where当中是EQUALITY，且此索引是唯一索引时，cost直接是3
+                    // 因为如果最后一个索引字段是EQUALITY，说明前面的字段全是EQUALITY，
+                    // 如果是唯一索引则rowCount / distinctRows是1，所以rows = Math.max(rowCount / distinctRows, 1)=1
+                    // 所以cost = 2 + rows = 3
                     if (i > 0 && i == uniqueColumnColumn) {
                         rowsCost = 3;
                         break;
                     }
                     totalSelectivity = 100 - ((100 - totalSelectivity) *
                             (100 - column.getSelectivity()) / 100);
-                    long distinctRows = rowCount * totalSelectivity / 100;
+                    long distinctRows = rowCount * totalSelectivity / 100; //totalSelectivity变大时distinctRows变大
                     if (distinctRows <= 0) {
                         distinctRows = 1;
-                    }
+                    } 
+                    //distinctRows变大，则rowCount / distinctRows变小，rows也变小，所以cost也变小
                     rowsCost = 2 + Math.max(rowCount / distinctRows, 1);
-                } else if ((mask & IndexCondition.RANGE) == IndexCondition.RANGE) {
-                    rowsCost = 2 + rowsCost / 4;
+                } else if ((mask & IndexCondition.RANGE) == IndexCondition.RANGE) { //见TableFilter.getBestPlanItem中的注释
+                    rowsCost = 2 + rowsCost / 4; //rows开始时加了1000，所以rows / 4总是大于1的
                     tryAdditional = true;
                     break;
                 } else if ((mask & IndexCondition.START) == IndexCondition.START) {
                     rowsCost = 2 + rowsCost / 3;
                     tryAdditional = true;
                     break;
-                } else if ((mask & IndexCondition.END) == IndexCondition.END) {
+                } else if ((mask & IndexCondition.END) == IndexCondition.END) { //"<="的代价要小于">="
                     rowsCost = rowsCost / 3;
                     tryAdditional = true;
                     break;
@@ -662,6 +674,8 @@ public abstract class Index extends SchemaObject {
         if (sortOrder != null) {
             sortingCost = 100 + rowCount / 10;
         }
+        // order by中的字段和排序方式与索引字段相同时，cost再减去排序字段个数
+        // 注意：排序字段个数不管比索引字段个数多还是少都是没问题的，这里只是尽量匹配
         if (sortOrder != null && !isScanIndex) {
             boolean sortOrderMatches = true;
             int coveringCount = 0;

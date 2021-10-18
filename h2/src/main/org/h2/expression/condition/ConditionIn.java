@@ -47,13 +47,7 @@ public final class ConditionIn extends Condition {
     }
 
     @Override
-//<<<<<<< HEAD
-//    public Value getValue(Session session) { //每行记录都要调用此方法判断一下
-//        Value l = left.getValue(session); //如果left是字段，这里就会取这个字段在当前记录中的字段值
-//        if (l.containsNull()) {
-//            return ValueNull.INSTANCE;
-//=======
-    public Value getValue(SessionLocal session) {
+    public Value getValue(SessionLocal session) { //每行记录都要调用此方法判断一下
         return getValue(session, left.getValue(session));
     }
 
@@ -128,10 +122,6 @@ public final class ConditionIn extends Condition {
             }
             valueList.set(i, e);
         }
-//<<<<<<< HEAD:h2/src/main/org/h2/expression/ConditionIn.java
-//        //如delete from ConditionInTest where 2 in(1,2)
-//        //直接返回true值
-//=======
         return optimize2(session, constant, allValuesConstant, allValuesNull, valueList);
     }
 

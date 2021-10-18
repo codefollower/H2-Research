@@ -162,6 +162,7 @@ public abstract class Expression implements HasSQL, Typed {
      */
     //这个方法的目的就是给org.h2.expression.ExpressionColumn中的evaluatable字段赋值
     //除ExpressionColumn外其他子类的实现都是充当一个传递者的角色
+    //2021-09-13 更新: ExpressionColumn中的evaluatable字段已经删除，这个方法已经无用了
     public abstract void setEvaluatable(TableFilter tableFilter, boolean value);
 
     @Override

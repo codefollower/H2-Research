@@ -50,12 +50,6 @@ public final class ExpressionColumn extends Expression {
     private ColumnResolver columnResolver;
     private int queryLevel;
     private Column column;
-//<<<<<<< HEAD
-//    private boolean evaluatable;
-//    
-//    private Select select; //我加上的
-//=======
-//>>>>>>> d9a7cf0dcb563abb69ed313f35cdebfebe544674
 
     /**
      * Creates a new column reference for metadata of queries; should not be
@@ -229,26 +223,6 @@ public final class ExpressionColumn extends Expression {
                     return constant.getValue(); //对于常量字段的优化是直接返回ValueExpression
                 }
             }
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////            //我加上的
-//////            if (select != null) {
-//////                for (Expression e : select.getExpressions()) {
-//////                    if (database.equalsIdentifiers(columnName, e.getAlias()))
-//////                        return e.getNonAliasExpression().optimize(session);
-//////                }
-//////            }
-////            String name = columnName;
-////            if (tableAlias != null) {
-////                name = tableAlias + "." + name;
-////                if (schemaName != null) {
-////                    name = schemaName + "." + name;
-////                }
-////            }
-////            throw DbException.get(ErrorCode.COLUMN_NOT_FOUND_1, name);
-////=======
-//            throw getColumnException(ErrorCode.COLUMN_NOT_FOUND_1);
-//=======
             return optimizeOther();
         }
         return columnResolver.optimize(this, column);

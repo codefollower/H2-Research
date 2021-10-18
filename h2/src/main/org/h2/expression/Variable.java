@@ -14,26 +14,18 @@ import org.h2.value.Value;
 /**
  * A user-defined variable, for example: @ID.
  */
-//<<<<<<< HEAD
-//public class Variable extends Expression {
-//    // 对于如下语句:
-//    // SET @topVariableName=3
-//    // select @topVariableName
-//    // select @nullVariableName //不存在的变量名，此时值为ValueNull.INSTANCE
-//    // 字段name和lastValue分别是
-//    // topVariableName, 3
-//    // nullVariableName, ValueNull.INSTANCE
-//    private final String name;
-//    private Value lastValue;
-//    
-//    //只看到在org.h2.command.Parser.readTerm()中使用
-//    public Variable(Session session, String name) {
-//=======
 public final class Variable extends Operation0 {
-
+    // 对于如下语句:
+    // SET @topVariableName=3
+    // select @topVariableName
+    // select @nullVariableName //不存在的变量名，此时值为ValueNull.INSTANCE
+    // 字段name和lastValue分别是
+    // topVariableName, 3
+    // nullVariableName, ValueNull.INSTANCE
     private final String name;
     private Value lastValue;
 
+    // 只看到在org.h2.command.Parser.readTerm()中使用
     public Variable(SessionLocal session, String name) {
         this.name = name;
         lastValue = session.getVariable(name);
@@ -44,7 +36,6 @@ public final class Variable extends Operation0 {
         return 0;
     }
 
-    @Override
 //<<<<<<< HEAD
 //    public StringBuilder getSQL(StringBuilder builder, boolean alwaysQuote) {
 //        builder.append('@');
@@ -52,6 +43,7 @@ public final class Variable extends Operation0 {
 //        // 这时就不必要再重新构造一个加引号的字符串
 //        return Parser.quoteIdentifier(builder, name, alwaysQuote);
 //=======
+    @Override
     public StringBuilder getUnenclosedSQL(StringBuilder builder, int sqlFlags) {
         return ParserUtil.quoteIdentifier(builder.append('@'), name, sqlFlags);
     }

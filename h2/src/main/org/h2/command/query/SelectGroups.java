@@ -79,18 +79,13 @@ public abstract class SelectGroups {
 
         @Override
         public void nextSource() {
-//<<<<<<< HEAD
-//            //聚合函数的情形
-//            if (groupIndex == null) { //如select count(id) from mytable where id>0时groupIndex=null
-//                currentGroupsKey = ValueArray.getEmpty();
-//            } else { //group by、having的情形
-//                //按当前行，抽取group by字段列表的值，组合成一个key
-//                //例如group by id,name，那么先按id的字段下标从当前行中取出值，放到keyValues[0]中，
-//                //然后取出name字段的值放到keyValues[1]中。
-//=======
-            if (groupIndex == null) {
+            //聚合函数的情形
+            if (groupIndex == null) { //如select count(id) from mytable where id>0时groupIndex=null
                 currentGroupsKey = ValueRow.EMPTY;
-            } else {
+            } else { //group by、having的情形
+                // 按当前行，抽取group by字段列表的值，组合成一个key
+                // 例如group by id,name，那么先按id的字段下标从当前行中取出值，放到keyValues[0]中，
+                // 然后取出name字段的值放到keyValues[1]中。
                 Value[] keyValues = new Value[groupIndex.length];
                 // update group
                 for (int i = 0; i < groupIndex.length; i++) {

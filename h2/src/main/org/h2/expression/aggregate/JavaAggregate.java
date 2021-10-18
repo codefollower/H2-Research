@@ -102,18 +102,7 @@ public class JavaAggregate extends AbstractAggregate {
         return this;
     }
 
-//<<<<<<< HEAD
-//    @Override
-//    public void setEvaluatable(TableFilter tableFilter, boolean b) {
-//        for (Expression e : args) {
-//            e.setEvaluatable(tableFilter, b);
-//        }
-//        super.setEvaluatable(tableFilter, b);
-//    }
-//
-//    //调用了两次，一次在optimize，另一次在updateAggregate
-//=======
-//>>>>>>> 6fde1368b355273493c128809eef768e74e2cd1a
+    //调用了两次，一次在optimize，另一次在updateAggregate
     private Aggregate getInstance() {
         Aggregate agg = userAggregate.getInstance();
         try {
