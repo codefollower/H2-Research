@@ -140,5 +140,8 @@ public class JoinTest extends TestBase {
         executeQuery();
         sql = "SELECT rownum, * EXCEPT(id2) FROM JoinTest1 JOIN JoinTest2 on id2>80 WHERE id=20";
         executeQuery();
+
+        sql = "SELECT * FROM JoinTest1 JOIN (JoinTest2 JOIN JoinTest3);";
+        executeQuery();
     }
 }

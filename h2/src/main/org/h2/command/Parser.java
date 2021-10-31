@@ -3027,31 +3027,6 @@ public class Parser {
         command.init();
         return command;
     }
-//<<<<<<< HEAD
-//    
-//    /*
-//		对于简单的sql，如select name1 from mytable1 order by name1
-//		parseSelectSub()负责解析select name1 from mytable1
-//		parseSelectUnionExtension负责解析 order by name1
-//		
-//		如果union sql是select name1 from mytable1 union select name2 from mytable2 order by name1
-//		parseSelectSub()负责解析select name1 from mytable1
-//		parseSelectUnionExtension负责解析 union select name2 from mytable2 order by name1
-//	*/
-//    private Query parseSelectUnion() {
-//        int start = lastParseIndex;
-//        Query command = parseSelectSub();
-//        return parseSelectUnionExtension(command, start, false);
-//    }
-//    //只有在parseSelectUnion中调用，unionOnly总为false
-//    private Query parseSelectUnionExtension(Query command, int start,
-//            boolean unionOnly) {
-//        while (true) {
-//            if (readIf("UNION")) {
-//                SelectUnion union = new SelectUnion(session, command);
-//                if (readIf("ALL")) {
-//                    union.setUnionType(SelectUnion.UNION_ALL);
-//=======
 
     private Prepared parseWithStatementOrQuery(int start) {
         int paramIndex = parameters.size();
@@ -3072,7 +3047,7 @@ public class Parser {
 
     private Query parseSelectUnion() {
         int start = lastParseIndex;
-        Query command = parseQuerySub();
+        Query command = parseQuerySub(); //解析简单的sql，如select name1 from mytable1 order by name1
         for (;;) {
             SelectUnion.UnionType type;
             if (readIf(UNION)) {
@@ -3091,14 +3066,8 @@ public class Parser {
             }
             command = new SelectUnion(session, type, command, parseQuerySub());
         }
-//<<<<<<< HEAD
-//        if (!unionOnly) {
-//            parseEndOfQuery(command);
-//        }
-//        setSQL(command, null, start); //得到完整的sql
-//=======
         parseEndOfQuery(command);
-        setSQL(command, start);
+        setSQL(command, start); //得到完整的sql
         return command;
     }
     
@@ -3227,14 +3196,8 @@ public class Parser {
         }
     }
 
-//<<<<<<< HEAD
-//    private Query parseSelectSub() {
-////<<<<<<< HEAD
-////        if (readIf("(")) { //在parsePrepared()中没有readIf，所以当前token是"("、from、select之一
-////=======
-//=======
     private Query parseQuerySub() {
-        if (readIf(OPEN_PAREN)) {
+        if (readIf(OPEN_PAREN)) { //在parsePrepared()中没有readIf，所以当前token是"("、from、select之一
             Query command = parseSelectUnion();
             read(CLOSE_PAREN);
             return command;
@@ -3251,7 +3214,7 @@ public class Parser {
             query.setNeverLazy(true);
             return query;
         }
-        int start = lastParseIndex;
+        int start = lastParseIndex; //"SELECT"之后的第一个字符的位置，通常是空格
         if (readIf(SELECT)) {
             return parseSelect(start);
         } else if (readIf(TABLE)) {
@@ -3383,65 +3346,24 @@ public class Parser {
         } while (readIf(COMMA));
         command.setExpressions(expressions);
     }
-//<<<<<<< HEAD
-//    
-//    //只处理SELECT语句中的from、Select Expression、where、group by、having子句
-//    //从这里也看出LIMIT、order by、FOR UPDATE必须出现在where、group by、having子句后面
-//    private Query parseSelectSimple() {
-//        boolean fromFirst;
-//        if (readIf(SELECT)) {
-//            fromFirst = false;
-//        } else if (readIf(FROM)) { //支持from ... select ...语法
-//            fromFirst = true;
-//        } else if (readIf(TABLE)) {
-//            int start = lastParseIndex;
-//            Table table = readTableOrView();
-//            Select command = new Select(session, currentSelect);
-//            TableFilter filter = new TableFilter(session, table, null, rightsChecked,
-//                    command, orderInFrom++, null);
-//            command.addTableFilter(filter, true);
-//            command.setExplicitTable();
-//            setSQL(command, "TABLE", start);
-//            return command;
-//        } else if (readIf(VALUES)) {
-//            return parseValues();
-//        } else {
-//            throw getSyntaxError();
-//        }
-//        Select command = new Select(session, currentSelect);
-//        int start = lastParseIndex; //"SELECT"之后的第一个字符的位置，通常是空格
-//        //例如"SELECT name FROM t1 WHERE id in (SELECT id from t2)"
-//        //当解析到(SELECT id from t2)时，此时的currentSelect就是外层的SELECT name FROM t1
-//=======
 
+    // 只处理SELECT语句中的from、Select Expression、where、group by、having子句
+    // 从这里也看出LIMIT、order by、FOR UPDATE必须出现在where、group by、having子句后面
     private Select parseSelect(int start) {
+        // 例如"SELECT name FROM t1 WHERE id in (SELECT id from t2)"
+        // 当解析到(SELECT id from t2)时，此时的currentSelect就是外层的SELECT name FROM t1
         Select command = new Select(session, currentSelect);
         Select oldSelect = currentSelect;
         Prepared oldPrepared = currentPrepared;
         currentSelect = command;
         currentPrepared = command;
         parseSelectExpressions(command);
-        if (!readIf(FROM)) {
+        if (!readIf(FROM)) { //没有from，如"select 2"
             // select without FROM
             TableFilter filter = new TableFilter(session, new DualTable(database), null, rightsChecked,
                     currentSelect, 0, null);
             command.addTableFilter(filter, true);
         } else {
-//<<<<<<< HEAD
-//            parseSelectSimpleSelectPart(command);
-//            //没有from，如"select 2"
-//            if (!readIf(FROM)) {
-//                // select without FROM: convert to SELECT ... FROM
-//                // SYSTEM_RANGE(1,1)
-//                Table dual = getDualTable(false);
-//                TableFilter filter = new TableFilter(session, dual, null,
-//                        rightsChecked, currentSelect, 0,
-//                        null);
-//                command.addTableFilter(filter, true);
-//            } else {
-//                parseSelectSimpleFromPart(command);
-//            }
-//=======
             parseSelectFromPart(command);
         }
         //下面代码处理where、group by、having子句

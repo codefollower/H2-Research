@@ -35,6 +35,8 @@ import org.h2.value.Value;
 /**
  * Table value constructor.
  */
+//例如: SELECT * FROM VALUES(1, 'Hello'), (2, 'World') //不会执行prepare、query
+//或者: VALUES(1, 'Hello'), (2, 'World') //会执行prepare、query
 public class TableValueConstructor extends Query {
 
     private final ArrayList<ArrayList<Expression>> rows;

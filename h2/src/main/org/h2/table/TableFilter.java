@@ -144,6 +144,7 @@ public class TableFilter implements ColumnResolver {
     //单表时fullCondition虽然不为null，但是没有用处，单表时filterCondition为null，
     //除非把EARLY_FILTER参数设为true，这样filterCondition就不为null了，在next中就过滤掉行，
     //如果filterCondition计算是true的话，在Select类的queryXXX方法中又计算一次condition
+    //2021-10-21更新：EARLY_FILTER参数在新版本中已经删除
     private Expression fullCondition;
     private final int hashCode;
     private final int orderInFrom;
