@@ -19,7 +19,7 @@
 
 ### 运行或调试H2
 
-* 右击 /h2-research/my-test/my/test/MyServer.java 文件，点Run As或Debug As -> Java Application
+* 右击 /h2-research/my-test/my/test/MyH2Server.java 文件，点Run As或Debug As -> Java Application
 
 * 如果出现"TCP server running ..."这样的提示就ok啦
 

@@ -95,12 +95,11 @@ public class ConstraintCheck extends Constraint {
         if (newRow == null) {
             return;
         }
-        filter.set(newRow); //为了在expr.getValue能取到当前newRow
         boolean b;
         try {
             Value v;
             synchronized (this) {
-                filter.set(newRow);
+                filter.set(newRow); //为了在expr.getValue能取到当前newRow
                 v = expr.getValue(session);
             }
             // Both TRUE and NULL are ok

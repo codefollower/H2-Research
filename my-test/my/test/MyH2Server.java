@@ -19,11 +19,14 @@ public class MyH2Server {
         //list.add("-help");
         //list.add("-webXXXX"); //测试showUsageAndThrowUnsupportedOption
 
-        //
-        // list.add("-tcp");
-        // list.add("-tcpPort");
-        // list.add("9092");
+        list.add("-tcp");
+        list.add("-tcpPort");
+        list.add("9092");
 
+        list.add("-pg");
+        list.add("-pgPort");
+        list.add("9511");
+        
         // 测试org.h2.server.TcpServer.checkKeyAndGetDatabaseName(String)
         // list.add("-key");
         // list.add("mydb");
@@ -33,7 +36,7 @@ public class MyH2Server {
         // list.add("-browser");
         
         // list.add("-pg");
-        list.add("-tcp");
+        // list.add("-tcp");
         // list.add("-web");
         // list.add("-ifExists");
         list.add("-ifNotExists");

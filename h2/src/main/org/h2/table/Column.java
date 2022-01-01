@@ -360,40 +360,6 @@ public final class Column implements HasSQL, Typed, ColumnTemplate {
                     value = session.getNextValueFor(sequence, null);
                     break check;
                 }
-//<<<<<<< HEAD
-//                value = ValueNull.INSTANCE;
-//            } else {
-//                if (isGenerated) {
-//                    synchronized (this) {
-//                        generatedTableFilter.set(row);
-//                        try {
-//                            value = localDefaultExpression.getValue(session);
-//                        } finally {
-//                            generatedTableFilter.set(null);
-//                        }
-//                    }
-//                } else {
-//                    value = localDefaultExpression.getValue(session);
-//                }
-//                if (value == ValueNull.INSTANCE && !nullable) {
-//                    throw DbException.get(ErrorCode.NULL_NOT_ALLOWED, name);
-//                }
-//                addKey = true;
-//            }
-////<<<<<<< HEAD
-////        }
-////        if (value == ValueNull.INSTANCE) {
-//////<<<<<<< HEAD
-//////            // if (convertNullToDefault) { //有bug，见my.test.bugs.ColumnBugTest
-//////            if (convertNullToDefault && localDefaultExpression != null) {
-//////                value = localDefaultExpression.getValue(session).convertTo(type);
-//////=======
-////=======
-//        } else if (value == ValueNull.INSTANCE) {
-//            if (convertNullToDefault) {
-//                value = localDefaultExpression.getValue(session);
-//                addKey = true;
-//=======
                 value = getDefaultOrGenerated(session, row);
             }
             if (value == ValueNull.INSTANCE && !nullable) {

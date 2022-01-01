@@ -472,8 +472,8 @@ public class Shell extends Tool implements Runnable {
                     printResult(rs, listMode);
                 } else if (stat.execute(sql)) {
                     rs = stat.getResultSet();
-                    int rowCount = printResult(rs, listMode);
                     time = System.nanoTime() - time;
+                    int rowCount = printResult(rs, listMode);
                     println("(" + rowCount + (rowCount == 1 ?
                             " row, " : " rows, ") + TimeUnit.NANOSECONDS.toMillis(time) + " ms)");
                 } else {
@@ -496,6 +496,7 @@ public class Shell extends Tool implements Runnable {
                 e.printStackTrace(err);
             }
         }
+        out.println();
     }
 
     private int printResult(ResultSet rs, boolean asList) throws SQLException {
