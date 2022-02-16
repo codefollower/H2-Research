@@ -44,7 +44,7 @@
     <junit.version>5.5.2</junit.version>
     <lucene.version>8.2.0</lucene.version>
     <osgi.version>5.0.0</osgi.version>
-    <pgjdbc.version>42.2.8</pgjdbc.version>
+    <pgjdbc.version>42.3.3</pgjdbc.version>
     <servlet.version>4.0.1</servlet.version>
     <slf4j.version>1.7.28</slf4j.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
