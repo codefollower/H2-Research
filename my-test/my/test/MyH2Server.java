@@ -20,31 +20,33 @@ public class MyH2Server {
         //list.add("-webXXXX"); //测试showUsageAndThrowUnsupportedOption
 
         list.add("-tcp");
-        list.add("-tcpPort");
-        list.add("9092");
-
-        list.add("-pg");
-        list.add("-pgPort");
-        list.add("9511");
+//        list.add("-tcpPort");
+//        list.add("9092");
+//
+//        list.add("-pg");
+//        list.add("-pgPort");
+//        list.add("9511");
         
         // 测试org.h2.server.TcpServer.checkKeyAndGetDatabaseName(String)
         // list.add("-key");
         // list.add("mydb");
         // list.add("mydatabase");
 
-
-        // list.add("-browser");
+//
+//         list.add("-browser");
         
         // list.add("-pg");
         // list.add("-tcp");
-        // list.add("-web");
+         list.add("-web");
+         list.add("-baseDir");
+         list.add("E:/devCode/H2-Research");
         // list.add("-ifExists");
-        list.add("-ifNotExists");
-        list.add("-tcpAllowOthers");
-        list.add("-tcpPassword");
-        list.add("aaa");
-        list.add("-webAdminPassword");
-        list.add("aaa");
+//        list.add("-ifNotExists");
+//        list.add("-tcpAllowOthers");
+//        list.add("-tcpPassword");
+//        list.add("aaa");
+//        list.add("-webAdminPassword");
+//        list.add("aaa");
         org.h2.tools.Server.main(list.toArray(new String[list.size()]));
     }
 }
