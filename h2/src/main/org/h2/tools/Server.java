@@ -122,6 +122,7 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
         new Server().runTool(args);
     }
 
+    // 验证参数
     private void verifyArgs(String... args) throws SQLException {
         for (int i = 0; args != null && i < args.length; i++) {
             String arg = args[i];
@@ -301,7 +302,7 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
             }
         }
         verifyArgs(args);
-        if (startDefaultServers) {
+        if (startDefaultServers) { // 如果没有设置启动服务类型，则所有的类型都会启动
             tcpStart = true;
             pgStart = true;
             webStart = true;
