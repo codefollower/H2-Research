@@ -1,0 +1,7 @@
+1.服务跑起来需要配置maven安装路径及对应的settings文件
+2.测试文件参考MyH2Server.java, 添加baseDir参数,设置路径参数及值
+list.add("-web");
+list.add("-baseDir");
+list.add("E:/devCode/H2-Research");
+
+3.页面console中要添加以baseDir为父路径的数据库地址，即JDBC URL:jdbc:h2:E:/devCode/H2-Research/test

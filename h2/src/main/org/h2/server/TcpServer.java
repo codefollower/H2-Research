@@ -173,7 +173,7 @@ public class TcpServer implements Service {
     }
 
     @Override
-    public void init(String... args) {
+    public void init(String... args) { // Server 创建Service后初始化参数
         port = Constants.DEFAULT_TCP_PORT;
         for (int i = 0; args != null && i < args.length; i++) {
             String a = args[i];

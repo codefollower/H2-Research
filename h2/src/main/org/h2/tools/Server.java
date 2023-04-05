@@ -122,6 +122,7 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
         new Server().runTool(args);
     }
 
+    // 验证参数
     private void verifyArgs(String... args) throws SQLException {
         for (int i = 0; args != null && i < args.length; i++) {
             String arg = args[i];
@@ -301,7 +302,7 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
             }
         }
         verifyArgs(args);
-        if (startDefaultServers) {
+        if (startDefaultServers) { // 如果没有设置启动服务类型，则所有的类型都会启动
             tcpStart = true;
             pgStart = true;
             webStart = true;
@@ -315,10 +316,11 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
         }
         try {
             if (tcpStart) {
-                tcp = createTcpServer(args);
-                tcp.start();
-                out.println(tcp.getStatus());
-                tcp.setShutdownHandler(this);
+                tcp = createTcpServer(args); // 创建服务
+                tcp.start(); // 启动服务
+                out.println(tcp.getStatus());  //打印服务状态
+                tcp.setShutdownHandler(this); // 设置关闭处理函数？在创建Tcp已经塞了一次，为什么外边又要塞一次？有单独调用CreateTcpServer方法的地方，怕遗漏？
+                // 或者赛入的不是同一个Server？
             }
             if (pgStart) {
                 pg = createPgServer(args);
@@ -470,9 +472,9 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
      * @return the server
      */
     public static Server createTcpServer(String... args) throws SQLException {
-        TcpServer service = new TcpServer();
-        Server server = new Server(service, args);
-        service.setShutdownHandler(server);
+        TcpServer tcpServer = new TcpServer(); // 创建一个服务
+        Server server = new Server(tcpServer, args); // 作为当前执行线程参数传入进入
+        tcpServer.setShutdownHandler(server); // 服务的关闭处理服务，为当前执行线程
         return server;
     }
 
@@ -505,10 +507,10 @@ public class Server extends Tool implements Runnable, ShutdownHandler {
      * @return the server if successful
      * @throws SQLException if the server could not be started
      */
-    public Server start() throws SQLException {
+    public Server start() throws SQLException { // 服务启动入口
         try {
             started = true;
-            service.start();
+            service.start(); // 各个实现Service的Start方法，比如TcpServer.start()、WebServer.start()
             String url = service.getURL();
             int idx = url.indexOf('?');
             if (idx >= 0) {
